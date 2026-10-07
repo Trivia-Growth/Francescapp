@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#879257">
+  <meta name="description" content="Proposta navegável do Diário integrado do cuidado para Francescato Family Case Management.">
+  <title>Diário integrado do cuidado — proposta para Edilaine</title>
+  <style>
+    @font-face{font-family:Raleway;src:url('../mockup/assets/raleway.ttf') format('truetype');font-display:swap}
+    @font-face{font-family:Cormorant;src:url('../mockup/assets/cormorant-garamond.ttf') format('truetype');font-display:swap}
+    :root{--olive:#879257;--deep:#465336;--lime:#aeba7b;--sand:#e3ccb0;--brown:#6f604b;--ink:#283126;--muted:#62705d;--line:#dce3d3;--paper:#fffefa;--wash:#f6f8f1;--sky:#edf3f7;--rose:#f6e7e8;--content:1170px}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:88px}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.62 Raleway,Arial,sans-serif}::selection{background:#dbe5c7;color:var(--ink)}a{color:inherit;text-decoration-thickness:1px;text-underline-offset:4px}button,a{font:inherit}button{cursor:pointer}button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--olive);outline-offset:4px}.skip{position:fixed;left:18px;top:-80px;padding:12px 16px;background:var(--deep);color:#fff;z-index:5}.skip:focus{top:18px}.shell{max-width:var(--content);margin:auto;padding:0 34px}.top{position:sticky;top:0;z-index:3;background:color-mix(in srgb,var(--paper) 95%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}.top-inner{height:78px;display:flex;align-items:center;justify-content:space-between;gap:24px}.brand{display:flex;align-items:center;gap:10px;text-decoration:none;white-space:nowrap}.brand svg{width:34px;height:40px;color:var(--olive)}.brand strong{display:block;font:600 27px/.85 Cormorant,Georgia,serif;letter-spacing:-.04em}.brand small{display:block;margin-top:6px;color:var(--brown);font-size:11px;letter-spacing:.04em}.top nav{display:flex;align-items:center;gap:21px}.top nav a{font-size:13px;color:var(--muted);text-decoration:none}.top nav a:hover{color:var(--deep)}.top nav .solid,.top nav .solid:hover{color:#fff}.outline,.solid{display:inline-flex;align-items:center;justify-content:center;gap:9px;border-radius:8px;padding:11px 16px;font-weight:700;font-size:14px;text-decoration:none;border:1px solid var(--deep);transition:transform .18s ease,background .18s ease}.solid{background:var(--deep);color:#fff}.solid:hover{background:#344027;transform:translateY(-1px)}.outline{background:transparent;color:var(--deep)}.outline:hover{background:var(--wash)}main{padding-bottom:92px}.hero{padding:86px 0 70px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:minmax(0,1.25fr) minmax(290px,.75fr);gap:70px;align-items:end}.hero h1{font:500 clamp(56px,7vw,92px)/.91 Cormorant,Georgia,serif;letter-spacing:-.055em;margin:0;max-width:10ch}.hero .lead{font-size:19px;line-height:1.66;max-width:56ch;margin:26px 0 30px;color:#44503e}.hero-actions{display:flex;flex-wrap:wrap;gap:12px}.fact-sheet{border-top:2px solid var(--deep);padding-top:18px}.fact-sheet h2{font:500 31px/1.08 Cormorant,Georgia,serif;letter-spacing:-.025em;margin:0 0 12px}.fact-sheet p{color:var(--muted);margin:0 0 18px}.case-note{display:grid;grid-template-columns:42px 1fr;gap:13px;padding:15px 0;border-top:1px solid var(--line)}.case-note:first-of-type{border-top:0}.case-note b{display:flex;align-items:center;justify-content:center;width:34px;height:34px;background:var(--wash);border-radius:50%;font-size:12px;color:var(--deep)}.case-note strong{display:block;font-size:14px}.case-note span{display:block;margin-top:2px;color:var(--muted);font-size:13px;line-height:1.5}.intro{max-width:790px;padding:90px 0 58px}.intro h2,.section-title{font:500 clamp(37px,4vw,55px)/1.04 Cormorant,Georgia,serif;letter-spacing:-.04em;margin:0}.intro p{font-size:19px;line-height:1.7;margin:22px 0 0;color:#475344}.marker{color:var(--brown);font-weight:700;font-size:13px}.sequence{margin:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:0;list-style:none;counter-reset:step}.sequence li{counter-increment:step;display:grid;grid-template-columns:66px minmax(0,1fr) minmax(150px,.5fr);gap:24px;padding:28px 0;border-top:1px solid var(--line);align-items:start}.sequence li:first-child{border-top:0}.sequence li::before{content:"0" counter(step);font:500 37px/1 Cormorant,Georgia,serif;color:var(--olive)}.sequence h3{font-size:18px;margin:1px 0 6px}.sequence p{margin:0;color:var(--muted);font-size:15px}.sequence em{font-style:normal;font-size:14px;line-height:1.5;color:var(--brown)}.section{padding:90px 0}.section.soft{background:var(--wash);margin:0 calc((var(--content) - 100vw)/2);padding-left:calc((100vw - min(100vw,var(--content)))/2 + 34px);padding-right:calc((100vw - min(100vw,var(--content)))/2 + 34px)}.section-head{display:flex;justify-content:space-between;align-items:end;gap:30px;margin-bottom:37px}.section-head p{max-width:440px;color:var(--muted);margin:0;font-size:16px}.capabilities{display:grid;grid-template-columns:240px minmax(0,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.cap-tabs{padding:12px 0;border-right:1px solid var(--line)}.cap-tabs button{display:block;width:100%;background:transparent;border:0;border-left:3px solid transparent;padding:14px 18px;text-align:left;color:var(--muted);font-weight:700;font-size:15px}.cap-tabs button[aria-selected="true"]{border-left-color:var(--olive);color:var(--deep);background:#fbfcf8}.cap-panel{padding:27px 32px;min-height:265px}.cap-panel[hidden]{display:none}.cap-panel h3{font:500 35px/1.05 Cormorant,Georgia,serif;letter-spacing:-.03em;margin:0 0 12px}.cap-panel p{font-size:17px;max-width:60ch;margin:0;color:#46503f}.cap-proof{display:flex;flex-wrap:wrap;gap:9px;margin-top:24px}.cap-proof span{padding:6px 10px;border-radius:999px;background:#edf1e5;color:#4d5c3b;font-size:13px}.profiles{border-top:1px solid var(--line)}.profile{display:grid;grid-template-columns:180px minmax(0,1fr) 160px;gap:24px;border-bottom:1px solid var(--line);padding:26px 0;align-items:start}.profile h3{font:500 29px/1 Cormorant,Georgia,serif;letter-spacing:-.025em;margin:0}.profile p{margin:0;color:var(--muted);max-width:58ch}.profile span{font-size:13px;color:var(--brown);line-height:1.45}.workbench{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:52px;align-items:start}.workbench .section-title{max-width:12ch}.decision-list{margin:30px 0 0;padding:0;list-style:none;border-top:1px solid var(--line)}.decision-list li{padding:17px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:13px}.decision-list i{display:block;width:12px;height:12px;border:1.5px solid var(--olive);border-radius:50%;flex:0 0 auto}.decision-list strong{font-size:15px}.decision-list span{font-size:14px;color:var(--muted);margin-left:auto;text-align:right}.decision-list li:first-child i{background:var(--olive)}.pilot-note{padding:26px;background:#fff;border:1px solid var(--line);border-radius:14px}.pilot-note h3{font:500 31px/1.05 Cormorant,Georgia,serif;letter-spacing:-.025em;margin:0 0 13px}.pilot-note p{font-size:15px;color:var(--muted);margin:0 0 18px}.pilot-note dl{margin:0}.pilot-note div{border-top:1px solid var(--line);padding:12px 0}.pilot-note dt{font-weight:700;font-size:14px}.pilot-note dd{font-size:14px;color:var(--muted);margin:3px 0 0}.questions{border-top:1px solid var(--line);margin-top:42px}.questions details{border-bottom:1px solid var(--line);padding:17px 0}.questions summary{cursor:pointer;color:var(--deep);font-weight:700;font-size:16px}.questions p{max-width:68ch;margin:11px 0 0;color:var(--muted)}.close{margin-top:88px;padding:55px 0 0;border-top:2px solid var(--deep);display:flex;justify-content:space-between;align-items:end;gap:28px}.close h2{font:500 clamp(38px,5vw,61px)/.97 Cormorant,Georgia,serif;letter-spacing:-.045em;margin:0;max-width:12ch}.close p{max-width:490px;margin:17px 0 0;font-size:17px;color:var(--muted)}.footer{border-top:1px solid var(--line);padding:24px 0 42px;color:var(--muted);font-size:13px}.footer .shell{display:flex;justify-content:space-between;gap:20px}.print{appearance:none;border:0;background:transparent;color:var(--brown);text-decoration:underline;text-underline-offset:4px;padding:0;font-size:13px}.arrow{font-size:18px;line-height:1}
+    @media(max-width:780px){.shell{padding:0 22px}.top-inner{height:70px}.top nav{display:none}.brand strong{font-size:24px}.hero{padding:57px 0 52px;grid-template-columns:1fr;gap:45px}.hero h1{font-size:58px}.hero .lead{font-size:18px}.intro,.section{padding:64px 0}.section.soft{margin:0;padding:64px 22px}.sequence li{grid-template-columns:45px 1fr;gap:15px;padding:22px 0}.sequence em{grid-column:2}.section-head{display:block;margin-bottom:26px}.section-head p{margin-top:17px}.capabilities{grid-template-columns:1fr}.cap-tabs{display:flex;overflow:auto;border-right:0;border-bottom:1px solid var(--line);padding:0}.cap-tabs button{white-space:nowrap;width:auto;min-width:max-content;border-left:0;border-bottom:3px solid transparent;padding:14px 15px}.cap-tabs button[aria-selected="true"]{border-left:0;border-bottom-color:var(--olive)}.cap-panel{padding:28px 0;min-height:0}.cap-panel h3{font-size:32px}.profile{grid-template-columns:1fr;gap:10px}.profile span{text-align:left}.workbench{grid-template-columns:1fr;gap:35px}.workbench .section-title{max-width:none}.close{margin-top:64px;display:block}.footer .shell{display:block}.footer p{margin:0 0 8px}}
+    @media print{.top,.hero-actions,.print{display:none}.hero{padding-top:35px}.section.soft{margin:0;padding:50px 0;background:transparent}.section{padding:50px 0}.cap-panel[hidden]{display:block}.cap-tabs{display:none}.cap-panel{padding:22px 0;min-height:0;border-bottom:1px solid var(--line)}}
+  </style>
+</head>
+<body>
+  <a class="skip" href="#conteudo">Ir para a proposta</a>
+  <header class="top">
+    <div class="shell top-inner">
+      <a class="brand" href="#inicio" aria-label="Início da proposta">
+        <svg viewBox="0 0 40 45" aria-hidden="true"><path d="M19 38V11m0 13C3 28 0 13 9 9c7-3 10 6 10 15Zm0-5C19 5 27 0 33 7c6 8-1 16-14 12Zm1 10c15-10 22-1 15 7-8 8-14 1-15-7Z" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+        <span><strong>francescato</strong><small>family case management</small></span>
+      </a>
+      <nav aria-label="Navegação da proposta">
+        <a class="top-link" href="#experiencia">A experiência</a>
+        <a class="top-link" href="#capacidades">Capacidades</a>
+        <a class="top-link" href="#decisoes">Para validar</a>
+        <a class="solid" href="https://francescapp.netlify.app">Abrir demonstração <span class="arrow" aria-hidden="true">↗</span></a>
+      </nav>
+    </div>
+  </header>
+  <main id="conteudo">
+    <div class="shell" id="inicio">
+      <section class="hero" aria-labelledby="titulo">
+        <div>
+          <h1 id="titulo">O cuidado continua entre os encontros.</h1>
+          <p class="lead">Uma proposta de espaço compartilhado para organizar o que acontece com cada pessoa, dar contexto à equipe e tornar o próximo passo mais claro.</p>
+          <div class="hero-actions">
+            <a class="solid" href="https://francescapp.netlify.app">Conhecer o sistema navegável <span class="arrow" aria-hidden="true">↗</span></a>
+            <a class="outline" href="#experiencia">Ver como funciona</a>
+          </div>
+        </div>
+        <aside class="fact-sheet" aria-label="O que a proposta resolve">
+          <h2>Uma mudança pequena pode orientar toda a conversa seguinte.</h2>
+          <p>Não é mais um lugar para guardar arquivos. É um lugar para dar continuidade ao cuidado.</p>
+          <div class="case-note"><b aria-hidden="true">1</b><div><strong>Alguém registra um acontecimento</strong><span>Por texto, áudio transcrito ou imagem, no momento em que faz sentido.</span></div></div>
+          <div class="case-note"><b aria-hidden="true">2</b><div><strong>Edilaine entende o que mudou</strong><span>Com fonte, data, audiência e contexto preservados.</span></div></div>
+          <div class="case-note"><b aria-hidden="true">3</b><div><strong>O cuidado vira próximo passo</strong><span>Com responsável, prazo e histórico para a próxima revisão.</span></div></div>
+        </aside>
+      </section>
+
+      <section class="intro" aria-labelledby="por-que">
+        <p class="marker">Proposta para discussão com Edilaine Francescato</p>
+        <h2 id="por-que">Menos procura, mais contexto.</h2>
+        <p>Hoje, informações do acompanhamento podem ficar separadas entre conversas, documentos, agendas e lembranças. A proposta reúne o que é necessário para coordenar o cuidado sem transformar a família em prontuário e sem expor o que deve permanecer restrito.</p>
+      </section>
+
+      <section id="experiencia" class="section" aria-labelledby="experiencia-titulo">
+        <div class="section-head"><h2 class="section-title" id="experiencia-titulo">Uma informação que termina em ação.</h2><p>O sistema foi pensado para o trabalho real da case manager: enxergar a situação, dar retorno, combinar um caminho e retomar a conversa com segurança.</p></div>
+        <ol class="sequence">
+          <li><div><h3>Relato no momento em que acontece</h3><p>Família, pessoa acompanhada ou profissional registram o que é relevante sem precisar preencher um formulário longo.</p></div><em>O autor sempre confere o que escreveu e quem pode ler.</em></li>
+          <li><div><h3>Leitura com contexto</h3><p>A linha do tempo mostra acontecimentos, sínteses, documentos e compromissos em uma sequência compreensível.</p></div><em>Data do acontecimento e data do registro continuam distintas.</em></li>
+          <li><div><h3>Coordenação que deixa rastro</h3><p>Edilaine responde, encaminha ou cria um próximo passo. A equipe vê o necessário para agir.</p></div><em>“Enviado”, “consultado” e “retorno registrado” não são a mesma coisa.</em></li>
+          <li><div><h3>Revisão que começa preparada</h3><p>Objetivos, responsáveis, pendências e mudanças recentes estão reunidos antes da próxima conversa.</p></div><em>A pessoa segue no centro dos combinados.</em></li>
+        </ol>
+      </section>
+    </div>
+
+    <section id="capacidades" class="section soft" aria-labelledby="capacidades-titulo">
+      <div class="shell">
+        <div class="section-head"><h2 class="section-title" id="capacidades-titulo">O que faz parte do núcleo da proposta.</h2><p>Clique em cada tema para conhecer como ele aparece no dia a dia. A demonstração abre uma versão navegável com dados fictícios.</p></div>
+        <div class="capabilities">
+          <div class="cap-tabs" role="tablist" aria-label="Capacidades do sistema">
+            <button type="button" id="tab-diario" role="tab" aria-selected="true" aria-controls="painel-diario" data-cap="diario">Diário do cuidado</button>
+            <button type="button" id="tab-coordenacao" role="tab" aria-selected="false" aria-controls="painel-coordenacao" data-cap="coordenacao">Visão da coordenação</button>
+            <button type="button" id="tab-plano" role="tab" aria-selected="false" aria-controls="painel-plano" data-cap="plano">Plano e agenda</button>
+            <button type="button" id="tab-acesso" role="tab" aria-selected="false" aria-controls="painel-acesso" data-cap="acesso">Acesso e documentos</button>
+          </div>
+          <article class="cap-panel" id="painel-diario" role="tabpanel" aria-labelledby="tab-diario"><h3>Diário que respeita a voz de quem vive a rotina.</h3><p>Um relato simples aceita texto, imagem e áudio transcrito como rascunho editável. A família compartilha o acontecimento e pode pedir retorno; o profissional registra uma síntese útil à equipe.</p><div class="cap-proof"><span>texto ou áudio</span><span>anexo de imagem</span><span>rascunho revisável</span><span>audiência antes de publicar</span></div></article>
+          <article class="cap-panel" id="painel-coordenacao" role="tabpanel" aria-labelledby="tab-coordenacao" hidden><h3>Abertura do caso com o que importa agora.</h3><p>A case manager encontra o resumo revisado, acontecimentos novos, próximos encontros e pendências. Uma observação pode se tornar uma tarefa com responsável e prazo, sem perder a ligação com sua origem.</p><div class="cap-proof"><span>linha do tempo</span><span>retorno ao autor</span><span>pendências visíveis</span><span>responsável identificado</span></div></article>
+          <article class="cap-panel" id="painel-plano" role="tabpanel" aria-labelledby="tab-plano" hidden><h3>Objetivos que acompanham a vida real.</h3><p>O plano registra o que a pessoa deseja, o que ajuda, o que dificulta e quando revisar. A agenda consolida atendimentos e outros compromissos para enxergar adesão e logística sem fazer leitura clínica automática.</p><div class="cap-proof"><span>objetivos revisáveis</span><span>agenda consolidada</span><span>faltas e remarcações</span><span>próxima revisão</span></div></article>
+          <article class="cap-panel" id="painel-acesso" role="tabpanel" aria-labelledby="tab-acesso" hidden><h3>Compartilhar o necessário, com limites claros.</h3><p>Cada perfil vê o que foi disponibilizado para ele. Documentos poderão ser organizados por origem, caso e audiência em um espaço institucional da Francescato, com escolha entre Google Drive ou OneDrive no piloto.</p><div class="cap-proof"><span>perfil e audiência</span><span>registro de acesso</span><span>documentos por caso</span><span>exportação prevista</span></div></article>
+        </div>
+        <p style="margin:22px 0 0;color:var(--muted);font-size:14px">A demonstração usa somente pessoas e situações fictícias. Ela representa a experiência proposta, não uma implementação clínica ou integração ativa.</p>
+      </div>
+    </section>
+
+    <div class="shell">
+      <section class="section" aria-labelledby="perfis-titulo">
+        <div class="section-head"><h2 class="section-title" id="perfis-titulo">Uma experiência diferente para cada participação no cuidado.</h2><p>Paciente, familiar, profissional e coordenação não precisam — nem devem — receber a mesma visão.</p></div>
+        <div class="profiles">
+          <article class="profile"><h3>Edilaine</h3><p>Enxerga a carteira de casos, mudanças recentes, pendências, agenda e quem ficou responsável por cada próximo passo.</p><span>coordenação do cuidado</span></article>
+          <article class="profile"><h3>Profissional</h3><p>Consulta o que foi autorizado para sua atuação e publica uma síntese compartilhável, sem abrir conteúdo terapêutico restrito por padrão.</p><span>equipe multidisciplinar</span></article>
+          <article class="profile"><h3>Família</h3><p>Registra acontecimentos, encontra combinados e agenda, e acompanha apenas os retornos e conteúdos que lhe foram disponibilizados.</p><span>participação cotidiana</span></article>
+          <article class="profile"><h3>Pessoa acompanhada</h3><p>Pode participar conforme o acordo de cuidado, com espaço para preferências, objetivos e registros próprios.</p><span>proposta a validar</span></article>
+        </div>
+      </section>
+
+      <section id="decisoes" class="section" aria-labelledby="decisoes-titulo">
+        <div class="workbench">
+          <div>
+            <p class="marker">O encontro com Edilaine serve para escolher, não apenas aprovar.</p>
+            <h2 class="section-title" id="decisoes-titulo">O que vale validar antes de começar.</h2>
+            <ul class="decision-list">
+              <li><i aria-hidden="true"></i><strong>Quais situações recentes mais exigiram busca de informação?</strong><span>prioridades do primeiro piloto</span></li>
+              <li><i aria-hidden="true"></i><strong>Quem registra, quem consulta e o que deve ficar restrito?</strong><span>regras de acesso</span></li>
+              <li><i aria-hidden="true"></i><strong>Quais formulários já funcionam hoje?</strong><span>evitar duplicidade</span></li>
+              <li><i aria-hidden="true"></i><strong>Qual espaço institucional guarda os documentos?</strong><span>Drive ou OneDrive</span></li>
+              <li><i aria-hidden="true"></i><strong>Como funciona o retorno e a substituição da coordenação?</strong><span>limites e continuidade</span></li>
+            </ul>
+          </div>
+          <aside class="pilot-note">
+            <h3>Um piloto para aprender com o uso.</h3>
+            <p>A proposta inicial é validar com casos fictícios e, depois das definições de proteção e operação, acompanhar poucos casos reais com participação voluntária.</p>
+            <dl><div><dt>Começo sugerido</dt><dd>3 a 5 casos, em quatro semanas.</dd></div><div><dt>O que observar</dt><dd>tempo de registro, clareza do caso e continuidade dos combinados.</dd></div><div><dt>O que não prometer</dt><dd>resultado clínico, resposta imediata ou decisão automatizada.</dd></div></dl>
+          </aside>
+        </div>
+        <div class="questions" aria-label="Pontos de escopo">
+          <details><summary>Proteção de dados entra desde o início?</summary><p>Sim. Dados identificáveis, registros, áudios, imagens e documentos exigem propósito, controle de acesso, histórico de mudanças e regras de exportação. As definições jurídicas e profissionais serão validadas antes de usar dados reais.</p></details>
+          <details><summary>Há inteligência artificial tomando decisões?</summary><p>Não. A transcrição e os rascunhos de resumo são apoios sujeitos à revisão humana. O sistema não faz diagnóstico, prescrição nem previsão de risco clínico.</p></details>
+          <details><summary>O sistema substitui WhatsApp ou consultas?</summary><p>Não. Ele organiza informação autorizada e continuidade entre pessoas. Canais, horários e fluxos de crise continuam definidos e aprovados pela equipe responsável.</p></details>
+        </div>
+      </section>
+
+      <section class="close" aria-labelledby="proximo-passo">
+        <div><h2 id="proximo-passo">Primeiro, uma boa conversa sobre o cuidado.</h2><p>O investimento, cronograma e ordem de entrega serão definidos depois de validar o núcleo do piloto, os participantes e as regras de acesso.</p></div>
+        <div class="hero-actions"><a class="solid" href="https://francescapp.netlify.app">Navegar pela demonstração <span class="arrow" aria-hidden="true">↗</span></a><button class="print" type="button" onclick="window.print()">Imprimir esta proposta</button></div>
+      </section>
+    </div>
+  </main>
+  <footer class="footer"><div class="shell"><p>Diário integrado do cuidado · proposta de discussão · 7 de outubro de 2026</p><p>Francescapp é um nome provisório. Conteúdo ilustrativo, sem dados de pacientes.</p></div></footer>
+  <script>
+    const tabs=document.querySelectorAll('[role="tab"]');
+    const panels=document.querySelectorAll('[role="tabpanel"]');
+    tabs.forEach(tab=>tab.addEventListener('click',()=>{
+      tabs.forEach(item=>item.setAttribute('aria-selected',String(item===tab)));
+      panels.forEach(panel=>panel.hidden=panel.id!==`painel-${tab.dataset.cap}`);
+    }));
+  </script>
+</body>
+</html>

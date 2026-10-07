@@ -1,0 +1,10 @@
+# Materiais temporários de apresentação e configurações locais de outros agentes.
+brag-output/
+.claude/
+
+# O Impeccable baixa o binário adequado no primeiro uso.
+.agents/skills/impeccable/scripts/bin/
+
+# Arquivos locais comuns.
+.DS_Store
+node_modules/
