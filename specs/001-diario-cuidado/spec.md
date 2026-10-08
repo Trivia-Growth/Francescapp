@@ -4,13 +4,13 @@
 
 **Created**: 2026-10-06
 
-**Status**: Proposta de negócio v0.1 para validação com Edilaine Francescato
+**Status**: Proposta de negócio v0.2 validada para evoluir com Google Workspace
 
-**Input**: Centralizar informações do acompanhamento de pacientes, registros da equipe e da família, anamneses, imagens e documentos, agenda e diário por texto ou áudio transcrito. Acrescentar sugestões relevantes à gestão de casos, sem definir arquitetura ou implementar o produto.
+**Input**: Centralizar informações do acompanhamento de pacientes, registros da equipe e da família, anamneses, imagens e documentos, agenda e diário por texto ou áudio transcrito. Após a validação com Edilaine, adotar Google Drive institucional para anexos classificados por pessoa acompanhada, acesso individual por contas do Google Workspace e visão consolidada da agenda geral e dos calendários autorizados no Google Agenda. Acrescentar sugestões relevantes à gestão de casos, sem definir arquitetura ou implementar o produto.
 
 ## Visão do projeto e contexto de negócio
 
-O Francescapp será o espaço de coordenação do cuidado da Francescato: cada pessoa acompanhada terá um histórico organizado, um plano com objetivos e responsáveis, uma agenda e um diário que conecta acontecimentos em casa às observações da equipe. Edilaine poderá compreender a situação atual e acompanhar os encaminhamentos sem reconstruir o caso a partir de conversas dispersas.
+O Francescapp será o espaço de coordenação do cuidado da Francescato: cada pessoa acompanhada terá um histórico organizado, um plano com objetivos e responsáveis, uma agenda e um diário que conecta acontecimentos em casa às observações da equipe. Edilaine poderá compreender a situação atual e acompanhar os encaminhamentos sem reconstruir o caso a partir de conversas dispersas. Os anexos ficarão organizados no Google Drive institucional por pessoa acompanhada e a agenda apresentará, no mesmo lugar, a agenda geral da Francescato e os calendários que cada participante autorizar.
 
 A proposta responde à dor relatada de registros, anamneses e informações fragmentadas. A frequência das perdas de informação, o esforço de cobrança e o volume de casos ainda serão medidos com Edilaine; são hipóteses de descoberta, não dados já levantados.
 
@@ -112,7 +112,7 @@ Como case manager e equipe, defino objetivos relevantes para a pessoa acompanhad
 
 ### User Story 6 - Acompanhar agenda e continuidade do cuidado (Priority: P1)
 
-Como case manager ou participante autorizado, consulto a agenda do caso e registro realização, falta, cancelamento ou remarcação.
+Como case manager ou participante autorizado, consulto no sistema a agenda do caso, incluindo a agenda geral da Francescato e os calendários Google autorizados, e registro realização, falta, cancelamento ou remarcação.
 
 **Why this priority**: Ajuda a enxergar rotina, adesão e barreiras antes que compromissos se percam.
 
@@ -123,6 +123,7 @@ Como case manager ou participante autorizado, consulto a agenda do caso e regist
 1. Dado um atendimento recorrente, quando houver remarcação de uma ocorrência, então as demais serão preservadas e o compromisso original ficará relacionado à nova data.
 2. Dado um atendimento que passou do horário e não foi confirmado, quando for exibido no acompanhamento, então aparecerá como “realização não confirmada”, sem ser contado automaticamente como falta.
 3. Dada uma falta, quando registrar o motivo, então será possível identificar barreiras de transporte, custo, disponibilidade ou outras; a ausência não produzirá um diagnóstico de risco.
+4. Dada uma agenda Google autorizada ou a agenda geral da Francescato, quando houver compromissos no período consultado, então a pessoa autorizada verá no sistema a origem, data, horário e participantes permitidos, sem revelar detalhes de calendários não autorizados.
 
 ### User Story 7 - Priorizar a carteira de casos (Priority: P1)
 
@@ -140,7 +141,7 @@ Como case manager, vejo quais casos precisam de revisão, quais pendências est�
 
 ### User Story 8 - Guardar e encontrar documentos sob gestão da Francescato (Priority: P1)
 
-Como case manager, organizo laudos, exames, relatórios e termos por caso, em um espaço de arquivos sob administração da Francescato.
+Como case manager ou profissional autorizado, organizo laudos, exames, relatórios, imagens e termos por caso, classificados em um espaço do Google Drive sob administração da Francescato.
 
 **Why this priority**: É parte da centralização solicitada e reduz dependência de contas pessoais dos participantes.
 
@@ -148,9 +149,23 @@ Como case manager, organizo laudos, exames, relatórios e termos por caso, em um
 
 **Acceptance Scenarios**:
 
-1. Dado um laudo anexado, quando for consultado, então terá categoria, data do documento, origem, autor do envio e audiência.
+1. Dado um anexo enviado, quando for classificado, então ficará vinculado à pessoa acompanhada e terá categoria, data do documento, origem, autor do envio e audiência.
 2. Dado um arquivo indisponível no espaço conectado, quando alguém tentar abri-lo, então verá o problema e a orientação de regularização; o documento não será apresentado como disponível.
 3. Dado um participante com acesso revogado, quando tentar abrir um documento pelo sistema ou pela forma de compartilhamento gerida pelo projeto, então o acesso será negado. Cópias já obtidas serão tratadas pela política de confidencialidade, sem promessa de recolhimento remoto.
+
+### User Story 11 - Entrar com a conta institucional (Priority: P1)
+
+Como integrante da Francescato, entro com minha conta individual do Google Workspace e acesso somente os casos, anexos e agendas para os quais fui autorizado.
+
+**Why this priority**: Evita criação de senhas paralelas, vincula as ações a uma identidade institucional e torna a entrada e a saída de pessoas da equipe mais simples de administrar.
+
+**Independent Test**: Demonstrar o acesso de duas contas fictícias do Workspace, uma vinculada ao caso e outra sem vínculo, além da consulta à agenda geral.
+
+**Acceptance Scenarios**:
+
+1. Dada uma conta ativa do Google Workspace da Francescato, quando entrar no sistema, então a pessoa será identificada individualmente e verá apenas o escopo de casos e ações que lhe foi atribuído.
+2. Dada uma conta do Workspace sem vínculo com determinado caso, quando buscar a pessoa acompanhada ou tentar abrir um anexo e um compromisso desse caso, então não obterá dados nem metadados protegidos.
+3. Dada a agenda geral institucional configurada para a equipe, quando um membro autorizado entrar, então verá seus compromissos permitidos na visão consolidada, sem que a conta geral conceda acesso a dados clínicos fora das regras do caso.
 
 ### User Story 9 - Preservar sigilo, direitos e responsabilidade (Priority: P1)
 
@@ -198,7 +213,7 @@ Como case manager, preparo reuniões com mudanças, decisões e pendências e de
 - **Convite expirado ou encaminhado a outra pessoa:** não permitir acesso apenas por posse de uma mensagem ou link; exigir identificação do participante autorizado.
 - **Conteúdo restrito citado em tarefa, alerta ou resumo:** a derivação mantém a restrição; o título ou a notificação também não pode revelar o conteúdo protegido.
 - **Case manager ausente:** o caso informa um substituto previamente autorizado e o canal de contato; não conceder acesso automático a toda a carteira.
-- **Desconexão do Drive ou OneDrive:** manter a identificação dos documentos, sinalizar indisponibilidade e listar as pendências de reconciliação; não fingir que o arquivo foi guardado com sucesso.
+- **Desconexão do Google Drive ou Google Agenda:** manter a identificação do anexo ou compromisso, sinalizar indisponibilidade e listar as pendências de reconciliação; não fingir que o arquivo foi guardado ou a agenda foi atualizada com sucesso.
 - **Documentos duplicados ou versões conflitantes:** identificar a versão em uso e conservar a procedência, sem decidir automaticamente qual conclusão clínica está correta.
 - **Relato de risco e ninguém disponível:** apresentar o plano de crise e o canal apropriado definido pela equipe; a ausência de confirmação não pode ser interpretada como monitoramento em tempo real.
 
@@ -249,9 +264,9 @@ Todos os itens abaixo são requisitos de negócio propostos. “Inicial” integ
 
 | ID | Fase | Requisito e condição de aceite |
 | --- | --- | --- |
-| FR-023 | Inicial | Consolidar compromissos do caso com profissional, data, duração, local ou modalidade e participantes autorizados. Deve permitir recorrência e sinalizar sobreposições, sem impedir exceções justificadas. |
+| FR-023 | Inicial | Consolidar compromissos do caso, da agenda geral da Francescato e dos calendários Google autorizados, com origem, profissional, data, duração, local ou modalidade e participantes autorizados. Deve permitir recorrência e sinalizar sobreposições, sem impedir exceções justificadas. |
 | FR-024 | Inicial | Registrar realizado, faltou, cancelado, remarcado ou realização não confirmada, com motivo e vínculo entre datas. Deve distinguir falta de cancelamento e de ausência de confirmação. |
-| FR-025 | Inicial | Oferecer lembretes e avisos de mudança segundo preferência do destinatário. Mensagens externas devem usar conteúdo mínimo e não incluir diagnóstico, transcrição ou trecho de evolução. |
+| FR-025 | Inicial | Exibir a origem de cada compromisso e a data da última atualização da agenda. Oferecer lembretes e avisos de mudança segundo preferência do destinatário. Mensagens externas devem usar conteúdo mínimo e não incluir diagnóstico, transcrição ou trecho de evolução. |
 | FR-026 | Inicial | Mostrar carteira filtrável por responsável, situação do acompanhamento, revisão e pendências. Sinais operacionais devem ter motivo visível e estado “informação insuficiente”; não representar classificação clínica automática. |
 | FR-027 | Inicial | Gerar pendências por atraso de tarefa, ausência de atualização esperada ou revisão próxima, usando periodicidades acordadas por caso. Deve permitir reconhecer, atribuir e resolver o alerta sem apagar sua origem. |
 | FR-028 | Inicial | Diferenciar situações operacionais das sinalizações clínicas feitas por profissional. Verde ou “em dia” significa compromissos operacionais em dia, não ausência de risco clínico. |
@@ -260,18 +275,18 @@ Todos os itens abaixo são requisitos de negócio propostos. “Inicial” integ
 
 | ID | Fase | Requisito e condição de aceite |
 | --- | --- | --- |
-| FR-029 | Inicial | Organizar anexos por caso, categoria, origem, data e versão. A busca deve respeitar audiência e permitir identificar o documento atual e o indisponível. |
-| FR-030 | Inicial | Permitir guardar anexos em espaço institucional administrado pela Francescato no Google Drive ou OneDrive. O provedor inicial será validado com Edilaine; a proposta de produto contempla as duas opções, sem exigir adoção simultânea no piloto. |
-| FR-031 | Inicial | Manter controle do compartilhamento de anexos tanto no sistema quanto no espaço conectado. A gestão prevista deve impedir acesso público e sinalizar compartilhamentos incompatíveis com a audiência do caso. |
+| FR-029 | Inicial | Organizar anexos por pessoa acompanhada, categoria, origem, data, autor do envio e versão. A busca deve respeitar audiência e permitir identificar o documento atual e o indisponível. |
+| FR-030 | Inicial | Guardar anexos no Google Drive institucional administrado pela Francescato, em organização vinculada ao caso. A pessoa que envia deve classificar o anexo e confirmar sua audiência antes de concluir. |
+| FR-031 | Inicial | Manter controle do compartilhamento de anexos tanto no sistema quanto no Google Drive institucional. A gestão prevista deve impedir acesso público e sinalizar compartilhamentos incompatíveis com a audiência do caso. |
 | FR-032 | Inicial | Oferecer exportação autorizada por caso ou período de registros, plano, pendências e relação de anexos, identificando conteúdo indisponível e preservando autoria e datas. O destinatário e o propósito devem ser registrados. |
 | FR-033 | Inicial | Permitir à Francescato obter seus registros e anexos autorizados ao encerrar o uso do produto, em formato consultável, com entrega e conferência registradas. Exportação de um caso deve preservar dados de terceiros e conteúdo profissional que demande tratamento específico. |
-| FR-034 | Evolução | Oferecer o segundo provedor de arquivos e mudança de provedor com conferência de documentos, acesso e versões; não perder vínculos ou declarar concluída uma transferência incompleta. |
+| FR-034 | Evolução | Oferecer segundo provedor de arquivos ou mudança de provedor com conferência de documentos, acesso e versões; não perder vínculos ou declarar concluída uma transferência incompleta. |
 
 #### Participação, sigilo e governança
 
 | ID | Fase | Requisito e condição de aceite |
 | --- | --- | --- |
-| FR-035 | Inicial | Conceder acesso por pessoa, caso, finalidade e tipo de informação, com vínculo válido e identificação individual. O papel genérico não deve liberar toda a carteira. |
+| FR-035 | Inicial | Permitir entrada com conta individual ativa do Google Workspace da Francescato e conceder acesso por pessoa, caso, finalidade e tipo de informação, com vínculo válido e identidade individual. O papel genérico ou uma conta geral não devem liberar toda a carteira. |
 | FR-036 | Inicial | Distinguir informação de coordenação compartilhável, conteúdo disponibilizado ao paciente/família e conteúdo profissional restrito. O autor deve ver a audiência antes de publicar; rascunhos permanecem privados. |
 | FR-037 | Inicial | Permitir revogar vínculos, definir substituição temporária da case manager e revisar autorizações. Todas as alterações devem manter data, responsável e motivo. |
 | FR-038 | Inicial | Manter evidências de autorização ou fundamento aplicável, finalidade, audiência e versão dos termos. Quando houver consentimento, registrar concessão e revogação; não usar uma única autorização genérica para toda utilização futura. |
@@ -279,6 +294,8 @@ Todos os itens abaixo são requisitos de negócio propostos. “Inicial” integ
 | FR-040 | Inicial | Receber e acompanhar solicitações de acesso, correção, portabilidade ou exclusão. A resposta deve indicar medida adotada ou razão de guarda/restrição aplicável; revogar consentimento não significa apagar automaticamente todos os registros. |
 | FR-041 | Inicial | Informar regras de funcionamento, períodos de acompanhamento, canais de retorno e uso do diário. Paciente e família devem encontrar essas regras sem precisar ler termos extensos para saber onde pedir ajuda. |
 | FR-042 | Inicial | Proteger dados identificáveis e de saúde, incluindo textos livres, áudios, imagens, documentos e cópias de recuperação, contra consulta não autorizada. Antes do uso real, a operação deve demonstrar restauração autorizada e conferência de integridade após perda simulada. |
+| FR-049 | Inicial | Integrar a visão da agenda geral institucional e dos calendários Google autorizados ao calendário do sistema. Cada compromisso deve exibir origem e respeitar o escopo de pessoa, caso e audiência. |
+| FR-050 | Inicial | Permitir que responsáveis autorizados reconheçam falha de atualização de agenda ou arquivo e encontrem uma ação de regularização, sem apresentar dados possivelmente desatualizados como atuais. |
 
 #### Extensões a validar
 
@@ -336,7 +353,7 @@ Para crianças e adolescentes, as decisões de tratamento devem priorizar o melh
 
 O pedido de controle institucional dos anexos é incorporado como resultado de negócio: a Francescato administra o espaço, os participantes recebem acesso limitado, mudanças de equipe não retiram a capacidade institucional de localizar documentos e a saída do produto não impede recuperar os dados autorizados. Isso é distinto da titularidade dos dados pessoais, que pertence às pessoas atendidas, e das responsabilidades de guarda profissional.
 
-A expressão “criptografia simples de PII” será substituída por “proteção verificável de informações identificáveis e de saúde”. Identificação pessoal não se limita a nome ou documento: texto livre, voz, fotografia e contexto do tratamento também podem identificar. O objetivo é proteção em uso, guarda, envio e recuperação, sem selecionar mecanismo nesta especificação. Drive ou OneDrive e criptografia, isoladamente, não resolvem permissões e governança.
+A expressão “criptografia simples de PII” será substituída por “proteção verificável de informações identificáveis e de saúde”. Identificação pessoal não se limita a nome ou documento: texto livre, voz, fotografia e contexto do tratamento também podem identificar. O objetivo é proteção em uso, guarda, envio e recuperação, sem selecionar mecanismo nesta especificação. Google Drive e criptografia, isoladamente, não resolvem permissões e governança.
 
 Áudio para facilitar registro significa ditado do próprio relato, não gravação contínua da sessão ou da residência. Antes do uso, serão definidos finalidade, destinatários e prazo de guarda do áudio original. Uso de serviços automáticos deve respeitar as audiências e as condições acordadas; dados de casos reais não serão usados para treinamento ou finalidade secundária sem fundamento e autorização aplicáveis.
 
@@ -374,6 +391,7 @@ Os conceitos abaixo descrevem o negócio, não uma estrutura de armazenamento.
 - **Tarefa e encaminhamento:** ação necessária, responsável, prazo, situação e resultado.
 - **Compromisso:** atividade prevista e confirmação de realização, falta, cancelamento ou remarcação.
 - **Documento e áudio:** material associado ao caso ou registro, com procedência, audiência, disponibilidade e guarda definida.
+- **Conta Workspace e fonte de agenda:** identidade institucional individual, vínculo de acesso e calendário de origem, incluindo a agenda geral da Francescato quando autorizada.
 - **Orientação e plano de crise:** conteúdo aprovado por responsável habilitado, destinatários e validade/revisão.
 - **Autorização e evidência de governança:** finalidade, fundamento ou consentimento quando aplicável, limites e revisões.
 - **Evento de auditoria:** consulta, alteração ou compartilhamento identificado, preservando a responsabilidade das ações.
@@ -396,6 +414,7 @@ As metas são propostas para um piloto, não desempenho medido nem promessa clí
 | SC-008 | Pelo menos 80% dos profissionais e familiares participantes avaliam clareza do registro e dos combinados com nota 4 ou 5 em escala de 1 a 5 | Pesquisa por grupo ao final do piloto, incluindo pergunta sobre dificuldade e receio de compartilhamento |
 | SC-009 | Todos os casos do piloto têm responsáveis, audiências e regra de retorno definidos; nenhum áudio entra publicado sem revisão humana | Conferência do cadastro de todos os casos e amostra semanal das publicações |
 | SC-010 | Em pelo menos 90% das tentativas, o participante autorizado encontra um documento ou identifica corretamente sua indisponibilidade em até 1 minuto | Dez exercícios de consulta com documentos de categorias e versões diferentes |
+| SC-011 | 100% dos exercícios com contas fictícias do Workspace respeitam os vínculos de caso, inclusive para anexos e compromissos da agenda geral | Testar contas vinculadas e não vinculadas, acesso revogado e consulta à agenda geral antes do piloto com dados reais |
 
 Redução de internações, prevenção de suicídio e melhora clínica não são critérios atribuíveis ao produto neste piloto. Podem ser temas de acompanhamento profissional, sem inferir causalidade a partir do uso da ferramenta.
 
@@ -404,12 +423,13 @@ Redução de internações, prevenção de suicídio e melhora clínica não sã
 ### Hipóteses usadas para elaborar a primeira proposta
 
 - A operação inicial é a Francescato, com Edilaine como principal coordenadora, e não uma plataforma comercial para múltiplas empresas.
+- Cada integrante interno usará sua própria conta ativa do Google Workspace. O e-mail geral será uma fonte institucional da agenda compartilhada, e não uma credencial coletiva para entrar no sistema ou contornar permissões por caso.
 - O contexto principal é saúde mental e apoio à rotina familiar, conforme o site; a distribuição por idade, condição e complexidade será validada.
 - Equipe e familiares/cuidadores autorizados entram no núcleo inicial. Acesso direto do paciente é uma extensão proposta, cuja prioridade pode mudar na validação; suas preferências e direitos já integram o núcleo.
 - Cada paciente tem um caso separado, mesmo quando há membros de uma mesma família em acompanhamento.
 - O núcleo inicial compartilha sínteses necessárias à coordenação. Não se presume a migração de notas privadas e prontuários completos de todos os profissionais.
-- Agenda e diário podem começar sem integração com calendário ou WhatsApp; áudio transcrito, texto e anexos fazem parte da primeira versão.
-- Google Drive e OneDrive são opções desejadas para o produto. O piloto usará um provedor institucional escolhido com Edilaine, e a segunda opção permanece prevista como evolução.
+- Agenda, diário, anexos e acesso individual fazem parte do núcleo inicial, com integração à agenda geral da Francescato e aos calendários Google autorizados. WhatsApp permanece como evolução a validar.
+- Google Drive institucional será o repositório inicial de anexos por pessoa acompanhada. A Francescato definirá a conta institucional, responsáveis administrativos e convenção de classificação antes do piloto.
 - Não há serviço de emergência ou cobertura 24 horas contratado como parte do produto; se a Francescato oferecer acompanhamento ampliado, seus períodos e responsáveis serão explicitamente definidos.
 - O esforço, número de casos e disponibilidade dos participantes são desconhecidos. Metas e piloto serão calibrados após a conversa de validação.
 
@@ -426,7 +446,7 @@ Para controlar esforço de entrada, o piloto pode começar com poucos casos e mo
 - Contribuição limitada de profissionais externos.
 - Rascunhos assistidos de resumo, pauta e devolutiva, sempre revisados e com fontes.
 - Instrumentos e indicadores de progresso escolhidos pelos profissionais.
-- Avisos via WhatsApp e sincronização de compromissos, após validar utilidade e privacidade.
+- Avisos via WhatsApp, após validar utilidade e privacidade.
 - Segundo provedor de arquivos e mudança de provedor.
 - Prestação de contas de despesas do cuidado, se for uma dor prioritária.
 - Mapa visual da rede familiar, quando a equipe indicar uma finalidade concreta; genograma clínico dependerá de seu uso profissional e não é exigido no núcleo.
@@ -476,7 +496,7 @@ Para controlar esforço de entrada, o piloto pode começar com poucos casos e mo
 | O que precisa de retorno no mesmo dia e em quais horários a equipe atende? | Regras de resposta e plano de crise |
 | Acompanhamento medicamentoso significa lembrar, observar ou outra atividade? Quem valida as informações? | Delimitar responsabilidade sem permitir conduta fora da habilitação |
 | Quantos casos e participantes estão ativos e quanto tempo se gasta com registros e cobranças? | Dimensão do piloto e linha de base para resultados |
-| Drive ou OneDrive já é usado institucionalmente? Quem administra documentos e acessos? | Provedor inicial, controle dos anexos e continuidade |
+| Qual conta institucional do Google Workspace administrará Drive, Agenda geral e acessos? Quem será responsável por documentos e permissões? | Controle institucional dos anexos, agenda e continuidade |
 | Despesas e prestação de contas precisam entrar já ou podem esperar? | Repriorizar a extensão financeira |
 | Ao encerrar um caso ou trocar a equipe, o que deve ser entregue e a quem? | Saída, guarda e passagem do acompanhamento |
 

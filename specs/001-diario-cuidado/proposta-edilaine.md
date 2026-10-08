@@ -93,7 +93,7 @@ Uma recomendação pode gerar uma tarefa ou encaminhamento com responsável e pr
 
 ### Agenda do paciente
 
-Atendimentos e outros compromissos aparecem em uma visão consolidada, com recorrência, local ou modalidade e participantes autorizados. A equipe registra realizado, falta, cancelamento ou remarcação. Um horário passado sem confirmação fica como “realização não confirmada”.
+Atendimentos e outros compromissos aparecem em uma visão consolidada, com recorrência, local ou modalidade e participantes autorizados. A agenda reúne a agenda geral da Francescato e os calendários Google que cada participante autorizar. A equipe registra realizado, falta, cancelamento ou remarcação. Um horário passado sem confirmação fica como “realização não confirmada”.
 
 Motivos de ausência ajudam a identificar dificuldades de transporte, custo, rotina ou disponibilidade, evitando transformar toda falta em um rótulo clínico.
 
@@ -125,11 +125,11 @@ Restrições no portal não eliminam direitos de acesso da pessoa atendida. Soli
 
 ## Proteção, documentos e situações de atenção
 
-### Controle institucional dos arquivos
+### Controle institucional dos arquivos e acessos
 
-Anexos serão organizados por caso, categoria, origem, data e versão. A proposta contempla Google Drive e OneDrive em espaço administrado pela Francescato. Para o piloto, recomenda-se escolher o provedor já utilizado institucionalmente; a segunda opção pode entrar depois.
+Anexos serão organizados por pessoa acompanhada, categoria, origem, data e versão no Google Drive institucional da Francescato. Cada pessoa autorizada entrará com sua conta individual do Google Workspace; o papel e o vínculo com o caso continuam definindo o que ela pode consultar.
 
-As permissões precisam valer também para os arquivos, sem links públicos ou compartilhamento incompatível. Se um arquivo for removido ou o espaço conectado estiver indisponível, o sistema mostrará a situação e a ação necessária.
+As permissões precisam valer também para os arquivos, sem links públicos ou compartilhamento incompatível. A agenda geral institucional será uma fonte visível na agenda consolidada para os usuários autorizados; ela não substitui a permissão por caso. Se um arquivo ou calendário conectado estiver indisponível, o sistema mostrará a situação e a ação necessária.
 
 A Francescato deve conseguir exportar o histórico autorizado e recuperar seus documentos ao encerrar o uso do produto. Isso preserva continuidade operacional, sem confundir administração dos arquivos com titularidade dos dados pessoais.
 
@@ -149,7 +149,7 @@ O sistema apoia a coordenação; diagnóstico, prescrição e conduta permanecem
 
 ### Primeira versão sugerida
 
-Cadastro e anamnese de coordenação; vínculos e permissões; diário por texto e áudio transcrito; imagens e documentos; linha do tempo e resumo revisado; plano simples; tarefas e encaminhamentos; agenda; carteira com pendências; orientações e plano de crise. Auditoria, proteção e exportação fazem parte desse núcleo.
+Cadastro e anamnese de coordenação; acesso individual pelo Google Workspace; vínculos e permissões; diário por texto e áudio transcrito; imagens e anexos classificados no Google Drive; linha do tempo e resumo revisado; plano simples; tarefas e encaminhamentos; agenda conectada à agenda geral e aos calendários Google autorizados; carteira com pendências; orientações e plano de crise. Auditoria, proteção e exportação fazem parte desse núcleo.
 
 ### Evoluções após validar o uso
 
@@ -180,7 +180,7 @@ As metas são hipóteses para validação. Não se atribuirá ao sistema promess
 3. O próprio paciente deve participar desde o início? Quais preferências e objetivos ele deve acompanhar?
 4. Quais formulários e registros já funcionam? O que pode ser reaproveitado para evitar preenchimento duplicado?
 5. Em quais horários a equipe responde, quem substitui Edilaine e qual é o fluxo aprovado para situações de crise?
-6. Drive ou OneDrive já é utilizado pela Francescato? Quem administra os documentos, as permissões e a continuidade?
+6. Qual conta institucional do Google Workspace administrará o Drive, a agenda geral e as permissões? Quem garantirá a continuidade quando alguém sair da equipe?
 7. Prestação de contas de despesas precisa entrar na primeira versão? Quantos casos e participantes devem estar no piloto?
 
 ### Identidade visual de referência

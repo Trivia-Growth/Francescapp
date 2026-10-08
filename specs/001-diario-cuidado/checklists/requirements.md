@@ -19,23 +19,23 @@
 - [x] Sem marcadores pendentes de esclarecimento obrigatório; escolhas provisórias estão identificadas como hipóteses.
 - [x] Requisitos identificáveis, com condições de aceite verificáveis.
 - [x] Critérios de sucesso mensuráveis e sem dependência de tecnologia.
-- [x] Dez jornadas com exemplos de aceite e demonstração independente.
-- [x] Exceções cobrem autoria, conflito familiar, áudio, permissões, documentos e ausência de retorno.
+- [x] Onze jornadas com exemplos de aceite e demonstração independente.
+- [x] Exceções cobrem autoria, conflito familiar, áudio, permissões, documentos, agenda conectada e ausência de retorno.
 - [x] Núcleo inicial, evoluções e exclusões delimitados.
 - [x] Dependências de negócio, hipóteses e pauta de validação registradas.
 
 ## Preparação para validação
 
-- [x] Requisitos FR-001 a FR-048 têm condição de aceite e fase proposta.
-- [x] Jornadas cobrem cadastro, diário, síntese profissional, plano, agenda, carteira, documentos e governança.
-- [x] Metas SC-001 a SC-010 indicam método de verificação e condição de piloto.
+- [x] Requisitos FR-001 a FR-050 têm condição de aceite e fase proposta.
+- [x] Jornadas cobrem cadastro, diário, síntese profissional, plano, agenda Google, carteira, documentos no Drive, identidade Workspace e governança.
+- [x] Metas SC-001 a SC-011 indicam método de verificação e condição de piloto.
 - [x] Proteção e auditoria pertencem ao núcleo; acesso familiar e financeiro não se confundem.
 - [x] IA é assistência revisada e não decisão clínica.
-- [x] Google Drive e OneDrive são opções de negócio, com primeiro provedor a validar.
+- [x] Google Drive institucional, Google Agenda e identidade individual do Google Workspace pertencem ao núcleo validado; a conta responsável e as permissões serão confirmadas antes do piloto.
 
 ## Notas de revisão
 
-Revisão editorial e de consistência concluída para a proposta v0.1. Os itens marcados indicam qualidade documental, não validação de campo, conformidade jurídica certificada ou aprovação da Edilaine.
+Revisão editorial e de consistência concluída para a proposta v0.2, incorporando a validação de anexos no Google Drive, agenda Google e acesso via Workspace. Os itens marcados indicam qualidade documental, não validação de campo, conformidade jurídica certificada ou aprovação da Edilaine.
 
 A constituição existente ainda é o template do Spec Kit e não contém princípios ratificados. Nenhuma decisão técnica foi inferida a partir de seus exemplos.
 
