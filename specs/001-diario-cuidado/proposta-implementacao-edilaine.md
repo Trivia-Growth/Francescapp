@@ -82,14 +82,14 @@ O investimento cobre a implementação do escopo desta proposta: experiência de
 
 Além da implementação, a operação mensal inclui a infraestrutura e o suporte abaixo.
 
-| Item | Base mensal | Valor mensal em reais |
+| Item | Cobertura mensal | Valor mensal fixo |
 | --- | --- | ---: |
-| Supabase | US$ 10,00 | R$ 50,12 |
-| Transcrição de áudio Whisper | US$ 18,00 para até 50 horas de áudio | R$ 90,21 |
-| Suporte | - | R$ 100,00 |
-| **Total mensal estimado** | - | **R$ 240,33** |
+| Supabase - servidor e banco de dados da aplicação | Infraestrutura da aplicação | R$ 50,12 |
+| Transcrição de áudio Whisper | Até 50 horas de áudio | R$ 90,21 |
+| Suporte | Suporte mensal | R$ 100,00 |
+| **Total mensal fixo** | - | **R$ 240,33** |
 
-Conversão de referência: PTAX de venda de R$ 5,0119 por US$ 1,00, fechamento de 8 de outubro de 2026. Os itens originalmente em dólar serão convertidos para reais na cobrança mensal conforme a cotação de referência aplicável.
+O valor mensal é fixo em R$ 240,33 e não sofre variação por cotação do dólar.
 
 ## Premissas de validação
 
