@@ -73,8 +73,8 @@ As regras de acesso, a conta institucional responsável, a agenda geral e quais 
 
 | Condição | Valor |
 | --- | ---: |
-| À vista | **R$ 5.000,00** |
-| Cartão de crédito | **10x de R$ 700,00** |
+| À vista | **R$ 4.990,00** |
+| Cartão de crédito | **10x de R$ 690,00** |
 
 O investimento cobre a implementação do escopo desta proposta: experiência de coordenação do cuidado, registros, anexos classificados no Google Drive institucional, acesso pelo Google Workspace, visão da agenda integrada e controles de acesso apresentados neste documento.
 
