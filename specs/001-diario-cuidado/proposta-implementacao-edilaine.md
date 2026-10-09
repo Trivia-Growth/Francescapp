@@ -3,7 +3,7 @@
 ## Proposta de implementação para Francescato Family Case Management
 
 **Preparada para:** Edilaine Francescato  
-**Data:** 8 de outubro de 2026  
+**Data:** 9 de outubro de 2026
 **Versão:** 1.0
 
 ### Uma base única para coordenar o cuidado
@@ -69,7 +69,7 @@ O sistema apoia a coordenação. Ele não substitui avaliação, diagnóstico, p
 
 As regras de acesso, a conta institucional responsável, a agenda geral e quais calendários poderão compor a visão consolidada serão definidos com a Francescato antes do uso com dados reais.
 
-## Investimento
+## Investimento de implementação
 
 | Condição | Valor |
 | --- | ---: |
@@ -77,6 +77,19 @@ As regras de acesso, a conta institucional responsável, a agenda geral e quais 
 | Cartão de crédito | **10x de R$ 700,00** |
 
 O investimento cobre a implementação do escopo desta proposta: experiência de coordenação do cuidado, registros, anexos classificados no Google Drive institucional, acesso pelo Google Workspace, visão da agenda integrada e controles de acesso apresentados neste documento.
+
+## Operação mensal e infraestrutura
+
+Além da implementação, a operação mensal inclui a infraestrutura e o suporte abaixo.
+
+| Item | Base mensal | Valor mensal em reais |
+| --- | --- | ---: |
+| Supabase | US$ 10,00 | R$ 50,12 |
+| Transcrição de áudio Whisper | US$ 18,00 para até 50 horas de áudio | R$ 90,21 |
+| Suporte | - | R$ 100,00 |
+| **Total mensal estimado** | - | **R$ 240,33** |
+
+Conversão de referência: PTAX de venda de R$ 5,0119 por US$ 1,00, fechamento de 8 de outubro de 2026. Os itens originalmente em dólar serão convertidos para reais na cobrança mensal conforme a cotação de referência aplicável.
 
 ## Premissas de validação
 
@@ -87,4 +100,4 @@ O investimento cobre a implementação do escopo desta proposta: experiência de
 
 ## Próximo passo
 
-Confirmar a conta institucional responsável, os primeiros participantes e os casos de demonstração. A partir disso, o Francescapp passa do mockup validado para a implementação do ambiente da Francescato.
+Confirmar a conta institucional, os primeiros participantes e os casos de demonstração para iniciar a implementação no ambiente da Francescato.
