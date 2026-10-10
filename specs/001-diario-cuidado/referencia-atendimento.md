@@ -48,7 +48,7 @@ Os arquivos e as decisões do Atendimento documentam como a referência funciona
 | Tema | Situação na referência | Tratamento necessário no Francescapp |
 | --- | --- | --- |
 | Entrada da equipe | Convite com e-mail e senha no Atendimento | A equipe da Francescato entra pelo Google Workspace. O fluxo de login deve ser desenhado para essa decisão, mantendo a separação entre autenticação e autorização. |
-| Familiares e cuidadores | Leads do Atendimento não entram na aplicação | Familiares/cuidadores participam do diário; seu método de entrada é uma decisão pendente. |
+| Familiares e cuidadores | Leads do Atendimento não entram na aplicação | Edilaine cadastra e convida o familiar por link inicial do Supabase; o destinatário define a senha e passa a usar e-mail/senha, com recuperação por e-mail. Adaptar o fluxo sem reutilizar os papéis de CRM ou ampliar acesso aos casos. Ver DF-011 em `fundacao.md`. |
 | Permissões | Papéis internos de CRM | O Francescapp exige vínculo por caso e audiência por conteúdo. O papel sozinho não concede acesso a todos os pacientes. |
 | Marca | Tokens e linguagem visual da Trívia/TriviAtende | Usar os materiais fornecidos pelo marketing da Edilaine. O padrão de componentes não determina cores, fontes ou densidade do produto. |
 | Microfone | `netlify.toml` contém `microphone=()` | A política de publicação deverá permitir o microfone na origem do aplicativo para os registros de áudio previstos em FR-010. |

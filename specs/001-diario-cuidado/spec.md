@@ -48,6 +48,7 @@ O nome “Francescapp” é provisório. O termo apresentado ao paciente pode se
 - A identidade visual do produto será fornecida pelo time de marketing da Edilaine e seguirá o padrão do site da Francescato. A identidade da Trívia utilizada na proposta comercial não define o design do produto.
 - As restrições técnicas fornecidas nesta sessão estão registradas em [fundacao.md](fundacao.md). A aprovação do projeto não transforma hipóteses anteriores em decisões confirmadas.
 - Q: Qual é o caminho local ou a URL do projeto de atendimento que devemos usar como referência de código? → A: O projeto está ao lado do Francescapp, na pasta `Atendimento`, localizado em `/home/lucas/projetos/Atendimento`. Os padrões encontrados estão documentados em [referencia-atendimento.md](referencia-atendimento.md).
+- Q: Como familiares entram na plataforma, considerando que não têm conta institucional? → A: Edilaine faz o cadastro na plataforma e a família recebe um primeiro link de acesso do Supabase para criar o acesso e definir a senha. Depois utiliza e-mail e senha, com opção “Esqueci minha senha” para recuperação por e-mail. O link inicial é de convite/ativação, não o método recorrente de login. O acesso da equipe permanece pelo Google Workspace.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -179,6 +180,23 @@ Como integrante da Francescato, entro com minha conta individual do Google Works
 2. Dada uma conta do Workspace sem vínculo com determinado caso, quando buscar a pessoa acompanhada ou tentar abrir um anexo e um compromisso desse caso, então não obterá dados nem metadados protegidos.
 3. Dada a agenda geral institucional configurada para a equipe, quando um membro autorizado entrar, então verá seus compromissos permitidos na visão consolidada, sem que a conta geral conceda acesso a dados clínicos fora das regras do caso.
 
+### User Story 12 - Ativar e recuperar o acesso familiar (Priority: P1)
+
+Como familiar convidado por Edilaine, recebo um link inicial por e-mail, defino minha senha e depois entro com e-mail e senha para participar dos casos autorizados. Se esquecer a senha, consigo definir uma nova por um link enviado ao meu e-mail.
+
+**Why this priority**: Permite à família participar sem conta institucional, com entrada administrada por Edilaine e recuperação de acesso sem depender de ela conhecer ou fornecer senhas.
+
+**Independent Test**: Com um familiar fictício cadastrado por Edilaine, executar convite, definição de senha, saída, novo login e recuperação de senha, conferindo o acesso permitido e o negado no celular.
+
+**Acceptance Scenarios**:
+
+1. Dado o cadastro de um familiar com e-mail e vínculo autorizado ao caso, quando Edilaine enviar o convite, então o destinatário receberá o link inicial e o cadastro indicará ativação pendente; enviar o e-mail não significará que a conta já foi ativada.
+2. Dado um convite válido, quando o familiar abrir o link e concluir a definição da própria senha, então poderá usar a plataforma somente no escopo autorizado e, nos acessos seguintes, entrar com e-mail e senha.
+3. Dado um familiar que esqueceu a senha, quando selecionar “Esqueci minha senha” e informar seu e-mail, então poderá receber um link de recuperação; com link válido, definirá uma nova senha e conseguirá entrar com ela.
+4. Dado um link expirado, inválido ou já utilizado, quando tentar ativar a conta ou redefinir a senha, então verá uma orientação para obter um novo link, sem liberação de dados do caso.
+5. Dado um vínculo de caso revogado, quando o familiar entrar ou redefinir sua senha, então esse caso continuará inacessível. Recuperação de credencial não cria ou restaura autorização.
+6. Dada a recuperação solicitada para um e-mail não cadastrado, quando o pedido for enviado, então a resposta pública não revelará se existe uma conta, nem criará cadastro ou acesso ao caso.
+
 ### User Story 9 - Preservar sigilo, direitos e responsabilidade (Priority: P1)
 
 Como responsável pela operação, mantenho cada participante no escopo autorizado e consigo identificar consultas, alterações e compartilhamentos.
@@ -223,6 +241,9 @@ Como case manager, preparo reuniões com mudanças, decisões e pendências e de
 - **Conflito de edição:** apresentar alterações concorrentes ao responsável antes de substituir conteúdo atualizado.
 - **Profissional externo sem acesso regular:** na primeira versão, a case manager pode incorporar um documento, identificando origem e data; não atribuir a ele uma autoria que não confirmou.
 - **Convite expirado ou encaminhado a outra pessoa:** não permitir acesso apenas por posse de uma mensagem ou link; exigir identificação do participante autorizado.
+- **Falha no envio do convite familiar:** indicar falha ou pendência de envio, sem marcar ativação concluída; a nova tentativa não deve duplicar participante ou vínculo.
+- **E-mail familiar já associado a uma conta:** não duplicar a identidade, sobrescrever a senha ou ampliar permissões silenciosamente. O fluxo de convite para conta existente será detalhado no planejamento.
+- **Recuperação de senha com vínculo revogado:** recuperar a credencial não reativa acesso ao paciente, documentos ou agenda.
 - **Conteúdo restrito citado em tarefa, alerta ou resumo:** a derivação mantém a restrição; o título ou a notificação também não pode revelar o conteúdo protegido.
 - **Case manager ausente:** o caso informa um substituto previamente autorizado e o canal de contato; não conceder acesso automático a toda a carteira.
 - **Desconexão do Google Drive ou Google Agenda:** manter a identificação do anexo ou compromisso, sinalizar indisponibilidade e listar as pendências de reconciliação; não fingir que o arquivo foi guardado ou a agenda foi atualizada com sucesso.
@@ -308,6 +329,10 @@ Todos os itens abaixo compõem a referência funcional do projeto aprovado. “I
 | FR-042 | Inicial | Proteger dados identificáveis e de saúde, incluindo textos livres, áudios, imagens, documentos e cópias de recuperação, contra consulta não autorizada. Antes do uso real, a operação deve demonstrar restauração autorizada e conferência de integridade após perda simulada. |
 | FR-049 | Inicial | Integrar a visão da agenda geral institucional e dos calendários Google autorizados ao calendário do sistema. Cada compromisso deve exibir origem e respeitar o escopo de pessoa, caso e audiência. |
 | FR-050 | Inicial | Permitir que responsáveis autorizados reconheçam falha de atualização de agenda ou arquivo e encontrem uma ação de regularização, sem apresentar dados possivelmente desatualizados como atuais. |
+| FR-051 | Inicial | Permitir que Edilaine cadastre o familiar, seu e-mail e o vínculo autorizado com o caso, e envie um convite inicial de ativação. Distinguir convite pendente, falha de envio e ativação concluída; o envio não concede autorização além do vínculo definido. |
+| FR-052 | Inicial | Permitir ao familiar definir sua própria senha após validar o convite inicial e entrar posteriormente com e-mail e senha. A ativação não deve disponibilizar dados antes da conclusão do fluxo; Edilaine não precisa conhecer a senha. O login da equipe continua pelo Google Workspace. |
+| FR-053 | Inicial | Oferecer “Esqueci minha senha” no login familiar, com solicitação por e-mail e definição de nova senha por link válido. Não revelar publicamente a existência de uma conta nem criar cadastro ou vínculo a partir da recuperação. |
+| FR-054 | Inicial | Rejeitar links de ativação/recuperação inválidos, expirados ou já utilizados e orientar a obtenção de novo link. Ativar a conta, entrar ou recuperar senha não deve criar ou restaurar vínculos revogados; conferir autorização antes de exibir dados do caso. |
 
 #### Extensões a validar
 
@@ -397,6 +422,7 @@ Os conceitos abaixo descrevem o negócio, não uma estrutura de armazenamento.
 
 - **Pessoa acompanhada e caso:** a pessoa, o contexto e um período de coordenação do cuidado, com responsável e situação próprios.
 - **Participante e vínculo:** relação com o caso, função, necessidade de acesso, período autorizado e eventual representação legal.
+- **Conta familiar e convite:** identidade de acesso do familiar, e-mail de destino, responsável pelo convite e situação da ativação. A conta autentica a pessoa; o vínculo determina os casos e conteúdos autorizados.
 - **Anamnese de coordenação:** informações de entrada por seção, origem, confirmação e pendências.
 - **Registro do diário:** acontecimento ou ação com autor, origem, datas, conteúdo, audiência e retificações.
 - **Síntese do caso:** leitura atual revisada, com fontes, objetivos e informação ainda não incorporada.
@@ -428,6 +454,7 @@ As metas são propostas para um piloto, não desempenho medido nem promessa clí
 | SC-009 | Todos os casos do piloto têm responsáveis, audiências e regra de retorno definidos; nenhum áudio entra publicado sem revisão humana | Conferência do cadastro de todos os casos e amostra semanal das publicações |
 | SC-010 | Em pelo menos 90% das tentativas, o participante autorizado encontra um documento ou identifica corretamente sua indisponibilidade em até 1 minuto | Dez exercícios de consulta com documentos de categorias e versões diferentes |
 | SC-011 | 100% dos exercícios com contas fictícias do Workspace respeitam os vínculos de caso, inclusive para anexos e compromissos da agenda geral | Testar contas vinculadas e não vinculadas, acesso revogado e consulta à agenda geral antes do piloto com dados reais |
+| SC-012 | Todos os cenários definidos de ativação e recuperação familiar funcionam sem liberar acesso além dos vínculos autorizados | Executar a jornada 12 com contas fictícias, incluindo links inválidos/expirados/usados, e-mail não cadastrado e vínculo revogado, também no celular, antes do piloto com dados reais |
 
 Redução de internações, prevenção de suicídio e melhora clínica não são critérios atribuíveis ao produto neste piloto. Podem ser temas de acompanhamento profissional, sem inferir causalidade a partir do uso da ferramenta.
 
