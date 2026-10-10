@@ -49,6 +49,7 @@ O nome “Francescapp” é provisório. O termo apresentado ao paciente pode se
 - As restrições técnicas fornecidas nesta sessão estão registradas em [fundacao.md](fundacao.md). A aprovação do projeto não transforma hipóteses anteriores em decisões confirmadas.
 - Q: Qual é o caminho local ou a URL do projeto de atendimento que devemos usar como referência de código? → A: O projeto está ao lado do Francescapp, na pasta `Atendimento`, localizado em `/home/lucas/projetos/Atendimento`. Os padrões encontrados estão documentados em [referencia-atendimento.md](referencia-atendimento.md).
 - Q: Como familiares entram na plataforma, considerando que não têm conta institucional? → A: Edilaine faz o cadastro na plataforma e a família recebe um primeiro link de acesso do Supabase para criar o acesso e definir a senha. Depois utiliza e-mail e senha, com opção “Esqueci minha senha” para recuperação por e-mail. O link inicial é de convite/ativação, não o método recorrente de login. O acesso da equipe permanece pelo Google Workspace.
+- Q: No calendário, o sistema apenas mostrará os compromissos do Google ou também permitirá atualizar pelo sistema? → A: Mostrará os compromissos existentes e permitirá atualizá-los pelo sistema. Cada usuário terá sua agenda; haverá uma agenda global em um e-mail compartilhado entre usuários, com acesso marcado individualmente na configuração de acesso. A localização das agendas individuais e a distinção entre consulta e edição da agenda global ainda precisam ser esclarecidas.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -125,11 +126,11 @@ Como case manager e equipe, defino objetivos relevantes para a pessoa acompanhad
 
 ### User Story 6 - Acompanhar agenda e continuidade do cuidado (Priority: P1)
 
-Como case manager ou participante autorizado, consulto no sistema a agenda do caso, incluindo a agenda geral da Francescato e os calendários Google autorizados, e registro realização, falta, cancelamento ou remarcação.
+Como case manager ou participante autorizado, consulto no sistema a agenda do caso e minha agenda Google, atualizo compromissos pelo próprio sistema e registro realização, falta, cancelamento ou remarcação. A agenda global da Francescato, vinculada a um e-mail compartilhado, fica disponível conforme a configuração individual de acesso.
 
 **Why this priority**: Ajuda a enxergar rotina, adesão e barreiras antes que compromissos se percam.
 
-**Independent Test**: Organizar uma semana fictícia com atendimentos recorrentes e uma remarcação.
+**Independent Test**: Consultar uma semana fictícia, atualizar um compromisso pelo sistema e conferir o resultado no Google Agenda, usando dois usuários com configurações distintas de acesso à agenda global.
 
 **Acceptance Scenarios**:
 
@@ -137,6 +138,10 @@ Como case manager ou participante autorizado, consulto no sistema a agenda do ca
 2. Dado um atendimento que passou do horário e não foi confirmado, quando for exibido no acompanhamento, então aparecerá como “realização não confirmada”, sem ser contado automaticamente como falta.
 3. Dada uma falta, quando registrar o motivo, então será possível identificar barreiras de transporte, custo, disponibilidade ou outras; a ausência não produzirá um diagnóstico de risco.
 4. Dada uma agenda Google autorizada ou a agenda geral da Francescato, quando houver compromissos no período consultado, então a pessoa autorizada verá no sistema a origem, data, horário e participantes permitidos, sem revelar detalhes de calendários não autorizados.
+5. Dado um compromisso da própria agenda com edição autorizada, quando o usuário atualizá-lo pelo sistema, então a alteração será refletida na agenda Google de origem; o sistema só indicará atualização concluída após confirmação da integração.
+6. Dado um usuário sem acesso marcado à agenda global na configuração de acesso, quando consultar a agenda ou tentar acessar diretamente um compromisso global, então não obterá os dados dessa agenda nem poderá alterá-los. Entrar pelo Google não concede essa permissão automaticamente.
+7. Dado um usuário com acesso marcado à agenda global, quando consultar o calendário do sistema, então verá a agenda global junto de sua agenda, com origem identificada e sem receber por isso autorização para dados protegidos dos casos.
+8. Dada uma falha ao atualizar um compromisso no Google, quando o sistema apresentar o resultado, então indicará a falha ou confirmação pendente, sem afirmar que a agenda de origem foi alterada.
 
 ### User Story 7 - Priorizar a carteira de casos (Priority: P1)
 
@@ -178,7 +183,7 @@ Como integrante da Francescato, entro com minha conta individual do Google Works
 
 1. Dada uma conta ativa do Google Workspace da Francescato, quando entrar no sistema, então a pessoa será identificada individualmente e verá apenas o escopo de casos e ações que lhe foi atribuído.
 2. Dada uma conta do Workspace sem vínculo com determinado caso, quando buscar a pessoa acompanhada ou tentar abrir um anexo e um compromisso desse caso, então não obterá dados nem metadados protegidos.
-3. Dada a agenda geral institucional configurada para a equipe, quando um membro autorizado entrar, então verá seus compromissos permitidos na visão consolidada, sem que a conta geral conceda acesso a dados clínicos fora das regras do caso.
+3. Dada a agenda global institucional configurada e o acesso marcado para um membro da equipe, quando esse membro entrar, então verá seus compromissos permitidos na visão consolidada, sem que a conta compartilhada conceda acesso a dados clínicos fora das regras do caso.
 
 ### User Story 12 - Ativar e recuperar o acesso familiar (Priority: P1)
 
@@ -247,6 +252,8 @@ Como case manager, preparo reuniões com mudanças, decisões e pendências e de
 - **Conteúdo restrito citado em tarefa, alerta ou resumo:** a derivação mantém a restrição; o título ou a notificação também não pode revelar o conteúdo protegido.
 - **Case manager ausente:** o caso informa um substituto previamente autorizado e o canal de contato; não conceder acesso automático a toda a carteira.
 - **Desconexão do Google Drive ou Google Agenda:** manter a identificação do anexo ou compromisso, sinalizar indisponibilidade e listar as pendências de reconciliação; não fingir que o arquivo foi guardado ou a agenda foi atualizada com sucesso.
+- **Acesso à agenda global removido:** negar consultas e alterações subsequentes, inclusive por acesso direto ao compromisso, sem depender apenas de ocultar a agenda na interface.
+- **Agenda Google consultável, mas sem autorização de edição:** não apresentar a consulta como permissão para atualizar. Uma recusa do Google deve ser informada sem indicar alteração concluída.
 - **Documentos duplicados ou versões conflitantes:** identificar a versão em uso e conservar a procedência, sem decidir automaticamente qual conclusão clínica está correta.
 - **Relato de risco e ninguém disponível:** apresentar o plano de crise e o canal apropriado definido pela equipe; a ausência de confirmação não pode ser interpretada como monitoramento em tempo real.
 
@@ -297,7 +304,7 @@ Todos os itens abaixo compõem a referência funcional do projeto aprovado. “I
 
 | ID | Fase | Requisito e condição de aceite |
 | --- | --- | --- |
-| FR-023 | Inicial | Consolidar compromissos do caso, da agenda geral da Francescato e dos calendários Google autorizados, com origem, profissional, data, duração, local ou modalidade e participantes autorizados. Deve permitir recorrência e sinalizar sobreposições, sem impedir exceções justificadas. |
+| FR-023 | Inicial | Consolidar compromissos do caso, da agenda individual do usuário e, quando seu acesso estiver marcado na configuração, da agenda global da Francescato em e-mail compartilhado. Exibir origem, profissional, data, duração, local ou modalidade e participantes autorizados. Deve permitir recorrência e sinalizar sobreposições, sem impedir exceções justificadas. |
 | FR-024 | Inicial | Registrar realizado, faltou, cancelado, remarcado ou realização não confirmada, com motivo e vínculo entre datas. Deve distinguir falta de cancelamento e de ausência de confirmação. |
 | FR-025 | Inicial | Exibir a origem de cada compromisso e a data da última atualização da agenda. Oferecer lembretes e avisos de mudança segundo preferência do destinatário. Mensagens externas devem usar conteúdo mínimo e não incluir diagnóstico, transcrição ou trecho de evolução. |
 | FR-026 | Inicial | Mostrar carteira filtrável por responsável, situação do acompanhamento, revisão e pendências. Sinais operacionais devem ter motivo visível e estado “informação insuficiente”; não representar classificação clínica automática. |
@@ -321,13 +328,13 @@ Todos os itens abaixo compõem a referência funcional do projeto aprovado. “I
 | --- | --- | --- |
 | FR-035 | Inicial | Permitir entrada com conta individual ativa do Google Workspace da Francescato e conceder acesso por pessoa, caso, finalidade e tipo de informação, com vínculo válido e identidade individual. O papel genérico ou uma conta geral não devem liberar toda a carteira. |
 | FR-036 | Inicial | Distinguir informação de coordenação compartilhável, conteúdo disponibilizado ao paciente/família e conteúdo profissional restrito. O autor deve ver a audiência antes de publicar; rascunhos permanecem privados. |
-| FR-037 | Inicial | Permitir revogar vínculos, definir substituição temporária da case manager e revisar autorizações. Todas as alterações devem manter data, responsável e motivo. |
+| FR-037 | Inicial | Permitir revogar vínculos, definir substituição temporária da case manager e revisar autorizações. A configuração de acesso deve indicar individualmente se o usuário possui acesso à agenda global; sem essa marcação, negar consulta e alteração dessa agenda. Todas as alterações devem manter data, responsável e motivo. A marcação não concede acesso clínico aos casos. |
 | FR-038 | Inicial | Manter evidências de autorização ou fundamento aplicável, finalidade, audiência e versão dos termos. Quando houver consentimento, registrar concessão e revogação; não usar uma única autorização genérica para toda utilização futura. |
 | FR-039 | Inicial | Registrar consultas, alterações, downloads/exportações e mudanças de acesso com identidade, data e objeto. Apenas responsáveis autorizados podem consultar a auditoria, que deve evitar repetir conteúdo clínico desnecessariamente. |
 | FR-040 | Inicial | Receber e acompanhar solicitações de acesso, correção, portabilidade ou exclusão. A resposta deve indicar medida adotada ou razão de guarda/restrição aplicável; revogar consentimento não significa apagar automaticamente todos os registros. |
 | FR-041 | Inicial | Informar regras de funcionamento, períodos de acompanhamento, canais de retorno e uso do diário. Paciente e família devem encontrar essas regras sem precisar ler termos extensos para saber onde pedir ajuda. |
 | FR-042 | Inicial | Proteger dados identificáveis e de saúde, incluindo textos livres, áudios, imagens, documentos e cópias de recuperação, contra consulta não autorizada. Antes do uso real, a operação deve demonstrar restauração autorizada e conferência de integridade após perda simulada. |
-| FR-049 | Inicial | Integrar a visão da agenda geral institucional e dos calendários Google autorizados ao calendário do sistema. Cada compromisso deve exibir origem e respeitar o escopo de pessoa, caso e audiência. |
+| FR-049 | Inicial | Consultar compromissos existentes no Google Agenda e permitir atualizá-los pelo sistema nas agendas com autorização de edição, refletindo a alteração na origem. Integrar a agenda individual e a agenda global institucional conforme a configuração de acesso. Cada compromisso deve exibir origem e respeitar o escopo de pessoa, caso e audiência. Só indicar atualização concluída após confirmação da integração; regras de criação, cancelamento, edição de séries e conflito ainda serão detalhadas. |
 | FR-050 | Inicial | Permitir que responsáveis autorizados reconheçam falha de atualização de agenda ou arquivo e encontrem uma ação de regularização, sem apresentar dados possivelmente desatualizados como atuais. |
 | FR-051 | Inicial | Permitir que Edilaine cadastre o familiar, seu e-mail e o vínculo autorizado com o caso, e envie um convite inicial de ativação. Distinguir convite pendente, falha de envio e ativação concluída; o envio não concede autorização além do vínculo definido. |
 | FR-052 | Inicial | Permitir ao familiar definir sua própria senha após validar o convite inicial e entrar posteriormente com e-mail e senha. A ativação não deve disponibilizar dados antes da conclusão do fluxo; Edilaine não precisa conhecer a senha. O login da equipe continua pelo Google Workspace. |
@@ -431,6 +438,7 @@ Os conceitos abaixo descrevem o negócio, não uma estrutura de armazenamento.
 - **Compromisso:** atividade prevista e confirmação de realização, falta, cancelamento ou remarcação.
 - **Documento e áudio:** material associado ao caso ou registro, com procedência, audiência, disponibilidade e guarda definida.
 - **Conta Workspace e fonte de agenda:** identidade institucional individual, vínculo de acesso e calendário de origem, incluindo a agenda geral da Francescato quando autorizada.
+- **Agenda individual, agenda global e permissão:** agenda associada ao usuário, agenda institucional em e-mail compartilhado e marcação individual de acesso à agenda global. Permissão de agenda é distinta do vínculo de acesso ao caso; a localização das agendas individuais e os níveis de consulta/edição global permanecem a esclarecer.
 - **Orientação e plano de crise:** conteúdo aprovado por responsável habilitado, destinatários e validade/revisão.
 - **Autorização e evidência de governança:** finalidade, fundamento ou consentimento quando aplicável, limites e revisões.
 - **Evento de auditoria:** consulta, alteração ou compartilhamento identificado, preservando a responsabilidade das ações.
@@ -453,7 +461,7 @@ As metas são propostas para um piloto, não desempenho medido nem promessa clí
 | SC-008 | Pelo menos 80% dos profissionais e familiares participantes avaliam clareza do registro e dos combinados com nota 4 ou 5 em escala de 1 a 5 | Pesquisa por grupo ao final do piloto, incluindo pergunta sobre dificuldade e receio de compartilhamento |
 | SC-009 | Todos os casos do piloto têm responsáveis, audiências e regra de retorno definidos; nenhum áudio entra publicado sem revisão humana | Conferência do cadastro de todos os casos e amostra semanal das publicações |
 | SC-010 | Em pelo menos 90% das tentativas, o participante autorizado encontra um documento ou identifica corretamente sua indisponibilidade em até 1 minuto | Dez exercícios de consulta com documentos de categorias e versões diferentes |
-| SC-011 | 100% dos exercícios com contas fictícias do Workspace respeitam os vínculos de caso, inclusive para anexos e compromissos da agenda geral | Testar contas vinculadas e não vinculadas, acesso revogado e consulta à agenda geral antes do piloto com dados reais |
+| SC-011 | 100% dos exercícios com contas fictícias do Workspace respeitam os vínculos de caso e a configuração de acesso à agenda global, inclusive para anexos e consulta/alteração de compromissos | Testar contas vinculadas e não vinculadas, acesso global marcado/desmarcado/revogado, atualização autorizada na própria agenda e falha de integração, antes do piloto com dados reais |
 | SC-012 | Todos os cenários definidos de ativação e recuperação familiar funcionam sem liberar acesso além dos vínculos autorizados | Executar a jornada 12 com contas fictícias, incluindo links inválidos/expirados/usados, e-mail não cadastrado e vínculo revogado, também no celular, antes do piloto com dados reais |
 
 Redução de internações, prevenção de suicídio e melhora clínica não são critérios atribuíveis ao produto neste piloto. Podem ser temas de acompanhamento profissional, sem inferir causalidade a partir do uso da ferramenta.
@@ -468,7 +476,7 @@ Redução de internações, prevenção de suicídio e melhora clínica não sã
 - Equipe e familiares/cuidadores autorizados entram no núcleo inicial. Acesso direto do paciente é uma extensão proposta, cuja prioridade pode mudar na validação; suas preferências e direitos já integram o núcleo.
 - Cada paciente tem um caso separado, mesmo quando há membros de uma mesma família em acompanhamento.
 - O núcleo inicial compartilha sínteses necessárias à coordenação. Não se presume a migração de notas privadas e prontuários completos de todos os profissionais.
-- Agenda, diário, anexos e acesso individual fazem parte do núcleo inicial, com integração à agenda geral da Francescato e aos calendários Google autorizados. WhatsApp permanece como evolução a validar.
+- Agenda, diário, anexos e acesso individual fazem parte do núcleo inicial. A consulta e atualização pelo sistema, a agenda individual e o acesso configurável à agenda global foram confirmados; localização das agendas individuais, ações de escrita e níveis de edição global permanecem a esclarecer. WhatsApp permanece como evolução a validar.
 - Google Drive institucional será o repositório inicial de anexos por pessoa acompanhada. A Francescato definirá a conta institucional, responsáveis administrativos e convenção de classificação antes do piloto.
 - Não há serviço de emergência ou cobertura 24 horas contratado como parte do produto; se a Francescato oferecer acompanhamento ampliado, seus períodos e responsáveis serão explicitamente definidos.
 - O esforço, número de casos e disponibilidade dos participantes são desconhecidos. Metas e piloto serão calibrados após a conversa de validação.
