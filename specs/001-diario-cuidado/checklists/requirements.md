@@ -1,6 +1,6 @@
 # Checklist de qualidade: Diário integrado do cuidado
 
-**Finalidade**: Revisar clareza e completude da proposta de negócio antes da validação com Edilaine.
+**Finalidade**: Revisar clareza e completude da especificação funcional e distinguir aprovação do projeto de prontidão para implementação.
 
 **Criado**: 2026-10-06
 
@@ -16,7 +16,7 @@
 
 ## Completude dos requisitos
 
-- [x] Sem marcadores pendentes de esclarecimento obrigatório; escolhas provisórias estão identificadas como hipóteses.
+- [ ] Sem marcadores pendentes de esclarecimento obrigatório; escolhas provisórias estão identificadas como hipóteses.
 - [x] Requisitos identificáveis, com condições de aceite verificáveis.
 - [x] Critérios de sucesso mensuráveis e sem dependência de tecnologia.
 - [x] Onze jornadas com exemplos de aceite e demonstração independente.
@@ -40,3 +40,9 @@ Revisão editorial e de consistência concluída para a proposta v0.2, incorpora
 A constituição existente ainda é o template do Spec Kit e não contém princípios ratificados. Nenhuma decisão técnica foi inferida a partir de seus exemplos.
 
 O documento está pronto para descoberta e revisão de negócio. Antes do piloto com dados reais, permanecem as validações de público, modelos, permissões, horários de resposta, guarda e responsabilidades listadas na especificação. Planejamento técnico não foi iniciado.
+
+### Revisão de 2026-10-10
+
+O solicitante informou a aprovação do projeto por Edilaine e definiu os serviços de infraestrutura, a referência de código e a origem do design final. A especificação v0.3 registra essa mudança de etapa, preservando hipóteses e evoluções não confirmadas. As restrições técnicas estão em [fundacao.md](../fundacao.md).
+
+O item de esclarecimentos passou de completo para pendente porque há decisões fundamentais ainda não respondidas. Qualidade funcional: 17/18 itens marcados; isso não certifica prontidão técnica. O plano depende da identificação do projeto de atendimento e da resolução dos pontos de fundação. A constituição continua sem ratificação.

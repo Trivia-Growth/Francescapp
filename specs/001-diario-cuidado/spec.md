@@ -1,12 +1,14 @@
 # Especificação de projeto: Francescapp - Diário integrado do cuidado
 
-**Feature Branch**: `chore/install-spec-kit-and-frontend-design`
+**Feature Branch**: `codex/fundacao-desenvolvimento`
 
 **Created**: 2026-10-06
 
-**Status**: Proposta de negócio v0.2 validada para evoluir com Google Workspace
+**Status**: Projeto aprovado por Edilaine; especificação v0.3 em esclarecimento para desenvolvimento
 
-**Input**: Centralizar informações do acompanhamento de pacientes, registros da equipe e da família, anamneses, imagens e documentos, agenda e diário por texto ou áudio transcrito. Após a validação com Edilaine, adotar Google Drive institucional para anexos classificados por pessoa acompanhada, acesso individual por contas do Google Workspace e visão consolidada da agenda geral e dos calendários autorizados no Google Agenda. Acrescentar sugestões relevantes à gestão de casos, sem definir arquitetura ou implementar o produto.
+**Updated**: 2026-10-10
+
+**Input**: Centralizar informações do acompanhamento de pacientes, registros da equipe e da família, anamneses, imagens e documentos, agenda e diário por texto ou áudio transcrito. Após a validação com Edilaine, adotar Google Drive institucional para anexos classificados por pessoa acompanhada, acesso individual por contas do Google Workspace e visão consolidada da agenda geral e dos calendários autorizados no Google Agenda. Em 2026-10-10, o solicitante informou a aprovação do projeto e autorizou iniciar a especificação para desenvolvimento, com infraestrutura e padrão de código explicitamente indicados. Decisões pendentes devem ser perguntadas, sem inferência.
 
 ## Visão do projeto e contexto de negócio
 
@@ -36,6 +38,15 @@ A [CMSA](https://cmsa.org/the-impact-of-case-management-on-the-healthcare-system
 O produto coordena informações e responsabilidades. Diagnósticos, condutas, prescrições e avaliação de risco pertencem aos profissionais habilitados. O diário familiar é uma fonte de observações e relatos, não uma avaliação clínica. A primeira versão não substitui automaticamente os prontuários obrigatórios de cada profissão; esse enquadramento será validado antes do uso com dados reais.
 
 O nome “Francescapp” é provisório. O termo apresentado ao paciente pode ser “Meu acompanhamento”, e o registro central pode ser chamado “Registro integrado do cuidado”. A nomenclatura final será escolhida com Edilaine.
+
+## Clarifications
+
+### Session 2026-10-10
+
+- O solicitante informou que Edilaine aprovou o projeto e que a preparação para desenvolvimento deve começar pelas especificações.
+- Decisões pendentes devem ser esclarecidas com o solicitante antes de virarem regras ou escolhas técnicas.
+- A identidade visual do produto será fornecida pelo time de marketing da Edilaine e seguirá o padrão do site da Francescato. A identidade da Trívia utilizada na proposta comercial não define o design do produto.
+- As restrições técnicas fornecidas nesta sessão estão registradas em [fundacao.md](fundacao.md). A referência de código ainda precisa ser identificada; a aprovação do projeto não transforma hipóteses anteriores em decisões confirmadas.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -221,7 +232,7 @@ Como case manager, preparo reuniões com mudanças, decisões e pendências e de
 
 ### Functional Requirements
 
-Todos os itens abaixo são requisitos de negócio propostos. “Inicial” integra a primeira versão sugerida; “Evolução” representa extensão a validar após o piloto. Uma decisão de prioridade não implica orçamento, prazo ou aprovação da Edilaine.
+Todos os itens abaixo compõem a referência funcional do projeto aprovado. “Inicial” identifica o núcleo proposto para a primeira versão; “Evolução” representa extensão ainda a validar. A aprovação informada em 2026-10-10 autoriza preparar o desenvolvimento; a composição final das entregas, as hipóteses e as regras pendentes serão confirmadas antes de gerar tarefas executáveis.
 
 #### Caso, anamnese e resumo
 
@@ -359,6 +370,7 @@ A expressão “criptografia simples de PII” será substituída por “proteç
 
 ### Requisitos de experiência e identidade
 
+- A identidade final será fornecida pelo time de marketing da Edilaine, seguindo o site da Francescato. As referências observadas abaixo e o mockup são insumos de demonstração; não substituem a entrega e validação dos materiais de marca.
 - Uso prioritário no celular para registrar, consultar agenda e ler orientações; a carteira e o resumo devem também funcionar em uma tela maior.
 - Linguagem em português, ações claras e campos curtos. Separar “publicar”, “enviar para revisão” e “guardar rascunho” quando houver esses efeitos distintos.
 - Mostrar o caso e a audiência antes de publicar, reduzindo registro no paciente errado ou compartilhamento por engano.
@@ -459,7 +471,8 @@ Para controlar esforço de entrada, o piloto pode começar com poucos casos e mo
 - Gravação contínua de sessões, casa ou conversas de WhatsApp.
 - Teleconsulta, faturamento de convênio, contabilidade, folha de pagamento ou gestão de investimentos.
 - Venda da solução para outras clínicas, comparação pública de pacientes ou ranking de profissionais.
-- Escolha de arquitetura, tecnologias, fornecedores de transcrição, mecanismos de criptografia ou desenho de armazenamento.
+
+As escolhas técnicas são tratadas na fundação e no futuro plano de implementação, mantendo este documento focado nos comportamentos e critérios de aceite do produto.
 
 ### Sugestões adicionais para validar com Edilaine
 
@@ -500,4 +513,4 @@ Para controlar esforço de entrada, o piloto pode começar com poucos casos e mo
 | Despesas e prestação de contas precisam entrar já ou podem esperar? | Repriorizar a extensão financeira |
 | Ao encerrar um caso ou trocar a equipe, o que deve ser entregue e a quem? | Saída, guarda e passagem do acompanhamento |
 
-O próximo passo é revisar esta proposta de negócio com Edilaine e registrar suas decisões. A especificação não aprova arquitetura, orçamento, cronograma nem desenvolvimento.
+O projeto está aprovado para iniciar a preparação do desenvolvimento. O próximo passo é identificar o projeto de atendimento, esclarecer as decisões pendentes e consolidar a constituição e o plano técnico. As hipóteses e evoluções acima permanecem identificadas até confirmação, sem presumir cronograma, desenho técnico ou funcionalidades adicionais.
