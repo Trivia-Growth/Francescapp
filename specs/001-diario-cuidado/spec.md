@@ -49,7 +49,8 @@ O nome “Francescapp” é provisório. O termo apresentado ao paciente pode se
 - As restrições técnicas fornecidas nesta sessão estão registradas em [fundacao.md](fundacao.md). A aprovação do projeto não transforma hipóteses anteriores em decisões confirmadas.
 - Q: Qual é o caminho local ou a URL do projeto de atendimento que devemos usar como referência de código? → A: O projeto está ao lado do Francescapp, na pasta `Atendimento`, localizado em `/home/lucas/projetos/Atendimento`. Os padrões encontrados estão documentados em [referencia-atendimento.md](referencia-atendimento.md).
 - Q: Como familiares entram na plataforma, considerando que não têm conta institucional? → A: Edilaine faz o cadastro na plataforma e a família recebe um primeiro link de acesso do Supabase para criar o acesso e definir a senha. Depois utiliza e-mail e senha, com opção “Esqueci minha senha” para recuperação por e-mail. O link inicial é de convite/ativação, não o método recorrente de login. O acesso da equipe permanece pelo Google Workspace.
-- Q: No calendário, o sistema apenas mostrará os compromissos do Google ou também permitirá atualizar pelo sistema? → A: Mostrará os compromissos existentes e permitirá atualizá-los pelo sistema. Cada usuário terá sua agenda; haverá uma agenda global em um e-mail compartilhado entre usuários, com acesso marcado individualmente na configuração de acesso. A localização das agendas individuais e a distinção entre consulta e edição da agenda global ainda precisam ser esclarecidas.
+- Q: No calendário, o sistema apenas mostrará os compromissos do Google ou também permitirá atualizar pelo sistema? → A: Mostrará os compromissos existentes e permitirá atualizá-los pelo sistema. Cada usuário terá sua agenda; haverá uma agenda global em um e-mail compartilhado entre usuários, com acesso marcado individualmente na configuração de acesso. A distinção entre consulta e edição da agenda global ainda precisa ser esclarecida.
+- Q: As agendas individuais ficarão na conta Google de cada profissional ou todas ficarão organizadas no e-mail compartilhado? → A: Opção A: cada profissional terá sua agenda na própria conta Google; o e-mail compartilhado manterá a agenda global da Francescato.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -126,7 +127,7 @@ Como case manager e equipe, defino objetivos relevantes para a pessoa acompanhad
 
 ### User Story 6 - Acompanhar agenda e continuidade do cuidado (Priority: P1)
 
-Como case manager ou participante autorizado, consulto no sistema a agenda do caso e minha agenda Google, atualizo compromissos pelo próprio sistema e registro realização, falta, cancelamento ou remarcação. A agenda global da Francescato, vinculada a um e-mail compartilhado, fica disponível conforme a configuração individual de acesso.
+Como case manager ou participante autorizado, consulto no sistema a agenda do caso e minha agenda na própria conta Google, atualizo compromissos pelo próprio sistema e registro realização, falta, cancelamento ou remarcação. A agenda global da Francescato, vinculada a um e-mail compartilhado separado das contas individuais, fica disponível conforme a configuração individual de acesso.
 
 **Why this priority**: Ajuda a enxergar rotina, adesão e barreiras antes que compromissos se percam.
 
@@ -304,7 +305,7 @@ Todos os itens abaixo compõem a referência funcional do projeto aprovado. “I
 
 | ID | Fase | Requisito e condição de aceite |
 | --- | --- | --- |
-| FR-023 | Inicial | Consolidar compromissos do caso, da agenda individual do usuário e, quando seu acesso estiver marcado na configuração, da agenda global da Francescato em e-mail compartilhado. Exibir origem, profissional, data, duração, local ou modalidade e participantes autorizados. Deve permitir recorrência e sinalizar sobreposições, sem impedir exceções justificadas. |
+| FR-023 | Inicial | Consolidar compromissos do caso, da agenda individual na própria conta Google do profissional e, quando seu acesso estiver marcado na configuração, da agenda global da Francescato em e-mail compartilhado. As agendas individuais não ficam concentradas nessa conta compartilhada. Exibir origem, profissional, data, duração, local ou modalidade e participantes autorizados. Deve permitir recorrência e sinalizar sobreposições, sem impedir exceções justificadas. |
 | FR-024 | Inicial | Registrar realizado, faltou, cancelado, remarcado ou realização não confirmada, com motivo e vínculo entre datas. Deve distinguir falta de cancelamento e de ausência de confirmação. |
 | FR-025 | Inicial | Exibir a origem de cada compromisso e a data da última atualização da agenda. Oferecer lembretes e avisos de mudança segundo preferência do destinatário. Mensagens externas devem usar conteúdo mínimo e não incluir diagnóstico, transcrição ou trecho de evolução. |
 | FR-026 | Inicial | Mostrar carteira filtrável por responsável, situação do acompanhamento, revisão e pendências. Sinais operacionais devem ter motivo visível e estado “informação insuficiente”; não representar classificação clínica automática. |
@@ -438,7 +439,7 @@ Os conceitos abaixo descrevem o negócio, não uma estrutura de armazenamento.
 - **Compromisso:** atividade prevista e confirmação de realização, falta, cancelamento ou remarcação.
 - **Documento e áudio:** material associado ao caso ou registro, com procedência, audiência, disponibilidade e guarda definida.
 - **Conta Workspace e fonte de agenda:** identidade institucional individual, vínculo de acesso e calendário de origem, incluindo a agenda geral da Francescato quando autorizada.
-- **Agenda individual, agenda global e permissão:** agenda associada ao usuário, agenda institucional em e-mail compartilhado e marcação individual de acesso à agenda global. Permissão de agenda é distinta do vínculo de acesso ao caso; a localização das agendas individuais e os níveis de consulta/edição global permanecem a esclarecer.
+- **Agenda individual, agenda global e permissão:** agenda na própria conta Google do profissional, agenda institucional global em e-mail compartilhado e marcação individual de acesso à agenda global. Permissão de agenda é distinta do vínculo de acesso ao caso; os níveis de consulta/edição global permanecem a esclarecer.
 - **Orientação e plano de crise:** conteúdo aprovado por responsável habilitado, destinatários e validade/revisão.
 - **Autorização e evidência de governança:** finalidade, fundamento ou consentimento quando aplicável, limites e revisões.
 - **Evento de auditoria:** consulta, alteração ou compartilhamento identificado, preservando a responsabilidade das ações.
@@ -476,7 +477,7 @@ Redução de internações, prevenção de suicídio e melhora clínica não sã
 - Equipe e familiares/cuidadores autorizados entram no núcleo inicial. Acesso direto do paciente é uma extensão proposta, cuja prioridade pode mudar na validação; suas preferências e direitos já integram o núcleo.
 - Cada paciente tem um caso separado, mesmo quando há membros de uma mesma família em acompanhamento.
 - O núcleo inicial compartilha sínteses necessárias à coordenação. Não se presume a migração de notas privadas e prontuários completos de todos os profissionais.
-- Agenda, diário, anexos e acesso individual fazem parte do núcleo inicial. A consulta e atualização pelo sistema, a agenda individual e o acesso configurável à agenda global foram confirmados; localização das agendas individuais, ações de escrita e níveis de edição global permanecem a esclarecer. WhatsApp permanece como evolução a validar.
+- Agenda, diário, anexos e acesso individual fazem parte do núcleo inicial. Foram confirmados consulta e atualização pelo sistema, agenda individual na própria conta Google de cada profissional e agenda global em e-mail compartilhado com acesso configurável; ações de escrita e níveis de edição global permanecem a esclarecer. WhatsApp permanece como evolução a validar.
 - Google Drive institucional será o repositório inicial de anexos por pessoa acompanhada. A Francescato definirá a conta institucional, responsáveis administrativos e convenção de classificação antes do piloto.
 - Não há serviço de emergência ou cobertura 24 horas contratado como parte do produto; se a Francescato oferecer acompanhamento ampliado, seus períodos e responsáveis serão explicitamente definidos.
 - O esforço, número de casos e disponibilidade dos participantes são desconhecidos. Metas e piloto serão calibrados após a conversa de validação.
