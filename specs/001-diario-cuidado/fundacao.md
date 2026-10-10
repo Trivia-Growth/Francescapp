@@ -19,7 +19,7 @@
 | DF-005 | Integrar Google Drive institucional | Anexos classificados por paciente e sob administração da Francescato, conforme a validação anterior. Conta responsável, local de guarda e modelo de acesso ainda precisam ser definidos. |
 | DF-006 | Integrar Google Calendar | Visão da agenda institucional geral e dos calendários autorizados, conforme a validação anterior. Escopo de edição e regras de sincronização ainda precisam ser definidos. |
 | DF-007 | Manter acesso individual da equipe com Google Workspace | Decisão anterior preservada. O domínio, o provisionamento, a revogação e a entrada de pessoas sem conta institucional precisam ser esclarecidos. |
-| DF-008 | Seguir o padrão de código do projeto de atendimento | Aguardando caminho local ou URL do repositório para inspeção. Linguagem, framework, organização e ferramentas não serão escolhidos antes dessa referência. |
+| DF-008 | Seguir o padrão de código do projeto de atendimento | Localizado em `/home/lucas/projetos/Atendimento` e inspecionado na revisão `748500f3422f29e2f42330fffede371dc16ccf12`. Os padrões de referência e as adaptações necessárias estão em [referencia-atendimento.md](referencia-atendimento.md). |
 | DF-009 | Usar a identidade da Francescato fornecida pelo marketing da Edilaine | O solicitante obterá os materiais com o time de marketing. O site orienta a marca; a proposta comercial da Trívia e o mockup não constituem o design final. |
 | DF-010 | Perguntar em caso de dúvida, sem inferir | Escolhas não confirmadas permanecerão pendentes. Recomendações técnicas serão apresentadas como recomendações, com decisão registrada após resposta. |
 
@@ -37,7 +37,6 @@ As áreas abaixo foram identificadas pela revisão dos documentos. Nenhuma alter
 
 | Área | O que permanece pendente | Por que precisa ser definido na fundação |
 | --- | --- | --- |
-| Referência de código | Identificação do projeto de atendimento e padrões aplicáveis | Determina organização, dependências, testes, migrações e publicação. |
 | Escopo de entrada em produção | Funcionalidades da primeira entrega e participantes iniciais | Determina o recorte das specs de desenvolvimento e dos critérios de aceite. |
 | Identidade e autorização | Entrada de familiares/cuidadores, participantes externos, domínio Workspace e concessão de acesso | Determina contas, convites, vínculo com casos e revogação. |
 | Organização e casos | Operação exclusivamente Francescato, vínculos entre paciente, casos e períodos de acompanhamento | Determina limites de acesso e relações persistidas, sem converter hipóteses em regras. |
@@ -48,20 +47,23 @@ As áreas abaixo foram identificadas pela revisão dos documentos. Nenhuma alter
 | Escala e metas | Casos, usuários, volume de anexos/áudio e expectativas de resposta/recuperação | Determina limites e critérios de capacidade sem inventar números. |
 | Marca e experiência | Materiais oficiais, tipografia licenciada, componentes e aprovação do marketing | Determina a interface final e sua validação no celular. |
 
-## Evidências a extrair do projeto de atendimento
+## Referência de código inspecionada
 
-Após o solicitante identificar o repositório, registrar caminho e revisão consultada, com referências aos arquivos que sustentam cada conclusão:
+O solicitante indicou o projeto vizinho. O diretório local é `Atendimento`, com inicial maiúscula. A inspeção foi somente de leitura; o projeto de referência não foi alterado. As evidências estão em [referencia-atendimento.md](referencia-atendimento.md).
 
-- Linguagem, framework, versões e gerenciador de dependências.
-- Organização de páginas, componentes, regras de negócio e integrações.
-- Autenticação, autorização, acesso ao Supabase e migrações.
-- Convenções de validação, erros, logs e configuração.
-- Testes, verificações de qualidade e publicação no Netlify.
-- Padrões reutilizáveis e adaptações que exigem confirmação para o contexto da Francescato.
+- Base de referência: React 19, Vite, TypeScript estrito, TanStack Router, pnpm e Turbo.
+- Módulos em `domain`, `application`, `infrastructure` e `interfaces`, com contratos explícitos nas fronteiras.
+- Supabase/PostgreSQL, migrações versionadas, políticas de acesso no banco e testes de acesso permitido/negado.
+- Edge Functions em Deno, integrações isoladas em adapters e segredos tratados no servidor.
+- Netlify com configuração de build, rotas e cabeçalhos versionada.
+- Tailwind e componentes base no padrão shadcn/ui; tokens visuais do Francescapp dependerão da marca fornecida pelo marketing.
+- Biome, Vitest, testes SQL/Deno e Playwright para verificação proporcional ao risco da mudança.
+
+Esses padrões são a referência indicada pelo solicitante. Topologia de ambientes, login Google, permissões por caso, integração de escrita no Drive e políticas de uso de IA ainda precisam ser detalhados para a Francescato.
 
 ## Condições para consolidar o plano técnico
 
-1. Inspecionar a referência de código indicada pelo solicitante.
+1. Manter a rastreabilidade para a referência de código já inspecionada e confirmar adaptações quando dependerem de novas decisões.
 2. Registrar as respostas que definem o recorte inicial e os limites de acesso, dados e integrações.
 3. Consolidar os princípios do projeto na constituição, a partir das decisões confirmadas.
 4. Gerar `plan.md`, `research.md`, `data-model.md`, contratos de integração e guia de validação com rastreabilidade para os requisitos funcionais.

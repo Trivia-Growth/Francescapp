@@ -46,7 +46,8 @@ O nome “Francescapp” é provisório. O termo apresentado ao paciente pode se
 - O solicitante informou que Edilaine aprovou o projeto e que a preparação para desenvolvimento deve começar pelas especificações.
 - Decisões pendentes devem ser esclarecidas com o solicitante antes de virarem regras ou escolhas técnicas.
 - A identidade visual do produto será fornecida pelo time de marketing da Edilaine e seguirá o padrão do site da Francescato. A identidade da Trívia utilizada na proposta comercial não define o design do produto.
-- As restrições técnicas fornecidas nesta sessão estão registradas em [fundacao.md](fundacao.md). A referência de código ainda precisa ser identificada; a aprovação do projeto não transforma hipóteses anteriores em decisões confirmadas.
+- As restrições técnicas fornecidas nesta sessão estão registradas em [fundacao.md](fundacao.md). A aprovação do projeto não transforma hipóteses anteriores em decisões confirmadas.
+- Q: Qual é o caminho local ou a URL do projeto de atendimento que devemos usar como referência de código? → A: O projeto está ao lado do Francescapp, na pasta `Atendimento`, localizado em `/home/lucas/projetos/Atendimento`. Os padrões encontrados estão documentados em [referencia-atendimento.md](referencia-atendimento.md).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -513,4 +514,4 @@ As escolhas técnicas são tratadas na fundação e no futuro plano de implement
 | Despesas e prestação de contas precisam entrar já ou podem esperar? | Repriorizar a extensão financeira |
 | Ao encerrar um caso ou trocar a equipe, o que deve ser entregue e a quem? | Saída, guarda e passagem do acompanhamento |
 
-O projeto está aprovado para iniciar a preparação do desenvolvimento. O próximo passo é identificar o projeto de atendimento, esclarecer as decisões pendentes e consolidar a constituição e o plano técnico. As hipóteses e evoluções acima permanecem identificadas até confirmação, sem presumir cronograma, desenho técnico ou funcionalidades adicionais.
+O projeto está aprovado para iniciar a preparação do desenvolvimento. A referência de código foi localizada e inspecionada. O próximo passo é esclarecer as decisões pendentes e consolidar a constituição e o plano técnico. As hipóteses e evoluções acima permanecem identificadas até confirmação, sem presumir cronograma, desenho técnico ou funcionalidades adicionais.
