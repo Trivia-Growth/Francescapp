@@ -1,0 +1,33 @@
+schema: spec-driven
+
+context: |
+  Language: Português (Brasil)
+  All artifacts must be written in Português (Brasil).
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+  Francescapp é um sistema de coordenação do cuidado da Francescato, aprovado por Edilaine.
+  Fontes: openspec/specs, docs/projeto, PRODUCT.md e AGENTS.md.
+  Infraestrutura confirmada: Supabase, Netlify, OpenRouter, Google Drive e Google Calendar.
+  Padrão de código: projeto Atendimento, conforme docs/projeto/referencia-atendimento.md.
+  HED Transportes orienta o processo de IA, não a arquitetura ou a identidade visual do produto.
+  Família: convite inicial Supabase, senha definida pelo destinatário, login e-mail/senha e recuperação.
+  Equipe: Google Workspace; agendas individuais nas próprias contas Google.
+  Agenda global em e-mail compartilhado com visualização e edição autorizadas separadamente.
+  Identidade visual final virá do marketing da Francescato; mockup não constitui design final.
+  Não inferir decisões materiais. Consultar pendências em docs/projeto/fundacao.md.
+  As specs migradas descrevem requisitos de referência, não implementação ou prioridade nova.
+  docs/legacy/spec-kit é histórico somente de leitura, não um segundo fluxo ativo.
+
+rules:
+  proposal:
+    - Separar fatos, decisões, hipóteses e pendências. Explicitar escopo e exclusões.
+    - Preservar requisitos aprovados sem promover evoluções propostas a compromisso de primeira entrega.
+  specs:
+    - Manter rastreabilidade FR/SC e fase Inicial/Evolução. Não inventar regras clínicas ou permissões.
+    - Definir cenários positivos, negativos, falhas e revogação proporcionais à mudança.
+  design:
+    - Fundamentar decisões na referência Atendimento e nas escolhas confirmadas; apresentar alternativas quando houver dúvida material.
+    - Separar identidade, autorização por caso, audiência e permissão de agenda. Tratar segredos e integração no servidor.
+  tasks:
+    - Cada tarefa deve apontar requisito/cenário, dependências e evidência de aceite.
+    - Usar fatias verticais e passagens delimitadas; não fixar nomes de modelos ou disparar agentes automaticamente.
+    - Não gerar tarefas executáveis dependentes de decisões materiais ainda abertas.

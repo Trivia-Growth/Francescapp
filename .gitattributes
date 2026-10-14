@@ -1,0 +1,2 @@
+# A skill vendorizada mantém o Markdown original, incluindo quebras por dois espaços.
+.agents/skills/vercel-react-best-practices/** whitespace=-blank-at-eol

@@ -1,6 +1,12 @@
 # Materiais temporários de apresentação e configurações locais de outros agentes.
 brag-output/
-.claude/
+.claude/*
+!.claude/commands/
+.claude/commands/*
+!.claude/commands/opsx/
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/openspec-*/
 
 # O Impeccable baixa o binário adequado no primeiro uso.
 .agents/skills/impeccable/scripts/bin/
@@ -8,3 +14,4 @@ brag-output/
 # Arquivos locais comuns.
 .DS_Store
 node_modules/
+tmp/
