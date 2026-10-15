@@ -12,6 +12,7 @@ O processo ativo é **OpenSpec**, desde 14/10/2026, com diretrizes em [AGENTS.md
 - [Referência de código Atendimento](docs/projeto/referencia-atendimento.md)
 - [Registro da migração e rastreabilidade](docs/processo/migracao-openspec.md)
 - [Produto](PRODUCT.md) e [contexto visual](DESIGN.md)
+- [Especificações de features e regras de negócio para João](docs/projeto/especificacoes-para-joao.md) e PDF correspondente em `output/pdf/especificacoes-francescapp-joao.pdf`.
 
 ## Fluxo
 

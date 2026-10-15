@@ -1,0 +1,310 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-15T00:58:03.608Z",
+  "title": "Francescapp - referência provisória do mock",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "displayName": "primary",
+        "role": "primary",
+        "tonalRamp": [
+          "oklch(15% 0.0500 127.43)",
+          "oklch(26% 0.0500 127.43)",
+          "oklch(38% 0.0500 127.43)",
+          "oklch(49% 0.0500 127.43)",
+          "oklch(61% 0.0500 127.43)",
+          "oklch(72% 0.0500 127.43)",
+          "oklch(84% 0.0500 127.43)",
+          "oklch(95% 0.0500 127.43)"
+        ]
+      },
+      "olive": {
+        "displayName": "olive",
+        "role": "primary",
+        "tonalRamp": [
+          "oklch(15% 0.0824 117.43)",
+          "oklch(26% 0.0824 117.43)",
+          "oklch(38% 0.0824 117.43)",
+          "oklch(49% 0.0824 117.43)",
+          "oklch(61% 0.0824 117.43)",
+          "oklch(72% 0.0824 117.43)",
+          "oklch(84% 0.0824 117.43)",
+          "oklch(95% 0.0824 117.43)"
+        ]
+      },
+      "lime": {
+        "displayName": "lime",
+        "role": "primary",
+        "tonalRamp": [
+          "oklch(15% 0.0854 117.25)",
+          "oklch(26% 0.0854 117.25)",
+          "oklch(38% 0.0854 117.25)",
+          "oklch(49% 0.0854 117.25)",
+          "oklch(61% 0.0854 117.25)",
+          "oklch(72% 0.0854 117.25)",
+          "oklch(84% 0.0854 117.25)",
+          "oklch(95% 0.0854 117.25)"
+        ]
+      },
+      "sand": {
+        "displayName": "sand",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0456 72.60)",
+          "oklch(26% 0.0456 72.60)",
+          "oklch(38% 0.0456 72.60)",
+          "oklch(49% 0.0456 72.60)",
+          "oklch(61% 0.0456 72.60)",
+          "oklch(72% 0.0456 72.60)",
+          "oklch(84% 0.0456 72.60)",
+          "oklch(95% 0.0456 72.60)"
+        ]
+      },
+      "brown": {
+        "displayName": "brown",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0372 76.00)",
+          "oklch(26% 0.0372 76.00)",
+          "oklch(38% 0.0372 76.00)",
+          "oklch(49% 0.0372 76.00)",
+          "oklch(61% 0.0372 76.00)",
+          "oklch(72% 0.0372 76.00)",
+          "oklch(84% 0.0372 76.00)",
+          "oklch(95% 0.0372 76.00)"
+        ]
+      },
+      "ink": {
+        "displayName": "ink",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0282 136.85)",
+          "oklch(26% 0.0282 136.85)",
+          "oklch(38% 0.0282 136.85)",
+          "oklch(49% 0.0282 136.85)",
+          "oklch(61% 0.0282 136.85)",
+          "oklch(72% 0.0282 136.85)",
+          "oklch(84% 0.0282 136.85)",
+          "oklch(95% 0.0282 136.85)"
+        ]
+      },
+      "muted": {
+        "displayName": "muted",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0292 134.44)",
+          "oklch(26% 0.0292 134.44)",
+          "oklch(38% 0.0292 134.44)",
+          "oklch(49% 0.0292 134.44)",
+          "oklch(61% 0.0292 134.44)",
+          "oklch(72% 0.0292 134.44)",
+          "oklch(84% 0.0292 134.44)",
+          "oklch(95% 0.0292 134.44)"
+        ]
+      },
+      "line": {
+        "displayName": "line",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0236 122.75)",
+          "oklch(26% 0.0236 122.75)",
+          "oklch(38% 0.0236 122.75)",
+          "oklch(49% 0.0236 122.75)",
+          "oklch(61% 0.0236 122.75)",
+          "oklch(72% 0.0236 122.75)",
+          "oklch(84% 0.0236 122.75)",
+          "oklch(95% 0.0236 122.75)"
+        ]
+      },
+      "wash": {
+        "displayName": "wash",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0054 117.92)",
+          "oklch(26% 0.0054 117.92)",
+          "oklch(38% 0.0054 117.92)",
+          "oklch(49% 0.0054 117.92)",
+          "oklch(61% 0.0054 117.92)",
+          "oklch(72% 0.0054 117.92)",
+          "oklch(84% 0.0054 117.92)",
+          "oklch(95% 0.0054 117.92)"
+        ]
+      },
+      "soft": {
+        "displayName": "soft",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0149 119.10)",
+          "oklch(26% 0.0149 119.10)",
+          "oklch(38% 0.0149 119.10)",
+          "oklch(49% 0.0149 119.10)",
+          "oklch(61% 0.0149 119.10)",
+          "oklch(72% 0.0149 119.10)",
+          "oklch(84% 0.0149 119.10)",
+          "oklch(95% 0.0149 119.10)"
+        ]
+      },
+      "white": {
+        "displayName": "white",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0000 89.88)",
+          "oklch(26% 0.0000 89.88)",
+          "oklch(38% 0.0000 89.88)",
+          "oklch(49% 0.0000 89.88)",
+          "oklch(61% 0.0000 89.88)",
+          "oklch(72% 0.0000 89.88)",
+          "oklch(84% 0.0000 89.88)",
+          "oklch(95% 0.0000 89.88)"
+        ]
+      },
+      "panel": {
+        "displayName": "panel",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0136 120.28)",
+          "oklch(26% 0.0136 120.28)",
+          "oklch(38% 0.0136 120.28)",
+          "oklch(49% 0.0136 120.28)",
+          "oklch(61% 0.0136 120.28)",
+          "oklch(72% 0.0136 120.28)",
+          "oklch(84% 0.0136 120.28)",
+          "oklch(95% 0.0136 120.28)"
+        ]
+      },
+      "primary-hover": {
+        "displayName": "primary-hover",
+        "role": "primary",
+        "tonalRamp": [
+          "oklch(15% 0.0452 128.57)",
+          "oklch(26% 0.0452 128.57)",
+          "oklch(38% 0.0452 128.57)",
+          "oklch(49% 0.0452 128.57)",
+          "oklch(61% 0.0452 128.57)",
+          "oklch(72% 0.0452 128.57)",
+          "oklch(84% 0.0452 128.57)",
+          "oklch(95% 0.0452 128.57)"
+        ]
+      }
+    },
+    "shadows": [
+      {
+        "name": "dialog",
+        "value": "0 25px 90px #26301e2b",
+        "purpose": "Diálogo do mock."
+      }
+    ],
+    "motion": [
+      {
+        "name": "nav",
+        "value": "background .18s",
+        "purpose": "Transição de navegação; removida por prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact-desktop",
+        "value": "1200px"
+      },
+      {
+        "name": "mobile",
+        "value": "760px"
+      }
+    ],
+    "provisional": true,
+    "source": "mockup/styles.css",
+    "tonalRampNote": "Rampas OKLCH sintetizadas somente para visualização do painel; não são cores implementadas ou aprovadas."
+  },
+  "components": [
+    {
+      "name": "Botão principal",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal do mock.",
+      "html": "<button class=\"ds-control ds-primary\">Salvar registro</button>",
+      "css": ".ds-primary{font:14px Raleway,Arial,sans-serif;padding:11px 16px;border:1px solid var(--deep,#475436);background:var(--deep,#475436);color:white;border-radius:8px;cursor:pointer}.ds-primary:hover{background:#38442a}.ds-control:focus-visible{outline:3px solid var(--olive,#879257);outline-offset:4px}.ds-control:disabled{opacity:.55;cursor:default}"
+    },
+    {
+      "name": "Botão neutro",
+      "kind": "button",
+      "description": "Ação secundária do mock.",
+      "html": "<button class=\"ds-control ds-secondary\">Cancelar</button>",
+      "css": ".ds-secondary{font:14px Raleway,Arial,sans-serif;padding:11px 16px;border:1px solid var(--line,#dfe5d4);background:white;color:var(--ink,#273123);border-radius:8px;cursor:pointer}.ds-secondary:hover{background:#f3f5ef}.ds-control:focus-visible{outline:3px solid var(--olive,#879257);outline-offset:4px}.ds-control:disabled{opacity:.55;cursor:default}"
+    },
+    {
+      "name": "Campo",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Campo de registro com tamanho legível.",
+      "html": "<label class=\"ds-label\">Descrição<input class=\"ds-input\" placeholder=\"O que aconteceu?\"></label>",
+      "css": ".ds-label{display:grid;gap:8px;font:14px Raleway,Arial,sans-serif;color:var(--ink,#273123)}.ds-input{font:16px Raleway,Arial,sans-serif;padding:11px 12px;min-height:41px;border:1px solid #dce2d3;border-radius:7px;background:white;color:var(--ink,#273123)}.ds-input:focus-visible{outline:2px solid var(--lime,#aeba7b);outline-offset:1px}"
+    },
+    {
+      "name": "Navegação",
+      "kind": "nav",
+      "refersTo": "nav-active",
+      "description": "Item ativo da sidebar.",
+      "html": "<nav><button class=\"ds-control ds-nav\" aria-current=\"page\">Pessoas acompanhadas</button></nav>",
+      "css": ".ds-nav{font:700 14px Raleway,Arial,sans-serif;padding:13px 12px;border:0;border-radius:8px;background:var(--soft,#f1f4e9);color:var(--deep,#475436);transition:background .18s;cursor:pointer}.ds-nav:hover{background:var(--wash,#fbfcf8)}.ds-control:focus-visible{outline:3px solid var(--olive,#879257);outline-offset:4px}.ds-control:disabled{opacity:.55;cursor:default}@media(prefers-reduced-motion:reduce){.ds-nav{transition:none}}"
+    },
+    {
+      "name": "Filtro",
+      "kind": "chip",
+      "description": "Filtro com estado ativo.",
+      "html": "<button class=\"ds-control ds-chip\" aria-pressed=\"true\">Todos os relatos</button>",
+      "css": ".ds-chip{font:550 14px Raleway,Arial,sans-serif;padding:9px 13px;border:1px solid var(--deep,#475436);border-radius:20px;background:var(--deep,#475436);color:white;cursor:pointer}.ds-chip:hover{border-color:var(--olive,#879257)}.ds-control:focus-visible{outline:3px solid var(--olive,#879257);outline-offset:4px}.ds-control:disabled{opacity:.55;cursor:default}"
+    },
+    {
+      "name": "Painel auxiliar",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Apoio tonal de agenda.",
+      "html": "<section class=\"ds-panel\"><h2>Hoje, na agenda</h2><p>09:00 · Encontro de acompanhamento</p></section>",
+      "css": ".ds-panel{padding:24px;background:#f2f5eb;border-radius:14px;color:var(--ink,#273123);font:16px/1.62 Raleway,Arial,sans-serif}.ds-panel h2{margin:0;font:500 31px/1.15 Cormorant,Georgia,serif}.ds-panel p{margin:18px 0 0}"
+    },
+    {
+      "name": "Linha de caso",
+      "kind": "custom",
+      "description": "Caso em linha, sem cartão elevado.",
+      "html": "<button class=\"ds-control ds-case\"><strong>Paciente de exemplo</strong><span>Rotina e autonomia</span></button>",
+      "css": ".ds-case{display:grid;gap:4px;width:100%;text-align:left;padding:19px 4px;background:transparent;border:0;border-bottom:1px solid var(--line,#dfe5d4);border-radius:0;color:var(--ink,#273123);cursor:pointer}.ds-case strong{font:650 16px Raleway,Arial,sans-serif}.ds-case span{font:14px Raleway,Arial,sans-serif;color:var(--muted,#65705f)}.ds-case:hover{background:#f6f8f1}.ds-control:focus-visible{outline:3px solid var(--olive,#879257);outline-offset:4px}.ds-control:disabled{opacity:.55;cursor:default}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Mesa de coordenação serena",
+    "overview": "A referência provisória é o mock existente: leitura ampla, fundo claro, oliva e poucos elementos competindo pela atenção. A carteira se apresenta em linhas, com a agenda como apoio, em vez de um painel repetitivo de cartões de indicadores.\n\nAtualizado por solicitação em 14/10/2026, preservando os limites do documento anterior. João trará o design oficial da Francescato. Estes tokens documentam o estado atual, não ratificam a identidade final nem uma implementação de produção. A fonte é [mockup/styles.css](mockup/styles.css), considerando os refinamentos finais; não houve inspeção renderizada nesta revisão porque não havia navegador disponível. A [direção original](mockup/DESIGN.md) continua como referência.",
+    "keyCharacteristics": [
+      "Superfícies claras e apoio tonal suave.",
+      "Títulos editoriais com texto funcional legível.",
+      "Casos e relatos em linhas, sem profundidade ornamental.",
+      "Ações simples e foco visível."
+    ],
+    "rules": [
+      {
+        "name": "The Francescato Rule",
+        "body": "Não aplicar à aplicação a identidade Trivia da proposta comercial nem azul, laranja, leão ou transparências do HED. HED orienta processo, não marca.",
+        "section": "colors"
+      },
+      {
+        "name": "The Readability Rule",
+        "body": "Documentar tamanhos reais não significa aprovar todo texto pequeno. Conferir leitura no celular, zoom, texto longo e estados reais antes de produção.",
+        "section": "typography"
+      },
+      {
+        "name": "The Quiet Surface Rule",
+        "body": "Preservar a composição serena do mock; não transformar todos os blocos em cartões elevados.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do preservar a leitura ampla, a composição serena e o foco visível.",
+      "Do validar celular, zoom, textos longos e estados reais ao implementar.",
+      "Do substituir a referência provisória pelos materiais oficiais após aprovação."
+    ],
+    "donts": [
+      "Don't aplicar a marca Trivia da proposta ou a identidade HED à aplicação.",
+      "Don't tratar tokens do mock como identidade final ou prova de acessibilidade.",
+      "Don't copiar simulações, limitações de jornada ou problemas de cascade para produção."
+    ]
+  }
+}
