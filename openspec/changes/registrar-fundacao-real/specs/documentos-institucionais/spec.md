@@ -2,6 +2,25 @@
 
 ## ADDED Requirements
 
+### Requirement: Guarda em Drive compartilhado institucional
+
+Anexos do produto SHALL ser guardados no Google Drive compartilhado institucional da Francescato, classificados e vinculados ao paciente. A escolha MUST NOT ser substituída silenciosamente por Meu Drive pessoal ou institucional. Identificação do Drive, raiz e organização interna ainda serão definidas. Fase Inicial; complementa FR-029/030.
+
+#### Scenario: Anexo confirmado na origem institucional
+
+- **WHEN** um envio autorizado de anexo for concluído e confirmado pela integração
+- **THEN** o arquivo está no Drive compartilhado configurado, com vínculo, classificação e audiência aplicáveis, sem depender da guarda pessoal do remetente.
+
+#### Scenario: Drive compartilhado ausente ou inacessível
+
+- **WHEN** o local institucional não estiver configurado ou o acesso for recusado
+- **THEN** o app informa configuração pendente ou falha real e não salva em Meu Drive ou em outro local como substituição silenciosa.
+
+#### Scenario: Conteúdo institucional anterior ao produto
+
+- **WHEN** o Drive compartilhado contiver documentos institucionais preexistentes
+- **THEN** compartilhar o local de guarda não publica automaticamente esses documentos nos pacientes nem os inclui no alcance da limpeza de testes.
+
 ### Requirement: Canais autorizados de acesso aos documentos
 
 Participantes institucionais da Francescato SHALL poder consultar documentos pelo app e diretamente pelo Drive conforme suas autorizações. Familiares SHALL utilizar somente o app; o vínculo familiar MUST NOT conceder acesso direto ao Drive. Os canais SHALL respeitar a audiência e a revogação aplicáveis. Fase Inicial; complementa FR-029 a FR-031 e SC-007/SC-010.

@@ -1,0 +1,39 @@
+{
+  "name": "ffcmapp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22 <23",
+    "pnpm": "9.15.9"
+  },
+  "scripts": {
+    "test:preservacao": "node --test scripts/test-verify-base-preservation.mjs",
+    "verificar:preservacao": "node scripts/verify-base-preservation.mjs --layout arquivado",
+    "test:isolamento": "node --test scripts/test-verify-mockup-isolation.mjs",
+    "verificar:isolamento": "node scripts/verify-mockup-isolation.mjs",
+    "verificar:migracao": "node scripts/check-framework-migration.mjs",
+    "lint:base": "biome check scripts/verify-base-preservation.mjs scripts/test-verify-base-preservation.mjs scripts/verify-mockup-isolation.mjs scripts/test-verify-mockup-isolation.mjs",
+    "verificar:base": "pnpm run test:preservacao && pnpm run verificar:preservacao && pnpm run test:isolamento && pnpm run verificar:isolamento && pnpm run verificar:migracao && pnpm run lint:base",
+    "typecheck:funcoes": "tsc --project supabase/functions/tsconfig.json",
+    "typecheck": "pnpm -r --if-present typecheck && pnpm run typecheck:funcoes",
+    "test:contratos": "pnpm --filter @ffcmapp/contratos test",
+    "test:cadastro": "pnpm --filter @ffcmapp/cadastro test",
+    "test:configuracao": "vitest run supabase/functions/_shared/configuracao.test.ts",
+    "test:funcoes": "vitest run supabase/functions/_shared",
+    "validar:configuracao": "node scripts/validar-configuracao-local.mjs",
+    "lint": "biome check packages/contracts packages/cadastro supabase/functions/_shared scripts/validar-configuracao-local.mjs",
+    "verificar:fundacao": "pnpm run lint && pnpm run typecheck && pnpm run test:contratos && pnpm run test:cadastro && pnpm run test:funcoes && pnpm run validar:configuracao"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@iarna/toml": "2.2.5",
+    "@types/node": "22.15.34",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  },
+  "dependencies": {
+    "jose": "6.2.12"
+  }
+}

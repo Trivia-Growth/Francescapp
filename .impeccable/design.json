@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-15T00:58:03.608Z",
-  "title": "Francescapp - referência provisória do mock",
+  "generatedAt": "2026-10-15T13:03:02.585Z",
+  "title": "FFCMApp - marca recebida e interface provisória",
   "extensions": {
     "colorMeta": {
       "primary": {
@@ -185,6 +185,76 @@
           "oklch(84% 0.0452 128.57)",
           "oklch(95% 0.0452 128.57)"
         ]
+      },
+      "brand-olive": {
+        "displayName": "brand-olive",
+        "role": "primary",
+        "tonalRamp": [
+          "oklch(15% 0.0910 120.38)",
+          "oklch(26% 0.0910 120.38)",
+          "oklch(38% 0.0910 120.38)",
+          "oklch(49% 0.0910 120.38)",
+          "oklch(61% 0.0910 120.38)",
+          "oklch(72% 0.0910 120.38)",
+          "oklch(84% 0.0910 120.38)",
+          "oklch(95% 0.0910 120.38)"
+        ]
+      },
+      "brand-charcoal": {
+        "displayName": "brand-charcoal",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0037 106.68)",
+          "oklch(26% 0.0037 106.68)",
+          "oklch(38% 0.0037 106.68)",
+          "oklch(49% 0.0037 106.68)",
+          "oklch(61% 0.0037 106.68)",
+          "oklch(72% 0.0037 106.68)",
+          "oklch(84% 0.0037 106.68)",
+          "oklch(95% 0.0037 106.68)"
+        ]
+      },
+      "brand-support-olive": {
+        "displayName": "brand-support-olive",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0550 105.52)",
+          "oklch(26% 0.0550 105.52)",
+          "oklch(38% 0.0550 105.52)",
+          "oklch(49% 0.0550 105.52)",
+          "oklch(61% 0.0550 105.52)",
+          "oklch(72% 0.0550 105.52)",
+          "oklch(84% 0.0550 105.52)",
+          "oklch(95% 0.0550 105.52)"
+        ]
+      },
+      "brand-beige": {
+        "displayName": "brand-beige",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0260 73.16)",
+          "oklch(26% 0.0260 73.16)",
+          "oklch(38% 0.0260 73.16)",
+          "oklch(49% 0.0260 73.16)",
+          "oklch(61% 0.0260 73.16)",
+          "oklch(72% 0.0260 73.16)",
+          "oklch(84% 0.0260 73.16)",
+          "oklch(95% 0.0260 73.16)"
+        ]
+      },
+      "brand-sand": {
+        "displayName": "brand-sand",
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(15% 0.0551 69.63)",
+          "oklch(26% 0.0551 69.63)",
+          "oklch(38% 0.0551 69.63)",
+          "oklch(49% 0.0551 69.63)",
+          "oklch(61% 0.0551 69.63)",
+          "oklch(72% 0.0551 69.63)",
+          "oklch(84% 0.0551 69.63)",
+          "oklch(95% 0.0551 69.63)"
+        ]
       }
     },
     "shadows": [
@@ -212,8 +282,16 @@
       }
     ],
     "provisional": true,
-    "source": "mockup/styles.css",
-    "tonalRampNote": "Rampas OKLCH sintetizadas somente para visualização do painel; não são cores implementadas ou aprovadas."
+    "source": "docs/legacy/mockup/source/styles.css",
+    "tonalRampNote": "Rampas OKLCH sintetizadas somente para visualização do painel; não são cores implementadas ou aprovadas.",
+    "brandReference": {
+      "productName": "FFCMApp",
+      "receivedAt": "2026-10-15",
+      "documentation": "docs/projeto/identidade-visual.md",
+      "assets": "assets/brand/francescato",
+      "colorStatus": "Amostras dos JPEGs recebidos; códigos do manual ainda não fornecidos.",
+      "interfaceStatus": "Fontes e componentes do mock provisórios; mock e PDF anterior não alterados."
+    }
   },
   "components": [
     {
@@ -272,7 +350,7 @@
   ],
   "narrative": {
     "northStar": "Mesa de coordenação serena",
-    "overview": "A referência provisória é o mock existente: leitura ampla, fundo claro, oliva e poucos elementos competindo pela atenção. A carteira se apresenta em linhas, com a agenda como apoio, em vez de um painel repetitivo de cartões de indicadores.\n\nAtualizado por solicitação em 14/10/2026, preservando os limites do documento anterior. João trará o design oficial da Francescato. Estes tokens documentam o estado atual, não ratificam a identidade final nem uma implementação de produção. A fonte é [mockup/styles.css](mockup/styles.css), considerando os refinamentos finais; não houve inspeção renderizada nesta revisão porque não havia navegador disponível. A [direção original](mockup/DESIGN.md) continua como referência.",
+    "overview": "A referência provisória é o mock arquivado: leitura ampla, fundo claro, oliva e poucos elementos competindo pela atenção. A carteira se apresenta em linhas, com a agenda como apoio, em vez de um painel repetitivo de cartões de indicadores.\n\nAtualizado em 15/10/2026: o solicitante confirmou o nome **FFCMApp** e forneceu logos e paleta. [Materiais e limites de uso](docs/projeto/identidade-visual.md); originais em [assets/brand/francescato](assets/brand/francescato/). Os tokens `brand-*` são cores extraídas das imagens, ainda sem códigos de manual. Os demais tokens e os componentes descrevem o mock, não uma migração de marca já executada. Fontes e desenho dos componentes continuam provisórios.\n\nA fonte da interface documentada é [o CSS da demonstração arquivada](docs/legacy/mockup/source/styles.css), considerando os refinamentos finais. A [direção original arquivada](docs/legacy/mockup/source/DESIGN.md) continua como referência histórica; a extração de 14/10/2026 não incluiu inspeção renderizada, pois não havia navegador disponível.",
     "keyCharacteristics": [
       "Superfícies claras e apoio tonal suave.",
       "Títulos editoriais com texto funcional legível.",
@@ -299,11 +377,11 @@
     "dos": [
       "Do preservar a leitura ampla, a composição serena e o foco visível.",
       "Do validar celular, zoom, textos longos e estados reais ao implementar.",
-      "Do substituir a referência provisória pelos materiais oficiais após aprovação."
+      "Do usar os logos e a paleta recebidos como referência de marca, mantendo fontes e componentes provisórios até aprovação."
     ],
     "donts": [
       "Don't aplicar a marca Trivia da proposta ou a identidade HED à aplicação.",
-      "Don't tratar tokens do mock como identidade final ou prova de acessibilidade.",
+      "Don't tratar tokens do mock ou cores extraídas de JPEG como manual final ou prova de acessibilidade.",
       "Don't copiar simulações, limitações de jornada ou problemas de cascade para produção."
     ]
   }

@@ -1,0 +1,31 @@
+project_id = "ffcmapp"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["api"]
+extra_search_path = []
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[local_smtp]
+enabled = true
+port = 54324
+
+[auth]
+enabled = true
+enable_signup = false
+site_url = "http://localhost:5173"
+
+[edge_runtime]
+enabled = true
+
+[analytics]
+enabled = false

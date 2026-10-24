@@ -15,3 +15,10 @@ brag-output/
 .DS_Store
 node_modules/
 tmp/
+supabase/.temp/
+
+# Configuração local pode conter chaves e tokens; o modelo documentado é
+# `.env.example`, que permanece versionado sem valores reais.
+.env
+.env.*
+!.env.example

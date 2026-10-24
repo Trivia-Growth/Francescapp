@@ -6,6 +6,62 @@ Garantir que os testes pelo frontend e o uso real do Francescapp revelem o resul
 
 ## ADDED Requirements
 
+### Requirement: Ambiente único antes e depois da liberação
+
+O produto SHALL utilizar o mesmo ambiente remoto para testes anteriores à liberação e futura produção. Até a liberação, os testes SHALL usar somente dados fictícios, persistidos e processados pelas integrações reais configuradas. Essa escolha MUST NOT dispensar autorização, proteção de dados ou estados honestos. Referências: FR-042/050 e SC-007/011/012.
+
+#### Scenario: Teste manual com dado fictício
+
+- **WHEN** uma jornada for testada antes da liberação
+- **THEN** utiliza contas autorizadas e conteúdo fictício pela operação real disponível; configuração ausente ou falha continua explícita, sem fallback de demonstração.
+
+#### Scenario: Ambiente nomeado como produção mas ainda em testes
+
+- **WHEN** o ambiente destinado à produção ainda não tiver passado pela transição conferida
+- **THEN** sua denominação ou endereço não autoriza dados reais nem significa que o produto está liberado para operação.
+
+### Requirement: Identificação do conteúdo de teste
+
+Cadastros, registros, anexos e eventos criados para testes SHALL ser identificáveis e rastreáveis como itens de teste, sem se confundir com configurações, acessos administrativos válidos ou conteúdo institucional preexistente. A identificação SHALL permitir conferir o alcance da futura limpeza antes de executar remoções.
+
+#### Scenario: Teste cria arquivo ou evento na integração
+
+- **WHEN** uma jornada criar um anexo no Drive ou um evento no Google Calendar
+- **THEN** sua origem de teste permanece identificável para conferência e limpeza, sem tornar toda a pasta, o Drive ou a agenda alvos de remoção.
+
+#### Scenario: Origem de um item não comprovada
+
+- **WHEN** não for possível confirmar se um item pertence ao conjunto de testes
+- **THEN** ele não é removido por presunção; a dúvida e a pendência de conferência permanecem explícitas.
+
+### Requirement: Limpeza seletiva anterior ao uso real
+
+Antes da entrada de dados reais, os itens identificados de teste SHALL passar por limpeza seletiva e conferência. Configurações, acessos administrativos válidos e conteúdo institucional preexistente MUST ser preservados. A decisão de planejar a limpeza MUST NOT autorizar sua execução imediata ou reset indiscriminado. Referências: FR-039/042/050.
+
+#### Scenario: Conferir o alcance antes da execução
+
+- **WHEN** for preparada a limpeza de transição
+- **THEN** seu alcance distingue cadastros, registros, anexos e eventos de teste dos recursos a preservar; a execução depende de procedimento definido e autorização específica.
+
+#### Scenario: Mesmo local contém itens institucionais e de teste
+
+- **WHEN** arquivos ou eventos de teste estiverem no mesmo Drive ou agenda de conteúdo institucional preexistente
+- **THEN** somente os itens de teste identificados compõem o alcance da limpeza; não há remoção em bloco do conteúdo institucional.
+
+### Requirement: Conferência da transição para produção
+
+A liberação para uso real SHALL depender da conferência da limpeza e da preservação dos recursos válidos, com resultado e pendências registrados. Resultado parcial, falha ou incerteza MUST NOT ser declarado como limpeza concluída nem autorizar entrada de dados reais. A liberação não substitui os demais critérios de segurança e recuperação aplicáveis a FR-042.
+
+#### Scenario: Limpeza parcial na integração
+
+- **WHEN** uma etapa da limpeza falhar ou ficar sem confirmação no banco, Drive ou Calendar
+- **THEN** o resultado informa o que concluiu e o que falta; a transição permanece pendente, sem sucesso simulado.
+
+#### Scenario: Recursos válidos preservados
+
+- **WHEN** a limpeza tiver resultado confirmado
+- **THEN** a conferência verifica também configurações, acessos administrativos válidos e conteúdo institucional preexistente antes de registrar o resultado da transição.
+
 ### Requirement: Dados reais sem substituição silenciosa por exemplos
 
 O sistema SHALL usar as fontes reais configuradas nos ambientes destinados a testes pelo frontend e ao uso operacional. Configuração ausente, erro ou permissão insuficiente MUST NOT produzir dados demonstrativos ou respostas simuladas de sucesso. Referências: FR-035, FR-042, FR-049, FR-050 e SC-007.

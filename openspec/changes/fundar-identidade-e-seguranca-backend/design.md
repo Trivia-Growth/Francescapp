@@ -1,0 +1,209 @@
+# Design
+
+## Context
+
+Ver [proposal.md](proposal.md) para motivação, evidências e limites. Este é desenho técnico proposto para revisão, não registro de código implantado. As cinco specs desta mudança complementam os deltas de [fundação real](../registrar-fundacao-real/proposal.md); não sincronizam nem concluem aquela mudança.
+
+O repositório ainda contém a demonstração e não tem backend versionado. A inspeção remota somente leitura não encontrou modelos de aplicação expostos. A conta técnica Auth existente deve ser preservada; o perfil do produto ainda será concedido. A referência Atendimento foi reconsultada em `a684d96c9cc044bcf391f558a69ac48db928b51d`, especialmente ADR-0001 (sessão/autoridade local) e ADR-0037 (cofre), sem copiar regras de CRM ou configurações.
+
+## Goals / Non-Goals
+
+**Goals:** entregar uma primeira fatia demonstrável por API: autenticar identidade autorizada, consultar perfil, administrar concessões, cadastrar paciente mínimo, vincular participantes, comprovar acesso permitido/negado e revogação com auditoria. Definir desde já fronteiras para o restante do núcleo.
+
+**Non-Goals:** criar todas as tabelas futuras vazias; implementar interface clínica; confundir credencial Auth com Administrador; declarar FR-001/002/035 a FR-042 ou jornada familiar integralmente entregues por testes parciais; fazer deploy, migração remota, limpeza ou concessão real nesta etapa de planejamento. As regras de áudio e agenda desta mudança serão executadas nas respectivas fatias.
+
+## Decisions
+
+### D-01 — Topologia e organização pequenas, seguindo Atendimento
+
+`Navegador → /api first-party Netlify → Edge Functions Supabase → RPCs auditadas/PostgreSQL`. Supabase Auth identifica; PostgreSQL mantém a autoridade local. Google e OpenRouter só são chamados por adapters no servidor. Não há backend próprio adicional, multitenancy, fila externa ou framework copiado do HED.
+
+Os únicos pacotes iniciais serão os que tiverem consumidor: contratos/validação e funções; proxy em `netlify/functions/`. Estrutura modular `domain`, `application`, `infrastructure`, `interfaces` conforme [referência](../../../docs/projeto/referencia-atendimento.md), sem fábrica genérica de repositórios. A preparação Node/pnpm e o isolamento do mock pertencem a [preparar-base-ffcmapp](../preparar-base-ffcmapp/design.md), pré-requisito do código.
+
+Alternativas: CRUD direto do navegador dificulta auditoria de consultas e controle de sessão; servidor adicional duplica operação sem necessidade. O proxy trata transporte/cookies, não replica regras de negócio. Nenhum pacote ou endpoint fictício é criado para módulos futuros.
+
+### D-02 — Identidade local, perfil único e concessão prévia
+
+`usuario.id` é o UUID de `auth.users`, sem outra identidade paralela. O perfil usa CHECK fechado (`administrador`, `profissional`, `familia`); `ativo` e versão são autoridade vigente. JWT e metadados editáveis não carregam autorização duradoura. Não usar trigger de novo usuário Auth para conceder perfil, vínculo ou administração.
+
+Uma concessão de equipe guarda e-mail normalizado, perfil aprovado e método esperado; após primeira autenticação verificada, fica vinculada ao UUID Auth e subject Google. Depois disso, mudança de e-mail não transfere a conta a outro UUID. Não mesclar pessoas por coincidência de e-mail. A exceção técnica é uma allowlist privada de UUID explicitamente aprovado, não outro perfil nem senha liberada a todos os administradores.
+
+`public.usuario` é a fonte de verdade do perfil e de `ativo`. Enquanto vinculada, a concessão espelha o perfil vigente na mesma transação e conserva a trilha de como ele foi concedido; ela não se torna uma segunda autoridade. A pré-concessão percorre `pendente → vinculada` ou `pendente → revogada`; uma vinculada só pode seguir para `revogada`. Nova concessão após revogação cria novo registro `pendente`, sem reabrir o tombstone anterior. Alteração de perfil/ativo atualiza usuário e concessão vinculada sob o mesmo lock, versiona ambos e audita a decisão. Revogar uma concessão vinculada desativa o usuário e revoga suas sessões locais; revogar uma pendente não exige UUID Auth. Cada sessão guarda a concessão que a admitiu e sua versão de admissão apenas para diagnóstico; em toda ação protegida, a autoridade é lida novamente. Assim, troca de perfil recalcula permissões imediatamente e revogação impede a operação mesmo com JWT anterior.
+
+A vinculação inicial e a revogação usam o mesmo lock da concessão. Se a revogação vencer, a admissão falha; se a admissão vencer, a revogação vê a sessão criada e a bloqueia na mesma transação. Nenhuma corrida pode produzir sessão utilizável com concessão revogada.
+
+Concessão de equipe e edição de cadastro/perfil/vínculo são operações administrativas conforme os deltas aprovados. Familiares não são provisionados por esse endpoint: exigirão sua jornada de convite. Testes locais podem preparar identidades familiares fictícias diretamente em fixtures isoladas; isso não é um caminho de produção.
+
+Alternativas rejeitadas: roles em `user_metadata`, administração pelo domínio e acúmulo de perfis. Perfil, relação familiar, vínculo de acesso e agenda permanecem controles distintos.
+
+### D-03 — Entrada Google com prova do login atual
+
+Usar ID token Google obtido por ação explícita de login, validado no servidor, e trocá-lo por sessão Supabase com `signInWithIdToken`. A sessão first-party segue o Atendimento; o mecanismo de admissão Google é uma adaptação deliberada para provar `hd`, subject e método do login atual, sem presumir que uma identidade Google apenas vinculada no passado prova o login atual.
+
+O servidor emite desafio de uso único e nonce aleatório; entrega só seu hash ao cliente. Nonce original fica em cookie selado HttpOnly vinculado ao desafio. Validar assinatura pelas chaves Google, issuer, audience configurada, validade, nonce, `email_verified` e `hd` configurado, além da concessão prévia. Trocar no Supabase usando nonce original; conferir que o UUID e a identidade Google retornados correspondem à prova. Consumir o desafio atomicamente antes de admitir sessão. Falha/timeout exige novo desafio, nunca sessão presumida. Repetição de token/desafio, conta pessoal e audience/domínio incorretos são negados.
+
+O domínio e OAuth Client ID são configurações obrigatórias, não valores deduzidos do site. A documentação descreve a [troca do ID token e convenção de nonce do Supabase](https://supabase.com/docs/guides/auth/social-login/auth-google); o Google exige verificar o [claim `hd`, não apenas o parâmetro da interface](https://developers.google.com/identity/openid-connect/openid-connect). Esta escolha não concede escopos Drive/Calendar; as conexões dessas APIs serão separadas. Alternativa PKCE é válida, mas exigiria obter e validar prova equivalente do método/domínio atual, não apenas ler `identities` ou metadados.
+
+### D-04 — Sessão first-party e revogação local imediata
+
+- Access token Supabase apenas em memória do cliente; refresh token em cookie selado autenticado, HttpOnly, Secure em HTTPS, SameSite=Lax, sem Domain e com escopo de caminho de sessão. Nada em localStorage, URLs ou logs. O proxy preserva cookies e não permite CORS arbitrário.
+- Entradas e operações com cookie exigem origem permitida e proteção CSRF por desafio/token; não aceitar `Origin` arbitrário ou ausência sem fluxo explicitamente autenticado. Retornos são caminhos locais permitidos, não URLs livres.
+- Cada sessão local referencia o `session_id` do JWT Supabase verificado e o mesmo UUID de usuário. JWT sem esses claims ou emitido por outro projeto é negado. Não basta decodificar o token.
+- O servidor valida a identidade e, no banco, toda operação confere usuário ativo, concessão vigente e sessão local não revogada. Sessão Auth obtida fora dos endpoints do produto não é automaticamente admitida.
+- Refresh confere a sessão local antes e depois da chamada Auth. Logout grava revogação local primeiro, invalida cookie e tenta signout externo; falha externa retorna encerramento local com pendência, nunca reabre a sessão. Tombstone impede readmissão do mesmo `session_id`; novo login explícito gera nova sessão.
+- Perfil/vínculo são consultados novamente em cada operação; trocar perfil não depende de reemitir JWT. Não configurar prazo/inatividade escolhido silenciosamente: antes de publicar, registrar as políticas e os limites efetivos do provedor.
+
+Estados observáveis: desafio `aberto → consumido | expirado`; admissão `validada → admitida | negada`; sessão `ativa → revogada`, sem retorno a ativa para o mesmo `session_id`; concessão conforme D-02. Esses estados não obrigam uma coluna para cada passo: a implementação persiste somente o necessário para provar consumo, sessão e revogação.
+
+O [Supabase documenta `session_id` e a diferença entre sessão e validade do JWT](https://supabase.com/docs/guides/auth/sessions). A camada local é decisão do projeto para revogação efetiva; não é garantia automática do SDK. Falhas entre emissão Auth e admissão local terminam sem acesso ao produto. Testar também corridas refresh/logout e concessão/revogação.
+
+### D-05 — Modelo físico da primeira fatia
+
+UUIDs, `timestamptz` em UTC, `date` para nascimento, versão inteira positiva nos agregados mutáveis. Campos textuais têm trim, limites técnicos explícitos no contrato e testes de fronteira; limites não são novos requisitos clínicos. Sem unicidade por nome/CPF, sem exclusão em cascata da identidade para histórico. Segredos e dados pessoais nunca em DEFAULT/seed de produção.
+
+| Schema/tabela | Chaves e conteúdo | Invariantes |
+| --- | --- | --- |
+| `public.usuario` | `id` PK/FK Auth, perfil, ativo, versão, datas | Um perfil; FK sem cascade; sem acesso direto das roles públicas |
+| `identidade.concessao_equipe` | UUID, e-mail aprovado protegido, índice HMAC do e-mail, método, perfil, UUID/subject vinculados, estado, versão, criador/motivo/datas | Uma concessão vigente por e-mail/método e por identidade; vinculação inicial atômica; sem signup implícito |
+| `identidade.excecao_tecnica` | UUID Auth PK, concessão, autor operacional, motivo e datas | Só operação privilegiada restrita; não administrável por formulário genérico |
+| `identidade.desafio_login` | ID opaco, hash do nonce, expiração, consumo | Uso único; TTL técnico curto documentado/testado; sem nonce original em tabela |
+| `identidade.sessao` | `session_id` PK, usuário FK, método verificado, datas e revogação | Sem bearer/refresh em texto; revogação é irreversível para esse session_id |
+| `cadastro.paciente` | UUID PK, nome protegido, preferência/nascimento opcionais protegidos, versão, origem de teste opcional, autor/datas | Nome obrigatório; sem CPF; ID estável e independente do nome |
+| `cadastro.contato_paciente` | UUID, paciente FK, tipo telefone/e-mail, valor protegido, versão | Zero ou vários; validação quando informado; dados administrativos não incluídos no DTO familiar básico |
+| `cadastro.pessoa_relacionada` | UUID, nome protegido, contatos opcionais protegidos, versão, autor/datas | Não exige nem cria conta Auth; não é perfil |
+| `cadastro.relacao_paciente` | UUID, paciente/pessoa FKs, descrição de relação/responsabilidade, versão e datas | Relação documentada não é vínculo de acesso; não inferir representante legal ou permissão pelo texto |
+| `cadastro.acesso_paciente` | UUID, paciente/usuário FKs, concessão/revogação, ator/motivo, versão | Unicidade parcial do par ativo; revogar preserva histórico; Admin não exige vínculo |
+| `auditoria.evento` | ID, instante, ator individual ou operador restrito, ação, tipo/ID do objeto, resultado, request_id | Append-only; sem corpo clínico, credenciais ou cópia de contatos |
+| `operacao.requisicao` | ator, operação, chave idempotente, digest de entrada, estado, ID/versão do resultado | Único ator+operação+chave; não guarda senha, token nem resposta clínica inteira |
+| `operacao.lote_teste` | UUID, identificação do lote, responsável e datas | Proveniência explícita para dados sintéticos; identidade administrativa válida não é descartável por isso |
+
+As tabelas de cadastro acima entregam apenas identidade mínima/relacionamentos e controle de acesso. Situação do acompanhamento, anamnese, genograma, representação detalhada, case manager responsável e histórico de pausas serão adicionados na fatia de acompanhamento com suas regras, sem prometer FR-001/002 completos aqui. Nada de `episodio` ou `tenant_id` por antecipação.
+
+Índices iniciais: PK/FK dos filtros, vínculo ativo `(usuario_id,paciente_id)`, concessão vigente por digest, auditoria por objeto/instante e ator/instante. Listas paginadas por cursor estável, ordenação de criação/UUID, sem N+1. Não criar mecanismo de busca clínica, índices de textos sensíveis ou cache de autorização.
+
+### D-06 — RPCs estreitas, privilégios e RLS sem caminho de contorno
+
+Schemas internos não são expostos no Data API. Somente schema `api` contém RPCs de aplicação; `public.usuario` não recebe grants diretos para `anon`/`authenticated`. RLS habilitada também nas tabelas de cadastro/identidade; nenhuma policy universal. Revogar permissões herdadas/defaults de tabelas, sequências e funções. Grants e RLS são [controles complementares](https://supabase.com/docs/guides/database/postgres/row-level-security), não substitutos.
+
+As RPCs executadas com JWT do solicitante derivam ator e sessão de `auth.uid()`/claims verificados pelo gateway; não aceitam `ator_id` do navegador. Helpers anti-recursão têm `search_path` fixo, referências qualificadas, sem SQL arbitrário e execução estritamente concedida. RPC privilegiada implementa checagens explícitas; SECURITY DEFINER não é justificativa para bypass. Dono dedicado sem login, grants mínimos e policies testados; service role não serve de transporte para todo CRUD.
+
+Consulta protegida passa por RPC auditada, inclusive listagem/detalhe. Sem tabela/view de leitura paralela, Realtime ou Storage bucket público que evite auditoria. A RPC valida acesso, persiste evidência mínima e retorna DTO permitido na mesma transação. Negativas esperadas retornam envelope de erro sanitizado após gravar evidência, em vez de lançar exceção que reverta a própria auditoria. Falha da evidência obrigatória bloqueia o resultado. Alterações e auditoria usam uma transação, com rollback conjunto.
+
+RPCs internas de admissão de sessão/cofre são service-only e não acessíveis com JWT de usuário; recebem apenas a identidade já comprovada pelo adapter de servidor. Bootstrap é owner-only e não exposto. Testar catálogo de grants, functions, views e schemas, além de `SELECT` negado. Não alterar nem remover a RPC preexistente `rls_auto_enable` sem inspeção de sua definição/owner/grants e autorização apropriada.
+
+### D-07 — Matriz de acesso da fatia e extensão segura
+
+| Operação | Administrador ativo | Profissional | Família |
+| --- | --- | --- | --- |
+| Própria sessão/perfil | Próprio | Próprio | Preparado no banco; jornada de entrada futura |
+| Conceder/revogar perfil ou vínculo | Sim, auditado | Não | Não |
+| Cadastro mínimo: lista/detalhe básico | Toda carteira | Somente pacientes vinculados | Somente pacientes vinculados |
+| Criar/editar paciente, contatos e relações administrativas | Sim | Não nesta fatia | Não nesta fatia |
+| Contatos/relações de terceiros | Administração | Não expostos pelo DTO básico | Não expostos pelo DTO básico |
+| Auditoria | Sim, com paginação e sem corpos clínicos | Não | Não |
+
+A matriz operacionaliza a gestão de cadastros já atribuída ao Administrador, sem inventar matriz extensa de permissões. Não resolve edição familiar de ficha, representação legal ou notas clínicas. Para dados de cuidado futuros, perfil Admin dá carteira, não rascunho de terceiros; profissional exige vínculo e audiência de equipe; família exige vínculo e relato próprio ou compartilhamento familiar explícito. Estes cenários serão testados quando tais dados existirem, não declarados cobertos por testes de cadastro mínimo.
+
+### D-08 — Proteção de campos e cofre
+
+Dados identificáveis da aplicação (nomes, nascimento, contatos, e-mail de pré-concessão) são cifrados pelo servidor com AES-256-GCM, nonce aleatório por valor e AAD contendo tabela, ID, campo e versão do formato. Envelope guarda ciphertext, nonce, tag e `key_id`, não a chave. Não criar criptografia caseira. No contrato HTTP autorizado os valores são normais; a cifra é detalhe de persistência, não obrigação do frontend.
+
+O adapter HTTP valida o DTO em texto claro, gera o UUID estável do novo registro e monta o AAD antes de cifrar. A chamada de escrita à RPC leva apenas envelopes, metadados canônicos e atestado de operação de curta duração emitido pelo servidor sobre ator derivado do JWT, sessão, request, operação e digest da entrada validada. A RPC deriva o ator do JWT, confere atestado, versão/formato/AAD esperados e autorização; não aceita `ator_id`, perfil ou texto claro enviado pelo navegador. Uma chamada direta com JWT não consegue fabricar o atestado nem usar campo cifrado de outro registro. Em leituras, a RPC autoriza e audita antes de devolver envelopes apenas ao adapter de servidor; só então esse adapter decifra e projeta o DTO HTTP permitido. Falha de atestado, AAD, tag, chave ou auditoria não tem fallback em texto claro nem retorno parcial.
+
+Chaves versionadas ficam no Supabase Vault com acesso por RPC interna service-only, conforme ADR-0037 do Atendimento. Funções públicas não podem obter segredos; cliente não recebe chave. Índice de igualdade de e-mail usa HMAC com chave separada, não SHA sem segredo. Não implementar busca aproximada de nomes nessa fatia. Rotação precisa manter leitura do key_id anterior e ter teste de recriptografia antes de uso operacional; não prometer rotação automática ou destruição de cópias sem procedimento.
+
+Auth armazena suas próprias credenciais/e-mails; a cifra de campos da aplicação não significa cifrar por fora o banco interno do provedor. Autorização precede descriptografia. TLS, RLS, controle de chaves e restauração permanecem necessários; “criptografia simples” não substitui esses controles. PAT de gerenciamento não integra runtime. Cofre não é promessa de proteção contra administrador do banco com poderes equivalentes nem garantia de portabilidade de chaves em restore.
+
+Alternativa de depender só de RLS não cobre a proteção adicional pedida para PII. Cifrar todos os campos/índices indistintamente inviabiliza consultas sem ganho demonstrado; proteger os campos identificáveis e ampliar explicitamente nas próximas fatias de texto clínico.
+
+### D-09 — Contratos HTTP da primeira fatia
+
+Contratos TypeScript estritos com validação de entrada e saída compartilhada quando houver consumidor. Envelope de sucesso `{ dados, request_id }`; erro `{ erro: { codigo, mensagem, campos? }, request_id }`. Sem stack, corpo do provedor, dados clínicos ou eco da senha. `Cache-Control: no-store` em identidade/dados protegidos. Tokens em cabeçalhos/cookies apropriados, nunca query string. Redação de logs por allowlist.
+
+| Rota first-party proposta | Contrato e autorização |
+| --- | --- |
+| `POST /api/sessao/desafio-google` | Desafio/nonce hash; sem perfil; origem e limite de abuso |
+| `POST /api/sessao/google` | Credencial assinada + desafio; verifica D-03 e admite sessão |
+| `POST /api/sessao/tecnica` | E-mail/senha transitórios; somente identidade excepcional aprovada, sem registrar corpo |
+| `POST /api/sessao/renovar`, `POST /api/sessao/sair` | Cookie/CSRF e estado local; saída distingue pendência externa |
+| `GET /api/sessao` | Usuário, perfil vigente e capacidades da fatia; nenhum catálogo clínico desnecessário |
+| `GET/POST /api/admin/concessoes-equipe` | Somente Admin; pré-concessão Google de equipe, nunca convite familiar disfarçado |
+| `POST /api/admin/concessoes-equipe/:id/revogar` | Somente Admin; revoga pré-concessão pendente ou concessão vinculada por ID, com versão, motivo, idempotência e auditoria |
+| `PATCH /api/admin/usuarios/:id/acesso` | Perfil/ativo, versão esperada e motivo; Admin; sem alterar senha/identidade Auth |
+| `GET/POST /api/pacientes`, `GET/PATCH /api/pacientes/:id` | GET filtrado no banco; POST/PATCH Admin; mínimo aprovado e versão |
+| `POST/PATCH /api/pacientes/:id/contatos[/:contato_id]` | Admin; validação opcional, sem adicionar CPF obrigatório |
+| `POST/PATCH /api/pacientes/:id/relacoes[/:relacao_id]` | Admin; pessoa relacionada separada de conta; mesma transação para criação inicial |
+| `POST /api/pacientes/:id/acessos`, `POST /api/pacientes/:id/acessos/:acesso_id/revogar` | Admin; usuário existente autorizado, motivo/versão e par único ativo |
+| `GET /api/admin/auditoria` | Admin, filtros permitidos/cursor, audita a própria consulta sem recursão |
+
+`401`: identidade/sessão inválida; `403`: ação administrativa não permitida; `404`: objeto inexistente ou paciente fora do escopo, com resposta pública indistinguível; `422`: entrada inválida sem eco sensível; `409`: versão/repetição conflitante; `429`: limite de abuso; `503`: configuração obrigatória ou serviço indisponível. Resultado externo incerto usa código próprio de pendência, não lista vazia nem sucesso. Listas vazias só após consulta válida bem-sucedida.
+
+Toda mutação de cadastro/concessão requer chave idempotente opaca; hash da entrada canônica e referência do resultado ficam ligados ao ator/rota. Versão esperada em alterações; zero linhas afetadas é conflito ou negação, não sucesso. Repetição revalida autorização e projeta o DTO vigente antes de retornar; resultado protegido não fica salvo como resposta pronta. Idempotência não recebe nem persiste senha ou token de login. Locks/constraints resolvem concessão dupla e par ativo duplicado; não confiar em consulta prévia isolada.
+
+### D-10 — Bootstrap e configurações operacionais
+
+Implementar procedimento local explícito que recebe projeto esperado e UUID Auth já existente, confere identidade no provedor sem imprimir e-mail/token e aplica concessão por canal SQL privilegiado fora de RPC pública. Exigir alvo exato, motivo e confirmação; conferir se já inicializado sob lock. Repetição idêntica é no-op auditável; identidade divergente não sobrescreve a inicialização. Não criar usuário, gerar senha, atualizar metadata ou se autodeclarar Admin pelo HTTP.
+
+Edilaine continua administração de negócio inicial; a conta técnica aprovada é exceção individual. Para conceder Edilaine será necessária sua identidade aprovada/configuração Workspace, sem deduzi-la de nome/site. Recuperação administrativa futura é procedimento separado e revisado, não endpoint secreto. Não introduzir por inferência uma regra comercial de impossibilidade de revogar o último Admin; testar a recuperação restrita sem automatizá-la silenciosamente.
+
+Matriz de configuração: URL/ref Supabase e chave pública identificam alvo; credencial server-only, chave de selagem de cookie, refs de cofre e origens permitidas são privadas/operacionais. Origens exatas são obrigatórias a todos os fluxos de sessão que usam cookie, pois D-04 exige conferência de origem; OAuth client/domain/callbacks acrescem-se somente ao fluxo Google. SMTP e links familiares pertencem à próxima fatia; Drive ID/raiz, Calendar ID global e credenciais OpenRouter pertencem a suas integrações. Não exigir chave OpenRouter para cadastrar paciente nem substituir ausência de Google por login falso. `.env.example` conterá somente nomes/descrições e placeholders sem valores reais.
+
+### D-11 — Mapa do backend completo, sem migrações antecipadas
+
+Este mapa orienta as próximas mudanças; **D-02 a D-10 possuem tarefas executáveis somente para a fundação delimitada neste pacote**. As demais linhas do mapa continuam futuras e cada fatia precisa completar seus próprios deltas/design/tarefas antes de implementação. Não são serviços extras nem nova fonte de requisitos.
+
+| Fatia seguinte | Entidades/relações conceituais | Integridade e integração obrigatórias | Referência |
+| --- | --- | --- | --- |
+| Acesso familiar | Convite → identidade → usuário; vínculo independente; token de ativação/recuperação gerenciado no Auth | Pendente/enviado/falha/ativado distintos; link único e redirects permitidos; senha do destinatário; resposta sem enumeração; conta existente/reenvio antes de implementar | FR-051 a FR-054; SC-012 |
+| Acompanhamento | Paciente → mudanças de situação, equipe, anamnese/respostas versionadas, resumo revisado e fontes | Histórico contínuo, informação relatada distinta de hipótese/avaliação; relações não transferem representação ou acesso | FR-001 a FR-007 |
+| Documentos | Paciente → documento classificado → versão/referência Drive; audiência e origem; associação ao registro | Shared Drive real, alterações diretas e reconciliação explícitas; família sem ACL Drive; revogação coerente; download auditado | FR-011/029 a FR-033/050 |
+| Diário e áudio | Paciente → registro → versão/retificação; autor/audiência; estados de consulta/retorno; áudio temporário → transcrição → revisão → exclusão | Rascunho privado; texto alternativo; revisão humana; exclusão pós-revisão confirmada com pendência/falha; publicação não depende de sucesso fictício do descarte | FR-008 a FR-014/036 |
+| Plano/coordenação | Objetivo → responsável/indicador/revisões/progresso; tarefa → responsável/prazo/origem; encaminhamento; orientação aprovada | Fontes e histórico preservados; metas e periodicidades humanas, não diagnóstico automático; modelos/regras da equipe antes de implementar | FR-015 a FR-020 |
+| Agenda/carteira | Conexão Google → calendário/origem; permissão global consulta/edição; evento externo ↔ paciente; realização/remarcação; operação/reconciliação | Consultar/criar/alterar/cancelar; confirmação externa; idempotência; autoria individual; séries/conflitos e audiência antes de implementar; sem permissão clínica implícita | FR-023 a FR-028/049/050 |
+| Governança integrada | Evidência de finalidade/termo, pedido de direito, exportação e recuperação, inventário de teste/transição | Auditar cada módulo desde sua criação; retenção e fundamentos validados; restore e conferência antes de dados reais | FR-036 a FR-042/032/033 |
+
+As 9 evoluções (FR-021/022/034/043 a FR-048) não entram nessas tarefas. Nada de financeiro, WhatsApp, links públicos externos, IA de resumo/predição ou instrumentos novos sem aprovação.
+
+### D-12 — Limites técnicos das integrações futuras já identificados
+
+**Drive:** propor raiz exclusiva do app e pastas por identificador opaco de paciente; categorias/classificação na metadata do app, sem nome/diagnóstico em caminhos por conveniência. A [herança e as pastas de acesso limitado](https://developers.google.com/workspace/drive/api/guides/limited-expansive-access) precisam de verificação de capabilities no Drive real; organizadores continuam tendo poderes próprios no Google. A permissão ampla herdada pode contradizer filtro por paciente: detectar, bloquear liberação de conteúdo e mostrar regularização, não dizer que RLS corrige ACL externa. Família recebe stream autorizado pelo app, não link público ou compartilhamento direto. Alterações feitas no Drive não viram importação ilimitada por suposição. Escolher identidade de integração, raiz e procedimento de reconciliação na próxima mudança.
+
+**Áudio/OpenRouter:** o original é temporário e excluído após confirmação da revisão conforme a nova spec. A exclusão lógica pendente precisa de fila transacional/outbox na fatia de áudio, com ID do arquivo exato, resultado verificável e retry seguro. Mover para a lixeira não será chamado de eliminação permanente. Política para abandonados, cópias e retenção do processador ainda precisa de resposta antes de operação real. A [documentação do endpoint de transcrição OpenRouter](https://openrouter.ai/blog/tutorials/transcription-on-openrouter/) informa que controles de roteamento do chat não se aplicam a ele; não prometer fixação de provedor/retention por parâmetros de chat. Modelo, qualidade, limites e política precisam de prova com áudio fictício; nenhum fornecedor direto alternativo é introduzido.
+
+**Calendar:** manter IDs externos, origem, etag/versão e ID idempotente de escrita; atualização externa não é evolução clínica. Criação e cancelamento estão confirmados; não escolher silenciosamente alcance de séries ou resolução de conflito. Consultas globais sem acesso ao paciente não expõem títulos/descrições clínicas. Detalhar redaction e vínculo evento-paciente antes da implementação. Permissões no app e ACL Google precisam ser testadas em conjunto; escopo OAuth sozinho não concede paciente nem edição global.
+
+### D-13 — Estratégia de validação e evidência
+
+TDD nas regras de autorização/concorrência quando esclarecer a fronteira; dados fictícios explícitos em testes. Fixtures/adapters falsos somente em suíte isolada, nunca fallback de runtime. Gates reais da stack serão instalados com consumidores: TypeScript, Biome, Vitest para contratos/domínio, Deno para funções, SQL para grants/RLS/atomicidade e integração HTTP com Supabase local. Não copiar comandos de teste inexistentes do Atendimento.
+
+Matriz mínima da fatia: anônimo; Auth sem concessão; Admin sem vínculo; profissional vinculado/não vinculado; familiar fictício vinculado/não vinculado; perfil alterado; usuário inativo; vínculo e sessão revogados; JWT antigo; método errado; e-mail semelhante; token Google errado/repetido; duas alterações concorrentes; retry após revogação; tentativa de acesso direto às tabelas/RPC interna/cofre/auditoria; falha de auditoria; ausência de config; PII/credenciais ausentes dos logs. Login/convite familiar completo e privacidade de relatos não serão marcados aprovados com fixtures de perfil.
+
+Validar cifra/decifra, nonce distinto, AAD incorreta, tag alterada, key_id anterior e negação de cofre. Testar atomicidade de paciente+relações e concessão+auditoria, e auditoria de negativas sem rollback acidental. Executar suíte local limpa e upgrade a partir do schema anterior local, preservando identidade Auth fictícia preexistente; não usar reset no projeto remoto.
+
+Evidência final da implementação listará cenário, comando real, resultado e limitação. OpenSpec válido ou checkbox marcado não comprova produto. Sem credenciais Workspace, classificar integração Google como não verificada externamente e não concluir o pacote como integrado.
+
+## Risks / Trade-offs
+
+- [Ambiente remoto compartilhado com futura produção] → Fictícios identificados; revisão de alvo e autorização separada para qualquer publicação. Nada de `db reset` ou limpeza global.
+- [Drive permite acesso externo fora do app] → Gate de ACL/capabilities; cofre/RLS não revogam acesso herdado no Google.
+- [Sessão customizada exige testes de corrida e CSRF] → Contrato reduzido, tombstones e teste de refresh/logout; não copiar todo o legado do Atendimento.
+- [Cifra limita busca e exige recuperação das chaves] → Sem busca aproximada inicial; envelopes versionados, HMAC só onde necessário, restore demonstrado antes de dados reais.
+- [Login Workspace depende de configuração institucional] → Backend local pode avançar; entrada Google remota permanece indisponível explicitamente até comprovação, nunca fallback por senha geral.
+- [Logout externo pode falhar] → Revogação local bloqueia sessão imediatamente; expor pendência sem prometer encerramento de contas Google ou outros dispositivos.
+- [Retenção/fundamentos/recuperação não definidos] → Trabalho apenas com fictícios; não declarar conformidade jurídica nem prontidão para pacientes reais.
+
+## Migration Plan
+
+1. Aplicar e validar primeiro a preparação local, com autorização própria. Conferir alterações existentes; não sobrescrevê-las.
+2. Implementar migrações aditivas locais em ordem: schemas/revogação de defaults → usuário/concessões/sessões → cadastro/relacionamentos → auditoria/idempotência → helpers/policies/RPCs → cofre e grants restritos. Seeds somente fictícios e isolados, sem conta pessoal embutida.
+3. Aplicar desde banco local vazio e sobre estado local anterior, inspecionar catálogo e rodar testes. Revisar SQL resultante, grants e dependência Vault; não modificar schema Auth do provedor.
+4. Preparar relatório de pré-publicação: alvo, diferenças de schema/config, necessidade de cofre, impacto sobre Auth existente, plano de recuperação e limitações. Inspecionar remotamente somente com leitura autorizada. Qualquer conflito não explicado bloqueia aplicação; não usar `IF NOT EXISTS` para esconder divergência.
+5. **Somente após autorização explícita futura**, aplicar migrações remotas revisadas, configurar segredos/proxy/provider, publicar funções e executar bootstrap parametrizado. A autorização histórica para criar a conta Auth não autoriza essas operações adicionais. Preservar UUID/senha já criados; testar acesso técnico sem exibir credenciais.
+6. Conferir Admin permitido, não Admin negado, revogação e auditoria com dados sintéticos; registrar evidência de integração Google ou pendência real. Em falha, fechar o endpoint afetado/revogar admissão e corrigir com migração aditiva; não dropar dados ou substituir o Auth. Rollback de código só se compatível com schema; restauração remota exige plano e autorização próprios.
+7. Seguir o mapa D-11 por mudanças revisadas. Antes do primeiro paciente real: jornadas completas, políticas de dados, ACL Drive, operação do áudio/agenda, recuperação com chaves, limpeza seletiva autorizada e conferência. Não é uma liberação obtida por concluir esta fatia.
+
+## Open Questions
+
+Para a implementação **local e com fictícios** desta fundação, não há regra de cadastro mínimo/áudio/criação e cancelamento de agenda aguardando resposta. Restam valores de configuração para conectar/publicar (domínio/Client ID/origens, identidade de Edilaine, segredos, raiz/IDs Google), que não mudam os contratos da fatia.
+
+Decisões materiais das próximas fatias permanecem explicitamente fora das tarefas atuais: convite familiar em conta já existente/reenvio, representação e duplicidade, categorias/alterações diretas no Drive, áudios abandonados e política do processador, séries/conflitos/fuso/lembretes, finalidades/retenção/políticas de recuperação e metas do piloto. Devem ser perguntadas antes de escrever tarefas executáveis dependentes, não escolhidas na implementação.

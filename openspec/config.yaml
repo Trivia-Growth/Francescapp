@@ -4,15 +4,25 @@ context: |
   Language: Português (Brasil)
   All artifacts must be written in Português (Brasil).
   Keep OpenSpec structural headings and SHALL/MUST keywords in English.
-  Francescapp é um sistema de coordenação do cuidado da Francescato, aprovado por Edilaine.
+  FFCMApp é o nome confirmado em 15/10/2026 do sistema de coordenação do cuidado da Francescato, antes chamado Francescapp.
   Fontes: openspec/specs, docs/projeto, PRODUCT.md e AGENTS.md.
   Infraestrutura confirmada: Supabase, Netlify, OpenRouter, Google Drive e Google Calendar.
+  Histórico contínuo por paciente, preservado em pausas e retomadas; não criar episódios independentes por inferência.
+  Cadastro mínimo confirmado: nome obrigatório; preferência, nascimento e contatos opcionais; familiares/responsáveis separados, sem CPF obrigatório.
+  Anexos no Google Drive compartilhado institucional; família somente pelo app. Raiz e organização ainda serão definidas.
+  Mesmo ambiente remoto para testes e futura produção; somente dados fictícios até a liberação.
+  Transição exige limpeza seletiva conferida dos itens identificados de teste, preservando configurações, acessos administrativos válidos e conteúdo institucional preexistente. Não executar exclusões por esta decisão de planejamento.
   Padrão de código: projeto Atendimento, conforme docs/projeto/referencia-atendimento.md.
   HED Transportes orienta o processo de IA, não a arquitetura ou a identidade visual do produto.
   Família: convite inicial Supabase, senha definida pelo destinatário, login e-mail/senha e recuperação.
   Equipe: Google Workspace; agendas individuais nas próprias contas Google.
+  Cada usuário possui um único perfil, sem acúmulo. Equipe exige cadastro/concessão prévios por Administrador; Google não concede acesso automaticamente.
+  Edilaine na administração de negócio inicial. Projeto Supabase confirmado: drdpuxcllpymtoskmuqv. Conta Auth técnica individual por senha criada e testada na operação autorizada; concessão de Administrador do produto ainda pendente. Exceção não libera senha para a equipe; não versionar credenciais ou identidade pessoal.
   Agenda global em e-mail compartilhado com visualização e edição autorizadas separadamente.
-  Identidade visual final virá do marketing da Francescato; mockup não constitui design final.
+  Agenda inicial permite consultar, criar, alterar e cancelar, confirmando na origem. Séries/conflitos e integração ainda exigem detalhamento.
+  Áudio original será apagado após revisão humana confirmada; exclusão pendente/falha deve aparecer. Modelo, política do processador e áudios abandonados ainda pendentes.
+  Logos e paleta de referência recebidos em 15/10/2026; consultar docs/projeto/identidade-visual.md e DESIGN.md.
+  Fontes e componentes continuam provisórios; imagens não ratificam o design completo do mockup.
   Não inferir decisões materiais. Consultar pendências em docs/projeto/fundacao.md.
   As specs migradas descrevem requisitos de referência, não implementação ou prioridade nova.
   docs/legacy/spec-kit é histórico somente de leitura, não um segundo fluxo ativo.

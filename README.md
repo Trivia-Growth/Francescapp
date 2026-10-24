@@ -1,20 +1,37 @@
-# Francescapp
+# FFCMApp
 
-Sistema de coordenação do cuidado da Francescato. Projeto aprovado, em preparação para desenvolvimento de produção. O repositório contém a demonstração navegável e os requisitos; a aplicação conectada ainda não foi implementada.
+Sistema de coordenação do cuidado da Francescato. Projeto aprovado, em preparação para desenvolvimento de produção. O repositório contém os requisitos e uma demonstração arquivada para consulta; a aplicação conectada ainda não foi implementada.
+
+Nome confirmado em 15/10/2026: **FFCMApp**. [Identidade visual e imagens recebidas](docs/projeto/identidade-visual.md). O repositório e os materiais históricos ainda usam o nome anterior Francescapp; esta decisão não altera endereços ou integrações.
 
 ## Desenvolvimento com IA
 
 O processo ativo é **OpenSpec**, desde 14/10/2026, com diretrizes em [AGENTS.md](AGENTS.md). O Spec Kit foi preservado apenas como histórico.
 
 - [Requisitos por capacidade](openspec/specs)
+- [Roteiro das especificações de desenvolvimento](docs/projeto/roteiro-especificacoes.md) e [primeiro pacote: preparação da base](openspec/changes/preparar-base-ffcmapp/proposal.md).
+- [Fundação do backend: proposta](openspec/changes/fundar-identidade-e-seguranca-backend/proposal.md), [banco, APIs e integrações](openspec/changes/fundar-identidade-e-seguranca-backend/design.md) e [tarefas de implementação](openspec/changes/fundar-identidade-e-seguranca-backend/tasks.md). Pacote para revisão, ainda não implementado.
 - [Contexto e decisões pendentes](docs/projeto/fundacao.md)
 - [Jornadas, metas e regras de negócio](docs/projeto/contexto-negocio.md)
 - [Referência de código Atendimento](docs/projeto/referencia-atendimento.md)
 - [Registro da migração e rastreabilidade](docs/processo/migracao-openspec.md)
 - [Produto](PRODUCT.md) e [contexto visual](DESIGN.md)
-- [Especificações de features e regras de negócio para João](docs/projeto/especificacoes-para-joao.md) e PDF correspondente em `output/pdf/especificacoes-francescapp-joao.pdf`.
+- [Especificações de features e regras de negócio para João](docs/projeto/especificacoes-para-joao.md) e PDF correspondente em `output/pdf/especificacoes-francescapp-joao.pdf` (versão de 14/10/2026, anterior ao novo nome e aos materiais de marca).
 
 ## Fluxo
+
+## Base local de desenvolvimento
+
+Pré-requisitos desta preparação: Node 22 e pnpm 9.15.9. Na raiz do repositório, instale somente o que está congelado no lockfile e execute a verificação desta base:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm run verificar:base
+```
+
+`verificar:base` executa os testes de preservação e isolamento em diretórios temporários, confere os materiais arquivados, os links e a migração de requisitos, além do lint dos verificadores próprios. Ele não inicia o mock, não cria um frontend, não conecta a Supabase/Google/OpenRouter e não é uma prova de autorização ou integração.
+
+O workspace reserva `apps/*` e `packages/*` para as próximas fatias, mas não cria pacotes vazios. React/Vite, TypeScript, camadas de domínio, banco, funções e seus respectivos gates entram somente com a primeira fatia de código aprovada.
 
 1. Explorar pendências com `openspec-explore`.
 2. Propor uma mudança com `openspec-propose`: proposta, specs, decisões técnicas e tarefas, sem implementar na mesma etapa.
@@ -33,7 +50,7 @@ Validação do OpenSpec verifica artefatos, não comprova que o produto existe o
 
 ## Mockup e proposta
 
-- [Instruções do mockup](mockup/README.md)
+- [Demonstração arquivada — consulta, não comando ativo](docs/legacy/mockup/README.md)
 - [Proposta HTML](output/proposta-edilaine.html)
 - PDFs em `output/pdf/`.
 

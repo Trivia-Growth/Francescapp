@@ -7,10 +7,13 @@ O projeto foi aprovado para uso real, mas o mockup não cobre integralmente conf
 ## What Changes
 
 - Confirmar operação exclusiva da Francescato e todo o núcleo inicial na primeira entrega: cadastro, anamnese, diário, anexos, agenda, plano e pendências, incluindo identidade, permissões e governança. Evoluções já identificadas não são promovidas automaticamente ao núcleo.
-- Confirmar que a Francescato pode acessar documentos pelo app e pelo Drive institucional; familiares acessam somente pelo app, sempre no escopo autorizado.
+- Confirmar que a Francescato pode acessar documentos pelo app e pelo Google Drive compartilhado institucional; familiares acessam somente pelo app, sempre no escopo autorizado. A organização interna de pastas ainda será validada.
+- Adotar histórico contínuo por paciente, preservado nas pausas e retomadas, sem separar o acompanhamento em episódios independentes nem apagar autoria ou audiências.
 - Confirmar OpenRouter como integração de IA e transcrição. Whisper será acessado por essa integração; modelo específico, limites, política de dados e qualidade ainda serão validados. Não planejar OpenAI/Groq diretos como integrações adicionais de produção sem nova decisão.
-- Registrar que o solicitante criará contas exclusivas para a Francescato; o Drive continuará institucional. Identificadores, administradores, acessos e ambientes ainda serão definidos, sem solicitar segredos na conversa.
-- Adotar três perfis fixos no núcleo: Administrador, Profissional e Família. Edilaine poderá delegar a administração; administradores acessam a carteira completa, configurações, cadastros e gestão de acessos. Os demais acessam pacientes vinculados, com visão da equipe ou da família conforme o perfil, sem matriz extensa por funcionalidade.
+- Registrar que o solicitante criará contas exclusivas para a Francescato. O ambiente destinado à produção também será usado nos testes anteriores à liberação, somente com dados fictícios; identificadores, responsáveis, acessos e configuração ainda serão definidos, sem solicitar segredos na conversa.
+- Exigir identificação de cadastros, registros, anexos e eventos de teste e limpeza seletiva com conferência antes da entrada de dados reais. Preservar configurações, acessos administrativos válidos e conteúdo institucional preexistente; esta decisão não autoriza exclusão agora nem reset indiscriminado do ambiente ou do Drive.
+- Adotar três perfis fixos no núcleo: Administrador, Profissional e Família, com um único perfil por usuário, sem acúmulo. Edilaine poderá delegar a administração; administradores acessam a carteira completa, configurações, cadastros e gestão de acessos. Os demais acessam pacientes vinculados, com visão da equipe ou da família conforme o perfil, sem matriz extensa por funcionalidade.
+- Exigir cadastro prévio dos profissionais por Administrador antes do acesso Google autorizado. Edilaine foi confirmada para a administração inicial; o solicitante também pediu acesso administrativo técnico. O projeto Supabase e a autenticação desse acesso técnico ainda precisam de confirmação para o cadastro efetivo; não versionar credenciais ou dados de configuração pessoais.
 - Preservar as permissões individuais de visualizar/editar a agenda global e impedir que vínculo com paciente, por si só, exponha conteúdo interno da equipe à família. A autorização será conferida na operação real, não somente na interface.
 - Definir honestidade operacional: falhas e integrações incompletas devem ser visíveis no frontend, sem dados de exemplo ou sucesso simulado como substituição de respostas reais.
 - Planejar jornadas completas de configuração, cadastro e uso por perfil. As telas do mock orientam descoberta, não delimitam campos, etapas ou regras da aplicação real.
@@ -23,10 +26,16 @@ O projeto foi aprovado para uso real, mas o mockup não cobre integralmente conf
 | Organização | Exclusivo Francescato. |
 | Primeira entrega | Todo o núcleo, não uma versão reduzida. |
 | Documentos | Francescato: Drive e app. Família: somente app. |
+| Acompanhamento | Histórico contínuo por paciente, sem episódios independentes; preservar histórico nas pausas e retomadas. |
+| Local dos anexos | Google Drive compartilhado institucional, não pasta no Meu Drive de uma conta. |
+| Ambiente remoto | Mesmo ambiente para testes e futura produção; somente dados fictícios até a liberação. |
+| Transição para uso real | Identificar e remover somente itens de teste, com conferência; preservar configurações, acessos administrativos válidos e conteúdo institucional preexistente. Nenhuma exclusão nesta captura. |
 | IA e transcrição | “OpenRouter tudo então”, após confirmação de disponibilidade de Whisper/Groq. |
 | Contas | Serão criadas contas exclusivas para a Francescato; Drive institucional. |
 | Administração | Edilaine poderá delegar a outras pessoas, com perfil Administrador e acesso à carteira completa e funções administrativas. |
-| Perfis iniciais | Administrador, Profissional e Família; vínculo por paciente para não administradores, sem matriz extensa de permissões. |
+| Perfis iniciais | Administrador, Profissional e Família; um perfil por usuário, sem acúmulo; vínculo por paciente para não administradores, sem matriz extensa de permissões. |
+| Entrada da equipe | Cadastro prévio por Administrador; Google identifica o usuário, mas não cria automaticamente autorização. |
+| Administração inicial | Edilaine confirmada; acesso administrativo técnico também solicitado pelo responsável pelo projeto, ainda não criado. Projeto Supabase e método desse acesso técnico permanecem pendentes. |
 | Visibilidade por perfil | Profissional: visão da equipe nos pacientes vinculados. Família: próprios relatos e conteúdo disponibilizado nos pacientes vinculados. Agenda global mantém consulta/edição separadas. |
 | Mock e falhas | Arquivar a demonstração fora da base ativa; não mascarar falhas em testes pelo frontend. |
 | Jornada real | Mock insuficiente, especialmente configuração e cadastro; não copiar suas limitações para o produto. |
@@ -35,12 +44,13 @@ O projeto foi aprovado para uso real, mas o mockup não cobre integralmente conf
 
 ### New Capabilities
 
-- `integridade-operacional`: resultados reais, falhas explícitas, isolamento de simulações e verificação das jornadas completas no frontend.
+- `integridade-operacional`: resultados reais, falhas explícitas, isolamento de simulações, testes fictícios persistidos no mesmo ambiente e transição conferida para uso real.
 
 ### Modified Capabilities
 
-- `documentos-institucionais`: detalhar FR-031 para acesso familiar somente pelo app e acesso institucional autorizado também pelo Drive, mantendo audiência e revogação.
-- `sigilo-e-governanca`: registrar perfis fixos, delegação administrativa, carteira completa para administradores e escopo por paciente/perfil para os demais, preservando auditoria e controles da agenda global.
+- `caso-e-anamnese`: complementar FR-001 a FR-007 com histórico contínuo por paciente, sem ampliar audiências ou transformar retorno em novo histórico independente.
+- `documentos-institucionais`: detalhar FR-029 a FR-031 para Drive compartilhado institucional, família somente pelo app e acesso institucional autorizado também pelo Drive, mantendo audiência e revogação.
+- `sigilo-e-governanca`: registrar perfil único, cadastro prévio da equipe, delegação administrativa, carteira completa para administradores e escopo por paciente/perfil para os demais, preservando auditoria e controles da agenda global.
 
 ## Impact
 
@@ -54,8 +64,8 @@ A integração OpenRouter está confirmada, mas sua escolha não confirma contro
 
 ### Limite desta captura
 
-Somente proposta e deltas de requisitos. Nenhum mock foi arquivado, nenhum provedor foi chamado com áudio, nenhuma conta foi provisionada e nenhuma aplicação foi implementada. A captura não declara prontidão para executar tarefas de produção.
+Somente proposta e deltas de requisitos. Nenhum mock foi arquivado, nenhum provedor foi chamado com áudio, nenhuma conta foi provisionada, nenhum dado foi limpo e nenhuma aplicação foi implementada. A captura não declara prontidão para executar tarefas de produção. A confirmação do ambiente único não autoriza dados reais antes da liberação nem dispensa autorização, auditoria e recuperação aplicáveis.
 
 ### Pendências preservadas
 
-Local institucional do Drive e organização de pastas; concessão/revogação coerente de acesso direto; configuração Google e envio de convites; jornadas administrativas reais e concessão inicial do perfil Administrador; modelo de transcrição, limites, qualidade e guarda do áudio; funções adicionais de IA do núcleo; ambientes, recuperação e políticas de dados. Os três perfis e a delegação estão confirmados; dúvidas materiais restantes serão perguntadas antes de gerar design e tarefas executáveis.
+Identificador do Drive compartilhado, raiz e organização de pastas; concessão/revogação coerente de acesso direto; cadastro mínimo, duplicidade e regras detalhadas de retomada; configuração Google e envio de convites; mecanismo restrito de concessão administrativa inicial, projeto Supabase e autenticação do acesso técnico solicitado; modelo de transcrição, limites, qualidade e guarda do áudio; configuração/região do ambiente único, recuperação e políticas de dados. Identificação técnica dos itens de teste, procedimento de limpeza e evidência de liberação serão definidos antes de qualquer remoção. Perfil único, cadastro prévio da equipe e as decisões anteriores estão confirmados; os pontos restantes não serão inferidos. Nenhuma conta administrativa foi criada nesta revisão.

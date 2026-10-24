@@ -35,6 +35,27 @@
 - A aplicação deve funcionar confortavelmente no celular, com estados de carregamento, vazio, erro e sucesso, teclado, foco visível e alternativa ao áudio.
 - Use Impeccable em trabalho visual pertinente e as boas práticas React quando escrever/revisar React. O material final de marca virá do marketing da Edilaine.
 
+## Skills como apoio ao desenvolvimento
+
+- O solicitante determinou que as skills de segurança guiem a implementação e a revisão, não apenas uma auditoria ao final. Ao iniciar trabalho pertinente, anuncie a skill e leia suas instruções/referências aplicáveis antes de agir. Isso não amplia o escopo aprovado da tarefa.
+- Use `security-best-practices` na implementação segura por padrão e revisão de código das linguagens suportadas. Considere tanto frontend quanto backend pertinentes, separe controles existentes de recomendações e não trate uma referência de outro framework como prova de segurança desta stack.
+- Use `security-threat-model` para modelar ameaças nas mudanças sensíveis de identidade/sessão, autorização, arquivos, integrações e tratamento de dados: delimite a mudança, ativos, fronteiras de confiança, caminhos de abuso e mitigação verificável. Confirme hipóteses materiais com o solicitante antes do relatório final. Não refaça uma análise completa em toda alteração trivial nem declare que controles planejados já existem.
+- Use `codebase-design` para interfaces e organização do código; `tdd` nas fatias test-first acordadas; `diagnosing-bugs` quando houver falha a reproduzir. Preserve o vocabulário de negócio em português e os padrões do Atendimento; não crie camadas apenas para satisfazer uma heurística. Testar pela interface não elimina testes SQL diretos de RLS, grants e revogação.
+- Use `code-review` no fechamento de uma fatia relevante, com os dois eixos: padrões do projeto e aderência à especificação. Informe a revisão-base, a mudança OpenSpec e o diff exato; inclua alterações locais e arquivos novos quando forem o alvo. Não configure outro tracker ou fluxo de specs como efeito colateral da skill.
+- Use `supabase-postgres-best-practices` antes de trabalho PostgreSQL pertinente, incluindo schema, migrações, SQL, RLS e seus testes; carregue as referências específicas ao trabalho, sem otimização especulativa.
+- As skills complementares foram instaladas no ambiente do solicitante, não vendorizadas no repositório. Cada executor deve conferir sua disponibilidade; se ausentes ou incompatíveis, informar a limitação e solicitar orientação, sem alegar que aplicou uma skill indisponível.
+- Continue usando OpenSpec para requisitos, decisões e execução; `vercel-react-best-practices` no trabalho React pertinente; Impeccable no trabalho visual. Skills não substituem as fontes de verdade ou justificam dependências, abstrações ou mudanças de arquitetura não aprovadas.
+- Para Supabase/PostgreSQL, Deno e integrações, complemente lacunas das referências com documentação primária aplicável e testes próprios. Autorizações exigem provas positivas e negativas no servidor e banco, incluindo acesso direto, outro paciente/perfil, revogação e caminhos privilegiados. Nenhuma skill ou uso de RLS é, sozinho, certificação de segurança.
+- As passagens entre frentes devem carregar os controles de segurança pertinentes e sua evidência. Preserve os checkpoints de revisão independente e aviso ao solicitante definidos nas tarefas; não faça troca silenciosa de modelo nem aceite a própria implementação crítica sem a revisão prevista.
+- Uma tarefa só está concluída com critérios de aceite atendidos, verificações afetadas executadas e evidências/limitações registradas. Se um gate necessário não puder executar, registrar a pendência, não sucesso presumido; não marcar integração externa comprovada por testes com adapters fictícios.
+
+## Execução enxuta e proporcional ao risco
+
+- Não ativar todas as skills ou criar um gate por skill. Mudanças triviais usam entender → implementar → verificar; mudanças sensíveis preservam planejamento e revisões aprovados. Carregue integralmente as instruções/referências necessárias, sem puxar material alheio à tarefa ou reescrever o mesmo plano em vários lugares.
+- Uma revisão formal por fatia demonstrável, não por função/arquivo. Após correções, revisar o diff afetado e seus impactos; ampliar a revisão se mudar contrato, risco ou escopo. Reaproveitar contexto já conferido na mesma revisão, mas atualizar evidências após mudanças relevantes; nunca reutilizar autorização antiga ou teste anterior como prova do estado alterado.
+- Subagentes autorizados recebem somente tarefa, contratos, decisões, arquivos e evidência pertinentes; não replicar toda a investigação em cada frente. Evitar ciclos de agentes revisando revisões e revisores duplicados sem objetivo distinto. Dúvida material ou falha crítica volta à coordenação; checkpoints existentes continuam válidos, sem troca silenciosa de modelo.
+- Executar testes afetados durante a implementação e gates integrados no fechamento pertinente, sem repetir suítes inteiras por edições sem impacto. Não reduzir testes de permissão, segurança ou integridade para economizar tokens. Apontar gargalos observados antes de adicionar ferramentas, automações ou camadas de orquestração.
+
 ## Autonomia e operações externas
 
 - Conclua o trabalho aprovado e corrija problemas encontrados na validação, preservando mudanças do usuário.

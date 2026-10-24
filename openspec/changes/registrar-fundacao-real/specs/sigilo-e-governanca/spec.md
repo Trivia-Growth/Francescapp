@@ -4,7 +4,7 @@
 
 ### Requirement: Perfis fixos no núcleo inicial
 
-O núcleo SHALL adotar Administrador, Profissional e Família como perfis fixos de acesso, sem matriz extensa de permissões por funcionalidade. O perfil SHALL distinguir funções administrativas, visão da equipe e visão familiar; vínculos por paciente limitam os perfis não administradores. Fase Inicial; complementa FR-035 a FR-037 e SC-007/SC-011.
+O núcleo SHALL adotar Administrador, Profissional e Família como perfis fixos, com um único perfil por usuário com acesso concedido, sem acúmulo de perfis ou matriz extensa por funcionalidade. O perfil SHALL distinguir administração, visão da equipe e visão familiar; vínculos por paciente limitam os não administradores. Fase Inicial; complementa FR-035 a FR-037 e SC-007/SC-011.
 
 #### Scenario: Atribuir um perfil
 
@@ -15,6 +15,30 @@ O núcleo SHALL adotar Administrador, Profissional e Família como perfis fixos 
 
 - **WHEN** uma pessoa entrar pelo Google Workspace
 - **THEN** o sistema usa o perfil efetivamente concedido; o login institucional não a torna Administrador automaticamente.
+
+#### Scenario: Tentar acumular perfis
+
+- **WHEN** uma operação tentar atribuir mais de um perfil ao mesmo usuário
+- **THEN** a operação é rejeitada e não soma privilégios de Administrador, Profissional ou Família.
+
+#### Scenario: Substituição autorizada do perfil
+
+- **WHEN** uma alteração autorizada substituir o perfil de um usuário
+- **THEN** o novo perfil é o único aplicável às ações seguintes, com auditoria; o perfil anterior não continua concedendo privilégios residuais.
+
+### Requirement: Cadastro prévio da equipe por administrador
+
+A entrada autorizada de profissionais da equipe SHALL depender de cadastro prévio por Administrador, com perfil e vínculos aplicáveis. Autenticar pelo Google Workspace MUST NOT criar por si só a concessão de acesso ao produto ou à carteira. A concessão administrativa inicial é tratada separadamente, sem autopromoção pelo navegador. Fase Inicial; complementa FR-035/037.
+
+#### Scenario: Profissional previamente cadastrado
+
+- **WHEN** um profissional com concessão válida previamente cadastrada entrar pelo Google Workspace
+- **THEN** utiliza seu perfil único e os vínculos vigentes; não recebe acesso a pacientes fora desse escopo.
+
+#### Scenario: Conta Google sem concessão prévia
+
+- **WHEN** uma pessoa autenticar pelo Google sem cadastro e concessão de acesso prévios
+- **THEN** não recebe dados protegidos ou perfil automático; encontra orientação para solicitar acesso a um administrador.
 
 ### Requirement: Administração delegável com acesso à carteira completa
 
