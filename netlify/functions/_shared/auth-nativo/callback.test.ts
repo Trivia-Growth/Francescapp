@@ -12,6 +12,7 @@ const usuarioId = '11111111-1111-4111-8111-111111111111';
 const outraId = '22222222-2222-4222-8222-222222222222';
 const usuario = { id: usuarioId, aud: 'authenticated', app_metadata: { provider: 'google' } };
 const autorizada = {
+  session_id: '33333333-3333-4333-8333-333333333333',
   usuario: { id: usuarioId, perfil: 'profissional', ativo: true, versao: 1 },
   capacidades: ['consultar_pacientes_vinculados'],
 };

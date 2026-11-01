@@ -32,7 +32,7 @@
     "prepare": "lefthook install",
     "verificar:rapido": "lefthook run pre-push --force",
     "verificar:ativacao": "pnpm run verificar:fundacao",
-    "lint": "biome check packages/contracts packages/cadastro supabase/functions/_shared netlify/functions/_shared web scripts/validar-configuracao-local.mjs",
+    "lint": "biome check packages/contracts packages/cadastro supabase/functions/_shared netlify/functions web scripts/validar-configuracao-local.mjs",
     "verificar:fundacao": "pnpm run lint && pnpm run typecheck && pnpm run typecheck:deno && pnpm run test:contratos && pnpm run test:cadastro && pnpm run test:funcoes && pnpm run test:proxy && pnpm run test:web && pnpm run build:web && pnpm run validar:configuracao"
   },
   "devDependencies": {

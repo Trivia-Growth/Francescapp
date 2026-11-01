@@ -5,6 +5,14 @@ import {
   type FonteDeConfiguracao,
 } from '../../../../supabase/functions/_shared/configuracao.ts';
 
+/** Só rejeições de credenciais são 401; falhas desconhecidas permanecem indisponíveis. */
+export function credencialAuthRejeitada(erro: { name: string; status?: number }): boolean {
+  return (
+    erro.name === 'AuthSessionMissingError' ||
+    (erro.name === 'AuthApiError' && [400, 401, 403].includes(erro.status ?? 0))
+  );
+}
+
 export function carregarConfiguracaoAuthNativo(fonte: FonteDeConfiguracao) {
   const cadastro = carregarConfiguracao('cadastro', fonte);
   let origem: URL;
@@ -74,6 +82,9 @@ export function criarContextoAuthNativo(request: Request, fonte: FonteDeConfigur
   return {
     cliente,
     origem: config.origem,
+    get cookiesAlterados(): boolean {
+      return alteracoes.size > 0;
+    },
     responder(resposta: Response): Response {
       const headers = new Headers(resposta.headers);
       cabecalhosSdk.forEach((valor, nome) => headers.set(nome, valor));

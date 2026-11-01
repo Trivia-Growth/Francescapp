@@ -1,5 +1,5 @@
 import { criarErroPublicoSemCampos } from '../../../../packages/contracts/src/erros.ts';
-import { sessaoAtualSchema } from '../../../../packages/contracts/src/identidade.ts';
+import { sessaoNativaSchema } from '../../../../packages/contracts/src/identidade.ts';
 import type { FonteDeConfiguracao } from '../../../../supabase/functions/_shared/configuracao.ts';
 import { criarContextoAuthNativo } from './cliente.ts';
 
@@ -47,7 +47,7 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
       .rpc('admitir_sessao_nativa', { p_request_id: crypto.randomUUID() });
     if (admissao.error) return erro('servico_indisponivel', 503);
     if (admissao.data === null) return erro('sem_permissao', 403);
-    const autorizada = sessaoAtualSchema.safeParse(admissao.data);
+    const autorizada = sessaoNativaSchema.safeParse(admissao.data);
     if (
       !autorizada.success ||
       !autorizada.data.usuario.ativo ||
