@@ -14,6 +14,7 @@ brag-output/
 # Arquivos locais comuns.
 .DS_Store
 node_modules/
+web/dist/
 tmp/
 supabase/.temp/
 

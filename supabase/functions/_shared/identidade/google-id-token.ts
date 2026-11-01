@@ -1,10 +1,18 @@
-import { jwtVerify, type KeyInput } from 'jose';
+import {
+  decodeProtectedHeader,
+  errors,
+  jwtVerify,
+  type JWTVerifyGetKey,
+  type KeyInput,
+} from 'jose';
 
 const tamanhoMaximoIdToken = 16_384;
 const tamanhoMinimoNonce = 32;
 const tamanhoMaximoNonce = 512;
 const tamanhoMaximoSubject = 255;
 const tamanhoMaximoEmail = 254;
+// Margem técnica para pequenas diferenças entre relógios, sem estender expiração.
+const toleranciaEmissaoSegundos = 60;
 const algoritmosGooglePermitidos = ['RS256'] as const;
 const issuersGooglePermitidos = ['https://accounts.google.com', 'accounts.google.com'] as const;
 const nonceBase64Url = /^[A-Za-z0-9_-]+$/;
@@ -21,7 +29,7 @@ export type ConfiguracaoValidacaoIdTokenGoogle = Readonly<{
   audienciaEsperada: string;
   dominioWorkspace: string;
   nonceEsperado: string;
-  chaveDeVerificacao: KeyInput;
+  chaveDeVerificacao: KeyInput | JWTVerifyGetKey;
 }>;
 
 /** Prova criptográfica, não autorização e nem perfil da pessoa. */
@@ -120,6 +128,16 @@ function identidadeDosClaims(
     !emailValido(claims.email) ||
     claims.email_verified !== true ||
     claims.hd !== configuracao.dominioWorkspace ||
+    (claims.azp !== undefined && claims.azp !== configuracao.audienciaEsperada) ||
+    // OIDC 3.1.3.7: rejeitar audiences adicionais não confiáveis.
+    (Array.isArray(claims.aud) &&
+      claims.aud.some((audiencia: unknown) => audiencia !== configuracao.audienciaEsperada)) ||
+    (Array.isArray(claims.aud) &&
+      claims.aud.length > 1 &&
+      claims.azp !== configuracao.audienciaEsperada) ||
+    typeof claims.iat !== 'number' ||
+    !Number.isFinite(claims.iat) ||
+    claims.iat > Math.floor(Date.now() / 1000) + toleranciaEmissaoSegundos ||
     !nonceValido(claims.nonce) ||
     !compararEmTempoConstante(claims.nonce, configuracao.nonceEsperado)
   ) {
@@ -149,6 +167,9 @@ export async function validarIdTokenGoogle(
   }
 
   try {
+    // Esta integração não suporta extensões críticas JOSE.
+    if (Object.hasOwn(decodeProtectedHeader(idToken), 'crit'))
+      throw new ErroIdTokenGoogleInvalido();
     const { payload } = await jwtVerify(idToken, configuracao.chaveDeVerificacao, {
       algorithms: [...algoritmosGooglePermitidos],
       issuer: [...issuersGooglePermitidos],
@@ -161,6 +182,15 @@ export async function validarIdTokenGoogle(
     if (erro instanceof ErroIdTokenGoogleInvalido) {
       throw erro;
     }
-    throw new ErroIdTokenGoogleInvalido();
+    if (
+      erro instanceof errors.JWTInvalid ||
+      erro instanceof errors.JWSInvalid ||
+      erro instanceof errors.JWTExpired ||
+      erro instanceof errors.JWTClaimValidationFailed ||
+      erro instanceof errors.JWSSignatureVerificationFailed ||
+      erro instanceof errors.JOSEAlgNotAllowed
+    )
+      throw new ErroIdTokenGoogleInvalido();
+    throw new Error('Validação Google indisponível.');
   }
 }

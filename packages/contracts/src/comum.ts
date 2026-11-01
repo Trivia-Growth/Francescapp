@@ -6,9 +6,9 @@ import {
   mensagensErro,
   statusErroHttp,
   type CodigoErro,
-} from './erros.js';
+} from './erros.ts';
 
-export { mensagensErro, statusErroHttp, type CodigoErro } from './erros.js';
+export { mensagensErro, statusErroHttp, type CodigoErro } from './erros.ts';
 
 export const uuidSchema = z.string().uuid();
 

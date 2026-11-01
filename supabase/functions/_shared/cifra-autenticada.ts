@@ -67,6 +67,27 @@ function keyIdValido(keyId: unknown): keyId is string {
 }
 
 function aadCanonico(aad: MetadadosAad): Uint8Array {
+  if (typeof aad === 'object' && aad !== null && aad.tabela === 'identidade.sessao') {
+    if (
+      typeof aad.registro_id !== 'string' ||
+      !uuid.test(aad.registro_id) ||
+      typeof aad.usuario_id !== 'string' ||
+      !uuid.test(aad.usuario_id) ||
+      aad.campo !== 'refresh_token' ||
+      aad.formato !== formatoAtual
+    ) {
+      throw new ErroCifraAutenticada();
+    }
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        registro_id: aad.registro_id,
+        usuario_id: aad.usuario_id,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
   if (
     typeof aad !== 'object' ||
     aad === null ||
@@ -179,6 +200,7 @@ function importarChaves(configuracao: ConfiguracaoCifraAutenticada): {
   keyIdAtiva: string;
   chavesDeCifra: ReadonlyMap<string, Promise<CryptoKey>>;
   chaveHmac: Promise<CryptoKey>;
+  chaveAtivaDuplicada: boolean;
 } {
   if (!keyIdValido(configuracao.keyIdAtiva) || !chaveDeTamanhoCorreto(configuracao.chaveHmac)) {
     throw new ErroChaveIndisponivel();
@@ -186,6 +208,7 @@ function importarChaves(configuracao: ConfiguracaoCifraAutenticada): {
 
   const subtle = cryptoSubtle();
   const chavesDeCifra = new Map<string, Promise<CryptoKey>>();
+  const materiais = new Map<string, Uint8Array>();
   for (const [keyId, chave] of Object.entries(configuracao.chavesDeCifra)) {
     if (!keyIdValido(keyId) || !chaveDeTamanhoCorreto(chave)) {
       throw new ErroChaveIndisponivel();
@@ -193,6 +216,7 @@ function importarChaves(configuracao: ConfiguracaoCifraAutenticada): {
     if (mesmoMaterialDeChave(chave, configuracao.chaveHmac)) {
       throw new ErroChaveIndisponivel();
     }
+    materiais.set(keyId, new Uint8Array(chave));
     chavesDeCifra.set(
       keyId,
       subtle.importKey('raw', new Uint8Array(chave), { name: 'AES-GCM', length: 256 }, false, [
@@ -202,13 +226,18 @@ function importarChaves(configuracao: ConfiguracaoCifraAutenticada): {
     );
   }
 
-  if (!chavesDeCifra.has(configuracao.keyIdAtiva)) {
+  const materialAtivo = materiais.get(configuracao.keyIdAtiva);
+  if (!materialAtivo) {
     throw new ErroChaveIndisponivel();
   }
 
   return {
     keyIdAtiva: configuracao.keyIdAtiva,
     chavesDeCifra,
+    chaveAtivaDuplicada: [...materiais].some(
+      ([keyId, chave]) =>
+        keyId !== configuracao.keyIdAtiva && mesmoMaterialDeChave(chave, materialAtivo),
+    ),
     chaveHmac: subtle.importKey(
       'raw',
       new Uint8Array(configuracao.chaveHmac),
@@ -244,6 +273,7 @@ export function criarCifraAutenticada(
 
   return Object.freeze({
     async cifrar(valor, aad) {
+      if (chaves.chaveAtivaDuplicada) throw new ErroChaveIndisponivel();
       if (typeof valor !== 'string') {
         throw new ErroCifraAutenticada();
       }

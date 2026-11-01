@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { perfilSchema, uuidSchema, versaoSchema } from './comum.js';
+import { perfilSchema, uuidSchema, versaoSchema } from './comum.ts';
 
 const emailSchema = z.string().trim().email().max(254);
 const motivoSchema = z.string().trim().min(1).max(500);
@@ -27,7 +27,7 @@ export const revogarConcessaoEquipeSchema = z
 
 export const atualizarAcessoUsuarioSchema = z
   .object({
-    perfil: perfilSchema.optional(),
+    perfil: perfilSchema.exclude(['familia']).optional(),
     ativo: z.boolean().optional(),
     versao_esperada: versaoSchema,
     motivo: motivoSchema,
@@ -77,6 +77,17 @@ export const entradaSessaoRespostaSchema = z
     sessao: sessaoAtualSchema,
     access_token: z.string().min(1).max(16_384),
     csrf: z.string().min(32).max(512),
+    seletor_sessao: z
+      .string()
+      .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
+  })
+  .strict();
+
+/** A prova é credencial temporária: só em memória, jamais em URL/cookie/log. */
+export const entradaSessaoComProvaRespostaSchema = entradaSessaoRespostaSchema
+  .extend({
+    prova_sessao: z.string().regex(/^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/),
+    geracao_sessao: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
   })
   .strict();
 
@@ -85,6 +96,9 @@ export const desafioGoogleRespostaSchema = z
     desafio_id: uuidSchema,
     nonce_hash: z.string().min(32).max(256),
     csrf: z.string().min(32).max(512),
+    seletor_desafio: z
+      .string()
+      .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
     expira_em: z.string().datetime({ offset: true }),
   })
   .strict();

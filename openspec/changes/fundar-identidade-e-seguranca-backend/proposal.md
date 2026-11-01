@@ -38,6 +38,10 @@ Nenhuma capacidade paralela às existentes. O backend dá execução às decisõ
 
 Futura implementação em `supabase/migrations/`, `supabase/functions/`, `supabase/tests/`, contratos compartilhados e proxy first-party Netlify. Sem frontend clínico, novas credenciais de fornecedor, multitenancy, cópia de dados ou acesso aos serviços do Atendimento.
 
+### Pausa operacional temporária
+
+Enquanto Docker/Supabase local estiver indisponível na execução local, as provas que dependem desse ambiente serão executadas somente em um projeto Supabase de testes isolado, explicitamente identificado antes da operação. O solicitante autorizou migrações e testes nesse alvo com dados fictícios, seguidos de limpeza seletiva e rastreável desses dados; essa autorização não alcança projeto compartilhado ou de produção, bootstrap, concessão real, configuração de segredos, deploy ou limpeza global. Não há CI nesta fase.
+
 ### Evidência e dependências
 
 - Repositório atual: demonstração, documentos e specs, sem backend de produção versionado. Em 16/10/2026, consulta somente leitura ao OpenAPI do projeto retornou nenhum modelo de tabela exposto e somente a RPC `rls_auto_enable`; isso não prova ausência de objetos privados nem de contas Auth.

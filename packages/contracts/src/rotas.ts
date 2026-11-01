@@ -1,11 +1,12 @@
 import { z } from 'zod';
+import { eventoAuditoriaSchema } from './auditoria.ts';
 
 import {
   atualizarAcessoUsuarioSchema,
   comandoSessaoSchema,
   criarConcessaoEquipeSchema,
   desafioGoogleRespostaSchema,
-  entradaSessaoRespostaSchema,
+  entradaSessaoComProvaRespostaSchema,
   entrarGoogleSchema,
   entrarTecnicoSchema,
   concessaoEquipeSchema,
@@ -13,7 +14,7 @@ import {
   saidaSessaoSchema,
   sessaoAtualSchema,
   usuarioSessaoSchema,
-} from './identidade.js';
+} from './identidade.ts';
 import {
   atualizarContatoSchema,
   atualizarPacienteSchema,
@@ -26,7 +27,7 @@ import {
   pacienteAdministrativoSchema,
   pacienteBasicoSchema,
   revogarAcessoPacienteSchema,
-} from './cadastro.js';
+} from './cadastro.ts';
 import {
   cabecalhosMutacaoSchema,
   cursorSchema,
@@ -34,13 +35,41 @@ import {
   paginaSchema,
   sucessoRespostaSchema,
   uuidSchema,
-} from './comum.js';
+} from './comum.ts';
+import {
+  consultaReconciliacaoCadastroSchema,
+  paginaReconciliacaoCadastroSchema,
+} from './reconciliacao-cadastro.ts';
 
 const vazioSchema = z.object({}).strict();
 const origemSchema = z.string().url().max(2_048);
+const cabecalhosProva = {
+  'x-ffcm-prova-sessao': z.string().regex(/^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/),
+  'x-ffcm-geracao-sessao': z
+    .string()
+    .regex(/^[1-9][0-9]{0,15}$/)
+    .refine((v) => Number.isSafeInteger(Number(v))),
+};
+const cabecalhosConsultaProtegidaSchema = z.object(cabecalhosProva).strict();
+const cabecalhosMutacaoProtegidaSchema = cabecalhosMutacaoSchema.extend(cabecalhosProva).strict();
 const cabecalhosEntradaSessaoSchema = z.object({ origin: origemSchema }).strict();
 const cabecalhosComCsrfSchema = cabecalhosEntradaSessaoSchema
   .extend({ 'x-csrf': z.string().min(32).max(512) })
+  .strict();
+const cabecalhosComDesafioSchema = cabecalhosComCsrfSchema
+  .extend({
+    'x-desafio': z
+      .string()
+      .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
+  })
+  .strict();
+const cabecalhosComSessaoSchema = cabecalhosComCsrfSchema
+  .extend({
+    'x-sessao': z
+      .string()
+      .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
+    ...cabecalhosProva,
+  })
   .strict();
 const consultaConcessoesSchema = z
   .object({
@@ -56,16 +85,6 @@ const consultaAuditoriaSchema = z
     ator_id: uuidSchema.optional(),
     objeto_id: uuidSchema.optional(),
     acao: z.string().trim().min(1).max(120).optional(),
-  })
-  .strict();
-const auditoriaSchema = z
-  .object({
-    id: uuidSchema,
-    instante: z.string().datetime({ offset: true }),
-    acao: z.string().min(1).max(120),
-    tipo_objeto: z.string().min(1).max(120),
-    objeto_id: uuidSchema.nullable(),
-    resultado: z.enum(['permitido', 'negado', 'falhou']),
   })
   .strict();
 
@@ -89,8 +108,18 @@ export type ContratoRota<
 export type TransporteSessao = {
   exigeOrigem: true;
   exigeCsrf: boolean;
-  cookiesEntrada: readonly ('ffcm_refresh' | 'ffcm_csrf' | 'ffcm_nonce')[];
-  cookiesSaida: readonly ('ffcm_refresh' | 'ffcm_csrf' | 'ffcm_nonce')[];
+  cookiesEntrada: readonly (
+    | 'ffcm_sessao_<seletor>'
+    | 'ffcm_csrf_<seletor>'
+    | 'ffcm_csrf_desafio_<seletor>'
+    | 'ffcm_nonce_<seletor>'
+  )[];
+  cookiesSaida: readonly (
+    | 'ffcm_sessao_<seletor>'
+    | 'ffcm_csrf_<seletor>'
+    | 'ffcm_csrf_desafio_<seletor>'
+    | 'ffcm_nonce_<seletor>'
+  )[];
   accessToken: 'somente-memoria' | 'nao-aplicavel';
 };
 
@@ -129,12 +158,12 @@ const mutacaoIdempotente = <
   entrada: Entrada,
   saida: Saida,
   parametros: Parametros = nenhumParametro as unknown as Parametros,
-): ContratoRota<Entrada, Saida, typeof cabecalhosMutacaoSchema, Parametros> => ({
+): ContratoRota<Entrada, Saida, typeof cabecalhosMutacaoProtegidaSchema, Parametros> => ({
   metodo,
   caminho,
   entrada,
   saida,
-  cabecalhos: cabecalhosMutacaoSchema,
+  cabecalhos: cabecalhosMutacaoProtegidaSchema,
   parametros,
   transporte: null,
 });
@@ -143,12 +172,19 @@ const comandoDeSessao = <Entrada extends z.ZodType, Saida extends z.ZodType>(
   caminho: string,
   entrada: Entrada,
   saida: Saida,
-  cabecalhos: typeof cabecalhosEntradaSessaoSchema | typeof cabecalhosComCsrfSchema,
+  cabecalhos:
+    | typeof cabecalhosEntradaSessaoSchema
+    | typeof cabecalhosComCsrfSchema
+    | typeof cabecalhosComDesafioSchema
+    | typeof cabecalhosComSessaoSchema,
   transporte: TransporteSessao,
 ): ContratoRota<
   Entrada,
   Saida,
-  typeof cabecalhosEntradaSessaoSchema | typeof cabecalhosComCsrfSchema
+  | typeof cabecalhosEntradaSessaoSchema
+  | typeof cabecalhosComCsrfSchema
+  | typeof cabecalhosComDesafioSchema
+  | typeof cabecalhosComSessaoSchema
 > => ({
   metodo: 'POST',
   caminho,
@@ -168,12 +204,12 @@ const consulta = <
   entrada: Entrada,
   saida: Saida,
   parametros: Parametros = nenhumParametro as unknown as Parametros,
-): ContratoRota<Entrada, Saida, typeof vazioSchema, Parametros> => ({
+): ContratoRota<Entrada, Saida, typeof cabecalhosConsultaProtegidaSchema, Parametros> => ({
   metodo: 'GET',
   caminho,
   entrada,
   saida,
-  cabecalhos: vazioSchema,
+  cabecalhos: cabecalhosConsultaProtegidaSchema,
   parametros,
   transporte: null,
 });
@@ -184,6 +220,26 @@ const operacaoConcluidaSchema = z
 
 /** Catálogo completo das rotas D-09; handlers não devem declarar DTOs próprios. */
 export const contratosRotas = {
+  desafioTecnico: comandoDeSessao(
+    '/api/sessao/desafio-tecnico',
+    vazioSchema,
+    z
+      .object({
+        csrf: z.string().min(32).max(512),
+        seletor_desafio: z
+          .string()
+          .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
+      })
+      .strict(),
+    cabecalhosEntradaSessaoSchema,
+    {
+      exigeOrigem: true,
+      exigeCsrf: false,
+      cookiesEntrada: [],
+      cookiesSaida: ['ffcm_csrf_desafio_<seletor>'],
+      accessToken: 'nao-aplicavel',
+    },
+  ),
   desafioGoogle: comandoDeSessao(
     '/api/sessao/desafio-google',
     vazioSchema,
@@ -193,46 +249,46 @@ export const contratosRotas = {
       exigeOrigem: true,
       exigeCsrf: false,
       cookiesEntrada: [],
-      cookiesSaida: ['ffcm_nonce', 'ffcm_csrf'],
+      cookiesSaida: ['ffcm_nonce_<seletor>', 'ffcm_csrf_desafio_<seletor>'],
       accessToken: 'nao-aplicavel',
     },
   ),
   entrarGoogle: comandoDeSessao(
     '/api/sessao/google',
     entrarGoogleSchema,
-    entradaSessaoRespostaSchema,
-    cabecalhosComCsrfSchema,
+    entradaSessaoComProvaRespostaSchema,
+    cabecalhosComDesafioSchema,
     {
       exigeOrigem: true,
       exigeCsrf: true,
-      cookiesEntrada: ['ffcm_nonce', 'ffcm_csrf'],
-      cookiesSaida: ['ffcm_refresh', 'ffcm_csrf'],
+      cookiesEntrada: ['ffcm_nonce_<seletor>', 'ffcm_csrf_desafio_<seletor>'],
+      cookiesSaida: ['ffcm_sessao_<seletor>', 'ffcm_csrf_<seletor>'],
       accessToken: 'somente-memoria',
     },
   ),
   entrarTecnico: comandoDeSessao(
     '/api/sessao/tecnica',
     entrarTecnicoSchema,
-    entradaSessaoRespostaSchema,
-    cabecalhosComCsrfSchema,
+    entradaSessaoComProvaRespostaSchema,
+    cabecalhosComDesafioSchema,
     {
       exigeOrigem: true,
       exigeCsrf: true,
-      cookiesEntrada: ['ffcm_csrf'],
-      cookiesSaida: ['ffcm_refresh', 'ffcm_csrf'],
+      cookiesEntrada: ['ffcm_csrf_desafio_<seletor>'],
+      cookiesSaida: ['ffcm_sessao_<seletor>', 'ffcm_csrf_<seletor>'],
       accessToken: 'somente-memoria',
     },
   ),
   renovarSessao: comandoDeSessao(
     '/api/sessao/renovar',
     vazioSchema,
-    entradaSessaoRespostaSchema,
-    cabecalhosComCsrfSchema,
+    entradaSessaoComProvaRespostaSchema,
+    cabecalhosComSessaoSchema,
     {
       exigeOrigem: true,
       exigeCsrf: true,
-      cookiesEntrada: ['ffcm_refresh', 'ffcm_csrf'],
-      cookiesSaida: ['ffcm_refresh', 'ffcm_csrf'],
+      cookiesEntrada: ['ffcm_sessao_<seletor>', 'ffcm_csrf_<seletor>'],
+      cookiesSaida: [],
       accessToken: 'somente-memoria',
     },
   ),
@@ -240,12 +296,12 @@ export const contratosRotas = {
     '/api/sessao/sair',
     vazioSchema,
     saidaSessaoSchema,
-    cabecalhosComCsrfSchema,
+    cabecalhosComSessaoSchema,
     {
       exigeOrigem: true,
       exigeCsrf: true,
-      cookiesEntrada: ['ffcm_refresh', 'ffcm_csrf'],
-      cookiesSaida: ['ffcm_refresh', 'ffcm_csrf'],
+      cookiesEntrada: ['ffcm_sessao_<seletor>', 'ffcm_csrf_<seletor>'],
+      cookiesSaida: ['ffcm_sessao_<seletor>', 'ffcm_csrf_<seletor>'],
       accessToken: 'nao-aplicavel',
     },
   ),
@@ -279,6 +335,12 @@ export const contratosRotas = {
     '/api/pacientes',
     consultaPacientesSchema,
     paginaSchema(pacienteBasicoSchema),
+  ),
+  // Contrato planejado, sem handler ou RPC; exposição exige S-02 e autorização.
+  consultarOperacoesCadastro: consulta(
+    '/api/cadastro/operacoes',
+    consultaReconciliacaoCadastroSchema,
+    paginaReconciliacaoCadastroSchema,
   ),
   criarPaciente: mutacaoIdempotente(
     'POST',
@@ -344,7 +406,7 @@ export const contratosRotas = {
   consultarAuditoria: consulta(
     '/api/admin/auditoria',
     consultaAuditoriaSchema,
-    paginaSchema(auditoriaSchema),
+    paginaSchema(eventoAuditoriaSchema),
   ),
 } as const;
 

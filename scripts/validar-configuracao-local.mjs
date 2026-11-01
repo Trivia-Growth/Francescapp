@@ -26,4 +26,19 @@ for (const arquivo of arquivos) {
   }
 }
 
+const deno = JSON.parse(await readFile(resolve(raiz, 'supabase/functions/deno.json'), 'utf8'));
+const projeto = JSON.parse(await readFile(resolve(raiz, 'package.json'), 'utf8'));
+const contratos = JSON.parse(
+  await readFile(resolve(raiz, 'packages/contracts/package.json'), 'utf8'),
+);
+for (const [nome, versao] of Object.entries({
+  zod: contratos.dependencies.zod,
+  jose: projeto.dependencies.jose,
+  pg: projeto.dependencies.pg,
+})) {
+  assert.equal(deno.imports[nome], `npm:${nome}@${versao}`);
+}
+assert.equal(deno.nodeModulesDir, 'none');
+assert.equal(deno.imports['@ffcmapp/contratos'], '../../packages/contracts/src/index.ts');
+
 console.log('Configurações locais da fundação validadas sem acessar serviços remotos.');

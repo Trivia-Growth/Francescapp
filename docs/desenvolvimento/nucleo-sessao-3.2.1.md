@@ -21,8 +21,8 @@ autorização ou integração externa.
 
 ## Transporte e cookies
 
-Refresh e CSRF são selados com AES-GCM e AAD vinculado ao nome do cookie. Os
-cookies `ffcm_refresh` e `ffcm_csrf` usam `HttpOnly`, `SameSite=Lax`, caminho
+O identificador de sessão e o CSRF são selados com AES-GCM e AAD vinculado ao
+nome do cookie. Os cookies `ffcm_sessao` e `ffcm_csrf` usam `HttpOnly`, `SameSite=Lax`, caminho
 `/api/sessao` e não possuem `Domain`. Em HTTPS recebem `Secure`; a única
 exceção é `transporte: 'http-local'`, que deve ser selecionada explicitamente
 no adaptador de desenvolvimento local. A limpeza preserva nome e caminho e
@@ -34,8 +34,19 @@ usa cookie deve exigir origem exata configurada e `x-csrf`; o comparador percorr
 o limite inteiro aceito antes de decidir. `SameSite` e origem são defesas
 adicionais, não substitutos do CSRF.
 
-Nenhum valor de refresh entra em `localStorage`, `sessionStorage`, URL ou
-registro. A camada HTTP futura deve preservar cada `Set-Cookie` separadamente,
+O desafio de entrada usa cookie separado `ffcm_csrf_desafio`, com os mesmos
+atributos e AAD específico, emitido por `emitirProtecaoCsrfDesafio` e validado
+por `verificarProtecaoDeEntrada`. Assim, emitir desafio não substitui o CSRF
+da sessão existente. As rotas de desafio e login ainda não existem; o contrato
+alterado exige integração e revisão independentes. Duas entradas reais ainda
+podem substituir cookies de sessão: saída/renovação devem vincular a sessão
+pretendida e não operar sobre outra identidade. Não considerar essa parte
+resolvida apenas pelo teste com desafio fictício.
+
+Nenhum valor de refresh deve entrar em cookie, `localStorage`, `sessionStorage`,
+URL ou registro. O desenho aprovado prevê refresh cifrado no servidor; essa
+persistência e a integração real ainda não estão comprovadas por este núcleo.
+A camada HTTP futura deve preservar cada `Set-Cookie` separadamente,
 usar resposta `no-store` para entrada/refresh e manter access token somente em
 memória, como definido no contrato S-01.
 

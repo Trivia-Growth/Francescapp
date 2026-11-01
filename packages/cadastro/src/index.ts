@@ -229,8 +229,16 @@ export function criarModuloCadastro(adaptador: AdaptadorRpcCadastro): ModuloCada
         // futura os converte para o catálogo público sem expô-los aqui.
         throw new Error('Solicitação de cadastro inválida.');
       }
-      const resposta = await adaptador.executar(chamada);
-      return respostaValidada(solicitacao.operacao, resposta);
+      try {
+        // A operação validada não deve depender de objetos mutáveis após o await.
+        const operacao = chamada.operacao;
+        const resposta = await adaptador.executar(chamada);
+        return respostaValidada(operacao, resposta);
+      } catch {
+        // Erros de infraestrutura ou validação de saída podem conter dados
+        // pessoais; não propagar mensagens nem causas fornecidas pelo adapter.
+        throw new Error('Não foi possível processar a solicitação de cadastro.');
+      }
     },
   };
 }

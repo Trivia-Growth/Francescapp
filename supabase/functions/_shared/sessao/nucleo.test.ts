@@ -6,9 +6,12 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   admitirSessaoNoServidor,
   criarCodecDeCookiesSessao,
+  criarCodecDeCookiesSessaoIsolada,
   emitirProtecaoCsrf,
+  emitirProtecaoCsrfDesafio,
   validarJwtDeSessao,
   verificarProtecaoDeComando,
+  verificarProtecaoDeEntrada,
   type ConfiguracaoJwtSessao,
 } from './nucleo.ts';
 
@@ -48,10 +51,76 @@ async function criarJwt(
 }
 
 describe('núcleo de transporte da sessão', () => {
+  it('isola cookies por sessão e impede copiar valores selados entre seletores', async () => {
+    const configuracao = { chaveDeSelagem: chaveCookie, transporte: 'https' as const };
+    const seletorA = '10000000-0000-4000-8000-000000000001';
+    const seletorB = '10000000-0000-4000-8000-000000000002';
+    const a = criarCodecDeCookiesSessaoIsolada(configuracao, seletorA);
+    const b = criarCodecDeCookiesSessaoIsolada(configuracao, seletorB);
+    const refreshA = await a.selarSessao('refresh-a');
+    const refreshB = await b.selarSessao('refresh-b');
+    const csrfA = await a.selarCsrf('csrf-a');
+    const csrfB = await b.selarCsrf('csrf-b');
+    const nome = (cookie: string) => cookie.split('=')[0];
+    expect(nome(a.limparSessao())).toBe(nome(refreshA));
+    expect(nome(a.limparSessao())).not.toBe(nome(refreshB));
+    expect(nome(a.limparCsrf())).toBe(nome(csrfA));
+    expect(nome(a.limparCsrf())).not.toBe(nome(csrfB));
+    await expect(b.abrirSessao(refreshA.replace(seletorA, seletorB))).resolves.toBeNull();
+    await expect(b.abrirCsrf(csrfA.replace(seletorA, seletorB))).resolves.toBeNull();
+    await expect(b.abrirSessao(refreshB)).resolves.toBe('refresh-b');
+    await expect(b.abrirCsrf(csrfB)).resolves.toBe('csrf-b');
+  });
+
+  it.each(['', 'ffcm_sessao', '../outro', '10000000-0000-1000-8000-000000000001'])(
+    'recusa seletor de sessão inválido: %s',
+    (seletor) => {
+      expect(() =>
+        criarCodecDeCookiesSessaoIsolada(
+          { chaveDeSelagem: chaveCookie, transporte: 'https' },
+          seletor,
+        ),
+      ).toThrow();
+    },
+  );
+  it('emite proteção de desafio distinta e selada', async () => {
+    const codec = criarCodecDeCookiesSessao({ chaveDeSelagem: chaveCookie, transporte: 'https' });
+    const protecao = await emitirProtecaoCsrfDesafio(codec);
+    expect(protecao.setCookie).toContain('ffcm_csrf_desafio=');
+    expect(protecao.setCookie).toContain('HttpOnly');
+    expect(protecao.setCookie).not.toContain(protecao.csrf);
+    await expect(codec.abrirCsrfDesafio(protecao.setCookie)).resolves.toBe(protecao.csrf);
+    await expect(codec.abrirCsrf(protecao.setCookie)).resolves.toBeNull();
+    const cookieDeSessao = await codec.selarCsrf('s'.repeat(43));
+    await expect(
+      codec.abrirCsrf(protecao.setCookie.replace('ffcm_csrf_desafio=', 'ffcm_csrf=')),
+    ).resolves.toBeNull();
+    await expect(
+      codec.abrirCsrfDesafio(cookieDeSessao.replace('ffcm_csrf=', 'ffcm_csrf_desafio=')),
+    ).resolves.toBeNull();
+  });
+  it('valida CSRF de entrada somente com cookie de desafio e origem permitida', async () => {
+    const codec = criarCodecDeCookiesSessao({ chaveDeSelagem: chaveCookie, transporte: 'https' });
+    const csrf = 'x'.repeat(43);
+    const entrada = {
+      origem: 'https://app.exemplo.test',
+      csrfCabecalho: csrf,
+      cookieCsrf: await codec.selarCsrfDesafio(csrf),
+      origensPermitidas: ['https://app.exemplo.test'],
+      codec,
+    };
+    await expect(verificarProtecaoDeEntrada(entrada)).resolves.toBe(true);
+    await expect(
+      verificarProtecaoDeEntrada({ ...entrada, cookieCsrf: await codec.selarCsrf(csrf) }),
+    ).resolves.toBe(false);
+    await expect(
+      verificarProtecaoDeEntrada({ ...entrada, origem: 'https://maliciosa.exemplo.test' }),
+    ).resolves.toBe(false);
+  });
   it('sela o refresh e aplica atributos estritos aos cookies de sessão', async () => {
     const codec = criarCodecDeCookiesSessao({ chaveDeSelagem: chaveCookie, transporte: 'https' });
     const refresh = 'refresh-ficticio-que-nao-aparece-em-claro';
-    const cookie = await codec.selarRefresh(refresh);
+    const cookie = await codec.selarSessao(refresh);
 
     expect(cookie).toContain('HttpOnly');
     expect(cookie).toContain('Secure');
@@ -59,14 +128,14 @@ describe('núcleo de transporte da sessão', () => {
     expect(cookie).toContain('Path=/api/sessao');
     expect(cookie).not.toContain('Domain=');
     expect(cookie).not.toContain(refresh);
-    expect(await codec.abrirRefresh(cookie)).toBe(refresh);
+    expect(await codec.abrirSessao(cookie)).toBe(refresh);
     const csrf = await codec.selarCsrf('c'.repeat(43));
     expect(csrf).toContain('ffcm_csrf=');
     expect(csrf).toContain('HttpOnly');
     expect(csrf).toContain('Path=/api/sessao');
     expect(csrf).not.toContain('Domain=');
-    expect(codec.limparRefresh()).toContain('Max-Age=0');
-    expect(codec.limparRefresh()).toContain('Path=/api/sessao');
+    expect(codec.limparSessao()).toContain('Max-Age=0');
+    expect(codec.limparSessao()).toContain('Path=/api/sessao');
   });
 
   it('aceita HTTP apenas quando a configuração explícita é local', async () => {
@@ -75,7 +144,7 @@ describe('núcleo de transporte da sessão', () => {
       transporte: 'http-local',
     });
 
-    expect(await codec.selarRefresh('refresh-ficticio')).not.toContain('Secure');
+    expect(await codec.selarSessao('refresh-ficticio')).not.toContain('Secure');
   });
 
   it('recusa transporte de cookie desconhecido em vez de remover Secure silenciosamente', () => {

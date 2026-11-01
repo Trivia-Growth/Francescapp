@@ -1,8 +1,9 @@
 import { jwtVerify, type JWSAlgorithm, type KeyInput } from 'jose';
 
 const caminhoDaSessao = '/api/sessao';
-const nomeCookieRefresh = 'ffcm_refresh';
+const nomeCookieSessao = 'ffcm_sessao';
 const nomeCookieCsrf = 'ffcm_csrf';
+const nomeCookieCsrfDesafio = 'ffcm_csrf_desafio';
 const versaoCookie = 'v1';
 const bytesCsrf = 32;
 const tamanhoMaximoCsrf = 512;
@@ -19,11 +20,14 @@ export type ConfiguracaoDeCookiesSessao = Readonly<{
 }>;
 
 export type CodecDeCookiesSessao = Readonly<{
-  selarRefresh: (refresh: string) => Promise<string>;
-  abrirRefresh: (cabecalhoCookie: string) => Promise<string | null>;
+  selarSessao: (identificador: string) => Promise<string>;
+  abrirSessao: (cabecalhoCookie: string) => Promise<string | null>;
   selarCsrf: (csrf: string) => Promise<string>;
   abrirCsrf: (cabecalhoCookie: string) => Promise<string | null>;
-  limparRefresh: () => string;
+  selarCsrfDesafio: (csrf: string) => Promise<string>;
+  abrirCsrfDesafio: (cabecalhoCookie: string) => Promise<string | null>;
+  limparCsrfDesafio: () => string;
+  limparSessao: () => string;
   limparCsrf: () => string;
 }>;
 
@@ -187,6 +191,42 @@ async function abrirValor(
 export function criarCodecDeCookiesSessao(
   configuracao: ConfiguracaoDeCookiesSessao,
 ): CodecDeCookiesSessao {
+  return criarCodec(configuracao, nomeCookieSessao, nomeCookieCsrf);
+}
+
+/** O seletor é um identificador aleatório da emissão, não uma credencial ou session_id. */
+export function criarCodecDeCookiesSessaoIsolada(
+  configuracao: ConfiguracaoDeCookiesSessao,
+  seletor: string,
+): CodecDeCookiesSessao {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(seletor)) {
+    throw new TypeError('Seletor de sessão inválido.');
+  }
+  return criarCodec(configuracao, `${nomeCookieSessao}_${seletor}`, `${nomeCookieCsrf}_${seletor}`);
+}
+
+/** O nome autenticado do cookie vincula proteção a uma única tentativa. */
+export function criarCodecDeCookiesDesafioIsolado(
+  configuracao: ConfiguracaoDeCookiesSessao,
+  seletor: string,
+): CodecDeCookiesSessao {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(seletor)) {
+    throw new TypeError('Seletor de desafio inválido.');
+  }
+  return criarCodec(
+    configuracao,
+    nomeCookieSessao,
+    nomeCookieCsrf,
+    `${nomeCookieCsrfDesafio}_${seletor}`,
+  );
+}
+
+function criarCodec(
+  configuracao: ConfiguracaoDeCookiesSessao,
+  nomeSessao: string,
+  nomeCsrf: string,
+  nomeDesafio: string = nomeCookieCsrfDesafio,
+): CodecDeCookiesSessao {
   if (configuracao.transporte !== 'https' && configuracao.transporte !== 'http-local') {
     throw new TypeError('Transporte de cookie inválido.');
   }
@@ -204,12 +244,16 @@ export function criarCodecDeCookiesSessao(
     `${nome}=; ${atributosCookie(configuracao.transporte, 0)}`;
 
   return Object.freeze({
-    selarRefresh: (refresh) => selarCookie(nomeCookieRefresh, refresh),
-    abrirRefresh: (cabecalhoCookie) => abrirCookie(nomeCookieRefresh, cabecalhoCookie),
-    selarCsrf: (csrf) => selarCookie(nomeCookieCsrf, csrf),
-    abrirCsrf: (cabecalhoCookie) => abrirCookie(nomeCookieCsrf, cabecalhoCookie),
-    limparRefresh: () => limparCookie(nomeCookieRefresh),
-    limparCsrf: () => limparCookie(nomeCookieCsrf),
+    selarSessao: (identificador) => selarCookie(nomeSessao, identificador),
+    abrirSessao: (cabecalhoCookie) => abrirCookie(nomeSessao, cabecalhoCookie),
+    selarCsrf: (csrf) => selarCookie(nomeCsrf, csrf),
+    abrirCsrf: (cabecalhoCookie) => abrirCookie(nomeCsrf, cabecalhoCookie),
+    selarCsrfDesafio: async (csrf) =>
+      `${await selarCookie(nomeDesafio, csrf)}${nomeDesafio === nomeCookieCsrfDesafio ? '' : '; Max-Age=300'}`,
+    abrirCsrfDesafio: (cabecalhoCookie) => abrirCookie(nomeDesafio, cabecalhoCookie),
+    limparCsrfDesafio: () => limparCookie(nomeDesafio),
+    limparSessao: () => limparCookie(nomeSessao),
+    limparCsrf: () => limparCookie(nomeCsrf),
   });
 }
 
@@ -218,6 +262,13 @@ export async function emitirProtecaoCsrf(
 ): Promise<Readonly<{ csrf: string; setCookie: string }>> {
   const csrf = paraBase64Url(crypto.getRandomValues(new Uint8Array(bytesCsrf)));
   return Object.freeze({ csrf, setCookie: await codec.selarCsrf(csrf) });
+}
+
+export async function emitirProtecaoCsrfDesafio(
+  codec: CodecDeCookiesSessao,
+): Promise<Readonly<{ csrf: string; setCookie: string }>> {
+  const csrf = paraBase64Url(crypto.getRandomValues(new Uint8Array(bytesCsrf)));
+  return Object.freeze({ csrf, setCookie: await codec.selarCsrfDesafio(csrf) });
 }
 
 /** Compara até o limite aceito, sem encerrar a comparação no primeiro byte divergente. */
@@ -273,6 +324,16 @@ export async function verificarProtecaoDeComando(
 
   const csrfEsperado = await entrada.codec.abrirCsrf(entrada.cookieCsrf);
   return csrfEsperado !== null && compararCsrfEmTempoConstante(entrada.csrfCabecalho, csrfEsperado);
+}
+
+/** O desafio de entrada nunca reutiliza o cookie da sessão já estabelecida. */
+export async function verificarProtecaoDeEntrada(
+  entrada: Parameters<typeof verificarProtecaoDeComando>[0],
+): Promise<boolean> {
+  if (!origemExataPermitida(entrada.origem, entrada.origensPermitidas)) return false;
+  if (entrada.csrfCabecalho === null || entrada.cookieCsrf === null) return false;
+  const esperado = await entrada.codec.abrirCsrfDesafio(entrada.cookieCsrf);
+  return esperado !== null && compararCsrfEmTempoConstante(entrada.csrfCabecalho, esperado);
 }
 
 function configuracaoJwtValida(configuracao: ConfiguracaoJwtSessao): boolean {

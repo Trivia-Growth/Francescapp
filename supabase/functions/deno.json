@@ -1,0 +1,9 @@
+{
+  "imports": {
+    "@ffcmapp/contratos": "../../packages/contracts/src/index.ts",
+    "zod": "npm:zod@4.1.12",
+    "jose": "npm:jose@6.2.12",
+    "pg": "npm:pg@8.16.3"
+  },
+  "nodeModulesDir": "none"
+}

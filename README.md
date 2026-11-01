@@ -1,6 +1,6 @@
 # FFCMApp
 
-Sistema de coordenação do cuidado da Francescato. Projeto aprovado, em preparação para desenvolvimento de produção. O repositório contém os requisitos e uma demonstração arquivada para consulta; a aplicação conectada ainda não foi implementada.
+Sistema de coordenação do cuidado da Francescato. A fundação parcial de contratos, configuração, cifra, sessão e migração está versionada; a aplicação conectada e suas integrações ainda não foram implementadas.
 
 Nome confirmado em 15/10/2026: **FFCMApp**. [Identidade visual e imagens recebidas](docs/projeto/identidade-visual.md). O repositório e os materiais históricos ainda usam o nome anterior Francescapp; esta decisão não altera endereços ou integrações.
 
@@ -10,7 +10,7 @@ O processo ativo é **OpenSpec**, desde 14/10/2026, com diretrizes em [AGENTS.md
 
 - [Requisitos por capacidade](openspec/specs)
 - [Roteiro das especificações de desenvolvimento](docs/projeto/roteiro-especificacoes.md) e [primeiro pacote: preparação da base](openspec/changes/preparar-base-ffcmapp/proposal.md).
-- [Fundação do backend: proposta](openspec/changes/fundar-identidade-e-seguranca-backend/proposal.md), [banco, APIs e integrações](openspec/changes/fundar-identidade-e-seguranca-backend/design.md) e [tarefas de implementação](openspec/changes/fundar-identidade-e-seguranca-backend/tasks.md). Pacote para revisão, ainda não implementado.
+- [Fundação do backend: proposta](openspec/changes/fundar-identidade-e-seguranca-backend/proposal.md), [banco, APIs e integrações](openspec/changes/fundar-identidade-e-seguranca-backend/design.md) e [tarefas de implementação](openspec/changes/fundar-identidade-e-seguranca-backend/tasks.md). Pacote parcialmente implementado, com evidências e pendências registradas nas tarefas.
 - [Contexto e decisões pendentes](docs/projeto/fundacao.md)
 - [Jornadas, metas e regras de negócio](docs/projeto/contexto-negocio.md)
 - [Referência de código Atendimento](docs/projeto/referencia-atendimento.md)
@@ -22,7 +22,7 @@ O processo ativo é **OpenSpec**, desde 14/10/2026, com diretrizes em [AGENTS.md
 
 ## Base local de desenvolvimento
 
-Pré-requisitos desta preparação: Node 22 e pnpm 9.15.9. Na raiz do repositório, instale somente o que está congelado no lockfile e execute a verificação desta base:
+Pré-requisitos desta preparação: Node 22.12 ou superior na série 22 e pnpm 9.15.9. Na raiz do repositório, instale somente o que está congelado no lockfile e execute a verificação desta base:
 
 ```sh
 pnpm install --frozen-lockfile
@@ -30,6 +30,14 @@ pnpm run verificar:base
 ```
 
 `verificar:base` executa os testes de preservação e isolamento em diretórios temporários, confere os materiais arquivados, os links e a migração de requisitos, além do lint dos verificadores próprios. Ele não inicia o mock, não cria um frontend, não conecta a Supabase/Google/OpenRouter e não é uma prova de autorização ou integração.
+
+Para a fundação já versionada, instale também [Deno](https://docs.deno.com/runtime/getting_started/installation/). A versão testada neste notebook é 2.9.5; o uso em outro runtime, inclusive Supabase Edge, ainda requer validação. Execute:
+
+```sh
+pnpm run verificar:fundacao
+```
+
+Esse gate executa lint, typecheck TypeScript e Deno, testes, build web e validação de configuração sem acessar Supabase ou outros serviços da aplicação. O Deno pode baixar dependências npm fixadas quando elas não estiverem em cache. Durante a pausa de Docker/Supabase local, o gate não executa migrações, RLS, grants ou integração HTTP→banco; essas provas permanecem pendentes para ambiente Supabase isolado, explicitamente confirmado e com dados fictícios.
 
 O workspace reserva `apps/*` e `packages/*` para as próximas fatias, mas não cria pacotes vazios. React/Vite, TypeScript, camadas de domínio, banco, funções e seus respectivos gates entram somente com a primeira fatia de código aprovada.
 

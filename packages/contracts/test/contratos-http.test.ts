@@ -13,11 +13,88 @@ import {
   statusErroHttp,
   politicaCookiesSessao,
   novoContatoSchema,
+  sucessoRespostaSchema,
 } from '../src/index.js';
 
 const uuid = '31a7e0e6-8b2f-4c85-8baf-9422b39a4175';
 
 describe('contratos HTTP da fundação', () => {
+  it('valida apenas estrutura de cursor e envelope da reconciliação, sem provar opacidade', () => {
+    const rota = contratosRotas.consultarOperacoesCadastro;
+    const exemploQueNaoEOpaco = 'pessoa-ficticia@example.test';
+    expect(rota.entrada.safeParse({ cursor: exemploQueNaoEOpaco, limite: 1 }).success).toBe(true);
+    expect(rota.entrada.safeParse({ cursor: '', limite: 1 }).success).toBe(false);
+    expect(rota.entrada.safeParse({ cursor: 'a'.repeat(513), limite: 1 }).success).toBe(false);
+    expect(rota.entrada.safeParse({ limite: 0 }).success).toBe(false);
+    const sucesso = sucessoRespostaSchema(rota.saida);
+    expect(
+      sucesso.safeParse({ dados: { itens: [], proximo_cursor: null }, request_id: uuid }).success,
+    ).toBe(true);
+    expect(
+      sucesso.safeParse({
+        dados: { itens: [], proximo_cursor: null },
+        request_id: uuid,
+        access_token: 'token-ficticio',
+      }).success,
+    ).toBe(false);
+    expect(
+      sucesso.safeParse({
+        dados: { itens: [], proximo_cursor: null },
+        request_id: uuid,
+        nome: 'Pessoa fictícia',
+      }).success,
+    ).toBe(false);
+  });
+  it('define consulta de reconciliação sem ator autodeclarado e sem inferir falha de página vazia', () => {
+    const rota = contratosRotas.consultarOperacoesCadastro;
+    expect(rota.metodo).toBe('GET');
+    expect(rota.caminho).toBe('/api/cadastro/operacoes');
+    expect(rota.entrada.safeParse({ limite: 25 }).success).toBe(true);
+    expect(rota.entrada.safeParse({ limite: 25, usuario_id: uuid }).success).toBe(false);
+    expect(rota.entrada.safeParse({ limite: 101 }).success).toBe(false);
+    expect(rota.entrada.safeParse({ limite: 25, perfil: 'administrador' }).success).toBe(false);
+    expect(rota.saida.safeParse({ itens: [], proximo_cursor: null }).success).toBe(true);
+    for (const estado of ['pendente', 'indeterminado']) {
+      expect(
+        rota.saida.safeParse({
+          itens: [{ operacao_id: uuid, situacao: { estado } }],
+          proximo_cursor: null,
+        }).success,
+      ).toBe(true);
+    }
+    expect(
+      rota.saida.safeParse({
+        itens: [
+          {
+            operacao_id: uuid,
+            situacao: { estado: 'confirmado', resultado_id: uuid, resultado_versao: 1 },
+          },
+        ],
+        proximo_cursor: null,
+      }).success,
+    ).toBe(true);
+    expect(
+      rota.saida.safeParse({
+        itens: [
+          { operacao_id: uuid, situacao: { estado: 'indeterminado', nome: 'Pessoa fictícia' } },
+        ],
+        proximo_cursor: null,
+      }).success,
+    ).toBe(false);
+    expect(
+      rota.saida.safeParse({
+        itens: [{ operacao_id: uuid, situacao: { estado: 'pendente', resultado_id: uuid } }],
+        proximo_cursor: null,
+      }).success,
+    ).toBe(false);
+  });
+  it('reserva transição para família à jornada familiar', () => {
+    const base = { versao_esperada: 1, motivo: 'Alteração solicitada.' };
+    const schema = contratosRotas.atualizarAcessoUsuario.entrada;
+    expect(schema.safeParse({ ...base, perfil: 'familia' }).success).toBe(false);
+    expect(schema.safeParse({ ...base, perfil: 'profissional' }).success).toBe(true);
+    expect(schema.safeParse({ ...base, ativo: false }).success).toBe(true);
+  });
   it('aceita o cadastro mínimo somente com nome e aplica trim', () => {
     expect(criarPacienteSchema.parse({ nome: '  Marina  ' })).toEqual({ nome: 'Marina' });
   });
@@ -128,9 +205,26 @@ describe('contratos HTTP da fundação', () => {
       contratosRotas.renovarSessao.cabecalhos.parse({
         origin: 'https://app.exemplo.test',
         'x-csrf': 'a'.repeat(32),
+        'x-sessao': '20000000-0000-4000-8000-000000000001',
+        'x-ffcm-prova-sessao': 'A'.repeat(43),
+        'x-ffcm-geracao-sessao': '1',
       }),
     ).toBeDefined();
     expect(contratosRotas.entrarGoogle.transporte?.accessToken).toBe('somente-memoria');
+  });
+
+  it('separa o cookie do desafio de login do cookie da sessão', () => {
+    expect(contratosRotas.desafioGoogle.transporte?.cookiesSaida).toContain(
+      'ffcm_csrf_desafio_<seletor>',
+    );
+    expect(contratosRotas.desafioGoogle.transporte?.cookiesSaida).not.toContain('ffcm_csrf');
+    expect(contratosRotas.entrarTecnico.transporte?.cookiesEntrada).toContain(
+      'ffcm_csrf_desafio_<seletor>',
+    );
+    expect(contratosRotas.entrarGoogle.transporte?.cookiesEntrada).toContain(
+      'ffcm_csrf_desafio_<seletor>',
+    );
+    expect(contratosRotas.sairSessao.transporte?.cookiesEntrada).toContain('ffcm_csrf_<seletor>');
   });
 
   it('rejeita eco sensível em mensagem e caminhos de erro', () => {
@@ -164,6 +258,9 @@ describe('contratos HTTP da fundação', () => {
         sessao,
         access_token: 'token-ficticio',
         csrf: 'a'.repeat(32),
+        seletor_sessao: '20000000-0000-4000-8000-000000000001',
+        prova_sessao: 'A'.repeat(43),
+        geracao_sessao: 1,
       }).success,
     ).toBe(true);
     expect(
@@ -181,6 +278,35 @@ describe('contratos HTTP da fundação', () => {
       domain: null,
       limpar: { maxAge: 0 },
     });
+  });
+
+  it('exige prova e geração em consultas, mutações, renovação e saída', () => {
+    const prova = { 'x-ffcm-prova-sessao': 'A'.repeat(43), 'x-ffcm-geracao-sessao': '1' };
+    const sessao = {
+      ...prova,
+      origin: 'https://app.exemplo.test',
+      'x-csrf': 'a'.repeat(43),
+      'x-sessao': '20000000-0000-4000-8000-000000000001',
+    };
+    expect(contratosRotas.sessaoAtual.cabecalhos.safeParse(prova).success).toBe(true);
+    expect(contratosRotas.sessaoAtual.cabecalhos.safeParse({}).success).toBe(false);
+    expect(
+      contratosRotas.criarPaciente.cabecalhos.safeParse({
+        ...prova,
+        'x-chave-idempotencia': 'P5_cjCGTgmWwg2TrV5KgEpMw',
+      }).success,
+    ).toBe(true);
+    expect(contratosRotas.renovarSessao.cabecalhos.safeParse(sessao).success).toBe(true);
+    expect(
+      contratosRotas.sairSessao.cabecalhos.safeParse({ ...sessao, 'x-ffcm-geracao-sessao': '01' })
+        .success,
+    ).toBe(false);
+    expect(
+      contratosRotas.sairSessao.cabecalhos.safeParse({
+        ...sessao,
+        'x-ffcm-prova-sessao': `${'A'.repeat(42)}B`,
+      }).success,
+    ).toBe(false);
   });
 
   it('rejeita telefone formado somente por pontuação ou espaços', () => {

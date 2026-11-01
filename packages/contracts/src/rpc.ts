@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { eventoAuditoriaSchema } from './auditoria.ts';
 
 import {
   chaveIdempotenciaSchema,
@@ -8,8 +9,8 @@ import {
   perfilSchema,
   uuidSchema,
   versaoSchema,
-} from './comum.js';
-import { estadoConcessaoSchema } from './identidade.js';
+} from './comum.ts';
+import { estadoConcessaoSchema } from './identidade.ts';
 
 export const formatoCifraSchema = z.literal(1);
 export const base64UrlSchema = z
@@ -30,7 +31,7 @@ export const campoCifradoSchema = z
     tag: base64UrlSchema,
   })
   .strict();
-export const metadadosAadSchema = z
+const metadadosAadCamposSchema = z
   .object({
     tabela: z.enum([
       'cadastro.paciente',
@@ -46,6 +47,18 @@ export const metadadosAadSchema = z
   })
   .strict();
 
+const metadadosAadSessaoSchema = z
+  .object({
+    tabela: z.literal('identidade.sessao'),
+    registro_id: uuidSchema,
+    usuario_id: uuidSchema,
+    campo: z.literal('refresh_token'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+export const metadadosAadSchema = z.union([metadadosAadCamposSchema, metadadosAadSessaoSchema]);
+
 export const dadosAtestadoSchema = z
   .object({
     key_id: keyIdSchema,
@@ -59,6 +72,22 @@ export const dadosAtestadoSchema = z
   })
   .strict();
 export const atestadoOperacaoSchema = dadosAtestadoSchema.extend({ mac: base64UrlSchema }).strict();
+/** Resultado interno do assinador. O parse é estrutural: não verifica JCS,
+ * digest, MAC, identidade, autorização ou equivalência com a operação executada.
+ * Não verifica conteúdo sensível nos snapshots: o chamador deve impedir texto
+ * pessoal claro e chaves e nunca enviá-los ao navegador ou registrá-los em logs. */
+const snapshotCanonicoSchema = z
+  .string()
+  .min(1)
+  .max(1_048_576)
+  .refine((valor) => new TextEncoder().encode(valor).byteLength <= 1_048_576);
+export const resultadoAtestacaoSchema = z
+  .object({
+    atestado: atestadoOperacaoSchema,
+    entradaCanonica: snapshotCanonicoSchema,
+    dadosCanonicos: snapshotCanonicoSchema,
+  })
+  .strict();
 export const contextoRpcUsuarioSchema = z
   .object({ request_id: uuidSchema, atestado: atestadoOperacaoSchema })
   .strict();
@@ -92,7 +121,11 @@ export const identidadeComprovadaServidorSchema = z.discriminatedUnion('metodo',
   identidadeTecnicaSchema,
 ]);
 export const admissaoSessaoEntradaSchema = z
-  .object({ identidade: identidadeComprovadaServidorSchema, request_id: uuidSchema })
+  .object({
+    identidade: identidadeComprovadaServidorSchema,
+    request_id: uuidSchema,
+    credencial_refresh: campoCifradoSchema,
+  })
   .strict();
 const googleAdmissaoSchema = admissaoSessaoEntradaSchema
   .extend({ identidade: identidadeGoogleSchema })
@@ -155,26 +188,95 @@ const operacaoConcluidaSchema = z.object({ id: uuidSchema, versao: versaoSchema 
 const paginaInterna = <T extends z.ZodType>(item: T) =>
   z.object({ itens: z.array(item), proximo_cursor: cursorSchema.nullable() }).strict();
 const paginacao = { cursor: cursorSchema.optional(), limite: limitePaginaSchema };
+const aadPaciente = <C extends 'nome' | 'nome_preferencia' | 'data_nascimento'>(campo: C) =>
+  z
+    .object({
+      tabela: z.literal('cadastro.paciente'),
+      registro_id: uuidSchema,
+      campo: z.literal(campo),
+      formato: formatoCifraSchema,
+    })
+    .strict();
+export const reservaCadastroSchema = z
+  .object({
+    reserva_id: uuidSchema,
+    geracao_reserva: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+  })
+  .strict();
+
+/** AAD e reserva obrigatórios tornam este contrato incompatível com entradas anteriores.
+ * Validação estrutural não autentica ciphertext nem substitui verificação no banco. */
 export const criarPacienteRpcEntradaSchema = mutacaoSchema
   .extend({
+    ...reservaCadastroSchema.shape,
     paciente_id: uuidSchema,
     nome: campoCifradoSchema,
     nome_preferencia: campoCifradoSchema.optional(),
     data_nascimento: campoCifradoSchema.optional(),
+    aad: z
+      .object({
+        nome: aadPaciente('nome'),
+        nome_preferencia: aadPaciente('nome_preferencia').optional(),
+        data_nascimento: aadPaciente('data_nascimento').optional(),
+      })
+      .strict(),
   })
-  .strict();
+  .strict()
+  .superRefine((valor, ctx) => {
+    for (const campo of ['nome', 'nome_preferencia', 'data_nascimento'] as const) {
+      const envelope = valor[campo];
+      const aad = valor.aad[campo];
+      if (
+        (envelope === undefined) !== (aad === undefined) ||
+        (aad &&
+          envelope &&
+          (aad.registro_id !== valor.paciente_id || aad.formato !== envelope.formato))
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'AAD incompatível com o campo cifrado.',
+          path: ['aad', campo],
+        });
+      }
+    }
+  });
 const atualizarPacienteEntrada = alteracaoSchema
   .extend({
     paciente_id: uuidSchema,
     nome: campoCifradoSchema.optional(),
     nome_preferencia: campoCifradoSchema.nullable().optional(),
     data_nascimento: campoCifradoSchema.nullable().optional(),
+    aad: z
+      .object({
+        nome: aadPaciente('nome').optional(),
+        nome_preferencia: aadPaciente('nome_preferencia').optional(),
+        data_nascimento: aadPaciente('data_nascimento').optional(),
+      })
+      .strict(),
   })
   .strict()
   .refine(
     (v) =>
       v.nome !== undefined || v.nome_preferencia !== undefined || v.data_nascimento !== undefined,
-  );
+  )
+  .superRefine((valor, ctx) => {
+    for (const campo of ['nome', 'nome_preferencia', 'data_nascimento'] as const) {
+      const envelope = valor[campo];
+      const aad = valor.aad[campo];
+      if (
+        (envelope != null) !== (aad !== undefined) ||
+        (envelope != null &&
+          aad &&
+          (aad.registro_id !== valor.paciente_id || aad.formato !== envelope.formato))
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'AAD incompatível com o campo cifrado.',
+          path: ['aad', campo],
+        });
+      }
+    }
+  });
 const novoContatoInternoSchema = z
   .object({
     contato_id: uuidSchema,
@@ -343,7 +445,7 @@ export const assinaturasRpc = {
     alteracaoSchema
       .extend({
         usuario_id: uuidSchema,
-        perfil: perfilSchema.optional(),
+        perfil: perfilSchema.exclude(['familia']).optional(),
         ativo: z.boolean().optional(),
       })
       .strict()
@@ -400,8 +502,17 @@ export const assinaturasRpc = {
         contato_id: uuidSchema,
         tipo: z.enum(['email', 'telefone']),
         valor: campoCifradoSchema,
+        aad: z
+          .object({
+            tabela: z.literal('cadastro.contato_paciente'),
+            registro_id: uuidSchema,
+            campo: z.literal('valor'),
+            formato: formatoCifraSchema,
+          })
+          .strict(),
       })
-      .strict(),
+      .strict()
+      .refine((v) => v.aad.registro_id === v.contato_id && v.aad.formato === v.valor.formato),
     pacienteAdministrativoRpcSaidaSchema,
   ),
   atualizarContato: assinatura(
@@ -489,20 +600,31 @@ export const assinaturasRpc = {
         acao: z.string().min(1).max(120).optional(),
       })
       .strict(),
-    paginaInterna(
-      z
-        .object({
-          id: uuidSchema,
-          instante: instanteSchema,
-          acao: z.string().min(1).max(120),
-          tipo_objeto: z.string().min(1).max(120),
-          objeto_id: uuidSchema.nullable(),
-          resultado: z.enum(['permitido', 'negado', 'falhou']),
-        })
-        .strict(),
-    ),
+    paginaInterna(eventoAuditoriaSchema),
   ),
 } as const;
+
+/** Transporte experimental exclusivamente interno, ainda incompatível com o
+ * formato atual das RPCs. Não usar em runtime antes da revisão S-02 e da prova
+ * de verificação dos bytes, equivalência semântica e autorização no banco.
+ * O schema só valida estrutura: não autentica nem inspeciona os snapshots. */
+export function criarTransporteRpcAtestadaSchema<R extends keyof typeof assinaturasRpc>(rota: R) {
+  const contrato = assinaturasRpc[rota];
+  if (contrato.executor !== 'jwt-do-solicitante') {
+    throw new Error('A RPC não utiliza transporte atestado de usuário.');
+  }
+  return z
+    .object({
+      p_entrada: z
+        .object({
+          entrada: contrato.entrada,
+          entrada_canonica: snapshotCanonicoSchema,
+          dados_canonicos: snapshotCanonicoSchema,
+        })
+        .strict(),
+    })
+    .strict();
+}
 
 export const mapeamentoOperacoes = Object.entries(assinaturasRpc).map(([rota, contrato]) => ({
   rota,
@@ -515,15 +637,18 @@ export const contratosRpc = { ...assinaturasRpc, admitirSessao: assinaturasRpc.e
 export type CampoCifrado = z.infer<typeof campoCifradoSchema>;
 export type MetadadosAad = z.infer<typeof metadadosAadSchema>;
 export type AtestadoOperacao = z.infer<typeof atestadoOperacaoSchema>;
+export type ResultadoAtestacao = z.infer<typeof resultadoAtestacaoSchema>;
 export type AdaptadorCifra = {
   cifrar(valor: string, aad: MetadadosAad): Promise<CampoCifrado>;
   decifrar(campo: CampoCifrado, aad: MetadadosAad): Promise<string>;
   /** Recebe os metadados e p_entrada sem atestado (incluindo IDs, versão e chave).
-   * Deve conferir digest_entrada contra a representação canônica antes de assinar. */
+   * Deve conferir digest_entrada contra a representação canônica antes de assinar.
+   * O consumidor futuro deve transportar os snapshots imutáveis e comprovar sua
+   * equivalência à operação executada antes de autorizar qualquer escrita. */
   atestar(
     dados: z.infer<typeof dadosAtestadoSchema>,
     entrada: Record<string, unknown>,
-  ): Promise<AtestadoOperacao>;
+  ): Promise<ResultadoAtestacao>;
 };
 export const invariantesCifra = [
   'O HTTP valida o DTO em texto claro antes de qualquer cifra.',

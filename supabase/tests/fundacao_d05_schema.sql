@@ -1,7 +1,8 @@
 -- Fundação FFCMApp — testes locais da tarefa 2.1 / D-05.
--- Executar após aplicar as migrações em banco local Supabase. Todos os IDs e
--- envelopes abaixo são sintéticos; não são contas, nomes ou segredos reais.
-\set ON_ERROR_STOP on
+-- Executar após aplicar as migrações em banco local Supabase. Com psql, passe
+-- -v ON_ERROR_STOP=1; a API de consulta remota não interpreta metacomandos.
+-- Todos os IDs e envelopes abaixo são sintéticos; não são contas, nomes ou
+-- segredos reais.
 
 begin;
 

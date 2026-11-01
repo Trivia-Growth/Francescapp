@@ -347,7 +347,7 @@ create table cadastro.acesso_paciente (
   concedido_em timestamptz not null default clock_timestamp(),
   motivo_concessao_cifrado jsonb not null,
   revogado_por_usuario_id uuid references public.usuario (id) on delete no action,
-  revogado_em timestamptz,
+  revogada_em timestamptz,
   motivo_revogacao_cifrado jsonb,
   versao integer not null default 1 check (versao > 0),
   constraint acesso_motivo_concessao_formato_chk check ((

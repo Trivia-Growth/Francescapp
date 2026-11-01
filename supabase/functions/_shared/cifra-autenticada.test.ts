@@ -135,6 +135,38 @@ describe('cifra autenticada de campos', () => {
     ).toThrow(ErroChaveIndisponivel);
   });
 
+  it('preserva leitura antiga mas impede gravar quando a chave ativa repete material anterior', async () => {
+    const anterior = criarCifraAutenticada({
+      keyIdAtiva: 'pii-v1',
+      chavesDeCifra: { 'pii-v1': new Uint8Array(32).fill(17) },
+      chaveHmac: new Uint8Array(32).fill(43),
+    });
+    const campo = await anterior.cifrar('Pessoa Fictícia', aad);
+    const repetida = criarCifraAutenticada({
+      keyIdAtiva: 'pii-v2',
+      chavesDeCifra: {
+        'pii-v1': new Uint8Array(32).fill(17),
+        'pii-v2': new Uint8Array(32).fill(17),
+      },
+      chaveHmac: new Uint8Array(32).fill(43),
+    });
+    await expect(repetida.decifrar(campo, aad)).resolves.toBe('Pessoa Fictícia');
+    await expect(repetida.cifrar('Pessoa Fictícia', aad)).rejects.toThrow(ErroChaveIndisponivel);
+    const corrigida = criarCifraAutenticada({
+      keyIdAtiva: 'pii-v3',
+      chavesDeCifra: {
+        'pii-v1': new Uint8Array(32).fill(17),
+        'pii-v2': new Uint8Array(32).fill(17),
+        'pii-v3': new Uint8Array(32).fill(29),
+      },
+      chaveHmac: new Uint8Array(32).fill(43),
+    });
+    await expect(corrigida.decifrar(campo, aad)).resolves.toBe('Pessoa Fictícia');
+    await expect(corrigida.cifrar('Pessoa Fictícia', aad)).resolves.toMatchObject({
+      key_id: 'pii-v3',
+    });
+  });
+
   it('calcula HMAC estável para o mesmo comando lógico', async () => {
     const cifra = criarCifraParaTeste();
     const comandoLogico = 'concessao:email:pessoa.ficticia@exemplo.test';

@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@9.15.9",
   "engines": {
-    "node": ">=22 <23",
+    "node": ">=22.12 <23",
     "pnpm": "9.15.9"
   },
   "scripts": {
@@ -17,23 +17,33 @@
     "lint:base": "biome check scripts/verify-base-preservation.mjs scripts/test-verify-base-preservation.mjs scripts/verify-mockup-isolation.mjs scripts/test-verify-mockup-isolation.mjs",
     "verificar:base": "pnpm run test:preservacao && pnpm run verificar:preservacao && pnpm run test:isolamento && pnpm run verificar:isolamento && pnpm run verificar:migracao && pnpm run lint:base",
     "typecheck:funcoes": "tsc --project supabase/functions/tsconfig.json",
-    "typecheck": "pnpm -r --if-present typecheck && pnpm run typecheck:funcoes",
+    "typecheck:deno": "deno check --config supabase/functions/deno.json --frozen supabase/functions/_shared/sessao/renovacao-prova.ts supabase/functions/_shared/sessao/persistencia-postgres-experimento.ts supabase/functions/_shared/identidade/entrada-tecnica-prova.ts supabase/functions/_shared/identidade/desafio-google.ts supabase/functions/_shared/identidade/google-jwks.ts supabase/functions/_shared/identidade/auth-google.ts supabase/functions/_shared/atestado-operacao.ts supabase/functions/_shared/cofre-vault.ts supabase/functions/_shared/cofre-vault-postgres.ts supabase/functions/_shared/pool-cofre.ts supabase/functions/_shared/configurar-cofre-experimental.ts packages/cadastro/src/executor-paciente-experimental.ts packages/cadastro/src/http-reconciliacao-experimental.ts packages/cadastro/src/projetar-paciente-experimental.ts",
+    "typecheck:web": "tsc --project web/tsconfig.json",
+    "typecheck:proxy": "tsc --project netlify/tsconfig.json",
+    "typecheck": "pnpm -r --if-present typecheck && pnpm run typecheck:funcoes && pnpm run typecheck:web && pnpm run typecheck:proxy",
+    "build:web": "vite build web",
     "test:contratos": "pnpm --filter @ffcmapp/contratos test",
     "test:cadastro": "pnpm --filter @ffcmapp/cadastro test",
     "test:configuracao": "vitest run supabase/functions/_shared/configuracao.test.ts",
     "test:funcoes": "vitest run supabase/functions/_shared",
+    "test:web": "vitest run web",
+    "test:proxy": "vitest run netlify/functions/_shared",
     "validar:configuracao": "node scripts/validar-configuracao-local.mjs",
-    "lint": "biome check packages/contracts packages/cadastro supabase/functions/_shared scripts/validar-configuracao-local.mjs",
-    "verificar:fundacao": "pnpm run lint && pnpm run typecheck && pnpm run test:contratos && pnpm run test:cadastro && pnpm run test:funcoes && pnpm run validar:configuracao"
+    "lint": "biome check packages/contracts packages/cadastro supabase/functions/_shared netlify/functions/_shared web scripts/validar-configuracao-local.mjs",
+    "verificar:fundacao": "pnpm run lint && pnpm run typecheck && pnpm run typecheck:deno && pnpm run test:contratos && pnpm run test:cadastro && pnpm run test:funcoes && pnpm run test:proxy && pnpm run test:web && pnpm run build:web && pnpm run validar:configuracao"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@iarna/toml": "2.2.5",
     "@types/node": "22.15.34",
+    "@types/pg": "8.15.5",
+    "jsdom": "26.1.0",
     "typescript": "5.9.3",
+    "vite": "8.3.4",
     "vitest": "4.1.11"
   },
   "dependencies": {
-    "jose": "6.2.12"
+    "jose": "6.2.12",
+    "pg": "8.16.3"
   }
 }

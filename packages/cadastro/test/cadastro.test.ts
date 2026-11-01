@@ -33,7 +33,11 @@ describe('módulo de cadastro', () => {
     const resposta = await modulo.executar({
       operacao: 'criarPaciente',
       corpo: { nome: 'Pessoa de Teste' },
-      cabecalhos: { 'x-chave-idempotencia': 'chave-idempotente-de-teste-001' },
+      cabecalhos: {
+        'x-chave-idempotencia': 'chave-idempotente-de-teste-001',
+        'x-ffcm-prova-sessao': 'A'.repeat(43),
+        'x-ffcm-geracao-sessao': '1',
+      },
     });
 
     expect(resposta).toEqual({
@@ -120,6 +124,28 @@ describe('módulo de cadastro', () => {
     expect(resposta.dados).not.toHaveProperty('contatos');
   });
 
+  it('valida resposta pela operação original mesmo se pedido e chamada mudarem durante a espera', async () => {
+    const pedido = {
+      operacao: 'consultarPaciente' as const,
+      parametros: { paciente_id: ids.paciente },
+    };
+    const modulo = criarModuloCadastro({
+      executar: async (chamada) => {
+        (pedido as { operacao: string }).operacao = 'listarPacientes';
+        chamada.operacao = 'listarPacientes';
+        return {
+          dados: { id: ids.paciente, nome: 'Pessoa de Teste', nome_preferencia: null, versao: 1 },
+          request_id: ids.request,
+        };
+      },
+    });
+
+    await expect(modulo.executar(pedido)).resolves.toEqual({
+      dados: { id: ids.paciente, nome: 'Pessoa de Teste', nome_preferencia: null, versao: 1 },
+      request_id: ids.request,
+    });
+  });
+
   it('preserva negativa explícita em vez de devolver uma lista vazia', async () => {
     const modulo = criarModuloCadastro(
       adaptadorQueResponde({
@@ -171,7 +197,32 @@ describe('módulo de cadastro', () => {
         operacao: 'listarPacientes',
         consulta: { limite: 25 },
       }),
-    ).rejects.toThrow('Indisponibilidade simulada.');
+    ).rejects.toThrow('Não foi possível processar a solicitação de cadastro.');
+  });
+
+  it('não propaga dados recebidos em falhas inesperadas do adapter', async () => {
+    const modulo = criarModuloCadastro({
+      executar: async () => {
+        throw new Error('Falha no provedor: Pessoa Fictícia, segredo-fictício');
+      },
+    });
+
+    await expect(
+      modulo.executar({ operacao: 'listarPacientes', consulta: { limite: 25 } }),
+    ).rejects.toThrow('Não foi possível processar a solicitação de cadastro.');
+  });
+
+  it('não expõe detalhes nem causa de resposta inválida do adapter', async () => {
+    const modulo = criarModuloCadastro(
+      adaptadorQueResponde({ dados: { nome: 'Pessoa Fictícia' } }),
+    );
+    const erro = await modulo
+      .executar({ operacao: 'listarPacientes', consulta: { limite: 25 } })
+      .catch((falha: unknown) => falha);
+    expect(erro).toBeInstanceOf(Error);
+    expect((erro as Error).message).toBe('Não foi possível processar a solicitação de cadastro.');
+    expect((erro as Error).cause).toBeUndefined();
+    expect(JSON.stringify(erro)).not.toContain('Pessoa Fictícia');
   });
 
   it('rejeita nome vazio antes de delegar e não sugere sucesso parcial', async () => {
@@ -181,7 +232,11 @@ describe('módulo de cadastro', () => {
       modulo.executar({
         operacao: 'criarPaciente',
         corpo: { nome: '   ' },
-        cabecalhos: { 'x-chave-idempotencia': 'chave-idempotente-de-teste-001' },
+        cabecalhos: {
+          'x-chave-idempotencia': 'chave-idempotente-de-teste-001',
+          'x-ffcm-prova-sessao': 'A'.repeat(43),
+          'x-ffcm-geracao-sessao': '1',
+        },
       }),
     ).rejects.toThrow('Solicitação de cadastro inválida.');
   });

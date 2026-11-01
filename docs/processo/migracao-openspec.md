@@ -16,9 +16,12 @@
 
 | Ferramenta | Origem / versão verificada |
 | --- | --- |
-| OpenSpec | CLI local `1.14.1`; skills geradas por `openspec init`. Para reproduzir a CLI: `npm install -g @fission-ai/openspec@1.14.1`. |
+| OpenSpec | CLI `1.14.1`; skills geradas por `openspec init`. Sem instalação global, executar com `pnpm dlx @fission-ai/openspec@1.14.1`; alternativamente, instalar com `npm install -g @fission-ai/openspec@1.14.1`. |
 | Impeccable | Skill `4.5.2`, engine `0.1.14`, atualizados pelo instalador oficial; binário específico da máquina permanece ignorado. |
 | React Best Practices | `vercel-labs/agent-skills`, caminho `skills/react-best-practices`, revisão `063bee94c3f4df8453406c830b0a7df0f2860278`, instalada com a skill `skill-installer`. |
+| Segurança | `openai/skills`, caminhos `skills/.curated/security-best-practices` e `skills/.curated/security-threat-model`, revisão `49f948faa9258a0c61caceaf225e179651397431`. |
+| Supabase/Postgres | `supabase/agent-skills`, caminho `skills/supabase-postgres-best-practices`, revisão `c9be0e931b7930f7d02126d04774d904c381e7d7`. |
+| Engenharia | `mattpocock/skills`, caminhos `skills/engineering/codebase-design`, `tdd`, `diagnosing-bugs` e `code-review`, revisão `59db609eb1e18aaf59b63284d0e52255aff0c63c`. |
 | Referência de processo | HED Transportes local: OpenSpec, diretrizes, produto/design e tarefas rastreáveis; nenhuma alteração feita naquele projeto. |
 | Referência de código | Atendimento, conforme registro próprio em `docs/projeto/referencia-atendimento.md`; não substituída pela arquitetura demonstrativa do HED. |
 
@@ -31,6 +34,7 @@ A skill React mantém o conteúdo original da revisão fixada, inclusive os espa
 - [Mapa dos requisitos](rastreabilidade.md): uma capacidade por requisito, sem renumeração ou promoção de fases.
 - `node scripts/check-framework-migration.mjs`: verifica condições originais, fases, jornadas, metas, esclarecimentos, bytes históricos e links locais.
 - `openspec validate --all --strict --no-interactive`: verifica a estrutura das oito specs.
+- No notebook sem CLI global: `pnpm dlx @fission-ai/openspec@1.14.1 validate fundar-identidade-e-seguranca-backend --strict --no-interactive` valida a mudança ativa; requer acesso ao pacote ou cache disponível.
 - `git diff --check`: verifica problemas de whitespace.
 
 Os cenários “Condição de aceite FR” foram acrescentados como adaptação estrutural ao OpenSpec, reproduzindo as condições originais. As jornadas completas continuam preservadas. A migração não substitui a descoberta nem cria testes de produto executados.
@@ -42,3 +46,5 @@ A troca do processo está concluída; a aplicação de produção não está dec
 Não foram criadas tarefas de produção ou mudanças artificiais com checkboxes concluídos para sugerir que essas decisões estão resolvidas. O próximo trabalho usa `openspec-explore`; uma entrega aprovada será proposta em uma mudança OpenSpec e implementada apenas após revisão/autorização.
 
 Nenhum mockup, HTML/PDF comercial, segredo, ambiente externo ou projeto de referência foi modificado pela migração.
+
+Em 27/10/2026, por autorização do solicitante, as sete skills complementares acima foram instaladas no repositório com `skill-installer`, preservando os arquivos originais. Sua presença não substitui revisão independente nem amplia as autorizações para operações externas.

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { cursorSchema, limitePaginaSchema, uuidSchema, versaoSchema } from './comum.js';
+import { cursorSchema, limitePaginaSchema, uuidSchema, versaoSchema } from './comum.ts';
 
 const textoCurtoSchema = z.string().trim().min(1).max(200);
 const motivoSchema = z.string().trim().min(1).max(500);

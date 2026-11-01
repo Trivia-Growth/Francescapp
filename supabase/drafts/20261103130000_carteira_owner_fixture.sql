@@ -1,0 +1,27 @@
+-- Experimento para cluster descartável: não é migration nem grants de produção.
+create role ffcm_carteira_owner_fixture nologin nosuperuser nobypassrls;
+create role ffcm_carteira_executor_fixture nologin nosuperuser nobypassrls;
+grant usage on schema auth,public,cadastro,auditoria,saida_fixture,experimento_atestado to ffcm_carteira_owner_fixture;
+grant usage on schema experimento_atestado to ffcm_carteira_executor_fixture;
+grant select(id,perfil,ativo) on public.usuario to ffcm_carteira_owner_fixture;
+grant select(id,criado_em,nome_cifrado,nome_preferencia_cifrado,versao) on cadastro.paciente to ffcm_carteira_owner_fixture;
+grant select(id,paciente_id,usuario_id,revogada_em), update(id) on cadastro.acesso_paciente to ffcm_carteira_owner_fixture;
+grant insert(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id) on auditoria.evento to ffcm_carteira_owner_fixture;
+grant execute on function saida_fixture.autorizar_prova(bigint,bytea) to ffcm_carteira_owner_fixture;
+grant execute on function experimento_atestado.validar_carteira_fixture(jsonb), experimento_atestado.verificar_com_chave_interna(text,text,jsonb,jsonb,text) to ffcm_carteira_owner_fixture;
+alter table public.usuario enable row level security;
+alter table cadastro.paciente enable row level security;
+alter table cadastro.acesso_paciente enable row level security;
+alter table auditoria.evento enable row level security;
+create policy carteira_usuario on public.usuario for select to ffcm_carteira_owner_fixture using (true);
+create policy carteira_paciente on cadastro.paciente for select to ffcm_carteira_owner_fixture using (true);
+create policy carteira_acesso on cadastro.acesso_paciente for select to ffcm_carteira_owner_fixture using (true);
+create policy carteira_acesso_lock on cadastro.acesso_paciente for update to ffcm_carteira_owner_fixture using (true) with check (true);
+create policy carteira_acesso_sem_escrita on cadastro.acesso_paciente as restrictive for update to ffcm_carteira_owner_fixture using (true) with check (false);
+create policy carteira_auditoria on auditoria.evento for insert to ffcm_carteira_owner_fixture with check (true);
+grant create on schema experimento_atestado to ffcm_carteira_owner_fixture;
+alter function experimento_atestado.listar_carteira_fixture(jsonb,bigint,bytea) owner to ffcm_carteira_owner_fixture;
+revoke create on schema experimento_atestado from ffcm_carteira_owner_fixture;
+alter function experimento_atestado.listar_carteira_fixture(jsonb,bigint,bytea) security definer;
+alter function experimento_atestado.listar_carteira_fixture(jsonb,bigint,bytea) set row_security=on;
+grant execute on function experimento_atestado.listar_carteira_fixture(jsonb,bigint,bytea) to ffcm_carteira_executor_fixture;
