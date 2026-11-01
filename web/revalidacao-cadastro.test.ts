@@ -10,8 +10,8 @@ afterEach(() => {
 it('revalida acesso ao retornar à aba durante cadastro ainda em andamento', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   const id = '10000000-0000-4000-8000-000000000001';
-  const csrf = 'a'.repeat(43);
   let sessao = {
+    session_id: '20000000-0000-4000-8000-000000000001',
     usuario: { id, perfil: 'administrador', ativo: true, versao: 1 },
     capacidades: ['administrar_cadastro'],
   };
@@ -21,25 +21,27 @@ it('revalida acesso ao retornar à aba durante cadastro ainda em andamento', asy
   let cadastrosEnviados = 0;
   let consultasSessao = 0;
   let revogada = false;
+  let autenticada = false;
   vi.stubGlobal('fetch', async (url: URL, init: RequestInit) => {
-    if (url.pathname === '/api/sessao/desafio-tecnico')
-      return envelope({
-        csrf,
-        seletor_desafio: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-      });
-    if (url.pathname === '/api/sessao/tecnica')
-      return envelope({
-        sessao,
-        access_token: 'token-ficticio',
-        prova_sessao: 'A'.repeat(43),
-        geracao_sessao: 1,
-        csrf,
-        seletor_sessao: '20000000-0000-4000-8000-000000000001',
-      });
+    if (url.pathname === '/api/sessao' && !autenticada) return new Response(null, { status: 401 });
+    if (url.pathname === '/api/auth/tecnica') {
+      autenticada = true;
+      return envelope(sessao);
+    }
     if (url.pathname === '/api/sessao') {
       consultasSessao++;
       return revogada ? new Response(null, { status: 401 }) : envelope(sessao);
     }
+    if (url.pathname === '/api/cadastro/barreira')
+      return envelope({
+        epoca: 1,
+        reserva: null,
+        resultado_pendente: cadastrosEnviados
+          ? { recibo_id: id, reserva_id: id, resultado: 'confirmada', paciente_id: id }
+          : null,
+      });
+    if (url.pathname === '/api/cadastro/barreira/encerrar') return envelope({ estado: 'vazia' });
+    if (url.pathname === '/api/cadastro/barreira/reservar') return envelope({ estado: 'aberta' });
     if (url.pathname === '/api/pacientes' && init.method === 'GET')
       return envelope({ itens: [], proximo_cursor: null });
     if (url.pathname === '/api/pacientes' && init.method === 'POST') {
@@ -60,6 +62,9 @@ it('revalida acesso ao retornar à aba durante cadastro ainda em andamento', asy
   elemento<HTMLInputElement>('password').value = 'senha-ficticia';
   elemento('login-form').dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() => expect(elemento('patients-view').hidden).toBe(false));
+  await vi.waitFor(() => expect(document.querySelector('[data-acao="encerrar"]')).not.toBeNull());
+  document.querySelector<HTMLButtonElement>('[data-acao="encerrar"]')?.click();
+  await vi.waitFor(() => expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(false));
   elemento<HTMLInputElement>('patient-name').value = 'Paciente fictício';
   elemento('create-form').dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() => expect(cadastroIniciado).toBe(true));
@@ -81,7 +86,6 @@ it('revalida acesso ao retornar à aba durante cadastro ainda em andamento', asy
   revogada = true;
   document.dispatchEvent(new Event('visibilitychange'));
   await vi.waitFor(() => expect(elemento('login-view').hidden).toBe(false));
-  expect(elemento('login-feedback').textContent).toContain('cadastro ficou sem confirmação');
   expect(elemento('login-feedback').textContent).not.toContain('Paciente fictício');
   revogada = false;
   elemento<HTMLInputElement>('email').value = 'tecnica@example.test';
@@ -89,7 +93,9 @@ it('revalida acesso ao retornar à aba durante cadastro ainda em andamento', asy
   elemento('login-form').dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() => expect(elemento('patients-view').hidden).toBe(false));
   expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(true);
-  expect(elemento('create-feedback').textContent).toContain('sem confirmação');
+  await vi.waitFor(() =>
+    expect(elemento('create-feedback').textContent).toContain('Cadastro anterior confirmado'),
+  );
   expect(elemento<HTMLInputElement>('patient-name').value).toBe('');
   elemento<HTMLInputElement>('patient-name').value = 'Paciente fictício';
   elemento('create-form').dispatchEvent(new Event('submit', { cancelable: true }));

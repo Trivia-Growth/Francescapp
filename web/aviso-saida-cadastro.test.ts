@@ -12,30 +12,28 @@ it.each(['403', 'logout'])(
   async (situacao) => {
     document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
     const id = '10000000-0000-4000-8000-000000000001';
-    const csrf = 'a'.repeat(43);
     const sessao = {
+      session_id: '20000000-0000-4000-8000-000000000001',
       usuario: { id, perfil: 'administrador', ativo: true, versao: 1 },
       capacidades: ['administrar_cadastro'],
     };
     const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
     let terminarLista: ((resposta: Response) => void) | undefined;
     let consultas = 0;
+    let autenticada = false;
     vi.stubGlobal('fetch', async (url: URL, init: RequestInit) => {
-      if (url.pathname === '/api/sessao/desafio-tecnico')
-        return envelope({
-          csrf,
-          seletor_desafio: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-        });
-      if (url.pathname === '/api/sessao/tecnica')
-        return envelope({
-          sessao,
-          access_token: 'token-ficticio',
-          prova_sessao: 'A'.repeat(43),
-          geracao_sessao: 1,
-          csrf,
-          seletor_sessao: '20000000-0000-4000-8000-000000000001',
-        });
+      if (url.pathname === '/api/sessao' && !autenticada)
+        return new Response(null, { status: 401 });
+      if (url.pathname === '/api/auth/tecnica') {
+        autenticada = true;
+        return envelope(sessao);
+      }
+
       if (url.pathname === '/api/sessao') return envelope(sessao);
+      if (url.pathname === '/api/cadastro/barreira')
+        return envelope({ epoca: 1, reserva: null, resultado_pendente: null });
+      if (url.pathname === '/api/cadastro/barreira/encerrar') return envelope({ estado: 'vazia' });
+      if (url.pathname === '/api/cadastro/barreira/reservar') return envelope({ estado: 'aberta' });
       if (url.pathname === '/api/sessao/sair')
         return envelope({ encerrada_localmente: true, pendencia_externa: false });
       if (url.pathname === '/api/pacientes' && init.method === 'GET') {
@@ -69,6 +67,11 @@ it.each(['403', 'logout'])(
       expect(elemento<HTMLFieldSetElement>('login-fields').disabled).toBe(false),
     );
     await entrar();
+    await vi.waitFor(() => expect(document.querySelector('[data-acao="encerrar"]')).not.toBeNull());
+    document.querySelector<HTMLButtonElement>('[data-acao="encerrar"]')?.click();
+    await vi.waitFor(() =>
+      expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(false),
+    );
     elemento<HTMLInputElement>('patient-name').value = 'Pessoa fictícia';
     elemento('create-form').dispatchEvent(new Event('submit', { cancelable: true }));
     await vi.waitFor(() => expect(terminarLista).toBeDefined());
@@ -80,7 +83,7 @@ it.each(['403', 'logout'])(
     await vi.waitFor(() => expect(elemento('login-view').hidden).toBe(false));
     expect(elemento('login-feedback').textContent).not.toContain('sem confirmação');
     await entrar();
-    expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(false);
+    expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(true);
     if (situacao === 'logout') terminarLista?.(envelope({ itens: [], proximo_cursor: null }));
   },
 );
@@ -88,29 +91,36 @@ it.each(['403', 'logout'])(
 it('avisa antes de sair durante cadastro sem confirmação sem persistir dados pessoais', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   const id = '10000000-0000-4000-8000-000000000001';
-  const csrf = 'a'.repeat(43);
   const sessao = {
+    session_id: '20000000-0000-4000-8000-000000000001',
     usuario: { id, perfil: 'administrador', ativo: true, versao: 1 },
     capacidades: ['administrar_cadastro'],
   };
   const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
   let terminar: ((resposta: Response) => void) | undefined;
+  let pendente = false;
+  let autenticada = false;
   vi.stubGlobal('fetch', async (url: URL, init: RequestInit) => {
-    if (url.pathname === '/api/sessao/desafio-tecnico')
-      return envelope({
-        csrf,
-        seletor_desafio: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-      });
-    if (url.pathname === '/api/sessao/tecnica')
-      return envelope({
-        sessao,
-        access_token: 'token-ficticio',
-        prova_sessao: 'A'.repeat(43),
-        geracao_sessao: 1,
-        csrf,
-        seletor_sessao: '20000000-0000-4000-8000-000000000001',
-      });
+    if (url.pathname === '/api/sessao' && !autenticada) return new Response(null, { status: 401 });
+    if (url.pathname === '/api/auth/tecnica') {
+      autenticada = true;
+      return envelope(sessao);
+    }
     if (url.pathname === '/api/sessao') return envelope(sessao);
+    if (url.pathname === '/api/cadastro/barreira')
+      return envelope({
+        epoca: 1,
+        reserva: null,
+        resultado_pendente: pendente
+          ? { recibo_id: id, reserva_id: id, resultado: 'confirmada', paciente_id: id }
+          : null,
+      });
+    if (url.pathname === '/api/cadastro/barreira/encerrar') return envelope({ estado: 'vazia' });
+    if (url.pathname === '/api/cadastro/barreira/reservar') return envelope({ estado: 'aberta' });
+    if (url.pathname === '/api/cadastro/barreira/reconhecer') {
+      pendente = false;
+      return envelope({ estado: 'reconhecido' });
+    }
     if (url.pathname === '/api/sessao/sair')
       return envelope({ encerrada_localmente: true, pendencia_externa: false });
     if (url.pathname === '/api/pacientes' && init.method === 'GET')
@@ -135,34 +145,24 @@ it('avisa antes de sair durante cadastro sem confirmação sem persistir dados p
   elemento<HTMLInputElement>('password').value = 'senha-ficticia';
   elemento('login-form').dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() => expect(elemento('patients-view').hidden).toBe(false));
+  await vi.waitFor(() => expect(document.querySelector('[data-acao="encerrar"]')).not.toBeNull());
+  document.querySelector<HTMLButtonElement>('[data-acao="encerrar"]')?.click();
+  await vi.waitFor(() => expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(false));
   expect(sair()).toBe(false);
   elemento<HTMLInputElement>('patient-name').value = 'Pessoa fictícia';
   elemento('create-form').dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() => expect(terminar).toBeDefined());
   expect(sair()).toBe(true);
+  pendente = true;
   terminar?.(new Response(null, { status: 503 }));
   await vi.waitFor(() =>
-    expect(elemento('create-feedback').textContent).toContain('sem confirmação'),
+    expect(elemento('create-feedback').textContent).toContain('Cadastro anterior confirmado'),
   );
-  expect(sair()).toBe(true);
+  expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(true);
   expect(JSON.stringify(window.localStorage)).not.toContain('Pessoa fictícia');
   expect(JSON.stringify(window.sessionStorage)).not.toContain('Pessoa fictícia');
-  terminar = undefined;
-  elemento('create-form').dispatchEvent(new Event('submit', { cancelable: true }));
-  await vi.waitFor(() => expect(terminar).toBeDefined());
-  terminar?.(
-    envelope({
-      id,
-      nome: 'Pessoa fictícia',
-      nome_preferencia: null,
-      data_nascimento: null,
-      contatos: [],
-      versao: 1,
-    }),
-  );
-  await vi.waitFor(() =>
-    expect(elemento('create-feedback').textContent).toContain('Paciente cadastrado'),
-  );
+  document.querySelector<HTMLButtonElement>('[data-acao="reconhecer"]')?.click();
+  await vi.waitFor(() => expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(false));
   expect(sair()).toBe(false);
   terminar = undefined;
   elemento<HTMLInputElement>('patient-name').value = 'Outra pessoa fictícia';

@@ -10,26 +10,24 @@ afterEach(() => {
 it('identifica e limpa erros nos campos opcionais sem enviar cadastro', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   const id = '10000000-0000-4000-8000-000000000001';
-  const csrf = 'a'.repeat(43);
   const sessao = {
+    session_id: '20000000-0000-4000-8000-000000000001',
     usuario: { id, perfil: 'administrador', ativo: true, versao: 1 },
     capacidades: ['administrar_cadastro'],
   };
   const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
   let postagens = 0;
+  let autenticada = false;
   vi.stubGlobal('fetch', async (url: URL, init: RequestInit) => {
-    if (url.pathname === '/api/sessao/desafio-tecnico')
-      return envelope({ csrf, seletor_desafio: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' });
-    if (url.pathname === '/api/sessao/tecnica')
-      return envelope({
-        sessao,
-        access_token: 'token-ficticio',
-        prova_sessao: 'A'.repeat(43),
-        geracao_sessao: 1,
-        csrf,
-        seletor_sessao: id,
-      });
+    if (url.pathname === '/api/sessao' && !autenticada) return new Response(null, { status: 401 });
+    if (url.pathname === '/api/auth/tecnica') {
+      autenticada = true;
+      return envelope(sessao);
+    }
     if (url.pathname === '/api/sessao') return envelope(sessao);
+    if (url.pathname === '/api/cadastro/barreira')
+      return envelope({ epoca: 1, reserva: null, resultado_pendente: null });
+    if (url.pathname === '/api/cadastro/barreira/encerrar') return envelope({ estado: 'vazia' });
     if (url.pathname === '/api/pacientes' && init.method === 'GET')
       return envelope({ itens: [], proximo_cursor: null });
     if (url.pathname === '/api/pacientes' && init.method === 'POST') postagens++;
@@ -44,6 +42,11 @@ it('identifica e limpa erros nos campos opcionais sem enviar cadastro', async ()
   elemento<HTMLInputElement>('password').value = 'senha-ficticia';
   elemento('login-form').dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() => expect(elemento('patients-view').hidden).toBe(false));
+  await vi.waitFor(() =>
+    expect(document.querySelector<HTMLButtonElement>('[data-acao="encerrar"]')).not.toBeNull(),
+  );
+  document.querySelector<HTMLButtonElement>('[data-acao="encerrar"]')?.click();
+  await vi.waitFor(() => expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(false));
   elemento<HTMLInputElement>('patient-name').value = 'Paciente fictício';
   const preferencia = elemento<HTMLInputElement>('preferred-name');
   const nascimento = elemento<HTMLInputElement>('birth-date');

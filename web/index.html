@@ -2,7 +2,7 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'; trusted-types 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self' https://drdpuxcllpymtoskmuqv.supabase.co https://accounts.google.com; object-src 'none'; require-trusted-types-for 'script'; trusted-types 'none'">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="referrer" content="no-referrer">
     <meta name="color-scheme" content="light">
@@ -29,8 +29,15 @@
           <p class="access-note">Acesso restrito a pessoas previamente autorizadas.</p>
         </div>
         <div class="access-form-panel">
-          <h2>Acesso técnico</h2>
-          <p>Use a conta técnica individual autorizada para esta etapa.</p>
+          <h2>Entre com sua conta autorizada</h2>
+          <p>Use sua conta Google para acessar o acompanhamento.</p>
+          <form id="google-login-form" action="/api/auth/google" method="post">
+            <button class="button-primary full-width" type="submit">Entrar com Google</button>
+          </form>
+          <p class="small-text">Entrar não concede acesso automaticamente. A conexão com a agenda será solicitada separadamente.</p>
+          <details>
+          <summary>Acesso técnico excepcional</summary>
+          <p>Somente para a conta técnica individual previamente autorizada.</p>
           <form id="login-form" method="post" autocomplete="on" aria-describedby="login-feedback">
             <fieldset id="login-fields" disabled>
               <legend class="sr-only">Credenciais da conta técnica</legend>
@@ -46,8 +53,8 @@
               <button id="login-submit" class="button-primary full-width" type="submit">Entrar</button>
             </fieldset>
           </form>
+          </details>
           <p id="login-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
-          <p class="small-text">Esta entrada é exclusiva da conta técnica. Outros acessos dependem da liberação de sua jornada.</p>
         </div>
       </section>
 

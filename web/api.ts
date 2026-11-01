@@ -1,9 +1,13 @@
 import {
   contratosRotas,
+  contratosBarreiraHttp,
   erroRespostaSchema,
   mensagensErro,
   statusErroHttp,
   sucessoRespostaSchema,
+  sessaoNativaSchema,
+  entrarTecnicoSchema,
+  chaveIdempotenciaSchema,
   type CriarPaciente,
 } from '../packages/contracts/src/index.js';
 
@@ -17,8 +21,36 @@ export class FalhaApi extends Error {
   }
 }
 
-type Rota = keyof typeof contratosRotas;
-type Dados<R extends Rota> = ReturnType<(typeof contratosRotas)[R]['saida']['parse']>;
+const rotas = {
+  sessaoAtual: { ...contratosRotas.sessaoAtual, saida: sessaoNativaSchema },
+  entrarTecnico: {
+    metodo: 'POST',
+    caminho: '/api/auth/tecnica',
+    entrada: entrarTecnicoSchema,
+    saida: sessaoNativaSchema,
+  },
+  listarPacientes: contratosRotas.listarPacientes,
+  criarPaciente: contratosRotas.criarPaciente,
+  sairSessao: contratosRotas.sairSessao,
+  consultarBarreira: {
+    ...contratosBarreiraHttp.consultar,
+    saida: contratosBarreiraHttp.consultar.saida.shape.dados,
+  },
+  reservarBarreira: {
+    ...contratosBarreiraHttp.reservar,
+    saida: contratosBarreiraHttp.reservar.saida.shape.dados,
+  },
+  encerrarBarreira: {
+    ...contratosBarreiraHttp.encerrar,
+    saida: contratosBarreiraHttp.encerrar.saida.shape.dados,
+  },
+  reconhecerBarreira: {
+    ...contratosBarreiraHttp.reconhecer,
+    saida: contratosBarreiraHttp.reconhecer.saida.shape.dados,
+  },
+} as const;
+type Rota = keyof typeof rotas;
+type Dados<R extends Rota> = ReturnType<(typeof rotas)[R]['saida']['parse']>;
 
 const limiteResposta = 1_048_576;
 
@@ -84,113 +116,29 @@ export function resultadoIncerto(erro: unknown): boolean {
 
 /** Uma instância por página. Credenciais e respostas nunca entram em armazenamento ou logs. */
 export class ClienteFFCM {
-  #accessToken: string | null = null;
-  #csrf: string | null = null;
-  #seletorSessao: string | null = null;
-  #provaSessao: string | null = null;
-  #geracaoSessao: number | null = null;
+  #sessionId: string | null = null;
   #usuarioId: string | null = null;
-  #geracao = 0;
+  // Contador de respostas da interface; não é credencial nem geração de sessão.
+  #revisao = 0;
   #saindo = false;
-  #renovacao: Promise<void> | null = null;
 
   limpar(): void {
-    this.#accessToken = null;
-    this.#csrf = null;
-    this.#seletorSessao = null;
-    this.#provaSessao = null;
-    this.#geracaoSessao = null;
+    this.#sessionId = null;
     this.#usuarioId = null;
     this.#saindo = false;
-    this.#renovacao = null;
-    this.#geracao += 1;
-  }
-
-  async #renovar(): Promise<void> {
-    if (this.#renovacao) return this.#renovacao;
-    const geracao = this.#geracao;
-    const csrf = this.#csrf;
-    const seletorSessao = this.#seletorSessao;
-    const usuarioId = this.#usuarioId;
-    const provaSessao = this.#provaSessao;
-    const geracaoSessao = this.#geracaoSessao;
-    if (!csrf || !seletorSessao || !usuarioId || !provaSessao || !geracaoSessao || this.#saindo)
-      throw new FalhaApi('nao_autenticado', 401);
-    const renovacao = (async () => {
-      try {
-        const entrada = await this.#enviar(
-          'renovarSessao',
-          {},
-          { csrf, seletorSessao, provaSessao, geracaoSessao },
-        );
-        if (
-          entrada.csrf !== csrf ||
-          entrada.seletor_sessao !== seletorSessao ||
-          entrada.sessao.usuario.id !== usuarioId ||
-          entrada.geracao_sessao !== geracaoSessao + 1 ||
-          entrada.prova_sessao === provaSessao
-        ) {
-          throw new FalhaApi('nao_autenticado', 401);
-        }
-        if (geracao !== this.#geracao) throw new FalhaApi('nao_autenticado', 401);
-        this.#accessToken = entrada.access_token;
-        this.#provaSessao = entrada.prova_sessao;
-        this.#geracaoSessao = entrada.geracao_sessao;
-      } catch (erro) {
-        if (geracao === this.#geracao) {
-          this.limpar();
-          throw new FalhaApi('nao_autenticado', 401);
-        }
-        throw erro;
-      }
-    })();
-    this.#renovacao = renovacao;
-    try {
-      await renovacao;
-    } finally {
-      if (this.#renovacao === renovacao) this.#renovacao = null;
-    }
-  }
-
-  async #consultar<R extends 'sessaoAtual' | 'listarPacientes'>(
-    rota: R,
-    entrada: unknown = {},
-  ): Promise<Dados<R>> {
-    const geracao = this.#geracao;
-    const token = this.#accessToken;
-    const geracaoSessao = this.#geracaoSessao;
-    try {
-      return await this.#enviar(rota, entrada, { protegido: true });
-    } catch (erro) {
-      if (
-        !(erro instanceof FalhaApi) ||
-        erro.status !== 401 ||
-        !token ||
-        geracao !== this.#geracao ||
-        this.#saindo
-      )
-        throw erro;
-      if (token === this.#accessToken && geracaoSessao === this.#geracaoSessao)
-        await this.#renovar();
-      if (geracao !== this.#geracao) throw new FalhaApi('nao_autenticado', 401);
-      return this.#enviar(rota, entrada, { protegido: true });
-    }
+    this.#revisao += 1;
   }
 
   async #enviar<R extends Rota>(
     rota: R,
     entrada: unknown = {},
     opcoes: {
-      csrf?: string;
-      seletorDesafio?: string;
       chave?: string;
       protegido?: boolean;
-      seletorSessao?: string;
-      provaSessao?: string;
-      geracaoSessao?: number;
+      encerramento?: boolean;
     } = {},
   ): Promise<Dados<R>> {
-    const contrato = contratosRotas[rota];
+    const contrato = rotas[rota];
     const falhaRespostaInvalida = (status: number): FalhaApi => {
       if (opcoes.protegido && contrato.metodo !== 'GET')
         return new FalhaApi('servico_indisponivel', 0, status === 401 || status === 403);
@@ -198,35 +146,23 @@ export class ClienteFFCM {
     };
     const validada = contrato.entrada.safeParse(entrada);
     if (!validada.success) throw new FalhaApi('entrada_invalida', 422);
-    const geracao = this.#geracao;
-    const geracaoSessao = this.#geracaoSessao;
+    const revisao = this.#revisao;
+    const sessionId = this.#sessionId;
     const conferirGeracao = () => {
-      if (geracao !== this.#geracao) {
+      if (revisao !== this.#revisao || (opcoes.protegido && sessionId !== this.#sessionId)) {
         if (opcoes.protegido && contrato.metodo !== 'GET')
           throw new FalhaApi('servico_indisponivel');
         throw new FalhaApi('nao_autenticado', 401);
-      }
-      if (opcoes.protegido && geracaoSessao !== this.#geracaoSessao) {
-        if (contrato.metodo === 'GET') throw new FalhaApi('nao_autenticado', 401);
-        throw new FalhaApi('servico_indisponivel');
       }
     };
     const url = new URL(contrato.caminho, window.location.origin);
     const headers = new Headers({ Accept: 'application/json' });
     if (opcoes.protegido) {
-      if (!this.#accessToken || !this.#provaSessao || !this.#geracaoSessao || this.#saindo)
+      if (!sessionId || (this.#saindo && !opcoes.encerramento))
         throw new FalhaApi('nao_autenticado', 401);
-      headers.set('Authorization', `Bearer ${this.#accessToken}`);
-      headers.set('x-ffcm-prova-sessao', this.#provaSessao);
-      headers.set('x-ffcm-geracao-sessao', String(this.#geracaoSessao));
+      // Compara o alvo com o cookie atual no servidor; nunca concede autorização.
+      headers.set('x-sessao', sessionId);
     }
-    if (opcoes.provaSessao && opcoes.geracaoSessao) {
-      headers.set('x-ffcm-prova-sessao', opcoes.provaSessao);
-      headers.set('x-ffcm-geracao-sessao', String(opcoes.geracaoSessao));
-    }
-    if (opcoes.csrf) headers.set('x-csrf', opcoes.csrf);
-    if (opcoes.seletorDesafio) headers.set('x-desafio', opcoes.seletorDesafio);
-    if (opcoes.seletorSessao) headers.set('x-sessao', opcoes.seletorSessao);
     if (opcoes.chave) headers.set('x-chave-idempotencia', opcoes.chave);
     let corpo: string | undefined;
     if (contrato.metodo === 'GET') {
@@ -295,109 +231,93 @@ export class ClienteFFCM {
 
   async entrar(email: string, senha: string): Promise<Dados<'sessaoAtual'>> {
     this.limpar();
-    const desafio = await this.#enviar('desafioTecnico');
-    const entrada = await this.#enviar(
-      'entrarTecnico',
-      { email, senha },
-      { csrf: desafio.csrf, seletorDesafio: desafio.seletor_desafio },
-    );
-    this.#accessToken = entrada.access_token;
-    this.#csrf = entrada.csrf;
-    this.#seletorSessao = entrada.seletor_sessao;
-    this.#provaSessao = entrada.prova_sessao;
-    this.#geracaoSessao = entrada.geracao_sessao;
-    this.#usuarioId = entrada.sessao.usuario.id;
-    const geracao = this.#geracao;
-    try {
-      // Perfil/capacidades atuais vêm do servidor, nunca de um JWT decodificado pelo cliente.
-      return await this.consultarSessao();
-    } catch (erro) {
-      if (this.#geracao === geracao) this.limpar();
-      throw erro;
-    }
+    const entrada = await this.#enviar('entrarTecnico', { email, senha });
+    // Consulta independente confirma concessão e perfil atuais; não confia só no login.
+    return this.#consultarSessao(entrada);
   }
 
-  /** O provedor recebe apenas o nonce; desafio, CSRF e credencial ficam em memória. */
-  async entrarGoogle(
-    obterCredencial: (nonce: string) => Promise<string>,
-  ): Promise<Dados<'sessaoAtual'>> {
-    this.limpar();
-    const geracao = this.#geracao;
-    const desafio = await this.#enviar('desafioGoogle');
-    let credencial: string;
-    try {
-      credencial = await obterCredencial(desafio.nonce_hash);
-    } catch {
-      throw new FalhaApi('servico_indisponivel');
-    }
-    if (geracao !== this.#geracao) throw new FalhaApi('nao_autenticado', 401);
-    const entrada = await this.#enviar(
-      'entrarGoogle',
-      { desafio_id: desafio.desafio_id, credencial },
-      { csrf: desafio.csrf, seletorDesafio: desafio.seletor_desafio },
-    );
-    this.#accessToken = entrada.access_token;
-    this.#csrf = entrada.csrf;
-    this.#seletorSessao = entrada.seletor_sessao;
-    this.#provaSessao = entrada.prova_sessao;
-    this.#geracaoSessao = entrada.geracao_sessao;
-    this.#usuarioId = entrada.sessao.usuario.id;
-    try {
-      return await this.consultarSessao();
-    } catch (erro) {
-      if (this.#geracao === geracao) this.limpar();
-      throw erro;
-    }
+  async consultarSessao(): Promise<Dados<'sessaoAtual'>> {
+    return this.#consultarSessao();
   }
 
-  consultarSessao(): Promise<Dados<'sessaoAtual'>> {
-    return this.#consultar('sessaoAtual');
+  async #consultarSessao(entrada?: Dados<'sessaoAtual'>): Promise<Dados<'sessaoAtual'>> {
+    if (this.#saindo) throw new FalhaApi('nao_autenticado', 401);
+    const revisao = this.#revisao;
+    const anterior = this.#sessionId;
+    let atual: Dados<'sessaoAtual'>;
+    try {
+      atual = await this.#enviar('sessaoAtual');
+    } catch (erro) {
+      if (
+        erro instanceof FalhaApi &&
+        (erro.status === 401 || erro.status === 403) &&
+        revisao === this.#revisao &&
+        !this.#saindo
+      )
+        this.limpar();
+      throw erro;
+    }
+    if (revisao !== this.#revisao) throw new FalhaApi('nao_autenticado', 401);
+    if (
+      !atual.usuario.ativo ||
+      (entrada &&
+        (atual.session_id !== entrada.session_id || atual.usuario.id !== entrada.usuario.id)) ||
+      (anterior && (atual.session_id !== anterior || atual.usuario.id !== this.#usuarioId))
+    ) {
+      this.limpar();
+      throw new FalhaApi('nao_autenticado', 401);
+    }
+    this.#sessionId = atual.session_id;
+    this.#usuarioId = atual.usuario.id;
+    return atual;
   }
 
   listarPacientes(cursor?: string): Promise<Dados<'listarPacientes'>> {
-    return this.#consultar('listarPacientes', { limite: 25, ...(cursor ? { cursor } : {}) });
+    return this.#enviar(
+      'listarPacientes',
+      { limite: 25, ...(cursor ? { cursor } : {}) },
+      { protegido: true },
+    );
   }
 
-  criarPaciente(entrada: CriarPaciente, chave: string): Promise<Dados<'criarPaciente'>> {
-    if (!this.#provaSessao || !this.#geracaoSessao)
-      return Promise.reject(new FalhaApi('nao_autenticado', 401));
-    const cabecalhos = contratosRotas.criarPaciente.cabecalhos.safeParse({
-      'x-chave-idempotencia': chave,
-      'x-ffcm-prova-sessao': this.#provaSessao,
-      'x-ffcm-geracao-sessao': String(this.#geracaoSessao),
-    });
-    if (!cabecalhos.success) return Promise.reject(new FalhaApi('entrada_invalida', 422));
-    return this.#enviar('criarPaciente', entrada, { chave, protegido: true });
+  criarPaciente(
+    entrada: CriarPaciente,
+    chave: string,
+    reserva: { reserva_id: string; geracao_reserva: number },
+  ): Promise<Dados<'criarPaciente'>> {
+    if (!chaveIdempotenciaSchema.safeParse(chave).success)
+      return Promise.reject(new FalhaApi('entrada_invalida', 422));
+    return this.#enviar('criarPaciente', { entrada, ...reserva }, { chave, protegido: true });
+  }
+
+  consultarBarreira(): Promise<Dados<'consultarBarreira'>> {
+    return this.#enviar('consultarBarreira', {}, { protegido: true });
+  }
+
+  reservarBarreira(entrada: { epoca: number; reserva_id: string }): Promise<
+    Dados<'reservarBarreira'>
+  > {
+    return this.#enviar('reservarBarreira', entrada, { protegido: true });
+  }
+
+  encerrarBarreira(entrada: {
+    epoca: number;
+    reserva_id: string | null;
+    comando_id: string;
+  }): Promise<Dados<'encerrarBarreira'>> {
+    return this.#enviar('encerrarBarreira', entrada, { protegido: true });
+  }
+
+  reconhecerBarreira(entrada: { comando_id: string }): Promise<Dados<'reconhecerBarreira'>> {
+    return this.#enviar('reconhecerBarreira', entrada, { protegido: true });
   }
 
   async sair(): Promise<Dados<'sairSessao'>> {
-    if (!this.#csrf || !this.#seletorSessao || !this.#provaSessao || !this.#geracaoSessao)
-      throw new FalhaApi('nao_autenticado', 401);
+    if (!this.#sessionId) throw new FalhaApi('nao_autenticado', 401);
     this.#saindo = true;
-    const geracao = this.#geracao;
-    const renovacao = this.#renovacao;
-    if (renovacao) {
-      try {
-        await renovacao;
-      } catch {
-        // Sem confirmação não há prova vigente para afirmar que o servidor revogou.
-        throw new FalhaApi('renovacao_incerta');
-      }
-      if (geracao !== this.#geracao || !this.#saindo) throw new FalhaApi('nao_autenticado', 401);
-    }
-    this.#accessToken = null;
-    this.#geracao += 1;
-    // Se a rede falhar, preserva os dados mínimos em memória para tentar encerrar novamente.
-    const resultado = await this.#enviar(
-      'sairSessao',
-      {},
-      {
-        csrf: this.#csrf,
-        seletorSessao: this.#seletorSessao,
-        provaSessao: this.#provaSessao,
-        geracaoSessao: this.#geracaoSessao,
-      },
-    );
+    this.#revisao += 1;
+    // Rede incerta preserva somente o alvo para nova tentativa, sem liberar consultas.
+    const resultado = await this.#enviar('sairSessao', {}, { protegido: true, encerramento: true });
     this.limpar();
     return resultado;
   }

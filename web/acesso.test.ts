@@ -7,39 +7,43 @@ afterEach(() => {
   vi.resetModules();
 });
 
-it('não abre desafio apenas por carregar a tela e informa falha ao tentar entrar', async () => {
+it('restaura sessão ao carregar e informa falha ao tentar entrar', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   const fetch = vi.fn(async () => {
     throw new TypeError('indisponível');
   });
   vi.stubGlobal('fetch', fetch);
   await import('./main.js');
-  await Promise.resolve();
-  expect(fetch).not.toHaveBeenCalled();
+  await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
   const campos = document.getElementById('login-fields') as HTMLFieldSetElement;
-  expect(campos.disabled).toBe(false);
+  await vi.waitFor(() => expect(campos.disabled).toBe(false));
   (document.getElementById('email') as HTMLInputElement).value = 'tecnica@example.test';
   (document.getElementById('password') as HTMLInputElement).value = 'senha-ficticia';
   document.getElementById('login-form')?.dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() =>
     expect(document.getElementById('login-feedback')?.dataset.tone).toBe('error'),
   );
-  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch).toHaveBeenCalledTimes(2);
   expect(campos.disabled).toBe(false);
 });
 
 it('orienta aguardar quando acesso encontra limite sem revelar conta', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
-  vi.stubGlobal('fetch', async () =>
-    Response.json(
-      {
-        erro: { codigo: 'limite_excedido', mensagem: 'Limite de solicitações excedido.' },
-        request_id: '10000000-0000-4000-8000-000000000001',
-      },
-      { status: 429 },
-    ),
+  vi.stubGlobal('fetch', async (url: URL) =>
+    url.pathname === '/api/sessao'
+      ? new Response(null, { status: 401 })
+      : Response.json(
+          {
+            erro: { codigo: 'limite_excedido', mensagem: 'Limite de solicitações excedido.' },
+            request_id: '10000000-0000-4000-8000-000000000001',
+          },
+          { status: 429 },
+        ),
   );
   await import('./main.js');
+  await vi.waitFor(() =>
+    expect((document.getElementById('login-fields') as HTMLFieldSetElement).disabled).toBe(false),
+  );
   (document.getElementById('email') as HTMLInputElement).value = 'tecnica@example.test';
   (document.getElementById('password') as HTMLInputElement).value = 'senha-ficticia';
   document.getElementById('login-form')?.dispatchEvent(new Event('submit', { cancelable: true }));
@@ -53,18 +57,22 @@ it('orienta aguardar quando acesso encontra limite sem revelar conta', async () 
 it('não toma foco de outro controle durante falha tardia do login', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   let responder!: (resposta: Response) => void;
-  vi.stubGlobal(
-    'fetch',
-    () =>
-      new Promise<Response>((resolve) => {
-        responder = resolve;
-      }),
+  vi.stubGlobal('fetch', (url: URL) =>
+    url.pathname === '/api/sessao'
+      ? Promise.resolve(new Response(null, { status: 401 }))
+      : new Promise<Response>((resolve) => {
+          responder = resolve;
+        }),
   );
   await import('./main.js');
+  await vi.waitFor(() =>
+    expect((document.getElementById('login-fields') as HTMLFieldSetElement).disabled).toBe(false),
+  );
   const email = document.getElementById('email') as HTMLInputElement;
   const senha = document.getElementById('password') as HTMLInputElement;
   email.value = 'tecnica@example.test';
   senha.value = 'senha-ficticia';
+  (document.activeElement as HTMLElement).blur();
   document.getElementById('login-form')?.dispatchEvent(new Event('submit', { cancelable: true }));
   const outro = document.createElement('button');
   document.body.append(outro);
@@ -89,16 +97,19 @@ it('não toma foco de outro controle durante falha tardia do login', async () =>
 it('não move foco quando a falha do login chega em aba oculta', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   let responder!: (resposta: Response) => void;
-  vi.stubGlobal(
-    'fetch',
-    () =>
-      new Promise<Response>((resolve) => {
-        responder = resolve;
-      }),
+  vi.stubGlobal('fetch', (url: URL) =>
+    url.pathname === '/api/sessao'
+      ? Promise.resolve(new Response(null, { status: 401 }))
+      : new Promise<Response>((resolve) => {
+          responder = resolve;
+        }),
   );
   const escondido = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
   try {
     await import('./main.js');
+    await vi.waitFor(() =>
+      expect((document.getElementById('login-fields') as HTMLFieldSetElement).disabled).toBe(false),
+    );
     const email = document.getElementById('email') as HTMLInputElement;
     email.value = 'tecnica@example.test';
     (document.getElementById('password') as HTMLInputElement).value = 'senha-ficticia';
@@ -123,15 +134,7 @@ it('não move foco quando a falha do login chega em aba oculta', async () => {
 
 it('permite mostrar e ocultar a senha sem perder o valor digitado', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
-  vi.stubGlobal('fetch', async () =>
-    Response.json({
-      dados: {
-        csrf: 'b'.repeat(43),
-        seletor_desafio: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-      },
-      request_id: '10000000-0000-4000-8000-000000000001',
-    }),
-  );
+  vi.stubGlobal('fetch', async () => new Response(null, { status: 401 }));
   await import('./main.js');
   const senha = document.getElementById('password') as HTMLInputElement;
   const botao = document.getElementById('toggle-password') as HTMLButtonElement;
@@ -157,18 +160,7 @@ it('permite mostrar e ocultar a senha sem perder o valor digitado', async () => 
 
 it('após recusa do login retorna o foco ao campo de e-mail habilitado', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
-  vi.stubGlobal('fetch', async (url: URL) => {
-    if (url.pathname === '/api/sessao/desafio-tecnico') {
-      return Response.json({
-        dados: {
-          csrf: 'b'.repeat(43),
-          seletor_desafio: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-        },
-        request_id: '10000000-0000-4000-8000-000000000001',
-      });
-    }
-    return new Response(null, { status: 401 });
-  });
+  vi.stubGlobal('fetch', async () => new Response(null, { status: 401 }));
   await import('./main.js');
   const campos = document.getElementById('login-fields') as HTMLFieldSetElement;
   const email = document.getElementById('email') as HTMLInputElement;
@@ -176,6 +168,7 @@ it('após recusa do login retorna o foco ao campo de e-mail habilitado', async (
   await vi.waitFor(() => expect(campos.disabled).toBe(false));
   email.value = 'tecnica@example.test';
   senha.value = 'senha-ficticia';
+  (document.activeElement as HTMLElement).blur();
   document.getElementById('login-form')?.dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() =>
     expect(document.getElementById('login-feedback')?.dataset.tone).toBe('error'),

@@ -1,10 +1,11 @@
 import type {
-  sessaoAtualSchema,
+  sessaoNativaSchema,
   CriarPaciente,
   PacienteBasico,
 } from '../packages/contracts/src/index.js';
-import { ClienteFFCM, exigeNovoAcesso, FalhaApi, mensagemFalha, resultadoIncerto } from './api.js';
+import { ClienteFFCM, exigeNovoAcesso, FalhaApi, mensagemFalha } from './api.js';
 import { lerCadastro } from './cadastro.js';
+import { criarCicloCadastro } from './ciclo-cadastro.js';
 
 function elemento<T extends HTMLElement>(id: string): T {
   const encontrado = document.getElementById(id);
@@ -43,7 +44,7 @@ const pagination = elemento('pagination');
 const registration = elemento('cadastro');
 const newPatientLink = elemento<HTMLAnchorElement>('new-patient-link');
 
-type Sessao = ReturnType<typeof sessaoAtualSchema.parse>;
+type Sessao = ReturnType<typeof sessaoNativaSchema.parse>;
 let sessao: Sessao | null = null;
 let revisao = 0;
 let consulta = 0;
@@ -61,6 +62,103 @@ type PedidoCadastro = { entrada: CriarPaciente; chave: string };
 let cadastroPendente: PedidoCadastro | null = null;
 let cadastroEmRevalidacao: { usuarioId: string; pedido: PedidoCadastro } | null = null;
 const usuariosComCadastroIncerto = new Set<string>();
+let ciclo: ReturnType<typeof criarCicloCadastro> | null = null;
+let cadastroLiberado = false;
+const usuariosCadastroSemConfirmacao = new Set<string>();
+const recuperarCadastro = document.createElement('button');
+recuperarCadastro.type = 'button';
+recuperarCadastro.hidden = true;
+registration.append(recuperarCadastro);
+
+async function consultarCadastro(): Promise<void> {
+  const atual = ciclo;
+  if (!atual) return;
+  cadastroLiberado = false;
+  createFields.disabled = true;
+  createButton.disabled = true;
+  if (document.activeElement === recuperarCadastro) elemento('create-title').focus();
+  recuperarCadastro.hidden = true;
+  try {
+    const situacao = await atual.consultar();
+    if (ciclo !== atual) return;
+    if (situacao.resultado_pendente) {
+      const confirmado = situacao.resultado_pendente.resultado === 'confirmada';
+      aviso(
+        'create-feedback',
+        confirmado
+          ? 'Cadastro anterior confirmado. Consulte a lista antes de cadastrar novamente.'
+          : 'Cadastro anterior cancelado.',
+        'neutral',
+      );
+      recuperarCadastro.textContent = 'Reconhecer resultado';
+      recuperarCadastro.dataset.acao = 'reconhecer';
+    } else {
+      aviso(
+        'create-feedback',
+        'Para liberar o cadastro, confirme o encerramento de tentativas anteriores. Isso também afeta outras abas da sua conta.',
+      );
+      recuperarCadastro.textContent = 'Confirmar encerramento';
+      recuperarCadastro.dataset.acao = 'encerrar';
+    }
+    recuperarCadastro.hidden = false;
+  } catch (erro) {
+    if (ciclo !== atual || acessoPerdido(erro)) return;
+    aviso(
+      'create-feedback',
+      'Não foi possível consultar a situação do cadastro. Tente novamente.',
+      'error',
+    );
+    recuperarCadastro.textContent = 'Consultar situação';
+    recuperarCadastro.dataset.acao = 'consultar';
+    recuperarCadastro.hidden = false;
+  }
+}
+
+recuperarCadastro.addEventListener('click', async () => {
+  const atual = ciclo;
+  if (!atual) return;
+  const focoNaRecuperacao = document.activeElement === recuperarCadastro;
+  const tituloCadastro = elemento('create-title');
+  if (focoNaRecuperacao) tituloCadastro.focus();
+  recuperarCadastro.disabled = true;
+  let confirmada = false;
+  try {
+    if (recuperarCadastro.dataset.acao === 'consultar') {
+      await consultarCadastro();
+      return;
+    }
+    if (recuperarCadastro.dataset.acao === 'reconhecer') await atual.reconhecer();
+    else await atual.encerrar();
+    confirmada = true;
+    const situacao = await atual.consultar();
+    if (ciclo !== atual) return;
+    if (situacao.reserva || situacao.resultado_pendente) {
+      await consultarCadastro();
+      return;
+    }
+    atual.liberar();
+    if (sessao) usuariosCadastroSemConfirmacao.delete(sessao.usuario.id);
+    cadastroLiberado = true;
+    createFields.disabled = false;
+    createButton.disabled = false;
+    recuperarCadastro.hidden = true;
+    aviso('create-feedback', 'Cadastro disponível.', 'success');
+  } catch (erro) {
+    if (ciclo !== atual || acessoPerdido(erro)) return;
+    if (confirmada) {
+      recuperarCadastro.dataset.acao = 'consultar';
+      recuperarCadastro.textContent = 'Consultar situação';
+    }
+    aviso('create-feedback', 'Não foi possível confirmar a operação. Tente novamente.', 'error');
+    recuperarCadastro.hidden = false;
+  } finally {
+    recuperarCadastro.disabled = false;
+    if (focoNaRecuperacao && document.activeElement === tituloCadastro) {
+      if (recuperarCadastro.hidden) createButton.focus();
+      else recuperarCadastro.focus();
+    }
+  }
+});
 
 function aviso(id: string, texto: string, tom: 'error' | 'success' | 'neutral' = 'neutral') {
   const destino = elemento(id);
@@ -100,6 +198,9 @@ function apagarPacientes(): void {
 }
 
 function mostrarAcesso(mensagem = '', tom: 'error' | 'success' | 'neutral' = 'neutral') {
+  ciclo = null;
+  cadastroLiberado = false;
+  recuperarCadastro.hidden = true;
   if (sessao && cadastroPendente && !cadastroEmRevalidacao) {
     usuariosComCadastroIncerto.add(sessao.usuario.id);
   }
@@ -148,23 +249,25 @@ function aplicarSessao(atual: Sessao): void {
   sessao = atual;
   const podeCadastrar =
     atual.usuario.perfil === 'administrador' && atual.capacidades.includes('administrar_cadastro');
+  if (podeCadastrar && !ciclo) {
+    ciclo = criarCicloCadastro({
+      identidadeAtual: () =>
+        sessao ? { usuario_id: sessao.usuario.id, session_id: sessao.session_id } : null,
+      consultar: () => api.consultarBarreira(),
+      reservar: async (entrada) => (await api.reservarBarreira(entrada)).estado,
+      criar: ({ entrada, chave, reserva_id, geracao_reserva }) =>
+        api.criarPaciente(entrada, chave, { reserva_id, geracao_reserva }),
+      encerrar: async (entrada) => (await api.encerrarBarreira(entrada)).estado,
+      reconhecer: async (entrada) => (await api.reconhecerBarreira(entrada)).estado,
+    });
+    void consultarCadastro();
+  } else if (!podeCadastrar) {
+    ciclo = null;
+    cadastroLiberado = false;
+    recuperarCadastro.hidden = true;
+  }
   if (cadastroEmRevalidacao) {
-    // Nunca restaura dados de um pedido para outra identidade ou sem autorização vigente.
-    if (podeCadastrar && cadastroEmRevalidacao.usuarioId === atual.usuario.id) {
-      cadastroPendente = cadastroEmRevalidacao.pedido;
-      nameInput.value = cadastroPendente.entrada.nome;
-      preferredInput.value = cadastroPendente.entrada.nome_preferencia ?? '';
-      birthInput.value = cadastroPendente.entrada.data_nascimento ?? '';
-      createFields.disabled = true;
-      createButton.textContent = 'Confirmar cadastro';
-      aviso(
-        'create-feedback',
-        'Cadastro sem confirmação. Confirme novamente o mesmo pedido.',
-        'error',
-      );
-    } else {
-      usuariosComCadastroIncerto.add(cadastroEmRevalidacao.usuarioId);
-    }
+    // A reconciliação no servidor substitui a repetição de dados em memória.
     cadastroEmRevalidacao = null;
   }
   if (!podeCadastrar) {
@@ -172,17 +275,6 @@ function aplicarSessao(atual: Sessao): void {
     createForm.reset();
     cadastroPendente = null;
     aviso('create-feedback', '');
-  }
-  if (podeCadastrar && usuariosComCadastroIncerto.has(atual.usuario.id)) {
-    createForm.reset();
-    cadastroPendente = null;
-    createFields.disabled = true;
-    createButton.disabled = true;
-    aviso(
-      'create-feedback',
-      'Um cadastro ficou sem confirmação. Não cadastre novamente antes de confirmar a situação por canal autorizado; a consulta ainda não está disponível no aplicativo.',
-      'error',
-    );
   }
   registration.hidden = !podeCadastrar;
   newPatientLink.hidden = !podeCadastrar;
@@ -365,14 +457,7 @@ async function carregarPacientes(): Promise<boolean> {
 
 async function cadastrar(evento: SubmitEvent): Promise<void> {
   evento.preventDefault();
-  if (
-    cadastroOcupado ||
-    !sessao ||
-    registration.hidden ||
-    usuariosComCadastroIncerto.has(sessao.usuario.id)
-  )
-    return;
-  const pedidoJaIncerto = cadastroPendente !== null;
+  if (cadastroOcupado || !sessao || registration.hidden || !cadastroLiberado || !ciclo) return;
   if (!cadastroPendente) {
     const cadastro = lerCadastro({
       nome: nameInput.value,
@@ -427,13 +512,17 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
   aviso('create-feedback', 'Aguardando confirmação do cadastro…');
   aviso('workspace-feedback', '');
   try {
-    await api.criarPaciente(pedido.entrada, pedido.chave);
+    cadastroLiberado = false;
+    usuariosCadastroSemConfirmacao.add(sessao.usuario.id);
+    await ciclo.criar(pedido.entrada);
     if (versao !== revisao) return;
+    if (sessao) usuariosCadastroSemConfirmacao.delete(sessao.usuario.id);
     cadastroPendente = null;
     createForm.reset();
     cursores = [undefined];
     pagina = 0;
     aviso('create-feedback', 'Paciente cadastrado.', 'success');
+    void consultarCadastro();
     const atualizou = await carregarPacientes();
     if (versao !== revisao) return;
     aviso(
@@ -445,28 +534,19 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
     );
   } catch (erro) {
     if (versao !== revisao || acessoPerdido(erro)) return;
-    if (resultadoIncerto(erro)) {
-      aviso(
-        'create-feedback',
-        'Cadastro sem confirmação. Confirme o mesmo pedido antes de sair ou recarregar; isso pode evitar duplicidade.',
-        'error',
-      );
-    } else if (pedidoJaIncerto) {
-      aviso(
-        'create-feedback',
-        'Cadastro sem confirmação. A última tentativa foi recusada; confirme a situação por canal autorizado antes de cadastrar novamente.',
-        'error',
-      );
-    } else {
-      cadastroPendente = null;
-      aviso('create-feedback', mensagemFalha(erro), 'error');
-    }
+    cadastroPendente = null;
+    void consultarCadastro();
+    aviso(
+      'create-feedback',
+      'Cadastro sem confirmação. Consulte a situação antes de tentar novamente.',
+      'error',
+    );
   } finally {
     if (versao === revisao) {
       cadastroOcupado = false;
-      createFields.disabled = cadastroPendente !== null;
-      createButton.disabled = false;
-      createButton.textContent = cadastroPendente ? 'Confirmar cadastro' : 'Cadastrar paciente';
+      createFields.disabled = !cadastroLiberado;
+      createButton.disabled = !cadastroLiberado;
+      createButton.textContent = 'Cadastrar paciente';
       if (revalidacaoPendente) {
         revalidacaoPendente = false;
         void revalidarAcesso();
@@ -478,10 +558,17 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
 async function sair(): Promise<void> {
   if (logoutOcupado) return;
   logoutOcupado = true;
-  saidaComCadastroIncerto ||= Boolean(cadastroPendente || cadastroEmRevalidacao);
+  ciclo = null;
+  cadastroLiberado = false;
+  recuperarCadastro.hidden = true;
+  saidaComCadastroIncerto ||= Boolean(
+    (sessao && usuariosCadastroSemConfirmacao.has(sessao.usuario.id)) ||
+      cadastroPendente ||
+      cadastroEmRevalidacao,
+  );
   if (sessao && saidaComCadastroIncerto) usuariosComCadastroIncerto.add(sessao.usuario.id);
   const alertaCadastro = saidaComCadastroIncerto
-    ? ' Um cadastro pode estar sem confirmação; não o recrie antes de consultar sua situação por canal autorizado. A consulta ainda não está disponível no aplicativo.'
+    ? ' Um cadastro pode estar sem confirmação; não o recrie antes de consultar sua situação no aplicativo ou por canal autorizado.'
     : '';
   cadastroEmRevalidacao = null;
   sessao = null;
@@ -506,14 +593,6 @@ async function sair(): Promise<void> {
     );
     saidaComCadastroIncerto = false;
   } catch (erro) {
-    if (erro instanceof FalhaApi && erro.codigo === 'renovacao_incerta') {
-      mostrarAcesso(
-        `Não foi possível confirmar o encerramento no servidor. Para continuar, faça um novo acesso.${alertaCadastro}`,
-        'error',
-      );
-      saidaComCadastroIncerto = false;
-      return;
-    }
     aviso(
       'logout-feedback',
       `Dados removidos desta tela. Não foi possível confirmar o encerramento no servidor. Tente novamente.${alertaCadastro}`,
@@ -645,4 +724,44 @@ window.addEventListener('pagehide', () => {
   cadastroEmRevalidacao = null;
   mostrarAcesso();
 });
-loginFields.disabled = false;
+
+async function restaurarSessao(): Promise<void> {
+  if (sessao || loginOcupado || logoutOcupado || !logoutView.hidden) return;
+  const versao = revisao;
+  loginOcupado = true;
+  loginFields.disabled = true;
+  loginView.hidden = true;
+  revalidacaoStatus.hidden = false;
+  try {
+    const atual = await api.consultarSessao();
+    if (versao !== revisao) return;
+    aplicarSessao(atual);
+    if (document.hidden) {
+      focoAposLoginOculto = true;
+      return;
+    }
+    revalidacaoStatus.hidden = true;
+    patientsView.hidden = false;
+    sessionActions.hidden = false;
+    document.title = 'FFCMApp | Pacientes';
+    await carregarPacientes();
+  } catch (erro) {
+    if (versao !== revisao) return;
+    mostrarAcesso(
+      erro instanceof FalhaApi && erro.status === 401
+        ? ''
+        : exigeNovoAcesso(erro)
+          ? 'Sua conta não possui acesso autorizado. Confira a liberação com a administração.'
+          : 'Não foi possível verificar seu acesso. Tente novamente quando o serviço estiver disponível.',
+      'error',
+    );
+  } finally {
+    loginOcupado = false;
+    loginFields.disabled = false;
+  }
+}
+
+window.addEventListener('pageshow', (evento) => {
+  if (evento.persisted) void restaurarSessao();
+});
+void restaurarSessao();

@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
 
 const id = '10000000-0000-4000-8000-000000000001';
-const csrf = 'a'.repeat(43);
 const sessao = {
+  session_id: '20000000-0000-4000-8000-000000000001',
   usuario: { id, perfil: 'administrador', ativo: true, versao: 1 },
   capacidades: [],
 };
@@ -21,18 +21,15 @@ it.each(['sucesso', 'erro'])(
     document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
     let consultas = 0;
     let concluir!: (resposta: Response) => void;
+    let autenticada = false;
     vi.stubGlobal('fetch', async (url: URL) => {
-      if (url.pathname === '/api/sessao/desafio-tecnico')
-        return envelope({ csrf, seletor_desafio: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' });
-      if (url.pathname === '/api/sessao/tecnica')
-        return envelope({
-          sessao,
-          access_token: 'token-ficticio',
-          prova_sessao: 'A'.repeat(43),
-          geracao_sessao: 1,
-          csrf,
-          seletor_sessao: '20000000-0000-4000-8000-000000000001',
-        });
+      if (url.pathname === '/api/sessao' && !autenticada)
+        return new Response(null, { status: 401 });
+      if (url.pathname === '/api/auth/tecnica') {
+        autenticada = true;
+        return envelope(sessao);
+      }
+
       if (url.pathname === '/api/sessao') return envelope(sessao);
       if (url.pathname === '/api/pacientes') {
         consultas++;
