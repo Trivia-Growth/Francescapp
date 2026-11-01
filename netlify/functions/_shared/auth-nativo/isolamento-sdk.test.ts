@@ -18,7 +18,9 @@ describe('isolamento experimental de cookies do SDK', () => {
         cookieOptions: { name: nome, httpOnly: true, secure: true, sameSite: 'lax', path: '/' },
         cookies: {
           getAll: () => Array.from(origem, ([name, value]) => ({ name, value })),
-          setAll: (cookies) => alteracoes.push(...cookies),
+          setAll: (cookies) => {
+            alteracoes.push(...cookies);
+          },
         },
         global: {
           fetch: async (_input, init) => {
