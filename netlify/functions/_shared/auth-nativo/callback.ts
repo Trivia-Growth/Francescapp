@@ -15,7 +15,22 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
     codigo: 'entrada_invalida' | 'sem_permissao' | 'servico_indisponivel',
     status: number,
   ) => Response.json(criarErroPublicoSemCampos(codigo, crypto.randomUUID()), { status, headers });
+  const falha = () =>
+    new Response(null, { status: 303, headers: { ...headers, Location: '/?acesso=indisponivel' } });
   const url = new URL(request.url);
+  const parametrosErro = ['error', 'error_code', 'error_description'];
+  if (
+    request.method === 'GET' &&
+    url.pathname === '/api/auth/callback' &&
+    !url.hash &&
+    url.searchParams.getAll('error').length === 1 &&
+    /^[a-z_]{1,64}$/.test(url.searchParams.get('error') ?? '') &&
+    Array.from(url.searchParams.keys()).every((nome) => parametrosErro.includes(nome)) &&
+    parametrosErro.every((nome) => url.searchParams.getAll(nome).length <= 1) &&
+    (url.searchParams.get('error_code')?.length ?? 0) <= 128 &&
+    (url.searchParams.get('error_description')?.length ?? 0) <= 2048
+  )
+    return falha();
   const code = url.searchParams.get('code');
   const flowId = url.searchParams.get('sb_flow_id');
   if (
@@ -38,28 +53,26 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
       code,
       flowId === null ? undefined : { flowId },
     );
-    if (troca.error || !troca.data.session) return erro('sem_permissao', 403);
+    if (troca.error || !troca.data.session) return falha();
     const { session } = troca.data;
     const identidade = await contexto.cliente.auth.getUser();
-    if (identidade.error || !identidade.data.user) return erro('sem_permissao', 403);
+    if (identidade.error || !identidade.data.user) return falha();
     const admissao = await contexto.cliente
       .schema('api')
       .rpc('admitir_sessao_nativa', { p_request_id: crypto.randomUUID() });
-    if (admissao.error) return erro('servico_indisponivel', 503);
-    if (admissao.data === null) return erro('sem_permissao', 403);
+    if (admissao.error || admissao.data === null) return falha();
     const autorizada = sessaoNativaSchema.safeParse(admissao.data);
     if (
       !autorizada.success ||
       !autorizada.data.usuario.ativo ||
       autorizada.data.usuario.id !== identidade.data.user.id
     )
-      return erro('sem_permissao', 403);
+      return falha();
 
     // O SDK salva tokens Google no exchange. Regravar somente a sessão Auth
     // pelo SDK impede transportá-los ao navegador. Integrações Google terão
     // armazenamento server-only próprio; ainda não são ativadas por este login.
-    if (!session.expires_at || session.expires_at <= Date.now() / 1000 + 30)
-      return erro('sem_permissao', 403);
+    if (!session.expires_at || session.expires_at <= Date.now() / 1000 + 30) return falha();
     const normalizada = await contexto.cliente.auth.setSession({
       access_token: session.access_token,
       refresh_token: session.refresh_token,
@@ -73,9 +86,9 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
       normalizada.data.session.provider_token ||
       normalizada.data.session.provider_refresh_token
     )
-      return erro('sem_permissao', 403);
+      return falha();
     return contexto.responder(new Response(null, { status: 303, headers: { Location: '/' } }));
   } catch {
-    return erro('servico_indisponivel', 503);
+    return falha();
   }
 }

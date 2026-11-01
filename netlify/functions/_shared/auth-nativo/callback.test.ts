@@ -135,9 +135,9 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
     const pedido = await callback();
     fornecedor(opcoes);
     const resposta = await concluirGoogleNativo(pedido, fonte);
-    expect(resposta.status).toBe(403);
+    expect(resposta.status).toBe(303);
     expect(resposta.headers.getSetCookie()).toEqual([]);
-    expect(resposta.headers.get('location')).toBeNull();
+    expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel');
   });
 
   it.each(['troca', 'usuario', 'banco', 'normalizacao', 'rede'] as const)(
@@ -147,9 +147,9 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
       pedido.headers.append('cookie', '; sb-projeto-ficticio-auth-token=sessao-anterior-ficticia');
       const rede = fornecedor({ falha });
       const resposta = await concluirGoogleNativo(pedido, fonte);
-      expect([403, 503]).toContain(resposta.status);
+      expect(resposta.status).toBe(303);
       expect(resposta.headers.getSetCookie()).toEqual([]);
-      expect(resposta.headers.get('location')).toBeNull();
+      expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel');
       const corpo = await resposta.text();
       expect(corpo).not.toMatch(/refresh|google-|access_token|falha interna/);
       expect(rede.mock.calls.some(([url]) => String(url).includes('/logout'))).toBe(false);
@@ -162,8 +162,23 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
     url.searchParams.set('sb_flow_id', 'outro-fluxo-inexistente');
     const rede = fornecedor();
     const resposta = await concluirGoogleNativo(new Request(url, pedido), fonte);
-    expect(resposta.status).toBe(403);
+    expect(resposta.status).toBe(303);
     expect(resposta.headers.getSetCookie()).toEqual([]);
+    expect(rede).not.toHaveBeenCalled();
+  });
+
+  it('retorna à tela de acesso quando o provedor informa erro, sem refletir detalhes', async () => {
+    const rede = fornecedor();
+    const resposta = await concluirGoogleNativo(
+      new Request(
+        `${fonte.FFCM_APP_ORIGIN}/api/auth/callback?error=access_denied&error_code=cancelado&error_description=detalhe-privado`,
+      ),
+      fonte,
+    );
+    expect(resposta.status).toBe(303);
+    expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel');
+    expect(resposta.headers.getSetCookie()).toEqual([]);
+    expect(await resposta.text()).toBe('');
     expect(rede).not.toHaveBeenCalled();
   });
 
@@ -176,6 +191,10 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
       '?code=a&next=https://malicioso.test',
       '?code=a&sb_flow_id=',
       '?code=a&sb_flow_id=valido123&sb_flow_id=outro123',
+      '?error=access_denied&error=outro',
+      '?error=access_denied&code=a',
+      '?error=access_denied&next=https://malicioso.test',
+      '?error=&error_description=cancelado',
     ]) {
       const resposta = await concluirGoogleNativo(
         new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/callback${sufixo}`),

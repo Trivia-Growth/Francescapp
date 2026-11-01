@@ -14,6 +14,17 @@ function elemento<T extends HTMLElement>(id: string): T {
 }
 
 const api = new ClienteFFCM();
+const urlInicial = new URL(window.location.href);
+const falhaGoogle =
+  urlInicial.pathname === '/' && urlInicial.searchParams.get('acesso') === 'indisponivel';
+if (falhaGoogle) {
+  urlInicial.searchParams.delete('acesso');
+  window.history.replaceState(
+    window.history.state,
+    '',
+    `${urlInicial.pathname}${urlInicial.search}${urlInicial.hash}`,
+  );
+}
 const loginView = elemento('login-view');
 const patientsView = elemento('patients-view');
 const logoutView = elemento('logout-view');
@@ -736,6 +747,13 @@ async function restaurarSessao(): Promise<void> {
     const atual = await api.consultarSessao();
     if (versao !== revisao) return;
     aplicarSessao(atual);
+    if (falhaGoogle) {
+      aviso(
+        'workspace-feedback',
+        'Não foi possível concluir a entrada com Google. Sua sessão anterior continua ativa.',
+        'error',
+      );
+    }
     if (document.hidden) {
       focoAposLoginOculto = true;
       return;
@@ -749,7 +767,9 @@ async function restaurarSessao(): Promise<void> {
     if (versao !== revisao) return;
     mostrarAcesso(
       erro instanceof FalhaApi && erro.status === 401
-        ? ''
+        ? falhaGoogle
+          ? 'Não foi possível entrar com Google. Tente novamente.'
+          : ''
         : exigeNovoAcesso(erro)
           ? 'Sua conta não possui acesso autorizado. Confira a liberação com a administração.'
           : 'Não foi possível verificar seu acesso. Tente novamente quando o serviço estiver disponível.',
