@@ -40,7 +40,7 @@ Futura implementação em `supabase/migrations/`, `supabase/functions/`, `supaba
 
 ### Pausa operacional temporária
 
-Enquanto Docker/Supabase local estiver indisponível na execução local, as provas que dependem desse ambiente serão executadas somente em um projeto Supabase de testes isolado, explicitamente identificado antes da operação. O solicitante autorizou migrações e testes nesse alvo com dados fictícios, seguidos de limpeza seletiva e rastreável desses dados; essa autorização não alcança projeto compartilhado ou de produção, bootstrap, concessão real, configuração de segredos, deploy ou limpeza global. Não há CI nesta fase.
+Enquanto Docker/Supabase local estiver indisponível na execução local, as provas que dependem desse ambiente serão executadas somente em um projeto Supabase de testes isolado, explicitamente identificado antes da operação. O solicitante autorizou migrações e testes nesse alvo com dados fictícios, seguidos de limpeza seletiva e rastreável desses dados; essa autorização não alcança projeto compartilhado ou de produção, bootstrap, concessão real, configuração de segredos, deploy ou limpeza global. Há CI de qualidade nos PRs prontos para revisão e em pushes na main; continua sem deploy ou migração remota.
 
 ### Evidência e dependências
 

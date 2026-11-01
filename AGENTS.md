@@ -31,7 +31,7 @@
 ## Qualidade e experiência
 
 - Teste comportamentos e fronteiras relevantes, com casos positivos e negativos de autorização; use TDD quando esclarecer regras de negócio.
-- Execute verificações afetadas durante a implementação, gates da stack ao concluir uma feature e validação integrada antes de release. Não execute comandos de teste copiados de outro projeto sem que existam aqui.
+- Siga a política de verificação da seção “Execução enxuta”. Não execute comandos de teste copiados de outro projeto sem que existam aqui.
 - A aplicação deve funcionar confortavelmente no celular, com estados de carregamento, vazio, erro e sucesso, teclado, foco visível e alternativa ao áudio.
 - Use Impeccable em trabalho visual pertinente e as boas práticas React quando escrever/revisar React. O material final de marca virá do marketing da Edilaine.
 
@@ -49,12 +49,17 @@
 - As passagens entre frentes devem carregar os controles de segurança pertinentes e sua evidência. Preserve os checkpoints de revisão independente e aviso ao solicitante definidos nas tarefas; não faça troca silenciosa de modelo nem aceite a própria implementação crítica sem a revisão prevista.
 - Uma tarefa só está concluída com critérios de aceite atendidos, verificações afetadas executadas e evidências/limitações registradas. Se um gate necessário não puder executar, registrar a pendência, não sucesso presumido; não marcar integração externa comprovada por testes com adapters fictícios.
 
-## Execução enxuta e proporcional ao risco
+## Execução enxuta
 
 - Não ativar todas as skills ou criar um gate por skill. Mudanças triviais usam entender → implementar → verificar; mudanças sensíveis preservam planejamento e revisões aprovados. Carregue integralmente as instruções/referências necessárias, sem puxar material alheio à tarefa ou reescrever o mesmo plano em vários lugares.
 - Uma revisão formal por fatia demonstrável, não por função/arquivo. Após correções, revisar o diff afetado e seus impactos; ampliar a revisão se mudar contrato, risco ou escopo. Reaproveitar contexto já conferido na mesma revisão, mas atualizar evidências após mudanças relevantes; nunca reutilizar autorização antiga ou teste anterior como prova do estado alterado.
 - Subagentes autorizados recebem somente tarefa, contratos, decisões, arquivos e evidência pertinentes; não replicar toda a investigação em cada frente. Evitar ciclos de agentes revisando revisões e revisores duplicados sem objetivo distinto. Dúvida material ou falha crítica volta à coordenação; checkpoints existentes continuam válidos, sem troca silenciosa de modelo.
-- Executar testes afetados durante a implementação e gates integrados no fechamento pertinente, sem repetir suítes inteiras por edições sem impacto. Não reduzir testes de permissão, segurança ou integridade para economizar tokens. Apontar gargalos observados antes de adicionar ferramentas, automações ou camadas de orquestração.
+- Durante o desenvolvimento, executar somente lint e typecheck pelo `pnpm run verificar:rapido`. Ao escrever um teste novo, executar apenas esse arquivo uma vez para confirmar que passa; se falhar, corrigir e repetir apenas o arquivo afetado. Não executar suíte completa, e2e, build ou verificação Deno a cada edição ou commit.
+- Na ativação da fatia (retirada do PR de draft), executar uma única vez `pnpm run verificar:ativacao` (alias de `pnpm run verificar:fundacao`) e o roteiro “Como testar” do PR. Testes positivos e negativos de autorização/RLS são obrigatórios nesse momento e nunca podem ser pulados. Se não executarem, registrar o bloqueio em `tasks.md`; não considerar a fatia ativada apenas porque a CI passou.
+- Após correções solicitadas na revisão, executar somente os testes afetados pelo diff. Repetir a suíte completa apenas se mudar contrato, permissão ou migration.
+- A saída de testes para o agente deve mostrar somente falhas, usando o reporter `minimal` e `silent: 'passed-only'` do Vitest. Preservar códigos de saída, erros de coleta e falhas de infraestrutura; saída silenciosa não comprova testes de autorização executados.
+- O pre-commit usa Biome somente nos arquivos staged, com correção e reestágio. O pre-push executa lint e typecheck em paralelo; não inclui testes, build ou Deno. Não adicionar hooks de agente que executem testes a cada turno.
+- Apontar gargalos observados antes de adicionar ferramentas, automações ou camadas de orquestração.
 
 ## Autonomia e operações externas
 

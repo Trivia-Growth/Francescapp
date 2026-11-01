@@ -106,6 +106,8 @@ Falha que permite acesso indevido, service role genérica usada para contornar R
 
 ## Workflow follow-up
 
+- Gate de ativação: `verificar:ativacao` executa o gate existente, mas os testes de integração PostgreSQL condicionados a ambiente podem continuar ignorados. A CI de qualidade não usa secrets nem banco remoto. Antes de retirar uma fatia protegida de draft, comprovar separadamente os casos positivos e negativos de autorização/RLS no ambiente aprovado e o roteiro “Como testar”; sem essa evidência, a ativação permanece pendente mesmo com CI verde. A instalação dos hooks e a CI de qualidade não concluem 5.1/5.2.
+
 - Revisar e autorizar separadamente qualquer configuração/migração/deploy/bootstrap remoto. Executar integração real somente com alvo confirmado e dados fictícios. Esta lista não concede tal autorização.
 - Próximas mudanças do mapa D-11 devem completar suas próprias decisões/tarefas antes da implementação, incluindo os cenários de áudio e agenda desta proposta. Manter os 45 requisitos iniciais e as 9 evoluções separados.
 - Não arquivar este pacote como integralmente implementado enquanto houver tarefa/evidência faltante. Sincronização/arquivo dos deltas, inclusive das decisões de integrações futuras, exigem revisão de estado para não confundir requisito aprovado com funcionalidade entregue.
