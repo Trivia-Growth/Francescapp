@@ -16,8 +16,23 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
     status: number,
   ) => Response.json(criarErroPublicoSemCampos(codigo, crypto.randomUUID()), { status, headers });
   const falha = () =>
-    new Response(null, { status: 303, headers: { ...headers, Location: '/?acesso=indisponivel' } });
+    new Response(null, {
+      status: 303,
+      headers: { ...headers, Location: '/?acesso=indisponivel#' },
+    });
   const url = new URL(request.url);
+  // O fragmento não chega ao servidor; um fragmento vazio impede sua herança no redirect.
+  if (
+    request.method === 'GET' &&
+    url.pathname === '/api/auth/callback' &&
+    !url.search &&
+    !url.hash &&
+    !url.href.includes('?')
+  )
+    return new Response(null, {
+      status: 303,
+      headers: { ...headers, Location: '/?acesso=indisponivel#' },
+    });
   const parametrosErro = ['error', 'error_code', 'error_description'];
   if (
     request.method === 'GET' &&
@@ -87,7 +102,7 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
       normalizada.data.session.provider_refresh_token
     )
       return falha();
-    return contexto.responder(new Response(null, { status: 303, headers: { Location: '/' } }));
+    return contexto.responder(new Response(null, { status: 303, headers: { Location: '/#' } }));
   } catch {
     return falha();
   }

@@ -98,7 +98,8 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
     const rede = fornecedor();
     const resposta = await concluirGoogleNativo(pedido, fonte);
     expect(resposta.status).toBe(303);
-    expect(resposta.headers.get('location')).toBe('/');
+    expect(resposta.headers.get('location')).toBe('/#');
+    expect(new URL('/#', `${pedido.url}#segredo`).href).toBe(`${fonte.FFCM_APP_ORIGIN}/#`);
     expect(await resposta.text()).toBe('');
     expect(resposta.headers.get('cache-control')).toBe('private, no-store');
     expect(resposta.headers.get('referrer-policy')).toBe('no-referrer');
@@ -137,7 +138,7 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
     const resposta = await concluirGoogleNativo(pedido, fonte);
     expect(resposta.status).toBe(303);
     expect(resposta.headers.getSetCookie()).toEqual([]);
-    expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel');
+    expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel#');
   });
 
   it.each(['troca', 'usuario', 'banco', 'normalizacao', 'rede'] as const)(
@@ -149,7 +150,7 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
       const resposta = await concluirGoogleNativo(pedido, fonte);
       expect(resposta.status).toBe(303);
       expect(resposta.headers.getSetCookie()).toEqual([]);
-      expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel');
+      expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel#');
       const corpo = await resposta.text();
       expect(corpo).not.toMatch(/refresh|google-|access_token|falha interna/);
       expect(rede.mock.calls.some(([url]) => String(url).includes('/logout'))).toBe(false);
@@ -176,7 +177,30 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
       fonte,
     );
     expect(resposta.status).toBe(303);
-    expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel');
+    expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel#');
+    expect(
+      new URL(
+        resposta.headers.get('location') ?? '',
+        `${fonte.FFCM_APP_ORIGIN}/api/auth/callback?error=access_denied#segredo`,
+      ).href,
+    ).toBe(`${fonte.FFCM_APP_ORIGIN}/?acesso=indisponivel#`);
+    expect(resposta.headers.getSetCookie()).toEqual([]);
+    expect(await resposta.text()).toBe('');
+    expect(rede).not.toHaveBeenCalled();
+  });
+
+  it('retorna cancelamento em fragmento sem herdar conteúdo externo ou alterar cookies', async () => {
+    const rede = fornecedor();
+    const resposta = await concluirGoogleNativo(
+      new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/callback`),
+      fonte,
+    );
+    const destino = resposta.headers.get('location') ?? '';
+    expect(resposta.status).toBe(303);
+    expect(destino).toBe('/?acesso=indisponivel#');
+    expect(new URL(destino, `${fonte.FFCM_APP_ORIGIN}/api/auth/callback#segredo`).href).toBe(
+      `${fonte.FFCM_APP_ORIGIN}/?acesso=indisponivel#`,
+    );
     expect(resposta.headers.getSetCookie()).toEqual([]);
     expect(await resposta.text()).toBe('');
     expect(rede).not.toHaveBeenCalled();
@@ -185,7 +209,7 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
   it('rejeita parâmetros ambíguos, redirecionamentos e métodos sem consultar fornecedor', async () => {
     const rede = fornecedor();
     for (const sufixo of [
-      '',
+      '?',
       '?code=',
       '?code=a&code=b',
       '?code=a&next=https://malicioso.test',
