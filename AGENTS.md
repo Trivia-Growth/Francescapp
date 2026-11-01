@@ -26,7 +26,7 @@
 - Preserve os IDs FR/SC, fases Inicial/Evolução e hipóteses. Evoluções propostas não viram tarefas de produção sem confirmação.
 - Planeje fatias verticais demonstráveis e confira a coerência entre proposta, requisitos, design e tarefas antes da implementação.
 - Separe responsabilidade de decisão/revisão e execução delimitada. Uma passagem de trabalho deve informar tarefa, requisito/cenário, decisão aplicável, arquivos permitidos, limites e evidência esperada.
-- Não fixe nomes de modelos copiados do HED, não troque modelos silenciosamente e não delegue por padrão. Só use agentes quando o solicitante ou as instruções superiores autorizarem.
+- Não fixe nomes de modelos copiados do HED nem troque modelos silenciosamente. Por solicitação explícita de 01/11/2026, delegue a agentes as frentes independentes sempre que isso acelerar a entrega sem duplicação ou conflito; use `gpt-6.1-terra` (Terra 6.1) na implementação. Passe contratos, arquivos exclusivos e evidência esperada. Se esse modelo não estiver disponível, informe antes de substituí-lo. A coordenação permanece responsável pela integração e pelas revisões independentes; não prometa trocar o modelo do chat principal por uma ferramenta que só configura subagentes.
 - Não declare conclusão por checkboxes ou existência de arquivos: confira os critérios de aceite e registre resultados, achados e limitações.
 
 ## Qualidade e experiência
