@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { eventoAuditoriaSchema } from './auditoria.ts';
+import { reservaCadastroSchema } from './rpc.ts';
 
 import {
   atualizarAcessoUsuarioSchema,
@@ -345,7 +346,7 @@ export const contratosRotas = {
   criarPaciente: mutacaoIdempotente(
     'POST',
     '/api/pacientes',
-    criarPacienteSchema,
+    reservaCadastroSchema.extend({ entrada: criarPacienteSchema }).strict(),
     pacienteAdministrativoSchema,
   ),
   consultarPaciente: consulta(

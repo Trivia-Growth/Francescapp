@@ -10,7 +10,7 @@ type Autorizacao =
   | { estado: 'autorizado'; contexto: unknown };
 
 /** Experimento não exposto. As portas devem comprovar sessão, origem e CSRF,
- * emitir reserva vinculada e conferir autoridade transacional no banco.
+ * conferir reserva vinculada e autoridade transacional no banco.
  * Não usar em runtime antes de S-02 e revisão independente da composição. */
 export function criarHandlerCriarPacienteExperimental(portas: {
   autorizar(request: Request): Promise<Autorizacao>;
@@ -18,6 +18,7 @@ export function criarHandlerCriarPacienteExperimental(portas: {
     solicitacao: { corpo: unknown; cabecalhos: unknown },
     contexto: unknown,
     requestId: string,
+    reserva: { reserva_id: string; geracao_reserva: number },
   ): Promise<unknown>;
   revalidar(request: Request, contexto: unknown): Promise<boolean>;
 }) {
@@ -105,11 +106,12 @@ export function criarHandlerCriarPacienteExperimental(portas: {
       const resultado = await noPrazo(() =>
         portas.executar(
           {
-            corpo: entrada.data,
+            corpo: entrada.data.entrada,
             cabecalhos: { 'x-chave-idempotencia': cabecalhos.data['x-chave-idempotencia'] },
           },
           autorizacao.contexto,
           requestId,
+          { reserva_id: entrada.data.reserva_id, geracao_reserva: entrada.data.geracao_reserva },
         ),
       );
       if (!resultado || typeof resultado !== 'object') return falha('pendencia_externa');

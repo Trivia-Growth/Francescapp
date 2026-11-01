@@ -1,4 +1,6 @@
 export * from './cadastro.ts';
+export * from './barreira-cadastro.ts';
+export * from './barreira-http.ts';
 export * from './comum.ts';
 export * from './identidade.ts';
 export * from './erros.ts';

@@ -309,6 +309,23 @@ describe('contratos HTTP da fundação', () => {
     ).toBe(false);
   });
 
+  it('exige reserva prévia válida na criação de paciente', () => {
+    const corpo = {
+      entrada: { nome: 'Pessoa fictícia' },
+      reserva_id: 'd0000000-0000-4000-8000-000000000001',
+      geracao_reserva: 1,
+    };
+    const schema = contratosRotas.criarPaciente.entrada;
+    expect(schema.safeParse(corpo).success).toBe(true);
+    expect(schema.safeParse({ nome: 'Pessoa fictícia' }).success).toBe(false);
+    expect(schema.safeParse({ ...corpo, geracao_reserva: 0 }).success).toBe(false);
+    expect(
+      schema.safeParse({ ...corpo, geracao_reserva: Number.MAX_SAFE_INTEGER + 1 }).success,
+    ).toBe(false);
+    expect(schema.safeParse({ ...corpo, reserva_id: 'inválido' }).success).toBe(false);
+    expect(schema.safeParse({ ...corpo, extra: true }).success).toBe(false);
+  });
+
   it('rejeita telefone formado somente por pontuação ou espaços', () => {
     for (const valor of ['.......', '-------', '(     )']) {
       expect(novoContatoSchema.safeParse({ tipo: 'telefone', valor }).success).toBe(false);

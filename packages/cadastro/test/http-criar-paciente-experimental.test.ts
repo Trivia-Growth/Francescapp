@@ -6,7 +6,8 @@ import { executarCriacaoPacienteExperimental } from '../src/executor-paciente-ex
 import { criarHandlerCriarPacienteExperimental } from '../src/http-criar-paciente-experimental.js';
 
 const caminho = 'https://app.example.test/api/pacientes';
-const pedido = (body = JSON.stringify({ nome: 'Paciente fictício' })) =>
+const reserva = { reserva_id: 'd0000000-0000-4000-8000-000000000001', geracao_reserva: 1 };
+const pedido = (body = JSON.stringify({ entrada: { nome: 'Paciente fictício' }, ...reserva })) =>
   new Request(caminho, {
     method: 'POST',
     headers: {
@@ -84,7 +85,22 @@ describe('borda experimental de criação de paciente', () => {
       executar,
       revalidar: async () => true,
     });
-    expect((await handler(pedido(JSON.stringify({ nome: '' })))).status).toBe(422);
+    expect(
+      (await handler(pedido(JSON.stringify({ entrada: { nome: '' }, ...reserva })))).status,
+    ).toBe(422);
+    expect(
+      (
+        await handler(
+          pedido(
+            JSON.stringify({
+              entrada: { nome: 'Paciente fictício' },
+              ...reserva,
+              geracao_reserva: 0,
+            }),
+          ),
+        )
+      ).status,
+    ).toBe(422);
     expect((await handler(pedido('x'.repeat(16_385)))).status).toBe(422);
     expect(autorizar).not.toHaveBeenCalled();
     expect(executar).not.toHaveBeenCalled();
@@ -103,7 +119,7 @@ describe('borda experimental de criação de paciente', () => {
     const handler = criarHandlerCriarPacienteExperimental({
       autorizar: async () => ({ estado: 'autorizado', contexto: {} }),
       revalidar: async () => true,
-      executar: async (solicitacao, _, request_id) =>
+      executar: async (solicitacao, _, request_id, reservaRecebida) =>
         executarCriacaoPacienteExperimental(
           solicitacao,
           {
@@ -117,7 +133,7 @@ describe('borda experimental de criação de paciente', () => {
           {
             cifra,
             atestador,
-            reserva: { reserva_id: 'd0000000-0000-4000-8000-000000000001', geracao_reserva: 1 },
+            reserva: reservaRecebida,
             idempotencia: {
               async calcularDigestIdempotencia(valor) {
                 return createHmac('sha256', Buffer.alloc(32, 4)).update(valor).digest('base64url');
@@ -126,6 +142,8 @@ describe('borda experimental de criação de paciente', () => {
             rpc: {
               async executar(transporte) {
                 const entrada = transporte.p_entrada.entrada;
+                expect(entrada).toMatchObject(reserva);
+                expect(entrada.chave_idempotencia).toBe('chave_ficticia_123456');
                 expect(JSON.stringify(entrada)).not.toContain('Paciente fictício');
                 return {
                   ok: true,

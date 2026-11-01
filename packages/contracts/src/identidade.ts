@@ -72,6 +72,10 @@ export const sessaoAtualSchema = z
   })
   .strict();
 
+/** Contexto nativo, não credencial: permite rejeitar mutações/saída de uma aba
+ * antiga quando os cookies já pertencem a outro login. Autoridade fica no banco. */
+export const sessaoNativaSchema = sessaoAtualSchema.extend({ session_id: uuidSchema }).strict();
+
 export const entradaSessaoRespostaSchema = z
   .object({
     sessao: sessaoAtualSchema,
