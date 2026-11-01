@@ -33,6 +33,27 @@ describe.skipIf(!socket)('pacientes: composição e PostgreSQL local', () => {
       query_timeout: 3000,
     });
     const chamadas: string[] = [];
+    const transportes = new Map<string, Record<string, unknown>>();
+    const chamarDireto = async (nome: string, transporte: unknown) => {
+      const cliente = await admin.connect();
+      try {
+        await cliente.query('begin');
+        await cliente.query('set local role authenticated');
+        await cliente.query("select set_config('request.jwt.claims',$1,true)", [
+          JSON.stringify({ sub: usuario, session_id: sessao, amr: [{ method: 'oauth' }] }),
+        ]);
+        const resultado = await cliente.query(`select api.${nome}($1::jsonb) as dados`, [
+          JSON.stringify(transporte),
+        ]);
+        await cliente.query('commit');
+        return resultado.rows[0].dados;
+      } catch (erro) {
+        await cliente.query('rollback');
+        throw erro;
+      } finally {
+        cliente.release();
+      }
+    };
     try {
       await admin.query(`
         insert into identidade.configuracao_auth_nativo(dominio_workspace,google_unico_oauth_confirmado) values ('example.test',true);
@@ -72,6 +93,8 @@ describe.skipIf(!socket)('pacientes: composição e PostgreSQL local', () => {
           throw new Error('RPC inesperada');
         chamadas.push(nome);
         const parametros = JSON.parse(String(init?.body));
+        if (!transportes.has(nome))
+          transportes.set(nome, parametros.p_transporte ?? parametros.p_entrada);
         const cliente = await admin.connect();
         try {
           await cliente.query('begin');
@@ -194,6 +217,20 @@ describe.skipIf(!socket)('pacientes: composição e PostgreSQL local', () => {
       expect(await listaOutro.json()).toMatchObject({
         dados: { itens: [] },
       });
+      // O cliente pode chamar as RPCs diretamente após o grant local, sem passar pelo servidor.
+      for (const nome of ['cadastro_composicao', 'criar_paciente', 'listar_pacientes']) {
+        const transporte = transportes.get(nome);
+        expect(transporte).toBeDefined();
+        const entrada = transporte?.entrada as Record<string, unknown>;
+        const atestado = entrada.atestado as Record<string, unknown>;
+        const semAtestado = { ...transporte, entrada: { ...entrada, atestado: undefined } };
+        const adulterado = {
+          ...transporte,
+          entrada: { ...entrada, atestado: { ...atestado, mac: 'A'.repeat(43) } },
+        };
+        await expect(chamarDireto(nome, semAtestado)).rejects.toMatchObject({ code: '42501' });
+        await expect(chamarDireto(nome, adulterado)).rejects.toMatchObject({ code: '42501' });
+      }
       await admin.query('update identidade.sessao set encerrada_em=now() where session_id=$1', [
         outraSessao,
       ]);
@@ -205,6 +242,12 @@ describe.skipIf(!socket)('pacientes: composição e PostgreSQL local', () => {
       await admin.query('update identidade.sessao set encerrada_em=now() where session_id=$1', [
         sessao,
       ]);
+      // Reutilização direta de transporte assinado não pode superar a revogação.
+      const transporteCarteira = transportes.get('listar_pacientes');
+      expect(await chamarDireto('listar_pacientes', transporteCarteira)).toMatchObject({
+        ok: false,
+        erro: { codigo: 'sem_permissao' },
+      });
       const usuarioRevogado = await listar(usuario, sessao);
       expect(usuarioRevogado.status).toBe(403);
       expect(await usuarioRevogado.json()).toMatchObject({
