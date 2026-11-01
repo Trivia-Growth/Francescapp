@@ -14,6 +14,24 @@ O repositório ainda contém a demonstração e não tem backend versionado. A i
 
 ## Decisions
 
+### D-14 — Supabase nativo como padrão permanente — revisão aprovada em 01/11/2026
+
+Esta revisão substitui os mecanismos de autenticação/sessão de D-01/D-03/D-04/D-10 e suas referências em D-05/D-09/D-13 e nas tarefas 3.x. Os detalhes anteriores ficam como histórico, não como requisitos cumulativos. O objetivo e os requisitos funcionais da mudança permanecem; não arquivar ou considerar os experimentos concluídos por esta decisão.
+
+- **Composição:** navegador usa API first-party Netlify; Auth Google OAuth/PKCE e renovação pertencem ao SDK oficial Supabase. Cliente por requisição, sem singleton de sessão. Não exigir salto Edge Function para mero repasse ao Auth ou banco. Edge Functions permanecem disponíveis para integrações que realmente precisem delas.
+- **Transporte:** `@supabase/ssr` no servidor, sem cliente Auth no navegador; cookies do SDK com HttpOnly, Secure em HTTPS, SameSite=Lax, Path=/ e sem Domain. O padrão SSR híbrido não é HttpOnly automaticamente. O adapter deve configurar e comprovar esses atributos. Não há cifra/selagem de cookie própria nem refresh persistido pelo app no Vault/banco. A alteração aprovada admite tokens nativos nos cookies HttpOnly; não os devolver no JSON, localStorage ou logs. Mutações exigem origem exata; callback PKCE tem URL fixa e não aceita redirecionamento fornecido pelo visitante. Código OAuth é transitório e não deve aparecer em logs/referrer.
+- **Identidade e concessão:** iniciar apenas provider Google no login da equipe, `exchangeCodeForSession` no callback e `getUser` para identidade autenticada. Nunca autorizar por `getSession().user` ou `user_metadata`. Conferir método Google/Workspace com dados controlados pelo provedor e configuração institucional, além da pré-concessão; `hd` enviado pelo navegador é apenas dica. Sem concessão, nenhum paciente ou perfil é liberado. Não substituir essa prova por sufixo de e-mail ou identidade Google ligada no passado. Configuração do provider e vínculo de método precisam de prova no projeto antes da ativação.
+- **Autoridade no banco:** JWT do usuário no cliente de dados, `auth.uid()` e `session_id` vinculados ao usuário, sessão Auth vigente, usuário ativo, concessão e vínculos atuais. RLS e RPCs auditadas continuam obrigatórios; não usar service role genérica para CRUD. `getUser`/`getClaims` não comprovam sozinhos revogação da sessão. Reutilizar a admissão/revogação local mínima quando necessária à falha externa de logout, sem provas por geração, refresh próprio ou autorização curta de sessão.
+- **Logout e concorrência:** bloquear a sessão local pretendida antes de chamar signOut nativo; falha externa retorna pendência e nunca restaura acesso. Requisições posteriores, inclusive JWT antigo e refresh atrasado, encontram a negativa no banco. Conferir `session_id` em `auth.sessions` pelo mecanismo restrito, sem expor tabelas Auth. Saída, resposta atrasada, outra aba e outro login precisam manter a sessão correta; usar SDK nativo não é prova desses casos.
+- **Fora da substituição:** cifra de campos/AAD, Vault para suas chaves, HMAC de índice de e-mail, atestado de escrita D-08, auditoria e idempotência de cadastro não são funcionalidades entregues pelo Auth. Permanecem até revisão específica. A assinatura de escrita não deve ser confundida com a autoridade adicional de sessão agora dispensada.
+- **Custo:** usar funcionalidades incluídas, sem habilitar add-ons, SAML pago, limites avançados de sessão dependentes de plano ou ampliar recursos por inferência. Quotas/uso devem ser conferidos no projeto; não prometer gratuidade ilimitada nem alterar cobrança. A aprovação não autoriza migrações, deploy, bootstrap ou limpeza remotos.
+
+**Fatia de retomada:** login Google autorizado, consulta de perfil, lista e cadastro mínimo de paciente fictício. Ordem: integrar cliente Auth nativo e callbacks; completar admissão/consulta/RLS auditadas reais e proteção de campos; ligar tela e cadastro; revisão S-02 do diff integrado; matriz positiva/negativa e roteiro manual. As outras jornadas continuam no núcleo inicial, não são declaradas entregues.
+
+**Riscos desta troca:** cookies e callback cruzam navegador/Netlify/Auth; JWT e comandos cruzam Netlify/Data API/banco. Atacante remoto controla corpo, cookies, URL e cabeçalhos, não configura o provider nem administra o banco. Prioridade alta: roubo/fixação de sessão e replay após revogação (impacto alto, probabilidade média); mitigação planejada: PKCE, cookies HttpOnly, origem, callback fixo e checagem atual no banco. Prioridade alta: autopromoção e acesso a outro paciente (impacto alto, probabilidade média); controles existentes em contratos não substituem as provas integradas de concessão/RLS. Corridas entre refresh/logout devem ser testadas no runtime, sem atribuir ao SDK garantias não documentadas. Nenhuma mitigação planejada nesta seção é declarada implantada.
+
+Referências oficiais: [Google OAuth](https://supabase.com/docs/guides/auth/social-sign-in/auth-google), [clientes SSR](https://supabase.com/docs/guides/auth/server-side/creating-a-client), [cookies e PKCE](https://supabase.com/docs/guides/auth/server-side/advanced-guide), [sessões e limites da revogação JWT](https://supabase.com/docs/guides/auth/sessions), [RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [planos e quotas](https://supabase.com/pricing). Recursos consultados não comprovam configuração nem cobertura do projeto.
+
 ### D-01 — Topologia e organização pequenas, seguindo Atendimento
 
 `Navegador → /api first-party Netlify → Edge Functions Supabase → RPCs auditadas/PostgreSQL`. Supabase Auth identifica; PostgreSQL mantém a autoridade local. Google e OpenRouter só são chamados por adapters no servidor. Não há backend próprio adicional, multitenancy, fila externa ou framework copiado do HED.
@@ -38,7 +56,7 @@ Concessão de equipe e edição de cadastro/perfil/vínculo são operações adm
 
 Alternativas rejeitadas: roles em `user_metadata`, administração pelo domínio e acúmulo de perfis. Perfil, relação familiar, vínculo de acesso e agenda permanecem controles distintos.
 
-### D-03 — Entrada Google com prova do login atual
+### D-03 — Histórico: entrada Google própria — substituída por D-14
 
 Usar ID token Google obtido por ação explícita de login, validado no servidor, e trocá-lo por sessão Supabase com `signInWithIdToken`. A sessão first-party segue o Atendimento; o mecanismo de admissão Google é uma adaptação deliberada para provar `hd`, subject e método do login atual, sem presumir que uma identidade Google apenas vinculada no passado prova o login atual.
 
@@ -46,7 +64,7 @@ O servidor emite desafio de uso único e nonce aleatório; entrega só seu hash 
 
 O domínio e OAuth Client ID são configurações obrigatórias, não valores deduzidos do site. A documentação descreve a [troca do ID token e convenção de nonce do Supabase](https://supabase.com/docs/guides/auth/social-login/auth-google); o Google exige verificar o [claim `hd`, não apenas o parâmetro da interface](https://developers.google.com/identity/openid-connect/openid-connect). Esta escolha não concede escopos Drive/Calendar; as conexões dessas APIs serão separadas. Alternativa PKCE é válida, mas exigiria obter e validar prova equivalente do método/domínio atual, não apenas ler `identities` ou metadados.
 
-### D-04 — Sessão first-party e revogação local imediata
+### D-04 — Histórico: mecanismo próprio de sessão — substituído por D-14
 
 - Access token Supabase apenas em memória do cliente; refresh token cifrado autenticado no servidor, com chave obtida do Vault e acesso restrito. O navegador recebe apenas identificador opaco de sessão em cookie selado autenticado, HttpOnly, Secure em HTTPS, SameSite=Lax, sem Domain e com escopo de caminho de sessão. Nenhum token de renovação em cookies, localStorage, URLs ou logs. O proxy preserva cookies e não permite CORS arbitrário.
 - Entradas e operações com cookie exigem origem permitida e proteção CSRF por desafio/token; não aceitar `Origin` arbitrário ou ausência sem fluxo explicitamente autenticado. Retornos são caminhos locais permitidos, não URLs livres.

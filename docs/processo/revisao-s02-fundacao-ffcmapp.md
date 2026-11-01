@@ -1,5 +1,9 @@
 # Revisão no Sol — S-02: preparação da fundação
 
+## Retomada vigente — 01/11/2026
+
+O solicitante aprovou permanentemente Supabase nativo sem custo adicional no plano vigente, conforme D-14 da mudança. O histórico abaixo é preservado, não uma lista cumulativa de bloqueadores: desafio/JWKS próprios, cifra de refresh, prova por geração e autoridade adicional de sessão foram dispensados. Permanecem concessões, RLS, revogação, auditoria, cifra de campos e atestado de escrita aplicáveis. A revisão do desenho nativo e as provas reais continuam pendentes; S-02 não está aprovada. O início Google/PKCE e o adapter de cookies do SDK têm testes locais, ainda sem callback/admissão integrada ou endpoint publicado.
+
 **Estado:** revisão independente realizada em 27/10/2026; não aprovada. Não libera integração de
 operações protegidas. **Base:** `e76bec57ef18728bc916a18eb2e5b3204c5617eb`,
 mais alterações locais rastreadas e arquivos novos, ainda sem commit. Mudança:

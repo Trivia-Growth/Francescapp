@@ -6,6 +6,7 @@ O FFCMApp precisa de uma fundação de backend verificável antes das tabelas e 
 
 ## What Changes
 
+- Revisão aprovada em 01/11/2026: adotar permanentemente os recursos nativos Supabase sem custo adicional no plano vigente. Google OAuth/PKCE, validação de identidade e renovação usam Auth/SDK oficiais; não promover desafio Google, JWKS, cifra de refresh, prova por geração ou autoridade criptográfica de sessão próprios. O desenho vigente está em D-14; os controles de concessão, perfil, vínculo, revogação, auditoria e proteção de campos permanecem. Preservar os experimentos sem tratá-los como dependências da entrega. Recursos nativos continuam sujeitos a quotas; esta decisão não autoriza contratação, deploy, migração ou configuração remota.
 - Especificar a primeira fatia executável do backend: identidade local vinculada ao Supabase Auth, perfil único, concessões prévias da equipe, sessão first-party, revogação, bootstrap administrativo restrito e auditoria.
 - Incluir cadastro mínimo de paciente e vínculos por paciente para provar a autorização sobre dados persistidos. Confirmado nesta rodada: nome obrigatório; nome de preferência, nascimento e contatos opcionais; familiares/responsáveis vinculados separadamente, sem CPF obrigatório.
 - Desenhar migrações versionadas, schemas, chaves/constraints, permissões mínimas, RLS e testes positivos/negativos, seguindo os padrões do Atendimento sem copiar o CRM.
