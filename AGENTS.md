@@ -56,9 +56,20 @@
 - Subagentes autorizados recebem somente tarefa, contratos, decisões, arquivos e evidência pertinentes; não replicar toda a investigação em cada frente. Evitar ciclos de agentes revisando revisões e revisores duplicados sem objetivo distinto. Dúvida material ou falha crítica volta à coordenação; checkpoints existentes continuam válidos, sem troca silenciosa de modelo.
 - Executar testes afetados durante a implementação e gates integrados no fechamento pertinente, sem repetir suítes inteiras por edições sem impacto. Não reduzir testes de permissão, segurança ou integridade para economizar tokens. Apontar gargalos observados antes de adicionar ferramentas, automações ou camadas de orquestração.
 
+## Fluxo git e ativação
+
+- `main` deve permanecer verde e recebe alterações somente por PR aprovado pelo solicitante, com CI verde.
+- Um PR corresponde a uma fatia vertical com valor testável pelo solicitante, mesmo que seja grande. Infraestrutura sem resultado testável só entra quando solicitada.
+- Use branches `codex/<fatia>` ou `claude/<fatia>` e abra o PR como draft no início da fatia. Faça push ao fim de cada dia de trabalho.
+- Dentro do PR, faça um commit por tarefa concluída e não deixe passar mais de um dia sem commit.
+- Se uma fatia passar de aproximadamente dez dias, pare e proponha ao solicitante dividi-la em duas fatias, ambas testáveis.
+- A descrição do PR inclui **Como testar**: ambiente ou URL, usuário fictício, passos numerados, resultado esperado e ao menos um caso negativo de permissão. Se ainda não for testável, registre a pendência com clareza.
+- Após o teste do solicitante, faça merge por squash e apague a branch, somente com a autorização exigida abaixo.
+- Estão autorizados push de branch e abertura ou atualização de PR draft. Merge, force-push, deploy, migração remota e alteração de secrets exigem autorização explícita prévia.
+
 ## Autonomia e operações externas
 
 - Conclua o trabalho aprovado e corrija problemas encontrados na validação, preservando mudanças do usuário.
-- Não faça deploy, push, merge, provisionamento ou migrações remotas sem autorização explícita para essas operações.
+- Não faça deploy, merge, provisionamento ou migrações remotas sem autorização explícita para essas operações; push segue o fluxo git acima.
 - Carregue referências sob demanda e evite duplicação de documentação e verificações sem ganho.
 - Dados reais só entram após validar permissões, integração de arquivos, políticas de dados e recuperação aplicáveis.
