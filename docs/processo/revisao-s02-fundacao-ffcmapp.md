@@ -4,6 +4,8 @@
 
 O solicitante aprovou permanentemente Supabase nativo sem custo adicional no plano vigente, conforme D-14 da mudança. O histórico abaixo é preservado, não uma lista cumulativa de bloqueadores: desafio/JWKS próprios, cifra de refresh, prova por geração e autoridade adicional de sessão foram dispensados. Permanecem concessões, RLS, revogação, auditoria, cifra de campos e atestado de escrita aplicáveis. A revisão do desenho nativo e as provas reais continuam pendentes; S-02 não está aprovada. O início Google/PKCE e o adapter de cookies do SDK têm testes locais, ainda sem callback/admissão integrada ou endpoint publicado.
 
+Callback nativo e migração de admissão/consulta acrescentados em 01/11/2026: 12 testes locais do callback e prova SQL descartável passaram, sem rede real/Docker. Revisão independente delimitada conferiu owner/RLS/grants, identidade/sessão Auth, concessão/perfil e rollback da admissão se a auditoria não gravar. Correções verificadas: caso independente de concessão revogada e helper antigo do cadastro exigindo sessão Auth vigente. Evidência detalhada na tarefa existente, sem encerrar S-02. Antes de ativar: vincular pré-concessão pendente, comprovar Google como único OAuth habilitado e `identity_data.custom_claims.hd` no Auth implantado, aplicar cadeia revisada somente com autorização, e comprovar logout/concorrência/integração real. Os tokens Google são descartados neste login; acesso Calendar/Drive não está ativado por ele.
+
 **Estado:** revisão independente realizada em 27/10/2026; não aprovada. Não libera integração de
 operações protegidas. **Base:** `e76bec57ef18728bc916a18eb2e5b3204c5617eb`,
 mais alterações locais rastreadas e arquivos novos, ainda sem commit. Mudança:
