@@ -29,6 +29,9 @@
     "test:web": "vitest run web",
     "test:proxy": "vitest run netlify/functions/_shared",
     "validar:configuracao": "node scripts/validar-configuracao-local.mjs",
+    "prepare": "lefthook install",
+    "verificar:rapido": "lefthook run pre-push --force",
+    "verificar:ativacao": "pnpm run verificar:fundacao",
     "lint": "biome check packages/contracts packages/cadastro supabase/functions/_shared netlify/functions/_shared web scripts/validar-configuracao-local.mjs",
     "verificar:fundacao": "pnpm run lint && pnpm run typecheck && pnpm run typecheck:deno && pnpm run test:contratos && pnpm run test:cadastro && pnpm run test:funcoes && pnpm run test:proxy && pnpm run test:web && pnpm run build:web && pnpm run validar:configuracao"
   },
@@ -38,6 +41,7 @@
     "@types/node": "22.15.34",
     "@types/pg": "8.15.5",
     "jsdom": "26.1.0",
+    "lefthook": "2.2.2",
     "typescript": "5.9.3",
     "vite": "8.3.4",
     "vitest": "4.1.11"
