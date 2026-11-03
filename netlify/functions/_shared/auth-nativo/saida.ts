@@ -28,8 +28,28 @@ export async function encerrarSessaoNativa(request: Request, fonte: FonteDeConfi
   try {
     const contexto = criarContextoAuthNativo(request, fonte);
     if (request.headers.get('origin') !== contexto.origem) return erro('entrada_invalida', 422);
-    const texto = await request.text();
-    if (texto.length > 64 || texto.trim() !== '{}') return erro('entrada_invalida', 422);
+    const leitor = request.body?.getReader();
+    let texto = '';
+    let bytes = 0;
+    if (leitor) {
+      const decodificador = new TextDecoder();
+      try {
+        while (true) {
+          const parte = await leitor.read();
+          if (parte.done) break;
+          bytes += parte.value.byteLength;
+          if (bytes > 64) {
+            void leitor.cancel().catch(() => {});
+            return erro('entrada_invalida', 422);
+          }
+          texto += decodificador.decode(parte.value, { stream: true });
+        }
+        texto += decodificador.decode();
+      } finally {
+        leitor.releaseLock();
+      }
+    }
+    if (texto.trim() !== '{}') return erro('entrada_invalida', 422);
     const identidade = await contexto.cliente.auth.getUser();
     if (identidade.error)
       return credencialAuthRejeitada(identidade.error)

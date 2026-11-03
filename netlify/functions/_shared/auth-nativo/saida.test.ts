@@ -93,6 +93,29 @@ describe('saída nativa com SDK real e transporte fictício', () => {
       expect(rede).toHaveBeenCalledTimes(1);
     },
   );
+  it('interrompe corpo acima de 64 bytes sem consultar fornecedor', async () => {
+    const rede = vi.fn();
+    vi.stubGlobal('fetch', rede);
+    let cancelado = false;
+    const corpo = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(' '.repeat(65)));
+      },
+      cancel() {
+        cancelado = true;
+      },
+    });
+    const request = new Request(`${origem}/api/sessao/sair`, {
+      method: 'POST',
+      headers: { cookie, origin: origem, 'x-sessao': sessao, 'content-type': 'application/json' },
+      body: corpo,
+      duplex: 'half',
+    } as RequestInit & { duplex: 'half' });
+    const resposta = await encerrarSessaoNativa(request, fonte);
+    expect(resposta.status).toBe(422);
+    expect(cancelado).toBe(true);
+    expect(rede).not.toHaveBeenCalled();
+  });
   it('retorna 503 quando conexão Auth falha', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubGlobal(
