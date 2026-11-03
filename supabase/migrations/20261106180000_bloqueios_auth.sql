@@ -23,6 +23,8 @@ begin
 end $$;
 
 create role ffcmapp_bloqueios_auth_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
+-- SET temporário do executor; a concessão automática de ADMIN do criador é preservada.
+grant ffcmapp_bloqueios_auth_owner to current_user with inherit true, set true;
 create schema bloqueios_auth authorization ffcmapp_bloqueios_auth_owner;
 revoke all on schema bloqueios_auth from public;
 grant usage on schema auth to ffcmapp_bloqueios_auth_owner;
@@ -44,3 +46,4 @@ begin
 end $$;
 alter function bloqueios_auth.travar(uuid, uuid) owner to ffcmapp_bloqueios_auth_owner;
 revoke all on function bloqueios_auth.travar(uuid, uuid) from public;
+revoke ffcmapp_bloqueios_auth_owner from current_user;
