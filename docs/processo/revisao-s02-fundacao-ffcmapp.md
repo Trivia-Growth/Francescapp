@@ -1770,3 +1770,10 @@ revisores independentes conferiram padrões e aderência a D-14, sem novos
 achados concretos nesse recorte. Os testes de identidade usam fixtures; Auth,
 gateway, acesso direto e revogação no projeto real continuam sem prova.
 Esta revisão parcial não aprova S-02 nem libera as rotas protegidas.
+
+Na consulta de configuração Auth de 03/11/2026, `sessions_inactivity_timeout`
+e `sessions_timebox` retornaram zero no projeto de teste. A documentação do
+Supabase descreve esses limites como configurados com valores positivos; não
+foi observado limite positivo nesta consulta. Se esses ajustes forem alterados,
+reavaliar a verificação de sessão, pois uma linha Auth pode persistir após o
+prazo configurado. Isso não comprova autenticação, autorização ou revogação reais.

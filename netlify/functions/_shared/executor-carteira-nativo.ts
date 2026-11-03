@@ -4,7 +4,8 @@ import type { prepararCarteiraNativa } from './carteira-nativa.ts';
 /**
  * Contrato futuro: api.listar_pacientes(p_entrada jsonb), com identidade do
  * JWT autenticado, autorização e auditoria transacionais e resposta conforme
- * processarCarteiraExperimental. A RPC ainda não existe nem possui grant.
+ * processarCarteiraExperimental. O wrapper existe em migration local, mas sua
+ * implantação, seus privilégios e sua integração no Supabase não foram comprovados.
  * Não conectar antes de resolver S-02 e concorrência Auth, comprovar RLS e
  * revogação e revisar o contrato e os privilégios do wrapper no banco.
  * O cliente deve ser o mesmo contexto autenticado da requisição; nunca service_role.
