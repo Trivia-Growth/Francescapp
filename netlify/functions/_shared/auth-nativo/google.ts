@@ -58,6 +58,15 @@ export async function iniciarGoogleNativo(request: Request, fonte: FonteDeConfig
     Array.from(campos.keys()).some((nome) => nome !== 'fluxo')
   )
     return erro('entrada_invalida', 422);
+  if (request.headers.get('origin') !== url.origin) return erro('sem_permissao', 403);
+  const indisponivel = () => {
+    const request_id = crypto.randomUUID();
+    console.error({ evento: 'auth_google_indisponivel', request_id });
+    return new Response(null, {
+      status: 303,
+      headers: { ...headers, Location: '/?acesso=indisponivel#', 'X-Request-Id': request_id },
+    });
+  };
   try {
     const contexto = criarContextoAuthNativo(request, fonte, fluxo);
     if (request.headers.get('origin') !== contexto.origem) return erro('sem_permissao', 403);
@@ -68,9 +77,9 @@ export async function iniciarGoogleNativo(request: Request, fonte: FonteDeConfig
         skipBrowserRedirect: true,
       },
     });
-    if (error || !data.url) return erro('servico_indisponivel', 503);
+    if (error || !data.url) return indisponivel();
     return contexto.responder(new Response(null, { status: 303, headers: { Location: data.url } }));
   } catch {
-    return erro('servico_indisponivel', 503);
+    return indisponivel();
   }
 }

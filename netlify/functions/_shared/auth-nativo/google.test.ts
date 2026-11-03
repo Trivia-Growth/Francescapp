@@ -138,10 +138,17 @@ describe('Google nativo: SDK real, sem chamadas a fornecedor', () => {
       expect(resposta.status).toBe(403);
       expect(resposta.headers.getSetCookie()).toEqual([]);
       expect(resposta.headers.get('location')).toBeNull();
+      const semConfiguracao = await iniciarGoogleNativo(pedido(origin), {
+        ...fonte,
+        FFCM_SUPABASE_ANON_KEY: '',
+      });
+      expect(semConfiguracao.status).toBe(403);
+      expect(semConfiguracao.headers.get('location')).toBeNull();
     }
   });
 
   it('nega retorno arbitrário, método errado e configuração ausente sem expor valores', async () => {
+    const registro = vi.spyOn(console, 'error').mockImplementation(() => {});
     for (const request of [
       new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/google`),
       new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/google?next=https://malicioso.example`, {
@@ -150,10 +157,39 @@ describe('Google nativo: SDK real, sem chamadas a fornecedor', () => {
     ])
       expect((await iniciarGoogleNativo(request, fonte)).status).toBe(422);
     const resposta = await iniciarGoogleNativo(pedido(), { ...fonte, FFCM_SUPABASE_ANON_KEY: '' });
-    expect(resposta.status).toBe(503);
+    expect(resposta.status).toBe(303);
+    expect(registro).toHaveBeenCalledExactlyOnceWith({
+      evento: 'auth_google_indisponivel',
+      request_id: resposta.headers.get('x-request-id'),
+    });
+    expect(resposta.headers.get('x-request-id')).toMatch(/^[0-9a-f-]{36}$/);
+    registro.mockRestore();
+    expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel#');
+    expect(resposta.headers.getSetCookie()).toEqual([]);
+    expect(resposta.headers.get('cache-control')).toBe('private, no-store');
     const corpo = await resposta.text();
     expect(corpo).not.toContain('FFCM_');
     expect(corpo).not.toContain(fonte.FFCM_SUPABASE_URL);
+  });
+
+  it('registra indisponibilidade do SDK sem dados sensíveis', async () => {
+    const registro = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const digest = vi
+      .spyOn(crypto.subtle, 'digest')
+      .mockRejectedValue(new Error('segredo-ficticio'));
+    const request = pedido();
+    request.headers.set('cookie', 'sessao=segredo-ficticio');
+    const resposta = await iniciarGoogleNativo(request, fonte);
+    expect(resposta.status).toBe(303);
+    expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel#');
+    expect(resposta.headers.getSetCookie()).toEqual([]);
+    expect(registro).toHaveBeenCalledExactlyOnceWith({
+      evento: 'auth_google_indisponivel',
+      request_id: resposta.headers.get('x-request-id'),
+    });
+    expect(resposta.headers.get('x-request-id')).toMatch(/^[0-9a-f-]{36}$/);
+    digest.mockRestore();
+    registro.mockRestore();
   });
 
   it('recusa origem de implantação divergente e HTTP fora do loopback', () => {
