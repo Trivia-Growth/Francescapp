@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClienteFFCM, exigeNovoAcesso, FalhaApi, mensagemFalha, resultadoIncerto } from './api.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
@@ -71,6 +71,17 @@ it('falha fechada quando consulta da barreira falha ou devolve dados inválidos'
   }
 });
 
+beforeEach(() => {
+  const itens = new Map<string, string>([
+    ['modo-acesso', 'tecnica'],
+    ['sessao-tecnica', '20000000-0000-4000-8000-000000000001'],
+  ]);
+  vi.stubGlobal('sessionStorage', {
+    getItem: (chave: string) => itens.get(chave) ?? null,
+    setItem: (chave: string, valor: string) => itens.set(chave, valor),
+    removeItem: (chave: string) => itens.delete(chave),
+  });
+});
 afterEach(() => vi.unstubAllGlobals());
 
 it('restaura sessão exclusivamente por cookie same-origin sem credenciais no JavaScript', async () => {

@@ -15,6 +15,33 @@ function elemento<T extends HTMLElement>(id: string): T {
 
 const api = new ClienteFFCM();
 const urlInicial = new URL(window.location.href);
+let retornoInvalido = false;
+const retornosFluxo = urlInicial.searchParams.getAll('fluxo');
+if (retornosFluxo.length) {
+  let estadoConfirmado = false;
+  try {
+    const esperado = sessionStorage.getItem('fluxo-google');
+    retornoInvalido =
+      retornosFluxo.length !== 1 ||
+      !esperado ||
+      !/^[A-Za-z0-9_-]{22}$/.test(esperado) ||
+      retornosFluxo[0] !== esperado;
+    const modo = retornoInvalido ? 'bloqueada' : 'google';
+    sessionStorage.setItem('modo-acesso', modo);
+    estadoConfirmado = sessionStorage.getItem('modo-acesso') === modo;
+    if (!estadoConfirmado) retornoInvalido = true;
+  } catch {
+    retornoInvalido = true;
+  }
+  if (estadoConfirmado) {
+    urlInicial.searchParams.delete('fluxo');
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${urlInicial.pathname}${urlInicial.search}${urlInicial.hash}`,
+    );
+  }
+}
 const falhaGoogle =
   urlInicial.pathname === '/' && urlInicial.searchParams.get('acesso') === 'indisponivel';
 if (falhaGoogle) {
@@ -30,6 +57,27 @@ const patientsView = elemento('patients-view');
 const logoutView = elemento('logout-view');
 const revalidacaoStatus = elemento('revalidacao-status');
 const loginForm = elemento<HTMLFormElement>('login-form');
+const googleForm = elemento<HTMLFormElement>('google-login-form');
+googleForm.addEventListener('submit', (evento) => {
+  try {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    const fluxo = btoa(String.fromCharCode(...bytes))
+      .replaceAll('+', '-')
+      .replaceAll('/', '_')
+      .replaceAll('=', '');
+    sessionStorage.setItem('modo-acesso', 'bloqueada');
+    sessionStorage.setItem('fluxo-google', fluxo);
+    if (sessionStorage.getItem('fluxo-google') !== fluxo) throw new Error();
+    elemento<HTMLInputElement>('google-fluxo').value = fluxo;
+  } catch {
+    evento.preventDefault();
+    aviso(
+      'login-feedback',
+      'Não foi possível iniciar a entrada com Google. Tente novamente.',
+      'error',
+    );
+  }
+});
 const loginFields = elemento<HTMLFieldSetElement>('login-fields');
 const loginButton = elemento<HTMLButtonElement>('login-submit');
 const emailInput = elemento<HTMLInputElement>('email');
@@ -738,6 +786,10 @@ window.addEventListener('pagehide', () => {
 
 async function restaurarSessao(): Promise<void> {
   if (sessao || loginOcupado || logoutOcupado || !logoutView.hidden) return;
+  if (retornoInvalido) {
+    mostrarAcesso('Não foi possível entrar com Google. Tente novamente.', 'error');
+    return;
+  }
   const versao = revisao;
   loginOcupado = true;
   loginFields.disabled = true;

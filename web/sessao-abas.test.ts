@@ -23,9 +23,24 @@ it('outra aba com login recusado não impede saída da sessão original', async 
     }
     throw new Error('Rota inesperada na fixture.');
   });
+  const criarArmazenamento = () => {
+    const itens = new Map<string, string>([
+      ['modo-acesso', 'tecnica'],
+      ['sessao-tecnica', '20000000-0000-4000-8000-000000000001'],
+    ]);
+    return {
+      getItem: (chave: string) => itens.get(chave) ?? null,
+      setItem: (chave: string, valor: string) => itens.set(chave, valor),
+      removeItem: (chave: string) => itens.delete(chave),
+    };
+  };
+  const armazenamentoPrimeira = criarArmazenamento();
+  vi.stubGlobal('sessionStorage', armazenamentoPrimeira);
   const primeira = new ClienteFFCM();
   const segunda = new ClienteFFCM();
   await primeira.consultarSessao();
+  vi.stubGlobal('sessionStorage', criarArmazenamento());
   await expect(segunda.entrar('outra@example.test', 'senha-ficticia')).rejects.toBeDefined();
+  vi.stubGlobal('sessionStorage', armazenamentoPrimeira);
   await expect(primeira.sair()).resolves.toMatchObject({ encerrada_localmente: true });
 });

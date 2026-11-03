@@ -9,7 +9,11 @@ const fonte = {
   FFCM_APP_ORIGIN: 'https://app.example.test',
 };
 const pedido = (origin = fonte.FFCM_APP_ORIGIN) =>
-  new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/google`, { method: 'POST', headers: { origin } });
+  new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/google`, {
+    method: 'POST',
+    headers: { origin, 'content-type': 'application/x-www-form-urlencoded' },
+    body: 'fluxo=abcdefghijklmnopqrstuv',
+  });
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -26,7 +30,7 @@ describe('Google nativo: SDK real, sem chamadas a fornecedor', () => {
     expect(destino.pathname).toBe('/auth/v1/authorize');
     expect(destino.searchParams.get('provider')).toBe('google');
     expect(destino.searchParams.get('redirect_to')).toBe(
-      `${fonte.FFCM_APP_ORIGIN}/api/auth/callback`,
+      `${fonte.FFCM_APP_ORIGIN}/api/auth/callback?fluxo=abcdefghijklmnopqrstuv`,
     );
     expect(destino.searchParams.get('code_challenge_method')).toBe('s256');
     expect(destino.searchParams.get('code_challenge')).toMatch(/^[A-Za-z0-9_-]{43}$/);
@@ -62,6 +66,69 @@ describe('Google nativo: SDK real, sem chamadas a fornecedor', () => {
     expect(primeira.headers.getSetCookie().every((valor) => valor.includes('code-verifier='))).toBe(
       true,
     );
+  });
+
+  it('separa cookies por tentativa e recusa formulários ambíguos', async () => {
+    const primeiro = await iniciarGoogleNativo(pedido(), fonte);
+    const segundoPedido = new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/google`, {
+      method: 'POST',
+      headers: {
+        origin: fonte.FFCM_APP_ORIGIN,
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: 'fluxo=zyxwvutsrqponmlkjihgfe',
+    });
+    const segundo = await iniciarGoogleNativo(segundoPedido, fonte);
+    expect(primeiro.headers.getSetCookie()[0]).toContain('ffcm-auth-abcdefghijklmnopqrstuv');
+    expect(segundo.headers.getSetCookie()[0]).toContain('ffcm-auth-zyxwvutsrqponmlkjihgfe');
+    for (const body of [
+      'fluxo=inválido',
+      'fluxo=abcdefghijklmnopqrstuv&fluxo=zyxwvutsrqponmlkjihgfe',
+      'fluxo=abcdefghijklmnopqrstuv&next=externo',
+    ]) {
+      const invalido = new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/google`, {
+        method: 'POST',
+        headers: {
+          origin: fonte.FFCM_APP_ORIGIN,
+          'content-type': 'application/x-www-form-urlencoded',
+        },
+        body,
+      });
+      expect((await iniciarGoogleNativo(invalido, fonte)).status).toBe(422);
+    }
+  });
+
+  it('recusa corpo excessivo durante leitura e falha de stream sem iniciar OAuth', async () => {
+    let cancelado = false;
+    const excessivo = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new Uint8Array(129));
+      },
+      cancel() {
+        cancelado = true;
+      },
+    });
+    const quebrado = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.error(new Error('detalhe privado'));
+      },
+    });
+    for (const body of [excessivo, quebrado]) {
+      const request = new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/google`, {
+        method: 'POST',
+        headers: {
+          origin: fonte.FFCM_APP_ORIGIN,
+          'content-type': 'application/x-www-form-urlencoded',
+        },
+        body,
+        duplex: 'half',
+      } as RequestInit);
+      const resposta = await iniciarGoogleNativo(request, fonte);
+      expect(resposta.status).toBe(422);
+      expect(await resposta.text()).not.toContain('detalhe privado');
+      expect(resposta.headers.getSetCookie()).toEqual([]);
+    }
+    expect(cancelado).toBe(true);
   });
 
   it('nega origem externa/ausente e não escreve cookies nem inicia login', async () => {

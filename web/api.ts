@@ -163,6 +163,24 @@ export class ClienteFFCM {
       // Compara o alvo com o cookie atual no servidor; nunca concede autorização.
       headers.set('x-sessao', sessionId);
     }
+    if (rota !== 'entrarTecnico') {
+      let fluxo: string | null;
+      let modo: string | null;
+      try {
+        modo = sessionStorage.getItem('modo-acesso');
+        fluxo = sessionStorage.getItem('fluxo-google');
+      } catch {
+        throw new FalhaApi('nao_autenticado', 401);
+      }
+      const google = modo === 'google' || (opcoes.encerramento && modo === 'saindo-google');
+      const tecnica = modo === 'tecnica' || (opcoes.encerramento && modo === 'saindo-tecnica');
+      if (!google && !tecnica) throw new FalhaApi('nao_autenticado', 401);
+      if (google) {
+        if (!fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo))
+          throw new FalhaApi('nao_autenticado', 401);
+        headers.set('x-fluxo', fluxo);
+      } else if (fluxo) throw new FalhaApi('nao_autenticado', 401);
+    }
     if (opcoes.chave) headers.set('x-chave-idempotencia', opcoes.chave);
     let corpo: string | undefined;
     if (contrato.metodo === 'GET') {
@@ -231,9 +249,22 @@ export class ClienteFFCM {
 
   async entrar(email: string, senha: string): Promise<Dados<'sessaoAtual'>> {
     this.limpar();
-    const entrada = await this.#enviar('entrarTecnico', { email, senha });
-    // Consulta independente confirma concessão e perfil atuais; não confia só no login.
-    return this.#consultarSessao(entrada);
+    try {
+      sessionStorage.setItem('modo-acesso', 'bloqueada');
+      sessionStorage.removeItem('fluxo-google');
+      sessionStorage.removeItem('sessao-tecnica');
+      const entrada = await this.#enviar('entrarTecnico', { email, senha });
+      sessionStorage.setItem('modo-acesso', 'tecnica');
+      // Consulta independente confirma concessão e perfil atuais; não confia só no login.
+      return await this.#consultarSessao(entrada);
+    } catch (erro) {
+      try {
+        sessionStorage.setItem('modo-acesso', 'bloqueada');
+      } catch {
+        /* falha fechada */
+      }
+      throw erro;
+    }
   }
 
   async consultarSessao(): Promise<Dados<'sessaoAtual'>> {
@@ -244,6 +275,15 @@ export class ClienteFFCM {
     if (this.#saindo) throw new FalhaApi('nao_autenticado', 401);
     const revisao = this.#revisao;
     const anterior = this.#sessionId;
+    let modo: string | null;
+    let esperada: string | null;
+    try {
+      modo = sessionStorage.getItem('modo-acesso');
+      esperada = sessionStorage.getItem('sessao-tecnica');
+    } catch {
+      throw new FalhaApi('nao_autenticado', 401);
+    }
+    if (modo === 'tecnica' && !entrada && !esperada) throw new FalhaApi('nao_autenticado', 401);
     let atual: Dados<'sessaoAtual'>;
     try {
       atual = await this.#enviar('sessaoAtual');
@@ -260,12 +300,22 @@ export class ClienteFFCM {
     if (revisao !== this.#revisao) throw new FalhaApi('nao_autenticado', 401);
     if (
       !atual.usuario.ativo ||
+      (modo === 'tecnica' && !entrada && atual.session_id !== esperada) ||
       (entrada &&
         (atual.session_id !== entrada.session_id || atual.usuario.id !== entrada.usuario.id)) ||
       (anterior && (atual.session_id !== anterior || atual.usuario.id !== this.#usuarioId))
     ) {
       this.limpar();
       throw new FalhaApi('nao_autenticado', 401);
+    }
+    if (modo === 'tecnica' && entrada) {
+      try {
+        sessionStorage.setItem('sessao-tecnica', atual.session_id);
+        if (sessionStorage.getItem('sessao-tecnica') !== atual.session_id) throw new Error();
+      } catch {
+        this.limpar();
+        throw new FalhaApi('nao_autenticado', 401);
+      }
     }
     this.#sessionId = atual.session_id;
     this.#usuarioId = atual.usuario.id;
@@ -314,10 +364,25 @@ export class ClienteFFCM {
 
   async sair(): Promise<Dados<'sairSessao'>> {
     if (!this.#sessionId) throw new FalhaApi('nao_autenticado', 401);
+    try {
+      const modo = sessionStorage.getItem('modo-acesso');
+      if (modo === 'google' || modo === 'tecnica')
+        sessionStorage.setItem('modo-acesso', `saindo-${modo}`);
+      else if (modo !== 'saindo-google' && modo !== 'saindo-tecnica') throw new Error();
+    } catch {
+      throw new FalhaApi('nao_autenticado', 401);
+    }
     this.#saindo = true;
     this.#revisao += 1;
     // Rede incerta preserva somente o alvo para nova tentativa, sem liberar consultas.
     const resultado = await this.#enviar('sairSessao', {}, { protegido: true, encerramento: true });
+    try {
+      sessionStorage.setItem('modo-acesso', 'bloqueada');
+      sessionStorage.removeItem('fluxo-google');
+      sessionStorage.removeItem('sessao-tecnica');
+    } catch {
+      throw new FalhaApi('nao_autenticado', 401);
+    }
     this.limpar();
     return resultado;
   }

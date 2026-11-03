@@ -34,9 +34,19 @@ export function carregarConfiguracaoAuthNativo(fonte: FonteDeConfiguracao) {
   return Object.freeze({ ...cadastro, origem: origem.origin, https: origem.protocol === 'https:' });
 }
 
+export function fluxoValido(fluxo: string | null): fluxo is string {
+  return fluxo !== null && /^[A-Za-z0-9_-]{22}$/.test(fluxo);
+}
+
 /** Um contexto por requisição. Auth/refresh são do SDK; autorização continua no banco.
  * O navegador usa somente a API first-party, nunca este cliente nem seus tokens. */
-export function criarContextoAuthNativo(request: Request, fonte: FonteDeConfiguracao) {
+export function criarContextoAuthNativo(
+  request: Request,
+  fonte: FonteDeConfiguracao,
+  fluxoCallback?: string,
+) {
+  const fluxo = fluxoCallback ?? request.headers.get('x-fluxo');
+  if (fluxo !== null && !fluxoValido(fluxo)) throw new ErroConfiguracaoIndisponivel();
   const config = carregarConfiguracaoAuthNativo(fonte);
   if (new URL(request.url).origin !== config.origem) throw new ErroConfiguracaoIndisponivel();
   const cookies = new Map(
@@ -46,7 +56,13 @@ export function criarContextoAuthNativo(request: Request, fonte: FonteDeConfigur
   const cabecalhosSdk = new Headers();
   const cliente = createServerClient(config.supabaseUrl.href, config.chaveAnonSupabase, {
     auth: { autoRefreshToken: false, detectSessionInUrl: false },
-    cookieOptions: { httpOnly: true, secure: config.https, sameSite: 'lax', path: '/' },
+    cookieOptions: {
+      ...(fluxo ? { name: `ffcm-auth-${fluxo}` } : {}),
+      httpOnly: true,
+      secure: config.https,
+      sameSite: 'lax',
+      path: '/',
+    },
     cookies: {
       getAll: () => Array.from(cookies, ([name, value]) => ({ name, value })),
       setAll(novos, headers) {

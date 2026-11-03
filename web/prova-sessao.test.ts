@@ -1,5 +1,17 @@
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ClienteFFCM } from './api.js';
+
+beforeEach(() => {
+  const itens = new Map<string, string>([
+    ['modo-acesso', 'tecnica'],
+    ['sessao-tecnica', '20000000-0000-4000-8000-000000000001'],
+  ]);
+  vi.stubGlobal('sessionStorage', {
+    getItem: (chave: string) => itens.get(chave) ?? null,
+    setItem: (chave: string, valor: string) => itens.set(chave, valor),
+    removeItem: (chave: string) => itens.delete(chave),
+  });
+});
 
 const id = '10000000-0000-4000-8000-000000000001';
 const sessao = {

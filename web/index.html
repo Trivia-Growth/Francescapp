@@ -32,6 +32,7 @@
           <h2>Entre com sua conta autorizada</h2>
           <p>Use sua conta Google para acessar o acompanhamento.</p>
           <form id="google-login-form" action="/api/auth/google" method="post">
+            <input type="hidden" name="fluxo" id="google-fluxo">
             <button class="button-primary full-width" type="submit">Entrar com Google</button>
           </form>
           <p class="small-text">Entrar não concede acesso automaticamente. A conexão com a agenda será solicitada separadamente.</p>

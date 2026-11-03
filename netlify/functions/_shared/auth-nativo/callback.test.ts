@@ -25,7 +25,11 @@ async function callback() {
   const inicio = await iniciarGoogleNativo(
     new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/google`, {
       method: 'POST',
-      headers: { origin: fonte.FFCM_APP_ORIGIN },
+      headers: {
+        origin: fonte.FFCM_APP_ORIGIN,
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: 'fluxo=abcdefghijklmnopqrstuv',
     }),
     fonte,
   );
@@ -98,7 +102,7 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
     const rede = fornecedor();
     const resposta = await concluirGoogleNativo(pedido, fonte);
     expect(resposta.status).toBe(303);
-    expect(resposta.headers.get('location')).toBe('/#');
+    expect(resposta.headers.get('location')).toBe('/?fluxo=abcdefghijklmnopqrstuv#');
     expect(new URL('/#', `${pedido.url}#segredo`).href).toBe(`${fonte.FFCM_APP_ORIGIN}/#`);
     expect(await resposta.text()).toBe('');
     expect(resposta.headers.get('cache-control')).toBe('private, no-store');
@@ -108,7 +112,9 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
       .flatMap((cookie) => parseCookieHeader(cookie.split(';')[0] ?? ''))
       .filter(
         ({ name, value }) =>
-          name.includes('auth-token') && !name.includes('code-verifier') && value,
+          name.startsWith('ffcm-auth-abcdefghijklmnopqrstuv') &&
+          !name.includes('code-verifier') &&
+          value,
       )
       .sort((a, b) => a.name.localeCompare(b.name));
     expect(partes.length).toBeGreaterThan(0);
@@ -172,7 +178,7 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
     const rede = fornecedor();
     const resposta = await concluirGoogleNativo(
       new Request(
-        `${fonte.FFCM_APP_ORIGIN}/api/auth/callback?error=access_denied&error_code=cancelado&error_description=detalhe-privado`,
+        `${fonte.FFCM_APP_ORIGIN}/api/auth/callback?fluxo=abcdefghijklmnopqrstuv&error=access_denied&error_code=cancelado&error_description=detalhe-privado`,
       ),
       fonte,
     );
@@ -181,7 +187,7 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
     expect(
       new URL(
         resposta.headers.get('location') ?? '',
-        `${fonte.FFCM_APP_ORIGIN}/api/auth/callback?error=access_denied#segredo`,
+        `${fonte.FFCM_APP_ORIGIN}/api/auth/callback?fluxo=abcdefghijklmnopqrstuv&error=access_denied#segredo`,
       ).href,
     ).toBe(`${fonte.FFCM_APP_ORIGIN}/?acesso=indisponivel#`);
     expect(resposta.headers.getSetCookie()).toEqual([]);

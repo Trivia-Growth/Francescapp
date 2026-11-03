@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { mensagensErro } from '../packages/contracts/src/index.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
@@ -11,7 +11,14 @@ const sessao = {
 };
 const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
 
+beforeEach(() => {
+  sessionStorage.clear();
+  sessionStorage.setItem('modo-acesso', 'tecnica');
+  sessionStorage.setItem('sessao-tecnica', '20000000-0000-4000-8000-000000000001');
+});
+
 afterEach(() => {
+  sessionStorage.clear();
   vi.unstubAllGlobals();
   vi.resetModules();
 });
