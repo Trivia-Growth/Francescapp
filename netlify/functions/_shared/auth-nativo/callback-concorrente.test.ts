@@ -4,7 +4,8 @@ import { concluirGoogleNativo } from './callback.ts';
 const controles = vi.hoisted(() => ({ liberarAntigo: () => {}, antigoAguardando: () => {} }));
 
 vi.mock('./cliente.ts', () => ({
-  criarContextoAuthNativo(request: Request) {
+  fluxoValido: (fluxo: string | null) => fluxo !== null && /^[A-Za-z0-9_-]{22}$/.test(fluxo),
+  criarContextoAuthNativo(request: Request, _fonte: unknown, fluxo: string) {
     const codigo = new URL(request.url).searchParams.get('code');
     const antigo = codigo === 'antigo';
     const id = antigo
@@ -42,7 +43,7 @@ vi.mock('./cliente.ts', () => ({
         }),
       },
       responder(response: Response) {
-        response.headers.append('Set-Cookie', `sessao=${codigo}; HttpOnly; Secure`);
+        response.headers.append('Set-Cookie', `ffcm-auth-${fluxo}=${codigo}; HttpOnly; Secure`);
         return response;
       },
     };
@@ -51,19 +52,36 @@ vi.mock('./cliente.ts', () => ({
 
 afterEach(() => vi.restoreAllMocks());
 
-// Falha conhecida: remover `.fails` somente depois de corrigir e provar a corrida.
-it.fails('não publica sessão antiga após conclusão de login mais recente', async () => {
+// O mock comprova encaminhamento por fluxo; não simula armazenamento do SDK ou navegador.
+it('mantém cookies de fluxos distintos quando callbacks terminam em ordem inversa', async () => {
   const esperando = new Promise<void>((resolve) => {
     controles.antigoAguardando = resolve;
   });
-  const pedido = (codigo: string) =>
-    new Request(`https://app.example.test/api/auth/callback?code=${codigo}`);
-  const antigo = concluirGoogleNativo(pedido('antigo'), {});
-  await esperando;
-  const recente = await concluirGoogleNativo(pedido('recente'), {});
-  expect(recente.status).toBe(303);
-  expect(recente.headers.getSetCookie()).toContain('sessao=recente; HttpOnly; Secure');
-  controles.liberarAntigo();
+  const fluxoAntigo = 'aaaaaaaaaaaaaaaaaaaaaa';
+  const fluxoRecente = 'bbbbbbbbbbbbbbbbbbbbbb';
+  const pedido = (codigo: string, fluxo: string) =>
+    new Request(`https://app.example.test/api/auth/callback?code=${codigo}&fluxo=${fluxo}`);
+  const antigo = concluirGoogleNativo(pedido('antigo', fluxoAntigo), {});
+  await Promise.race([
+    esperando,
+    antigo.then(() => {
+      throw new Error('Callback antigo terminou antes de alcançar o ponto de concorrência.');
+    }),
+  ]);
+  try {
+    const recente = await concluirGoogleNativo(pedido('recente', fluxoRecente), {});
+    expect(recente.status).toBe(303);
+    expect(recente.headers.get('location')).toBe(`/?fluxo=${fluxoRecente}#`);
+    expect(recente.headers.getSetCookie()).toEqual([
+      `ffcm-auth-${fluxoRecente}=recente; HttpOnly; Secure`,
+    ]);
+  } finally {
+    controles.liberarAntigo();
+  }
   const respostaAntiga = await antigo;
-  expect(respostaAntiga.headers.getSetCookie()).toEqual([]);
+  expect(respostaAntiga.status).toBe(303);
+  expect(respostaAntiga.headers.get('location')).toBe(`/?fluxo=${fluxoAntigo}#`);
+  expect(respostaAntiga.headers.getSetCookie()).toEqual([
+    `ffcm-auth-${fluxoAntigo}=antigo; HttpOnly; Secure`,
+  ]);
 });
