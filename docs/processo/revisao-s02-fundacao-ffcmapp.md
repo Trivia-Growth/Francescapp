@@ -1764,3 +1764,9 @@ Na interface local, erro de cursor em página posterior agora permite retorno
 à primeira página pela atualização da lista; falha temporária preserva a
 navegação para trás sem mostrar dados antigos. Testes web passaram (54/54),
 sem validação visual em navegador ou endpoint real.
+
+Na revisão incremental da adaptação Auth nativa (`6f8a2cd...cafdf04`),
+revisores independentes conferiram padrões e aderência a D-14, sem novos
+achados concretos nesse recorte. Os testes de identidade usam fixtures; Auth,
+gateway, acesso direto e revogação no projeto real continuam sem prova.
+Esta revisão parcial não aprova S-02 nem libera as rotas protegidas.
