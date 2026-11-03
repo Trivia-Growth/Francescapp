@@ -1,7 +1,8 @@
 -- Infraestrutura privada, ainda não conectada às operações. O resultado não
 -- autentica nem autoriza: o chamador deve revalidar autoridade na transação.
 -- Depende de FKs imediatas e validadas: FOR UPDATE em users impede novos
--- vínculos, enquanto FOR SHARE protege as linhas existentes até o commit.
+-- vínculos, enquanto FOR SHARE protege identidades existentes até o commit.
+-- A sessão é verificada sem bloqueio; logout externo pode ocorrer em paralelo.
 do $$
 declare tabela regclass;
 begin
@@ -31,7 +32,7 @@ grant usage on schema auth to ffcmapp_bloqueios_auth_owner;
 -- PostgreSQL exige UPDATE em alguma coluna para bloqueio de linha. O owner
 -- isolado pode alterar id diretamente; não conceder membership a outros papéis.
 grant select (id), update (id) on auth.users to ffcmapp_bloqueios_auth_owner;
-grant select (id, user_id), update (id) on auth.sessions to ffcmapp_bloqueios_auth_owner;
+grant select (id, user_id) on auth.sessions to ffcmapp_bloqueios_auth_owner;
 grant select (id, user_id), update (id) on auth.identities to ffcmapp_bloqueios_auth_owner;
 
 create function bloqueios_auth.travar(p_usuario uuid, p_sessao uuid)
@@ -39,7 +40,7 @@ returns boolean language plpgsql security definer set search_path = '' as $$
 begin
   perform 1 from auth.users where id = p_usuario for update;
   if not found then return false; end if;
-  perform 1 from auth.sessions where id = p_sessao and user_id = p_usuario for share;
+  perform 1 from auth.sessions where id = p_sessao and user_id = p_usuario;
   if not found then return false; end if;
   perform 1 from auth.identities where user_id = p_usuario order by id for share;
   return found;

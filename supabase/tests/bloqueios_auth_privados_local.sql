@@ -9,7 +9,8 @@ do $$
 begin
   if has_function_privilege('public', 'bloqueios_auth.travar(uuid,uuid)', 'execute')
      or has_schema_privilege('public', 'bloqueios_auth', 'usage')
-     or pg_has_role('ffcm_teste_chamador', 'ffcmapp_bloqueios_auth_owner', 'member') then
+     or pg_has_role('ffcm_teste_chamador', 'ffcmapp_bloqueios_auth_owner', 'member')
+     or has_column_privilege('ffcmapp_bloqueios_auth_owner', 'auth.sessions', 'id', 'update') then
     raise exception 'Privilégio indevido';
   end if;
 end $$;
@@ -35,8 +36,6 @@ begin
   foreach comando in array array[
     'insert into auth.identities values (''00000000-0000-0000-0000-000000000004'', ''00000000-0000-0000-0000-000000000001'', 0)',
     'insert into auth.sessions values (''00000000-0000-0000-0000-000000000004'', ''00000000-0000-0000-0000-000000000001'', 0)',
-    'update auth.sessions set valor=1 where id=''00000000-0000-0000-0000-000000000002''',
-    'delete from auth.sessions where id=''00000000-0000-0000-0000-000000000002''',
     'update auth.identities set valor=1 where id=''00000000-0000-0000-0000-000000000003''',
     'delete from auth.identities where id=''00000000-0000-0000-0000-000000000003'''
   ] loop
@@ -62,5 +61,22 @@ begin
     perform dblink_exec('alteracao', 'rollback');
   end loop;
 end $$;
+-- Logout externo não deve esperar o fim da transação que verificou a sessão.
+select dblink_exec('privado', 'begin');
+select dblink_exec('privado', 'set local role ffcm_teste_chamador');
+do $$ begin
+  if not (select valido from dblink('privado', $q$select bloqueios_auth.travar('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002')$q$) as t(valido boolean)) then
+    raise exception 'Vínculo válido recusado antes do logout';
+  end if;
+end $$;
+select dblink_exec('alteracao', 'begin');
+select dblink_exec('alteracao', 'set local statement_timeout = ''2s''');
+do $$ begin
+  if dblink_exec('alteracao', 'delete from auth.sessions where id=''00000000-0000-0000-0000-000000000002''') <> 'DELETE 1' then
+    raise exception 'Logout externo não excluiu sessão';
+  end if;
+end $$;
+select dblink_exec('alteracao', 'rollback');
+select dblink_exec('privado', 'rollback');
 select dblink_disconnect('privado');
 select dblink_disconnect('alteracao');
