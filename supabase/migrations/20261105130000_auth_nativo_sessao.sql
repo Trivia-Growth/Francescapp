@@ -2,10 +2,12 @@
 -- Não provisiona configuração, identidade ou concessão. Ainda exige prova no
 -- Supabase e revisão S-02 antes de aplicação remota. Vinculação inicial deriva
 -- e-mail/subject da identidade Google nativa; nunca recebe esses dados do cliente.
+-- Preserva o executor mesmo quando a conexão iniciou com SET ROLE.
+select set_config('ffcmapp.migrador_auth_nativo', current_user, false);
 create role ffcmapp_auth_nativo_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
 alter table identidade.sessao add column encerrada_em timestamptz
   constraint sessao_encerrada_em_chk check (encerrada_em >= admitida_em);
-grant ffcmapp_auth_nativo_owner to postgres;
+grant ffcmapp_auth_nativo_owner to current_user;
 grant usage, create on schema api, identidade to ffcmapp_auth_nativo_owner;
 grant usage on schema public, auth, auditoria to ffcmapp_auth_nativo_owner;
 
@@ -29,7 +31,7 @@ create policy configuracao_auth_nativo_interna on identidade.configuracao_auth_n
 -- O leitor da chave é nologin, separado do owner das RPCs e não aceita e-mail
 -- arbitrário. Só retorna o índice do e-mail Google verificado da própria conta.
 create role ffcmapp_email_hmac_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
-grant ffcmapp_email_hmac_owner to postgres;
+grant ffcmapp_email_hmac_owner to current_user;
 grant usage, create on schema identidade to ffcmapp_email_hmac_owner;
 grant usage on schema auth, vault, extensions to ffcmapp_email_hmac_owner;
 grant select on identidade.configuracao_auth_nativo to ffcmapp_email_hmac_owner;
@@ -75,8 +77,10 @@ end $$;
 revoke all on function identidade.email_google_hmac_nativo() from public, anon, authenticated;
 grant execute on function identidade.email_google_hmac_nativo() to ffcmapp_auth_nativo_owner;
 reset role;
+select set_config('role', current_setting('ffcmapp.migrador_auth_nativo'), false);
 revoke create on schema identidade from ffcmapp_email_hmac_owner;
-revoke ffcmapp_email_hmac_owner from postgres;
+-- PostgreSQL 16+ cria concessão ADMIN automática; retire apenas a autoconcesão.
+revoke ffcmapp_email_hmac_owner from current_user granted by current_user;
 
 grant select (id, perfil, ativo, versao) on public.usuario to ffcmapp_auth_nativo_owner;
 grant update (versao) on public.usuario to ffcmapp_auth_nativo_owner;
@@ -327,9 +331,10 @@ revoke all on function api.admitir_sessao_nativa(uuid), api.consultar_sessao_nat
 grant execute on function api.admitir_sessao_nativa(uuid), api.consultar_sessao_nativa(uuid)
   to authenticated;
 reset role;
+select set_config('role', current_setting('ffcmapp.migrador_auth_nativo'), false);
 grant usage on schema api to authenticated;
 revoke create on schema api, identidade from ffcmapp_auth_nativo_owner;
-revoke ffcmapp_auth_nativo_owner from postgres;
+revoke ffcmapp_auth_nativo_owner from current_user granted by current_user;
 
 -- Não deixar o caminho de cadastro anterior aceitar JWT cuja sessão Auth já
 -- desapareceu. Mantém assinatura/ACL privadas e o owner do helper existente.
