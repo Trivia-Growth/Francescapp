@@ -5,11 +5,13 @@
 -- Preserva o executor mesmo quando a conexão iniciou com SET ROLE.
 select set_config('ffcmapp.migrador_auth_nativo', current_user, false);
 create role ffcmapp_auth_nativo_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
+grant usage on schema auth_privado to ffcmapp_auth_nativo_owner;
+grant execute on all functions in schema auth_privado to ffcmapp_auth_nativo_owner;
 alter table identidade.sessao add column encerrada_em timestamptz
   constraint sessao_encerrada_em_chk check (encerrada_em >= admitida_em);
 grant ffcmapp_auth_nativo_owner to current_user;
 grant usage, create on schema api, identidade to ffcmapp_auth_nativo_owner;
-grant usage on schema public, auth, auditoria to ffcmapp_auth_nativo_owner;
+grant usage on schema public, auditoria to ffcmapp_auth_nativo_owner;
 
 -- Registro privado de configuração e do operador automático desta integração.
 -- A confirmação é operacional, não um parâmetro recebido do navegador.
@@ -31,13 +33,14 @@ create policy configuracao_auth_nativo_interna on identidade.configuracao_auth_n
 -- O leitor da chave é nologin, separado do owner das RPCs e não aceita e-mail
 -- arbitrário. Só retorna o índice do e-mail Google verificado da própria conta.
 create role ffcmapp_email_hmac_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
+grant usage on schema auth_privado to ffcmapp_email_hmac_owner;
+grant execute on function auth_privado.uid(), auth_privado.identidades() to ffcmapp_email_hmac_owner;
 grant ffcmapp_email_hmac_owner to current_user;
 grant usage, create on schema identidade to ffcmapp_email_hmac_owner;
-grant usage on schema auth, vault, extensions to ffcmapp_email_hmac_owner;
+grant usage on schema vault, extensions to ffcmapp_email_hmac_owner;
 grant select on identidade.configuracao_auth_nativo to ffcmapp_email_hmac_owner;
 create policy configuracao_email_hmac_interna on identidade.configuracao_auth_nativo
   for select to ffcmapp_email_hmac_owner using (true);
-grant select (user_id, provider, provider_id, identity_data) on auth.identities to ffcmapp_email_hmac_owner;
 grant select on vault.decrypted_secrets to ffcmapp_email_hmac_owner;
 grant execute on function extensions.hmac(bytea, bytea, text) to ffcmapp_email_hmac_owner;
 -- Vault usa esta função ao abrir a view, conforme a migração de cofre existente.
@@ -55,7 +58,7 @@ declare
 begin
   select * into strict v_config from identidade.configuracao_auth_nativo;
   select lower(btrim(i.identity_data ->> 'email')) into v_email
-    from auth.identities i where i.user_id = auth.uid() and i.provider = 'google'
+    from auth_privado.identidades() i where i.user_id = auth_privado.uid() and i.provider = 'google'
       and i.identity_data ->> 'sub' = i.provider_id
       and i.identity_data ->> 'email_verified' = 'true'
       and i.identity_data #>> '{custom_claims,hd}' = v_config.dominio_workspace;
@@ -91,39 +94,37 @@ grant update (versao, estado, usuario_id, subject_google, vinculada_em, atualiza
   on identidade.concessao_equipe to ffcmapp_auth_nativo_owner;
 grant select, insert on identidade.sessao to ffcmapp_auth_nativo_owner;
 grant update (revogada_em, encerrada_em) on identidade.sessao to ffcmapp_auth_nativo_owner;
-grant select (id, user_id, not_after) on auth.sessions to ffcmapp_auth_nativo_owner;
-grant select (user_id, provider, provider_id, identity_data) on auth.identities to ffcmapp_auth_nativo_owner;
 grant insert on auditoria.evento to ffcmapp_auth_nativo_owner;
 
 create policy usuario_auth_nativo_leitura on public.usuario
-  for select to ffcmapp_auth_nativo_owner using (id = (select auth.uid()));
+  for select to ffcmapp_auth_nativo_owner using (id = (select auth_privado.uid()));
 create policy usuario_auth_nativo_insercao on public.usuario
-  for insert to ffcmapp_auth_nativo_owner with check (id = (select auth.uid()));
+  for insert to ffcmapp_auth_nativo_owner with check (id = (select auth_privado.uid()));
 -- PostgreSQL exige também policy UPDATE para SELECT ... FOR SHARE.
 -- Os grants por coluna acima servem aos locks; as RPCs não alteram perfis.
 create policy usuario_auth_nativo_lock on public.usuario
   for update to ffcmapp_auth_nativo_owner
-  using (id = (select auth.uid())) with check (id = (select auth.uid()));
+  using (id = (select auth_privado.uid())) with check (id = (select auth_privado.uid()));
 create policy concessao_auth_nativo_leitura on identidade.concessao_equipe
   for select to ffcmapp_auth_nativo_owner using (
-    usuario_id = (select auth.uid())
+    usuario_id = (select auth_privado.uid())
     or (estado = 'pendente' and email_hmac = (select identidade.email_google_hmac_nativo()))
   );
 create policy concessao_auth_nativo_lock on identidade.concessao_equipe
   for update to ffcmapp_auth_nativo_owner
-  using (usuario_id = (select auth.uid())
+  using (usuario_id = (select auth_privado.uid())
     or (estado = 'pendente' and email_hmac = (select identidade.email_google_hmac_nativo())))
-  with check (usuario_id = (select auth.uid()));
+  with check (usuario_id = (select auth_privado.uid()));
 create policy sessao_auth_nativo_leitura on identidade.sessao
-  for select to ffcmapp_auth_nativo_owner using (usuario_id = (select auth.uid()));
+  for select to ffcmapp_auth_nativo_owner using (usuario_id = (select auth_privado.uid()));
 create policy sessao_auth_nativo_lock on identidade.sessao
   for update to ffcmapp_auth_nativo_owner
-  using (usuario_id = (select auth.uid())) with check (usuario_id = (select auth.uid()));
+  using (usuario_id = (select auth_privado.uid())) with check (usuario_id = (select auth_privado.uid()));
 create policy sessao_auth_nativo_insercao on identidade.sessao
-  for insert to ffcmapp_auth_nativo_owner with check (usuario_id = (select auth.uid()));
+  for insert to ffcmapp_auth_nativo_owner with check (usuario_id = (select auth_privado.uid()));
 create policy auditoria_auth_nativo_insercao on auditoria.evento
   for insert to ffcmapp_auth_nativo_owner with check (
-    ator_usuario_id = (select auth.uid())
+    ator_usuario_id = (select auth_privado.uid())
     or (ator_usuario_id is null and operador_restrito = 'sistema.auth_nativo')
   );
 
@@ -134,8 +135,8 @@ alter default privileges revoke execute on functions from public;
 create function identidade.sessao_nativa(p_request_id uuid, p_admitir boolean)
 returns jsonb language plpgsql security invoker set search_path = '' as $$
 declare
-  v_usuario uuid := auth.uid();
-  v_session_text text := auth.jwt() ->> 'session_id';
+  v_usuario uuid := auth_privado.uid();
+  v_session_text text := auth_privado.jwt() ->> 'session_id';
   v_session uuid;
   v_config identidade.configuracao_auth_nativo;
   v_perfil text;
@@ -162,22 +163,22 @@ begin
   <<autorizar>>
   begin
     if v_usuario is null or v_session is null or bloqueios_auth.travar(v_usuario,v_session) is distinct from true or not exists (
-      select 1 from auth.sessions s where s.id = v_session and s.user_id = v_usuario
+      select 1 from auth_privado.sessoes() s where s.id = v_session and s.user_id = v_usuario
         and (s.not_after is null or s.not_after > clock_timestamp())
     ) or not exists (
       select 1 from jsonb_array_elements(
-        case when jsonb_typeof(auth.jwt() -> 'amr') = 'array'
-          then auth.jwt() -> 'amr' else '[]'::jsonb end
+        case when jsonb_typeof(auth_privado.jwt() -> 'amr') = 'array'
+          then auth_privado.jwt() -> 'amr' else '[]'::jsonb end
       ) m where m ->> 'method' = 'oauth'
     ) then exit autorizar; end if;
     select i.provider_id, i.identity_data,
       case when p_admitir then identidade.email_google_hmac_nativo() end as email_hmac
       into v_google
-      from auth.identities i where i.user_id = v_usuario and i.provider = 'google'
+      from auth_privado.identidades() i where i.user_id = v_usuario and i.provider = 'google'
         and bloqueios_auth.travar(v_usuario, v_session)
-        and exists (select 1 from auth.sessions s where s.id = v_session and s.user_id = v_usuario
+        and exists (select 1 from auth_privado.sessoes() s where s.id = v_session and s.user_id = v_usuario
           and (s.not_after is null or s.not_after > clock_timestamp()))
-        and (select count(*) from auth.identities j
+        and (select count(*) from auth_privado.identidades() j
           where j.user_id = v_usuario and j.provider = 'google') = 1;
     if not found or v_google.identity_data ->> 'sub' is distinct from v_google.provider_id
       or v_google.identity_data ->> 'email_verified' is distinct from 'true'
@@ -210,7 +211,7 @@ begin
       then exit autorizar; end if;
 
     -- Locks anteriores podem aguardar até depois da expiração da sessão.
-    if not exists (select 1 from auth.sessions s where s.id=v_session and s.user_id=v_usuario
+    if not exists (select 1 from auth_privado.sessoes() s where s.id=v_session and s.user_id=v_usuario
       and (s.not_after is null or s.not_after>clock_timestamp())) then exit autorizar; end if;
 
     if v_perfil is null then
@@ -280,7 +281,7 @@ begin
   if not v_permitido then return null; end if;
   -- Uma espera durante escrita/auditoria também pode consumir a validade.
   -- Exceção reverte admissão, vínculo e auditoria da mesma transação.
-  if not exists (select 1 from auth.sessions s where s.id=v_session and s.user_id=v_usuario
+  if not exists (select 1 from auth_privado.sessoes() s where s.id=v_session and s.user_id=v_usuario
     and (s.not_after is null or s.not_after>clock_timestamp())) then
     raise exception using errcode='42501', message='SEM_PERMISSAO';
   end if;
@@ -305,8 +306,8 @@ $$;
 create function api.encerrar_sessao_nativa(p_session_id uuid, p_request_id uuid)
 returns boolean language plpgsql security definer set search_path = '' as $$
 declare
-  v_usuario uuid := auth.uid();
-  v_texto text := auth.jwt() ->> 'session_id';
+  v_usuario uuid := auth_privado.uid();
+  v_texto text := auth_privado.jwt() ->> 'session_id';
   v_session uuid;
   v_encerrada timestamptz;
   v_eventos integer;
@@ -349,16 +350,16 @@ returns boolean language sql stable security definer set search_path = '' as $$
       case when coalesce(nullif(current_setting('request.jwt.claim.sub', true), ''),
         nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
         ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-        then auth.uid() else null::uuid end as usuario_id,
-      case when auth.jwt() ->> 'session_id'
+        then auth_privado.uid() else null::uuid end as usuario_id,
+      case when auth_privado.jwt() ->> 'session_id'
         ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-        then (auth.jwt() ->> 'session_id')::uuid else null::uuid end as session_id
+        then (auth_privado.jwt() ->> 'session_id')::uuid else null::uuid end as session_id
   )
   select exists (
     select 1 from contexto x
     join public.usuario u on u.id=x.usuario_id and u.ativo
     join identidade.sessao s on s.usuario_id=u.id and s.session_id=x.session_id and s.revogada_em is null and s.encerrada_em is null
-    join auth.sessions a on a.id=s.session_id and a.user_id=u.id
+    join auth_privado.sessoes() a on a.id=s.session_id and a.user_id=u.id
       and (a.not_after is null or a.not_after > statement_timestamp())
     join identidade.concessao_equipe c on c.id=s.concessao_id
       and c.usuario_id=u.id and c.estado='vinculada' and c.perfil=u.perfil

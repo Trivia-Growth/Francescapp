@@ -34,6 +34,7 @@ grant usage on schema auth to authenticated;
 \ir ../migrations/20261027170000_vault_owner_restrito.sql
 \ir ../migrations/20261028100000_sessao_identificador_invalido.sql
 \ir ../migrations/20261104120000_vault_atestado.sql
+\ir ../migrations/20261105120000_auth_privado.sql
 \ir ../migrations/20261105130000_auth_nativo_sessao.sql
 \ir ../migrations/20261106100000_carteira_nativa.sql
 \ir ../migrations/20261106130000_carteira_nativa.sql

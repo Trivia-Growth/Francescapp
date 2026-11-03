@@ -32,12 +32,12 @@ alter table operacao.recibo_barreira_cadastro enable row level security;
 revoke all on operacao.barreira_cadastro, operacao.reserva_cadastro, operacao.recibo_barreira_cadastro from public, anon, authenticated, service_role;
 
 -- Primitivas SECURITY INVOKER, sem privilégios para aplicação. O ator deve vir
--- de auth.uid() e ser autorizado pelo chamador, nunca de entrada do navegador.
+-- de auth_privado.uid() e ser autorizado pelo chamador, nunca de entrada do navegador.
 create function operacao.reservar_cadastro_privado(p_ator uuid,p_epoca bigint,p_reserva uuid)
 returns text language plpgsql security invoker set search_path='' as $$
 declare b operacao.barreira_cadastro; r operacao.reserva_cadastro;
 begin
- if p_ator is null or p_epoca is null or p_epoca < 1 or p_reserva is null or p_ator is distinct from auth.uid() then return 'negada'; end if;
+ if p_ator is null or p_epoca is null or p_epoca < 1 or p_reserva is null or p_ator is distinct from auth_privado.uid() then return 'negada'; end if;
  insert into operacao.barreira_cadastro(ator_usuario_id) values(p_ator) on conflict do nothing;
  select * into b from operacao.barreira_cadastro where ator_usuario_id=p_ator for update;
  select * into r from operacao.reserva_cadastro where id=p_reserva;
@@ -57,7 +57,7 @@ create function operacao.encerrar_cadastro_privado(p_ator uuid,p_epoca bigint,p_
 returns text language plpgsql security invoker set search_path='' as $$
 declare b operacao.barreira_cadastro; r operacao.reserva_cadastro; c operacao.recibo_barreira_cadastro; resultado text;
 begin
- if p_ator is null or p_epoca is null or p_epoca < 1 or p_comando is null or p_ator is distinct from auth.uid() then return 'negada'; end if;
+ if p_ator is null or p_epoca is null or p_epoca < 1 or p_comando is null or p_ator is distinct from auth_privado.uid() then return 'negada'; end if;
  insert into operacao.barreira_cadastro(ator_usuario_id) values(p_ator) on conflict do nothing;
  select * into b from operacao.barreira_cadastro where ator_usuario_id=p_ator for update;
  select * into c from operacao.recibo_barreira_cadastro where id=p_comando;

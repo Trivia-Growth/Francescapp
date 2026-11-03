@@ -51,8 +51,10 @@ grant select (id, user_id, not_after) on auth.sessions to postgres with grant op
 grant select (user_id, provider, provider_id, identity_data) on auth.identities to postgres with grant option;
 -- O executor não precisa ter o nome reservado do Supabase.
 alter role postgres rename to migrador_fixture;
+grant create on database ffcm_auth_nativo_teste_local to migrador_fixture;
 -- Exercita runner que entrou no executor via SET ROLE; RESET ROLE voltaria ao bootstrap.
 set role migrador_fixture;
+\ir ../migrations/20261105120000_auth_privado.sql
 \if :falha_injetada
 \i :migration_injetada
 \else
@@ -62,5 +64,5 @@ reset role;
 do $$ begin
  if (select count(*) from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member where r.rolname in ('ffcmapp_auth_nativo_owner','ffcmapp_email_hmac_owner') and u.rolname='migrador_fixture' and m.admin_option and not m.set_option and not m.inherit_option) <> 2 or exists (select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member where r.rolname in ('ffcmapp_auth_nativo_owner','ffcmapp_email_hmac_owner') and u.rolname='migrador_fixture' and (m.set_option or m.inherit_option)) then raise exception 'MEMBRESIA_INCORRETA'; end if;
  if not has_function_privilege('ffcmapp_auth_nativo_owner','identidade.email_google_hmac_nativo()','execute') or not has_function_privilege('authenticated','api.admitir_sessao_nativa(uuid)','execute') or has_function_privilege('anon','api.admitir_sessao_nativa(uuid)','execute') then raise exception 'ACL_DIVERGENTE'; end if;
- if not has_column_privilege('ffcmapp_auth_nativo_owner','auth.sessions','id','select') or not has_column_privilege('ffcmapp_auth_nativo_owner','auth.identities','identity_data','select') or not has_column_privilege('ffcmapp_email_hmac_owner','auth.identities','identity_data','select') then raise exception 'AUTH_ACL_AUSENTE'; end if;
+ if has_schema_privilege('ffcmapp_auth_nativo_owner','auth','usage') or has_column_privilege('ffcmapp_auth_nativo_owner','auth.sessions','id','select') or not has_function_privilege('ffcmapp_auth_nativo_owner','auth_privado.sessoes()','execute') or not has_function_privilege('ffcmapp_email_hmac_owner','auth_privado.identidades()','execute') then raise exception 'AUTH_ACL_DIVERGENTE'; end if;
 end $$;

@@ -5,9 +5,11 @@ do $$ begin
  end if;
 end $$;
 create role ffcmapp_carteira_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
+grant usage on schema auth_privado to ffcmapp_carteira_owner;
+grant execute on all functions in schema auth_privado to ffcmapp_carteira_owner;
 grant ffcmapp_carteira_owner to current_user with inherit false, set true;
 grant usage, create on schema identidade to ffcmapp_carteira_owner;
-grant usage on schema auth, public, cadastro, auditoria to ffcmapp_carteira_owner;
+grant usage on schema public, cadastro, auditoria to ffcmapp_carteira_owner;
 grant ffcmapp_atestado_verificador_owner to current_user with inherit false, set true;
 set role ffcmapp_atestado_verificador_owner;
 grant execute on function identidade.verificar_assinatura_atestado(text,text,jsonb,jsonb,text) to ffcmapp_carteira_owner;
@@ -17,24 +19,22 @@ grant select (dominio_workspace,google_unico_oauth_confirmado), update (dominio_
 grant select (id,perfil,ativo), update (versao) on public.usuario to ffcmapp_carteira_owner;
 grant select (id,usuario_id,perfil,estado,subject_google,metodo), update (versao) on identidade.concessao_equipe to ffcmapp_carteira_owner;
 grant select (session_id,usuario_id,concessao_id,metodo,revogada_em,encerrada_em), update (revogada_em) on identidade.sessao to ffcmapp_carteira_owner;
-grant select (id,user_id,not_after) on auth.sessions to ffcmapp_carteira_owner;
-grant select (user_id,provider,provider_id,identity_data) on auth.identities to ffcmapp_carteira_owner;
 grant select (id,criado_em,nome_cifrado,nome_preferencia_cifrado,versao) on cadastro.paciente to ffcmapp_carteira_owner;
 grant select (id,paciente_id,usuario_id,revogada_em), update (id) on cadastro.acesso_paciente to ffcmapp_carteira_owner;
 grant insert (id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id) on auditoria.evento to ffcmapp_carteira_owner;
 create policy carteira_nativa_config on identidade.configuracao_auth_nativo for select to ffcmapp_carteira_owner using (true);
 -- UPDATE é exigido pelo PostgreSQL para FOR SHARE; a policy impede alteração.
 create policy carteira_nativa_config_lock on identidade.configuracao_auth_nativo for update to ffcmapp_carteira_owner using (true) with check (false);
-create policy carteira_nativa_usuario on public.usuario for select to ffcmapp_carteira_owner using (id=(select auth.uid()));
-create policy carteira_nativa_usuario_lock on public.usuario for update to ffcmapp_carteira_owner using (id=(select auth.uid())) with check (false);
-create policy carteira_nativa_concessao on identidade.concessao_equipe for select to ffcmapp_carteira_owner using (usuario_id=(select auth.uid()));
-create policy carteira_nativa_concessao_lock on identidade.concessao_equipe for update to ffcmapp_carteira_owner using (usuario_id=(select auth.uid())) with check (false);
-create policy carteira_nativa_sessao on identidade.sessao for select to ffcmapp_carteira_owner using (usuario_id=(select auth.uid()));
-create policy carteira_nativa_sessao_lock on identidade.sessao for update to ffcmapp_carteira_owner using (usuario_id=(select auth.uid())) with check (false);
+create policy carteira_nativa_usuario on public.usuario for select to ffcmapp_carteira_owner using (id=(select auth_privado.uid()));
+create policy carteira_nativa_usuario_lock on public.usuario for update to ffcmapp_carteira_owner using (id=(select auth_privado.uid())) with check (false);
+create policy carteira_nativa_concessao on identidade.concessao_equipe for select to ffcmapp_carteira_owner using (usuario_id=(select auth_privado.uid()));
+create policy carteira_nativa_concessao_lock on identidade.concessao_equipe for update to ffcmapp_carteira_owner using (usuario_id=(select auth_privado.uid())) with check (false);
+create policy carteira_nativa_sessao on identidade.sessao for select to ffcmapp_carteira_owner using (usuario_id=(select auth_privado.uid()));
+create policy carteira_nativa_sessao_lock on identidade.sessao for update to ffcmapp_carteira_owner using (usuario_id=(select auth_privado.uid())) with check (false);
 create policy carteira_nativa_paciente on cadastro.paciente for select to ffcmapp_carteira_owner using (true);
-create policy carteira_nativa_acesso on cadastro.acesso_paciente for select to ffcmapp_carteira_owner using (usuario_id=(select auth.uid()));
-create policy carteira_nativa_acesso_lock on cadastro.acesso_paciente for update to ffcmapp_carteira_owner using (usuario_id=(select auth.uid())) with check (false);
-create policy carteira_nativa_auditoria on auditoria.evento for insert to ffcmapp_carteira_owner with check (ator_usuario_id=(select auth.uid()));
+create policy carteira_nativa_acesso on cadastro.acesso_paciente for select to ffcmapp_carteira_owner using (usuario_id=(select auth_privado.uid()));
+create policy carteira_nativa_acesso_lock on cadastro.acesso_paciente for update to ffcmapp_carteira_owner using (usuario_id=(select auth_privado.uid())) with check (false);
+create policy carteira_nativa_auditoria on auditoria.evento for insert to ffcmapp_carteira_owner with check (ator_usuario_id=(select auth_privado.uid()));
 set role ffcmapp_carteira_owner;
 alter default privileges revoke execute on functions from public;
 create function identidade.listar_carteira_privada(p_transporte jsonb) returns jsonb
@@ -54,7 +54,7 @@ begin
    raise exception using errcode='42501',message='SEM_PERMISSAO';
  end if;
  begin
-  ator:=auth.uid(); sessao:=(auth.jwt()->>'session_id')::uuid; req:=(e->>'request_id')::uuid;
+  ator:=auth_privado.uid(); sessao:=(auth_privado.jwt()->>'session_id')::uuid; req:=(e->>'request_id')::uuid;
   inicio:=(a->>'emitido_em')::timestamptz; fim:=(a->>'expira_em')::timestamptz;
   limite:=(e->>'limite')::integer; if e ? 'cursor' then cursor_id:=(e->>'cursor')::uuid; end if;
  exception when invalid_text_representation or invalid_datetime_format or datetime_field_overflow then
@@ -69,11 +69,11 @@ begin
  end if;
  if bloqueios_auth.travar(ator,sessao) is true then
  select dominio_workspace into dominio from identidade.configuracao_auth_nativo where google_unico_oauth_confirmado for share;
- if found and exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth.jwt()->'amr')='array' then auth.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='oauth') then
-  select i.provider_id,i.identity_data into google from auth.identities i where i.user_id=ator and i.provider='google'
+ if found and exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth_privado.jwt()->'amr')='array' then auth_privado.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='oauth') then
+  select i.provider_id,i.identity_data into google from auth_privado.identidades() i where i.user_id=ator and i.provider='google'
    and bloqueios_auth.travar(ator,sessao)
-   and exists(select 1 from auth.sessions s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp()))
-   and (select count(*) from auth.identities j where j.user_id=ator and j.provider='google')=1;
+   and exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp()))
+   and (select count(*) from auth_privado.identidades() j where j.user_id=ator and j.provider='google')=1;
   if google.identity_data->>'sub'=google.provider_id and google.identity_data->>'email_verified'='true'
     and google.identity_data#>>'{custom_claims,hd}'=dominio then
    select c.id,c.perfil,c.subject_google into concessao,perfil,sujeito from identidade.concessao_equipe c
@@ -84,7 +84,7 @@ begin
      perform 1 from identidade.sessao s where s.session_id=sessao and s.usuario_id=ator and s.concessao_id=concessao
        and s.metodo='google_workspace' and s.revogada_em is null and s.encerrada_em is null for share;
      if found then
-      perform 1 from auth.sessions s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp());
+      perform 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp());
       autorizado:=found;
      end if;
     end if;
@@ -115,12 +115,12 @@ begin
   select jsonb_build_object('itens',coalesce(jsonb_agg(jsonb_build_object('paciente_id',id,'nome',nome_cifrado,'nome_preferencia',nome_preferencia_cifrado,'versao',versao) order by criado_em,id) filter(where ordem<=limite),'[]'::jsonb),
    'proximo_cursor',case when count(*)>limite then max(id::text) filter(where ordem=limite) end) into pagina from n;
  end if;
- autorizado:=autorizado and fim>clock_timestamp() and exists(select 1 from auth.sessions s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp()));
+ autorizado:=autorizado and fim>clock_timestamp() and exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp()));
  insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
  values(gen_random_uuid(),ator,'api.listar_pacientes','carteira',null,case when autorizado then 'permitido' else 'negado' end,req);
  if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
  if not autorizado then return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','sem_permissao'),'request_id',req); end if;
- if fim<=clock_timestamp() or not exists(select 1 from auth.sessions s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
+ if fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
   raise exception using errcode='PZ001',message='EXPIRACAO_INTERNA';
  end if;
  return jsonb_build_object('ok',true,'dados',pagina,'request_id',req);

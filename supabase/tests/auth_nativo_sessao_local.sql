@@ -33,6 +33,7 @@ grant usage on schema auth to authenticated;
 \ir ../migrations/20261026143000_fundacao_grants_rls.sql
 \ir ../migrations/20261026150000_fundacao_auditoria_idempotencia.sql
 \ir ../migrations/20261028100000_sessao_identificador_invalido.sql
+\ir ../migrations/20261105120000_auth_privado.sql
 \ir ../migrations/20261105130000_auth_nativo_sessao.sql
 \ir ../migrations/20261106180000_bloqueios_auth.sql
 grant usage on schema bloqueios_auth to ffcmapp_auth_nativo_owner;
@@ -65,7 +66,17 @@ insert into identidade.concessao_equipe (
   from public.usuario;
 
 begin;
+set local request.jwt.claims='{"sub":"10000000-0000-4000-8000-000000000001","session_id":"20000000-0000-4000-8000-000000000002"}';
+set local role ffcmapp_auth_nativo_owner;
+do $$ begin
+ if exists (select 1 from auth_privado.sessoes()) then raise exception 'SESSAO_DE_OUTRO_USUARIO_EXPOSTA'; end if;
+ if (select count(*) from auth_privado.identidades()) <> 1 or exists (select 1 from auth_privado.identidades() where user_id <> auth_privado.uid()) then raise exception 'IDENTIDADE_DE_OUTRO_USUARIO_EXPOSTA'; end if;
+end $$;
 set local role authenticated;
+do $$ begin
+ if has_schema_privilege(current_user, 'auth_privado', 'usage') then raise exception 'PONTE_EXPOSTA'; end if;
+end $$;
+
 set local request.jwt.claims='{"sub":"10000000-0000-4000-8000-000000000001","session_id":"20000000-0000-4000-8000-000000000001","amr":[{"method":"oauth"}]}';
 do $$ declare resultado jsonb; begin
   if api.consultar_sessao_nativa(gen_random_uuid()) is not null then raise exception 'SESSAO_NAO_ADMITIDA_LIBERADA'; end if;

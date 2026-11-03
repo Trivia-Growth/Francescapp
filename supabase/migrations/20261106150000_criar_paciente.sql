@@ -18,7 +18,7 @@ begin
   raise exception using errcode='42501',message='SEM_PERMISSAO';
  end if;
  begin
-  ator:=auth.uid(); sessao:=(auth.jwt()->>'session_id')::uuid;
+  ator:=auth_privado.uid(); sessao:=(auth_privado.jwt()->>'session_id')::uuid;
   req:=(e->>'request_id')::uuid; paciente:=(e->>'paciente_id')::uuid;
   reserva:=(e->>'reserva_id')::uuid; epoca:=(e->>'geracao_reserva')::bigint; auditoria_id:=(e->>'auditoria_id')::uuid;
   inicio:=(a->>'emitido_em')::timestamptz; fim:=(a->>'expira_em')::timestamptz;
@@ -35,11 +35,11 @@ begin
  end if;
  if bloqueios_auth.travar(ator,sessao) is true then
  select dominio_workspace into dominio from identidade.configuracao_auth_nativo where google_unico_oauth_confirmado for share;
- if found and exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth.jwt()->'amr')='array' then auth.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='oauth') then
-  select i.provider_id,i.identity_data into google from auth.identities i where i.user_id=ator and i.provider='google'
+ if found and exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth_privado.jwt()->'amr')='array' then auth_privado.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='oauth') then
+  select i.provider_id,i.identity_data into google from auth_privado.identidades() i where i.user_id=ator and i.provider='google'
    and bloqueios_auth.travar(ator,sessao)
-   and exists(select 1 from auth.sessions s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp()))
-   and (select count(*) from auth.identities j where j.user_id=ator and j.provider='google')=1;
+   and exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp()))
+   and (select count(*) from auth_privado.identidades() j where j.user_id=ator and j.provider='google')=1;
   if google.identity_data->>'sub'=google.provider_id and google.identity_data->>'email_verified'='true' and google.identity_data#>>'{custom_claims,hd}'=dominio then
    select c.id,c.subject_google into concessao,sujeito from identidade.concessao_equipe c
     where c.usuario_id=ator and c.estado='vinculada' and c.metodo='google_workspace' and c.perfil='administrador' for share;
@@ -49,7 +49,7 @@ begin
      perform 1 from identidade.sessao s where s.session_id=sessao and s.usuario_id=ator and s.concessao_id=concessao
       and s.metodo='google_workspace' and s.revogada_em is null and s.encerrada_em is null for share;
      if found then
-      perform 1 from auth.sessions s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp());
+      perform 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp());
       autorizado:=found;
      end if;
     end if;
@@ -83,7 +83,7 @@ begin
  end loop;
  select * into b from operacao.barreira_cadastro where ator_usuario_id=ator for update;
  select rc.* into r from operacao.reserva_cadastro rc where rc.id=reserva and rc.ator_usuario_id=ator and rc.epoca=epoca for update;
- if fim<=clock_timestamp() or not exists(select 1 from auth.sessions s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
+ if fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
   insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
    values(auditoria_id,ator,'api.criar_paciente','paciente',paciente,'negado',req);
   if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
@@ -130,7 +130,7 @@ begin
   'contatos',coalesce((select jsonb_agg(jsonb_build_object('contato_id',c.id,'tipo',c.tipo,'valor',c.valor_cifrado,'versao',c.versao) order by c.criado_em,c.id) from cadastro.contato_paciente c where c.paciente_id=p.id),'[]'::jsonb))
   into resultado from cadastro.paciente p where p.id=paciente;
  if resultado is null then raise exception using errcode='P0002',message='PACIENTE_NAO_PROJETADO'; end if;
- if fim<=clock_timestamp() or not exists(select 1 from auth.sessions s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
+ if fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
   raise exception using errcode='PZ001',message='EXPIRACAO_INTERNA';
  end if;
  return jsonb_build_object('ok',true,'dados',resultado,'request_id',req);

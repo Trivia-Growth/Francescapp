@@ -1,8 +1,8 @@
 -- Primitivas privadas: o chamador deve validar sessão e autorização vigentes
--- na mesma transação. auth.uid() identifica o ator, mas não autoriza acesso.
+-- na mesma transação. auth_privado.uid() identifica o ator, mas não autoriza acesso.
 create function operacao.consultar_barreira_cadastro_privado(p_request uuid)
 returns jsonb language plpgsql security invoker set search_path='' as $$
-declare ator uuid:=auth.uid(); b operacao.barreira_cadastro; r operacao.reserva_cadastro; c operacao.recibo_barreira_cadastro; resultado jsonb;
+declare ator uuid:=auth_privado.uid(); b operacao.barreira_cadastro; r operacao.reserva_cadastro; c operacao.recibo_barreira_cadastro; resultado jsonb;
 begin
  if ator is null or p_request is null then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
  -- Serializa consulta inicial com primeira reserva ainda não confirmada.
@@ -31,7 +31,7 @@ end $$;
 
 create function operacao.reconhecer_barreira_cadastro_privado(p_recibo uuid,p_request uuid)
 returns text language plpgsql security invoker set search_path='' as $$
-declare ator uuid:=auth.uid(); b operacao.barreira_cadastro; c operacao.recibo_barreira_cadastro;
+declare ator uuid:=auth_privado.uid(); b operacao.barreira_cadastro; c operacao.recibo_barreira_cadastro;
 begin
  if ator is null or p_recibo is null or p_request is null then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
  select * into b from operacao.barreira_cadastro where ator_usuario_id=ator for update;

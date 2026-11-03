@@ -2,7 +2,7 @@
 create function operacao.cadastro_composicao_privada(p_transporte jsonb) returns jsonb
 language plpgsql security invoker set search_path='' as $$
 declare
- e jsonb:=p_transporte->'entrada'; a jsonb:=e->'atestado'; ator uuid:=auth.uid();
+ e jsonb:=p_transporte->'entrada'; a jsonb:=e->'atestado'; ator uuid:=auth_privado.uid();
  sessao uuid; req uuid; reserva uuid; comando uuid; epoca bigint;
  inicio timestamptz; fim timestamptz; dominio text; sujeito text; concessao uuid;
  google record; acao text; resposta text; dados jsonb; autorizado boolean:=false;
@@ -14,7 +14,7 @@ begin
   raise exception using errcode='42501',message='SEM_PERMISSAO';
  end if;
  begin
-  sessao:=(auth.jwt()->>'session_id')::uuid; req:=(e->>'request_id')::uuid;
+  sessao:=(auth_privado.jwt()->>'session_id')::uuid; req:=(e->>'request_id')::uuid;
   epoca:=(e->>'epoca')::bigint; reserva:=(e->>'reserva_id')::uuid; comando:=(e->>'comando_id')::uuid;
   inicio:=(a->>'emitido_em')::timestamptz; fim:=(a->>'expira_em')::timestamptz;
  exception when invalid_text_representation or invalid_datetime_format or datetime_field_overflow or numeric_value_out_of_range then
@@ -37,11 +37,11 @@ begin
  end if;
  if bloqueios_auth.travar(ator,sessao) is true then
  select dominio_workspace into dominio from identidade.configuracao_auth_nativo where google_unico_oauth_confirmado for share;
- if found and exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth.jwt()->'amr')='array' then auth.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='oauth') then
-  select i.provider_id,i.identity_data into google from auth.identities i where i.user_id=ator and i.provider='google'
+ if found and exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth_privado.jwt()->'amr')='array' then auth_privado.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='oauth') then
+  select i.provider_id,i.identity_data into google from auth_privado.identidades() i where i.user_id=ator and i.provider='google'
    and bloqueios_auth.travar(ator,sessao)
-   and exists(select 1 from auth.sessions s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp()))
-   and (select count(*) from auth.identities j where j.user_id=ator and j.provider='google')=1;
+   and exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp()))
+   and (select count(*) from auth_privado.identidades() j where j.user_id=ator and j.provider='google')=1;
   if google.identity_data->>'sub'=google.provider_id and google.identity_data->>'email_verified'='true' and google.identity_data#>>'{custom_claims,hd}'=dominio then
    select c.id,c.subject_google into concessao,sujeito from identidade.concessao_equipe c
     where c.usuario_id=ator and c.estado='vinculada' and c.metodo='google_workspace' and c.perfil='administrador' for share;
@@ -51,7 +51,7 @@ begin
      perform 1 from identidade.sessao s where s.session_id=sessao and s.usuario_id=ator and s.concessao_id=concessao
       and s.metodo='google_workspace' and s.revogada_em is null and s.encerrada_em is null for share;
      if found then
-      perform 1 from auth.sessions s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp());
+      perform 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp());
       autorizado:=found;
      end if;
     end if;
@@ -70,7 +70,7 @@ begin
  -- A espera pelo bloqueio não pode estender a validade do atestado.
  insert into operacao.barreira_cadastro(ator_usuario_id) values(ator) on conflict do nothing;
  perform 1 from operacao.barreira_cadastro where ator_usuario_id=ator for update;
- if fim<=clock_timestamp() or not exists(select 1 from auth.sessions s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
+ if fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
   raise exception using errcode='PZ001',message='EXPIRACAO_INTERNA';
  end if;
  if acao='api.consultar_barreira_cadastro' then
@@ -87,7 +87,7 @@ begin
    values(gen_random_uuid(),ator,acao,'requisicao',null,case when resposta in ('aberta','confirmada','cancelada','vazia') then 'permitido' else 'negado' end,req);
   if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
  end if;
- if fim<=clock_timestamp() or not exists(select 1 from auth.sessions s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
+ if fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
   raise exception using errcode='PZ001',message='EXPIRACAO_INTERNA';
  end if;
  return jsonb_build_object('ok',true,'dados',coalesce(dados,jsonb_build_object('estado',resposta)),'request_id',req);
