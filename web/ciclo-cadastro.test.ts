@@ -88,6 +88,32 @@ it('resposta perdida da reserva não libera por consulta vazia', async () => {
   expect(portas.criar).not.toHaveBeenCalled();
 });
 
+it.each(['confirmada', 'cancelada', 'negada', 'id_reutilizado', 'epoca_antiga', 'bloqueada'])(
+  'não cria paciente quando reserva retorna %s e mantém recuperação bloqueada',
+  async (estado) => {
+    const portas = {
+      identidadeAtual: () => identidade,
+      consultar: vi.fn().mockResolvedValue(vazio),
+      reservar: vi.fn().mockResolvedValue(estado),
+      criar: vi.fn(),
+      encerrar: vi.fn().mockResolvedValue('vazia'),
+      reconhecer: vi.fn(),
+    };
+    const ciclo = criarCicloCadastro(portas, () => ids[0]);
+    await ciclo.consultar();
+    await ciclo.encerrar();
+    await ciclo.consultar();
+    ciclo.liberar();
+    await expect(ciclo.criar({ nome: 'Fictício' })).rejects.toThrow('Reserva não confirmada');
+    expect(portas.criar).not.toHaveBeenCalled();
+    await ciclo.consultar();
+    expect(() => ciclo.liberar()).toThrow('bloqueado');
+    await ciclo.encerrar();
+    await ciclo.consultar();
+    expect(() => ciclo.liberar()).not.toThrow();
+  },
+);
+
 it('invalida o ciclo se a sessão mudar durante reserva ou antes de criar', async () => {
   let atual = identidade;
   let concluir!: (estado: string) => void;

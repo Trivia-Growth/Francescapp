@@ -13,7 +13,11 @@ const epoca = z.number().int().positive().safe();
 const sessao = z.object({ 'x-sessao': uuidSchema }).strict();
 const mutacao = sessao.extend({ origin: z.string().url().max(2048) }).strict();
 
-/** Contratos planejados, sem handlers. A validação estrutural não comprova
+/** HTTP 200 confirma que a operação da barreira retornou um estado, inclusive
+ * conflito ou negativa; não confirma criação de paciente. O cliente deve
+ * interpretar `dados.estado` conforme a operação e preservar a recuperação.
+ * Falhas de autorização e transporte usam os erros HTTP públicos.
+ * Contratos planejados, sem rotas ativas. A validação estrutural não comprova
  * origem, sessão, autorização, aleatoriedade ou opacidade dos identificadores.
  * O servidor deve verificar esses controles, aplicar no-store e falhar fechado;
  * identificadores vinculáveis a pessoas não devem ser registrados em logs. */
