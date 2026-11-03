@@ -170,11 +170,15 @@ begin
           then auth.jwt() -> 'amr' else '[]'::jsonb end
       ) m where m ->> 'method' = 'oauth'
     ) then exit autorizar; end if;
-    if (select count(*) from auth.identities i
-      where i.user_id = v_usuario and i.provider = 'google') <> 1
-      then exit autorizar; end if;
-    select i.provider_id, i.identity_data into v_google
-      from auth.identities i where i.user_id = v_usuario and i.provider = 'google';
+    select i.provider_id, i.identity_data,
+      case when p_admitir then identidade.email_google_hmac_nativo() end as email_hmac
+      into v_google
+      from auth.identities i where i.user_id = v_usuario and i.provider = 'google'
+        and bloqueios_auth.travar(v_usuario, v_session)
+        and exists (select 1 from auth.sessions s where s.id = v_session and s.user_id = v_usuario
+          and (s.not_after is null or s.not_after > clock_timestamp()))
+        and (select count(*) from auth.identities j
+          where j.user_id = v_usuario and j.provider = 'google') = 1;
     if not found or v_google.identity_data ->> 'sub' is distinct from v_google.provider_id
       or v_google.identity_data ->> 'email_verified' is distinct from 'true'
       or v_google.identity_data #>> '{custom_claims,hd}' is distinct from v_config.dominio_workspace
@@ -189,7 +193,7 @@ begin
       select c.id, c.versao, c.perfil, c.estado into v_concessao
         from identidade.concessao_equipe c where c.estado = 'pendente'
           and c.metodo = 'google_workspace'
-          and c.email_hmac = identidade.email_google_hmac_nativo()
+          and c.email_hmac = v_google.email_hmac
         for update;
     end if;
     if not found then exit autorizar; end if;

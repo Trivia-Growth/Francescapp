@@ -166,6 +166,14 @@ do $$ begin
 end $$;
 set local role postgres;
 delete from auth.identities where provider_id='google-segunda-conta';
+-- Depois da desvinculação, a próxima operação deve ser negada.
+savepoint antes_desvinculacao;
+delete from auth.identities where user_id='10000000-0000-4000-8000-000000000003' and provider='google';
+set local role authenticated;
+do $$ begin
+  if api.consultar_sessao_nativa(gen_random_uuid()) is not null then raise exception 'IDENTIDADE_DESVINCULADA_ACEITA'; end if;
+end $$;
+rollback to savepoint antes_desvinculacao;
 set local role authenticated;
 set local request.jwt.claims='{"sub":"10000000-0000-4000-8000-000000000001","session_id":"20000000-0000-4000-8000-000000000001","amr":[{"method":"password"}],"user_metadata":{"hd":"example.test","perfil":"administrador"}}';
 do $$ begin

@@ -35,9 +35,11 @@ begin
  end if;
  if bloqueios_auth.travar(ator,sessao) is true then
  select dominio_workspace into dominio from identidade.configuracao_auth_nativo where google_unico_oauth_confirmado for share;
- if found and exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth.jwt()->'amr')='array' then auth.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='oauth')
-  and (select count(*) from auth.identities i where i.user_id=ator and i.provider='google')=1 then
-  select i.provider_id,i.identity_data into google from auth.identities i where i.user_id=ator and i.provider='google';
+ if found and exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth.jwt()->'amr')='array' then auth.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='oauth') then
+  select i.provider_id,i.identity_data into google from auth.identities i where i.user_id=ator and i.provider='google'
+   and bloqueios_auth.travar(ator,sessao)
+   and exists(select 1 from auth.sessions s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp()))
+   and (select count(*) from auth.identities j where j.user_id=ator and j.provider='google')=1;
   if google.identity_data->>'sub'=google.provider_id and google.identity_data->>'email_verified'='true' and google.identity_data#>>'{custom_claims,hd}'=dominio then
    select c.id,c.subject_google into concessao,sujeito from identidade.concessao_equipe c
     where c.usuario_id=ator and c.estado='vinculada' and c.metodo='google_workspace' and c.perfil='administrador' for share;
