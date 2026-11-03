@@ -44,3 +44,14 @@ grant usage on schema auth to authenticated;
 \ir ../migrations/20261106180000_bloqueios_auth.sql
 \ir ../migrations/20261106190000_wrappers_privados.sql
 \ir ../migrations/20261106200000_autoridade_locks.sql
+create temporary table criar_paciente_privilegios_antes as
+ select proowner, proacl from pg_proc where oid='operacao.criar_paciente_privado(jsonb)'::regprocedure;
+\ir ../migrations/20261106210000_corrigir_auditoria_replay_paciente.sql
+do $$
+begin
+ if exists(select 1 from pg_proc p cross join criar_paciente_privilegios_antes a
+  where p.oid='operacao.criar_paciente_privado(jsonb)'::regprocedure
+   and (p.proowner is distinct from a.proowner or p.proacl is distinct from a.proacl)) then
+  raise exception 'CRIAR_PACIENTE_OWNER_OU_GRANTS_ALTERADOS';
+ end if;
+end $$;
