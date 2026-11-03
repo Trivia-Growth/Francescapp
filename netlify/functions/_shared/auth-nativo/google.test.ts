@@ -42,6 +42,7 @@ describe('Google nativo: SDK real, sem chamadas a fornecedor', () => {
       expect(cookie).toContain('Secure');
       expect(cookie).toContain('SameSite=Lax');
       expect(cookie).toContain('Path=/');
+      expect(cookie).toContain('Max-Age=600');
       expect(cookie).not.toContain('Domain=');
     }
     expect(resposta.headers.get('cache-control')).toBe('private, no-store');

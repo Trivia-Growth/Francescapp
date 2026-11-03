@@ -69,10 +69,17 @@ export function criarContextoAuthNativo(
         for (const [nome, valor] of Object.entries(headers)) cabecalhosSdk.set(nome, valor);
         for (const { name, value, options } of novos) {
           cookies.set(name, value);
+          // Tentativas abandonadas não devem ocupar cookies por 400 dias.
+          // Exclusões e cookies de sessão conservam a política do SDK.
+          const verifier =
+            fluxo &&
+            name.startsWith(`ffcm-auth-${fluxo}`) &&
+            /-code-verifier(?:\.\d+)?$/.test(name);
           alteracoes.set(
             name,
             serializeCookieHeader(name, value, {
               ...options,
+              ...(verifier && options.maxAge !== 0 ? { maxAge: 600 } : {}),
               httpOnly: true,
               secure: config.https,
               sameSite: 'lax',
