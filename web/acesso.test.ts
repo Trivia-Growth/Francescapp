@@ -153,6 +153,7 @@ it('permite mostrar e ocultar a senha sem perder o valor digitado', async () => 
   botao.click();
   expect(senha.type).toBe('text');
   expect(botao.textContent).toBe('Ocultar senha');
+  expect(botao.hasAttribute('aria-pressed')).toBe(false);
   expect(senha.value).toBe('senha-ficticia');
   botao.click();
   expect(senha.type).toBe('password');
@@ -162,7 +163,7 @@ it('permite mostrar e ocultar a senha sem perder o valor digitado', async () => 
   document.getElementById('login-form')?.dispatchEvent(new Event('submit', { cancelable: true }));
   expect(senha.type).toBe('password');
   expect(senha.value).toBe('');
-  expect(botao.getAttribute('aria-pressed')).toBe('false');
+  expect(botao.hasAttribute('aria-pressed')).toBe(false);
 });
 
 it('após recusa do login retorna o foco ao campo de e-mail habilitado', async () => {

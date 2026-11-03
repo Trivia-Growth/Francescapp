@@ -272,7 +272,6 @@ function mostrarAcesso(mensagem = '', tom: 'error' | 'success' | 'neutral' = 'ne
   loginForm.reset();
   passwordInput.type = 'password';
   togglePassword.textContent = 'Mostrar senha';
-  togglePassword.setAttribute('aria-pressed', 'false');
   patientsView.hidden = true;
   logoutView.hidden = true;
   revalidacaoStatus.hidden = true;
@@ -361,7 +360,6 @@ async function entrar(evento: SubmitEvent): Promise<void> {
   loginForm.reset();
   passwordInput.type = 'password';
   togglePassword.textContent = 'Mostrar senha';
-  togglePassword.setAttribute('aria-pressed', 'false');
   const versao = revisao;
   try {
     const atual = await api.entrar(email, senha);
@@ -718,7 +716,6 @@ togglePassword.addEventListener('click', () => {
   const mostrar = passwordInput.type === 'password';
   passwordInput.type = mostrar ? 'text' : 'password';
   togglePassword.textContent = mostrar ? 'Ocultar senha' : 'Mostrar senha';
-  togglePassword.setAttribute('aria-pressed', String(mostrar));
 });
 createForm.addEventListener('submit', cadastrar);
 logoutButton.addEventListener('click', sair);
