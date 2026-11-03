@@ -1,14 +1,27 @@
 -- Preparação local: nenhum papel da aplicação recebe acesso. S-02 e prova
 -- da concorrência Auth continuam pré-requisitos para qualquer ativação.
+do $$ begin
+ if current_user <> session_user then
+  raise exception 'Migration requer conexão direta como executor';
+ end if;
+end $$;
 create role ffcmapp_api_cadastro_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
 create role ffcmapp_api_carteira_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
-grant ffcmapp_api_cadastro_owner, ffcmapp_api_carteira_owner to postgres;
+grant ffcmapp_api_cadastro_owner, ffcmapp_api_carteira_owner to current_user with inherit false, set true;
 grant usage, create on schema api to ffcmapp_api_cadastro_owner, ffcmapp_api_carteira_owner;
 grant usage on schema auth, public, identidade, cadastro, operacao, auditoria to ffcmapp_api_cadastro_owner;
 grant usage on schema identidade, auditoria, auth to ffcmapp_api_carteira_owner;
 grant insert (id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id) on auditoria.evento to ffcmapp_api_carteira_owner;
+grant ffcmapp_carteira_owner to current_user with inherit false, set true;
+set role ffcmapp_carteira_owner;
 grant execute on function identidade.listar_carteira_privada(jsonb) to ffcmapp_api_carteira_owner;
+set role none;
+revoke ffcmapp_carteira_owner from current_user;
+grant ffcmapp_atestado_verificador_owner to current_user with inherit false, set true;
+set role ffcmapp_atestado_verificador_owner;
 grant execute on function identidade.verificar_assinatura_atestado(text,text,jsonb,jsonb,text) to ffcmapp_api_cadastro_owner;
+set role none;
+revoke ffcmapp_atestado_verificador_owner from current_user;
 grant execute on function operacao.criar_paciente_privado(jsonb), operacao.cadastro_composicao_privada(jsonb),
  operacao.reservar_cadastro_privado(uuid,bigint,uuid), operacao.encerrar_cadastro_privado(uuid,bigint,uuid,uuid),
  operacao.consultar_barreira_cadastro_privado(uuid), operacao.reconhecer_barreira_cadastro_privado(uuid,uuid) to ffcmapp_api_cadastro_owner;
@@ -60,7 +73,7 @@ begin
 end
 $$;
 revoke all on function api.listar_pacientes(jsonb) from public, anon, authenticated, service_role;
-reset role;
+set role none;
 set role ffcmapp_api_cadastro_owner;
 create function api.criar_paciente(p_transporte jsonb) returns jsonb language plpgsql security definer set search_path='' set row_security=on as $$
 declare req uuid;
@@ -92,6 +105,6 @@ begin
 end
 $$;
 revoke all on function api.criar_paciente(jsonb), api.cadastro_composicao(jsonb) from public, anon, authenticated, service_role;
-reset role;
+set role none;
 revoke create on schema api from ffcmapp_api_cadastro_owner, ffcmapp_api_carteira_owner;
-revoke ffcmapp_api_cadastro_owner, ffcmapp_api_carteira_owner from postgres;
+revoke ffcmapp_api_cadastro_owner, ffcmapp_api_carteira_owner from current_user;

@@ -1,12 +1,21 @@
 -- Verificação criptográfica interna de bytes JCS; não autoriza operações.
 -- Sem executor de aplicação até S-02 e integração com JWT, sessão e prazo.
+do $$ begin
+ if current_user <> session_user then
+  raise exception 'Migration requer conexão direta como executor';
+ end if;
+end $$;
 create role ffcmapp_atestado_verificador_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
-grant ffcmapp_atestado_verificador_owner to postgres;
+grant ffcmapp_atestado_verificador_owner to current_user with inherit false, set true;
 grant usage, create on schema identidade to ffcmapp_atestado_verificador_owner;
 grant usage on schema extensions to ffcmapp_atestado_verificador_owner;
 grant execute on function extensions.digest(bytea,text), extensions.hmac(bytea,bytea,text)
   to ffcmapp_atestado_verificador_owner;
+grant ffcmapp_atestado_vault_owner to current_user with inherit false, set true;
+set role ffcmapp_atestado_vault_owner;
 grant execute on function identidade.ler_chave_atestado_vault(text) to ffcmapp_atestado_verificador_owner;
+set role none;
+revoke ffcmapp_atestado_vault_owner from current_user;
 set role ffcmapp_atestado_verificador_owner;
 alter default privileges revoke execute on functions from public;
 create function identidade.verificar_assinatura_atestado(
@@ -42,6 +51,6 @@ exception
   when others then raise exception using errcode = 'XX000', message = 'VERIFICACAO_INDISPONIVEL';
 end $$;
 revoke all on function identidade.verificar_assinatura_atestado(text,text,jsonb,jsonb,text) from public, anon, authenticated;
-reset role;
+set role none;
 revoke create on schema identidade from ffcmapp_atestado_verificador_owner;
-revoke ffcmapp_atestado_verificador_owner from postgres;
+revoke ffcmapp_atestado_verificador_owner from current_user;

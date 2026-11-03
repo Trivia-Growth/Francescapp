@@ -1,8 +1,13 @@
 -- Pré-requisito local: não provisiona segredo, não publica RPC nem comprova atestado.
 -- A execução remota depende da revisão S-02 e de configuração autorizada.
+do $$ begin
+ if current_user <> session_user then
+  raise exception 'Migration requer conexão direta como executor';
+ end if;
+end $$;
 create role ffcmapp_atestado_vault_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
 create role ffcmapp_atestado_vault_executor nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
-grant ffcmapp_atestado_vault_owner to postgres;
+grant ffcmapp_atestado_vault_owner to current_user with inherit false, set true;
 grant usage, create on schema identidade to ffcmapp_atestado_vault_owner;
 grant usage on schema identidade to ffcmapp_atestado_vault_executor;
 grant usage on schema vault to ffcmapp_atestado_vault_owner;
@@ -37,6 +42,6 @@ begin
 end $$;
 revoke all on function identidade.ler_chave_atestado_vault(text) from public,anon,authenticated;
 grant execute on function identidade.ler_chave_atestado_vault(text) to ffcmapp_atestado_vault_executor;
-reset role;
+set role none;
 revoke create on schema identidade from ffcmapp_atestado_vault_owner;
-revoke ffcmapp_atestado_vault_owner from postgres;
+revoke ffcmapp_atestado_vault_owner from current_user;
