@@ -441,3 +441,39 @@ begin
  end if;
 end $$;
 select dblink_disconnect('admissao');
+
+-- Troca concorrente após captura: subject antigo nunca pode vincular concessão do novo email.
+insert into identidade.concessao_equipe (id,email_cifrado,email_hmac,perfil,metodo,estado,motivo_cifrado)
+values ('30000000-0000-4000-8000-000000000008',
+ '{"formato":1,"key_id":"fixture","nonce":"fixture","ciphertext":"fixture","tag":"fixture"}',
+ rtrim(translate(encode(extensions.hmac(convert_to('ffcmapp:hmac:v1:email-concessao:outra-ficticia@example.test','UTF8'),decode(repeat('ab',32),'hex'),'sha256'),'base64'),'+/','-_'),'='),
+ 'profissional','google_workspace','pendente',
+ '{"formato":1,"key_id":"fixture","nonce":"fixture","ciphertext":"fixture","tag":"fixture"}');
+update auth.sessions set not_after=null where id='20000000-0000-4000-8000-000000000003';
+select dblink_connect('identidade_troca',format('dbname=%L host=%L port=%s user=%L',current_database(),current_setting('unix_socket_directories'),current_setting('port'),session_user));
+select dblink_exec('identidade_troca','set role authenticated');
+select dblink_exec('identidade_troca', $$set request.jwt.claims='{"sub":"10000000-0000-4000-8000-000000000003","session_id":"20000000-0000-4000-8000-000000000003","amr":[{"method":"oauth"}]}'$$);
+select pid as backend_troca from dblink('identidade_troca','select pg_backend_pid()') as x(pid integer) \gset
+begin;
+select 1 from identidade.concessao_equipe where id='30000000-0000-4000-8000-000000000003' for update;
+select dblink_send_query('identidade_troca', $$select api.admitir_sessao_nativa('70000000-0000-4000-8000-000000000008')$$);
+select pg_temp.esperar_auth(:backend_troca);
+update auth.identities set provider_id='google-trocado',
+ identity_data=jsonb_set(jsonb_set(identity_data,'{sub}','"google-trocado"'),'{email}','"outra-ficticia@example.test"')
+ where user_id='10000000-0000-4000-8000-000000000003' and provider='google';
+commit;
+do $$ declare r jsonb; begin
+ begin
+  select x into r from dblink_get_result('identidade_troca') as t(x jsonb);
+ exception when sqlstate '55000' then
+  if sqlerrm <> 'ADMISSAO_AUTH_INCONSISTENTE' then raise; end if;
+ end;
+ if exists(select 1 from identidade.concessao_equipe where id='30000000-0000-4000-8000-000000000008' and (subject_google is not null or usuario_id is not null or estado <> 'pendente'))
+ or exists(select 1 from identidade.concessao_equipe where id='30000000-0000-4000-8000-000000000003' and subject_google='google-trocado') then
+  raise exception 'IDENTIDADE_VINCULADA_A_EMAIL_DIVERGENTE';
+ end if;
+ if r is not null and not exists(select 1 from identidade.concessao_equipe where id='30000000-0000-4000-8000-000000000003' and subject_google='google-10000000-0000-4000-8000-000000000003' and estado='vinculada') then
+  raise exception 'ADMISSAO_SEM_IDENTIDADE_CAPTURADA';
+ end if;
+end $$;
+select dblink_disconnect('identidade_troca');
