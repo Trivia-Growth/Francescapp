@@ -1,6 +1,7 @@
 import {
   contratosRotas,
   contratosBarreiraHttp,
+  contratosBarreiraContatoHttp,
   erroRespostaSchema,
   mensagensErro,
   statusErroHttp,
@@ -41,6 +42,22 @@ const rotas = {
   salvarAnamnese: contratosRotas.salvarAnamnese,
   criarPaciente: contratosRotas.criarPaciente,
   sairSessao: contratosRotas.sairSessao,
+  consultarBarreiraContato: {
+    ...contratosBarreiraContatoHttp.consultar,
+    saida: contratosBarreiraContatoHttp.consultar.saida.shape.dados,
+  },
+  reservarBarreiraContato: {
+    ...contratosBarreiraContatoHttp.reservar,
+    saida: contratosBarreiraContatoHttp.reservar.saida.shape.dados,
+  },
+  encerrarBarreiraContato: {
+    ...contratosBarreiraContatoHttp.encerrar,
+    saida: contratosBarreiraContatoHttp.encerrar.saida.shape.dados,
+  },
+  reconhecerBarreiraContato: {
+    ...contratosBarreiraContatoHttp.reconhecer,
+    saida: contratosBarreiraContatoHttp.reconhecer.saida.shape.dados,
+  },
   consultarBarreira: {
     ...contratosBarreiraHttp.consultar,
     saida: contratosBarreiraHttp.consultar.saida.shape.dados,
@@ -398,6 +415,7 @@ export class ClienteFFCM {
     pacienteId: string,
     entrada: ReturnType<typeof novoContatoSchema.parse>,
     chave: string,
+    reserva: { reserva_id: string; geracao_reserva: number },
   ): Promise<Dados<'criarContato'>> {
     if (!chaveIdempotenciaSchema.safeParse(chave).success)
       return Promise.reject(new FalhaApi('entrada_invalida', 422));
@@ -406,7 +424,11 @@ export class ClienteFFCM {
     if (vinculo && (vinculo.pacienteId !== pacienteId || vinculo.sessionId !== this.#sessionId))
       return Promise.reject(new FalhaApi('nao_autenticado', 401));
     this.#vinculosContato.set(chave, { pacienteId, sessionId: this.#sessionId });
-    return this.#enviar('criarContato', entrada, { protegido: true, pacienteId, chave });
+    return this.#enviar(
+      'criarContato',
+      { entrada, ...reserva },
+      { protegido: true, pacienteId, chave },
+    );
   }
 
   consultarAnamnese(pacienteId: string): Promise<Dados<'consultarAnamnese'>> {
@@ -458,6 +480,29 @@ export class ClienteFFCM {
 
   reconhecerBarreira(entrada: { comando_id: string }): Promise<Dados<'reconhecerBarreira'>> {
     return this.#enviar('reconhecerBarreira', entrada, { protegido: true });
+  }
+
+  identidadeAtual(): { usuario_id: string; session_id: string } | null {
+    return this.#usuarioId && this.#sessionId && !this.#saindo
+      ? { usuario_id: this.#usuarioId, session_id: this.#sessionId }
+      : null;
+  }
+
+  consultarBarreiraContato() {
+    return this.#enviar('consultarBarreiraContato', {}, { protegido: true });
+  }
+  reservarBarreiraContato(entrada: { epoca: number; reserva_id: string; paciente_id: string }) {
+    return this.#enviar('reservarBarreiraContato', entrada, { protegido: true });
+  }
+  encerrarBarreiraContato(entrada: {
+    epoca: number;
+    reserva_id: string | null;
+    comando_id: string;
+  }) {
+    return this.#enviar('encerrarBarreiraContato', entrada, { protegido: true });
+  }
+  reconhecerBarreiraContato(entrada: { comando_id: string }) {
+    return this.#enviar('reconhecerBarreiraContato', entrada, { protegido: true });
   }
 
   async sair(): Promise<Dados<'sairSessao'>> {

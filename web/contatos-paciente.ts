@@ -1,5 +1,6 @@
 import { novoContatoSchema } from '../packages/contracts/src/index.js';
-import { exigeNovoAcesso, mensagemFalha, resultadoIncerto, type ClienteFFCM } from './api.js';
+import { exigeNovoAcesso, mensagemFalha, type ClienteFFCM } from './api.js';
+import { criarCicloContato } from './ciclo-contato.js';
 
 /** Montagem preparada para quando a rota de contatos estiver autorizada. */
 export function montarContatoPaciente(
@@ -10,7 +11,16 @@ export function montarContatoPaciente(
   alteracaoPendente: (pendente: boolean) => void,
 ): () => void {
   let ativa = true;
-  let bloqueada = false;
+  let bloqueada = true;
+  const ciclo = criarCicloContato({
+    identidadeAtual: () => api.identidadeAtual(),
+    consultar: () => api.consultarBarreiraContato(),
+    reservar: async (entrada) => (await api.reservarBarreiraContato(entrada)).estado,
+    criar: ({ entrada, paciente_id, chave, reserva_id, geracao_reserva }) =>
+      api.criarContato(paciente_id, entrada, chave, { reserva_id, geracao_reserva }),
+    encerrar: async (entrada) => (await api.encerrarBarreiraContato(entrada)).estado,
+    reconhecer: async (entrada) => (await api.reconhecerBarreiraContato(entrada)).estado,
+  });
   const form = document.createElement('form');
   const campos = document.createElement('fieldset');
   const legenda = document.createElement('legend');
@@ -49,8 +59,44 @@ export function montarContatoPaciente(
   const status = document.createElement('p');
   status.setAttribute('role', 'status');
   status.setAttribute('aria-live', 'polite');
+  const recuperar = document.createElement('button');
+  recuperar.type = 'button';
+  recuperar.textContent = 'Verificar operação pendente';
+  recuperar.hidden = true;
+  campos.disabled = salvar.disabled = true;
+  let etapa: 'encerrar' | 'reconhecer' | null = null;
+  const reconciliar = async () => {
+    bloqueada = true;
+    campos.disabled = salvar.disabled = recuperar.disabled = true;
+    status.textContent = 'Verificando operação pendente…';
+    try {
+      if (!etapa) {
+        const estado = await ciclo.consultar();
+        etapa = estado.resultado_pendente ? 'reconhecer' : 'encerrar';
+      }
+      if (etapa === 'reconhecer') await ciclo.reconhecer();
+      else await ciclo.encerrar();
+      etapa = null;
+      await ciclo.consultar();
+      ciclo.liberar();
+      if (!ativa) return;
+      bloqueada = false;
+      campos.disabled = salvar.disabled = false;
+      recuperar.hidden = true;
+      status.textContent = 'Operações anteriores verificadas.';
+    } catch (erro) {
+      if (!ativa) return;
+      if (exigeNovoAcesso(erro)) acessoPerdido(erro);
+      recuperar.hidden = false;
+      status.textContent =
+        'Não foi possível verificar a operação. Tente novamente antes de adicionar contato.';
+    } finally {
+      if (ativa) recuperar.disabled = false;
+    }
+  };
+  recuperar.addEventListener('click', () => void reconciliar());
   campos.append(legenda, labelTipo, labelValor);
-  form.append(campos, salvar, status);
+  form.append(campos, salvar, recuperar, status);
   form.addEventListener('input', () => alteracaoPendente(true));
   form.addEventListener('change', () => alteracaoPendente(true));
   form.addEventListener('submit', (evento) => {
@@ -66,36 +112,26 @@ export function montarContatoPaciente(
     campos.disabled = salvar.disabled = true;
     alteracaoPendente(true);
     status.textContent = 'Adicionando contato…';
-    void api
-      .criarContato(pacienteId, entrada.data, crypto.randomUUID())
+    void ciclo
+      .criar(pacienteId, entrada.data)
       .then(() => {
         if (!ativa) return;
         valor.value = '';
-        bloqueada = false;
-        campos.disabled = salvar.disabled = false;
         alteracaoPendente(false);
-        status.textContent = 'Contato adicionado.';
+        void reconciliar();
       })
       .catch((erro: unknown) => {
         if (!ativa) return;
-        if (resultadoIncerto(erro)) {
-          campos.disabled = false;
-          tipo.disabled = true;
-          valor.readOnly = true;
-          status.textContent =
-            'Não foi possível confirmar se o contato foi adicionado. Não tente adicioná-lo novamente até que a operação seja reconciliada pelo servidor.';
-          return;
-        }
         if (exigeNovoAcesso(erro)) {
           acessoPerdido(erro);
           return;
         }
-        bloqueada = false;
-        campos.disabled = salvar.disabled = false;
         status.textContent = mensagemFalha(erro);
+        recuperar.hidden = false;
       });
   });
   raiz.replaceChildren(form);
+  void reconciliar();
   return () => {
     ativa = false;
     raiz.replaceChildren();

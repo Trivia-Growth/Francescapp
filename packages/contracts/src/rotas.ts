@@ -381,7 +381,7 @@ export const contratosRotas = {
   criarContato: mutacaoIdempotente(
     'POST',
     '/api/pacientes/:paciente_id/contatos',
-    novoContatoSchema,
+    reservaCadastroSchema.extend({ entrada: novoContatoSchema }).strict(),
     pacienteAdministrativoSchema,
     pacienteParametrosSchema,
   ),

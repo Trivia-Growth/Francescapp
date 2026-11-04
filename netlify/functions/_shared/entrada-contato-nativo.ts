@@ -1,3 +1,4 @@
+import { criarContatoReservadoHttpSchema } from '../../../packages/contracts/src/barreira-contato-servidor.ts';
 import {
   cabecalhosMutacaoSchema,
   contratosRotas,
@@ -69,7 +70,7 @@ export function criarEntradaContatoNativo(dependencias: Dependencias) {
       } finally {
         leitor.releaseLock();
       }
-      const validada = contratosRotas.criarContato.entrada.safeParse(entrada);
+      const validada = criarContatoReservadoHttpSchema.safeParse(entrada);
       if (!validada.success) return erro('entrada_invalida');
       try {
         const pedido = new Request(request.url, {
@@ -79,7 +80,13 @@ export function criarEntradaContatoNativo(dependencias: Dependencias) {
         });
         const resultado = await comporContatoNativo(
           pedido,
-          { pacienteId: item[1] as string, corpo: validada.data, cabecalhos: cabecalhos.data },
+          {
+            pacienteId: item[1] as string,
+            corpo: validada.data.entrada,
+            cabecalhos: cabecalhos.data,
+            reservaId: validada.data.reserva_id,
+            geracaoReserva: validada.data.geracao_reserva,
+          },
           dependencias,
         );
         if (!resultado.ok) return erro(resultado.erro.codigo as CodigoErro, resultado.request_id);

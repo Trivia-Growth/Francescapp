@@ -6,6 +6,12 @@ import {
   estadoReconhecimentoCadastroSchema,
   estadoReservaCadastroSchema,
 } from './barreira-cadastro.ts';
+import {
+  consultaBarreiraContatoSchema,
+  reservarContatoSchema,
+  encerrarContatoSchema,
+  reconhecerContatoSchema,
+} from './barreira-contato.ts';
 import { sucessoRespostaSchema, uuidSchema } from './comum.ts';
 
 const vazio = z.object({}).strict();
@@ -52,6 +58,41 @@ export const contratosBarreiraHttp = {
     metodo: 'POST',
     caminho: '/api/cadastro/barreira/reconhecer',
     entrada: z.object({ comando_id: uuidSchema }).strict(),
+    cabecalhos: mutacao,
+    parametros: vazio,
+    saida: sucessoRespostaSchema(z.object({ estado: estadoReconhecimentoCadastroSchema }).strict()),
+  },
+} as const;
+
+export const contratosBarreiraContatoHttp = {
+  consultar: {
+    metodo: 'GET',
+    caminho: '/api/contatos/barreira',
+    entrada: vazio,
+    cabecalhos: sessao,
+    parametros: vazio,
+    saida: sucessoRespostaSchema(consultaBarreiraContatoSchema),
+  },
+  reservar: {
+    metodo: 'POST',
+    caminho: '/api/contatos/barreira/reservar',
+    entrada: reservarContatoSchema,
+    cabecalhos: mutacao,
+    parametros: vazio,
+    saida: sucessoRespostaSchema(z.object({ estado: estadoReservaCadastroSchema }).strict()),
+  },
+  encerrar: {
+    metodo: 'POST',
+    caminho: '/api/contatos/barreira/encerrar',
+    entrada: encerrarContatoSchema,
+    cabecalhos: mutacao,
+    parametros: vazio,
+    saida: sucessoRespostaSchema(z.object({ estado: estadoEncerramentoCadastroSchema }).strict()),
+  },
+  reconhecer: {
+    metodo: 'POST',
+    caminho: '/api/contatos/barreira/reconhecer',
+    entrada: reconhecerContatoSchema,
     cabecalhos: mutacao,
     parametros: vazio,
     saida: sucessoRespostaSchema(z.object({ estado: estadoReconhecimentoCadastroSchema }).strict()),
