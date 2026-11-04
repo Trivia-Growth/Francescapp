@@ -52,7 +52,7 @@
             <div id="list-empty" class="empty-state" hidden><h3>Nenhum paciente nesta lista</h3><p id="empty-description">Nenhum cadastro disponível para seu acesso.</p></div>
             <table id="patients-table" hidden>
               <caption class="sr-only">Pacientes fictícios da demonstração</caption>
-              <thead><tr><th scope="col">Nome</th><th scope="col">Nome de preferência</th><th scope="col">Anamnese</th></tr></thead>
+              <thead><tr><th scope="col">Nome</th><th scope="col">Nome de preferência</th><th scope="col">Ações</th></tr></thead>
               <tbody id="patients-body"></tbody>
             </table>
             <nav id="pagination" class="pagination" aria-label="Páginas de pacientes" hidden><button id="previous-page" class="button-secondary" type="button">Página anterior</button><span id="page-number"></span><button id="next-page" class="button-secondary" type="button">Próxima página</button></nav>
@@ -90,6 +90,30 @@
             <button class="button-primary" type="submit">Guardar nesta prévia</button>
           </form>
           <p id="anamnese-feedback" class="feedback" role="status" aria-live="polite"></p>
+        </section>
+      </section>
+
+      <section id="tasks-view" class="patients-layout" aria-labelledby="tasks-title" hidden>
+        <button id="tasks-back" class="button-secondary" type="button">Voltar à lista</button>
+        <div class="page-heading"><div><h1 id="tasks-title" tabindex="-1">Tarefas do plano</h1><p id="tasks-patient"></p></div></div>
+        <p class="feedback">Prévia local: use somente dados fictícios. Tarefas ficam apenas nesta página e são perdidas ao recarregar. Esta tela não está conectada.</p>
+        <section aria-labelledby="tasks-list-title">
+          <h2 id="tasks-list-title">Tarefas deste paciente</h2>
+          <p id="tasks-empty">Nenhuma tarefa nesta prévia. Cadastre uma tarefa fictícia abaixo.</p>
+          <ul id="tasks-list"></ul>
+        </section>
+        <section aria-labelledby="task-form-title">
+          <h2 id="task-form-title">Cadastrar tarefa</h2>
+          <form id="task-form" autocomplete="off">
+            <div class="field"><label for="task-description">Tarefa</label><input id="task-description" type="text" maxlength="200" required></div>
+            <div class="field"><label for="task-responsible">Responsável</label><input id="task-responsible" type="text" maxlength="200" required></div>
+            <div class="field"><label for="task-deadline">Prazo</label><input id="task-deadline" type="date" required></div>
+            <div class="field"><label for="task-priority">Prioridade</label><input id="task-priority" type="text" maxlength="200" required></div>
+            <div class="field"><label for="task-status">Estado</label><select id="task-status"><option value="pendente">Pendente</option><option value="em_andamento">Em andamento</option><option value="concluida">Concluída</option><option value="cancelada">Cancelada</option></select></div>
+            <div class="field"><label for="task-action">Ação realizada ou justificativa <span class="label-detail">obrigatória para conclusão</span></label><textarea id="task-action" rows="3"></textarea></div>
+            <button class="button-primary" type="submit">Guardar tarefa nesta prévia</button>
+          </form>
+          <p id="task-feedback" class="feedback" role="status" aria-live="polite"></p>
         </section>
       </section>
 

@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
 import { localizarPendencias, validarSecoesAnamnese } from '../packages/cadastro/src/anamnese';
+import { validarTarefaPlano } from '../packages/cadastro/src/tarefa-plano';
 
 // Esta página não autentica e nunca chama serviços ou grava dados.
 if (import.meta.env.DEV && window.location.hostname === 'localhost') {
@@ -20,6 +21,30 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const preferencia = elemento<HTMLInputElement>('preferred-name');
   type Anamnese = { estado: string; valor: string; fonte: string; data: string };
   const anamneses = new Map<object, Anamnese>();
+  type Tarefa = {
+    descricao: string;
+    responsavel: string;
+    prazo: string;
+    prioridade: string;
+    estado: string;
+    acaoOuJustificativa: string;
+  };
+  const tarefas = new Map<object, Tarefa[]>();
+  const formulariosAlterados = new Set<HTMLFormElement>();
+  const telaTarefas = elemento('tasks-view');
+  const formularioTarefa = elemento<HTMLFormElement>('task-form');
+  const descricaoTarefa = elemento<HTMLInputElement>('task-description');
+  const responsavelTarefa = elemento<HTMLInputElement>('task-responsible');
+  const prazoTarefa = elemento<HTMLInputElement>('task-deadline');
+  const prioridadeTarefa = elemento<HTMLInputElement>('task-priority');
+  const estadoTarefa = elemento<HTMLSelectElement>('task-status');
+  const acaoTarefa = elemento<HTMLTextAreaElement>('task-action');
+  const rotulosEstado: Record<string, string> = {
+    pendente: 'Pendente',
+    em_andamento: 'Em andamento',
+    concluida: 'Concluída',
+    cancelada: 'Cancelada',
+  };
   let selecionado: object | undefined;
   let anamneseAlterada = false;
   const anamnese = elemento('anamnese-view');
@@ -57,12 +82,131 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         anamnese.hidden = false;
         elemento('anamnese-title').focus();
       });
-      linha.insertCell().append(abrir);
+      const abrirTarefas = document.createElement('button');
+      abrirTarefas.type = 'button';
+      abrirTarefas.className = 'button-secondary';
+      abrirTarefas.textContent = 'Abrir tarefas';
+      abrirTarefas.setAttribute('aria-label', `Abrir tarefas de ${registro.nome}`);
+      abrirTarefas.addEventListener('click', () => {
+        selecionado = registro;
+        formularioTarefa.reset();
+        elemento('task-feedback').textContent = '';
+        elemento('tasks-patient').textContent = registro.nome;
+        atualizarTarefas();
+        pacientes.hidden = true;
+        telaTarefas.hidden = false;
+        elemento('tasks-title').focus();
+      });
+      linha.insertCell().append(abrir, document.createTextNode(' '), abrirTarefas);
     }
     tabela.hidden = registros.length === 0;
     vazio.hidden = registros.length !== 0;
     elemento('list-status').textContent = `${registros.length} pacientes fictícios nesta lista.`;
   };
+  const atualizarTarefas = () => {
+    const lista = elemento('tasks-list');
+    lista.replaceChildren();
+    const itens = selecionado ? (tarefas.get(selecionado) ?? []) : [];
+    elemento('tasks-empty').hidden = itens.length > 0;
+    for (const tarefa of itens) {
+      const item = document.createElement('li');
+      const titulo = document.createElement('h3');
+      titulo.textContent = tarefa.descricao;
+      const detalhes = document.createElement('p');
+      detalhes.textContent = `Responsável: ${tarefa.responsavel} · Prazo: ${tarefa.prazo} · Prioridade: ${tarefa.prioridade} · Estado: ${rotulosEstado[tarefa.estado]}`;
+      const acao = document.createElement('p');
+      acao.textContent = tarefa.acaoOuJustificativa
+        ? `Ação ou justificativa: ${tarefa.acaoOuJustificativa}`
+        : '';
+      const form = document.createElement('form');
+      const rotuloEstado = document.createElement('label');
+      rotuloEstado.textContent = 'Alterar estado';
+      const estado = document.createElement('select');
+      for (const [valor, rotulo] of Object.entries(rotulosEstado))
+        estado.add(new Option(rotulo, valor));
+      estado.value = tarefa.estado;
+      rotuloEstado.append(estado);
+      const rotuloAcao = document.createElement('label');
+      rotuloAcao.textContent = 'Ação realizada ou justificativa';
+      const campoAcao = document.createElement('textarea');
+      campoAcao.value = tarefa.acaoOuJustificativa;
+      rotuloAcao.append(campoAcao);
+      const botao = document.createElement('button');
+      botao.type = 'submit';
+      botao.className = 'button-secondary';
+      botao.textContent = 'Atualizar tarefa';
+      const feedback = document.createElement('p');
+      feedback.setAttribute('role', 'status');
+      form.append(rotuloEstado, rotuloAcao, botao, feedback);
+      form.addEventListener('input', () => formulariosAlterados.add(form));
+      form.addEventListener('change', () => formulariosAlterados.add(form));
+      form.addEventListener('submit', (evento) => {
+        evento.preventDefault();
+        const resultado = validarTarefaPlano({
+          ...tarefa,
+          estado: estado.value,
+          acaoRealizada: campoAcao.value.trim() || undefined,
+        });
+        if (!resultado.valido) {
+          feedback.textContent = 'Informe a ação realizada ou justificativa para concluir.';
+          campoAcao.focus();
+          return;
+        }
+        tarefa.estado = estado.value;
+        tarefa.acaoOuJustificativa = campoAcao.value.trim();
+        detalhes.textContent = `Responsável: ${tarefa.responsavel} · Prazo: ${tarefa.prazo} · Prioridade: ${tarefa.prioridade} · Estado: ${rotulosEstado[tarefa.estado]}`;
+        acao.textContent = tarefa.acaoOuJustificativa
+          ? `Ação ou justificativa: ${tarefa.acaoOuJustificativa}`
+          : '';
+        formulariosAlterados.delete(form);
+        feedback.textContent = 'Tarefa atualizada somente nesta prévia.';
+      });
+      item.append(titulo, detalhes, acao, form);
+      lista.append(item);
+    }
+  };
+  elemento('tasks-back').addEventListener('click', () => {
+    if (!podeDescartar()) return;
+    formulariosAlterados.clear();
+    telaTarefas.hidden = true;
+    pacientes.hidden = false;
+    elemento('patients-title').focus();
+  });
+  formularioTarefa.addEventListener('input', () => formulariosAlterados.add(formularioTarefa));
+  formularioTarefa.addEventListener('change', () => formulariosAlterados.add(formularioTarefa));
+  formularioTarefa.addEventListener('submit', (evento) => {
+    evento.preventDefault();
+    if (!selecionado) return;
+    const tarefa: Tarefa = {
+      descricao: descricaoTarefa.value.trim(),
+      responsavel: responsavelTarefa.value.trim(),
+      prazo: prazoTarefa.value,
+      prioridade: prioridadeTarefa.value.trim(),
+      estado: estadoTarefa.value,
+      acaoOuJustificativa: acaoTarefa.value.trim(),
+    };
+    const resultado = validarTarefaPlano({
+      ...tarefa,
+      acaoRealizada: tarefa.acaoOuJustificativa || undefined,
+    });
+    if (!tarefa.descricao || !resultado.valido) {
+      elemento('task-feedback').textContent =
+        'Preencha tarefa, responsável, prazo e prioridade. Para concluir, informe ação ou justificativa.';
+      return;
+    }
+    if (
+      [...formulariosAlterados].some((form) => form !== formularioTarefa) &&
+      !window.confirm('Há alterações não guardadas em outras tarefas. Deseja descartá-las?')
+    )
+      return;
+    formulariosAlterados.clear();
+    const itens = tarefas.get(selecionado) ?? [];
+    itens.push(tarefa);
+    tarefas.set(selecionado, itens);
+    formularioTarefa.reset();
+    atualizarTarefas();
+    elemento('task-feedback').textContent = 'Tarefa guardada somente nesta prévia.';
+  });
   const secoesDaTela = () =>
     validarSecoesAnamnese([
       {
@@ -86,7 +230,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       : 'Seção sem pendências nesta prévia.';
   };
   const podeDescartar = () =>
-    !anamneseAlterada || window.confirm('Há alterações não guardadas. Deseja descartá-las?');
+    (!anamneseAlterada && formulariosAlterados.size === 0) ||
+    window.confirm('Há alterações não guardadas. Deseja descartá-las?');
   const formularioAnamnese = elemento<HTMLFormElement>('anamnese-form');
   formularioAnamnese.addEventListener('input', () => {
     anamneseAlterada = true;
