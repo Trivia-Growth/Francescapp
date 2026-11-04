@@ -121,6 +121,25 @@
         </section>
       </section>
 
+      <section id="goals-view" class="patients-layout" aria-labelledby="goals-title" hidden>
+        <button id="goals-back" class="button-secondary" type="button">Voltar à lista</button>
+        <div class="page-heading"><div><h1 id="goals-title" tabindex="-1">Plano de cuidado</h1><p id="goals-patient"></p></div></div>
+        <p class="feedback">Prévia local: use somente dados fictícios. Objetivos são salvos neste computador; esta tela não está conectada.</p>
+        <section aria-labelledby="goals-list-title"><h2 id="goals-list-title">Objetivos deste paciente</h2><p id="goals-empty">Nenhum objetivo nesta prévia. Cadastre um objetivo fictício abaixo.</p><ul id="goals-list"></ul></section>
+        <section aria-labelledby="goal-form-title"><h2 id="goal-form-title">Cadastrar objetivo</h2><p>Todos os campos são obrigatórios.</p>
+          <form id="goal-form" autocomplete="off" aria-describedby="goal-feedback">
+            <div class="field"><label for="goal-description">Objetivo da pessoa ou equipe</label><input id="goal-description" required maxlength="2000"></div>
+            <div class="field"><label for="goal-area">Área</label><input id="goal-area" required maxlength="2000"></div>
+            <div class="field"><label for="goal-responsible">Responsável</label><input id="goal-responsible" required maxlength="2000"></div>
+            <div class="field"><label for="goal-initial">Situação inicial</label><textarea id="goal-initial" required maxlength="2000"></textarea></div>
+            <div class="field"><label for="goal-progress">Como observar o progresso</label><textarea id="goal-progress" required maxlength="2000"></textarea></div>
+            <div class="field"><label for="goal-date">Data de revisão</label><input id="goal-date" type="date" required></div>
+            <div class="field"><label for="goal-status">Estado</label><select id="goal-status"><option value="proposto">Proposto</option><option value="em andamento">Em andamento</option><option value="atingido">Atingido</option><option value="pausado">Pausado</option><option value="revisar">Revisar</option><option value="encerrado">Encerrado</option></select></div>
+            <button class="button-primary" type="submit">Guardar objetivo nesta prévia</button>
+          </form><p id="goal-feedback" class="feedback" role="status" aria-live="polite"></p>
+        </section>
+      </section>
+
       <section id="logout-view" class="logout-panel" aria-labelledby="logout-title" hidden>
         <h1 id="logout-title" tabindex="-1">Encerrar acesso</h1>
         <p id="logout-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>

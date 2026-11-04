@@ -13,7 +13,10 @@ function servidorFicticio(autenticado = true) {
     { id: '1', name: 'Paciente Exemplo Um', preferredName: 'Exemplo Um' },
     { id: '2', name: 'Paciente Exemplo Dois', preferredName: '' },
   ];
-  const previas = new Map<string, { revision: number; anamnese: unknown; tarefas: unknown[] }>();
+  const previas = new Map<
+    string,
+    { revision: number; anamnese: unknown; tarefas: unknown[]; objetivos?: unknown[] }
+  >();
   const fetch = vi.fn(async (url: string, options?: RequestInit) => {
     let data: unknown;
     if (url.endsWith('/session'))
@@ -25,7 +28,7 @@ function servidorFicticio(autenticado = true) {
       const previa = previas.get(url) ?? { revision: 0, anamnese: null, tarefas: [] };
       if (options?.method === 'PUT') {
         const dados = JSON.parse(String(options.body)) as {
-          type: 'anamnese' | 'tarefas';
+          type: 'anamnese' | 'tarefas' | 'objetivos';
           value: never;
         };
         previa[dados.type] = dados.value;
@@ -293,4 +296,66 @@ it('oculta dados ao expirar sessão e preserva rascunho até novo login', async 
   await vi.waitFor(() => expect(document.getElementById('anamnese-view')?.hidden).toBe(false));
   expect(campo.value).toBe('Rascunho fictício');
   confirmar.mockRestore();
+});
+
+it('guarda objetivos fictícios por paciente e valida campos', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  servidorFicticio();
+  await import('./demonstracao.js');
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
+  const abrir = () =>
+    document.querySelectorAll<HTMLButtonElement>(
+      '#patients-body button[aria-label^="Abrir plano"]',
+    );
+  abrir()[0]?.click();
+  await vi.waitFor(() => expect(document.getElementById('goals-view')?.hidden).toBe(false));
+  const form = document.getElementById('goal-form') as HTMLFormElement;
+  form.dispatchEvent(new Event('submit', { cancelable: true }));
+  expect(document.getElementById('goal-feedback')?.textContent).toContain('Confira');
+  for (const [id, value] of Object.entries({
+    'goal-description': 'Objetivo fictício',
+    'goal-area': 'Rotina',
+    'goal-responsible': 'Equipe',
+    'goal-initial': 'Inicial',
+    'goal-progress': 'Relato',
+    'goal-date': '2026-12-01',
+  }))
+    (document.getElementById(id) as HTMLInputElement).value = value;
+  fetch.mockImplementationOnce(async () => {
+    throw new Error('resposta perdida');
+  });
+  form.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(document.getElementById('goal-feedback')?.textContent).toContain(
+      'Confira a lista atualizada',
+    ),
+  );
+  expect((document.getElementById('goal-description') as HTMLInputElement).value).toBe(
+    'Objetivo fictício',
+  );
+  fetch.mockImplementationOnce(
+    async () => ({ ok: false, status: 409, json: async () => ({}) }) as never,
+  );
+  form.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(document.getElementById('goal-feedback')?.textContent).toContain('Lista atualizada'),
+  );
+  expect((document.getElementById('goal-description') as HTMLInputElement).value).toBe(
+    'Objetivo fictício',
+  );
+  form.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(document.getElementById('goals-list')?.textContent).toContain('Objetivo fictício'),
+  );
+  document.getElementById('goals-back')?.click();
+  abrir()[1]?.click();
+  await vi.waitFor(() => expect(document.getElementById('goals-view')?.hidden).toBe(false));
+  expect(document.getElementById('goals-list')?.textContent).not.toContain('Objetivo fictício');
+  document.getElementById('goals-back')?.click();
+  abrir()[0]?.click();
+  await vi.waitFor(() =>
+    expect(document.getElementById('goals-list')?.textContent).toContain('Objetivo fictício'),
+  );
 });

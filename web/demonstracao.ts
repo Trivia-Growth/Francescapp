@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 
+import { objetivoSchema, type Objetivo } from '../packages/contracts/src/plano-cuidado';
 import { localizarPendencias, validarSecoesAnamnese } from '../packages/cadastro/src/anamnese';
 import { validarTarefaPlano } from '../packages/cadastro/src/tarefa-plano';
 
@@ -32,6 +33,9 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const tarefas = new Map<string, Tarefa[]>();
   const revisoes = new Map<string, number>();
   const formulariosAlterados = new Set<HTMLFormElement>();
+  const telaObjetivos = elemento('goals-view');
+  const formularioObjetivo = elemento<HTMLFormElement>('goal-form');
+  const objetivos = new Map<string, Objetivo[]>();
   const telaTarefas = elemento('tasks-view');
   const formularioTarefa = elemento<HTMLFormElement>('task-form');
   const descricaoTarefa = elemento<HTMLInputElement>('task-description');
@@ -60,10 +64,13 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const requisitar = async (caminho: string, opcoes?: RequestInit) => {
     const resposta = await fetch(`/api/local-feedback${caminho}`, opcoes);
     if (resposta.status === 401 && caminho !== '/login') {
-      telaInterrompida = [pacientes, anamnese, telaTarefas].find((tela) => !tela.hidden);
+      telaInterrompida = [pacientes, anamnese, telaTarefas, telaObjetivos].find(
+        (tela) => !tela.hidden,
+      );
       pacientes.hidden = true;
       anamnese.hidden = true;
       telaTarefas.hidden = true;
+      telaObjetivos.hidden = true;
       acoes.hidden = true;
       login.hidden = false;
       csrfToken = '';
@@ -110,16 +117,18 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       revision: number;
       anamnese: Anamnese | null;
       tarefas: Tarefa[];
+      objetivos?: Objetivo[];
     };
     revisoes.set(id, previa.revision);
     if (previa.anamnese) anamneses.set(id, previa.anamnese);
     else anamneses.delete(id);
     tarefas.set(id, previa.tarefas);
+    objetivos.set(id, previa.objetivos ?? []);
   };
   const salvarPrevia = async (
     id: string,
-    type: 'anamnese' | 'tarefas',
-    value: Anamnese | Tarefa[],
+    type: 'anamnese' | 'tarefas' | 'objetivos',
+    value: Anamnese | Tarefa[] | Objetivo[],
   ) => {
     const resposta = await requisitar(`/patients/${id}/preview`, {
       method: 'PUT',
@@ -184,12 +193,131 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         telaTarefas.hidden = false;
         elemento('tasks-title').focus();
       });
-      linha.insertCell().append(abrir, document.createTextNode(' '), abrirTarefas);
+      const abrirObjetivos = document.createElement('button');
+      abrirObjetivos.type = 'button';
+      abrirObjetivos.className = 'button-secondary';
+      abrirObjetivos.textContent = 'Abrir plano';
+      abrirObjetivos.setAttribute('aria-label', `Abrir plano de ${registro.name}`);
+      abrirObjetivos.addEventListener('click', async () => {
+        try {
+          await carregarPrevia(registro.id);
+        } catch {
+          elemento('workspace-feedback').textContent =
+            'Não foi possível carregar a prévia. Tente novamente.';
+          return;
+        }
+        selecionado = registro.id;
+        formularioObjetivo.reset();
+        elemento('goal-feedback').textContent = '';
+        elemento('goals-patient').textContent = registro.name;
+        atualizarObjetivos();
+        pacientes.hidden = true;
+        telaObjetivos.hidden = false;
+        elemento('goals-title').focus();
+      });
+      linha
+        .insertCell()
+        .append(
+          abrir,
+          document.createTextNode(' '),
+          abrirTarefas,
+          document.createTextNode(' '),
+          abrirObjetivos,
+        );
     }
     tabela.hidden = registros.length === 0;
     vazio.hidden = registros.length !== 0;
     elemento('list-status').textContent = `${registros.length} pacientes fictícios nesta lista.`;
   };
+  const atualizarObjetivos = () => {
+    const lista = elemento('goals-list');
+    lista.replaceChildren();
+    const itens = selecionado ? (objetivos.get(selecionado) ?? []) : [];
+    elemento('goals-empty').hidden = itens.length > 0;
+    for (const objetivo of itens) {
+      const item = document.createElement('li');
+      const titulo = document.createElement('h3');
+      titulo.textContent = objetivo.descricao;
+      item.append(titulo);
+      for (const texto of [
+        `Área: ${objetivo.area}`,
+        `Responsável: ${objetivo.responsavel}`,
+        `Situação inicial: ${objetivo.situacaoInicial}`,
+        `Como observar o progresso: ${objetivo.observacaoProgresso}`,
+        `Revisão: ${objetivo.dataRevisao}`,
+        `Estado: ${objetivo.estado}`,
+      ]) {
+        const detalhe = document.createElement('p');
+        detalhe.textContent = texto;
+        item.append(detalhe);
+      }
+      lista.append(item);
+    }
+  };
+  elemento('goals-back').addEventListener('click', () => {
+    if (!podeDescartar()) return;
+    formulariosAlterados.delete(formularioObjetivo);
+    telaObjetivos.hidden = true;
+    pacientes.hidden = false;
+    elemento('patients-title').focus();
+  });
+  formularioObjetivo.addEventListener('input', () => formulariosAlterados.add(formularioObjetivo));
+  formularioObjetivo.addEventListener('change', () => formulariosAlterados.add(formularioObjetivo));
+  formularioObjetivo.addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+    if (!selecionado) return;
+    const campo = (id: string) => elemento<HTMLInputElement>(id).value;
+    const resultado = objetivoSchema.safeParse({
+      descricao: campo('goal-description'),
+      area: campo('goal-area'),
+      responsavel: campo('goal-responsible'),
+      situacaoInicial: campo('goal-initial'),
+      observacaoProgresso: campo('goal-progress'),
+      dataRevisao: campo('goal-date'),
+      estado: campo('goal-status'),
+    });
+    if (!resultado.success) {
+      elemento('goal-feedback').textContent = 'Confira todos os campos e a data de revisão.';
+      return;
+    }
+    const pacienteId = selecionado;
+    const itens = [...(objetivos.get(pacienteId) ?? []), resultado.data];
+    bloquearFormulario(formularioObjetivo, true);
+    elemento<HTMLButtonElement>('goals-back').disabled = true;
+    try {
+      await salvarPrevia(pacienteId, 'objetivos', itens);
+      objetivos.set(pacienteId, itens);
+      formularioObjetivo.reset();
+      formulariosAlterados.delete(formularioObjetivo);
+      atualizarObjetivos();
+      elemento('goal-feedback').textContent = 'Objetivo fictício salvo nesta demonstração local.';
+    } catch (erro) {
+      if (erro instanceof Error && erro.message === '409') {
+        try {
+          await carregarPrevia(pacienteId);
+          atualizarObjetivos();
+          elemento('goal-feedback').textContent =
+            'A prévia foi alterada. Lista atualizada; confira se o objetivo já aparece antes de tentar novamente para evitar duplicação. Seu rascunho permanece no formulário.';
+        } catch {
+          elemento('goal-feedback').textContent =
+            'Não foi possível atualizar a prévia. Seu rascunho permanece nesta página; confira a conexão e tente novamente.';
+        }
+      } else {
+        try {
+          await carregarPrevia(pacienteId);
+          atualizarObjetivos();
+          elemento('goal-feedback').textContent =
+            'Não foi possível confirmar o salvamento. Confira a lista atualizada antes de tentar novamente para evitar duplicar o objetivo. Seu rascunho permanece no formulário.';
+        } catch {
+          elemento('goal-feedback').textContent =
+            'Não foi possível confirmar o salvamento nem atualizar a lista. Seu rascunho permanece nesta página; confira a lista antes de tentar novamente para evitar duplicar o objetivo.';
+        }
+      }
+    } finally {
+      bloquearFormulario(formularioObjetivo, false);
+      elemento<HTMLButtonElement>('goals-back').disabled = false;
+    }
+  });
   const atualizarTarefas = () => {
     const lista = elemento('tasks-list');
     lista.replaceChildren();

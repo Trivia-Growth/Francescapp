@@ -249,10 +249,35 @@ export function createLocalFeedbackServer({ password, directory }) {
                 'acaoOuJustificativa',
               ]) && ['pendente', 'em_andamento', 'concluida', 'cancelada'].includes(task.estado),
           );
+        const validGoals =
+          data?.type === 'objetivos' &&
+          Array.isArray(data.value) &&
+          data.value.length <= 100 &&
+          data.value.every(
+            (goal) =>
+              strings(goal, [
+                'descricao',
+                'area',
+                'responsavel',
+                'situacaoInicial',
+                'observacaoProgresso',
+                'dataRevisao',
+                'estado',
+              ]) &&
+              ['descricao', 'area', 'responsavel', 'situacaoInicial', 'observacaoProgresso'].every(
+                (key) => goal[key].trim().length > 0,
+              ) &&
+              ['proposto', 'em andamento', 'atingido', 'pausado', 'revisar', 'encerrado'].includes(
+                goal.estado,
+              ) &&
+              /^\d{4}-\d{2}-\d{2}$/.test(goal.dataRevisao) &&
+              !Number.isNaN(Date.parse(goal.dataRevisao)) &&
+              new Date(goal.dataRevisao).toISOString().slice(0, 10) === goal.dataRevisao,
+          );
         if (
           !Number.isSafeInteger(data?.revision) ||
           data.revision < 0 ||
-          (!validAnamnese && !validTasks)
+          (!validAnamnese && !validTasks && !validGoals)
         )
           return respond(res, 400);
         const preview = await updatePreview(previewMatch[1], data.type, data.value, data.revision);

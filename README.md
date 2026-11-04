@@ -28,9 +28,9 @@ Para abrir a prévia neste computador, execute na raiz do projeto:
 node scripts/local-feedback-start.mjs
 ```
 
-Informe uma senha local de pelo menos 12 caracteres quando o terminal pedir e abra `http://localhost:5173/demonstracao.html`. Mantenha o terminal aberto durante o uso. O acesso funciona apenas neste computador; cadastros, anamneses e tarefas fictícias ficam salvos em `~/Library/Application Support/FFCMApp Feedback`.
+Informe uma senha local de pelo menos 12 caracteres quando o terminal pedir e abra `http://localhost:5173/demonstracao.html`. Mantenha o terminal aberto durante o uso. O acesso funciona apenas neste computador; cadastros, anamneses, tarefas e objetivos fictícios ficam salvos em `~/Library/Application Support/FFCMApp Feedback`.
 
-Use somente dados fictícios. Essa prévia não conecta o Supabase e não é um ambiente para informações reais ou clínicas. O login local não substitui as permissões do aplicativo final.
+Use somente dados fictícios. Essa prévia não conecta o Supabase e não é um ambiente para informações reais ou clínicas. O login local não substitui as permissões do aplicativo final. Na lista de pacientes, use “Abrir plano” para cadastrar e consultar objetivos fictícios; revisões e histórico ainda não estão disponíveis. Se outra aba alterar a prévia, a lista é atualizada e o rascunho permanece no formulário para conferência antes de tentar novamente.
 
 ## Base local de desenvolvimento
 
