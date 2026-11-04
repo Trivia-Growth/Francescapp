@@ -100,6 +100,21 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
       expect(
         await operarAnamneseNativa(request, { operacao: 'ler', paciente_id }, portas),
       ).toMatchObject({ ok: true, dados: { versao: 1, secoes } });
+      // O banco deve negar acesso mesmo com autorização simulada obsoleta.
+      await pool.query(
+        'update identidade.sessao set encerrada_em=clock_timestamp() where session_id=$1',
+        [session_id],
+      );
+      expect(
+        await operarAnamneseNativa(request, { operacao: 'ler', paciente_id }, portas),
+      ).toMatchObject({ ok: false, erro: { codigo: 'sem_permissao' } });
+      expect(await operarAnamneseNativa(request, gravar, portas)).toMatchObject({
+        ok: false,
+        erro: { codigo: 'sem_permissao' },
+      });
+      await pool.query('update identidade.sessao set encerrada_em=null where session_id=$1', [
+        session_id,
+      ]);
       await pool.query(
         "update identidade.concessao_equipe set estado='revogada',revogada_em=clock_timestamp(),revogada_por_usuario_id=$1,motivo_revogacao_cifrado=motivo_cifrado where usuario_id=$1",
         [usuario_id],
