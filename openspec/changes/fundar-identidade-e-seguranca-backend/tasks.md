@@ -44,6 +44,8 @@ Após autorização, a CLI aplicou seis migrations e interrompeu na `20261107130
 
 Retomada aplicou mais 11 migrations e parou na `20261110120000` pelo mesmo vínculo sem `SET`. Histórico confirmou 37 aplicadas; artefatos examinados da migration interrompida não permaneceram. Cinco migrations pendentes foram ajustadas para preservar permissões e restaurar o papel correto; blocos de grants e a cadeia completa passaram em PostgreSQL descartável com Auth/Vault fictícios. Nenhum segredo ou lote foi configurado.
 
+Nova retomada aplicou `20261110120000`–`20261110140000` e parou na `20261110150000`: o migrador não era owner das RPCs. As duas migrations de grants foram corrigidas para assumir temporariamente os owners corretos, preservando vínculos existentes. Teste focado com migrador não superusuário e cadeia completa descartável passaram; prosseguir e conferir histórico remoto. Nenhum segredo ou lote foi configurado.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.
