@@ -49,6 +49,39 @@ export function createLocalFeedbackServer({ password, directory }) {
     pendingWrite = operation.catch(() => {});
     return operation;
   }
+  function validOptionalPatientFields(data) {
+    if (
+      data.birthDate !== undefined &&
+      (typeof data.birthDate !== 'string' ||
+        (data.birthDate !== '' &&
+          (!/^\d{4}-\d{2}-\d{2}$/.test(data.birthDate) ||
+            Number.isNaN(Date.parse(data.birthDate)) ||
+            new Date(data.birthDate).toISOString().slice(0, 10) !== data.birthDate)))
+    )
+      return false;
+    if (
+      data.phone !== undefined &&
+      (typeof data.phone !== 'string' ||
+        (data.phone.trim() !== '' &&
+          (!/^[+\d() .-]{7,32}$/.test(data.phone.trim()) || !/\d/.test(data.phone))))
+    )
+      return false;
+    if (
+      data.email !== undefined &&
+      (typeof data.email !== 'string' ||
+        data.email.trim().length > 254 ||
+        (data.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())))
+    )
+      return false;
+    return true;
+  }
+  function optionalPatientFields(data) {
+    return Object.fromEntries(
+      ['birthDate', 'phone', 'email']
+        .filter((field) => data[field] !== undefined)
+        .map((field) => [field, data[field].trim()]),
+    );
+  }
   async function updatePatient(id, data) {
     const operation = pendingWrite.then(async () => {
       const patients = await readPatients();
@@ -60,6 +93,7 @@ export function createLocalFeedbackServer({ password, directory }) {
         ...patient,
         name: data.name.trim(),
         preferredName: data.preferredName.trim(),
+        ...optionalPatientFields(data),
         revision: data.revision + 1,
       };
       patients[index] = updated;
@@ -339,6 +373,7 @@ export function createLocalFeedbackServer({ password, directory }) {
         }
         if (
           !data ||
+          !validOptionalPatientFields(data) ||
           typeof data.name !== 'string' ||
           !data.name.trim() ||
           data.name.trim().length > 200 ||
@@ -350,6 +385,7 @@ export function createLocalFeedbackServer({ password, directory }) {
           id: randomUUID(),
           name: data.name.trim(),
           preferredName: (data.preferredName || '').trim(),
+          ...optionalPatientFields(data),
         };
         await addPatient(patient);
         return respond(res, 201, { patient });
@@ -364,6 +400,7 @@ export function createLocalFeedbackServer({ password, directory }) {
         }
         if (
           !data ||
+          !validOptionalPatientFields(data) ||
           typeof data.name !== 'string' ||
           !data.name.trim() ||
           data.name.trim().length > 200 ||

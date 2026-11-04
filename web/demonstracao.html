@@ -79,6 +79,9 @@
                 <legend class="sr-only">Dados do paciente</legend>
                 <div class="field"><label for="patient-name">Nome <span class="label-detail">obrigatório</span></label><input id="patient-name" name="nome" type="text" required maxlength="200" autocomplete="off" aria-describedby="name-error"><span id="name-error" class="field-error"></span></div>
                 <div class="field"><label for="preferred-name">Nome de preferência <span class="label-detail">opcional</span></label><input id="preferred-name" name="nome_preferencia" type="text" maxlength="200" autocomplete="off" aria-describedby="preferred-error"><span id="preferred-error" class="field-error"></span></div>
+                <div class="field"><label for="birth-date">Data de nascimento <span class="label-detail">opcional</span></label><input id="birth-date" name="nascimento" type="date"></div>
+                <div class="field"><label for="patient-phone">Telefone <span class="label-detail">opcional</span></label><input id="patient-phone" name="telefone" type="tel" maxlength="32" pattern="(?=.*[0-9])[+0-9\(\) .\-]{7,32}"></div>
+                <div class="field"><label for="patient-email">E-mail <span class="label-detail">opcional</span></label><input id="patient-email" name="email" type="email" maxlength="254"></div>
               </fieldset>
               <button id="create-submit" class="button-primary full-width" type="submit">Cadastrar paciente</button>
               <button id="cancel-edit" class="button-secondary" type="button" hidden>Cancelar edição</button>

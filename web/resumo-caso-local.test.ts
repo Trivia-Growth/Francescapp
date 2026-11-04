@@ -76,3 +76,24 @@ it('apresenta encaminhamentos e orientações registrados como texto', () => {
   expect(raiz.textContent).toContain('<b>Orientação</b>');
   expect(raiz.querySelector('b')).toBeNull();
 });
+
+it('exibe dados opcionais do paciente como texto e omite campos ausentes', () => {
+  const raiz = document.createElement('div');
+  montarResumoCasoLocal(raiz, {
+    paciente: {
+      name: '<b>Paciente fictício</b>',
+      birthDate: '1990-02-03',
+      phone: '(11) 99999-0000',
+      email: null,
+    },
+    anamnese: null,
+    tarefas: [],
+    objetivos: [],
+    relatos: [],
+  });
+  expect(raiz.textContent).toContain('Nome: <b>Paciente fictício</b>');
+  expect(raiz.textContent).toContain('Nascimento: 1990-02-03');
+  expect(raiz.textContent).toContain('Telefone: (11) 99999-0000');
+  expect(raiz.textContent).not.toContain('E-mail:');
+  expect(raiz.querySelector('b')).toBeNull();
+});

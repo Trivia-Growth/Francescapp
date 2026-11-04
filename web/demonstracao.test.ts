@@ -152,10 +152,20 @@ it('autentica, lista e cadastra com token local', async () => {
     expect(document.getElementById('patients-body')?.textContent).toContain('Paciente Exemplo Um'),
   );
   (document.getElementById('patient-name') as HTMLInputElement).value = 'Pessoa Fictícia';
+  (document.getElementById('birth-date') as HTMLInputElement).value = '2000-02-29';
+  (document.getElementById('patient-phone') as HTMLInputElement).value = '11999999999';
+  (document.getElementById('patient-email') as HTMLInputElement).value = 'pessoa@example.test';
   document.getElementById('create-form')?.dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() =>
     expect(document.getElementById('patients-body')?.textContent).toContain('Pessoa Fictícia'),
   );
+  document
+    .querySelector<HTMLButtonElement>('[aria-label="Abrir resumo de Pessoa Fictícia"]')
+    ?.click();
+  await vi.waitFor(() => expect(document.getElementById('summary-view')?.hidden).toBe(false));
+  expect(document.getElementById('summary-content')?.textContent).toContain('pessoa@example.test');
+  expect(document.getElementById('summary-content')?.textContent).toContain('11999999999');
+  expect(document.getElementById('summary-content')?.textContent).toContain('2000-02-29');
   expect(fetch).toHaveBeenCalledWith(
     '/api/local-feedback/patients',
     expect.objectContaining({

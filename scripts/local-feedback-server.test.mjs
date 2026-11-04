@@ -98,11 +98,30 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     const created = await request('/patients', {
       method: 'POST',
       headers: auth,
-      body: JSON.stringify({ name: 'Pessoa fictícia', preferredName: 'Pessoa' }),
+      body: JSON.stringify({
+        name: 'Pessoa fictícia',
+        preferredName: 'Pessoa',
+        birthDate: '2000-02-29',
+        phone: '(11) 99999-9999',
+        email: 'pessoa@example.test',
+      }),
     });
     assert.equal(created.status, 201);
     const patient = (await created.json()).patient;
     assert.equal(patient.preferredName, 'Pessoa');
+    assert.equal(patient.birthDate, '2000-02-29');
+    assert.equal(patient.phone, '(11) 99999-9999');
+    assert.equal(patient.email, 'pessoa@example.test');
+    assert.equal(
+      (
+        await request('/patients', {
+          method: 'POST',
+          headers: auth,
+          body: JSON.stringify({ name: 'Inválido', birthDate: '2001-02-29' }),
+        })
+      ).status,
+      400,
+    );
     const attachmentPath = `/patients/${patient.id}/attachments`;
     assert.equal((await request(attachmentPath)).status, 401);
     const upload = {
@@ -194,6 +213,28 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     );
     const edits = await Promise.all([request(editPath, edit), request(editPath, edit)]);
     assert.deepEqual(edits.map((response) => response.status).sort(), [200, 409]);
+    const savedPatients = (await (await request('/patients', { headers: { cookie } })).json())
+      .patients;
+    assert.equal(savedPatients.find((item) => item.id === patient.id).email, 'pessoa@example.test');
+    assert.equal(savedPatients.find((item) => item.id === secondId).email, undefined);
+    const changed = await request(editPath, {
+      method: 'PUT',
+      headers: auth,
+      body: JSON.stringify({
+        name: 'Pessoa editada',
+        preferredName: '',
+        revision: 1,
+        birthDate: '',
+        phone: '11988887777',
+        email: 'nova@example.test',
+      }),
+    });
+    assert.equal(changed.status, 200);
+    const changedPatient = (await changed.json()).patient;
+    assert.equal(changedPatient.birthDate, '');
+    assert.equal(changedPatient.phone, '11988887777');
+    assert.equal(changedPatient.email, 'nova@example.test');
+
     const previewPath = `/patients/${patient.id}/preview`;
     const anamnese = [
       {

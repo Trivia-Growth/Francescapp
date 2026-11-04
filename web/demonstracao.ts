@@ -67,6 +67,9 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const formulario = elemento<HTMLFormElement>('create-form');
   const nome = elemento<HTMLInputElement>('patient-name');
   const preferencia = elemento<HTMLInputElement>('preferred-name');
+  const nascimento = elemento<HTMLInputElement>('birth-date');
+  const telefone = elemento<HTMLInputElement>('patient-phone');
+  const email = elemento<HTMLInputElement>('patient-email');
   type RespostaLocal = {
     secao: string;
     campo: string;
@@ -166,7 +169,15 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   };
   let anamneseAlterada = false;
   const anamnese = elemento('anamnese-view');
-  type Paciente = { id: string; name: string; preferredName?: string; revision?: number };
+  type Paciente = {
+    id: string;
+    name: string;
+    preferredName?: string;
+    birthDate?: string;
+    phone?: string;
+    email?: string;
+    revision?: number;
+  };
   let editando: Paciente | undefined;
   let salvandoCadastro = false;
   let geracaoCadastros = 0;
@@ -557,6 +568,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         if (geracao !== geracaoNavegacao) return;
         selecionado = registro.id;
         montarResumoCasoLocal(elemento('summary-content'), {
+          paciente: registro,
           anamnese: anamneses.get(registro.id) ?? null,
           tarefas: tarefas.get(registro.id) ?? [],
           objetivos: objetivos.get(registro.id) ?? [],
@@ -739,6 +751,9 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         editando = registro;
         nome.value = registro.name;
         preferencia.value = registro.preferredName ?? '';
+        nascimento.value = registro.birthDate ?? '';
+        telefone.value = registro.phone ?? '';
+        email.value = registro.email ?? '';
         elemento('create-title').textContent = 'Editar paciente';
         elemento('create-submit').textContent = 'Salvar alterações';
         elemento('cancel-edit').hidden = false;
@@ -1724,6 +1739,9 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
           body: JSON.stringify({
             name: nomeLimpo,
             preferredName: preferencia.value.trim(),
+            birthDate: nascimento.value,
+            phone: telefone.value.trim(),
+            email: email.value.trim(),
             ...(cadastroOriginal ? { revision: cadastroOriginal.revision ?? 0 } : {}),
           }),
         },

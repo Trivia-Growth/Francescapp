@@ -1,5 +1,7 @@
 # Tasks
 
+Cadastro fictício local aceita nascimento, telefone e e-mail opcionais, exibidos também no resumo. Registros anteriores permanecem legíveis; teste local cobre criação, edição e retomada. Contatos reais não são autorizados nesta prévia.
+
 Prévia local registra evoluções fictícias por paciente e as mostra na cronologia. Rascunho e publicação são simulações, sem distribuição ou autorização clínica. Testes locais cobrem gravação e reabertura; a integração de produção permanece pendente.
 
 Prévia local permite registrar orientações fictícias por paciente com autor, destinatários e data, mantendo versões anteriores quando substituídas. O resumo apresenta orientações e encaminhamentos. Testes focados cobrem gravação e reabertura; isso não representa aprovação clínica ou integração de produção.

@@ -22,6 +22,12 @@ type TarefaLocal = {
 };
 
 export type DadosResumoCasoLocal = {
+  paciente?: {
+    name: string;
+    birthDate?: string | null;
+    phone?: string | null;
+    email?: string | null;
+  };
   anamnese: AnamneseLocal | null;
   tarefas: readonly TarefaLocal[];
   objetivos: readonly Objetivo[];
@@ -47,6 +53,15 @@ export function montarResumoCasoLocal(raiz: HTMLElement, dados: DadosResumoCasoL
     bloco.append(lista);
     raiz.append(bloco);
   };
+  if (dados.paciente) {
+    const paciente = dados.paciente;
+    secao('Paciente', [
+      `Nome: ${paciente.name}`,
+      ...(paciente.birthDate ? [`Nascimento: ${paciente.birthDate}`] : []),
+      ...(paciente.phone ? [`Telefone: ${paciente.phone}`] : []),
+      ...(paciente.email ? [`E-mail: ${paciente.email}`] : []),
+    ]);
+  }
   const anamnese = dados.anamnese;
   const respostas = anamnese ? (Array.isArray(anamnese) ? anamnese : [anamnese]) : [];
   secao(
