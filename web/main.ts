@@ -137,6 +137,7 @@ const planoTitulo = elemento('plano-paciente');
 const fecharPlanoBotao = elemento<HTMLButtonElement>('fechar-plano');
 let desmontarPlano: (() => void) | null = null;
 let planoPendente = false;
+let acaoPacienteAnterior: HTMLButtonElement | null = null;
 let planoAberto: { pacienteId: string; servico: ReturnType<typeof criarServicoPlanoHttp> } | null =
   null;
 
@@ -496,6 +497,20 @@ async function entrar(evento: SubmitEvent): Promise<void> {
   }
 }
 
+function atendimentoJaAberto(): boolean {
+  const titulo = !anamnesePanel.hidden
+    ? 'anamnese-title'
+    : !planoPanel.hidden
+      ? 'plano-title'
+      : !edicaoPanel.hidden
+        ? 'edicao-title'
+        : null;
+  if (!titulo) return false;
+  aviso('workspace-feedback', 'Feche o atendimento aberto antes de selecionar outro.');
+  elemento(titulo).focus();
+  return true;
+}
+
 function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
   const linha = document.createElement('tr');
   const nome = document.createElement('td');
@@ -511,14 +526,9 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
     abrir.textContent = 'Abrir anamnese';
     abrir.setAttribute('aria-label', `Abrir anamnese de ${paciente.nome}`);
     abrir.addEventListener('click', () => {
-      if (
-        !sessao ||
-        sessao.usuario.perfil === 'familia' ||
-        !anamnesePanel.hidden ||
-        !planoPanel.hidden ||
-        !edicaoPanel.hidden
-      )
-        return;
+      if (!sessao || sessao.usuario.perfil === 'familia' || atendimentoJaAberto()) return;
+      aviso('workspace-feedback', '');
+      acaoPacienteAnterior = abrir;
       anamneseTitulo.textContent = paciente.nome;
       anamnesePanel.hidden = false;
       desmontarAnamnese = montarAnamnese(
@@ -538,14 +548,9 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
     abrirPlano.textContent = 'Abrir plano de cuidado';
     abrirPlano.setAttribute('aria-label', `Abrir plano de cuidado de ${paciente.nome}`);
     abrirPlano.addEventListener('click', () => {
-      if (
-        !sessao ||
-        sessao.usuario.perfil === 'familia' ||
-        !anamnesePanel.hidden ||
-        !planoPanel.hidden ||
-        !edicaoPanel.hidden
-      )
-        return;
+      if (!sessao || sessao.usuario.perfil === 'familia' || atendimentoJaAberto()) return;
+      aviso('workspace-feedback', '');
+      acaoPacienteAnterior = abrirPlano;
       planoTitulo.textContent = paciente.nome;
       planoPanel.hidden = false;
       const servico = criarServicoPlanoHttp(() =>
@@ -967,12 +972,18 @@ elemento<HTMLButtonElement>('fechar-edicao').addEventListener('click', () => {
 fecharAnamneseBotao.addEventListener('click', () => {
   if (!confirmarDescarteAnamnese()) return;
   fecharAnamnese();
-  elemento('patients-title').focus();
+  aviso('workspace-feedback', '');
+  if (acaoPacienteAnterior?.isConnected && !table.hidden) acaoPacienteAnterior.focus();
+  else elemento('patients-title').focus();
+  acaoPacienteAnterior = null;
 });
 fecharPlanoBotao.addEventListener('click', () => {
   if (!confirmarDescartePlano()) return;
   fecharPlano();
-  elemento('patients-title').focus();
+  aviso('workspace-feedback', '');
+  if (acaoPacienteAnterior?.isConnected && !table.hidden) acaoPacienteAnterior.focus();
+  else elemento('patients-title').focus();
+  acaoPacienteAnterior = null;
 });
 newPatientLink.addEventListener('click', (evento) => {
   evento.preventDefault();
