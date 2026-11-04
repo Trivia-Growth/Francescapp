@@ -42,7 +42,9 @@ a {
   text-underline-offset: .2em;
 }
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 button,
@@ -244,7 +246,9 @@ label {
   font-weight: 400;
   font-size: .875rem;
 }
-input {
+input,
+select,
+textarea {
   display: block;
   width: 100%;
   min-height: 48px;
@@ -554,4 +558,38 @@ td:last-child {
     transition: none !important;
     animation: none !important;
   }
+}
+
+.anamnese-panel {
+  margin-top: 48px;
+}
+.anamnese-panel > p {
+  margin: 16px 0;
+  color: var(--muted);
+}
+#anamnese-raiz form {
+  display: grid;
+  gap: 16px;
+  max-width: 70ch;
+}
+#anamnese-raiz fieldset {
+  border-bottom: 1px solid var(--line);
+  padding: 16px 0;
+}
+#anamnese-raiz legend {
+  font-weight: 600;
+}
+#anamnese-raiz label {
+  display: block;
+  margin: 12px 0;
+}
+#anamnese-raiz textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+#anamnese-raiz button {
+  justify-self: start;
+  background: var(--white);
+  border-color: var(--field-line);
+  color: var(--primary);
 }

@@ -17,6 +17,7 @@ export function montarAnamnese(
   pacienteId: string,
   servico: Servico,
   acessoPerdido: (erro: unknown) => void,
+  alteracaoPendente: (pendente: boolean) => void = () => {},
 ): () => void {
   let ativa = true;
   let versao = 0;
@@ -148,6 +149,7 @@ export function montarAnamnese(
         return;
       }
       adicionar(secao, campo, true);
+      alteracaoPendente(true);
       novaSecao.value = '';
       novoCampo.value = '';
       aviso.textContent = '';
@@ -161,6 +163,7 @@ export function montarAnamnese(
         const salvo = await servico.salvarAnamnese(pacienteId, pendente.entrada, pendente.chave);
         if (!ativa) return;
         pendente = null;
+        alteracaoPendente(false);
         desenhar(salvo);
         const mensagem = raiz.querySelector('[role="status"]');
         if (mensagem) mensagem.textContent = 'Anamnese salva.';
@@ -181,6 +184,8 @@ export function montarAnamnese(
         }
       }
     };
+    form.addEventListener('input', () => alteracaoPendente(true));
+    form.addEventListener('change', () => alteracaoPendente(true));
     form.addEventListener('submit', (evento) => {
       evento.preventDefault();
       if (pendente) return;
@@ -217,6 +222,7 @@ export function montarAnamnese(
         return;
       }
       pendente = { entrada: validada.data, chave: crypto.randomUUID() };
+      alteracaoPendente(true);
       campos.setAttribute('inert', '');
       novaSecao.disabled = novoCampo.disabled = true;
       void enviar();

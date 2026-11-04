@@ -73,7 +73,7 @@
             <div id="list-empty" class="empty-state" hidden><h3>Nenhum paciente nesta lista</h3><p id="empty-description">Nenhum cadastro disponível para seu acesso.</p></div>
             <table id="patients-table" hidden>
               <caption class="sr-only">Pacientes retornados pelo serviço para seu acesso atual</caption>
-              <thead><tr><th scope="col">Nome</th><th scope="col">Nome de preferência</th></tr></thead>
+              <thead><tr><th scope="col">Nome</th><th scope="col">Nome de preferência</th><th id="anamnese-coluna" scope="col">Anamnese</th></tr></thead>
               <tbody id="patients-body"></tbody>
             </table>
             <nav id="pagination" class="pagination" aria-label="Páginas de pacientes" hidden><button id="previous-page" class="button-secondary" type="button">Página anterior</button><span id="page-number"></span><button id="next-page" class="button-secondary" type="button">Próxima página</button></nav>
@@ -94,6 +94,11 @@
             <p class="small-text">O cadastro não cria conta nem concede acesso ao paciente ou a familiares.</p>
           </section>
         </div>
+        <section id="anamnese-panel" class="anamnese-panel" aria-labelledby="anamnese-title" hidden>
+          <div class="section-heading"><h2 id="anamnese-title" tabindex="-1">Anamnese: <span id="anamnese-paciente"></span></h2><button id="fechar-anamnese" class="button-secondary" type="button">Fechar anamnese</button></div>
+          <p>Para abrir outro paciente, feche esta anamnese. Ao fechar, alterações não salvas serão descartadas; um salvamento sem confirmação não poderá ser confirmado nesta tela.</p>
+          <div id="anamnese-raiz"></div>
+        </section>
       </section>
 
       <section id="logout-view" class="logout-panel" aria-labelledby="logout-title" hidden>

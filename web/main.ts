@@ -5,6 +5,7 @@ import type {
 } from '../packages/contracts/src/index.js';
 import { ClienteFFCM, exigeNovoAcesso, FalhaApi, mensagemFalha } from './api.js';
 import { lerCadastro } from './cadastro.js';
+import { montarAnamnese } from './anamnese.js';
 import { criarCicloCadastro } from './ciclo-cadastro.js';
 
 function elemento<T extends HTMLElement>(id: string): T {
@@ -102,6 +103,29 @@ const listEmpty = elemento('list-empty');
 const pagination = elemento('pagination');
 const registration = elemento('cadastro');
 const newPatientLink = elemento<HTMLAnchorElement>('new-patient-link');
+const anamnesePanel = elemento('anamnese-panel');
+const anamneseRaiz = elemento('anamnese-raiz');
+const anamneseTitulo = elemento('anamnese-paciente');
+const fecharAnamneseBotao = elemento<HTMLButtonElement>('fechar-anamnese');
+let desmontarAnamnese: (() => void) | null = null;
+let anamnesePendente = false;
+
+function confirmarDescarteAnamnese(): boolean {
+  return (
+    !anamnesePendente ||
+    window.confirm(
+      'Há alterações de anamnese não confirmadas. Ao sair, elas serão descartadas e um salvamento incerto não poderá ser confirmado nesta tela. Deseja continuar?',
+    )
+  );
+}
+
+function fecharAnamnese(): void {
+  desmontarAnamnese?.();
+  desmontarAnamnese = null;
+  anamnesePendente = false;
+  anamnesePanel.hidden = true;
+  anamneseTitulo.textContent = '';
+}
 
 type Sessao = ReturnType<typeof sessaoNativaSchema.parse>;
 let sessao: Sessao | null = null;
@@ -226,6 +250,7 @@ function aviso(id: string, texto: string, tom: 'error' | 'success' | 'neutral' =
 }
 
 function apagarPacientes(): void {
+  fecharAnamnese();
   tableBody.replaceChildren();
   table.hidden = true;
   listEmpty.hidden = true;
@@ -304,7 +329,15 @@ const perfis = {
 
 function aplicarSessao(atual: Sessao): void {
   if (!atual.usuario.ativo) throw new Error('Acesso indisponível.');
+  if (
+    sessao &&
+    (sessao.session_id !== atual.session_id ||
+      sessao.usuario.id !== atual.usuario.id ||
+      atual.usuario.perfil === 'familia')
+  )
+    fecharAnamnese();
   sessao = atual;
+  elemento('anamnese-coluna').hidden = atual.usuario.perfil === 'familia';
   const podeCadastrar =
     atual.usuario.perfil === 'administrador' && atual.capacidades.includes('administrar_cadastro');
   if (podeCadastrar && !ciclo) {
@@ -409,6 +442,31 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
   const preferencia = document.createElement('td');
   preferencia.textContent = paciente.nome_preferencia ?? 'Não informado';
   linha.append(nome, preferencia);
+  if (sessao && sessao.usuario.perfil !== 'familia') {
+    const acao = document.createElement('td');
+    const abrir = document.createElement('button');
+    abrir.type = 'button';
+    abrir.className = 'button-secondary';
+    abrir.textContent = 'Abrir anamnese';
+    abrir.setAttribute('aria-label', `Abrir anamnese de ${paciente.nome}`);
+    abrir.addEventListener('click', () => {
+      if (!sessao || sessao.usuario.perfil === 'familia' || !anamnesePanel.hidden) return;
+      anamneseTitulo.textContent = paciente.nome;
+      anamnesePanel.hidden = false;
+      desmontarAnamnese = montarAnamnese(
+        anamneseRaiz,
+        paciente.id,
+        api,
+        acessoPerdido,
+        (pendente) => {
+          anamnesePendente = pendente;
+        },
+      );
+      elemento('anamnese-title').focus();
+    });
+    acao.append(abrir);
+    linha.append(acao);
+  }
   return linha;
 }
 
@@ -613,7 +671,7 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
 }
 
 async function sair(): Promise<void> {
-  if (logoutOcupado) return;
+  if (logoutOcupado || !confirmarDescarteAnamnese()) return;
   logoutOcupado = true;
   ciclo = null;
   cadastroLiberado = false;
@@ -736,6 +794,11 @@ previousButton.addEventListener('click', () => {
   pagina -= 1;
   void carregarPacientes();
 });
+fecharAnamneseBotao.addEventListener('click', () => {
+  if (!confirmarDescarteAnamnese()) return;
+  fecharAnamnese();
+  elemento('patients-title').focus();
+});
 newPatientLink.addEventListener('click', (evento) => {
   evento.preventDefault();
   elemento('create-title').focus();
@@ -768,7 +831,7 @@ document.addEventListener('visibilitychange', () => {
   void revalidarAcesso();
 });
 window.addEventListener('beforeunload', (evento) => {
-  if (!cadastroPendente && !cadastroEmRevalidacao) return;
+  if (!cadastroPendente && !cadastroEmRevalidacao && !anamnesePendente) return;
   // Aviso é apenas mitigação: o navegador pode ignorá-lo e não há recuperação
   // após fechamento sem reconciliação autorizada no servidor.
   evento.preventDefault();
