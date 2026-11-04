@@ -1,5 +1,6 @@
 export * from './cadastro.ts';
 export * from './barreira-cadastro.ts';
+export * from './barreira-plano.ts';
 export * from './barreira-http.ts';
 export * from './comum.ts';
 export * from './identidade.ts';
