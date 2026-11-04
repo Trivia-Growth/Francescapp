@@ -5,6 +5,7 @@ import { campoCifradoSchema } from './rpc.ts';
 const texto = z.string().trim().min(1).max(4000);
 export const tarefaCuidadoSchema = z
   .object({
+    descricao: texto,
     responsavel: texto,
     prazo: z.iso.date(),
     prioridade: z.enum(['baixa', 'media', 'alta']),
@@ -19,6 +20,10 @@ export const tarefaCuidadoSchema = z
 export const conteudoTarefaSchema = z
   .object({ tarefa: tarefaCuidadoSchema, ator_usuario_id: uuidSchema, data: z.iso.datetime() })
   .strict();
+export const registroTarefaCuidadoSchema = conteudoTarefaSchema
+  .extend({ tarefa_id: uuidSchema, versao: z.number().int().positive().max(2147483647) })
+  .strict();
+export type RegistroTarefaCuidado = z.infer<typeof registroTarefaCuidadoSchema>;
 const registro = z
   .object({
     registro_id: uuidSchema,

@@ -12,6 +12,8 @@ import { criarCicloCadastro } from './ciclo-cadastro.js';
 import { montarPlanoCuidado } from './plano-cuidado.js';
 import { criarServicoPlanoHttp } from './servico-plano-http.js';
 import { criarServicoEdicaoPacienteHttp } from './servico-edicao-paciente-http.js';
+import { montarTarefasCuidado } from './tarefas-cuidado.js';
+import { criarServicoTarefasHttp } from './servico-tarefas-http.js';
 
 function elemento<T extends HTMLElement>(id: string): T {
   const encontrado = document.getElementById(id);
@@ -133,6 +135,14 @@ const fecharAnamneseBotao = elemento<HTMLButtonElement>('fechar-anamnese');
 let desmontarAnamnese: (() => void) | null = null;
 let anamnesePendente = false;
 const planoPanel = elemento('plano-panel');
+const tarefasPanel = elemento('tarefas-panel');
+let desmontarTarefas: (() => void) | null = null;
+function fecharTarefas(): void {
+  desmontarTarefas?.();
+  desmontarTarefas = null;
+  tarefasPanel.hidden = true;
+  elemento('tarefas-paciente').textContent = '';
+}
 const planoRaiz = elemento('plano-raiz');
 const planoTitulo = elemento('plano-paciente');
 const fecharPlanoBotao = elemento<HTMLButtonElement>('fechar-plano');
@@ -300,6 +310,7 @@ function aviso(id: string, texto: string, tom: 'error' | 'success' | 'neutral' =
 }
 
 function apagarPacientes(): void {
+  fecharTarefas();
   fecharAnamnese();
   fecharPlano();
   fecharEdicao();
@@ -390,6 +401,7 @@ function aplicarSessao(atual: Sessao): void {
       sessao.usuario.id !== atual.usuario.id ||
       atual.usuario.perfil === 'familia')
   ) {
+    fecharTarefas();
     fecharAnamnese();
     fecharPlano();
     fecharEdicao();
@@ -399,6 +411,7 @@ function aplicarSessao(atual: Sessao): void {
     !atual.capacidades.includes('administrar_cadastro')
   )
     fecharEdicao();
+  if (atual.usuario.perfil !== 'profissional') fecharTarefas();
   sessao = atual;
   elemento('anamnese-coluna').hidden = atual.usuario.perfil === 'familia';
   const podeCadastrar =
@@ -503,9 +516,11 @@ function atendimentoJaAberto(): boolean {
     ? 'anamnese-title'
     : !planoPanel.hidden
       ? 'plano-title'
-      : !edicaoPanel.hidden
-        ? 'edicao-title'
-        : null;
+      : !tarefasPanel.hidden
+        ? 'tarefas-title'
+        : !edicaoPanel.hidden
+          ? 'edicao-title'
+          : null;
   if (!titulo) return false;
   aviso('workspace-feedback', 'Feche o atendimento aberto antes de selecionar outro.');
   elemento(titulo).focus();
@@ -570,6 +585,29 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
       elemento('plano-title').focus();
     });
     acao.append(abrir, abrirPlano);
+    if (sessao.usuario.perfil === 'profissional') {
+      const tarefas = document.createElement('button');
+      tarefas.type = 'button';
+      tarefas.className = 'button-secondary';
+      tarefas.textContent = 'Tarefas';
+      tarefas.setAttribute('aria-label', `Tarefas de ${paciente.nome}`);
+      tarefas.addEventListener('click', () => {
+        if (!sessao || sessao.usuario.perfil !== 'profissional' || atendimentoJaAberto()) return;
+        acaoPacienteAnterior = tarefas;
+        elemento('tarefas-paciente').textContent = paciente.nome;
+        tarefasPanel.hidden = false;
+        desmontarTarefas = montarTarefasCuidado(
+          elemento('tarefas-raiz'),
+          paciente.id,
+          criarServicoTarefasHttp(() =>
+            sessao ? { usuario_id: sessao.usuario.id, session_id: sessao.session_id } : null,
+          ),
+          acessoPerdido,
+        );
+        elemento('tarefas-title').focus();
+      });
+      acao.append(tarefas);
+    }
     // A interface fica preparada, mas não deve anunciar rotas ainda inexistentes.
     const edicaoPacienteDisponivel = false;
     if (
@@ -589,7 +627,8 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
           !sessao.capacidades.includes('administrar_cadastro') ||
           !edicaoPanel.hidden ||
           !anamnesePanel.hidden ||
-          !planoPanel.hidden
+          !planoPanel.hidden ||
+          !tarefasPanel.hidden
         )
           return;
         elemento('edicao-title').textContent = 'Editar cadastro';
@@ -1018,6 +1057,13 @@ fecharAnamneseBotao.addEventListener('click', () => {
 fecharPlanoBotao.addEventListener('click', () => {
   if (!confirmarDescartePlano()) return;
   fecharPlano();
+  aviso('workspace-feedback', '');
+  if (acaoPacienteAnterior?.isConnected && !table.hidden) acaoPacienteAnterior.focus();
+  else elemento('patients-title').focus();
+  acaoPacienteAnterior = null;
+});
+elemento<HTMLButtonElement>('fechar-tarefas').addEventListener('click', () => {
+  fecharTarefas();
   aviso('workspace-feedback', '');
   if (acaoPacienteAnterior?.isConnected && !table.hidden) acaoPacienteAnterior.focus();
   else elemento('patients-title').focus();
