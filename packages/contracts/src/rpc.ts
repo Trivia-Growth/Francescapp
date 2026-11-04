@@ -334,6 +334,27 @@ export const resultadoRpcSchema = <T extends z.ZodType>(dados: T) =>
     z.object({ ok: z.literal(false), erro: erroRpcSchema, request_id: uuidSchema }).strict(),
   ]);
 
+/** Contrato da função privada local; não representa uma rota pública. */
+export const respostaEdicaoPacientePrivadaSchema = z.discriminatedUnion('ok', [
+  z
+    .object({
+      ok: z.literal(true),
+      dados: z.object({ paciente_id: uuidSchema, versao: versaoSchema }).strict(),
+      request_id: uuidSchema,
+      repeticao: z.boolean(),
+    })
+    .strict(),
+  z
+    .object({
+      ok: z.literal(false),
+      erro: z
+        .object({ codigo: z.enum(['sem_permissao', 'conflito', 'conflito_idempotencia']) })
+        .strict(),
+      request_id: uuidSchema,
+    })
+    .strict(),
+]);
+
 export type ExecutorOperacao = 'jwt-do-solicitante' | 'somente-servidor';
 export type TransacaoOperacao =
   | 'leitura-auditada'

@@ -1,7 +1,5 @@
 -- Preparação privada local. Nenhum privilégio concedido à aplicação.
--- BLOQUEIO: a autorização abaixo admite apenas Google Workspace. A exceção
--- técnica individual prevista em D-02 ainda não tem caminho nesta função;
--- não integrar nem liberar antes de implementar e revisar essa autoridade.
+-- Preparação requer revisão independente e integração Auth real antes de liberação.
 -- D-14 admite término de operação já autorizada após revogação externa Auth;
 -- revogações locais exigem coordenação via bloqueios_auth.travar. Fixture não
 -- comprova concorrência ou integração real com Supabase Auth.
@@ -64,6 +62,26 @@ begin
     if found then
      perform 1 from identidade.sessao s where s.session_id=sessao and s.usuario_id=ator and s.concessao_id=concessao
       and s.metodo='google_workspace' and s.revogada_em is null and s.encerrada_em is null for share;
+     if found then
+      perform 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp());
+      autorizado:=found;
+     end if;
+    end if;
+   end if;
+  end if;
+ end if;
+ -- A exceção individual depende da concessão, usuário e sessão ainda ativos.
+ -- A ordem de bloqueios segue concessão, usuário, exceção e sessão.
+ if not autorizado and exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth_privado.jwt()->'amr')='array' then auth_privado.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='password') then
+  select c.id into concessao from identidade.concessao_equipe c
+   where c.usuario_id=ator and c.estado='vinculada' and c.perfil='administrador' for share;
+  if found then
+   perform 1 from public.usuario u where u.id=ator and u.ativo and u.perfil='administrador' for share;
+   if found then
+    perform 1 from identidade.excecao_tecnica x where x.usuario_id=ator and x.concessao_id=concessao for share;
+    if found then
+     perform 1 from identidade.sessao s where s.session_id=sessao and s.usuario_id=ator and s.concessao_id=concessao
+      and s.metodo='tecnica' and s.revogada_em is null and s.encerrada_em is null for share;
      if found then
       perform 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp());
       autorizado:=found;

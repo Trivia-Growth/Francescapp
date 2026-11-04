@@ -14,6 +14,7 @@ create table operacao.requisicao(id uuid primary key, ator_usuario_id uuid, oper
 create table auditoria.evento(id uuid primary key, ator_usuario_id uuid, acao text, tipo_objeto text, objeto_id uuid, resultado text, request_id uuid);
 create table identidade.configuracao_auth_nativo(dominio_workspace text, google_unico_oauth_confirmado boolean);
 create table identidade.concessao_equipe(id uuid, usuario_id uuid, estado text, metodo text, perfil text, subject_google text);
+create table identidade.excecao_tecnica(usuario_id uuid, concessao_id uuid);
 create table identidade.sessao(session_id uuid, usuario_id uuid, concessao_id uuid, metodo text, revogada_em timestamptz, encerrada_em timestamptz);
 create table auth.sessions(id uuid,user_id uuid,not_after timestamptz);
 create table auth.identities(user_id uuid,provider text,provider_id text,identity_data jsonb);
@@ -64,5 +65,21 @@ begin
  t:=jsonb_set(t,'{entrada,aad,motivo,registro_id}',t#>'{entrada,auditoria_id}');
  r:=operacao.editar_paciente_privado(t);
  if r->>'ok'<>'true' or (select nome_preferencia_cifrado is not null or data_nascimento_cifrada is distinct from env from cadastro.paciente where id=paciente) then raise exception 'OPCIONAIS_INCORRETOS'; end if;
+
+ -- Sessão técnica exige exceção individual e vínculo exato; replay não contorna revogação.
+ perform set_config('teste.jwt','{"session_id":"50000000-0000-4000-8000-000000000001","amr":[{"method":"password"}]}',false);
+ update identidade.sessao set metodo='tecnica';
+ r:=operacao.editar_paciente_privado(t); if r#>>'{erro,codigo}'<>'sem_permissao' then raise exception 'EXCECAO_AUSENTE_ACEITA'; end if;
+ insert into identidade.excecao_tecnica values (auth.uid(),'40000000-0000-4000-8000-000000000001');
+ r:=operacao.editar_paciente_privado(t); if r->>'repeticao'<>'true' then raise exception 'TECNICA_NEGADA %',r; end if;
+ update identidade.excecao_tecnica set concessao_id=gen_random_uuid();
+ r:=operacao.editar_paciente_privado(t); if r#>>'{erro,codigo}'<>'sem_permissao' then raise exception 'CONCESSAO_DIVERGENTE_ACEITA'; end if;
+ update identidade.excecao_tecnica set concessao_id='40000000-0000-4000-8000-000000000001';
+ update identidade.concessao_equipe set estado='revogada';
+ r:=operacao.editar_paciente_privado(t); if r#>>'{erro,codigo}'<>'sem_permissao' then raise exception 'CONCESSAO_REVOGADA_ACEITA'; end if;
+ update identidade.concessao_equipe set estado='vinculada';
+ update identidade.sessao set metodo='google_workspace';
+ r:=operacao.editar_paciente_privado(t); if r#>>'{erro,codigo}'<>'sem_permissao' then raise exception 'METODO_DIVERGENTE_ACEITO'; end if;
+ update identidade.sessao set metodo='tecnica';
  update identidade.sessao set revogada_em=clock_timestamp(); r:=operacao.editar_paciente_privado(t); if r#>>'{erro,codigo}'<>'sem_permissao' then raise exception 'REVOGACAO_IGNORADA'; end if;
 end $$;
