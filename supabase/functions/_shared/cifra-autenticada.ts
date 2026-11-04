@@ -67,6 +67,34 @@ function keyIdValido(keyId: unknown): keyId is string {
 }
 
 function aadCanonico(aad: MetadadosAad): Uint8Array {
+  if (
+    typeof aad === 'object' &&
+    aad !== null &&
+    aad.tabela === 'cadastro.objetivo_cuidado_versao'
+  ) {
+    if (
+      !uuid.test(aad.paciente_id) ||
+      !uuid.test(aad.objetivo_id) ||
+      !uuid.test(aad.registro_id) ||
+      !Number.isInteger(aad.versao) ||
+      aad.versao < 1 ||
+      aad.versao > 2147483647 ||
+      aad.campo !== 'conteudo' ||
+      aad.formato !== formatoAtual
+    )
+      throw new ErroCifraAutenticada();
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        paciente_id: aad.paciente_id,
+        objetivo_id: aad.objetivo_id,
+        registro_id: aad.registro_id,
+        versao: aad.versao,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
   if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.anamnese_versao') {
     if (
       typeof aad.paciente_id !== 'string' ||

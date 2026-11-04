@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { uuidSchema } from './comum.ts';
+import { campoCifradoSchema } from './rpc.ts';
 
 const texto = z.string().trim().min(1);
 const data = z.iso.date().refine((valor) => {
@@ -51,3 +53,38 @@ export function revisarObjetivo(
     ],
   };
 }
+
+export const motivoPlanoSchema = z.string().trim().min(1);
+export const conteudoPlanoSchema = z
+  .object({
+    objetivo: objetivoSchema,
+    motivo: motivoPlanoSchema.optional(),
+    ator_usuario_id: uuidSchema,
+    data: z.iso.datetime(),
+  })
+  .strict();
+const registroPlanoSchema = z
+  .object({
+    registro_id: uuidSchema,
+    objetivo_id: uuidSchema,
+    paciente_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    conteudo: campoCifradoSchema,
+  })
+  .strict();
+export const respostaPlanoPrivadaSchema = z.discriminatedUnion('ok', [
+  z
+    .object({
+      ok: z.literal(true),
+      dados: z.union([registroPlanoSchema, z.array(registroPlanoSchema)]),
+      request_id: uuidSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ok: z.literal(false),
+      erro: z.object({ codigo: z.enum(['sem_permissao', 'conflito']) }).strict(),
+      request_id: uuidSchema,
+    })
+    .strict(),
+]);
