@@ -67,6 +67,31 @@ function keyIdValido(keyId: unknown): keyId is string {
 }
 
 function aadCanonico(aad: MetadadosAad): Uint8Array {
+  if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.anamnese_versao') {
+    if (
+      typeof aad.paciente_id !== 'string' ||
+      !uuid.test(aad.paciente_id) ||
+      typeof aad.registro_id !== 'string' ||
+      !uuid.test(aad.registro_id) ||
+      !Number.isInteger(aad.versao) ||
+      aad.versao < 1 ||
+      aad.versao > 2147483647 ||
+      aad.campo !== 'conteudo' ||
+      aad.formato !== formatoAtual
+    ) {
+      throw new ErroCifraAutenticada();
+    }
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        paciente_id: aad.paciente_id,
+        registro_id: aad.registro_id,
+        versao: aad.versao,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
   if (typeof aad === 'object' && aad !== null && aad.tabela === 'identidade.sessao') {
     if (
       typeof aad.registro_id !== 'string' ||
