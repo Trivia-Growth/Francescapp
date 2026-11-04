@@ -37,6 +37,19 @@
           </form>
           <p class="small-text">Entrar não concede acesso automaticamente. A conexão com a agenda será solicitada separadamente.</p>
           <details>
+          <summary>Acesso de familiares</summary>
+          <p>Entre com a conta familiar autorizada pela equipe.</p>
+          <form id="familiar-login-form" method="post" autocomplete="on" aria-describedby="familiar-feedback">
+            <fieldset id="familiar-login-fields" disabled>
+              <legend class="sr-only">Credenciais da conta familiar</legend>
+              <div class="field"><label for="familiar-email">E-mail</label><input id="familiar-email" name="email" type="email" autocomplete="username" required maxlength="254" autocapitalize="none" spellcheck="false"></div>
+              <div class="field"><label for="familiar-senha">Senha</label><input id="familiar-senha" name="senha" type="password" autocomplete="current-password" required maxlength="1024"></div>
+              <button id="familiar-login-submit" class="button-primary full-width" type="submit">Entrar</button>
+            </fieldset>
+          </form>
+          <p id="familiar-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
+          </details>
+          <details>
           <summary>Acesso técnico excepcional</summary>
           <p>Somente para a conta técnica individual previamente autorizada.</p>
           <form id="login-form" method="post" autocomplete="on" aria-describedby="login-feedback">

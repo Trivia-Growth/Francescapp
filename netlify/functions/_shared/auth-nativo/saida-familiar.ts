@@ -69,6 +69,8 @@ export async function encerrarSessaoFamiliarPrivada(request: Request, fonte: Fon
     } catch {
       pendencia = true;
     }
+    // Não publicar cookies: resposta tardia pode apagar novo login no mesmo fluxo,
+    // inclusive em aba duplicada. Revogação local já impede reutilizar a sessão.
     return Response.json(
       {
         dados: { encerrada_localmente: true, pendencia_externa: pendencia },

@@ -1,5 +1,6 @@
 import { criarErroPublicoSemCampos } from '../../packages/contracts/src/erros.ts';
 import { concluirGoogleNativo } from './_shared/auth-nativo/callback.ts';
+import { entrarFamiliarNativa } from './_shared/auth-nativo/familiar.ts';
 import { iniciarGoogleNativo } from './_shared/auth-nativo/google.ts';
 import { encerrarSessaoFamiliarPrivada } from './_shared/auth-nativo/saida-familiar.ts';
 import { consultarSessaoNativa } from './_shared/auth-nativo/sessao.ts';
@@ -12,6 +13,7 @@ export const config = {
   path: [
     '/api/auth/google',
     '/api/auth/tecnica',
+    '/api/auth/familiar',
     '/api/auth/callback',
     '/api/sessao',
     '/api/sessao/sair',
@@ -27,7 +29,8 @@ export default async function auth(request: Request): Promise<Response> {
     (process.env.FFCM_AUTH_ATIVADO !== 'true' &&
       caminho !== '/api/sessao/sair' &&
       caminho !== '/api/familiar/sessao/sair') ||
-    (caminho === '/api/familiar/sessao' && process.env.FFCM_AUTH_FAMILIAR_ATIVADO !== 'true') ||
+    ((caminho === '/api/familiar/sessao' || caminho === '/api/auth/familiar') &&
+      process.env.FFCM_AUTH_FAMILIAR_ATIVADO !== 'true') ||
     (caminho === '/api/auth/tecnica' && process.env.FFCM_AUTH_TECNICA_ATIVADO !== 'true')
   ) {
     return Response.json(criarErroPublicoSemCampos('servico_indisponivel', crypto.randomUUID()), {
@@ -44,6 +47,8 @@ export default async function auth(request: Request): Promise<Response> {
       return iniciarGoogleNativo(request, process.env);
     case '/api/auth/tecnica':
       return entrarTecnicaNativa(request, process.env);
+    case '/api/auth/familiar':
+      return entrarFamiliarNativa(request, process.env);
     case '/api/auth/callback':
       return concluirGoogleNativo(request, process.env);
     case '/api/sessao':

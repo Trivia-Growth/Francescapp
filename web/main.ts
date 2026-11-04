@@ -65,6 +65,11 @@ const patientsView = elemento('patients-view');
 const logoutView = elemento('logout-view');
 const revalidacaoStatus = elemento('revalidacao-status');
 const loginForm = elemento<HTMLFormElement>('login-form');
+const familiarForm = elemento<HTMLFormElement>('familiar-login-form');
+const familiarFields = elemento<HTMLFieldSetElement>('familiar-login-fields');
+const familiarEmail = elemento<HTMLInputElement>('familiar-email');
+const familiarSenha = elemento<HTMLInputElement>('familiar-senha');
+const familiarBotao = elemento<HTMLButtonElement>('familiar-login-submit');
 const googleForm = elemento<HTMLFormElement>('google-login-form');
 googleForm.addEventListener('submit', (evento) => {
   try {
@@ -363,6 +368,7 @@ function mostrarAcesso(mensagem = '', tom: 'error' | 'success' | 'neutral' = 'ne
   revisao += 1;
   apagarPacientes();
   loginForm.reset();
+  familiarForm.reset();
   passwordInput.type = 'password';
   togglePassword.textContent = 'Mostrar senha';
   patientsView.hidden = true;
@@ -516,6 +522,54 @@ async function entrar(evento: SubmitEvent): Promise<void> {
     loginOcupado = false;
     loginFields.disabled = false;
     loginButton.textContent = 'Entrar';
+  }
+}
+
+async function entrarFamiliar(evento: SubmitEvent): Promise<void> {
+  evento.preventDefault();
+  if (loginOcupado) return;
+  loginOcupado = true;
+  loginFields.disabled = familiarFields.disabled = true;
+  familiarBotao.textContent = 'Entrando…';
+  aviso('familiar-feedback', 'Verificando credenciais e autorização…');
+  const email = familiarEmail.value.trim();
+  let senha = familiarSenha.value;
+  familiarForm.reset();
+  const versao = revisao;
+  try {
+    const atual = await api.entrarFamiliar(email, senha);
+    if (versao !== revisao) return;
+    aplicarSessao(atual);
+    loginView.hidden = true;
+    logoutView.hidden = true;
+    if (document.hidden) {
+      focoAposLoginOculto = true;
+      patientsView.hidden = true;
+      sessionActions.hidden = true;
+      revalidacaoStatus.hidden = false;
+      return;
+    }
+    patientsView.hidden = false;
+    sessionActions.hidden = false;
+    document.title = 'FFCMApp | Pacientes';
+    aviso('familiar-feedback', '');
+    elemento('patients-title').focus();
+    await carregarPacientes();
+  } catch (erro) {
+    if (versao !== revisao) return;
+    api.limpar();
+    aviso(
+      'familiar-feedback',
+      exigeNovoAcesso(erro)
+        ? 'Entrada não autorizada. Confira a conta e sua liberação de acesso.'
+        : mensagemFalha(erro),
+      'error',
+    );
+  } finally {
+    senha = '';
+    loginOcupado = false;
+    loginFields.disabled = familiarFields.disabled = false;
+    familiarBotao.textContent = 'Entrar';
   }
 }
 
@@ -1025,6 +1079,8 @@ async function revalidarAcesso(): Promise<void> {
 }
 
 loginForm.addEventListener('submit', entrar);
+familiarForm.addEventListener('submit', entrarFamiliar);
+familiarFields.disabled = false;
 togglePassword.addEventListener('click', () => {
   const mostrar = passwordInput.type === 'password';
   passwordInput.type = mostrar ? 'text' : 'password';
