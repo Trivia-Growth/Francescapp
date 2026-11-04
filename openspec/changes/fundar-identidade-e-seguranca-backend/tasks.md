@@ -78,6 +78,8 @@ Foi criado no projeto de teste um papel técnico individual com cadastro inativo
 
 Consulta privada de vínculo familiar aplicada ao projeto de teste na migration `20261112010000`, com auditoria e execução apenas pelo owner privado. Uma ausência retorna pendência, não autorização para repetir; falta recuperar o identificador e comprovar o conteúdo da tentativa. Rotas de consulta/saída de sessão familiar foram registradas em código, com consulta desativada por flag e saída preservada; grants públicos continuam ausentes. Nenhum teste foi executado.
 
+Entrada familiar preparada na tela, no cliente e na rota, com flag desativada; operações de pacientes ainda não são suportadas para esse perfil. Wrapper privado de consulta aplicado na migration `20261112020000`: primeira tentativa recusou associação de papel preexistente, a migration foi corrigida e reaplicada; a associação original foi conferida preservada. Nenhum teste executado.
+
 Contatos: a migration `20261111200000` foi aplicada ao projeto de teste após revisão estática; ela prepara reserva, reconciliação e privilégios privados. A criação passou a exigir reserva, mas ciclo HTTP e cliente ainda não a obtêm, mantendo o caminho fechado. Testes foram adiados a pedido; não há prova de concorrência, autorização ou operação conectada.
 
 Atualização: migrations `20261111210000` e `20261111220000` aplicadas ao projeto de teste, mantendo wrappers privados. Ciclo HTTP e interface de contatos foram ligados em código; falta owner restrito com RLS/grants da composição e ativação. O vínculo familiar passa a preparar suporte à sessão técnica, ainda privado. Lint e typecheck passaram; nenhum teste executado.
