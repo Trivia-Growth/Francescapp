@@ -1,17 +1,21 @@
 -- Adiciona consulta de histórico à mesma fronteira privada, sem conceder acesso à aplicação.
 select set_config('ffcmapp.migrador_historico_plano',current_user,false);
-select set_config('ffcmapp.historico_plano_tinha_owner',
- exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member
-  where r.rolname='ffcmapp_plano_owner' and u.rolname=current_user)::text,false);
+select set_config('ffcmapp.historico_plano_tinha_owner',pg_has_role(current_user,'ffcmapp_plano_owner','SET')::text,false);
 do $$ begin
  if current_setting('ffcmapp.historico_plano_tinha_owner')='false' then
-  execute format('grant ffcmapp_plano_owner to %I with inherit false, set true',current_user);
- elsif not exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member
-  where r.rolname='ffcmapp_plano_owner' and u.rolname=current_user and m.set_option) then
-  raise exception 'MEMBERSHIP_PLANO_SEM_SET';
+  if exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member join pg_roles g on g.oid=m.grantor
+   where r.rolname='ffcmapp_plano_owner' and u.rolname=current_user and g.rolname=current_user) then
+   raise exception 'MEMBERSHIP_PLANO_CONCEDENTE_EXISTENTE_SEM_SET';
+  end if;
+  execute format('grant ffcmapp_plano_owner to %I with inherit false, set true granted by %I',current_user,current_user);
  end if;
 end $$;
-grant create on schema api to ffcmapp_plano_owner;
+select set_config('ffcmapp.plano_tinha_create', exists(select 1 from pg_namespace n cross join lateral aclexplode(coalesce(n.nspacl,acldefault('n',n.nspowner))) a join pg_roles r on r.oid=a.grantee where n.nspname='api' and r.rolname='ffcmapp_plano_owner' and a.privilege_type='CREATE')::text,false);
+do $$ begin
+ if current_setting('ffcmapp.plano_tinha_create')='false' then
+  grant create on schema api to ffcmapp_plano_owner;
+ end if;
+end $$;
 set role ffcmapp_plano_owner;
 create or replace function api.plano_cuidado_operacao_privada(p_transporte jsonb) returns jsonb
 language plpgsql security definer set search_path='' set row_security=on as $$
@@ -171,9 +175,13 @@ begin
 end $$;
 reset role;
 select set_config('role',current_setting('ffcmapp.migrador_historico_plano'),false);
-revoke create on schema api from ffcmapp_plano_owner;
+do $$ begin
+ if current_setting('ffcmapp.plano_tinha_create')='false' then
+  revoke create on schema api from ffcmapp_plano_owner;
+ end if;
+end $$;
 do $$ begin
  if current_setting('ffcmapp.historico_plano_tinha_owner')='false' then
-  execute format('revoke ffcmapp_plano_owner from %I',current_user);
+  execute format('revoke ffcmapp_plano_owner from %I granted by %I',current_user,current_user);
  end if;
 end $$;

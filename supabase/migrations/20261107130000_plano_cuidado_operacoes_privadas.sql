@@ -6,11 +6,14 @@ grant usage, create on schema api to ffcmapp_plano_owner;
 grant usage on schema public, identidade, cadastro, operacao, auditoria, auth_privado, bloqueios_auth to ffcmapp_plano_owner;
 grant execute on function auth_privado.uid(), auth_privado.jwt(), auth_privado.identidades(), auth_privado.sessoes(), bloqueios_auth.travar(uuid,uuid) to ffcmapp_plano_owner;
 select set_config('ffcmapp.plano_tinha_verificador',
-  exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member
-   where r.rolname='ffcmapp_atestado_verificador_owner' and u.rolname=current_user)::text,false);
+  pg_has_role(current_user,'ffcmapp_atestado_verificador_owner','SET')::text,false);
 do $$ begin
  if current_setting('ffcmapp.plano_tinha_verificador')='false' then
-  execute format('grant ffcmapp_atestado_verificador_owner to %I with inherit false, set true',current_user);
+  if exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member join pg_roles g on g.oid=m.grantor
+   where r.rolname='ffcmapp_atestado_verificador_owner' and u.rolname=current_user and g.rolname=current_user) then
+   raise exception 'MEMBERSHIP_VERIFICADOR_CONCEDENTE_EXISTENTE_SEM_SET';
+  end if;
+  execute format('grant ffcmapp_atestado_verificador_owner to %I with inherit false, set true granted by %I',current_user,current_user);
  end if;
 end $$;
 set role ffcmapp_atestado_verificador_owner;
@@ -19,7 +22,7 @@ reset role;
 select set_config('role',current_setting('ffcmapp.migrador_plano_owner'),false);
 do $$ begin
  if current_setting('ffcmapp.plano_tinha_verificador')='false' then
-  execute format('revoke ffcmapp_atestado_verificador_owner from %I',current_user);
+  execute format('revoke ffcmapp_atestado_verificador_owner from %I granted by %I',current_user,current_user);
  end if;
 end $$;
 grant select (dominio_workspace,google_unico_oauth_confirmado), update (dominio_workspace) on identidade.configuracao_auth_nativo to ffcmapp_plano_owner;
