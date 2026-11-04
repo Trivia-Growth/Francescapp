@@ -23,3 +23,7 @@ Nenhuma.
 ## Impact
 
 Regras internas e demonstração local fictícia; sem alteração de banco, API ou serviços externos. Permissões, integração e níveis de prioridade dependem de decisões posteriores.
+
+## Atualização de escopo em 04/11/2026
+
+O solicitante passou a pedir tarefas conectadas, com prioridade baixa, média ou alta e criação/acompanhamento somente por profissionais vinculados ao paciente. A prévia anterior não atende a este objetivo. A implementação conectada permanece bloqueada pela definição de quem administra e comprovação do vínculo profissional-paciente; nenhum acesso é ativado por esta atualização.

@@ -29,3 +29,9 @@ Criar tarefas com responsável, prazo, prioridade operacional e estados pendente
 
 - **WHEN** a regra local receber uma conclusão sem ação realizada e sem justificativa
 - **THEN** SHALL rejeitar a conclusão e manter o estado anterior.
+
+#### Scenario: Prioridade e acesso por vínculo profissional
+
+- **WHEN** uma tarefa for criada ou acompanhada no recorte conectado
+- **THEN** sua prioridade SHALL ser baixa, média ou alta, e a operação SHALL ser restrita a profissional vinculado ao paciente, com vínculo verificado no servidor e banco.
+- **AND** a revogação do vínculo SHALL impedir novas operações.
