@@ -56,7 +56,9 @@ Edição: leitura individual administrativa, adaptador e entrada HTTP foram prep
 
 Contatos: operação SQL privada, wrapper invoker e composição de servidor foram preparados com cifra e autorização. Ainda faltam owner/policies, rota, interface conectada e provas; as migrations não foram aplicadas nem concedem acesso à aplicação. Nenhum teste foi executado nesta etapa.
 
-Com autorização do solicitante, quatro chaves foram geradas diretamente no Vault e a referência de atestado foi cadastrada, sem revelar valores. Configuração Auth, operador, concessão inicial e lote continuam pendentes. Foram preparadas migrations locais para owner privado de contato e para permitir domínio Google ausente enquanto Google permanecer desativado. Testes foram adiados por solicitação expressa; as rotas seguem desativadas.
+Com autorização do solicitante, quatro chaves foram geradas diretamente no Vault e a referência de atestado foi cadastrada, sem revelar valores. Configuração Auth foi criada com Google desativado e domínio ausente; operador, concessão inicial e lote continuam pendentes. As seis migrations locais de edição, contato e acesso técnico sem Google foram aplicadas; uma falha de ownership foi corrigida e a sequência retomada. Testes foram adiados por solicitação expressa; as rotas seguem desativadas.
+
+A rota de criação de contato e o formulário foram ligados ao código existente com flag e botão desativados. A RPC permanece sem grant para aplicação e a integração real não foi verificada. Resultado de envio incerto bloqueia nova tentativa e preserva o valor para conferência. Nenhum teste foi executado nesta etapa.
 
 ## Revisão operacional aprovada — 01/11/2026
 
