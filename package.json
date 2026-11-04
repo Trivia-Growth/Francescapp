@@ -29,6 +29,7 @@
     "test:web": "vitest run web",
     "test:proxy": "vitest run netlify/functions/_shared",
     "validar:configuracao": "node scripts/validar-configuracao-local.mjs",
+    "preparar:bootstrap-tecnico": "node --experimental-strip-types scripts/preparar-bootstrap-tecnico.mjs",
     "prepare": "lefthook install",
     "verificar:rapido": "lefthook run pre-push --force",
     "verificar:ativacao": "pnpm run verificar:fundacao",
