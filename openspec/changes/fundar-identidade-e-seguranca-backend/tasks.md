@@ -56,6 +56,8 @@ Edição: leitura individual administrativa, adaptador e entrada HTTP foram prep
 
 Contatos: operação SQL privada, wrapper invoker e composição de servidor foram preparados com cifra e autorização. Ainda faltam owner/policies, rota, interface conectada e provas; as migrations não foram aplicadas nem concedem acesso à aplicação. Nenhum teste foi executado nesta etapa.
 
+Com autorização do solicitante, quatro chaves foram geradas diretamente no Vault e a referência de atestado foi cadastrada, sem revelar valores. Configuração Auth, operador, concessão inicial e lote continuam pendentes. Foram preparadas migrations locais para owner privado de contato e para permitir domínio Google ausente enquanto Google permanecer desativado. Testes foram adiados por solicitação expressa; as rotas seguem desativadas.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.

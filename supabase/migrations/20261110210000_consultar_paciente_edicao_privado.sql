@@ -50,7 +50,7 @@ begin
  -- A ordem de bloqueios segue concessão, usuário, exceção e sessão.
  if not autorizado and exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth_privado.jwt()->'amr')='array' then auth_privado.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='password') then
   select c.id into concessao from identidade.concessao_equipe c
-   where c.usuario_id=ator and c.estado='vinculada' and c.perfil='administrador' for share;
+   where c.usuario_id=ator and c.estado='vinculada' and c.metodo='tecnica' and c.perfil='administrador' for share;
   if found then
    perform 1 from public.usuario u where u.id=ator and u.ativo and u.perfil='administrador' for share;
    if found then

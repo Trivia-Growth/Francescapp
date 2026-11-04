@@ -8,6 +8,10 @@ select set_config('ffcmapp.edicao_migrador',current_user,false);
 select set_config('ffcmapp.edicao_tinha_verificador',pg_has_role(current_user,'ffcmapp_atestado_verificador_owner','SET')::text,false);
 do $$ begin
  if current_setting('ffcmapp.edicao_tinha_verificador')='false' then
+  if exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member join pg_roles g on g.oid=m.grantor
+   where r.rolname='ffcmapp_atestado_verificador_owner' and u.rolname=current_user and g.rolname=current_user) then
+   raise exception 'MEMBERSHIP_VERIFICADOR_CONCEDENTE_EXISTENTE_SEM_SET';
+  end if;
   execute format('grant ffcmapp_atestado_verificador_owner to %I with inherit false, set true granted by %I',current_user,current_user);
  end if;
 end $$;
