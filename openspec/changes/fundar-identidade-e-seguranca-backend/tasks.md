@@ -46,6 +46,8 @@ Retomada aplicou mais 11 migrations e parou na `20261110120000` pelo mesmo vínc
 
 Nova retomada aplicou `20261110120000`–`20261110140000` e parou na `20261110150000`: o migrador não era owner das RPCs. As duas migrations de grants foram corrigidas para assumir temporariamente os owners corretos, preservando vínculos existentes. Teste focado com migrador não superusuário e cadeia completa descartável passaram; prosseguir e conferir histórico remoto. Nenhum segredo ou lote foi configurado.
 
+Após correção, as cinco migrations restantes foram aplicadas com autorização do solicitante. A Management API confirmou 45 versões e nomes coincidentes com os arquivos locais. Inspeção de catálogo encontrou seis RPCs de sessão/cadastro/carteira com EXECUTE para `authenticated`; `anon` e `service_role` não tinham EXECUTE nas 11 RPCs do schema `api`. Isso não comprova comportamento, RLS ou Auth/Vault reais. Nenhum segredo, lote, operador ou conta administrativa foi configurado nesta operação; aplicação continua sem ativação protegida.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.
