@@ -52,7 +52,7 @@ Após correção, as cinco migrations restantes foram aplicadas com autorizaçã
 
 Os pontos de entrada de pacientes, anamnese e plano foram ligados às composições existentes com flags independentes desativadas por padrão. Por instrução do solicitante, testes não foram executados nesta etapa; lint e typecheck passaram. S-02, configuração real de Auth/Vault, grants de anamnese/plano e provas integradas permanecem obrigatórios antes da ativação. Nenhuma flag foi ativada remotamente.
 
-Edição: leitura individual administrativa e adaptador foram preparados localmente para permitir reconciliação; a migration ainda não foi aplicada e não concede acesso à aplicação. O endpoint de edição não foi registrado porque a jornada completa ainda depende de integração e validação. Nenhum teste foi executado nesta etapa. A preparação de chaves do Vault também está apenas em script local, sem execução remota.
+Edição: leitura individual administrativa, adaptador e entrada HTTP foram preparados localmente para permitir reconciliação; as migrations ainda não foram aplicadas e não concedem acesso à aplicação. A entrada está desativada por padrão e depende de integração e validação antes do uso. Nenhum teste foi executado nesta etapa. A preparação de chaves do Vault também está apenas em script local, sem execução remota.
 
 ## Revisão operacional aprovada — 01/11/2026
 
