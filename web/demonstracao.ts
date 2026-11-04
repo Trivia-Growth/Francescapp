@@ -5,6 +5,10 @@ import { localizarPendencias, validarSecoesAnamnese } from '../packages/cadastro
 import { validarTarefaPlano } from '../packages/cadastro/src/tarefa-plano';
 import { montarRelatoTextual } from './relato-textual';
 import { montarResumoCasoLocal } from './resumo-caso-local';
+import {
+  montarPainelPendenciasLocal,
+  type DadosPainelPendenciasLocal,
+} from './painel-pendencias-local';
 import type { RelatoTextual } from '../packages/contracts/src/relato-textual';
 
 // Prévia isolada: usa somente o servidor local de feedback.
@@ -91,6 +95,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   };
   const agenda = new Map<string, Compromisso[]>();
   const telaAgenda = elemento('agenda-view');
+  const telaAgendaGeral = elemento('general-agenda-view');
+  let origemAgendaGeral = false;
   const telaResumo = elemento('summary-view');
   const formularioAgenda = elemento<HTMLFormElement>('agenda-form');
   let compromissoEmEdicao: number | undefined;
@@ -119,6 +125,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       telaObjetivos,
       telaRelato,
       telaAgenda,
+      telaAgendaGeral,
       telaResumo,
     ])
       item.hidden = item !== tela;
@@ -133,6 +140,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   let editando: Paciente | undefined;
   let salvandoCadastro = false;
   let geracaoCadastros = 0;
+  let geracaoPendencias = 0;
   let registros: Paciente[] = [];
   let csrfToken = '';
   let telaInterrompida: HTMLElement | undefined;
@@ -140,6 +148,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     const resposta = await fetch(`/api/local-feedback${caminho}`, opcoes);
     if (resposta.status === 401 && caminho !== '/login') {
       geracaoNavegacao++;
+      geracaoPendencias++;
       telaInterrompida = [
         pacientes,
         anamnese,
@@ -147,6 +156,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         telaObjetivos,
         telaRelato,
         telaAgenda,
+        telaAgendaGeral,
         telaResumo,
       ].find((tela) => !tela.hidden);
       pacientes.hidden = true;
@@ -155,6 +165,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       telaObjetivos.hidden = true;
       telaRelato.hidden = true;
       telaAgenda.hidden = true;
+      telaAgendaGeral.hidden = true;
       telaResumo.hidden = true;
       acoes.hidden = true;
       login.hidden = false;
@@ -174,6 +185,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       if (geracao !== geracaoCadastros) return;
       registros = pacientesCarregados;
       atualizar();
+      void carregarPendencias();
       elemento('workspace-feedback').textContent = '';
     } catch {
       elemento('workspace-feedback').textContent =
@@ -298,52 +310,13 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       abrirAgenda.className = 'button-secondary';
       abrirAgenda.textContent = 'Abrir agenda';
       abrirAgenda.setAttribute('aria-label', `Abrir agenda de ${registro.name}`);
-      abrirAgenda.addEventListener('click', async () => {
-        const geracao = ++geracaoNavegacao;
-        try {
-          await carregarPrevia(registro.id, geracao);
-        } catch {
-          if (geracao !== geracaoNavegacao) return;
-          elemento('workspace-feedback').textContent =
-            'Não foi possível carregar a agenda. Tente novamente.';
-          return;
-        }
-        if (geracao !== geracaoNavegacao) return;
-        selecionado = registro.id;
-        formularioAgenda.reset();
-        compromissoEmEdicao = undefined;
-        elemento('agenda-form-title').textContent = 'Cadastrar compromisso';
-        elemento('agenda-cancel-edit').hidden = true;
-        elemento('agenda-feedback').textContent = '';
-        elemento('agenda-patient').textContent = registro.name;
-        atualizarAgenda();
-        exibirTela(telaAgenda);
-        elemento('agenda-title').focus();
-      });
+      abrirAgenda.addEventListener('click', () => void abrirAgendaPaciente(registro, false));
       const abrirTarefas = document.createElement('button');
       abrirTarefas.type = 'button';
       abrirTarefas.className = 'button-secondary';
       abrirTarefas.textContent = 'Abrir tarefas';
       abrirTarefas.setAttribute('aria-label', `Abrir tarefas de ${registro.name}`);
-      abrirTarefas.addEventListener('click', async () => {
-        const geracao = ++geracaoNavegacao;
-        try {
-          await carregarPrevia(registro.id, geracao);
-        } catch {
-          if (geracao !== geracaoNavegacao) return;
-          elemento('workspace-feedback').textContent =
-            'Não foi possível carregar a prévia. Tente novamente.';
-          return;
-        }
-        if (geracao !== geracaoNavegacao) return;
-        selecionado = registro.id;
-        formularioTarefa.reset();
-        elemento('task-feedback').textContent = '';
-        elemento('tasks-patient').textContent = registro.name;
-        atualizarTarefas();
-        exibirTela(telaTarefas);
-        elemento('tasks-title').focus();
-      });
+      abrirTarefas.addEventListener('click', () => void abrirTarefasPaciente(registro));
       const abrirObjetivos = document.createElement('button');
       abrirObjetivos.type = 'button';
       abrirObjetivos.className = 'button-secondary';
@@ -526,6 +499,125 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     vazio.hidden = registros.length !== 0;
     elemento('list-status').textContent = `${registros.length} pacientes fictícios nesta lista.`;
   };
+  const abrirTarefasPaciente = async (registro: Paciente) => {
+    const geracao = ++geracaoNavegacao;
+    try {
+      await carregarPrevia(registro.id, geracao);
+    } catch {
+      if (geracao !== geracaoNavegacao) return;
+      elemento('workspace-feedback').textContent =
+        'Não foi possível carregar a prévia. Tente novamente.';
+      return;
+    }
+    if (geracao !== geracaoNavegacao) return;
+    selecionado = registro.id;
+    formularioTarefa.reset();
+    elemento('task-feedback').textContent = '';
+    elemento('tasks-patient').textContent = registro.name;
+    atualizarTarefas();
+    exibirTela(telaTarefas);
+    elemento('tasks-title').focus();
+  };
+  const carregarPendencias = async () => {
+    const geracao = ++geracaoPendencias;
+    const painel = elemento('pending-panel');
+    painel.textContent = 'Carregando pendências…';
+    try {
+      const resposta = await requisitar('/pending-tasks');
+      const dados = (await resposta.json()) as {
+        patients: DadosPainelPendenciasLocal['pacientes'];
+      };
+      if (geracao !== geracaoPendencias) return;
+      const agora = new Date();
+      const hoje = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
+      montarPainelPendenciasLocal(painel, {
+        hoje,
+        pacientes: dados.patients,
+        abrirTarefas: (id) => {
+          const registro = registros.find((item) => item.id === id);
+          if (registro) void abrirTarefasPaciente(registro);
+        },
+      });
+    } catch {
+      if (geracao !== geracaoPendencias) return;
+      painel.textContent =
+        'Não foi possível carregar as pendências. Atualize a lista para tentar novamente.';
+    }
+  };
+  const abrirAgendaPaciente = async (registro: Paciente, daAgendaGeral: boolean) => {
+    const geracao = ++geracaoNavegacao;
+    try {
+      await carregarPrevia(registro.id, geracao);
+    } catch {
+      if (geracao !== geracaoNavegacao) return;
+      elemento(daAgendaGeral ? 'general-agenda-status' : 'workspace-feedback').textContent =
+        'Não foi possível carregar a agenda. Tente novamente.';
+      return;
+    }
+    if (geracao !== geracaoNavegacao) return;
+    selecionado = registro.id;
+    origemAgendaGeral = daAgendaGeral;
+    formularioAgenda.reset();
+    compromissoEmEdicao = undefined;
+    elemento('agenda-form-title').textContent = 'Cadastrar compromisso';
+    elemento('agenda-cancel-edit').hidden = true;
+    elemento('agenda-feedback').textContent = '';
+    elemento('agenda-patient').textContent = registro.name;
+    elemento('agenda-back').textContent = daAgendaGeral
+      ? 'Voltar à agenda geral'
+      : 'Voltar à lista';
+    atualizarAgenda();
+    exibirTela(telaAgenda);
+    elemento('agenda-title').focus();
+  };
+  const abrirAgendaGeral = async () => {
+    const geracao = ++geracaoNavegacao;
+    exibirTela(telaAgendaGeral);
+    elemento('general-agenda-title').focus();
+    const lista = elemento('general-agenda-list');
+    lista.replaceChildren();
+    elemento('general-agenda-status').textContent = 'Carregando compromissos…';
+    try {
+      const resposta = await requisitar('/agenda');
+      const { appointments } = (await resposta.json()) as {
+        appointments: (Pick<Compromisso, 'data' | 'hora' | 'descricao' | 'estado'> & {
+          patientId: string;
+          patientName: string;
+        })[];
+      };
+      if (geracao !== geracaoNavegacao) return;
+      appointments.sort((a, b) => `${a.data} ${a.hora}`.localeCompare(`${b.data} ${b.hora}`));
+      elemento('general-agenda-status').textContent = appointments.length
+        ? ''
+        : 'Nenhum compromisso nesta prévia.';
+      for (const item of appointments) {
+        const linha = document.createElement('li');
+        const resumo = document.createElement('p');
+        resumo.textContent = `${item.data} às ${item.hora} · ${item.patientName} · ${item.descricao} · ${item.estado === 'cancelado' ? 'Cancelado' : 'Agendado'}`;
+        const abrir = document.createElement('button');
+        abrir.type = 'button';
+        abrir.className = 'button-secondary';
+        abrir.textContent = 'Abrir agenda do paciente';
+        abrir.setAttribute('aria-label', `Abrir agenda de ${item.patientName}`);
+        abrir.addEventListener(
+          'click',
+          () => void abrirAgendaPaciente({ id: item.patientId, name: item.patientName }, true),
+        );
+        linha.append(resumo, abrir);
+        lista.append(linha);
+      }
+    } catch {
+      if (geracao === geracaoNavegacao)
+        elemento('general-agenda-status').textContent =
+          'Não foi possível carregar os compromissos. Volte à lista e tente novamente.';
+    }
+  };
+  elemento('open-general-agenda').addEventListener('click', () => void abrirAgendaGeral());
+  elemento('general-agenda-back').addEventListener('click', () => {
+    geracaoNavegacao++;
+    exibirTela(pacientes);
+    elemento('open-general-agenda').focus();
+  });
   elemento('summary-back').addEventListener('click', () => {
     telaResumo.hidden = true;
     pacientes.hidden = false;
@@ -633,9 +725,11 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     )
       return;
     limparAgenda();
-    telaAgenda.hidden = true;
-    pacientes.hidden = false;
-    elemento('patients-title').focus();
+    if (origemAgendaGeral) void abrirAgendaGeral();
+    else {
+      exibirTela(pacientes);
+      elemento('patients-title').focus();
+    }
   });
   elemento('agenda-cancel-edit').addEventListener('click', () => {
     if (
@@ -979,6 +1073,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     )
       return;
     limparAlteracoesTarefas();
+    void carregarPendencias();
     telaTarefas.hidden = true;
     pacientes.hidden = false;
     elemento('patients-title').focus();
@@ -1155,6 +1250,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   });
   elemento('logout').addEventListener('click', async () => {
     if (salvandoCadastro || !podeDescartar()) return;
+    geracaoPendencias++;
     try {
       await requisitar('/logout', {
         method: 'POST',

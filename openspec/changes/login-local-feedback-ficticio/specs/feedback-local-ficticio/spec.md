@@ -60,3 +60,15 @@ A demonstração SHALL permitir revisar objetivos fictícios por paciente, mante
 #### Scenario: Conflito ou falha
 - **WHEN** houver conflito ou falha na gravação
 - **THEN** a interface não afirma sucesso e preserva o rascunho para conferência.
+
+
+### Requirement: Agenda geral fictícia
+A demonstração SHALL reunir compromissos locais de todos os pacientes fictícios autenticados, sem integração com Google Agenda.
+
+#### Scenario: Consultar e abrir agenda individual
+- **WHEN** a pessoa abre a agenda geral
+- **THEN** vê data, horário, paciente, descrição e situação de cada compromisso, e pode abrir a agenda do paciente.
+
+#### Scenario: Agenda vazia ou indisponível
+- **WHEN** não há compromissos ou ocorre falha na leitura
+- **THEN** a interface apresenta o estado correspondente sem afirmar que a consulta foi concluída em caso de erro.

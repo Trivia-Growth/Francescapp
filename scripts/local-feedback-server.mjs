@@ -239,6 +239,58 @@ export function createLocalFeedbackServer({ password, directory }) {
           'Set-Cookie': `${COOKIE}=; HttpOnly; SameSite=Strict; Path=/api/local-feedback; Max-Age=0`,
         });
       }
+      if (path === `${PREFIX}/pending-tasks` && req.method === 'GET') {
+        const patients = await readPatients();
+        const groups = await Promise.all(
+          patients.map(async (patient) => {
+            let preview;
+            try {
+              preview = JSON.parse(
+                await readFile(join(directory, `preview-${patient.id}.json`), 'utf8'),
+              );
+            } catch (error) {
+              if (error.code !== 'ENOENT') throw error;
+              preview = {};
+            }
+            return {
+              id: patient.id,
+              nome: patient.name,
+              tarefas: (preview.tarefas ?? []).map(({ descricao, responsavel, prazo, estado }) => ({
+                descricao,
+                responsavel,
+                prazo,
+                estado,
+              })),
+            };
+          }),
+        );
+        return respond(res, 200, { patients: groups });
+      }
+      if (path === `${PREFIX}/agenda` && req.method === 'GET') {
+        const patients = await readPatients();
+        const groups = await Promise.all(
+          patients.map(async (patient) => {
+            let preview;
+            try {
+              preview = JSON.parse(
+                await readFile(join(directory, `preview-${patient.id}.json`), 'utf8'),
+              );
+            } catch (error) {
+              if (error.code !== 'ENOENT') throw error;
+              return [];
+            }
+            return (preview.agenda ?? []).map(({ data, hora, descricao, estado }) => ({
+              patientId: patient.id,
+              patientName: patient.name,
+              data,
+              hora,
+              descricao,
+              estado,
+            }));
+          }),
+        );
+        return respond(res, 200, { appointments: groups.flat() });
+      }
       if (path === `${PREFIX}/patients` && req.method === 'GET')
         return respond(res, 200, { patients: await readPatients() });
       if (path === `${PREFIX}/patients` && req.method === 'POST') {

@@ -37,6 +37,36 @@ function servidorFicticio(autenticado = true) {
         ? { authenticated: true, csrfToken: 'token-ficticio' }
         : { authenticated: false };
     else if (url.endsWith('/login')) data = { authenticated: true, csrfToken: 'token-ficticio' };
+    else if (url.endsWith('/agenda'))
+      data = {
+        appointments: [
+          {
+            patientId: '1',
+            patientName: 'Paciente Exemplo Um',
+            data: '2026-12-01',
+            hora: '10:00',
+            descricao: 'Encontro fictício',
+            estado: 'cancelado',
+          },
+        ],
+      };
+    else if (url.endsWith('/pending-tasks'))
+      data = {
+        patients: [
+          {
+            id: '1',
+            nome: 'Paciente Exemplo Um',
+            tarefas: [
+              {
+                descricao: 'Contato fictício',
+                responsavel: 'Equipe',
+                prazo: '2026-01-01',
+                estado: 'pendente',
+              },
+            ],
+          },
+        ],
+      };
     else if (url.endsWith('/preview')) {
       const previa = previas.get(url) ?? { revision: 0, anamnese: null, tarefas: [] };
       if (options?.method === 'POST') {
@@ -831,4 +861,57 @@ it('ignora abertura anterior quando outra prévia responde primeiro', async () =
     ),
   );
   expect(document.getElementById('agenda-view')?.hidden).toBe(true);
+});
+
+it('abre agenda geral e tarefas do painel de pendências', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  servidorFicticio();
+  await import('./demonstracao.js');
+  await vi.waitFor(() =>
+    expect(document.getElementById('pending-panel')?.textContent).toContain('Contato fictício'),
+  );
+  (document.querySelector('#pending-panel button') as HTMLButtonElement).click();
+  await vi.waitFor(() => expect(document.getElementById('tasks-view')?.hidden).toBe(false));
+  (document.getElementById('tasks-back') as HTMLButtonElement).click();
+  (document.getElementById('open-general-agenda') as HTMLButtonElement).click();
+  await vi.waitFor(() =>
+    expect(document.getElementById('general-agenda-list')?.textContent).toContain('Cancelado'),
+  );
+  expect(document.getElementById('general-agenda-list')?.textContent).toContain(
+    'Paciente Exemplo Um',
+  );
+  (document.querySelector('#general-agenda-list button') as HTMLButtonElement).click();
+  await vi.waitFor(() => expect(document.getElementById('agenda-view')?.hidden).toBe(false));
+  expect(document.getElementById('agenda-patient')?.textContent).toBe('Paciente Exemplo Um');
+});
+
+it('ignora resposta antiga do painel após atualização mais recente', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  const original = servidorFicticio();
+  let liberar!: (value: { ok: boolean; json: () => Promise<unknown> }) => void;
+  let chamadas = 0;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, options?: RequestInit) => {
+      if (url.endsWith('/pending-tasks') && ++chamadas === 1)
+        return new Promise((resolve) => {
+          liberar = resolve;
+        });
+      return original(url, options);
+    }),
+  );
+  await import('./demonstracao.js');
+  await vi.waitFor(() => expect(chamadas).toBe(1));
+  (document.getElementById('reload-patients') as HTMLButtonElement).click();
+  await vi.waitFor(() =>
+    expect(document.getElementById('pending-panel')?.textContent).toContain('Contato fictício'),
+  );
+  liberar({ ok: true, json: async () => ({ patients: [] }) });
+  await vi.waitFor(() => expect(chamadas).toBe(2));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(document.getElementById('pending-panel')?.textContent).toContain('Contato fictício');
 });

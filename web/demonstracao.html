@@ -52,10 +52,11 @@
       <section id="patients-view" class="patients-layout" aria-labelledby="patients-title" hidden>
         <div class="page-heading">
           <div><h1 id="patients-title" tabindex="-1">Pacientes</h1><p id="scope-description">Cadastros disponíveis para seu acesso.</p></div>
-          <a id="new-patient-link" class="button-primary" href="#cadastro" hidden>Cadastrar paciente</a>
+          <button id="open-general-agenda" class="button-secondary" type="button">Agenda geral</button><a id="new-patient-link" class="button-primary" href="#cadastro" hidden>Cadastrar paciente</a>
         </div>
         <p id="workspace-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
         <p class="feedback">Demonstração local com dados fictícios. Cadastros, anamneses e tarefas ficam salvos neste computador.</p>
+        <section aria-labelledby="pending-title"><h2 id="pending-title">Pendências</h2><div id="pending-panel" role="status">Carregando pendências…</div></section>
         <div id="workspace" class="workspace">
           <section class="patient-register" aria-labelledby="list-title">
             <div class="section-heading"><h2 id="list-title">Lista de pacientes</h2><button id="reload-patients" class="button-secondary" type="button">Atualizar lista</button></div>
@@ -111,6 +112,14 @@
         <h1 id="summary-title" tabindex="-1">Resumo do caso</h1><p id="summary-patient"></p>
         <p class="feedback">Prévia local com dados fictícios. Informações incompletas não representam um resumo clínico.</p>
         <div id="summary-content"></div>
+      </section>
+
+      <section id="general-agenda-view" class="patients-layout" aria-labelledby="general-agenda-title" hidden>
+        <button id="general-agenda-back" class="button-secondary" type="button">Voltar à lista</button>
+        <h1 id="general-agenda-title" tabindex="-1">Agenda geral</h1>
+        <p class="feedback">Demonstração local com dados fictícios. Sem conexão com Google Agenda.</p>
+        <p id="general-agenda-status" role="status" aria-live="polite"></p>
+        <ul id="general-agenda-list"></ul>
       </section>
 
       <section id="agenda-view" class="patients-layout" aria-labelledby="agenda-title" hidden>

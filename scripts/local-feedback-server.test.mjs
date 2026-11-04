@@ -301,6 +301,23 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     assert.equal((await salvarAgenda([compromisso], final.revision + 1)).status, 409);
     const cancelado = { ...compromisso, estado: 'cancelado' };
     assert.equal((await salvarAgenda([cancelado], final.revision + 2)).status, 200);
+    assert.equal((await request('/agenda')).status, 401);
+    assert.equal((await request('/pending-tasks')).status, 401);
+    const agendaGeral = await (await request('/agenda', { headers: { cookie } })).json();
+    assert.deepEqual(agendaGeral.appointments, [
+      {
+        patientId: patient.id,
+        patientName: 'Pessoa editada',
+        data: cancelado.data,
+        hora: cancelado.hora,
+        descricao: cancelado.descricao,
+        estado: 'cancelado',
+      },
+    ]);
+    const painel = await (await request('/pending-tasks', { headers: { cookie } })).json();
+    assert.equal(painel.patients[0].id, patient.id);
+    assert.equal(painel.patients[0].tarefas[0].descricao, tarefa.descricao);
+    assert.equal('anamnese' in painel.patients[0], false);
 
     assert.equal(
       (await request(previewPath, { ...save, headers: { ...headers, cookie } })).status,
