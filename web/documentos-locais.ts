@@ -66,6 +66,7 @@ export function montarDocumentosLocais(raiz: HTMLElement, dados: DadosDocumentos
     }
     registrar.disabled = true;
     for (const input of [nome, categoria, metadados]) input.disabled = true;
+    mensagem.textContent = 'Guardando documento…';
     try {
       await dados.aoRegistrar(documento);
     } catch {
@@ -111,7 +112,11 @@ export function montarDocumentosLocais(raiz: HTMLElement, dados: DadosDocumentos
         item.append(link);
         listaAnexos.append(item);
       }
-      if (!listaAnexos.childElementCount) listaAnexos.textContent = 'Nenhum arquivo anexado.';
+      if (!listaAnexos.childElementCount) {
+        const item = document.createElement('li');
+        item.textContent = 'Nenhum arquivo anexado.';
+        listaAnexos.append(item);
+      }
     };
     formAnexo.append(label, botao);
     formAnexo.addEventListener('submit', async (evento) => {
