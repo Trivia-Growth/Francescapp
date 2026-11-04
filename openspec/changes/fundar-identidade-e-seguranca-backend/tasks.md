@@ -1,5 +1,7 @@
 # Tasks
 
+Retomada: consulta somente de leitura ao histórico de migrações pela API de gestão retornou HTTP 401 com a credencial local disponível. A CLI também excedeu o prazo de conexão. O histórico remoto atual permanece não confirmado; renovar a autenticação sem registrar ou compartilhar o token antes de tentar novamente. Nenhuma alteração remota foi feita.
+
 Preparação local: edição privada de paciente e interface isolada foram esboçadas e testadas com fixtures; não há integração liberada. SQL atual admite apenas Google, embora a exceção técnica individual permaneça prevista; nome da operação e resposta também precisam de alinhamento. Repetição após recarga, autorização, auditoria, Auth real e S-02 seguem pendentes. O entrypoint Auth do Netlify fica desativado por padrão; desativá-lo após existirem sessões também bloqueia a rota de saída e não revoga sessões existentes.
 
 Atualização: SQL privado foi adaptado à exceção técnica individual e preparador de servidor foi criado; testes locais usam fixtures e não comprovam bootstrap técnico, Auth real ou mutação técnica com auditoria. A interface permanece indisponível: endpoints ainda ausentes, contrato público e resposta privada divergem, e recuperação após recarga não está comprovada. S-02 e integração real seguem pendentes.
