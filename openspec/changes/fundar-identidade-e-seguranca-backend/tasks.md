@@ -58,6 +58,8 @@ Contatos: operação SQL privada, wrapper invoker e composição de servidor for
 
 Com autorização do solicitante, quatro chaves foram geradas diretamente no Vault e a referência de atestado foi cadastrada, sem revelar valores. Configuração Auth foi criada com Google desativado e domínio ausente; operador, concessão inicial e lote continuam pendentes. As seis migrations locais de edição, contato e acesso técnico sem Google foram aplicadas; uma falha de ownership foi corrigida e a sequência retomada. Testes foram adiados por solicitação expressa; as rotas seguem desativadas.
 
+Preparação familiar adicional: consulta e saída privadas foram escritas para reutilizar a sessão familiar, sem rota pública ou grant de aplicação. A autorização de cada paciente, a revisão independente e as provas reais de revogação seguem pendentes; a migration correspondente ainda não foi aplicada. Nenhum teste foi executado nesta etapa.
+
 Conferência de catálogo após a aplicação: 51 versões remotas correspondem às locais. Quatro referências de segredo distintas e uma referência ativa de atestado foram encontradas, sem leitura de valores. A configuração Auth está presente com Google desativado. Ainda não existe perfil da aplicação para a conta técnica nem lote ativo; criação e integração seguem pendentes.
 
 A rota de criação de contato e o formulário foram ligados ao código existente com flag e botão desativados. A RPC permanece sem grant para aplicação e a integração real não foi verificada. Resultado de envio incerto bloqueia nova tentativa e preserva o valor para conferência. Nenhum teste foi executado nesta etapa.
