@@ -27,10 +27,12 @@ export async function autorizarOperacaoNativa(request: Request, fonte: FonteDeCo
         return { estado: 'nao_autenticado' } as const;
       return { estado: 'servico_indisponivel' } as const;
     }
+    if (contexto.cookiesAlterados) return { estado: 'nao_autenticado' } as const;
     if (!identidade.data.user) return { estado: 'nao_autenticado' } as const;
     const resultado = await contexto.cliente.schema('api').rpc('consultar_sessao_nativa', {
       p_request_id: crypto.randomUUID(),
     });
+    if (contexto.cookiesAlterados) return { estado: 'nao_autenticado' } as const;
     if (resultado.error) return { estado: 'servico_indisponivel' } as const;
     const sessao = sessaoNativaSchema.safeParse(resultado.data);
     if (

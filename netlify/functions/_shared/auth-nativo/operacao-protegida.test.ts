@@ -34,6 +34,29 @@ const pedido = (headers: Record<string, string> = {}, method = 'POST') =>
 afterEach(() => vi.unstubAllGlobals());
 
 describe('autorização nativa de operação com transporte fictício', () => {
+  it('exige novo acesso quando o SDK renova cookies durante a autorização', async () => {
+    const expirada = Math.floor(Date.now() / 1000) - 60;
+    const tokenAntigo = `${Buffer.from('{"alg":"HS256"}').toString('base64url')}.${Buffer.from(JSON.stringify({ sub: usuario.id, exp: expirada })).toString('base64url')}.ZmFrZQ`;
+    const cookieAntigo = `sb-projeto-ficticio-auth-token=base64-${Buffer.from(JSON.stringify({ access_token: tokenAntigo, refresh_token: 'antigo-ficticio', token_type: 'bearer', expires_in: 3600, expires_at: expirada, user: usuario })).toString('base64url')}`;
+    const rede = vi.fn(async (input: RequestInfo | URL) => {
+      const caminho = new URL(String(input)).pathname;
+      if (caminho === '/auth/v1/token')
+        return Response.json({
+          access_token: token,
+          refresh_token: 'novo-ficticio',
+          token_type: 'bearer',
+          expires_in: 3600,
+          expires_at: exp,
+          user: usuario,
+        });
+      return Response.json(caminho === '/auth/v1/user' ? usuario : sessao);
+    });
+    vi.stubGlobal('fetch', rede);
+    expect((await autorizarOperacaoNativa(pedido({ cookie: cookieAntigo }), fonte)).estado).toBe(
+      'nao_autenticado',
+    );
+    expect(rede.mock.calls.some(([url]) => String(url).includes('/auth/v1/token'))).toBe(true);
+  });
   it('valida usuário e sessão e disponibiliza cliente apenas ao servidor', async () => {
     const rede = vi.fn(async (input: RequestInfo | URL) =>
       new URL(String(input)).pathname === '/auth/v1/user'
