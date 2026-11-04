@@ -100,6 +100,58 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
       );
       const primeira = await operarPlanoCuidadoNativo(request, gravar, portas);
       expect(primeira).toMatchObject({ ok: true, dados: { objetivo_id, versao: 1, objetivo } });
+      const requestRevisao = new Request('https://example.test', {
+        headers: { 'x-sessao': session_id, 'x-chave-idempotencia': 'revisao_ficticia_123' },
+      });
+      const revisado = { ...objetivo, descricao: 'revisao ficticia' };
+      expect(
+        await operarPlanoCuidadoNativo(
+          requestRevisao,
+          {
+            ...gravar,
+            versao_esperada: 1,
+            objetivo: revisado,
+            motivo: 'revisao ficticia',
+          },
+          portas,
+        ),
+      ).toMatchObject({ ok: true, dados: { versao: 2, objetivo: revisado } });
+      const historico = { operacao: 'historico' as const, paciente_id, objetivo_id };
+      expect(await operarPlanoCuidadoNativo(request, historico, portas)).toMatchObject({
+        ok: true,
+        dados: [
+          { versao: 1, objetivo },
+          { versao: 2, objetivo: revisado, motivo: 'revisao ficticia' },
+        ],
+      });
+      const cifrados = await pool.query(
+        'select conteudo_cifrado from cadastro.objetivo_cuidado_versao where objetivo_id=$1 order by versao',
+        [objetivo_id],
+      );
+      expect(cifrados.rows).toHaveLength(2);
+      expect(JSON.stringify(cifrados.rows)).not.toContain('conteudo ficticio');
+      expect(JSON.stringify(cifrados.rows)).not.toContain('revisao ficticia');
+      expect(
+        await operarPlanoCuidadoNativo(
+          request,
+          {
+            ...historico,
+            paciente_id: '40000000-0000-4000-8000-000000000002',
+          },
+          portas,
+        ),
+      ).toMatchObject({ ok: false, erro: { codigo: 'sem_permissao' } });
+      await pool.query(
+        'update identidade.sessao set encerrada_em=clock_timestamp() where session_id=$1',
+        [session_id],
+      );
+      expect(await operarPlanoCuidadoNativo(request, historico, portas)).toMatchObject({
+        ok: false,
+        erro: { codigo: 'sem_permissao' },
+      });
+      await pool.query('update identidade.sessao set encerrada_em=null where session_id=$1', [
+        session_id,
+      ]);
       const segunda = await operarPlanoCuidadoNativo(request, gravar, portas);
       expect(segunda.ok && segunda.dados).toEqual(primeira.ok && primeira.dados);
       expect(
@@ -116,7 +168,7 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
         'select count(*)::int as total from cadastro.objetivo_cuidado_versao where objetivo_id=$1',
         [objetivo_id],
       );
-      expect(resultado.rows[0].total).toBe(1);
+      expect(resultado.rows[0].total).toBe(2);
       // A escrita confirma no banco, mas a resposta se perde antes de chegar ao handler.
       const requestPerdido = new Request('https://example.test', {
         headers: { 'x-sessao': session_id, 'x-chave-idempotencia': 'resposta_perdida_123' },

@@ -21,6 +21,7 @@ it('mostra texto como texto e envia revisão com versão esperada', async () => 
     raiz,
     'paciente',
     {
+      consultarHistorico: vi.fn(),
       consultarObjetivos: vi.fn().mockResolvedValue([atual]),
       criarObjetivo: vi.fn(),
       revisarObjetivo,
@@ -51,6 +52,7 @@ it('preserva rascunho e bloqueia reenvio quando resultado é incerto', async () 
     raiz,
     'paciente',
     {
+      consultarHistorico: vi.fn(),
       consultarObjetivos: vi.fn().mockResolvedValue([atual]),
       criarObjetivo: vi.fn(),
       revisarObjetivo,
@@ -78,6 +80,7 @@ it('remove dados quando acesso é revogado', async () => {
     raiz,
     'paciente',
     {
+      consultarHistorico: vi.fn(),
       consultarObjetivos: vi.fn().mockRejectedValue(new FalhaApi('negado', 403)),
       criarObjetivo: vi.fn(),
       revisarObjetivo: vi.fn(),
@@ -95,7 +98,7 @@ it('consulta plano atual sem perder rascunho nem reenviar após conflito', async
   montarPlanoCuidado(
     raiz,
     'paciente',
-    { consultarObjetivos, criarObjetivo: vi.fn(), revisarObjetivo },
+    { consultarHistorico: vi.fn(), consultarObjetivos, criarObjetivo: vi.fn(), revisarObjetivo },
     vi.fn(),
   );
   await vi.waitFor(() => expect(raiz.textContent).toContain('Revisar objetivo'));
@@ -129,7 +132,7 @@ it('mantém criação bloqueada após consulta quando salvamento pode concluir d
   montarPlanoCuidado(
     raiz,
     'paciente',
-    { consultarObjetivos, criarObjetivo, revisarObjetivo: vi.fn() },
+    { consultarHistorico: vi.fn(), consultarObjetivos, criarObjetivo, revisarObjetivo: vi.fn() },
     vi.fn(),
   );
   await vi.waitFor(() => expect(raiz.textContent).toContain('Adicionar objetivo'));
@@ -166,4 +169,78 @@ it('mantém criação bloqueada após consulta quando salvamento pode concluir d
   expect(adicionar?.disabled).toBe(true);
   expect(raiz.textContent).toContain('precisa de confirmação definitiva');
   expect(criarObjetivo).toHaveBeenCalledTimes(1);
+});
+
+it('consulta histórico sob demanda e limpa dados ao perder acesso', async () => {
+  const raiz = document.createElement('div');
+  const acessoPerdido = vi.fn();
+  const consultarHistorico = vi
+    .fn()
+    .mockResolvedValueOnce([
+      {
+        ...atual,
+        ator_usuario_id: 'autor',
+        data: '2026-11-04T12:00:00Z',
+        motivo: '<script>motivo</script>',
+      },
+    ])
+    .mockRejectedValueOnce(new FalhaApi('negado', 403));
+  montarPlanoCuidado(
+    raiz,
+    'paciente',
+    {
+      consultarHistorico,
+      consultarObjetivos: vi.fn().mockResolvedValue([atual]),
+      criarObjetivo: vi.fn(),
+      revisarObjetivo: vi.fn(),
+    },
+    acessoPerdido,
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Consultar histórico'));
+  expect(consultarHistorico).not.toHaveBeenCalled();
+  const botao = [...raiz.querySelectorAll('button')].find(
+    (b) => b.textContent === 'Consultar histórico',
+  );
+  botao?.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('<script>motivo</script>'));
+  expect(consultarHistorico).toHaveBeenCalledWith('paciente', 'objetivo');
+  expect(raiz.querySelector('script')).toBeNull();
+  botao?.click();
+  await vi.waitFor(() => expect(acessoPerdido).toHaveBeenCalledOnce());
+  expect(raiz.childElementCount).toBe(0);
+});
+
+it('remove dados quando acesso é revogado após redesenho durante consulta de histórico', async () => {
+  const raiz = document.createElement('div');
+  const acessoPerdido = vi.fn();
+  let rejeitar: (erro: unknown) => void = () => {};
+  const historico = new Promise<never>((_, reject) => {
+    rejeitar = reject;
+  });
+  montarPlanoCuidado(
+    raiz,
+    'paciente',
+    {
+      consultarHistorico: vi.fn().mockReturnValue(historico),
+      consultarObjetivos: vi.fn().mockResolvedValue([atual]),
+      criarObjetivo: vi.fn(),
+      revisarObjetivo: vi.fn().mockResolvedValue(undefined),
+    },
+    acessoPerdido,
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Consultar histórico'));
+  [...raiz.querySelectorAll('button')]
+    .find((b) => b.textContent === 'Consultar histórico')
+    ?.click();
+  [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Revisar objetivo')?.click();
+  const motivo = [...raiz.querySelectorAll('label')]
+    .find((l) => l.textContent?.includes('Motivo da revisão'))
+    ?.querySelector('textarea');
+  if (!motivo) throw new Error('Motivo ausente');
+  motivo.value = 'Revisão';
+  raiz.querySelector('form')?.requestSubmit();
+  await vi.waitFor(() => expect(raiz.querySelector('form')).toBeNull());
+  rejeitar(new FalhaApi('negado', 403));
+  await vi.waitFor(() => expect(acessoPerdido).toHaveBeenCalledOnce());
+  expect(raiz.childElementCount).toBe(0);
 });

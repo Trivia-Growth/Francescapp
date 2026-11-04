@@ -6,7 +6,13 @@ import {
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 
 export type ObjetivoAtual = { objetivo_id: string; versao: number; objetivo: Objetivo };
+export type VersaoHistoricoObjetivo = ObjetivoAtual & {
+  ator_usuario_id: string;
+  data: string;
+  motivo?: string;
+};
 export type ServicoPlanoCuidado = {
+  consultarHistorico(pacienteId: string, objetivoId: string): Promise<VersaoHistoricoObjetivo[]>;
   consultarObjetivos(pacienteId: string): Promise<ObjetivoAtual[]>;
   criarObjetivo(pacienteId: string, objetivo: Objetivo): Promise<void>;
   revisarObjetivo(
@@ -251,7 +257,47 @@ export function montarPlanoCuidado(
       const revisar = elemento('button', 'Revisar objetivo');
       revisar.type = 'button';
       revisar.addEventListener('click', () => abrir(atual));
-      item.append(revisar);
+      const historico = elemento('div');
+      const consultarHistorico = elemento('button', 'Consultar histórico');
+      consultarHistorico.type = 'button';
+      consultarHistorico.addEventListener('click', () => {
+        consultarHistorico.disabled = true;
+        const status = elemento('p', 'Carregando histórico…');
+        status.setAttribute('role', 'status');
+        historico.replaceChildren(status);
+        void servico
+          .consultarHistorico(pacienteId, atual.objetivo_id)
+          .then((versoes) => {
+            if (!ativa || !raiz.contains(item)) return;
+            historico.replaceChildren(elemento('h4', 'Histórico do objetivo'));
+            if (!versoes.length) historico.append(elemento('p', 'Nenhuma versão encontrada.'));
+            for (const versao of versoes) {
+              const registro = elemento('section');
+              registro.append(elemento('h5', `Versão ${versao.versao}`));
+              for (const [rotulo, valor] of [
+                ['Objetivo', versao.objetivo.descricao],
+                ['Área', versao.objetivo.area],
+                ['Responsável', versao.objetivo.responsavel],
+                ['Situação inicial', versao.objetivo.situacaoInicial],
+                ['Como observar o progresso', versao.objetivo.observacaoProgresso],
+                ['Data de revisão', versao.objetivo.dataRevisao],
+                ['Estado', versao.objetivo.estado],
+                ['Registrado por', versao.ator_usuario_id],
+                ['Data do registro', versao.data],
+                ...(versao.motivo ? [['Motivo da revisão', versao.motivo]] : []),
+              ])
+                registro.append(elemento('p', `${rotulo}: ${valor}`));
+              historico.append(registro);
+            }
+            consultarHistorico.disabled = false;
+          })
+          .catch((erro: unknown) => {
+            if (!ativa || perdeuAcesso(erro) || !raiz.contains(item)) return;
+            status.textContent = mensagemFalha(erro);
+            consultarHistorico.disabled = false;
+          });
+      });
+      item.append(revisar, consultarHistorico, historico);
       lista.append(item);
     }
     const adicionar = elemento('button', 'Adicionar objetivo');

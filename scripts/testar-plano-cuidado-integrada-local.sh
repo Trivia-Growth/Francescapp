@@ -14,5 +14,6 @@ rtk proxy pg_ctl -D "$temporario/data" -t 30 -o "-k $temporario -p 5432 -c liste
 iniciado=1
 rtk proxy createdb -h "$temporario" -p 5432 -U cadeia_fixture ffcm_cadeia_local
 rtk proxy psql -X -h "$temporario" -p 5432 -U cadeia_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/tests/plano_cuidado_operacoes_local.sql"
+rtk proxy psql -X -h "$temporario" -p 5432 -U cadeia_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/migrations/20261107150000_plano_cuidado_historico_privado.sql"
 cd "$projeto"
 FFCM_PG_SOCKET="$temporario" rtk proxy pnpm exec vitest run netlify/functions/_shared/plano-cuidado-postgres-local.test.ts --reporter=minimal --silent=passed-only
