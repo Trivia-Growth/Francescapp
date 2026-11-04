@@ -49,7 +49,7 @@ export function createLocalFeedbackServer({ password, directory }) {
     pendingWrite = operation.catch(() => {});
     return operation;
   }
-  async function updatePreview(id, type, value, revision) {
+  async function updatePreview(id, type, value, revision, operationId) {
     const operation = pendingWrite.then(async () => {
       if (!(await readPatients()).some((patient) => patient.id === id)) return null;
       await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -61,8 +61,39 @@ export function createLocalFeedbackServer({ password, directory }) {
       } catch (error) {
         if (error.code !== 'ENOENT') throw error;
       }
-      if (preview.revision !== revision) return false;
-      preview[type] = value;
+      const reconciliation = type === 'reconciliar-relato';
+      if (operationId && preview.operacoesRelato?.includes(operationId)) {
+        if (!reconciliation) {
+          const digest = createHash('sha256').update(JSON.stringify(value[0])).digest('hex');
+          if (preview.digestsRelato?.[operationId] !== digest) return false;
+        }
+        return preview;
+      }
+      if (operationId && preview.operacoesRelatoCanceladas?.includes(operationId))
+        return reconciliation ? preview : false;
+      if (reconciliation) {
+        preview.operacoesRelatoCanceladas = [
+          ...(preview.operacoesRelatoCanceladas ?? []),
+          operationId,
+        ];
+      } else {
+        if (
+          preview.revision !== revision ||
+          (operationId && (preview.relatos ?? []).length >= 100) ||
+          (type === 'relatos' &&
+            !operationId &&
+            (preview.operacoesRelato?.length || preview.operacoesRelatoCanceladas?.length))
+        )
+          return false;
+        if (operationId) {
+          preview.operacoesRelato = [...(preview.operacoesRelato ?? []), operationId];
+          preview.digestsRelato = {
+            ...preview.digestsRelato,
+            [operationId]: createHash('sha256').update(JSON.stringify(value[0])).digest('hex'),
+          };
+        }
+        preview[type] = operationId ? [...(preview.relatos ?? []), value[0]] : value;
+      }
       preview.revision += 1;
       const temporary = join(directory, `.preview-${randomUUID()}.tmp`);
       await writeFile(temporary, JSON.stringify(preview), { mode: 0o600, flag: 'wx' });
@@ -215,6 +246,29 @@ export function createLocalFeedbackServer({ password, directory }) {
       const previewMatch = path.match(
         /^\/api\/local-feedback\/patients\/([0-9a-f-]{36})\/preview$/,
       );
+      if (previewMatch && req.method === 'POST') {
+        let data;
+        try {
+          data = await body(req);
+        } catch {
+          return respond(res, 400);
+        }
+        if (
+          typeof data?.operationId !== 'string' ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+            data.operationId,
+          )
+        )
+          return respond(res, 400);
+        const preview = await updatePreview(
+          previewMatch[1],
+          'reconciliar-relato',
+          null,
+          null,
+          data.operationId,
+        );
+        return preview ? respond(res, 200, preview) : respond(res, 404);
+      }
       if (previewMatch && req.method === 'GET') {
         const preview = await readPreview(previewMatch[1]);
         return preview ? respond(res, 200, preview) : respond(res, 404);
@@ -295,12 +349,25 @@ export function createLocalFeedbackServer({ password, directory }) {
                 relato.dataAcontecimento,
           );
         if (
+          (data?.operationId !== undefined &&
+            (data.type !== 'relatos' ||
+              data.value?.length !== 1 ||
+              typeof data.operationId !== 'string' ||
+              !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+                data.operationId,
+              ))) ||
           !Number.isSafeInteger(data?.revision) ||
           data.revision < 0 ||
           (!validAnamnese && !validTasks && !validGoals && !validRelatos)
         )
           return respond(res, 400);
-        const preview = await updatePreview(previewMatch[1], data.type, data.value, data.revision);
+        const preview = await updatePreview(
+          previewMatch[1],
+          data.type,
+          data.value,
+          data.revision,
+          data.operationId,
+        );
         if (preview === null) return respond(res, 404);
         if (preview === false) return respond(res, 409);
         return respond(res, 200, preview);

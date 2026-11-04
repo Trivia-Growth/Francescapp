@@ -66,7 +66,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const tarefas = new Map<string, Tarefa[]>();
   const revisoes = new Map<string, number>();
   const relatos = new Map<string, RelatoTextual[]>();
-  const relatosComResultadoIncerto = new Set<string>();
+  const chaveOperacao = (id: string) => `relato-pendente:${id}`;
   const formulariosAlterados = new Set<HTMLFormElement>();
   const telaObjetivos = elemento('goals-view');
   const formularioObjetivo = elemento<HTMLFormElement>('goal-form');
@@ -260,10 +260,35 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       abrirRelato.setAttribute('aria-label', `Abrir relatos de ${registro.name}`);
       abrirRelato.addEventListener('click', async () => {
         try {
-          await carregarPrevia(registro.id);
+          if (!navigator.locks) throw new Error('locks indisponíveis');
+          await navigator.locks.request(chaveOperacao(registro.id), async () => {
+            await carregarPrevia(registro.id);
+            const pendente = localStorage.getItem(chaveOperacao(registro.id));
+            if (pendente) {
+              const resposta = await requisitar(`/patients/${registro.id}/preview`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                body: JSON.stringify({ operationId: pendente }),
+              });
+              const resultado = (await resposta.json()) as {
+                revision: number;
+                relatos?: RelatoTextual[];
+                operacoesRelato?: string[];
+                operacoesRelatoCanceladas?: string[];
+              };
+              if (
+                !resultado.operacoesRelato?.includes(pendente) &&
+                !resultado.operacoesRelatoCanceladas?.includes(pendente)
+              )
+                throw new Error('reconciliação inconclusiva');
+              revisoes.set(registro.id, resultado.revision);
+              relatos.set(registro.id, resultado.relatos ?? []);
+              localStorage.removeItem(chaveOperacao(registro.id));
+            }
+          });
         } catch {
           elemento('workspace-feedback').textContent =
-            'Não foi possível carregar a prévia. Tente novamente.';
+            'Não foi possível carregar a prévia com segurança. Tente novamente.';
           return;
         }
         selecionado = registro.id;
@@ -280,31 +305,49 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         desmontarRelato = montarRelatoTextual(
           elemento('relato-content'),
           async (relato) => {
-            const itens = [...(relatos.get(registro.id) ?? []), relato];
             const voltar = elemento<HTMLButtonElement>('relato-back');
             voltar.disabled = true;
             try {
-              await salvarPrevia(registro.id, 'relatos', itens);
-              relatos.set(registro.id, itens);
-              atualizarRelatos();
-              const form = elemento('relato-content').querySelector('form');
-              if (form) formulariosAlterados.delete(form);
-            } catch (erro) {
-              if (erro instanceof Error && erro.message === '401') throw erro;
-              if (!(erro instanceof Error && erro.message === '409'))
-                relatosComResultadoIncerto.add(registro.id);
-              try {
-                await carregarPrevia(registro.id);
-                atualizarRelatos();
-              } catch {
-                /* estado desconhecido */
-              }
-              throw erro;
+              await navigator.locks.request(chaveOperacao(registro.id), async () => {
+                const chave = chaveOperacao(registro.id);
+                if (localStorage.getItem(chave)) throw new Error('pendente');
+                const operacao = crypto.randomUUID();
+                localStorage.setItem(chave, operacao);
+                try {
+                  const resposta = await requisitar(`/patients/${registro.id}/preview`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({
+                      type: 'relatos',
+                      value: [relato],
+                      revision: revisoes.get(registro.id),
+                      operationId: operacao,
+                    }),
+                  });
+                  const previa = (await resposta.json()) as {
+                    revision: number;
+                    relatos: RelatoTextual[];
+                  };
+                  revisoes.set(registro.id, previa.revision);
+                  relatos.set(registro.id, previa.relatos);
+                  localStorage.removeItem(chave);
+                  atualizarRelatos();
+                  const form = elemento('relato-content').querySelector('form');
+                  if (form) formulariosAlterados.delete(form);
+                } catch (erro) {
+                  if (
+                    erro instanceof Error &&
+                    ['400', '401', '403', '404', '409'].includes(erro.message)
+                  )
+                    localStorage.removeItem(chave);
+                  throw erro;
+                }
+              });
             } finally {
               voltar.disabled = false;
             }
           },
-          relatosComResultadoIncerto.has(registro.id),
+          Boolean(localStorage.getItem(chaveOperacao(registro.id))),
         );
         const formRelato = elemento('relato-content').querySelector('form');
         formRelato?.addEventListener('input', () => formulariosAlterados.add(formRelato));

@@ -6,9 +6,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   vi.resetModules();
+  localStorage.clear();
 });
 
 function servidorFicticio(autenticado = true) {
+  vi.stubGlobal('navigator', {
+    locks: { request: async (_nome: string, executar: () => Promise<void>) => executar() },
+  });
   const pacientes = [
     { id: '1', name: 'Paciente Exemplo Um', preferredName: 'Exemplo Um' },
     { id: '2', name: 'Paciente Exemplo Dois', preferredName: '' },
@@ -21,6 +25,8 @@ function servidorFicticio(autenticado = true) {
       tarefas: unknown[];
       objetivos?: unknown[];
       relatos?: unknown[];
+      operacoesRelato?: string[];
+      operacoesRelatoCanceladas?: string[];
     }
   >();
   const fetch = vi.fn(async (url: string, options?: RequestInit) => {
@@ -32,12 +38,26 @@ function servidorFicticio(autenticado = true) {
     else if (url.endsWith('/login')) data = { authenticated: true, csrfToken: 'token-ficticio' };
     else if (url.endsWith('/preview')) {
       const previa = previas.get(url) ?? { revision: 0, anamnese: null, tarefas: [] };
-      if (options?.method === 'PUT') {
+      if (options?.method === 'POST') {
+        const { operationId } = JSON.parse(String(options.body)) as { operationId: string };
+        if (!previa.operacoesRelato?.includes(operationId)) {
+          previa.operacoesRelatoCanceladas = [
+            ...(previa.operacoesRelatoCanceladas ?? []),
+            operationId,
+          ];
+          previa.revision++;
+          previas.set(url, previa);
+        }
+      } else if (options?.method === 'PUT') {
         const dados = JSON.parse(String(options.body)) as {
           type: 'anamnese' | 'tarefas' | 'objetivos' | 'relatos';
           value: never;
+          operationId?: string;
         };
-        previa[dados.type] = dados.value;
+        if (dados.operationId) {
+          previa.relatos = [...(previa.relatos ?? []), ...dados.value];
+          previa.operacoesRelato = [...(previa.operacoesRelato ?? []), dados.operationId];
+        } else previa[dados.type] = dados.value;
         previa.revision++;
         previas.set(url, previa);
       }
@@ -478,7 +498,7 @@ it('bloqueia repetição após resposta perdida mesmo ao revisar novamente', asy
   document.querySelector<HTMLButtonElement>('#relato-content section button')?.click();
   await vi.waitFor(() =>
     expect(document.querySelector('#relato-content [role=status]')?.textContent).toContain(
-      'recarregar não confirma',
+      'consultar o servidor',
     ),
   );
   expect(descricao.value).toBe('Rascunho fictício');
@@ -491,9 +511,7 @@ it('bloqueia repetição após resposta perdida mesmo ao revisar novamente', asy
     .querySelector<HTMLButtonElement>('#patients-body button[aria-label^="Abrir relatos"]')
     ?.click();
   await vi.waitFor(() => expect(document.getElementById('relato-view')?.hidden).toBe(false));
-  expect(document.querySelector('#relato-content [role=status]')?.textContent).toContain(
-    'Gravação bloqueada',
-  );
+  expect(localStorage.getItem('relato-pendente:1')).toBeNull();
   (document.querySelector('#relato-content input[type=date]') as HTMLInputElement).value =
     '2026-11-04';
   (document.querySelector('#relato-content textarea') as HTMLTextAreaElement).value =
@@ -503,5 +521,75 @@ it('bloqueia repetição após resposta perdida mesmo ao revisar novamente', asy
     ?.dispatchEvent(new Event('submit', { cancelable: true }));
   expect(
     document.querySelector<HTMLButtonElement>('#relato-content section button')?.disabled,
-  ).toBe(true);
+  ).toBe(false);
+});
+
+it('reconcilia resposta perdida após recarga sem guardar texto no navegador', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  const fetch = servidorFicticio();
+  await import('./demonstracao.js');
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
+  document
+    .querySelector<HTMLButtonElement>('#patients-body button[aria-label^="Abrir relatos"]')
+    ?.click();
+  await vi.waitFor(() => expect(document.getElementById('relato-view')?.hidden).toBe(false));
+  (document.querySelector('#relato-content input[type=date]') as HTMLInputElement).value =
+    '2026-11-04';
+  (document.querySelector('#relato-content textarea') as HTMLTextAreaElement).value =
+    'Texto fictício reservado';
+  document
+    .querySelector<HTMLFormElement>('#relato-content form')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
+  const responder = fetch.getMockImplementation();
+  if (!responder) throw new Error('Servidor ausente');
+  fetch.mockImplementationOnce(async (url, options) => {
+    await responder(url, options);
+    throw new Error('resposta perdida');
+  });
+  document.querySelector<HTMLButtonElement>('#relato-content section button')?.click();
+  await vi.waitFor(() => expect(localStorage.getItem('relato-pendente:1')).toBeTruthy());
+  expect(JSON.stringify(localStorage)).not.toContain('Texto fictício reservado');
+  await vi.waitFor(() =>
+    expect(document.querySelector('#relato-content [role=status]')?.textContent).toContain(
+      'consultar o servidor',
+    ),
+  );
+  vi.resetModules();
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  await import('./demonstracao.js');
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
+  document
+    .querySelector<HTMLButtonElement>('#patients-body button[aria-label^="Abrir relatos"]')
+    ?.click();
+  await vi.waitFor(() => expect(document.getElementById('relato-view')?.hidden).toBe(false));
+  expect(localStorage.getItem('relato-pendente:1')).toBeNull();
+  expect(document.querySelectorAll('#relato-list li')).toHaveLength(1);
+  expect(document.getElementById('relato-list')?.textContent).toContain('Texto fictício reservado');
+});
+
+it('mantém bloqueio quando reconciliação falha', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  const fetch = servidorFicticio();
+  localStorage.setItem('relato-pendente:1', '11234567-1234-4234-8234-123456789abc');
+  await import('./demonstracao.js');
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
+  const responder = fetch.getMockImplementation();
+  if (!responder) throw new Error('Servidor ausente');
+  fetch.mockImplementationOnce(responder).mockImplementationOnce(async () => {
+    throw new Error('falha');
+  });
+  document
+    .querySelector<HTMLButtonElement>('#patients-body button[aria-label^="Abrir relatos"]')
+    ?.click();
+  await vi.waitFor(() =>
+    expect(document.getElementById('workspace-feedback')?.textContent).toContain(
+      'Não foi possível',
+    ),
+  );
+  expect(localStorage.getItem('relato-pendente:1')).toBe('11234567-1234-4234-8234-123456789abc');
+  expect(document.getElementById('relato-view')?.hidden).toBe(true);
 });

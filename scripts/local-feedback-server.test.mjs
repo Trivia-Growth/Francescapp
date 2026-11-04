@@ -169,6 +169,84 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     assert.equal((await salvarRelato([{ ...relato, descricao: ' ' }], 3)).status, 400);
     assert.equal((await salvarRelato([relato], 3)).status, 200);
     assert.equal((await salvarRelato([relato], 3)).status, 409);
+    const operationId = '11234567-1234-4234-8234-123456789abc';
+    const salvarOperacao = () =>
+      request(previewPath, {
+        method: 'PUT',
+        headers: auth,
+        body: JSON.stringify({ type: 'relatos', value: [relato], revision: 4, operationId }),
+      });
+    assert.equal((await salvarOperacao()).status, 200);
+    assert.equal((await salvarOperacao()).status, 200);
+    const reconciliada = await (await request(previewPath, { headers: { cookie } })).json();
+    assert.deepEqual(reconciliada.relatos, [relato, relato]);
+    assert.deepEqual(reconciliada.operacoesRelato, [operationId]);
+    assert.equal(
+      (
+        await request(previewPath, {
+          method: 'PUT',
+          headers: auth,
+          body: JSON.stringify({
+            type: 'relatos',
+            value: [{ ...relato, descricao: 'Outro' }],
+            revision: 4,
+            operationId,
+          }),
+        })
+      ).status,
+      409,
+    );
+    assert.equal((await salvarRelato([], reconciliada.revision)).status, 409);
+    const cancelada = '21234567-1234-4234-8234-123456789abc';
+    const reconciliar = (id) =>
+      request(previewPath, {
+        method: 'POST',
+        headers: auth,
+        body: JSON.stringify({ operationId: id }),
+      });
+    assert.equal((await reconciliar(operationId)).status, 200);
+    const cancelamento = await (await reconciliar(cancelada)).json();
+    assert.ok(cancelamento.operacoesRelatoCanceladas.includes(cancelada));
+    assert.equal((await reconciliar(cancelada)).status, 200);
+    assert.equal(
+      (
+        await request(previewPath, {
+          method: 'PUT',
+          headers: auth,
+          body: JSON.stringify({
+            type: 'relatos',
+            value: [relato],
+            revision: cancelamento.revision,
+            operationId: cancelada,
+          }),
+        })
+      ).status,
+      409,
+    );
+    const depois = await (await request(previewPath, { headers: { cookie } })).json();
+    assert.deepEqual(depois.relatos, [relato, relato]);
+    const concorrente = '31234567-1234-4234-8234-123456789abc';
+    const [salvaConcorrente, reconciliacaoConcorrente] = await Promise.all([
+      request(previewPath, {
+        method: 'PUT',
+        headers: auth,
+        body: JSON.stringify({
+          type: 'relatos',
+          value: [relato],
+          revision: depois.revision,
+          operationId: concorrente,
+        }),
+      }),
+      reconciliar(concorrente),
+    ]);
+    assert.equal(reconciliacaoConcorrente.status, 200);
+    const final = await (await request(previewPath, { headers: { cookie } })).json();
+    const foiSalvo = final.operacoesRelato.includes(concorrente);
+    assert.equal(salvaConcorrente.status, foiSalvo ? 200 : 409);
+    assert.equal(final.operacoesRelatoCanceladas.includes(concorrente), !foiSalvo);
+    assert.equal(final.relatos.length, foiSalvo ? 3 : 2);
+    const relatosEsperados = final.relatos;
+
     assert.equal(
       (await request(previewPath, { ...save, headers: { ...headers, cookie } })).status,
       403,
@@ -205,7 +283,7 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     );
     assert.deepEqual(
       (await (await request(previewPath, { headers: { cookie: nextCookie } })).json()).relatos,
-      [relato],
+      relatosEsperados,
     );
     await close();
     const invalidDirectory = join(directory, 'arquivo');

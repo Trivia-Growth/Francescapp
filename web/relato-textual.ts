@@ -53,14 +53,14 @@ export function montarRelatoTextual(
   aviso.setAttribute('aria-live', 'polite');
   if (bloqueado)
     aviso.textContent =
-      'Gravação bloqueada para este paciente nesta página após resultado incerto. A recarga não confirma o resultado; confira a lista antes de qualquer nova tentativa.';
+      'Gravação bloqueada por resultado incerto. Volte e abra os relatos novamente para consultar o servidor.';
   const revisar = elemento('button', 'Revisar dados');
   revisar.type = 'submit';
   const revisao = elemento('section');
   form.append(revisar, aviso, revisao);
   form.addEventListener('input', () => {
     aviso.textContent = salvamentoIncerto
-      ? 'Gravação bloqueada para este paciente nesta página após resultado incerto. A recarga não confirma o resultado; confira a lista antes de qualquer nova tentativa.'
+      ? 'Gravação bloqueada por resultado incerto. Volte e abra os relatos novamente para consultar o servidor.'
       : '';
     revisao.replaceChildren();
   });
@@ -81,7 +81,7 @@ export function montarRelatoTextual(
       return;
     }
     aviso.textContent = salvamentoIncerto
-      ? 'Gravação bloqueada para este paciente nesta página após resultado incerto. A recarga não confirma o resultado; confira a lista antes de qualquer nova tentativa.'
+      ? 'Gravação bloqueada por resultado incerto. Volte e abra os relatos novamente para consultar o servidor.'
       : salvar
         ? 'Confira os dados antes de guardar nesta prévia local.'
         : 'Dados prontos para revisão local. Nada foi salvo ou enviado.';
@@ -113,7 +113,7 @@ export function montarRelatoTextual(
         } catch (erro) {
           salvamentoIncerto = !(erro instanceof Error && ['401', '409'].includes(erro.message));
           aviso.textContent = salvamentoIncerto
-            ? 'Não foi possível confirmar o salvamento. Confira a lista e copie seu rascunho. A gravação fica bloqueada para este paciente enquanto esta página estiver aberta; recarregar não confirma o resultado.'
+            ? 'Não foi possível confirmar o salvamento. Copie seu rascunho, volte e abra os relatos novamente para consultar o servidor.'
             : 'Não foi possível guardar. Confira a sessão ou a lista atualizada; seu rascunho permanece aqui.';
         } finally {
           for (const controle of controles) controle.disabled = false;
