@@ -615,6 +615,22 @@ export function createLocalFeedbackServer({ password, directory }) {
                       item.motivo.length <= 2000,
                   ))),
           );
+        const validReferrals =
+          data?.type === 'encaminhamentos' &&
+          Array.isArray(data.value) &&
+          data.value.length <= 100 &&
+          new Set(data.value.map((item) => item?.id)).size === data.value.length &&
+          data.value.every(
+            (item) =>
+              strings(item, ['id', 'destino', 'motivo', 'responsavel', 'estado']) &&
+              /^[a-f0-9-]{36}$/.test(item.id) &&
+              ['destino', 'motivo', 'responsavel'].every(
+                (key) => item[key].trim().length > 0 && item[key].length <= 2000,
+              ) &&
+              ['sugerido', 'agendado', 'realizado', 'retorno pendente', 'concluído'].includes(
+                item.estado,
+              ),
+          );
         const validAgenda =
           data?.type === 'agenda' &&
           Array.isArray(data.value) &&
@@ -677,7 +693,8 @@ export function createLocalFeedbackServer({ password, directory }) {
             !validGoals &&
             !validRelatos &&
             !validAgenda &&
-            !validDocuments)
+            !validDocuments &&
+            !validReferrals)
         )
           return respond(res, 400);
         const preview = await updatePreview(

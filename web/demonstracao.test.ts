@@ -27,6 +27,7 @@ function servidorFicticio(autenticado = true, legado = false) {
       relatos?: unknown[];
       agenda?: unknown[];
       documentos?: unknown[];
+      encaminhamentos?: unknown[];
       operacoesRelato?: string[];
       operacoesRelatoCanceladas?: string[];
     }
@@ -93,7 +94,14 @@ function servidorFicticio(autenticado = true, legado = false) {
         }
       } else if (options?.method === 'PUT') {
         const dados = JSON.parse(String(options.body)) as {
-          type: 'anamnese' | 'tarefas' | 'objetivos' | 'relatos' | 'agenda' | 'documentos';
+          type:
+            | 'anamnese'
+            | 'tarefas'
+            | 'objetivos'
+            | 'relatos'
+            | 'agenda'
+            | 'documentos'
+            | 'encaminhamentos';
           value: never;
           operationId?: string;
         };
@@ -1035,4 +1043,54 @@ it('ignora resposta antiga do painel após atualização mais recente', async ()
   await vi.waitFor(() => expect(chamadas).toBe(2));
   await new Promise((resolve) => setTimeout(resolve, 0));
   expect(document.getElementById('pending-panel')?.textContent).toContain('Contato fictício');
+});
+
+it('guarda encaminhamentos por paciente e recupera ao reabrir', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  servidorFicticio();
+  await import('./demonstracao.js');
+  await vi.waitFor(() =>
+    expect(
+      document.querySelector('[aria-label="Abrir encaminhamentos de Paciente Exemplo Um"]'),
+    ).not.toBeNull(),
+  );
+  (
+    document.querySelector(
+      '[aria-label="Abrir encaminhamentos de Paciente Exemplo Um"]',
+    ) as HTMLButtonElement
+  ).click();
+  await vi.waitFor(() => expect(document.querySelector('#referrals-content form')).not.toBeNull());
+  const campos = document.querySelectorAll<HTMLInputElement>('#referrals-content input');
+  campos[0].value = 'Serviço fictício';
+  campos[1].value = 'Avaliação';
+  campos[2].value = 'Equipe';
+  document
+    .querySelector('#referrals-content form')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(document.getElementById('referrals-content')?.textContent).toContain('Serviço fictício'),
+  );
+  (document.getElementById('referrals-back') as HTMLButtonElement).click();
+  (
+    document.querySelector(
+      '[aria-label="Abrir encaminhamentos de Paciente Exemplo Dois"]',
+    ) as HTMLButtonElement
+  ).click();
+  await vi.waitFor(() =>
+    expect(document.getElementById('referrals-patient')?.textContent).toBe('Paciente Exemplo Dois'),
+  );
+  expect(document.getElementById('referrals-content')?.textContent).not.toContain(
+    'Serviço fictício',
+  );
+  (document.getElementById('referrals-back') as HTMLButtonElement).click();
+  (
+    document.querySelector(
+      '[aria-label="Abrir encaminhamentos de Paciente Exemplo Um"]',
+    ) as HTMLButtonElement
+  ).click();
+  await vi.waitFor(() =>
+    expect(document.getElementById('referrals-content')?.textContent).toContain('Serviço fictício'),
+  );
 });

@@ -1,5 +1,7 @@
 # Tasks
 
+Encaminhamentos fictícios por paciente permitem registrar destino, motivo, responsável e estado, além de filtrar retornos pendentes. Testes locais cobrem persistência e interação; rascunhos são preservados em caso de descarte recusado ou falha. A prévia não representa comunicação externa ou autorização de produção.
+
 Prévia local permite vincular tarefas fictícias a objetivos do mesmo paciente e consultar cronologia com datas registradas. Identificadores estáveis preservam vínculos após reordenação; testes locais cobrem esse comportamento. Dados antigos sem vínculo continuam utilizáveis. Não há autorização de produção ou integração externa.
 
 Prévia ampliada com agenda geral e painel de tarefas pendentes, alimentados por registros fictícios locais. Testes focados cobrem navegação e descarte de respostas antigas; revisão independente conferiu atualização do painel. Sem integração Google, autorização de produção ou dados reais.

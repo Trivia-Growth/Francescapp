@@ -7,6 +7,7 @@ import { validarTarefaPlano } from '../packages/cadastro/src/tarefa-plano';
 import { montarRelatoTextual } from './relato-textual';
 import { montarResumoCasoLocal } from './resumo-caso-local';
 import { montarLinhaTempoLocal } from './linha-tempo-local';
+import { montarEncaminhamentosLocais, type EncaminhamentoLocal } from './encaminhamentos-local';
 import { montarDocumentosLocais, type DocumentoLocal } from './documentos-locais';
 import {
   montarPainelPendenciasLocal,
@@ -90,6 +91,9 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const formulariosAlterados = new Set<HTMLFormElement>();
   const telaObjetivos = elemento('goals-view');
   const telaDocumentos = elemento('documents-view');
+  const telaEncaminhamentos = elemento('referrals-view');
+  const encaminhamentos = new Map<string, EncaminhamentoLocal[]>();
+  let salvandoEncaminhamento = false;
   const documentos = new Map<string, DocumentoLocal[]>();
   let salvandoDocumento = false;
   const formularioObjetivo = elemento<HTMLFormElement>('goal-form');
@@ -146,6 +150,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       telaAgendaGeral,
       telaResumo,
       telaDocumentos,
+      telaEncaminhamentos,
     ])
       item.hidden = item !== tela;
   };
@@ -174,6 +179,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         telaAgendaGeral,
         telaResumo,
         telaDocumentos,
+        telaEncaminhamentos,
       ].find((tela) => !tela.hidden);
       pacientes.hidden = true;
       anamnese.hidden = true;
@@ -184,6 +190,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       telaAgendaGeral.hidden = true;
       telaResumo.hidden = true;
       telaDocumentos.hidden = true;
+      telaEncaminhamentos.hidden = true;
       acoes.hidden = true;
       login.hidden = false;
       csrfToken = '';
@@ -238,6 +245,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       relatos?: RelatoTextual[];
       agenda?: Compromisso[];
       documentos?: DocumentoLocal[];
+      encaminhamentos?: EncaminhamentoLocal[];
     };
     if (geracao !== undefined && geracao !== geracaoNavegacao) return;
     revisoes.set(id, previa.revision);
@@ -248,17 +256,26 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     relatos.set(id, previa.relatos ?? []);
     agenda.set(id, previa.agenda ?? []);
     documentos.set(id, previa.documentos ?? []);
+    encaminhamentos.set(id, previa.encaminhamentos ?? []);
   };
   const salvarPrevia = async (
     id: string,
-    type: 'anamnese' | 'tarefas' | 'objetivos' | 'relatos' | 'agenda' | 'documentos',
+    type:
+      | 'anamnese'
+      | 'tarefas'
+      | 'objetivos'
+      | 'relatos'
+      | 'agenda'
+      | 'documentos'
+      | 'encaminhamentos',
     value:
       | Anamnese
       | Tarefa[]
       | ObjetivoLocal[]
       | RelatoTextual[]
       | Compromisso[]
-      | DocumentoLocal[],
+      | DocumentoLocal[]
+      | EncaminhamentoLocal[],
   ) => {
     const resposta = await requisitar(`/patients/${id}/preview`, {
       method: 'PUT',
@@ -381,6 +398,52 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         elemento('documents-patient').textContent = registro.name;
         exibirTela(telaDocumentos);
         elemento('documents-title').focus();
+      });
+      const abrirEncaminhamentos = document.createElement('button');
+      abrirEncaminhamentos.type = 'button';
+      abrirEncaminhamentos.className = 'button-secondary';
+      abrirEncaminhamentos.textContent = 'Abrir encaminhamentos';
+      abrirEncaminhamentos.setAttribute('aria-label', `Abrir encaminhamentos de ${registro.name}`);
+      abrirEncaminhamentos.addEventListener('click', async () => {
+        const geracao = ++geracaoNavegacao;
+        try {
+          await carregarPrevia(registro.id, geracao);
+        } catch {
+          if (geracao === geracaoNavegacao)
+            elemento('workspace-feedback').textContent =
+              'Não foi possível carregar a prévia. Tente novamente.';
+          return;
+        }
+        if (geracao !== geracaoNavegacao) return;
+        selecionado = registro.id;
+        const itens = encaminhamentos.get(registro.id) ?? [];
+        const salvar = async (atualizados: EncaminhamentoLocal[]) => {
+          salvandoEncaminhamento = true;
+          try {
+            await salvarPrevia(registro.id, 'encaminhamentos', atualizados);
+            encaminhamentos.set(registro.id, atualizados);
+            const form = elemento('referrals-content').querySelector('form');
+            if (form) formulariosAlterados.delete(form);
+          } finally {
+            salvandoEncaminhamento = false;
+          }
+        };
+        montarEncaminhamentosLocais(elemento('referrals-content'), {
+          encaminhamentos: itens,
+          aoRegistrar: async (dados) => {
+            const item = { ...dados, id: crypto.randomUUID() };
+            await salvar([...itens, item]);
+            return item;
+          },
+          aoAtualizar: async (id, dados) => {
+            await salvar(itens.map((item) => (item.id === id ? { ...dados, id } : item)));
+          },
+        });
+        const form = elemento('referrals-content').querySelector('form');
+        form?.addEventListener('input', () => formulariosAlterados.add(form));
+        elemento('referrals-patient').textContent = registro.name;
+        exibirTela(telaEncaminhamentos);
+        elemento('referrals-title').focus();
       });
       const abrirResumo = document.createElement('button');
       abrirResumo.type = 'button';
@@ -595,6 +658,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
           document.createTextNode(' '),
           abrirDocumentos,
           document.createTextNode(' '),
+          abrirEncaminhamentos,
+          document.createTextNode(' '),
           abrirAgenda,
           document.createTextNode(' '),
           abrirTarefas,
@@ -731,6 +796,19 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     geracaoNavegacao++;
     exibirTela(pacientes);
     elemento('open-general-agenda').focus();
+  });
+  elemento('referrals-back').addEventListener('click', () => {
+    if (salvandoEncaminhamento) return;
+    const form = elemento('referrals-content').querySelector('form');
+    if (
+      form &&
+      formulariosAlterados.has(form) &&
+      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
+    )
+      return;
+    if (form) formulariosAlterados.delete(form);
+    exibirTela(pacientes);
+    elemento('patients-title').focus();
   });
   elemento('documents-back').addEventListener('click', () => {
     if (salvandoDocumento) return;

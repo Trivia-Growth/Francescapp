@@ -462,6 +462,29 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
       ).status,
       200,
     );
+    const encaminhamentos = [
+      {
+        id: '12345678-1234-4123-8123-123456789abc',
+        destino: 'Serviço fictício',
+        motivo: 'Avaliação',
+        responsavel: 'Pessoa fictícia',
+        estado: 'sugerido',
+      },
+    ];
+    const revisaoEncaminhamento = (await (await request(previewPath, { headers: auth })).json())
+      .revision;
+    const salvarEncaminhamento = (value) =>
+      request(previewPath, {
+        method: 'PUT',
+        headers: auth,
+        body: JSON.stringify({ type: 'encaminhamentos', value, revision: revisaoEncaminhamento }),
+      });
+    assert.equal(
+      (await salvarEncaminhamento([{ ...encaminhamentos[0], estado: 'inválido' }])).status,
+      400,
+    );
+    assert.equal((await salvarEncaminhamento(encaminhamentos)).status, 200);
+    assert.equal((await salvarEncaminhamento(encaminhamentos)).status, 409);
     const logout = await request('/logout', { method: 'POST', headers: auth, body: '{}' });
     assert.equal(logout.status, 204);
     assert.match(logout.headers.get('set-cookie'), /Path=\/api\/local-feedback(?:;|$)/);
@@ -502,6 +525,11 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     assert.deepEqual(
       (await (await request(previewPath, { headers: { cookie: nextCookie } })).json()).documentos,
       documentos,
+    );
+    assert.deepEqual(
+      (await (await request(previewPath, { headers: { cookie: nextCookie } })).json())
+        .encaminhamentos,
+      encaminhamentos,
     );
     await close();
     const invalidDirectory = join(directory, 'arquivo');
