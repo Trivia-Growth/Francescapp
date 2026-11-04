@@ -226,6 +226,22 @@ it('mantém tarefas por paciente e exige registro para concluir sem chamar servi
   );
   expect(document.getElementById('tasks-list')?.textContent).toContain('Concluída');
   expect(document.getElementById('tasks-list')?.textContent).toContain('Ação fictícia');
+  const camposEdicao = atualizar.querySelectorAll('input');
+  camposEdicao[0].value = 'Tarefa revisada';
+  camposEdicao[1].value = 'Outra pessoa fictícia';
+  camposEdicao[2].value = '2026-12-15';
+  camposEdicao[3].value = 'Alta';
+  camposEdicao[3].dispatchEvent(new Event('input', { bubbles: true }));
+  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  document.getElementById('tasks-back')?.click();
+  expect(confirmar).toHaveBeenCalledOnce();
+  expect(document.getElementById('tasks-view')?.hidden).toBe(false);
+  expect(camposEdicao[3].value).toBe('Alta');
+  confirmar.mockRestore();
+  atualizar.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(document.getElementById('tasks-list')?.textContent).toContain('Tarefa revisada'),
+  );
   (document.getElementById('task-description') as HTMLInputElement).value = 'Outra tarefa';
   (document.getElementById('task-responsible') as HTMLInputElement).value = 'Pessoa fictícia';
   (document.getElementById('task-deadline') as HTMLInputElement).value = '2026-12-01';
@@ -255,7 +271,10 @@ it('mantém tarefas por paciente e exige registro para concluir sem chamar servi
   document.getElementById('tasks-back')?.click();
   abrir()[0]?.click();
   await vi.waitFor(() => expect(document.getElementById('tasks-view')?.hidden).toBe(false));
-  expect(document.getElementById('tasks-list')?.textContent).toContain('Acompanhar exemplo');
+  expect(document.getElementById('tasks-list')?.textContent).toContain('Tarefa revisada');
+  expect(document.getElementById('tasks-list')?.textContent).toContain('Outra pessoa fictícia');
+  expect(document.getElementById('tasks-list')?.textContent).toContain('2026-12-15');
+  expect(document.getElementById('tasks-list')?.textContent).toContain('Prioridade: Alta');
 });
 
 it('confirma descarte de alterações de tarefas ao voltar ou sair', async () => {

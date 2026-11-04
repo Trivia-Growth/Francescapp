@@ -1,5 +1,7 @@
 # Tasks
 
+Prévia de tarefas permite editar descrição, responsável, prazo e prioridade; testes locais conferem rascunho e retomada. Permanece restrita a dados fictícios e não comprova autorização de produção.
+
 Atualização: a recuperação local de relatos usa identificador de operação sem conteúdo no navegador e decisão atômica no servidor para confirmar ou cancelar gravação incerta. Testes focados cobrem corrida, repetição e reinício; revisão estática não encontrou novo defeito concreto. A prova se limita a uma instância local e não substitui integração de produção.
 
 ## 1. Demonstração local

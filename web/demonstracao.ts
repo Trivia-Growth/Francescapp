@@ -560,6 +560,25 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         ? `Ação ou justificativa: ${tarefa.acaoOuJustificativa}`
         : '';
       const form = document.createElement('form');
+      const campos = [
+        ['Descrição', 'descricao', 'text', 200],
+        ['Responsável', 'responsavel', 'text', 200],
+        ['Prazo', 'prazo', 'date', 0],
+        ['Prioridade', 'prioridade', 'text', 200],
+      ] as const;
+      const entradas = campos.map(([rotulo, chave, tipo, limite]) => {
+        const label = document.createElement('label');
+        label.textContent = rotulo;
+        const input = document.createElement('input');
+        input.type = tipo;
+        input.value = tarefa[chave];
+        input.required = true;
+        if (limite) input.maxLength = limite;
+        label.append(input);
+        form.append(label);
+        return input;
+      });
+      const [descricao, responsavel, prazo, prioridade] = entradas;
       const rotuloEstado = document.createElement('label');
       rotuloEstado.textContent = 'Alterar estado';
       const estado = document.createElement('select');
@@ -583,31 +602,33 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       form.addEventListener('change', () => formulariosAlterados.add(form));
       form.addEventListener('submit', async (evento) => {
         evento.preventDefault();
-        const resultado = validarTarefaPlano({
-          ...tarefa,
+        const dados = {
+          descricao: descricao?.value.trim() ?? '',
+          responsavel: responsavel?.value.trim() ?? '',
+          prazo: prazo?.value ?? '',
+          prioridade: prioridade?.value.trim() ?? '',
           estado: estado.value,
-          acaoRealizada: campoAcao.value.trim() || undefined,
+          acaoOuJustificativa: campoAcao.value.trim(),
+        };
+        const resultado = validarTarefaPlano({
+          ...dados,
+          acaoRealizada: dados.acaoOuJustificativa || undefined,
         });
-        if (!resultado.valido) {
-          feedback.textContent = 'Informe a ação realizada ou justificativa para concluir.';
-          campoAcao.focus();
+        if (!dados.descricao || !resultado.valido) {
+          feedback.textContent =
+            'Preencha tarefa, responsável, prazo e prioridade. Informe a ação realizada ou justificativa para concluir.';
           return;
         }
         if (!selecionado) return;
         const pacienteId = selecionado;
-        const atualizada = {
-          ...tarefa,
-          estado: estado.value,
-          acaoOuJustificativa: campoAcao.value.trim(),
-        };
+        const atualizada = dados;
         const atualizadas = (tarefas.get(pacienteId) ?? []).map((item) =>
           item === tarefa ? atualizada : item,
         );
         const liberarTela = bloquearTelaTarefas();
         try {
           await salvarPrevia(pacienteId, 'tarefas', atualizadas);
-          tarefa.estado = atualizada.estado;
-          tarefa.acaoOuJustificativa = atualizada.acaoOuJustificativa;
+          Object.assign(tarefa, atualizada);
           tarefas.set(
             pacienteId,
             atualizadas.map((item) => (item === atualizada ? tarefa : item)),
@@ -620,6 +641,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         } finally {
           liberarTela();
         }
+        titulo.textContent = tarefa.descricao;
         detalhes.textContent = `Responsável: ${tarefa.responsavel} · Prazo: ${tarefa.prazo} · Prioridade: ${tarefa.prioridade} · Estado: ${rotulosEstado[tarefa.estado]}`;
         acao.textContent = tarefa.acaoOuJustificativa
           ? `Ação ou justificativa: ${tarefa.acaoOuJustificativa}`
