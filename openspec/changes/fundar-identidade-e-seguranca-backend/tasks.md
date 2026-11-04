@@ -54,6 +54,8 @@ Os pontos de entrada de pacientes, anamnese e plano foram ligados às composiç�
 
 Edição: leitura individual administrativa, adaptador e entrada HTTP foram preparados localmente para permitir reconciliação; as migrations ainda não foram aplicadas e não concedem acesso à aplicação. A entrada está desativada por padrão e depende de integração e validação antes do uso. Nenhum teste foi executado nesta etapa. A preparação de chaves do Vault também está apenas em script local, sem execução remota.
 
+Contatos: operação SQL privada de criação foi preparada com cifra e autorização; ainda faltam executor, rota, interface conectada e provas. A migration não foi aplicada nem concede acesso à aplicação. Nenhum teste foi executado nesta etapa.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.
