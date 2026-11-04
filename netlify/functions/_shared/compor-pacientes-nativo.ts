@@ -11,6 +11,7 @@ import { processarBarreiraNativa } from './barreira-handler-nativo.ts';
 import { criarPacienteNativo } from './cadastro-handler-nativo.ts';
 import { consultarCarteiraNativa } from './carteira-handler-nativo.ts';
 import { consultarCarteiraFamiliar } from './carteira-familiar-handler.ts';
+import { consultarPacienteFamiliar } from './paciente-familiar-handler.ts';
 import { carregarCofreNativo } from './cofre-nativo.ts';
 import { executarBarreiraNativa } from './executor-barreira-nativo.ts';
 import { executarCarteiraNativa } from './executor-carteira-nativo.ts';
@@ -32,7 +33,7 @@ export function metadadosAtestadoNativo(keyId: string, requestId: string, agora:
  * Pool e referências do Vault são dependências server-only. */
 export async function comporPacientesNativo(
   request: Request,
-  rota: 'cadastro' | 'carteira' | 'carteira-familiar' | OperacaoBarreira,
+  rota: 'cadastro' | 'carteira' | 'carteira-familiar' | 'paciente-familiar' | OperacaoBarreira,
   dependencias: {
     fonte: FonteDeConfiguracao;
     pool: Pool;
@@ -90,7 +91,7 @@ export async function comporPacientesNativo(
       const resultado = await contexto.cliente
         .schema('api')
         .rpc(
-          rota === 'carteira-familiar'
+          rota === 'carteira-familiar' || rota === 'paciente-familiar'
             ? 'consultar_sessao_familiar_privada'
             : 'consultar_sessao_nativa',
           {
@@ -104,7 +105,8 @@ export async function comporPacientesNativo(
       if (
         !sessao.success ||
         !sessao.data.usuario.ativo ||
-        (rota === 'carteira-familiar' && sessao.data.usuario.perfil !== 'familia') ||
+        ((rota === 'carteira-familiar' || rota === 'paciente-familiar') &&
+          sessao.data.usuario.perfil !== 'familia') ||
         sessao.data.usuario.id !== usuario.data.user.id ||
         sessao.data.session_id.toLowerCase() !== alvo.toLowerCase()
       )
@@ -137,6 +139,24 @@ export async function comporPacientesNativo(
       metadados,
       atestador: cofre.atestador,
     };
+    if (rota === 'paciente-familiar')
+      return await noPrazo(() =>
+        consultarPacienteFamiliar(pedidoHandler, {
+          autorizar,
+          cifra: cofre.cifra,
+          consultar: async (entrada) => {
+            verificarCancelamento();
+            const resultado = await contexto.cliente
+              .schema('api')
+              .rpc('consultar_paciente_familiar_privado', {
+                p_request_id: entrada.request_id,
+                p_paciente_id: entrada.paciente_id,
+              });
+            if (resultado.error || contexto.cookiesAlterados) throw new Error();
+            return resultado.data;
+          },
+        }),
+      );
     if (rota === 'carteira-familiar')
       return await noPrazo(() =>
         consultarCarteiraFamiliar(pedidoHandler, {

@@ -12,6 +12,7 @@ import {
   entrarFamiliarSchema,
   chaveIdempotenciaSchema,
   pacienteAdministrativoSchema,
+  pacienteBasicoSchema,
   type novoContatoSchema,
   type AtualizarPaciente,
   type CriarPaciente,
@@ -54,6 +55,11 @@ const rotas = {
     caminho: '/api/familiar/pacientes',
   },
   consultarPaciente: { ...contratosRotas.consultarPaciente, saida: pacienteAdministrativoSchema },
+  consultarPacienteFamiliar: {
+    ...contratosRotas.consultarPaciente,
+    caminho: '/api/familiar/pacientes/:paciente_id',
+    saida: pacienteBasicoSchema,
+  },
   atualizarPaciente: contratosRotas.atualizarPaciente,
   criarContato: { ...contratosRotas.criarContato, entrada: criarContatoReservadoHttpSchema },
   consultarAnamnese: contratosRotas.consultarAnamnese,
@@ -210,6 +216,7 @@ export class ClienteFFCM {
       rota === 'consultarAnamnese' ||
       rota === 'salvarAnamnese' ||
       rota === 'consultarPaciente' ||
+      rota === 'consultarPacienteFamiliar' ||
       rota === 'atualizarPaciente' ||
       rota === 'criarContato'
     ) {
@@ -250,8 +257,10 @@ export class ClienteFFCM {
       const tecnica = modo === 'tecnica' || (opcoes.encerramento && modo === 'saindo-tecnica');
       const familiar = modo === 'familiar' || (opcoes.encerramento && modo === 'saindo-familiar');
       const rotaFamiliar =
-        rota === 'sessaoFamiliar' || rota === 'sairFamiliar' || rota === 'listarPacientesFamiliar';
-      // Apenas a listagem possui rota familiar própria.
+        rota === 'sessaoFamiliar' ||
+        rota === 'sairFamiliar' ||
+        rota === 'listarPacientesFamiliar' ||
+        rota === 'consultarPacienteFamiliar';
       if (familiar && !rotaFamiliar) throw new FalhaApi('servico_indisponivel', 503);
       if ((!google && !tecnica && !familiar) || (!familiar && rotaFamiliar))
         throw new FalhaApi('nao_autenticado', 401);
@@ -457,6 +466,10 @@ export class ClienteFFCM {
       { limite: 25, ...(cursor ? { cursor } : {}) },
       { protegido: true },
     );
+  }
+
+  consultarPacienteFamiliar(pacienteId: string): Promise<Dados<'consultarPacienteFamiliar'>> {
+    return this.#enviar('consultarPacienteFamiliar', {}, { protegido: true, pacienteId });
   }
 
   consultarPaciente(pacienteId: string): Promise<Dados<'consultarPaciente'>> {

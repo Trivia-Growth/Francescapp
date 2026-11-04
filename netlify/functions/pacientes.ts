@@ -5,6 +5,7 @@ export const config = {
   path: [
     '/api/pacientes',
     '/api/familiar/pacientes',
+    '/api/familiar/pacientes/*',
     '/api/cadastro/barreira',
     '/api/cadastro/barreira/reservar',
     '/api/cadastro/barreira/encerrar',
@@ -16,11 +17,15 @@ const entrada = criarEntradaPacientesNativa(process.env);
 
 export default async function pacientes(request: Request): Promise<Response> {
   // A ativação depende de S-02 e das provas integradas de autorização e sessão.
-  const familiar = new URL(request.url).pathname === '/api/familiar/pacientes';
+  const caminho = new URL(request.url).pathname;
+  const familiar = caminho === '/api/familiar/pacientes';
+  const pacienteFamiliar = /^\/api\/familiar\/pacientes\/[^/]+$/.test(caminho);
   if (
-    familiar
-      ? process.env.FFCM_FAMILIAR_PACIENTES_ATIVO !== 'true'
-      : process.env.FFCM_PACIENTES_ATIVADO !== 'true'
+    pacienteFamiliar
+      ? process.env.FFCM_CONSULTA_PACIENTE_FAMILIAR !== 'true'
+      : familiar
+        ? process.env.FFCM_FAMILIAR_PACIENTES_ATIVO !== 'true'
+        : process.env.FFCM_PACIENTES_ATIVADO !== 'true'
   ) {
     return Response.json(criarErroPublicoSemCampos('servico_indisponivel', crypto.randomUUID()), {
       status: 503,

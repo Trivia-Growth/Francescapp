@@ -11,6 +11,8 @@ type Rota = Parameters<ReturnType<typeof configurarPacientesNativo>['executar']>
 
 function identificarRota(request: Request): Rota | undefined {
   const caminho = new URL(request.url).pathname;
+  if (/^\/api\/familiar\/pacientes\/[^/]+$/.test(caminho) && request.method === 'GET')
+    return 'paciente-familiar';
   if (caminho === '/api/familiar/pacientes' && request.method === 'GET') return 'carteira-familiar';
   if (caminho === contratosRotas.listarPacientes.caminho) {
     if (request.method === 'GET') return 'carteira';
@@ -35,7 +37,11 @@ export function criarEntradaPacientesNativa(fonte: FonteDeConfiguracao) {
   return {
     async atender(request: Request): Promise<Response> {
       const rota = identificarRota(request);
-      if (!rota) return falha('nao_encontrado');
+      if (
+        !rota ||
+        (rota === 'paciente-familiar' && fonte.FFCM_CONSULTA_PACIENTE_FAMILIAR !== 'true')
+      )
+        return falha('nao_encontrado');
       try {
         configurada ??= configurarPacientesNativo(fonte);
       } catch {
