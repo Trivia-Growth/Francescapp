@@ -114,6 +114,8 @@ export const entrarGoogleSchema = z
   })
   .strict();
 
+export const solicitarRecuperacaoSchema = z.object({ email: emailSchema }).strict();
+
 export const entrarTecnicoSchema = z
   .object({
     email: emailSchema,

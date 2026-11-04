@@ -210,7 +210,7 @@ Este mapa orienta as próximas mudanças; **D-02 a D-10 possuem tarefas executá
 
 | Fatia seguinte | Entidades/relações conceituais | Integridade e integração obrigatórias | Referência |
 | --- | --- | --- | --- |
-| Acesso familiar | Convite → identidade → usuário; vínculo independente; token de ativação/recuperação gerenciado no Auth | Pendente/enviado/falha/ativado distintos; link único e redirects permitidos; senha do destinatário; resposta sem enumeração; conta existente/reenvio antes de implementar | FR-051 a FR-054; SC-012 |
+| Acesso familiar | Convite → identidade → usuário; vínculo independente; token de ativação/recuperação gerenciado no Auth | Pendente/enviado/falha/ativado distintos; link único e redirects permitidos; senha do destinatário; resposta sem enumeração; conta familiar existente reutilizada após autorização; reenvio a definir | FR-051 a FR-054; SC-012 |
 | Acompanhamento | Paciente → mudanças de situação, equipe, anamnese/respostas versionadas, resumo revisado e fontes | Histórico contínuo, informação relatada distinta de hipótese/avaliação; relações não transferem representação ou acesso | FR-001 a FR-007 |
 | Documentos | Paciente → documento classificado → versão/referência Drive; audiência e origem; associação ao registro | Shared Drive real, alterações diretas e reconciliação explícitas; família sem ACL Drive; revogação coerente; download auditado | FR-011/029 a FR-033/050 |
 | Diário e áudio | Paciente → registro → versão/retificação; autor/audiência; estados de consulta/retorno; áudio temporário → transcrição → revisão → exclusão | Rascunho privado; texto alternativo; revisão humana; exclusão pós-revisão confirmada com pendência/falha; publicação não depende de sucesso fictício do descarte | FR-008 a FR-014/036 |
@@ -262,4 +262,11 @@ Evidência final da implementação listará cenário, comando real, resultado e
 
 Para a implementação **local e com fictícios** desta fundação, não há regra de cadastro mínimo/áudio/criação e cancelamento de agenda aguardando resposta. Restam valores de configuração para conectar/publicar (domínio/Client ID/origens, identidade de Edilaine, segredos, raiz/IDs Google), que não mudam os contratos da fatia.
 
-Decisões materiais das próximas fatias permanecem explicitamente fora das tarefas atuais: convite familiar em conta já existente/reenvio, representação e duplicidade, categorias/alterações diretas no Drive, áudios abandonados e política do processador, séries/conflitos/fuso/lembretes, finalidades/retenção/políticas de recuperação e metas do piloto. Devem ser perguntadas antes de escrever tarefas executáveis dependentes, não escolhidas na implementação.
+Decisões materiais das próximas fatias permanecem explicitamente fora das tarefas atuais: reenvio de convite familiar, representação e duplicidade, categorias/alterações diretas no Drive, áudios abandonados e política do processador, séries/conflitos/fuso/lembretes, finalidades/retenção/políticas de recuperação e metas do piloto. Devem ser perguntadas antes de escrever tarefas executáveis dependentes, não escolhidas na implementação.
+
+
+### Decisão posterior — conta familiar existente
+
+Quando o familiar já possuir conta familiar, reutilizar sua identidade existente. O vínculo ao paciente depende de autorização da equipe e deve usar `cadastro.acesso_paciente`; convite, relação familiar e recuperação de senha não concedem nem restauram acesso. Conta existente de equipe mantém seu perfil único: não convertê-la automaticamente para família; negar a operação e orientar o administrador. A decisão não comprova implementação nem autoriza ativação ou operação remota.
+
+A admissão familiar ainda exige desenho e prova próprios: `identidade.sessao` atualmente exige concessão de equipe e o encaminhamento de senha usa a exceção técnica. Alterar esse contrato exige preservar revogação, auditoria, isolamento de perfis e acessos concorrentes; verificar autorização novamente no servidor e banco. Convite/reenvio, expiração efetiva, integração e provas negativas permanecem pendentes.
