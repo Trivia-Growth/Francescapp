@@ -77,9 +77,16 @@ export function criarServicoTarefasHttp(identidadeAtual: () => Identidade | null
       const leitor = resposta.body.getReader();
       const partes: Uint8Array[] = [];
       let tamanho = 0;
+      let abortar!: () => void;
+      const expiracao = new Promise<never>((_, rejeitar) => {
+        abortar = () => rejeitar(new Error());
+        sinal.addEventListener('abort', abortar, { once: true });
+      });
       try {
+        if (sinal.aborted) throw new Error();
         while (true) {
-          const parte = await leitor.read();
+          const parte = await Promise.race([leitor.read(), expiracao]);
+          if (sinal.aborted) throw new Error();
           if (parte.done) break;
           tamanho += parte.value.byteLength;
           if (tamanho > 1_048_576) throw new Error();
@@ -89,6 +96,7 @@ export function criarServicoTarefasHttp(identidadeAtual: () => Identidade | null
         void leitor.cancel().catch(() => {});
         throw erro;
       } finally {
+        sinal.removeEventListener('abort', abortar);
         leitor.releaseLock();
       }
       const bytes = new Uint8Array(tamanho);
@@ -104,7 +112,9 @@ export function criarServicoTarefasHttp(identidadeAtual: () => Identidade | null
         atual.usuario_id !== identidade.usuario_id ||
         atual.session_id !== identidade.session_id
       )
-        throw new FalhaApi('nao_autenticado', 401);
+        throw criacao
+          ? new FalhaApi('servico_indisponivel', 0, true)
+          : new FalhaApi('nao_autenticado', 401);
       if (!resposta.ok) {
         const falha = erroRespostaSchema.safeParse(envelope);
         if (!falha.success) throw new Error();
