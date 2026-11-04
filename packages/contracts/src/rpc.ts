@@ -56,11 +56,11 @@ export const metadadosAadConcessaoSchema = z
   })
   .strict();
 
-const metadadosAadAcessoFamiliarSchema = z
+const metadadosAadAcessoPacienteSchema = z
   .object({
     tabela: z.literal('cadastro.acesso_paciente'),
     registro_id: uuidSchema,
-    campo: z.literal('motivo_concessao'),
+    campo: z.enum(['motivo_concessao', 'motivo_revogacao']),
     formato: formatoCifraSchema,
   })
   .strict();
@@ -125,7 +125,7 @@ const metadadosAadDiarioSchema = z
 export const metadadosAadSchema = z.union([
   metadadosAadCamposSchema,
   metadadosAadConcessaoSchema,
-  metadadosAadAcessoFamiliarSchema,
+  metadadosAadAcessoPacienteSchema,
   metadadosAadSessaoSchema,
   metadadosAadAnamneseSchema,
   metadadosAadPlanoSchema,

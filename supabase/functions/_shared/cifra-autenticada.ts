@@ -69,7 +69,7 @@ function aadCanonico(aad: MetadadosAad): Uint8Array {
   if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.acesso_paciente') {
     if (
       !uuid.test(aad.registro_id) ||
-      aad.campo !== 'motivo_concessao' ||
+      (aad.campo !== 'motivo_concessao' && aad.campo !== 'motivo_revogacao') ||
       aad.formato !== formatoAtual
     ) {
       throw new ErroCifraAutenticada();
