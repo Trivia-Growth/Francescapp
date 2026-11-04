@@ -49,6 +49,10 @@ const rotas = {
   },
   sairFamiliar: { ...contratosRotas.sairSessao, caminho: '/api/familiar/sessao/sair' },
   listarPacientes: contratosRotas.listarPacientes,
+  listarPacientesFamiliar: {
+    ...contratosRotas.listarPacientes,
+    caminho: '/api/familiar/pacientes',
+  },
   consultarPaciente: { ...contratosRotas.consultarPaciente, saida: pacienteAdministrativoSchema },
   atualizarPaciente: contratosRotas.atualizarPaciente,
   criarContato: { ...contratosRotas.criarContato, entrada: criarContatoReservadoHttpSchema },
@@ -245,8 +249,9 @@ export class ClienteFFCM {
       const google = modo === 'google' || (opcoes.encerramento && modo === 'saindo-google');
       const tecnica = modo === 'tecnica' || (opcoes.encerramento && modo === 'saindo-tecnica');
       const familiar = modo === 'familiar' || (opcoes.encerramento && modo === 'saindo-familiar');
-      const rotaFamiliar = rota === 'sessaoFamiliar' || rota === 'sairFamiliar';
-      // Operações de negócio ainda não possuem autorização familiar integrada.
+      const rotaFamiliar =
+        rota === 'sessaoFamiliar' || rota === 'sairFamiliar' || rota === 'listarPacientesFamiliar';
+      // Apenas a listagem possui rota familiar própria.
       if (familiar && !rotaFamiliar) throw new FalhaApi('servico_indisponivel', 503);
       if ((!google && !tecnica && !familiar) || (!familiar && rotaFamiliar))
         throw new FalhaApi('nao_autenticado', 401);
@@ -441,8 +446,14 @@ export class ClienteFFCM {
   }
 
   listarPacientes(cursor?: string): Promise<Dados<'listarPacientes'>> {
+    let familiar: boolean;
+    try {
+      familiar = sessionStorage.getItem('modo-acesso') === 'familiar';
+    } catch {
+      throw new FalhaApi('nao_autenticado', 401);
+    }
     return this.#enviar(
-      'listarPacientes',
+      familiar ? 'listarPacientesFamiliar' : 'listarPacientes',
       { limite: 25, ...(cursor ? { cursor } : {}) },
       { protegido: true },
     );

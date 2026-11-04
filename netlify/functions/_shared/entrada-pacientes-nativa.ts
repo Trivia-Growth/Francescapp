@@ -11,6 +11,7 @@ type Rota = Parameters<ReturnType<typeof configurarPacientesNativo>['executar']>
 
 function identificarRota(request: Request): Rota | undefined {
   const caminho = new URL(request.url).pathname;
+  if (caminho === '/api/familiar/pacientes' && request.method === 'GET') return 'carteira-familiar';
   if (caminho === contratosRotas.listarPacientes.caminho) {
     if (request.method === 'GET') return 'carteira';
     if (request.method === 'POST') return 'cadastro';

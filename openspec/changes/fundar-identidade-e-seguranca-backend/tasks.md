@@ -80,6 +80,8 @@ Consulta privada de vínculo familiar aplicada ao projeto de teste na migration 
 
 Entrada familiar preparada na tela, no cliente e na rota, com flag desativada; operações de pacientes ainda não são suportadas para esse perfil. Wrapper privado de consulta aplicado na migration `20261112020000`: primeira tentativa recusou associação de papel preexistente, a migration foi corrigida e reaplicada; a associação original foi conferida preservada. Nenhum teste executado.
 
+Listagem familiar preparada no servidor e na interface; migration `20261112030000` aplicada no projeto de teste sem grant à aplicação. A rota permanece desativada. A revisão apontou necessidade de resolver revogação de vínculo após a consulta e antes da resposta; atestado, permissões e provas reais seguem pendentes. Nenhum teste foi executado.
+
 Contatos: a migration `20261111200000` foi aplicada ao projeto de teste após revisão estática; ela prepara reserva, reconciliação e privilégios privados. A criação passou a exigir reserva, mas ciclo HTTP e cliente ainda não a obtêm, mantendo o caminho fechado. Testes foram adiados a pedido; não há prova de concorrência, autorização ou operação conectada.
 
 Atualização: migrations `20261111210000` e `20261111220000` aplicadas ao projeto de teste, mantendo wrappers privados. Ciclo HTTP e interface de contatos foram ligados em código; falta owner restrito com RLS/grants da composição e ativação. O vínculo familiar passa a preparar suporte à sessão técnica, ainda privado. Lint e typecheck passaram; nenhum teste executado.

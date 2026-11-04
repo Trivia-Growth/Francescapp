@@ -10,6 +10,7 @@ import { credencialAuthRejeitada, criarContextoAuthNativo } from './auth-nativo/
 import { processarBarreiraNativa } from './barreira-handler-nativo.ts';
 import { criarPacienteNativo } from './cadastro-handler-nativo.ts';
 import { consultarCarteiraNativa } from './carteira-handler-nativo.ts';
+import { consultarCarteiraFamiliar } from './carteira-familiar-handler.ts';
 import { carregarCofreNativo } from './cofre-nativo.ts';
 import { executarBarreiraNativa } from './executor-barreira-nativo.ts';
 import { executarCarteiraNativa } from './executor-carteira-nativo.ts';
@@ -31,7 +32,7 @@ export function metadadosAtestadoNativo(keyId: string, requestId: string, agora:
  * Pool e referências do Vault são dependências server-only. */
 export async function comporPacientesNativo(
   request: Request,
-  rota: 'cadastro' | 'carteira' | OperacaoBarreira,
+  rota: 'cadastro' | 'carteira' | 'carteira-familiar' | OperacaoBarreira,
   dependencias: {
     fonte: FonteDeConfiguracao;
     pool: Pool;
@@ -86,9 +87,16 @@ export async function comporPacientesNativo(
             : ('servico_indisponivel' as const),
         };
       if (!usuario.data.user) return { estado: 'nao_autenticado' as const };
-      const resultado = await contexto.cliente.schema('api').rpc('consultar_sessao_nativa', {
-        p_request_id: crypto.randomUUID(),
-      });
+      const resultado = await contexto.cliente
+        .schema('api')
+        .rpc(
+          rota === 'carteira-familiar'
+            ? 'consultar_sessao_familiar_privada'
+            : 'consultar_sessao_nativa',
+          {
+            p_request_id: crypto.randomUUID(),
+          },
+        );
       verificarCancelamento();
       if (contexto.cookiesAlterados) return { estado: 'nao_autenticado' as const };
       if (resultado.error) return { estado: 'servico_indisponivel' as const };
@@ -96,6 +104,7 @@ export async function comporPacientesNativo(
       if (
         !sessao.success ||
         !sessao.data.usuario.ativo ||
+        (rota === 'carteira-familiar' && sessao.data.usuario.perfil !== 'familia') ||
         sessao.data.usuario.id !== usuario.data.user.id ||
         sessao.data.session_id.toLowerCase() !== alvo.toLowerCase()
       )
@@ -128,6 +137,26 @@ export async function comporPacientesNativo(
       metadados,
       atestador: cofre.atestador,
     };
+    if (rota === 'carteira-familiar')
+      return await noPrazo(() =>
+        consultarCarteiraFamiliar(pedidoHandler, {
+          autorizar,
+          cifra: cofre.cifra,
+          cursor: cofre.cursor,
+          consultar: async (entrada) => {
+            verificarCancelamento();
+            const resultado = await contexto.cliente
+              .schema('api')
+              .rpc('listar_pacientes_familiar_privado', {
+                p_request_id: entrada.request_id,
+                p_limite: entrada.limite,
+                p_cursor: entrada.cursor ?? null,
+              });
+            if (resultado.error || contexto.cookiesAlterados) throw new Error();
+            return resultado.data;
+          },
+        }),
+      );
     if (rota === 'cadastro')
       return await noPrazo(() =>
         criarPacienteNativo(pedidoHandler, {
