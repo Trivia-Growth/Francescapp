@@ -56,6 +56,15 @@ export const metadadosAadConcessaoSchema = z
   })
   .strict();
 
+const metadadosAadAcessoFamiliarSchema = z
+  .object({
+    tabela: z.literal('cadastro.acesso_paciente'),
+    registro_id: uuidSchema,
+    campo: z.literal('motivo_concessao'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
 const metadadosAadSessaoSchema = z
   .object({
     tabela: z.literal('identidade.sessao'),
@@ -116,6 +125,7 @@ const metadadosAadDiarioSchema = z
 export const metadadosAadSchema = z.union([
   metadadosAadCamposSchema,
   metadadosAadConcessaoSchema,
+  metadadosAadAcessoFamiliarSchema,
   metadadosAadSessaoSchema,
   metadadosAadAnamneseSchema,
   metadadosAadPlanoSchema,

@@ -5,6 +5,16 @@ import { perfilSchema, uuidSchema, versaoSchema } from './comum.ts';
 const emailSchema = z.string().trim().email().max(254);
 const motivoSchema = z.string().trim().min(1).max(500);
 
+export const entradaVinculoFamiliarPrivadoSchema = z
+  .object({
+    operacao_id: uuidSchema,
+    request_id: uuidSchema,
+    paciente_id: uuidSchema,
+    familiar_id: uuidSchema,
+    motivo: motivoSchema,
+  })
+  .strict();
+
 export const metodoConcessaoSchema = z.literal('google_workspace');
 export const estadoConcessaoSchema = z.enum(['pendente', 'vinculada', 'revogada']);
 export type EstadoConcessao = z.infer<typeof estadoConcessaoSchema>;

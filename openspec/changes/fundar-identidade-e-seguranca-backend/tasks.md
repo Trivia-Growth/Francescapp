@@ -62,6 +62,10 @@ Preparação familiar adicional: consulta e saída privadas foram escritas para 
 
 Concessão familiar: função privada local preparada para administrador vincular conta familiar ativa existente ao paciente, sem expor rota ou grants. Ainda faltam integração, revisão de repetição e revogação, suporte à sessão técnica e provas reais; migration não aplicada.
 
+Atualização: migrations `20261111140000` a `20261111190000` aplicadas no Supabase de teste autorizado. Antes da aplicação, PostgreSQL 17 e ausência de sessões incompatíveis foram conferidos; as funções novas permanecem privadas. Nenhum teste foi executado por solicitação; aplicação não comprova autorizações ou integração.
+
+Preparador de vínculo familiar cifra o motivo com AAD do registro antes de chamar o banco; ainda não há rota ou grant. A repetição exige o mesmo envelope cifrado e a recuperação após sua perda permanece pendente de solução.
+
 Conferência de catálogo após a aplicação: 51 versões remotas correspondem às locais. Quatro referências de segredo distintas e uma referência ativa de atestado foram encontradas, sem leitura de valores. A configuração Auth está presente com Google desativado. Ainda não existe perfil da aplicação para a conta técnica nem lote ativo; criação e integração seguem pendentes.
 
 A rota de criação de contato e o formulário foram ligados ao código existente com flag e botão desativados. A RPC permanece sem grant para aplicação e a integração real não foi verificada. Resultado de envio incerto bloqueia nova tentativa e preserva o valor para conferência. Nenhum teste foi executado nesta etapa.
