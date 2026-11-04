@@ -45,3 +45,5 @@ Preparação privada local: criação exige reserva vinculada ao ator, paciente 
 Revisão incremental identificou ordem de locks divergente e possível remoção de grant existente; correções foram verificadas por leitura e teste local. A revisão da integração completa continua pendente.
 
 Composição privada preparada com atestado, autorização e auditoria; teste PostgreSQL local passou para reserva, encerramento, sessão encerrada, assinatura adulterada e rollback de auditoria. Revisão estática não identificou nova falha concreta. O teste novo não comprova família, usuário inativo, concessão revogada, expiração sob espera ou revogação concorrente; composição com servidor e integração real seguem pendentes. Nenhum grant ou rota foi ativado.
+
+Preparação posterior: handler e executor da barreira foram conectados localmente ao PostgreSQL descartável; teste integrado passou com Auth/Vault e transporte simulados. Revisão corrigiu classificação de timeout de consulta como mutação incerta. Fluxo web, outras corridas, Auth/Vault reais e ativação continuam pendentes.
