@@ -34,6 +34,8 @@ Verificador local para projeto e vínculo Auth usa consulta parametrizada soment
 
 Preparador operacional local reúne verificação de alvo, conexão TLS, Vault, cifra e bootstrap; por padrão faz apenas prévia. Testes locais cobriram prévia e preservação de envelopes cifrados fora do repositório. O fluxo confirmado ainda não foi executado de ponta a ponta: o Vault remoto estava sem segredos e configurações necessários, o login SQL individual e sua autorização não foram comprovados, e host/porta/CA exigem fonte confiável externa. Não usar antes da revisão S-02 e autorização das operações remotas.
 
+A rota local de entrada técnica foi ligada ao handler existente, protegida por duas flags desligadas por padrão. Teste focado cobriu roteamento e bloqueio; a rota não foi publicada e depende da admissão no banco, S-02 e validação real. O comando de preparação usa a opção de suporte a TypeScript do Node 22; a versão mínima 22.12 não foi executada nesta máquina.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.

@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import auth from '../../auth.ts';
+import auth, { config } from '../../auth.ts';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -14,6 +14,7 @@ it.each([undefined, '', 'false', 'TRUE'])(
     vi.stubGlobal('fetch', rede);
     for (const rota of [
       '/api/auth/google',
+      '/api/auth/tecnica',
       '/api/auth/callback',
       '/api/sessao',
       '/.netlify/functions/auth',
@@ -24,6 +25,26 @@ it.each([undefined, '', 'false', 'TRUE'])(
       expect(resposta.headers.getSetCookie()).toEqual([]);
     }
     expect(rede).not.toHaveBeenCalled();
+  },
+);
+
+it('registra entrada técnica e encaminha à validação nativa quando ativada', async () => {
+  vi.stubEnv('FFCM_AUTH_ATIVADO', 'true');
+  vi.stubEnv('FFCM_AUTH_TECNICA_ATIVADO', 'true');
+  expect(config.path).toContain('/api/auth/tecnica');
+  const resposta = await auth(new Request('https://app.example.test/api/auth/tecnica'));
+  expect(resposta.status).toBe(422);
+  expect(resposta.headers.getSetCookie()).toEqual([]);
+});
+
+it.each([undefined, '', 'false', 'TRUE'])(
+  'mantém entrada técnica bloqueada com ativação específica %s',
+  async (ativacao) => {
+    vi.stubEnv('FFCM_AUTH_ATIVADO', 'true');
+    vi.stubEnv('FFCM_AUTH_TECNICA_ATIVADO', ativacao);
+    const resposta = await auth(new Request('https://app.example.test/api/auth/tecnica'));
+    expect(resposta.status).toBe(503);
+    expect(resposta.headers.getSetCookie()).toEqual([]);
   },
 );
 
