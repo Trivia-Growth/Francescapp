@@ -1,12 +1,14 @@
 \set ON_ERROR_STOP on
 \ir cadeia_migrations_local.sql
 \ir ../migrations/20261107100000_restringir_rls_carteira.sql
+\ir ../migrations/20261109120000_preparar_proveniencia_teste.sql
 -- Os grants e dados abaixo existem somente no cluster descartável.
 insert into vault.segredos_fixture values ('ffcmapp.atestado.teste',encode(decode(repeat('42',32),'hex'),'base64'));
 insert into identidade.referencias_atestado_vault(referencia) values ('ffcmapp.atestado.teste');
 insert into identidade.configuracao_auth_nativo(dominio_workspace,google_unico_oauth_confirmado) values ('example.test',true);
 insert into auth.users values ('10000000-0000-4000-8000-000000000001'),('10000000-0000-4000-8000-000000000002');
 insert into public.usuario(id,perfil) values ('10000000-0000-4000-8000-000000000001','administrador'),('10000000-0000-4000-8000-000000000002','profissional');
+insert into operacao.lote_teste(id,identificacao,responsavel_usuario_id) values ('ae000000-0000-4000-8000-000000000002','lote-operacoes-fixture','10000000-0000-4000-8000-000000000001');
 insert into auth.identities select id,id,'google','google-'||id,jsonb_build_object('sub','google-'||id,'email_verified',true,'custom_claims',jsonb_build_object('hd','example.test')) from auth.users;
 insert into auth.sessions select replace(id::text,'10000000-','20000000-')::uuid,id,null from auth.users;
 insert into identidade.concessao_equipe(id,email_cifrado,email_hmac,perfil,metodo,estado,usuario_id,subject_google,motivo_cifrado,criada_em,vinculada_em)
@@ -37,9 +39,17 @@ begin
  e:=jsonb_build_object('request_id',gen_random_uuid(),'paciente_id',paciente,'reserva_id',reserva,'geracao_reserva',1,'auditoria_id',gen_random_uuid(),'chave_idempotencia','fixture','digest_idempotencia',repeat('a',43),'nome',jsonb_build_object('formato',1,'key_id','teste','nonce',repeat('a',16),'ciphertext','YQ','tag',repeat('a',22)),'aad',jsonb_build_object('nome',jsonb_build_object('tabela','cadastro.paciente','registro_id',paciente::text,'campo','nome','formato',1)));
  t:=pg_temp.assinar(e,'api.criar_paciente',ator,sessao);
  execute 'set local role ffcm_operacoes_fixture';
+ begin
+  perform api.criar_paciente(t);
+  raise exception 'CRIACAO_SEM_LOTE_ACEITA';
+ exception when sqlstate '55000' then null; end;
+ execute 'reset role';
+ insert into operacao.configuracao_lote_teste(lote_teste_id) values ('ae000000-0000-4000-8000-000000000002');
+ execute 'set local role ffcm_operacoes_fixture';
  r:=api.criar_paciente(t);
  if r->>'ok' is distinct from 'true' then raise exception 'CRIACAO: %',r; end if;
  execute 'reset role';
+ if (select lote_teste_id from cadastro.paciente where id=paciente) is distinct from 'ae000000-0000-4000-8000-000000000002'::uuid then raise exception 'PACIENTE_SEM_LOTE'; end if;
  e:=jsonb_build_object('request_id',gen_random_uuid(),'limite',10); t:=pg_temp.assinar(e,'api.listar_pacientes',ator,sessao);
  execute 'set local role ffcm_operacoes_fixture'; r:=api.listar_pacientes(t);
  if r->>'ok' is distinct from 'true' or jsonb_typeof(r#>'{dados,itens}') is distinct from 'array' or (r#>'{dados,itens}' @> jsonb_build_array(jsonb_build_object('paciente_id',paciente))) is distinct from true then raise exception 'LISTA: %',r; end if;
