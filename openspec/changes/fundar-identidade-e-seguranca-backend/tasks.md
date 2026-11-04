@@ -26,6 +26,8 @@ Preparação local: migrations criam cadastro privado de operador associado ao l
 
 O contrato de cifra agora identifica e-mail e motivo pela concessão e pelo campo. Teste focado validou vínculo ao registro e campo. Para repetir o bootstrap, o preparador deverá reutilizar os envelopes cifrados originais; sua implementação ainda depende de acesso autorizado às chaves do Vault e de prova da conexão com o projeto correto. Nenhuma chave foi provisionada nesta etapa.
 
+Migration local prepara leitura restrita da chave HMAC de e-mail, sem atribuir executor a nenhum login. Teste SQL descartável com Vault fictício cobriu acesso autorizado, negativas e configuração ausente. O executor recebe a chave integral: atribuição temporária, revogação, adapter, S-02 e prova Vault real permanecem pendentes. A migration falha explicitamente se o migrador já tiver membership sem `SET`; essa condição operacional precisa ser resolvida antes da aplicação. Nada foi aplicado remotamente.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.
