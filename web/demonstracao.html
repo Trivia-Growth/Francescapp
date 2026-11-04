@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self' https://drdpuxcllpymtoskmuqv.supabase.co https://accounts.google.com; object-src 'none'; require-trusted-types-for 'script'; trusted-types 'none'">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <meta name="color-scheme" content="light">
+    <title>FFCMApp | Acesso</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script type="module" src="./demonstracao.ts"></script>
+  </head>
+  <body hidden>
+    <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
+    <header class="topbar">
+      <div class="brand"><span class="brand-name">FFCMApp</span><span class="brand-organization">Francescato</span></div>
+      <div id="session-actions" class="session-actions" hidden>
+        <span id="session-role"></span>
+        <button id="logout" class="button-quiet" type="button">Sair</button>
+      </div>
+    </header>
+    <main id="conteudo" tabindex="-1">
+      <p id="revalidacao-status" class="service-status" role="status" aria-live="polite" hidden>Verificando seu acesso…</p>
+      <section id="login-view" class="access-layout" aria-labelledby="login-title">
+        <div class="access-context">
+          <img class="institutional-logo" src="./assets/ffcm-logo-branco.jpg" width="144" height="144" alt="FFCM, marca Francescato">
+          <h1 id="login-title" tabindex="-1">Acesso ao FFCMApp</h1>
+          <p>Um lugar para organizar o acompanhamento de cada paciente.</p>
+          <p class="access-note">Ambiente de demonstração local com dados fictícios.</p>
+        </div>
+        <div class="access-form-panel">
+          <p class="feedback">Demonstração local: use somente dados fictícios. Alterações ficam na memória desta página e são perdidas ao recarregar.</p>
+          <h2>Conheça a interface</h2>
+          <p>Esta entrada não autentica uma conta e não acessa dados reais.</p>
+          <button id="demo-login" class="button-primary full-width" type="button">Entrar na demonstração</button>
+          <p id="login-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
+        </div>
+      </section>
+
+      <section id="patients-view" class="patients-layout" aria-labelledby="patients-title" hidden>
+        <div class="page-heading">
+          <div><h1 id="patients-title" tabindex="-1">Pacientes</h1><p id="scope-description">Cadastros disponíveis para seu acesso.</p></div>
+          <a id="new-patient-link" class="button-primary" href="#cadastro" hidden>Cadastrar paciente</a>
+        </div>
+        <p id="workspace-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
+        <p class="feedback">Demonstração local com dados fictícios. Alterações são perdidas ao recarregar a página.</p>
+        <div id="workspace" class="workspace">
+          <section class="patient-register" aria-labelledby="list-title">
+            <div class="section-heading"><h2 id="list-title">Lista de pacientes</h2><button id="reload-patients" class="button-secondary" type="button">Atualizar lista</button></div>
+            <p id="list-status" class="list-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            <div id="list-loading" class="list-loading" aria-hidden="true" hidden><span></span><span></span><span></span></div>
+            <div id="list-empty" class="empty-state" hidden><h3>Nenhum paciente nesta lista</h3><p id="empty-description">Nenhum cadastro disponível para seu acesso.</p></div>
+            <table id="patients-table" hidden>
+              <caption class="sr-only">Pacientes fictícios da demonstração</caption>
+              <thead><tr><th scope="col">Nome</th><th scope="col">Nome de preferência</th></tr></thead>
+              <tbody id="patients-body"></tbody>
+            </table>
+            <nav id="pagination" class="pagination" aria-label="Páginas de pacientes" hidden><button id="previous-page" class="button-secondary" type="button">Página anterior</button><span id="page-number"></span><button id="next-page" class="button-secondary" type="button">Próxima página</button></nav>
+          </section>
+          <section id="cadastro" class="registration-panel" aria-labelledby="create-title" hidden>
+            <h2 id="create-title" tabindex="-1">Novo paciente</h2>
+            <p>Use apenas nomes fictícios. O nome de preferência é opcional.</p>
+            <form id="create-form" method="post" autocomplete="off" aria-describedby="create-feedback">
+              <fieldset id="create-fields">
+                <legend class="sr-only">Dados do paciente</legend>
+                <div class="field"><label for="patient-name">Nome <span class="label-detail">obrigatório</span></label><input id="patient-name" name="nome" type="text" required maxlength="200" autocomplete="off" aria-describedby="name-error"><span id="name-error" class="field-error"></span></div>
+                <div class="field"><label for="preferred-name">Nome de preferência <span class="label-detail">opcional</span></label><input id="preferred-name" name="nome_preferencia" type="text" maxlength="200" autocomplete="off" aria-describedby="preferred-error"><span id="preferred-error" class="field-error"></span></div>
+              </fieldset>
+              <button id="create-submit" class="button-primary full-width" type="submit">Cadastrar paciente</button>
+            </form>
+            <p id="create-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
+            <p class="small-text">O cadastro não cria conta nem concede acesso ao paciente ou a familiares.</p>
+          </section>
+        </div>
+      </section>
+
+      <section id="logout-view" class="logout-panel" aria-labelledby="logout-title" hidden>
+        <h1 id="logout-title" tabindex="-1">Encerrar acesso</h1>
+        <p id="logout-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
+        <button id="retry-logout" class="button-primary" type="button" hidden>Tentar encerrar novamente</button>
+      </section>
+      <noscript><p class="noscript-message">Ative JavaScript para entrar e consultar pacientes. Nenhum acesso ou cadastro funciona sem conexão com o serviço.</p></noscript>
+    </main>
+    <footer class="footer">FFCMApp <span>Francescato · Family Case Management</span></footer>
+  </body>
+</html>
