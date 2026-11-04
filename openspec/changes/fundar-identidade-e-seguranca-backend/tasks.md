@@ -48,6 +48,8 @@ Nova retomada aplicou `20261110120000`–`20261110140000` e parou na `2026111015
 
 Após correção, as cinco migrations restantes foram aplicadas com autorização do solicitante. A Management API confirmou 45 versões e nomes coincidentes com os arquivos locais. Inspeção de catálogo encontrou seis RPCs de sessão/cadastro/carteira com EXECUTE para `authenticated`; `anon` e `service_role` não tinham EXECUTE nas 11 RPCs do schema `api`. Isso não comprova comportamento, RLS ou Auth/Vault reais. Nenhum segredo, lote, operador ou conta administrativa foi configurado nesta operação; aplicação continua sem ativação protegida.
 
+Os pontos de entrada de pacientes, anamnese e plano foram ligados às composições existentes com flags independentes desativadas por padrão. Por instrução do solicitante, testes não foram executados nesta etapa; lint e typecheck passaram. S-02, configuração real de Auth/Vault, grants de anamnese/plano e provas integradas permanecem obrigatórios antes da ativação. Nenhuma flag foi ativada remotamente.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.
