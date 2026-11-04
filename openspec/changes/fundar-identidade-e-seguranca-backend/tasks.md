@@ -36,6 +36,8 @@ Preparador operacional local reúne verificação de alvo, conexão TLS, Vault, 
 
 A rota local de entrada técnica foi ligada ao handler existente, protegida por duas flags desligadas por padrão. Teste focado cobriu roteamento e bloqueio; a rota não foi publicada e depende da admissão no banco, S-02 e validação real. O comando de preparação usa a opção de suporte a TypeScript do Node 22; a versão mínima 22.12 não foi executada nesta máquina.
 
+Conferência remota somente de leitura: histórico contém as 20 primeiras versões locais e há 25 migrations posteriores pendentes, incluindo anamnese, plano, diário, edição e cadastro. A cadeia completa das 45 migrations executou em PostgreSQL 17 descartável com Auth/Vault fictícios; não comprova comportamento ou autorização no Supabase. O push padrão incluiria todas as 25 pendentes; duas concedem execução de RPCs a `authenticated`. Não aplicar sem revisão e autorização específicas.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.
