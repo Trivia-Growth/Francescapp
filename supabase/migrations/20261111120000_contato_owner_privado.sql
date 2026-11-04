@@ -55,7 +55,11 @@ create policy contato_contato_insert on cadastro.contato_paciente for insert to 
 
 -- Wrapper permanece sem EXECUTE para aplicação até revisão e provas de autorização.
 alter function api.criar_contato_paciente(jsonb) owner to ffcmapp_contato_owner;
+-- Após transferência, somente o novo owner pode alterar o wrapper.
+set role ffcmapp_contato_owner;
 alter function api.criar_contato_paciente(jsonb) security definer;
 revoke all on function api.criar_contato_paciente(jsonb) from public,anon,authenticated,service_role;
+reset role;
+select set_config('role',current_setting('ffcmapp.contato_migrador'),false);
 revoke create on schema api from ffcmapp_contato_owner;
 revoke ffcmapp_contato_owner from current_user;
