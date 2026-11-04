@@ -71,6 +71,21 @@ export function createLocalFeedbackServer({ password, directory }) {
     pendingWrite = operation.catch(() => {});
     return operation;
   }
+  function normalizarVinculos(preview, id) {
+    preview.objetivos = (preview.objetivos ?? []).map((goal, index) => ({
+      ...goal,
+      id: goal.id ?? createHash('sha256').update(`${id}:${index}`).digest('hex'),
+    }));
+    preview.tarefas = (preview.tarefas ?? []).map(({ objetivoIndice, ...task }) => ({
+      ...task,
+      ...(task.objetivoId === undefined &&
+      objetivoIndice !== undefined &&
+      preview.objetivos[objetivoIndice]
+        ? { objetivoId: preview.objetivos[objetivoIndice].id }
+        : {}),
+    }));
+    return preview;
+  }
   async function updatePreview(id, type, value, revision, operationId) {
     const operation = pendingWrite.then(async () => {
       if (!(await readPatients()).some((patient) => patient.id === id)) return null;
@@ -83,6 +98,7 @@ export function createLocalFeedbackServer({ password, directory }) {
       } catch (error) {
         if (error.code !== 'ENOENT') throw error;
       }
+      normalizarVinculos(preview, id);
       const reconciliation = type === 'reconciliar-relato';
       if (operationId && preview.operacoesRelato?.includes(operationId)) {
         if (!reconciliation) {
@@ -107,6 +123,24 @@ export function createLocalFeedbackServer({ password, directory }) {
             (preview.operacoesRelato?.length || preview.operacoesRelatoCanceladas?.length))
         )
           return false;
+        if (
+          type === 'tarefas' &&
+          value.some(
+            (task) =>
+              task.objetivoId !== undefined &&
+              !(preview.objetivos ?? []).some((goal) => goal.id === task.objetivoId),
+          )
+        )
+          return 'invalid';
+        if (
+          type === 'objetivos' &&
+          (new Set(value.map((goal) => goal.id)).size !== value.length ||
+            (preview.tarefas ?? []).some(
+              (task) =>
+                task.objetivoId !== undefined && !value.some((goal) => goal.id === task.objetivoId),
+            ))
+        )
+          return 'invalid';
         if (operationId) {
           preview.operacoesRelato = [...(preview.operacoesRelato ?? []), operationId];
           preview.digestsRelato = {
@@ -128,7 +162,10 @@ export function createLocalFeedbackServer({ password, directory }) {
   async function readPreview(id) {
     if (!(await readPatients()).some((patient) => patient.id === id)) return null;
     try {
-      return JSON.parse(await readFile(join(directory, `preview-${id}.json`), 'utf8'));
+      return normalizarVinculos(
+        JSON.parse(await readFile(join(directory, `preview-${id}.json`), 'utf8')),
+        id,
+      );
     } catch (error) {
       if (error.code === 'ENOENT') return { revision: 0, anamnese: null, tarefas: [] };
       throw error;
@@ -532,7 +569,12 @@ export function createLocalFeedbackServer({ password, directory }) {
                 'prioridade',
                 'estado',
                 'acaoOuJustificativa',
-              ]) && ['pendente', 'em_andamento', 'concluida', 'cancelada'].includes(task.estado),
+              ]) &&
+              ['pendente', 'em_andamento', 'concluida', 'cancelada'].includes(task.estado) &&
+              (task.objetivoId === undefined ||
+                (typeof task.objetivoId === 'string' &&
+                  /^[a-f0-9-]{36,64}$/.test(task.objetivoId))) &&
+              task.objetivoIndice === undefined,
           );
         const validGoal = (goal) =>
           strings(goal, [
@@ -560,6 +602,8 @@ export function createLocalFeedbackServer({ password, directory }) {
           data.value.every(
             (goal) =>
               validGoal(goal) &&
+              typeof goal.id === 'string' &&
+              /^[a-f0-9-]{36,64}$/.test(goal.id) &&
               (goal.historico === undefined ||
                 (Array.isArray(goal.historico) &&
                   goal.historico.length <= 100 &&
@@ -645,6 +689,7 @@ export function createLocalFeedbackServer({ password, directory }) {
         );
         if (preview === null) return respond(res, 404);
         if (preview === false) return respond(res, 409);
+        if (preview === 'invalid') return respond(res, 400);
         return respond(res, 200, preview);
       }
       return respond(res, 404);

@@ -240,6 +240,7 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
       200,
     );
     const objetivo = {
+      id: '11111111-1111-4111-8111-111111111111',
       descricao: 'Objetivo fictício',
       area: 'Rotina',
       responsavel: 'Equipe fictícia',
@@ -263,6 +264,38 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
       400,
     );
     assert.equal((await salvarObjetivo([objetivo], 2)).status, 200);
+    const salvarTarefaVinculada = (id) =>
+      request(previewPath, {
+        method: 'PUT',
+        headers: auth,
+        body: JSON.stringify({
+          type: 'tarefas',
+          value: [{ ...tarefa, objetivoId: id }],
+          revision: 3,
+        }),
+      });
+    assert.equal((await salvarTarefaVinculada('22222222-2222-4222-8222-222222222222')).status, 400);
+    assert.equal((await salvarTarefaVinculada(objetivo.id)).status, 200);
+    assert.equal((await salvarObjetivo([], 4)).status, 400);
+    const outroObjetivo = {
+      ...objetivo,
+      id: '22222222-2222-4222-8222-222222222222',
+      descricao: 'Outro objetivo',
+    };
+    assert.equal((await salvarObjetivo([outroObjetivo, objetivo], 4)).status, 200);
+    const reordenada = await (await request(previewPath, { headers: { cookie } })).json();
+    assert.equal(reordenada.tarefas[0].objetivoId, objetivo.id);
+    assert.equal(
+      reordenada.objetivos.find((item) => item.id === reordenada.tarefas[0].objetivoId).descricao,
+      objetivo.descricao,
+    );
+    assert.equal((await salvarObjetivo([objetivo], 5)).status, 200);
+    const restaurar = await request(previewPath, {
+      method: 'PUT',
+      headers: auth,
+      body: JSON.stringify({ type: 'tarefas', value: [tarefa], revision: 6 }),
+    });
+    assert.equal(restaurar.status, 200);
     assert.equal((await salvarObjetivo([objetivo], 2)).status, 409);
     const relato = {
       dataAcontecimento: '2026-11-04',
@@ -278,15 +311,15 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
         headers: auth,
         body: JSON.stringify({ type: 'relatos', value, revision }),
       });
-    assert.equal((await salvarRelato([{ ...relato, descricao: ' ' }], 3)).status, 400);
-    assert.equal((await salvarRelato([relato], 3)).status, 200);
-    assert.equal((await salvarRelato([relato], 3)).status, 409);
+    assert.equal((await salvarRelato([{ ...relato, descricao: ' ' }], 7)).status, 400);
+    assert.equal((await salvarRelato([relato], 7)).status, 200);
+    assert.equal((await salvarRelato([relato], 7)).status, 409);
     const operationId = '11234567-1234-4234-8234-123456789abc';
     const salvarOperacao = () =>
       request(previewPath, {
         method: 'PUT',
         headers: auth,
-        body: JSON.stringify({ type: 'relatos', value: [relato], revision: 4, operationId }),
+        body: JSON.stringify({ type: 'relatos', value: [relato], revision: 8, operationId }),
       });
     assert.equal((await salvarOperacao()).status, 200);
     assert.equal((await salvarOperacao()).status, 200);
@@ -301,7 +334,7 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
           body: JSON.stringify({
             type: 'relatos',
             value: [{ ...relato, descricao: 'Outro' }],
-            revision: 4,
+            revision: 8,
             operationId,
           }),
         })

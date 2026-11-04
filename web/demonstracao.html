@@ -114,6 +114,7 @@
         <h1 id="summary-title" tabindex="-1">Resumo do caso</h1><p id="summary-patient"></p>
         <p class="feedback">Prévia local com dados fictícios. Informações incompletas não representam um resumo clínico.</p>
         <div id="summary-content"></div>
+        <section aria-labelledby="summary-timeline-title"><h2 id="summary-timeline-title">Linha do tempo da prévia fictícia</h2><div id="summary-timeline"></div></section>
       </section>
 
       <section id="general-agenda-view" class="patients-layout" aria-labelledby="general-agenda-title" hidden>
@@ -161,12 +162,13 @@
         </section>
         <section aria-labelledby="task-form-title">
           <h2 id="task-form-title">Cadastrar tarefa</h2>
-          <p id="task-form-help">Todos os campos são obrigatórios, exceto ação realizada ou justificativa, obrigatória apenas para conclusão.</p>
+          <p id="task-form-help">Objetivo é opcional. Ação realizada ou justificativa é obrigatória apenas para conclusão; os demais campos são obrigatórios.</p>
           <form id="task-form" autocomplete="off" aria-describedby="task-form-help task-feedback">
             <div class="field"><label for="task-description">Tarefa</label><input id="task-description" type="text" maxlength="200" required></div>
             <div class="field"><label for="task-responsible">Responsável</label><input id="task-responsible" type="text" maxlength="200" required></div>
             <div class="field"><label for="task-deadline">Prazo</label><input id="task-deadline" type="date" required></div>
             <div class="field"><label for="task-priority">Prioridade</label><input id="task-priority" type="text" maxlength="200" required></div>
+            <div class="field"><label for="task-goal">Objetivo (opcional)</label><select id="task-goal"><option value="">Sem objetivo</option></select></div>
             <div class="field"><label for="task-status">Estado</label><select id="task-status"><option value="pendente">Pendente</option><option value="em_andamento">Em andamento</option><option value="concluida">Concluída</option><option value="cancelada">Cancelada</option></select></div>
             <div class="field"><label for="task-action">Ação realizada ou justificativa <span class="label-detail">obrigatória para conclusão</span></label><textarea id="task-action" rows="3"></textarea></div>
             <button class="button-primary" type="submit">Guardar tarefa nesta prévia</button>

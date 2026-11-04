@@ -6,6 +6,7 @@ import { objetivoSchema, type Objetivo } from '../packages/contracts/src/plano-c
 import { validarTarefaPlano } from '../packages/cadastro/src/tarefa-plano';
 import { montarRelatoTextual } from './relato-textual';
 import { montarResumoCasoLocal } from './resumo-caso-local';
+import { montarLinhaTempoLocal } from './linha-tempo-local';
 import { montarDocumentosLocais, type DocumentoLocal } from './documentos-locais';
 import {
   montarPainelPendenciasLocal,
@@ -80,6 +81,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     prioridade: string;
     estado: string;
     acaoOuJustificativa: string;
+    objetivoId?: string;
   };
   const tarefas = new Map<string, Tarefa[]>();
   const revisoes = new Map<string, number>();
@@ -91,7 +93,10 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const documentos = new Map<string, DocumentoLocal[]>();
   let salvandoDocumento = false;
   const formularioObjetivo = elemento<HTMLFormElement>('goal-form');
-  type ObjetivoLocal = Objetivo & { historico?: { objetivo: Objetivo; motivo: string }[] };
+  type ObjetivoLocal = Objetivo & {
+    id: string;
+    historico?: { objetivo: Objetivo; motivo: string }[];
+  };
   const objetivos = new Map<string, ObjetivoLocal[]>();
   let objetivoEmRevisao: number | undefined;
   let revisaoDesatualizada = false;
@@ -399,6 +404,11 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
           tarefas: tarefas.get(registro.id) ?? [],
           objetivos: objetivos.get(registro.id) ?? [],
           relatos: relatos.get(registro.id) ?? [],
+        });
+        montarLinhaTempoLocal(elemento('summary-timeline'), {
+          relatos: relatos.get(registro.id) ?? [],
+          tarefas: tarefas.get(registro.id) ?? [],
+          compromissos: agenda.get(registro.id) ?? [],
         });
         elemento('summary-patient').textContent = registro.name;
         exibirTela(telaResumo);
@@ -1013,13 +1023,14 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       return;
     }
     const itens = [...anteriores];
-    if (objetivoEmRevisao === undefined) itens.push(resultado.data);
+    if (objetivoEmRevisao === undefined) itens.push({ ...resultado.data, id: crypto.randomUUID() });
     else {
       const anterior = itens[objetivoEmRevisao];
       if (!anterior) return;
       const { historico = [], ...objetivoAnterior } = anterior;
       itens[objetivoEmRevisao] = {
         ...resultado.data,
+        id: anterior.id,
         historico: [...historico, { objetivo: objetivoAnterior, motivo }],
       };
     }
@@ -1074,12 +1085,27 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     lista.replaceChildren();
     const itens = selecionado ? (tarefas.get(selecionado) ?? []) : [];
     elemento('tasks-empty').hidden = itens.length > 0;
+    const metas = selecionado ? (objetivos.get(selecionado) ?? []) : [];
+    const preencherObjetivos = (select: HTMLSelectElement, id?: string) => {
+      select.replaceChildren(new Option('Sem objetivo', ''));
+      for (const meta of metas) select.add(new Option(meta.descricao, meta.id));
+      select.value = id ?? '';
+    };
+    preencherObjetivos(elemento<HTMLSelectElement>('task-goal'));
     for (const tarefa of itens) {
       const item = document.createElement('li');
       const titulo = document.createElement('h3');
       titulo.textContent = tarefa.descricao;
       const detalhes = document.createElement('p');
       detalhes.textContent = `Responsável: ${tarefa.responsavel} · Prazo: ${tarefa.prazo} · Prioridade: ${tarefa.prioridade} · Estado: ${rotulosEstado[tarefa.estado]}`;
+      const vinculo = document.createElement('p');
+      const mostrarObjetivo = () => {
+        vinculo.textContent =
+          tarefa.objetivoId === undefined
+            ? 'Objetivo: sem vínculo'
+            : `Objetivo: ${metas.find((meta) => meta.id === tarefa.objetivoId)?.descricao ?? 'indisponível'}`;
+      };
+      mostrarObjetivo();
       const acao = document.createElement('p');
       acao.textContent = tarefa.acaoOuJustificativa
         ? `Ação ou justificativa: ${tarefa.acaoOuJustificativa}`
@@ -1104,6 +1130,11 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         return input;
       });
       const [descricao, responsavel, prazo, prioridade] = entradas;
+      const rotuloObjetivo = document.createElement('label');
+      rotuloObjetivo.textContent = 'Objetivo (opcional)';
+      const objetivo = document.createElement('select');
+      preencherObjetivos(objetivo, tarefa.objetivoId);
+      rotuloObjetivo.append(objetivo);
       const rotuloEstado = document.createElement('label');
       rotuloEstado.textContent = 'Alterar estado';
       const estado = document.createElement('select');
@@ -1122,7 +1153,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       botao.textContent = 'Atualizar tarefa';
       const feedback = document.createElement('p');
       feedback.setAttribute('role', 'status');
-      form.append(rotuloEstado, rotuloAcao, botao, feedback);
+      form.append(rotuloEstado, rotuloObjetivo, rotuloAcao, botao, feedback);
       form.addEventListener('input', () => formulariosAlterados.add(form));
       form.addEventListener('change', () => formulariosAlterados.add(form));
       form.addEventListener('submit', async (evento) => {
@@ -1134,6 +1165,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
           prioridade: prioridade?.value.trim() ?? '',
           estado: estado.value,
           acaoOuJustificativa: campoAcao.value.trim(),
+          objetivoId: objetivo.value || undefined,
         };
         const resultado = validarTarefaPlano({
           ...dados,
@@ -1171,10 +1203,11 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         acao.textContent = tarefa.acaoOuJustificativa
           ? `Ação ou justificativa: ${tarefa.acaoOuJustificativa}`
           : '';
+        mostrarObjetivo();
         formulariosAlterados.delete(form);
         feedback.textContent = 'Tarefa fictícia salva nesta demonstração local.';
       });
-      item.append(titulo, detalhes, acao, form);
+      item.append(titulo, detalhes, vinculo, acao, form);
       lista.append(item);
     }
   };
@@ -1207,6 +1240,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       prioridade: prioridadeTarefa.value.trim(),
       estado: estadoTarefa.value,
       acaoOuJustificativa: acaoTarefa.value.trim(),
+      objetivoId: elemento<HTMLSelectElement>('task-goal').value || undefined,
     };
     const resultado = validarTarefaPlano({
       ...tarefa,
