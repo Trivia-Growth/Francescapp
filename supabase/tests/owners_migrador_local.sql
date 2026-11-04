@@ -73,12 +73,56 @@ do $$ begin if current_user <> 'migrador_owners_fixture' or session_user <> 'con
 do $$ begin if current_user <> 'migrador_owners_fixture' or session_user <> 'conexao_migrador_fixture' then raise exception 'Executor não restaurado'; end if; end $$;
 \ir ../migrations/20261106190000_wrappers_privados.sql
 do $$ begin if current_user <> 'migrador_owners_fixture' or session_user <> 'conexao_migrador_fixture' then raise exception 'Executor não restaurado'; end if; end $$;
+-- Fixtures mínimas para migrar owners de anamnese com executor diferente da conexão.
+create schema bloqueios_auth;
+create function bloqueios_auth.travar(uuid,uuid) returns boolean language sql as $$ select true $$;
+create function auth_privado.jwt() returns jsonb language sql as $$ select '{}'::jsonb $$;
+create function auth_privado.identidades() returns table(user_id uuid,provider text,provider_id text,identity_data jsonb) language sql as $$ select null::uuid,null::text,null::text,null::jsonb where false $$;
+create function auth_privado.sessoes() returns table(id uuid,user_id uuid,not_after timestamptz) language sql as $$ select null::uuid,null::uuid,null::timestamptz where false $$;
+create table cadastro.anamnese_versao(paciente_id uuid,criado_por_usuario_id uuid);
+alter table cadastro.anamnese_versao enable row level security;
+alter table operacao.requisicao add column operacao text;
+grant ffcmapp_carteira_owner to current_user with inherit false, set true;
+grant usage,create on schema api to ffcmapp_carteira_owner;
+grant select,insert on cadastro.anamnese_versao,operacao.requisicao to ffcmapp_carteira_owner;
+grant update (versao) on cadastro.paciente to ffcmapp_carteira_owner;
+create policy anamnese_selecao on cadastro.anamnese_versao for select to ffcmapp_carteira_owner using (true);
+create policy anamnese_insercao on cadastro.anamnese_versao for insert to ffcmapp_carteira_owner with check (true);
+create policy anamnese_paciente_lock on cadastro.paciente for update to ffcmapp_carteira_owner using (true) with check (false);
+create policy anamnese_requisicao_selecao on operacao.requisicao for select to ffcmapp_carteira_owner using (true);
+create policy anamnese_requisicao_insercao on operacao.requisicao for insert to ffcmapp_carteira_owner with check (true);
+set role ffcmapp_carteira_owner;
+create function api.anamnese_operacao_privada(jsonb) returns jsonb language sql as $$ select $1 $$;
+create function api.anamnese_privada(jsonb) returns jsonb language sql as $$ select $1 $$;
+revoke all on function api.anamnese_operacao_privada(jsonb),api.anamnese_privada(jsonb) from public,anon,authenticated,service_role;
+reset role;
+set role migrador_owners_fixture;
+revoke create on schema api from ffcmapp_carteira_owner;
+revoke ffcmapp_carteira_owner from current_user;
+\ir ../migrations/20261107100000_restringir_rls_carteira.sql
+\ir ../migrations/20261107110000_isolar_owner_anamnese.sql
+do $$ begin
+ if current_user <> 'migrador_owners_fixture' or session_user <> 'conexao_migrador_fixture' then raise exception 'Executor não restaurado'; end if;
+ if (select rolname from pg_roles where oid=(select proowner from pg_proc where oid='api.anamnese_privada(jsonb)'::regprocedure)) <> 'ffcmapp_anamnese_owner'
+  or (select rolname from pg_roles where oid=(select proowner from pg_proc where oid='api.anamnese_operacao_privada(jsonb)'::regprocedure)) <> 'ffcmapp_anamnese_owner'
+  or not has_function_privilege('ffcmapp_anamnese_owner','identidade.verificar_assinatura_atestado(text,text,jsonb,jsonb,text)','execute')
+  or not has_function_privilege('ffcmapp_anamnese_owner','bloqueios_auth.travar(uuid,uuid)','execute')
+  or not has_column_privilege('ffcmapp_anamnese_owner','cadastro.paciente','id','SELECT')
+  or has_column_privilege('ffcmapp_anamnese_owner','cadastro.paciente','nome_cifrado','SELECT')
+  or has_table_privilege('ffcmapp_carteira_owner','cadastro.anamnese_versao','SELECT')
+  or pg_has_role('ffcmapp_carteira_owner','ffcmapp_anamnese_owner','MEMBER')
+  or has_schema_privilege('ffcmapp_anamnese_owner','api','CREATE')
+  or has_function_privilege('authenticated','api.anamnese_privada(jsonb)','execute') then
+  raise exception 'GRANTS_OWNER_ANAMNESE_INCORRETOS';
+ end if;
+end $$;
+
 
 do $$
 declare dono text;
 begin
   foreach dono in array array['ffcmapp_atestado_vault_owner','ffcmapp_atestado_verificador_owner',
-    'ffcmapp_carteira_owner','ffcmapp_api_cadastro_owner','ffcmapp_api_carteira_owner'] loop
+    'ffcmapp_carteira_owner','ffcmapp_api_cadastro_owner','ffcmapp_api_carteira_owner','ffcmapp_anamnese_owner'] loop
     if (select count(*) from pg_auth_members
         where roleid = dono::regrole and member = current_user::regrole
           and admin_option and not inherit_option and not set_option) <> 1

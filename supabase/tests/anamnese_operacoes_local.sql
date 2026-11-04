@@ -3,6 +3,8 @@
 \ir ../migrations/20261106220000_anamnese_versoes_privadas.sql
 \ir ../migrations/20261106230000_anamnese_operacoes_privadas.sql
 \ir ../migrations/20261107000000_anamnese_idempotencia_privada.sql
+\ir ../migrations/20261107100000_restringir_rls_carteira.sql
+\ir ../migrations/20261107110000_isolar_owner_anamnese.sql
 
 do $$
 declare papel text;
@@ -14,6 +16,11 @@ begin
    raise exception 'ACESSO_INDEVIDO: %', papel;
   end if;
  end loop;
+ if pg_has_role('ffcmapp_carteira_owner','ffcmapp_anamnese_owner','MEMBER')
+  or has_column_privilege('ffcmapp_anamnese_owner','cadastro.paciente','nome_cifrado','SELECT')
+  or has_table_privilege('ffcmapp_carteira_owner','cadastro.anamnese_versao','SELECT') then
+  raise exception 'OWNER_NAO_ISOLADO';
+ end if;
  begin
   perform api.anamnese_privada('{}'::jsonb);
   raise exception 'ENTRADA_INVALIDA_ACEITA';
@@ -50,6 +57,9 @@ do $$
 declare ator uuid:='10000000-0000-4000-8000-000000000002'; sessao uuid:='20000000-0000-4000-8000-000000000002'; paciente uuid:='40000000-0000-4000-8000-000000000001'; registro uuid:=gen_random_uuid(); req uuid:=gen_random_uuid(); e jsonb; t jsonb; r jsonb;
 begin
  perform set_config('request.jwt.claims',jsonb_build_object('sub',ator,'session_id',sessao,'amr',jsonb_build_array(jsonb_build_object('method','oauth')))::text,true);
+ e:=jsonb_build_object('request_id',gen_random_uuid(),'limite',10);
+ r:=api.listar_pacientes(public.assinar_anamnese_fixture(e,'api.listar_pacientes',ator,sessao));
+ if r->>'ok' is distinct from 'true' or jsonb_array_length(r#>'{dados,itens}')<>0 then raise exception 'CARTEIRA_SEM_VINCULO: %',r; end if;
  e:=jsonb_build_object('request_id',req,'paciente_id',paciente,'registro_id',registro,'versao_esperada',0,
   'chave_idempotencia','chave-fixture','digest_idempotencia',repeat('a',43),
   'conteudo',jsonb_build_object('formato',1,'key_id','teste','nonce',repeat('a',16),'ciphertext','YQ','tag',repeat('a',22)),

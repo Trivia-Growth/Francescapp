@@ -1,5 +1,6 @@
 \set ON_ERROR_STOP on
 \ir cadeia_migrations_local.sql
+\ir ../migrations/20261107100000_restringir_rls_carteira.sql
 -- Os grants e dados abaixo existem somente no cluster descartável.
 insert into vault.segredos_fixture values ('ffcmapp.atestado.teste',encode(decode(repeat('42',32),'hex'),'base64'));
 insert into identidade.referencias_atestado_vault(referencia) values ('ffcmapp.atestado.teste');
@@ -43,13 +44,31 @@ begin
  execute 'set local role ffcm_operacoes_fixture'; r:=api.listar_pacientes(t);
  if r->>'ok' is distinct from 'true' or jsonb_typeof(r#>'{dados,itens}') is distinct from 'array' or (r#>'{dados,itens}' @> jsonb_build_array(jsonb_build_object('paciente_id',paciente))) is distinct from true then raise exception 'LISTA: %',r; end if;
  execute 'reset role';
+ execute 'set local role ffcmapp_carteira_owner';
+ if not exists(select 1 from cadastro.paciente p where p.id=paciente) then raise exception 'RLS_ADMIN'; end if;
+ execute 'reset role';
  ator:='10000000-0000-4000-8000-000000000002'; sessao:='20000000-0000-4000-8000-000000000002';
  perform set_config('request.jwt.claims',jsonb_build_object('sub',ator,'session_id',sessao,'amr',jsonb_build_array(jsonb_build_object('method','oauth')))::text,true);
  t:=pg_temp.assinar(e,'api.listar_pacientes',ator,sessao);
+ execute 'set local role ffcmapp_carteira_owner';
+ if exists(select 1 from cadastro.paciente p where p.id=paciente) then raise exception 'RLS_SEM_VINCULO'; end if;
+ execute 'reset role';
  execute 'set local role ffcm_operacoes_fixture'; r:=api.listar_pacientes(t);
  if r->>'ok' is distinct from 'true' or jsonb_typeof(r#>'{dados,itens}') is distinct from 'array' or jsonb_array_length(r#>'{dados,itens}') is distinct from 0 then raise exception 'OUTRO_PERFIL: %',r; end if;
  execute 'reset role';
+ insert into cadastro.acesso_paciente(id,paciente_id,usuario_id,concedido_por_usuario_id,motivo_concessao_cifrado) values (gen_random_uuid(),paciente,ator,'10000000-0000-4000-8000-000000000001','{"formato":1,"key_id":"fixture","nonce":"n","ciphertext":"c","tag":"t"}');
+ execute 'set local role ffcmapp_carteira_owner';
+ if not exists(select 1 from cadastro.paciente p where p.id=paciente) then raise exception 'RLS_VINCULO'; end if;
+ execute 'reset role';
+ update cadastro.acesso_paciente set revogada_em=clock_timestamp(),revogado_por_usuario_id='10000000-0000-4000-8000-000000000001',motivo_revogacao_cifrado=motivo_concessao_cifrado where paciente_id=paciente and usuario_id=ator;
+ execute 'set local role ffcmapp_carteira_owner';
+ if exists(select 1 from cadastro.paciente p where p.id=paciente) then raise exception 'RLS_VINCULO_REVOGADO'; end if;
+ execute 'reset role';
+ insert into cadastro.acesso_paciente(id,paciente_id,usuario_id,concedido_por_usuario_id,motivo_concessao_cifrado) values (gen_random_uuid(),paciente,ator,'10000000-0000-4000-8000-000000000001','{"formato":1,"key_id":"fixture","nonce":"n","ciphertext":"c","tag":"t"}');
  update identidade.sessao set encerrada_em=clock_timestamp() where session_id=sessao;
+ execute 'set local role ffcmapp_carteira_owner';
+ if exists(select 1 from cadastro.paciente p where p.id=paciente) then raise exception 'RLS_SESSAO_ENCERRADA'; end if;
+ execute 'reset role';
  execute 'set local role ffcm_operacoes_fixture'; r:=api.listar_pacientes(t);
  if r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'REVOGACAO: %',r; end if;
  execute 'reset role';

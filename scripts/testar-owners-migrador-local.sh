@@ -23,7 +23,14 @@ rtk proxy pg_ctl -D "$temporario/data" -t 30 -o "-k $temporario -p 5432 -c liste
 iniciado=1
 # O papel padrão da conexão difere do executor após SET ROLE NONE.
 rtk proxy psql -X -h "$temporario" -p 5432 -d postgres -v ON_ERROR_STOP=1 -q -c "create role papel_padrao_fixture nologin; do \$\$ begin execute format('alter role %I set role papel_padrao_fixture', current_user); end \$\$;"
-rtk proxy psql -X -h "$temporario" -p 5432 -d postgres -v ON_ERROR_STOP=1 -q -c 'set role none' -f "$projeto/supabase/tests/owners_migrador_local.sql"
+if ! rtk proxy psql -X -h "$temporario" -p 5432 -d postgres -v ON_ERROR_STOP=1 -q -c 'set role none' -f "$projeto/supabase/tests/owners_migrador_local.sql" 2>"$temporario/owners.log"; then
+ rtk proxy cat "$temporario/owners.log" >&2
+ exit 1
+fi
+if [ -s "$temporario/owners.log" ]; then
+ rtk proxy cat "$temporario/owners.log" >&2
+ exit 1
+fi
 rtk proxy psql -X -h "$temporario" -p 5432 -d postgres -v ON_ERROR_STOP=1 -q -c 'set role none' -c "do \$\$ begin execute format('alter role %I reset role', current_user); end \$\$;"
 # Interrompe a primeira migration depois do grant, dentro de uma transação.
 rtk proxy psql -X -h "$temporario" -p 5432 -d postgres -v ON_ERROR_STOP=1 -q -c 'create role migrador_falha_fixture login nosuperuser createrole'
