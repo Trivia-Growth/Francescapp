@@ -7,6 +7,8 @@ import { ClienteFFCM, exigeNovoAcesso, FalhaApi, mensagemFalha } from './api.js'
 import { lerCadastro } from './cadastro.js';
 import { montarAnamnese } from './anamnese.js';
 import { criarCicloCadastro } from './ciclo-cadastro.js';
+import { montarPlanoCuidado } from './plano-cuidado.js';
+import { criarServicoPlanoHttp } from './servico-plano-http.js';
 
 function elemento<T extends HTMLElement>(id: string): T {
   const encontrado = document.getElementById(id);
@@ -109,6 +111,32 @@ const anamneseTitulo = elemento('anamnese-paciente');
 const fecharAnamneseBotao = elemento<HTMLButtonElement>('fechar-anamnese');
 let desmontarAnamnese: (() => void) | null = null;
 let anamnesePendente = false;
+const planoPanel = elemento('plano-panel');
+const planoRaiz = elemento('plano-raiz');
+const planoTitulo = elemento('plano-paciente');
+const fecharPlanoBotao = elemento<HTMLButtonElement>('fechar-plano');
+let desmontarPlano: (() => void) | null = null;
+let planoPendente = false;
+let planoAberto: { pacienteId: string; servico: ReturnType<typeof criarServicoPlanoHttp> } | null =
+  null;
+
+function confirmarDescartePlano(): boolean {
+  return (
+    !planoPendente ||
+    window.confirm(
+      'Há alterações do plano não confirmadas. Ao sair, elas serão descartadas e um salvamento incerto não poderá ser confirmado nesta tela. Deseja continuar?',
+    )
+  );
+}
+
+function fecharPlano(): void {
+  desmontarPlano?.();
+  desmontarPlano = null;
+  planoAberto = null;
+  planoPendente = false;
+  planoPanel.hidden = true;
+  planoTitulo.textContent = '';
+}
 
 function confirmarDescarteAnamnese(): boolean {
   return (
@@ -251,6 +279,7 @@ function aviso(id: string, texto: string, tom: 'error' | 'success' | 'neutral' =
 
 function apagarPacientes(): void {
   fecharAnamnese();
+  fecharPlano();
   tableBody.replaceChildren();
   table.hidden = true;
   listEmpty.hidden = true;
@@ -314,8 +343,11 @@ function acessoPerdido(erro: unknown): boolean {
   const alertaCadastro = cadastroPendente
     ? ' Um cadastro ficou sem confirmação. Confirme a situação por canal autorizado antes de cadastrá-lo novamente.'
     : '';
+  const alertaPlano = planoPendente
+    ? ' O rascunho do plano foi descartado. Confirme a situação antes de repetir um salvamento.'
+    : '';
   mostrarAcesso(
-    `Seu acesso precisa ser validado novamente. Entre com uma conta autorizada.${alertaCadastro}`,
+    `Seu acesso precisa ser validado novamente. Entre com uma conta autorizada.${alertaCadastro}${alertaPlano}`,
     'error',
   );
   return true;
@@ -334,8 +366,10 @@ function aplicarSessao(atual: Sessao): void {
     (sessao.session_id !== atual.session_id ||
       sessao.usuario.id !== atual.usuario.id ||
       atual.usuario.perfil === 'familia')
-  )
+  ) {
     fecharAnamnese();
+    fecharPlano();
+  }
   sessao = atual;
   elemento('anamnese-coluna').hidden = atual.usuario.perfil === 'familia';
   const podeCadastrar =
@@ -450,7 +484,13 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
     abrir.textContent = 'Abrir anamnese';
     abrir.setAttribute('aria-label', `Abrir anamnese de ${paciente.nome}`);
     abrir.addEventListener('click', () => {
-      if (!sessao || sessao.usuario.perfil === 'familia' || !anamnesePanel.hidden) return;
+      if (
+        !sessao ||
+        sessao.usuario.perfil === 'familia' ||
+        !anamnesePanel.hidden ||
+        !planoPanel.hidden
+      )
+        return;
       anamneseTitulo.textContent = paciente.nome;
       anamnesePanel.hidden = false;
       desmontarAnamnese = montarAnamnese(
@@ -464,7 +504,37 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
       );
       elemento('anamnese-title').focus();
     });
-    acao.append(abrir);
+    const abrirPlano = document.createElement('button');
+    abrirPlano.type = 'button';
+    abrirPlano.className = 'button-secondary';
+    abrirPlano.textContent = 'Abrir plano de cuidado';
+    abrirPlano.setAttribute('aria-label', `Abrir plano de cuidado de ${paciente.nome}`);
+    abrirPlano.addEventListener('click', () => {
+      if (
+        !sessao ||
+        sessao.usuario.perfil === 'familia' ||
+        !anamnesePanel.hidden ||
+        !planoPanel.hidden
+      )
+        return;
+      planoTitulo.textContent = paciente.nome;
+      planoPanel.hidden = false;
+      const servico = criarServicoPlanoHttp(() =>
+        sessao ? { usuario_id: sessao.usuario.id, session_id: sessao.session_id } : null,
+      );
+      planoAberto = { pacienteId: paciente.id, servico };
+      desmontarPlano = montarPlanoCuidado(
+        planoRaiz,
+        paciente.id,
+        servico,
+        acessoPerdido,
+        (pendente) => {
+          planoPendente = pendente;
+        },
+      );
+      elemento('plano-title').focus();
+    });
+    acao.append(abrir, abrirPlano);
     linha.append(acao);
   }
   return linha;
@@ -671,7 +741,7 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
 }
 
 async function sair(): Promise<void> {
-  if (logoutOcupado || !confirmarDescarteAnamnese()) return;
+  if (logoutOcupado || !confirmarDescarteAnamnese() || !confirmarDescartePlano()) return;
   logoutOcupado = true;
   ciclo = null;
   cadastroLiberado = false;
@@ -732,6 +802,27 @@ async function revalidarAcesso(): Promise<void> {
     const atual = await api.consultarSessao();
     if (versao !== revisao) return;
     aplicarSessao(atual);
+    const plano = planoAberto;
+    if (plano) {
+      try {
+        await plano.servico.consultarObjetivos(plano.pacienteId);
+      } catch (erro) {
+        if (versao !== revisao) return;
+        if (acessoPerdido(erro)) return;
+        if (planoAberto === plano) {
+          const rascunhoDescartado = planoPendente;
+          fecharPlano();
+          aviso(
+            'workspace-feedback',
+            rascunhoDescartado
+              ? 'Não foi possível confirmar acesso ao plano. O rascunho foi descartado; confirme a situação antes de repetir um salvamento.'
+              : 'Não foi possível confirmar acesso ao plano. Abra o plano novamente quando o serviço estiver disponível.',
+            'error',
+          );
+        }
+      }
+    }
+    if (versao !== revisao) return;
     await carregarPacientes();
     if (versao === revisao && sessao && !document.hidden && !revalidacaoPendente) {
       revalidacaoStatus.hidden = true;
@@ -799,6 +890,11 @@ fecharAnamneseBotao.addEventListener('click', () => {
   fecharAnamnese();
   elemento('patients-title').focus();
 });
+fecharPlanoBotao.addEventListener('click', () => {
+  if (!confirmarDescartePlano()) return;
+  fecharPlano();
+  elemento('patients-title').focus();
+});
 newPatientLink.addEventListener('click', (evento) => {
   evento.preventDefault();
   elemento('create-title').focus();
@@ -831,7 +927,7 @@ document.addEventListener('visibilitychange', () => {
   void revalidarAcesso();
 });
 window.addEventListener('beforeunload', (evento) => {
-  if (!cadastroPendente && !cadastroEmRevalidacao && !anamnesePendente) return;
+  if (!cadastroPendente && !cadastroEmRevalidacao && !anamnesePendente && !planoPendente) return;
   // Aviso é apenas mitigação: o navegador pode ignorá-lo e não há recuperação
   // após fechamento sem reconciliação autorizada no servidor.
   evento.preventDefault();
