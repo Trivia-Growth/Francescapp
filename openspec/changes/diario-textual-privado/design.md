@@ -14,6 +14,7 @@ O contrato de conteúdo já valida FR-008. `cadastro.acesso_paciente` representa
 
 - Reutilizar vínculo existente, em vez de duplicar identidade por parentesco. A existência de vínculo não substitui autenticação nem audiência.
 - Armazenar envelope cifrado com identificadores de paciente e autor; conteúdo e data do acontecimento ficam dentro do envelope. O formato segue cadastro existente. RLS forçada e ausência de políticas e privilégios de aplicação bloqueiam acesso, inclusive direto. Papel proprietário e superusuários exigem proteção operacional própria.
+- A cifra autenticada existente aceita AAD específico que vincula envelope a paciente, autor, rascunho e versão. A preparação não cria operação de escrita nem garante autorização.
 - Não fornecer RPC ou política permissiva enquanto sessão familiar e prova de revogação não existirem. A estrutura é preparação, não autorização ou jornada.
 
 ## Risks / Trade-offs

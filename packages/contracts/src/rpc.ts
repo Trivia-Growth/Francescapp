@@ -80,11 +80,24 @@ const metadadosAadPlanoSchema = z
   })
   .strict();
 
+const metadadosAadDiarioSchema = z
+  .object({
+    tabela: z.literal('cadastro.diario_rascunho_textual'),
+    paciente_id: uuidSchema,
+    autor_usuario_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
 export const metadadosAadSchema = z.union([
   metadadosAadCamposSchema,
   metadadosAadSessaoSchema,
   metadadosAadAnamneseSchema,
   metadadosAadPlanoSchema,
+  metadadosAadDiarioSchema,
 ]);
 
 export const dadosAtestadoSchema = z
