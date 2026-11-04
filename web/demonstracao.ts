@@ -9,6 +9,7 @@ import { montarResumoCasoLocal } from './resumo-caso-local';
 import { montarLinhaTempoLocal } from './linha-tempo-local';
 import { montarEncaminhamentosLocais, type EncaminhamentoLocal } from './encaminhamentos-local';
 import { montarOrientacoesLocais, type OrientacaoLocal } from './orientacoes-local';
+import { montarEvolucoesLocais, type EvolucaoLocal } from './evolucoes-locais';
 import { montarDocumentosLocais, type DocumentoLocal } from './documentos-locais';
 import {
   montarPainelPendenciasLocal,
@@ -94,6 +95,9 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const telaDocumentos = elemento('documents-view');
   const telaEncaminhamentos = elemento('referrals-view');
   const telaOrientacoes = elemento('guidance-view');
+  const telaEvolucoes = elemento('evolutions-view');
+  const evolucoes = new Map<string, EvolucaoLocal[]>();
+  let salvandoEvolucao = false;
   const orientacoes = new Map<string, OrientacaoLocal[]>();
   let salvandoOrientacao = false;
   const encaminhamentos = new Map<string, EncaminhamentoLocal[]>();
@@ -156,6 +160,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       telaDocumentos,
       telaEncaminhamentos,
       telaOrientacoes,
+      telaEvolucoes,
     ])
       item.hidden = item !== tela;
   };
@@ -254,6 +259,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       documentos?: DocumentoLocal[];
       encaminhamentos?: EncaminhamentoLocal[];
       orientacoes?: OrientacaoLocal[];
+      evolucoes?: EvolucaoLocal[];
     };
     if (geracao !== undefined && geracao !== geracaoNavegacao) return;
     revisoes.set(id, previa.revision);
@@ -266,6 +272,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     documentos.set(id, previa.documentos ?? []);
     encaminhamentos.set(id, previa.encaminhamentos ?? []);
     orientacoes.set(id, previa.orientacoes ?? []);
+    evolucoes.set(id, previa.evolucoes ?? []);
   };
   const salvarPrevia = async (
     id: string,
@@ -277,7 +284,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       | 'agenda'
       | 'documentos'
       | 'encaminhamentos'
-      | 'orientacoes',
+      | 'orientacoes'
+      | 'evolucoes',
     value:
       | Anamnese
       | Tarefa[]
@@ -286,7 +294,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       | Compromisso[]
       | DocumentoLocal[]
       | EncaminhamentoLocal[]
-      | OrientacaoLocal[],
+      | OrientacaoLocal[]
+      | EvolucaoLocal[],
   ) => {
     const resposta = await requisitar(`/patients/${id}/preview`, {
       method: 'PUT',
@@ -493,6 +502,43 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         exibirTela(telaOrientacoes);
         elemento('guidance-title').focus();
       });
+      const abrirEvolucoes = document.createElement('button');
+      abrirEvolucoes.type = 'button';
+      abrirEvolucoes.className = 'button-secondary';
+      abrirEvolucoes.textContent = 'Abrir evoluções';
+      abrirEvolucoes.setAttribute('aria-label', `Abrir evoluções de ${registro.name}`);
+      abrirEvolucoes.addEventListener('click', async () => {
+        const geracao = ++geracaoNavegacao;
+        try {
+          await carregarPrevia(registro.id, geracao);
+        } catch {
+          if (geracao === geracaoNavegacao)
+            elemento('workspace-feedback').textContent =
+              'Não foi possível carregar a prévia. Tente novamente.';
+          return;
+        }
+        if (geracao !== geracaoNavegacao) return;
+        selecionado = registro.id;
+        montarEvolucoesLocais(elemento('evolutions-content'), {
+          evolucoes: evolucoes.get(registro.id) ?? [],
+          aoSalvar: async (atualizadas) => {
+            salvandoEvolucao = true;
+            try {
+              await salvarPrevia(registro.id, 'evolucoes', atualizadas);
+              evolucoes.set(registro.id, atualizadas);
+              const form = elemento('evolutions-content').querySelector('form');
+              if (form) formulariosAlterados.delete(form);
+            } finally {
+              salvandoEvolucao = false;
+            }
+          },
+        });
+        const form = elemento('evolutions-content').querySelector('form');
+        form?.addEventListener('input', () => formulariosAlterados.add(form));
+        elemento('evolutions-patient').textContent = registro.name;
+        exibirTela(telaEvolucoes);
+        elemento('evolutions-title').focus();
+      });
       const abrirResumo = document.createElement('button');
       abrirResumo.type = 'button';
       abrirResumo.className = 'button-secondary';
@@ -522,6 +568,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
           relatos: relatos.get(registro.id) ?? [],
           tarefas: tarefas.get(registro.id) ?? [],
           compromissos: agenda.get(registro.id) ?? [],
+          evolucoes: evolucoes.get(registro.id) ?? [],
         });
         elemento('summary-patient').textContent = registro.name;
         exibirTela(telaResumo);
@@ -712,6 +759,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
           document.createTextNode(' '),
           abrirOrientacoes,
           document.createTextNode(' '),
+          abrirEvolucoes,
+          document.createTextNode(' '),
           abrirAgenda,
           document.createTextNode(' '),
           abrirTarefas,
@@ -848,6 +897,19 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     geracaoNavegacao++;
     exibirTela(pacientes);
     elemento('open-general-agenda').focus();
+  });
+  elemento('evolutions-back').addEventListener('click', () => {
+    if (salvandoEvolucao) return;
+    const form = elemento('evolutions-content').querySelector('form');
+    if (
+      form &&
+      formulariosAlterados.has(form) &&
+      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
+    )
+      return;
+    if (form) formulariosAlterados.delete(form);
+    exibirTela(pacientes);
+    elemento('patients-title').focus();
   });
   elemento('guidance-back').addEventListener('click', () => {
     if (salvandoOrientacao) return;

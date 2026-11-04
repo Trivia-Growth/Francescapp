@@ -1144,3 +1144,53 @@ it('guarda orientações por paciente e recupera ao reabrir', async () => {
     ),
   );
 });
+
+it('guarda evoluções fictícias isoladas por paciente e recupera ao reabrir', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  servidorFicticio();
+  await import('./demonstracao.js');
+  const abrir = (nome: string) =>
+    (
+      document.querySelector(`[aria-label="Abrir evoluções de ${nome}"]`) as HTMLButtonElement
+    ).click();
+  await vi.waitFor(() =>
+    expect(
+      document.querySelector('[aria-label="Abrir evoluções de Paciente Exemplo Um"]'),
+    ).not.toBeNull(),
+  );
+  abrir('Paciente Exemplo Um');
+  await vi.waitFor(() => expect(document.querySelector('#evolutions-content form')).not.toBeNull());
+  (document.querySelector('#evolutions-content textarea') as HTMLTextAreaElement).value =
+    'Registro único de evolução';
+  const campos = document.querySelectorAll<HTMLInputElement>('#evolutions-content input');
+  campos[0].value = '2026-11-04';
+  campos[1].value = 'Equipe fictícia';
+  campos[2].value = 'Área fictícia';
+  document
+    .querySelector('#evolutions-content form')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(document.getElementById('evolutions-content')?.textContent).toContain(
+      'Registro único de evolução',
+    ),
+  );
+  (document.getElementById('evolutions-back') as HTMLButtonElement).click();
+  abrir('Paciente Exemplo Dois');
+  await vi.waitFor(() =>
+    expect(document.getElementById('evolutions-patient')?.textContent).toBe(
+      'Paciente Exemplo Dois',
+    ),
+  );
+  expect(document.getElementById('evolutions-content')?.textContent).not.toContain(
+    'Registro único de evolução',
+  );
+  (document.getElementById('evolutions-back') as HTMLButtonElement).click();
+  abrir('Paciente Exemplo Um');
+  await vi.waitFor(() =>
+    expect(document.getElementById('evolutions-content')?.textContent).toContain(
+      'Registro único de evolução',
+    ),
+  );
+});

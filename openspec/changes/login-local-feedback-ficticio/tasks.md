@@ -1,5 +1,7 @@
 # Tasks
 
+Prévia local registra evoluções fictícias por paciente e as mostra na cronologia. Rascunho e publicação são simulações, sem distribuição ou autorização clínica. Testes locais cobrem gravação e reabertura; a integração de produção permanece pendente.
+
 Prévia local permite registrar orientações fictícias por paciente com autor, destinatários e data, mantendo versões anteriores quando substituídas. O resumo apresenta orientações e encaminhamentos. Testes focados cobrem gravação e reabertura; isso não representa aprovação clínica ou integração de produção.
 
 Encaminhamentos fictícios por paciente permitem registrar destino, motivo, responsável e estado, além de filtrar retornos pendentes. Testes locais cobrem persistência e interação; rascunhos são preservados em caso de descarte recusado ou falha. A prévia não representa comunicação externa ou autorização de produção.

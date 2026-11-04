@@ -1,4 +1,11 @@
 export type DadosLinhaTempoLocal = {
+  evolucoes?: readonly {
+    data: string;
+    texto: string;
+    autor: string;
+    area: string;
+    estado: 'rascunho' | 'publicada';
+  }[];
   relatos: readonly { dataAcontecimento: string; descricao: string }[];
   tarefas: readonly { prazo: string; descricao: string; estado: string }[];
   compromissos: readonly { data: string; hora: string; descricao: string; estado: string }[];
@@ -7,6 +14,10 @@ export type DadosLinhaTempoLocal = {
 /** Exibe somente datas fornecidas pela prévia; prazo não representa data de realização. */
 export function montarLinhaTempoLocal(raiz: HTMLElement, dados: DadosLinhaTempoLocal): void {
   const eventos = [
+    ...(dados.evolucoes ?? []).map((item) => ({
+      data: item.data,
+      texto: `Evolução · Data: ${item.data} · ${item.texto} · ${item.autor} · ${item.area} · ${item.estado}`,
+    })),
     ...dados.relatos.map((item) => ({
       data: item.dataAcontecimento,
       texto: `Relato · Data do acontecimento: ${item.dataAcontecimento} · ${item.descricao}`,

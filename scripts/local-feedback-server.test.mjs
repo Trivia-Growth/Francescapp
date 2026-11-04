@@ -517,6 +517,31 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
       (await (await request(guidancePath, { headers: { cookie } })).json()).orientacoes,
       [guidance],
     );
+    const evolution = {
+      id: '12345678-1234-4234-8234-123456789abc',
+      texto: 'Evolução fictícia',
+      data: '2026-11-04',
+      autor: 'Profissional fictício',
+      area: 'Área fictícia',
+      estado: 'rascunho',
+    };
+    const saveEvolution = (value, revision) =>
+      request(guidancePath, {
+        method: 'PUT',
+        headers: auth,
+        body: JSON.stringify({ type: 'evolucoes', value, revision }),
+      });
+    assert.equal((await saveEvolution([{ ...evolution, data: '2026-02-30' }], 1)).status, 400);
+    assert.equal((await saveEvolution([evolution], 1)).status, 200);
+    assert.equal((await saveEvolution([], 1)).status, 409);
+    assert.equal(
+      (await (await request(previewPath, { headers: { cookie } })).json()).evolucoes,
+      undefined,
+    );
+    assert.deepEqual(
+      (await (await request(guidancePath, { headers: { cookie } })).json()).orientacoes,
+      [guidance],
+    );
     const logout = await request('/logout', { method: 'POST', headers: auth, body: '{}' });
     assert.equal(logout.status, 204);
     assert.match(logout.headers.get('set-cookie'), /Path=\/api\/local-feedback(?:;|$)/);
@@ -562,6 +587,10 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
       (await (await request(previewPath, { headers: { cookie: nextCookie } })).json())
         .encaminhamentos,
       encaminhamentos,
+    );
+    assert.deepEqual(
+      (await (await request(guidancePath, { headers: { cookie: nextCookie } })).json()).evolucoes,
+      [evolution],
     );
     await close();
     const invalidDirectory = join(directory, 'arquivo');
