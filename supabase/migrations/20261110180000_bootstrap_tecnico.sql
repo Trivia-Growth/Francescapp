@@ -30,13 +30,30 @@ create policy bootstrap_excecao_select on identidade.excecao_tecnica for select 
 create policy bootstrap_excecao_insert on identidade.excecao_tecnica for insert to ffcmapp_bootstrap_owner with check (true);
 create policy bootstrap_auditoria_insert on auditoria.evento for insert to ffcmapp_bootstrap_owner with check (acao='bootstrap.tecnico' and operador_restrito is not null and ator_usuario_id is null);
 select set_config('ffcmapp.bootstrap_migrador',current_user,false);
-grant ffcmapp_operador_resolver_owner to current_user with inherit false, set true;
+select set_config('ffcmapp.bootstrap_operador_tinha_set',pg_has_role(current_user,'ffcmapp_operador_resolver_owner','SET')::text,false);
+do $$ begin
+ if current_setting('ffcmapp.bootstrap_operador_tinha_set')='false' then
+  if exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member join pg_roles g on g.oid=m.grantor where r.rolname='ffcmapp_operador_resolver_owner' and u.rolname=current_user and g.rolname=current_user) then
+   raise exception 'MEMBERSHIP_CONCEDENTE_EXISTENTE_SEM_SET';
+  end if;
+  execute format('grant ffcmapp_operador_resolver_owner to %I with inherit false, set true granted by %I',current_user,current_user);
+ end if;
+end $$;
 set role ffcmapp_operador_resolver_owner;
 grant execute on function auditoria.operador_tecnico_atual() to ffcmapp_bootstrap_owner;
 select set_config('role',current_setting('ffcmapp.bootstrap_migrador'),false);
-revoke ffcmapp_operador_resolver_owner from current_user;
-grant ffcmapp_bootstrap_owner to current_user with inherit false, set true;
-grant create on schema identidade to ffcmapp_bootstrap_owner;
+do $$ begin if current_setting('ffcmapp.bootstrap_operador_tinha_set')='false' then execute format('revoke ffcmapp_operador_resolver_owner from %I granted by %I',current_user,current_user); end if; end $$;
+select set_config('ffcmapp.bootstrap_owner_tinha_set',pg_has_role(current_user,'ffcmapp_bootstrap_owner','SET')::text,false);
+do $$ begin
+ if current_setting('ffcmapp.bootstrap_owner_tinha_set')='false' then
+  if exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member join pg_roles g on g.oid=m.grantor where r.rolname='ffcmapp_bootstrap_owner' and u.rolname=current_user and g.rolname=current_user) then
+   raise exception 'MEMBERSHIP_CONCEDENTE_EXISTENTE_SEM_SET';
+  end if;
+  execute format('grant ffcmapp_bootstrap_owner to %I with inherit false, set true granted by %I',current_user,current_user);
+ end if;
+end $$;
+select set_config('ffcmapp.bootstrap_tinha_create', exists(select 1 from pg_namespace n cross join lateral aclexplode(coalesce(n.nspacl,acldefault('n',n.nspowner))) a join pg_roles r on r.oid=a.grantee where n.nspname='identidade' and r.rolname='ffcmapp_bootstrap_owner' and a.privilege_type='CREATE')::text,false);
+do $$ begin if current_setting('ffcmapp.bootstrap_tinha_create')='false' then grant create on schema identidade to ffcmapp_bootstrap_owner; end if; end $$;
 set role ffcmapp_bootstrap_owner;
 create function identidade.bootstrap_tecnico(
  p_projeto text, p_usuario uuid, p_concessao uuid, p_email_cifrado jsonb,
@@ -89,5 +106,5 @@ begin
 end $$;
 revoke all on function identidade.bootstrap_tecnico(text,uuid,uuid,jsonb,text,jsonb,uuid) from public, anon, authenticated, service_role;
 select set_config('role',current_setting('ffcmapp.bootstrap_migrador'),false);
-revoke create on schema identidade from ffcmapp_bootstrap_owner;
-revoke ffcmapp_bootstrap_owner from current_user;
+do $$ begin if current_setting('ffcmapp.bootstrap_tinha_create')='false' then revoke create on schema identidade from ffcmapp_bootstrap_owner; end if; end $$;
+do $$ begin if current_setting('ffcmapp.bootstrap_owner_tinha_set')='false' then execute format('revoke ffcmapp_bootstrap_owner from %I granted by %I',current_user,current_user); end if; end $$;

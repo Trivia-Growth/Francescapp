@@ -17,20 +17,23 @@ create policy carteira_tecnica_paciente on cadastro.paciente for select to ffcma
   )
 );
 select set_config('ffcmapp.migrador_carteira_tecnica', current_user, false);
-select set_config('ffcmapp.carteira_tecnica_tinha_owner', exists(
-  select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid
-  join pg_roles u on u.oid=m.member where r.rolname='ffcmapp_carteira_owner' and u.rolname=current_user
-)::text, false);
+select set_config('ffcmapp.carteira_tecnica_tinha_owner', pg_has_role(current_user, 'ffcmapp_carteira_owner', 'SET')::text, false);
 do $$ begin
   if current_setting('ffcmapp.carteira_tecnica_tinha_owner')='false' then
-    execute format('grant ffcmapp_carteira_owner to %I with inherit false, set true', current_user);
-  elsif not exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid
-    join pg_roles u on u.oid=m.member where r.rolname='ffcmapp_carteira_owner' and u.rolname=current_user and m.set_option) then
-    raise exception 'MEMBERSHIP_SEM_SET';
+    if exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid
+      join pg_roles u on u.oid=m.member join pg_roles g on g.oid=m.grantor
+      where r.rolname='ffcmapp_carteira_owner' and u.rolname=current_user and g.rolname=current_user) then
+      raise exception 'MEMBERSHIP_CONCEDENTE_EXISTENTE_SEM_SET';
+    end if;
+    execute format('grant ffcmapp_carteira_owner to %I with inherit false, set true granted by %I', current_user, current_user);
   end if;
 end $$;
 select set_config('ffcmapp.carteira_tecnica_tinha_create_identidade', exists(select 1 from pg_namespace n cross join lateral aclexplode(coalesce(n.nspacl,acldefault('n',n.nspowner))) a join pg_roles r on r.oid=a.grantee where n.nspname='identidade' and r.rolname='ffcmapp_carteira_owner' and a.privilege_type='CREATE')::text, false);
-grant create on schema identidade to ffcmapp_carteira_owner;
+do $$ begin
+  if current_setting('ffcmapp.carteira_tecnica_tinha_create_identidade')='false' then
+    grant create on schema identidade to ffcmapp_carteira_owner;
+  end if;
+end $$;
 set role ffcmapp_carteira_owner;
 create or replace function identidade.listar_carteira_privada(p_transporte jsonb) returns jsonb
 language plpgsql security definer set search_path='' set row_security=on as $$
@@ -146,6 +149,6 @@ do $$ begin
     revoke create on schema identidade from ffcmapp_carteira_owner;
   end if;
   if current_setting('ffcmapp.carteira_tecnica_tinha_owner')='false' then
-    execute format('revoke ffcmapp_carteira_owner from %I', current_user);
+    execute format('revoke ffcmapp_carteira_owner from %I granted by %I', current_user, current_user);
   end if;
 end $$;

@@ -42,6 +42,8 @@ Revisão estática independente das 25 migrations pendentes não confirmou novo 
 
 Após autorização, a CLI aplicou seis migrations e interrompeu na `20261107130000` por falta de `SET ROLE`; histórico remoto confirmou 26 aplicadas e a migration com erro ausente. A correção e ajustes preventivos em cinco migrations seguintes preservam vínculos e opções preexistentes. Blocos de permissão e cadeia completa passaram em PostgreSQL 17 descartável; falta continuar a aplicação e conferir o Supabase real. Nenhum segredo ou lote foi configurado.
 
+Retomada aplicou mais 11 migrations e parou na `20261110120000` pelo mesmo vínculo sem `SET`. Histórico confirmou 37 aplicadas; artefatos examinados da migration interrompida não permaneceram. Cinco migrations pendentes foram ajustadas para preservar permissões e restaurar o papel correto; blocos de grants e a cadeia completa passaram em PostgreSQL descartável com Auth/Vault fictícios. Nenhum segredo ou lote foi configurado.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.

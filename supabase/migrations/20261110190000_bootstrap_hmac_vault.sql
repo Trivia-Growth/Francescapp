@@ -4,19 +4,23 @@
 create role ffcmapp_bootstrap_hmac_executor nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
 grant usage on schema identidade to ffcmapp_bootstrap_hmac_executor;
 select set_config('ffcmapp.hmac_migrador', current_user, false);
-select set_config('ffcmapp.hmac_membro_preexistente',
-  exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid
-    join pg_roles u on u.oid=m.member where r.rolname='ffcmapp_email_hmac_owner' and u.rolname=current_user)::text, false);
+select set_config('ffcmapp.hmac_membro_preexistente', pg_has_role(current_user, 'ffcmapp_email_hmac_owner', 'SET')::text, false);
 do $$ begin
-  if current_setting('ffcmapp.hmac_membro_preexistente') = 'false' then
-    execute format('grant ffcmapp_email_hmac_owner to %I with inherit false, set true', current_user);
-  elsif not exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid
-    join pg_roles u on u.oid=m.member where r.rolname='ffcmapp_email_hmac_owner' and u.rolname=current_user and m.set_option) then
-    raise exception 'MEMBERSHIP_SEM_SET';
+  if current_setting('ffcmapp.hmac_membro_preexistente')='false' then
+    if exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid
+      join pg_roles u on u.oid=m.member join pg_roles g on g.oid=m.grantor
+      where r.rolname='ffcmapp_email_hmac_owner' and u.rolname=current_user and g.rolname=current_user) then
+      raise exception 'MEMBERSHIP_CONCEDENTE_EXISTENTE_SEM_SET';
+    end if;
+    execute format('grant ffcmapp_email_hmac_owner to %I with inherit false, set true granted by %I', current_user, current_user);
   end if;
 end $$;
 select set_config('ffcmapp.hmac_tinha_create', exists(select 1 from pg_namespace n cross join lateral aclexplode(coalesce(n.nspacl,acldefault('n',n.nspowner))) a join pg_roles r on r.oid=a.grantee where n.nspname='identidade' and r.rolname='ffcmapp_email_hmac_owner' and a.privilege_type='CREATE')::text, false);
-grant create on schema identidade to ffcmapp_email_hmac_owner;
+do $$ begin
+  if current_setting('ffcmapp.hmac_tinha_create')='false' then
+    grant create on schema identidade to ffcmapp_email_hmac_owner;
+  end if;
+end $$;
 set role ffcmapp_email_hmac_owner;
 create function identidade.ler_chave_hmac_email_bootstrap()
 returns text language plpgsql stable security definer set search_path = '' as $$
@@ -42,6 +46,6 @@ do $$ begin
 end $$;
 do $$ begin
   if current_setting('ffcmapp.hmac_membro_preexistente') = 'false' then
-    revoke ffcmapp_email_hmac_owner from current_user granted by current_user;
+    execute format('revoke ffcmapp_email_hmac_owner from %I granted by %I', current_user, current_user);
   end if;
 end $$;
