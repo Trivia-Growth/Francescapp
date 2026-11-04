@@ -11,3 +11,14 @@ Prévia local integrada ao domínio, apenas com dados fictícios em memória. Te
 ## Dependências para uso real
 
 A persistência e o uso de dados reais não são tarefas executáveis desta mudança. Exigem decisões e planejamento próprios para seções e critérios, modelo, permissões por paciente e audiência, retenção, auditoria, proteção e recuperação. Exigem ainda validação de fronteira e provas positivas e negativas no servidor e banco, incluindo revogação, outro paciente e acesso direto, além de integração real em ambiente autorizado. Operações remotas requerem autorização específica.
+
+### Preparação da próxima fatia conectada
+
+Esta preparação não autoriza migração nem transforma o domínio em persistência. A próxima mudança deve preservar FR-003 (fase Inicial): preenchimento gradual em seções, estados informado, desconhecido, não se aplica e pendente, fonte e data, e localização de seções incompletas. Deve preservar histórico contínuo por paciente e respostas versionadas, distinguindo informação relatada de avaliação clínica. Recarregar deve recuperar o progresso salvo; dados de teste devem ser fictícios.
+
+- [ ] Definir com o solicitante seções, campos e critérios de pendência aplicáveis, sem inferir diagnóstico ou completude clínica.
+- [ ] Confirmar leitura e escrita por perfil, vínculo com paciente e audiência, inclusive revogação; acesso à agenda e relação pessoal não concedem acesso por inferência.
+- [ ] Projetar armazenamento versionado, concorrência e proveniência, proteção de conteúdo, auditoria sem conteúdo clínico desnecessário, retenção e recuperação. Registrar decisões e ameaças no planejamento da próxima mudança antes de implementar.
+- [ ] Planejar integração de servidor e banco com testes positivos e negativos: outro paciente, outro perfil/audiência, acesso direto, revogação e caminhos privilegiados. Comprovar persistência e retomada em ambiente local autorizado; adapters fictícios não comprovam integração externa.
+
+Os itens acima são gates de planejamento, não decisões clínicas ou autorização de operações remotas. A mudança futura precisa conciliar proposta, requisitos, design e tarefas antes da implementação.

@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import { localizarPendencias, type RespostaAnamnese } from '../packages/cadastro/src/anamnese';
+import { localizarPendencias, validarSecoesAnamnese } from '../packages/cadastro/src/anamnese';
 
 // Esta página não autentica e nunca chama serviços ou grava dados.
 if (import.meta.env.DEV && window.location.hostname === 'localhost') {
@@ -63,24 +63,24 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     vazio.hidden = registros.length !== 0;
     elemento('list-status').textContent = `${registros.length} pacientes fictícios nesta lista.`;
   };
+  const secoesDaTela = () =>
+    validarSecoesAnamnese([
+      {
+        id: 'exemplo',
+        camposEsperados: ['exemplo'],
+        respostas: [
+          {
+            campo: 'exemplo',
+            estado: estado.value,
+            valor: valor.value,
+            fonte: fonte.value,
+            data: data.value,
+          },
+        ],
+      },
+    ]);
   const atualizarProgresso = () => {
-    let resposta: RespostaAnamnese;
-    if (estado.value === 'informado') {
-      resposta = {
-        campo: 'exemplo',
-        estado: 'informado',
-        valor: valor.value,
-        fonte: fonte.value,
-        data: data.value,
-      };
-    } else if (estado.value === 'desconhecido' || estado.value === 'nao_se_aplica') {
-      resposta = { campo: 'exemplo', estado: estado.value, fonte: fonte.value, data: data.value };
-    } else {
-      resposta = { campo: 'exemplo', estado: 'pendente' };
-    }
-    const incompleta =
-      localizarPendencias([{ id: 'exemplo', camposEsperados: ['exemplo'], respostas: [resposta] }])
-        .length > 0;
+    const incompleta = localizarPendencias(secoesDaTela()).length > 0;
     elemento('anamnese-progress').textContent = incompleta
       ? 'Seção incompleta: há informação pendente.'
       : 'Seção sem pendências nesta prévia.';
@@ -110,6 +110,13 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     if (estado.value === 'informado' && !valor.value.trim()) {
       elemento('anamnese-feedback').textContent = 'Informe a informação fictícia.';
       valor.focus();
+      return;
+    }
+    try {
+      secoesDaTela();
+    } catch {
+      elemento('anamnese-feedback').textContent =
+        'Confira o estado, a informação, a fonte e a data.';
       return;
     }
     anamneses.set(selecionado, {

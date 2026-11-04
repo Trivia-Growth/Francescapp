@@ -82,3 +82,21 @@ it('avisa sobre alterações não guardadas antes de sair da anamnese', async ()
   expect(document.getElementById('patients-view')?.hidden).toBe(false);
   confirmar.mockRestore();
 });
+
+it('recusa estado inválido antes de guardar a anamnese', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  await import('./demonstracao.js');
+  document.getElementById('demo-login')?.click();
+  (document.querySelector('#patients-body button') as HTMLButtonElement).click();
+  const estado = document.getElementById('anamnese-state') as HTMLSelectElement;
+  estado.add(new Option('Inválido', 'invalido'));
+  estado.value = 'invalido';
+  (document.getElementById('anamnese-source') as HTMLInputElement).value = 'Fonte fictícia';
+  (document.getElementById('anamnese-date') as HTMLInputElement).value = '2026-01-01';
+  document
+    .getElementById('anamnese-form')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
+  expect(document.getElementById('anamnese-feedback')?.textContent).toContain('Confira');
+});
