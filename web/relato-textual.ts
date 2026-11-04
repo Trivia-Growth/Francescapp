@@ -58,7 +58,8 @@ export function montarRelatoTextual(
   revisar.type = 'submit';
   const revisao = elemento('section');
   form.append(revisar, aviso, revisao);
-  form.addEventListener('input', () => {
+  form.addEventListener('input', (evento) => {
+    if (evento.target instanceof HTMLElement) evento.target.removeAttribute('aria-invalid');
     aviso.textContent = salvamentoIncerto
       ? 'Gravação bloqueada por resultado incerto. Volte e abra os relatos novamente para consultar o servidor.'
       : '';
@@ -76,8 +77,20 @@ export function montarRelatoTextual(
       solicitacaoRetorno: retorno.checked,
     });
     if (!resultado.success) {
-      aviso.textContent = 'Informe uma data válida e uma descrição para revisar.';
-      (!data.value ? data : descricao).focus();
+      const dataInvalida = resultado.error.issues.some(
+        (problema) => problema.path[0] === 'dataAcontecimento',
+      );
+      const descricaoInvalida = resultado.error.issues.some(
+        (problema) => problema.path[0] === 'descricao',
+      );
+      if (dataInvalida) data.setAttribute('aria-invalid', 'true');
+      else data.removeAttribute('aria-invalid');
+      if (descricaoInvalida) descricao.setAttribute('aria-invalid', 'true');
+      else descricao.removeAttribute('aria-invalid');
+      aviso.textContent = dataInvalida
+        ? 'Informe uma data válida para revisar.'
+        : 'Informe uma descrição para revisar.';
+      (dataInvalida ? data : descricao).focus();
       return;
     }
     aviso.textContent = salvamentoIncerto

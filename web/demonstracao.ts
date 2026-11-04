@@ -4,6 +4,7 @@ import { objetivoSchema, type Objetivo } from '../packages/contracts/src/plano-c
 import { localizarPendencias, validarSecoesAnamnese } from '../packages/cadastro/src/anamnese';
 import { validarTarefaPlano } from '../packages/cadastro/src/tarefa-plano';
 import { montarRelatoTextual } from './relato-textual';
+import { montarResumoCasoLocal } from './resumo-caso-local';
 import type { RelatoTextual } from '../packages/contracts/src/relato-textual';
 
 // Prévia isolada: usa somente o servidor local de feedback.
@@ -78,6 +79,22 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   let objetivoEmRevisao: number | undefined;
   let revisaoDesatualizada = false;
   let salvandoObjetivo = false;
+  type Compromisso = {
+    descricao: string;
+    profissional: string;
+    data: string;
+    hora: string;
+    duracao: number;
+    local: string;
+    participantes: string;
+    estado: 'agendado' | 'cancelado';
+  };
+  const agenda = new Map<string, Compromisso[]>();
+  const telaAgenda = elemento('agenda-view');
+  const telaResumo = elemento('summary-view');
+  const formularioAgenda = elemento<HTMLFormElement>('agenda-form');
+  let compromissoEmEdicao: number | undefined;
+  let salvandoAgenda = false;
   const telaTarefas = elemento('tasks-view');
   const formularioTarefa = elemento<HTMLFormElement>('task-form');
   const descricaoTarefa = elemento<HTMLInputElement>('task-description');
@@ -93,6 +110,19 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     cancelada: 'Cancelada',
   };
   let selecionado: string | undefined;
+  let geracaoNavegacao = 0;
+  const exibirTela = (tela: HTMLElement) => {
+    for (const item of [
+      pacientes,
+      anamnese,
+      telaTarefas,
+      telaObjetivos,
+      telaRelato,
+      telaAgenda,
+      telaResumo,
+    ])
+      item.hidden = item !== tela;
+  };
   let anamneseAlterada = false;
   const anamnese = elemento('anamnese-view');
   const estado = elemento<HTMLSelectElement>('anamnese-state');
@@ -109,14 +139,23 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const requisitar = async (caminho: string, opcoes?: RequestInit) => {
     const resposta = await fetch(`/api/local-feedback${caminho}`, opcoes);
     if (resposta.status === 401 && caminho !== '/login') {
-      telaInterrompida = [pacientes, anamnese, telaTarefas, telaObjetivos, telaRelato].find(
-        (tela) => !tela.hidden,
-      );
+      geracaoNavegacao++;
+      telaInterrompida = [
+        pacientes,
+        anamnese,
+        telaTarefas,
+        telaObjetivos,
+        telaRelato,
+        telaAgenda,
+        telaResumo,
+      ].find((tela) => !tela.hidden);
       pacientes.hidden = true;
       anamnese.hidden = true;
       telaTarefas.hidden = true;
       telaObjetivos.hidden = true;
       telaRelato.hidden = true;
+      telaAgenda.hidden = true;
+      telaResumo.hidden = true;
       acoes.hidden = true;
       login.hidden = false;
       csrfToken = '';
@@ -160,7 +199,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         controle.disabled = estados[indice] ?? false;
       });
   };
-  const carregarPrevia = async (id: string) => {
+  const carregarPrevia = async (id: string, geracao?: number) => {
     const resposta = await requisitar(`/patients/${id}/preview`);
     const previa = (await resposta.json()) as {
       revision: number;
@@ -168,18 +207,21 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       tarefas: Tarefa[];
       objetivos?: ObjetivoLocal[];
       relatos?: RelatoTextual[];
+      agenda?: Compromisso[];
     };
+    if (geracao !== undefined && geracao !== geracaoNavegacao) return;
     revisoes.set(id, previa.revision);
     if (previa.anamnese) anamneses.set(id, previa.anamnese);
     else anamneses.delete(id);
     tarefas.set(id, previa.tarefas);
     objetivos.set(id, previa.objetivos ?? []);
     relatos.set(id, previa.relatos ?? []);
+    agenda.set(id, previa.agenda ?? []);
   };
   const salvarPrevia = async (
     id: string,
-    type: 'anamnese' | 'tarefas' | 'objetivos' | 'relatos',
-    value: Anamnese | Tarefa[] | ObjetivoLocal[] | RelatoTextual[],
+    type: 'anamnese' | 'tarefas' | 'objetivos' | 'relatos' | 'agenda',
+    value: Anamnese | Tarefa[] | ObjetivoLocal[] | RelatoTextual[] | Compromisso[],
   ) => {
     const resposta = await requisitar(`/patients/${id}/preview`, {
       method: 'PUT',
@@ -201,13 +243,16 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       abrir.textContent = 'Abrir anamnese';
       abrir.setAttribute('aria-label', `Abrir anamnese de ${registro.name}`);
       abrir.addEventListener('click', async () => {
+        const geracao = ++geracaoNavegacao;
         try {
-          await carregarPrevia(registro.id);
+          await carregarPrevia(registro.id, geracao);
         } catch {
+          if (geracao !== geracaoNavegacao) return;
           elemento('workspace-feedback').textContent =
             'Não foi possível carregar a prévia. Tente novamente.';
           return;
         }
+        if (geracao !== geracaoNavegacao) return;
         selecionado = registro.id;
         anamneseAlterada = false;
         const salvo = anamneses.get(registro.id);
@@ -218,9 +263,62 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         elemento('anamnese-patient').textContent = registro.name;
         elemento('anamnese-feedback').textContent = '';
         atualizarProgresso();
-        pacientes.hidden = true;
-        anamnese.hidden = false;
+        exibirTela(anamnese);
         elemento('anamnese-title').focus();
+      });
+      const abrirResumo = document.createElement('button');
+      abrirResumo.type = 'button';
+      abrirResumo.className = 'button-secondary';
+      abrirResumo.textContent = 'Abrir resumo';
+      abrirResumo.setAttribute('aria-label', `Abrir resumo de ${registro.name}`);
+      abrirResumo.addEventListener('click', async () => {
+        const geracao = ++geracaoNavegacao;
+        try {
+          await carregarPrevia(registro.id, geracao);
+        } catch {
+          if (geracao !== geracaoNavegacao) return;
+          elemento('workspace-feedback').textContent =
+            'Não foi possível carregar o resumo. Tente novamente.';
+          return;
+        }
+        if (geracao !== geracaoNavegacao) return;
+        selecionado = registro.id;
+        montarResumoCasoLocal(elemento('summary-content'), {
+          anamnese: anamneses.get(registro.id) ?? null,
+          tarefas: tarefas.get(registro.id) ?? [],
+          objetivos: objetivos.get(registro.id) ?? [],
+          relatos: relatos.get(registro.id) ?? [],
+        });
+        elemento('summary-patient').textContent = registro.name;
+        exibirTela(telaResumo);
+        elemento('summary-title').focus();
+      });
+      const abrirAgenda = document.createElement('button');
+      abrirAgenda.type = 'button';
+      abrirAgenda.className = 'button-secondary';
+      abrirAgenda.textContent = 'Abrir agenda';
+      abrirAgenda.setAttribute('aria-label', `Abrir agenda de ${registro.name}`);
+      abrirAgenda.addEventListener('click', async () => {
+        const geracao = ++geracaoNavegacao;
+        try {
+          await carregarPrevia(registro.id, geracao);
+        } catch {
+          if (geracao !== geracaoNavegacao) return;
+          elemento('workspace-feedback').textContent =
+            'Não foi possível carregar a agenda. Tente novamente.';
+          return;
+        }
+        if (geracao !== geracaoNavegacao) return;
+        selecionado = registro.id;
+        formularioAgenda.reset();
+        compromissoEmEdicao = undefined;
+        elemento('agenda-form-title').textContent = 'Cadastrar compromisso';
+        elemento('agenda-cancel-edit').hidden = true;
+        elemento('agenda-feedback').textContent = '';
+        elemento('agenda-patient').textContent = registro.name;
+        atualizarAgenda();
+        exibirTela(telaAgenda);
+        elemento('agenda-title').focus();
       });
       const abrirTarefas = document.createElement('button');
       abrirTarefas.type = 'button';
@@ -228,20 +326,22 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       abrirTarefas.textContent = 'Abrir tarefas';
       abrirTarefas.setAttribute('aria-label', `Abrir tarefas de ${registro.name}`);
       abrirTarefas.addEventListener('click', async () => {
+        const geracao = ++geracaoNavegacao;
         try {
-          await carregarPrevia(registro.id);
+          await carregarPrevia(registro.id, geracao);
         } catch {
+          if (geracao !== geracaoNavegacao) return;
           elemento('workspace-feedback').textContent =
             'Não foi possível carregar a prévia. Tente novamente.';
           return;
         }
+        if (geracao !== geracaoNavegacao) return;
         selecionado = registro.id;
         formularioTarefa.reset();
         elemento('task-feedback').textContent = '';
         elemento('tasks-patient').textContent = registro.name;
         atualizarTarefas();
-        pacientes.hidden = true;
-        telaTarefas.hidden = false;
+        exibirTela(telaTarefas);
         elemento('tasks-title').focus();
       });
       const abrirObjetivos = document.createElement('button');
@@ -250,13 +350,16 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       abrirObjetivos.textContent = 'Abrir plano';
       abrirObjetivos.setAttribute('aria-label', `Abrir plano de ${registro.name}`);
       abrirObjetivos.addEventListener('click', async () => {
+        const geracao = ++geracaoNavegacao;
         try {
-          await carregarPrevia(registro.id);
+          await carregarPrevia(registro.id, geracao);
         } catch {
+          if (geracao !== geracaoNavegacao) return;
           elemento('workspace-feedback').textContent =
             'Não foi possível carregar a prévia. Tente novamente.';
           return;
         }
+        if (geracao !== geracaoNavegacao) return;
         selecionado = registro.id;
         formularioObjetivo.reset();
         objetivoEmRevisao = undefined;
@@ -266,8 +369,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         elemento('goal-feedback').textContent = '';
         elemento('goals-patient').textContent = registro.name;
         atualizarObjetivos();
-        pacientes.hidden = true;
-        telaObjetivos.hidden = false;
+        exibirTela(telaObjetivos);
         elemento('goals-title').focus();
       });
       const abrirRelato = document.createElement('button');
@@ -276,10 +378,12 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       abrirRelato.textContent = 'Abrir relatos';
       abrirRelato.setAttribute('aria-label', `Abrir relatos de ${registro.name}`);
       abrirRelato.addEventListener('click', async () => {
+        const geracao = ++geracaoNavegacao;
         try {
           if (!navigator.locks) throw new Error('locks indisponíveis');
           await navigator.locks.request(chaveOperacao(registro.id), async () => {
-            await carregarPrevia(registro.id);
+            await carregarPrevia(registro.id, geracao);
+            if (geracao !== geracaoNavegacao) return;
             const pendente = localStorage.getItem(chaveOperacao(registro.id));
             if (pendente) {
               const resposta = await requisitar(`/patients/${registro.id}/preview`, {
@@ -298,16 +402,19 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
                 !resultado.operacoesRelatoCanceladas?.includes(pendente)
               )
                 throw new Error('reconciliação inconclusiva');
+              if (geracao !== geracaoNavegacao) return;
               revisoes.set(registro.id, resultado.revision);
               relatos.set(registro.id, resultado.relatos ?? []);
               localStorage.removeItem(chaveOperacao(registro.id));
             }
           });
         } catch {
+          if (geracao !== geracaoNavegacao) return;
           elemento('workspace-feedback').textContent =
             'Não foi possível carregar a prévia com segurança. Tente novamente.';
           return;
         }
+        if (geracao !== geracaoNavegacao) return;
         selecionado = registro.id;
         const lista = elemento('relato-list');
         const atualizarRelatos = () => {
@@ -370,8 +477,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         formRelato?.addEventListener('input', () => formulariosAlterados.add(formRelato));
         elemento('relato-patient').textContent = registro.name;
         elemento('relato-back').textContent = 'Voltar à lista';
-        pacientes.hidden = true;
-        telaRelato.hidden = false;
+        exibirTela(telaRelato);
         elemento('relato-title').focus();
       });
       const editar = document.createElement('button');
@@ -381,6 +487,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       editar.textContent = 'Editar cadastro';
       editar.setAttribute('aria-label', `Editar cadastro de ${registro.name}`);
       editar.addEventListener('click', () => {
+        geracaoNavegacao++;
         if (salvandoCadastro) return;
         if (
           formulariosAlterados.has(formulario) &&
@@ -402,6 +509,10 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         .append(
           abrir,
           document.createTextNode(' '),
+          abrirResumo,
+          document.createTextNode(' '),
+          abrirAgenda,
+          document.createTextNode(' '),
           abrirTarefas,
           document.createTextNode(' '),
           abrirObjetivos,
@@ -415,6 +526,178 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     vazio.hidden = registros.length !== 0;
     elemento('list-status').textContent = `${registros.length} pacientes fictícios nesta lista.`;
   };
+  elemento('summary-back').addEventListener('click', () => {
+    telaResumo.hidden = true;
+    pacientes.hidden = false;
+    elemento('patients-title').focus();
+  });
+  const campoAgenda = (nome: string) => elemento<HTMLInputElement>(`agenda-${nome}`);
+  const limparAgenda = () => {
+    formularioAgenda.reset();
+    compromissoEmEdicao = undefined;
+    formularioAgenda.querySelector('button[type="submit"]')?.removeAttribute('disabled');
+    elemento('agenda-form-title').textContent = 'Cadastrar compromisso';
+    elemento('agenda-cancel-edit').hidden = true;
+    formulariosAlterados.delete(formularioAgenda);
+  };
+  const atualizarAgenda = () => {
+    const lista = elemento('agenda-list');
+    lista.replaceChildren();
+    const itens = selecionado ? (agenda.get(selecionado) ?? []) : [];
+    elemento('agenda-empty').hidden = itens.length > 0;
+    for (const [indice, item] of itens.entries()) {
+      const linha = document.createElement('li');
+      const resumo = document.createElement('p');
+      resumo.textContent = `${item.data} às ${item.hora} · ${item.descricao} · ${item.profissional} · ${item.duracao} min · ${item.local} · Participantes: ${item.participantes} · ${item.estado === 'cancelado' ? 'Cancelado' : 'Agendado'} · Origem: prévia local`;
+      linha.append(resumo);
+      if (item.estado === 'agendado') {
+        const editar = document.createElement('button');
+        editar.type = 'button';
+        editar.className = 'button-secondary';
+        editar.textContent = 'Editar';
+        editar.setAttribute('aria-label', `Editar ${item.descricao}`);
+        editar.addEventListener('click', () => {
+          if (
+            formulariosAlterados.has(formularioAgenda) &&
+            !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
+          )
+            return;
+          compromissoEmEdicao = indice;
+          for (const [nome, valor] of Object.entries({
+            description: item.descricao,
+            professional: item.profissional,
+            date: item.data,
+            time: item.hora,
+            duration: item.duracao,
+            location: item.local,
+            participants: item.participantes,
+          }))
+            campoAgenda(nome).value = String(valor);
+          elemento('agenda-form-title').textContent = 'Editar compromisso';
+          elemento('agenda-cancel-edit').hidden = false;
+          formulariosAlterados.delete(formularioAgenda);
+          campoAgenda('description').focus();
+        });
+        const cancelar = document.createElement('button');
+        cancelar.type = 'button';
+        cancelar.className = 'button-secondary';
+        cancelar.textContent = 'Cancelar compromisso';
+        cancelar.setAttribute('aria-label', `Cancelar ${item.descricao}`);
+        cancelar.addEventListener('click', async () => {
+          if (
+            salvandoAgenda ||
+            !selecionado ||
+            !window.confirm('Cancelar este compromisso fictício?')
+          )
+            return;
+          if (
+            formulariosAlterados.has(formularioAgenda) &&
+            !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
+          )
+            return;
+          const pacienteId = selecionado;
+          const atualizados = itens.map((atual, posicao) =>
+            posicao === indice ? { ...atual, estado: 'cancelado' as const } : atual,
+          );
+          salvandoAgenda = true;
+          bloquearFormulario(formularioAgenda, true);
+          elemento<HTMLButtonElement>('agenda-back').disabled = true;
+          for (const botao of lista.querySelectorAll('button')) botao.disabled = true;
+          try {
+            await salvarPrevia(pacienteId, 'agenda', atualizados);
+            agenda.set(pacienteId, atualizados);
+            limparAgenda();
+            atualizarAgenda();
+            elemento('agenda-feedback').textContent =
+              'Cancelamento salvo somente nesta prévia local.';
+          } catch {
+            elemento('agenda-feedback').textContent =
+              'Não foi possível confirmar. Volte à lista e reabra a agenda para conferir.';
+          } finally {
+            salvandoAgenda = false;
+            bloquearFormulario(formularioAgenda, false);
+            elemento<HTMLButtonElement>('agenda-back').disabled = false;
+            for (const botao of lista.querySelectorAll('button')) botao.disabled = false;
+          }
+        });
+        linha.append(editar, document.createTextNode(' '), cancelar);
+      }
+      lista.append(linha);
+    }
+  };
+  elemento('agenda-back').addEventListener('click', () => {
+    if (
+      salvandoAgenda ||
+      (formulariosAlterados.has(formularioAgenda) &&
+        !window.confirm('Há alterações não guardadas. Deseja descartá-las?'))
+    )
+      return;
+    limparAgenda();
+    telaAgenda.hidden = true;
+    pacientes.hidden = false;
+    elemento('patients-title').focus();
+  });
+  elemento('agenda-cancel-edit').addEventListener('click', () => {
+    if (
+      formulariosAlterados.has(formularioAgenda) &&
+      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
+    )
+      return;
+    limparAgenda();
+  });
+  formularioAgenda.addEventListener('input', () => formulariosAlterados.add(formularioAgenda));
+  formularioAgenda.addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+    if (!selecionado || salvandoAgenda || !formularioAgenda.reportValidity()) return;
+    const item: Compromisso = {
+      descricao: campoAgenda('description').value.trim(),
+      profissional: campoAgenda('professional').value.trim(),
+      data: campoAgenda('date').value,
+      hora: campoAgenda('time').value,
+      duracao: Number(campoAgenda('duration').value),
+      local: campoAgenda('location').value.trim(),
+      participantes: campoAgenda('participants').value.trim(),
+      estado: 'agendado',
+    };
+    if (!item.descricao || !item.profissional || !item.local || !item.participantes) {
+      elemento('agenda-feedback').textContent = 'Preencha todos os campos.';
+      return;
+    }
+    const pacienteId = selecionado;
+    const itens = [...(agenda.get(pacienteId) ?? [])];
+    const inicio = new Date(`${item.data}T${item.hora}`).getTime();
+    const sobreposicao = itens.some(
+      (outro, indice) =>
+        indice !== compromissoEmEdicao &&
+        outro.estado === 'agendado' &&
+        inicio < new Date(`${outro.data}T${outro.hora}`).getTime() + outro.duracao * 60000 &&
+        new Date(`${outro.data}T${outro.hora}`).getTime() < inicio + item.duracao * 60000,
+    );
+    if (sobreposicao && !window.confirm('Há sobreposição nesta agenda fictícia. Deseja continuar?'))
+      return;
+    if (compromissoEmEdicao === undefined) itens.push(item);
+    else itens[compromissoEmEdicao] = item;
+    salvandoAgenda = true;
+    bloquearFormulario(formularioAgenda, true);
+    elemento<HTMLButtonElement>('agenda-back').disabled = true;
+    for (const botao of elemento('agenda-list').querySelectorAll('button')) botao.disabled = true;
+    try {
+      await salvarPrevia(pacienteId, 'agenda', itens);
+      agenda.set(pacienteId, itens);
+      limparAgenda();
+      atualizarAgenda();
+      elemento('agenda-feedback').textContent = 'Compromisso salvo somente nesta prévia local.';
+    } catch {
+      elemento('agenda-feedback').textContent =
+        'Não foi possível confirmar. Preserve o rascunho e reabra a agenda para conferir antes de tentar novamente.';
+    } finally {
+      salvandoAgenda = false;
+      bloquearFormulario(formularioAgenda, false);
+      elemento<HTMLButtonElement>('agenda-back').disabled = false;
+      for (const botao of elemento('agenda-list').querySelectorAll('button'))
+        botao.disabled = false;
+    }
+  });
   const atualizarObjetivos = () => {
     const lista = elemento('goals-list');
     lista.replaceChildren();

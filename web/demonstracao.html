@@ -106,6 +106,32 @@
         </section>
       </section>
 
+      <section id="summary-view" class="patients-layout" aria-labelledby="summary-title" hidden>
+        <button id="summary-back" class="button-secondary" type="button">Voltar à lista</button>
+        <h1 id="summary-title" tabindex="-1">Resumo do caso</h1><p id="summary-patient"></p>
+        <p class="feedback">Prévia local com dados fictícios. Informações incompletas não representam um resumo clínico.</p>
+        <div id="summary-content"></div>
+      </section>
+
+      <section id="agenda-view" class="patients-layout" aria-labelledby="agenda-title" hidden>
+        <button id="agenda-back" class="button-secondary" type="button">Voltar à lista</button>
+        <h1 id="agenda-title" tabindex="-1">Agenda do paciente</h1><p id="agenda-patient"></p>
+        <p class="feedback">Demonstração local com dados fictícios. Não há conexão ou atualização no Google Agenda.</p>
+        <h2>Compromissos</h2><p id="agenda-empty">Nenhum compromisso nesta prévia.</p><ul id="agenda-list"></ul>
+        <h2 id="agenda-form-title">Cadastrar compromisso</h2>
+        <form id="agenda-form" autocomplete="off" aria-describedby="agenda-feedback">
+          <div class="field"><label for="agenda-description">Compromisso fictício</label><input id="agenda-description" maxlength="200" required></div>
+          <div class="field"><label for="agenda-professional">Profissional</label><input id="agenda-professional" maxlength="200" required></div>
+          <div class="field"><label for="agenda-date">Data</label><input id="agenda-date" type="date" required></div>
+          <div class="field"><label for="agenda-time">Horário</label><input id="agenda-time" type="time" required></div>
+          <div class="field"><label for="agenda-duration">Duração em minutos</label><input id="agenda-duration" type="number" min="1" max="1440" required></div>
+          <div class="field"><label for="agenda-location">Local ou modalidade</label><input id="agenda-location" maxlength="200" required></div>
+          <div class="field"><label for="agenda-participants">Participantes fictícios</label><input id="agenda-participants" maxlength="200" required></div>
+          <button class="button-primary" type="submit">Guardar nesta prévia</button>
+          <button id="agenda-cancel-edit" class="button-secondary" type="button" hidden>Cancelar edição</button>
+        </form><p id="agenda-feedback" class="feedback" role="status" aria-live="polite"></p>
+      </section>
+
       <section id="tasks-view" class="patients-layout" aria-labelledby="tasks-title" hidden>
         <button id="tasks-back" class="button-secondary" type="button">Voltar à lista</button>
         <div class="page-heading"><div><h1 id="tasks-title" tabindex="-1">Tarefas do plano</h1><p id="tasks-patient"></p></div></div>

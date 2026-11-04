@@ -386,6 +386,33 @@ export function createLocalFeedbackServer({ password, directory }) {
                       item.motivo.length <= 2000,
                   ))),
           );
+        const validAgenda =
+          data?.type === 'agenda' &&
+          Array.isArray(data.value) &&
+          data.value.length <= 100 &&
+          data.value.every(
+            (event) =>
+              strings(event, [
+                'descricao',
+                'profissional',
+                'data',
+                'hora',
+                'local',
+                'participantes',
+                'estado',
+              ]) &&
+              ['descricao', 'profissional', 'local', 'participantes'].every(
+                (key) => event[key].trim().length > 0 && event[key].length <= 200,
+              ) &&
+              /^\d{4}-\d{2}-\d{2}$/.test(event.data) &&
+              !Number.isNaN(Date.parse(event.data)) &&
+              new Date(event.data).toISOString().slice(0, 10) === event.data &&
+              /^([01]\d|2[0-3]):[0-5]\d$/.test(event.hora) &&
+              Number.isInteger(event.duracao) &&
+              event.duracao >= 1 &&
+              event.duracao <= 1440 &&
+              ['agendado', 'cancelado'].includes(event.estado),
+          );
         const validRelatos =
           data?.type === 'relatos' &&
           Array.isArray(data.value) &&
@@ -416,7 +443,7 @@ export function createLocalFeedbackServer({ password, directory }) {
               ))) ||
           !Number.isSafeInteger(data?.revision) ||
           data.revision < 0 ||
-          (!validAnamnese && !validTasks && !validGoals && !validRelatos)
+          (!validAnamnese && !validTasks && !validGoals && !validRelatos && !validAgenda)
         )
           return respond(res, 400);
         const preview = await updatePreview(

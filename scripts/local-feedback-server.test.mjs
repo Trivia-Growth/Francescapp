@@ -277,6 +277,30 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
       historico: [{ objetivo, motivo: 'Nova observação' }],
     };
     assert.equal((await salvarObjetivo([objetivoRevisado], final.revision)).status, 200);
+    const compromisso = {
+      descricao: 'Encontro fictício',
+      profissional: 'Equipe fictícia',
+      data: '2026-12-01',
+      hora: '10:00',
+      duracao: 60,
+      local: 'Online',
+      participantes: 'Pessoa fictícia',
+      estado: 'agendado',
+    };
+    const salvarAgenda = (value, revision) =>
+      request(previewPath, {
+        method: 'PUT',
+        headers: auth,
+        body: JSON.stringify({ type: 'agenda', value, revision }),
+      });
+    assert.equal(
+      (await salvarAgenda([{ ...compromisso, data: '2026-02-30' }], final.revision + 1)).status,
+      400,
+    );
+    assert.equal((await salvarAgenda([compromisso], final.revision + 1)).status, 200);
+    assert.equal((await salvarAgenda([compromisso], final.revision + 1)).status, 409);
+    const cancelado = { ...compromisso, estado: 'cancelado' };
+    assert.equal((await salvarAgenda([cancelado], final.revision + 2)).status, 200);
 
     assert.equal(
       (await request(previewPath, { ...save, headers: { ...headers, cookie } })).status,
@@ -315,6 +339,10 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     assert.deepEqual(
       (await (await request(previewPath, { headers: { cookie: nextCookie } })).json()).relatos,
       relatosEsperados,
+    );
+    assert.deepEqual(
+      (await (await request(previewPath, { headers: { cookie: nextCookie } })).json()).agenda,
+      [cancelado],
     );
     await close();
     const invalidDirectory = join(directory, 'arquivo');

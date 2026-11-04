@@ -25,6 +25,7 @@ function servidorFicticio(autenticado = true) {
       tarefas: unknown[];
       objetivos?: unknown[];
       relatos?: unknown[];
+      agenda?: unknown[];
       operacoesRelato?: string[];
       operacoesRelatoCanceladas?: string[];
     }
@@ -50,7 +51,7 @@ function servidorFicticio(autenticado = true) {
         }
       } else if (options?.method === 'PUT') {
         const dados = JSON.parse(String(options.body)) as {
-          type: 'anamnese' | 'tarefas' | 'objetivos' | 'relatos';
+          type: 'anamnese' | 'tarefas' | 'objetivos' | 'relatos' | 'agenda';
           value: never;
           operationId?: string;
         };
@@ -723,4 +724,111 @@ it('mantém bloqueio quando reconciliação falha', async () => {
   );
   expect(localStorage.getItem('relato-pendente:1')).toBe('11234567-1234-4234-8234-123456789abc');
   expect(document.getElementById('relato-view')?.hidden).toBe(true);
+});
+
+it('guarda compromisso fictício e o apresenta ao reabrir a agenda', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  const fetch = servidorFicticio();
+  await import('./demonstracao.js');
+  await vi.waitFor(() =>
+    expect(
+      document.querySelector('[aria-label="Abrir agenda de Paciente Exemplo Um"]'),
+    ).not.toBeNull(),
+  );
+  (
+    document.querySelector(
+      '[aria-label="Abrir agenda de Paciente Exemplo Um"]',
+    ) as HTMLButtonElement
+  ).click();
+  await vi.waitFor(() => expect(document.getElementById('agenda-view')?.hidden).toBe(false));
+  for (const [campo, valor] of Object.entries({
+    description: 'Consulta fictícia',
+    professional: 'Profissional fictício',
+    date: '2026-12-01',
+    time: '10:00',
+    duration: '60',
+    location: 'Online',
+    participants: 'Pessoa fictícia',
+  })) {
+    (document.getElementById(`agenda-${campo}`) as HTMLInputElement).value = valor;
+  }
+  document.getElementById('agenda-form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(document.getElementById('agenda-feedback')?.textContent).toContain(
+      'salvo somente nesta prévia local',
+    ),
+  );
+  expect(fetch).toHaveBeenCalledWith(
+    '/api/local-feedback/patients/1/preview',
+    expect.objectContaining({
+      method: 'PUT',
+      headers: expect.objectContaining({ 'X-CSRF-Token': 'token-ficticio' }),
+    }),
+  );
+  document.getElementById('agenda-back')?.click();
+  (
+    document.querySelector(
+      '[aria-label="Abrir agenda de Paciente Exemplo Um"]',
+    ) as HTMLButtonElement
+  ).click();
+  await vi.waitFor(() =>
+    expect(document.getElementById('agenda-list')?.textContent).toContain('Consulta fictícia'),
+  );
+  expect(document.getElementById('agenda-list')?.textContent).toContain('Origem: prévia local');
+});
+
+it('ignora abertura anterior quando outra prévia responde primeiro', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  const fetch = servidorFicticio();
+  await import('./demonstracao.js');
+  await vi.waitFor(() =>
+    expect(
+      document.querySelector('[aria-label="Abrir agenda de Paciente Exemplo Um"]'),
+    ).not.toBeNull(),
+  );
+  let liberar!: (valor: { ok: boolean; json: () => Promise<unknown> }) => void;
+  fetch.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        liberar = resolve;
+      }),
+  );
+  (
+    document.querySelector(
+      '[aria-label="Abrir agenda de Paciente Exemplo Um"]',
+    ) as HTMLButtonElement
+  ).click();
+  (
+    document.querySelector(
+      '[aria-label="Abrir tarefas de Paciente Exemplo Dois"]',
+    ) as HTMLButtonElement
+  ).click();
+  await vi.waitFor(() => expect(document.getElementById('tasks-view')?.hidden).toBe(false));
+  liberar({ ok: true, json: async () => ({ revision: 0, anamnese: null, tarefas: [] }) });
+  await vi.waitFor(() =>
+    expect(document.getElementById('tasks-patient')?.textContent).toBe('Paciente Exemplo Dois'),
+  );
+  expect(document.getElementById('agenda-view')?.hidden).toBe(true);
+  expect(document.getElementById('tasks-view')?.hidden).toBe(false);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  for (const [campo, valor] of Object.entries({
+    description: 'Tarefa fictícia',
+    responsible: 'Equipe',
+    deadline: '2026-12-01',
+    priority: 'Alta',
+  })) {
+    (document.getElementById(`task-${campo}`) as HTMLInputElement).value = valor;
+  }
+  document.getElementById('task-form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/local-feedback/patients/2/preview',
+      expect.objectContaining({ method: 'PUT' }),
+    ),
+  );
+  expect(document.getElementById('agenda-view')?.hidden).toBe(true);
 });
