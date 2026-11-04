@@ -38,6 +38,8 @@ A rota local de entrada técnica foi ligada ao handler existente, protegida por 
 
 Conferência remota somente de leitura: histórico contém as 20 primeiras versões locais e há 25 migrations posteriores pendentes, incluindo anamnese, plano, diário, edição e cadastro. A cadeia completa das 45 migrations executou em PostgreSQL 17 descartável com Auth/Vault fictícios; não comprova comportamento ou autorização no Supabase. O push padrão incluiria todas as 25 pendentes; duas concedem execução de RPCs a `authenticated`. Não aplicar sem revisão e autorização específicas.
 
+Revisão estática independente das 25 migrations pendentes não confirmou novo bypass direto. A proveniência exige lote de teste aberto para qualquer novo cadastro; o ambiente consultado tinha zero pacientes na contagem privilegiada. A revisão não comprova grants efetivos, Auth/Vault nem RLS no Supabase; falha parcial da sequência exige conferência antes de qualquer uso. Segredos, configuração do lote e bootstrap continuam operações separadas e não foram executados.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.
