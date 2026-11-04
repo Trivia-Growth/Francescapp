@@ -152,6 +152,23 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     );
     assert.equal((await salvarObjetivo([objetivo], 2)).status, 200);
     assert.equal((await salvarObjetivo([objetivo], 2)).status, 409);
+    const relato = {
+      dataAcontecimento: '2026-11-04',
+      descricao: 'Relato fictício',
+      categoria: '',
+      contexto: '',
+      acaoTomada: '',
+      solicitacaoRetorno: false,
+    };
+    const salvarRelato = (value, revision) =>
+      request(previewPath, {
+        method: 'PUT',
+        headers: auth,
+        body: JSON.stringify({ type: 'relatos', value, revision }),
+      });
+    assert.equal((await salvarRelato([{ ...relato, descricao: ' ' }], 3)).status, 400);
+    assert.equal((await salvarRelato([relato], 3)).status, 200);
+    assert.equal((await salvarRelato([relato], 3)).status, 409);
     assert.equal(
       (await request(previewPath, { ...save, headers: { ...headers, cookie } })).status,
       403,
@@ -185,6 +202,10 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     assert.deepEqual(
       (await (await request(previewPath, { headers: { cookie: nextCookie } })).json()).objetivos,
       [objetivo],
+    );
+    assert.deepEqual(
+      (await (await request(previewPath, { headers: { cookie: nextCookie } })).json()).relatos,
+      [relato],
     );
     await close();
     const invalidDirectory = join(directory, 'arquivo');

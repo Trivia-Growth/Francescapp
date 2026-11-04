@@ -23,3 +23,6 @@ Nenhuma.
 ## Impact
 
 Scripts de feedback local e interface de demonstração em `web/demonstracao.*`. Não altera o sistema conectado de produção nem suas decisões de identidade.
+
+
+A demonstração inclui revisão e armazenamento local de relatos fictícios por paciente, para feedback visual; não é envio nem publicação clínica.

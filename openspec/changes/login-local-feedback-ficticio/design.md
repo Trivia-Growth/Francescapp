@@ -29,3 +29,6 @@ Sem migração remota ou deploy. Interromper os processos locais desfaz a exposi
 ## Prévia fictícia persistente (04/11/2026)
 
 Anamnese e tarefas da demonstração são armazenadas por paciente no computador, exclusivamente no serviço local autenticado. Escritas usam revisão para recusar conflito entre abas e gravação atômica; falhas não confirmam sucesso. O armazenamento não é cifrado e aceita somente dados fictícios. Não representa prontuário, histórico versionado, autorização clínica ou integração de produção. As specs de produção e seus gates permanecem vigentes.
+
+
+Relatos fictícios usam o arquivo de prévia por paciente e a revisão concorrente já existente. A interface preserva o rascunho em falhas e oferece conferência da lista. A preparação isolada continua descartável; o armazenamento local não é cifrado nem adequado a dados reais.

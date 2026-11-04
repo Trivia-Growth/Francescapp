@@ -274,10 +274,30 @@ export function createLocalFeedbackServer({ password, directory }) {
               !Number.isNaN(Date.parse(goal.dataRevisao)) &&
               new Date(goal.dataRevisao).toISOString().slice(0, 10) === goal.dataRevisao,
           );
+        const validRelatos =
+          data?.type === 'relatos' &&
+          Array.isArray(data.value) &&
+          data.value.length <= 100 &&
+          data.value.every(
+            (relato) =>
+              strings(relato, [
+                'dataAcontecimento',
+                'descricao',
+                'categoria',
+                'contexto',
+                'acaoTomada',
+              ]) &&
+              relato.descricao.trim().length > 0 &&
+              typeof relato.solicitacaoRetorno === 'boolean' &&
+              /^\d{4}-\d{2}-\d{2}$/.test(relato.dataAcontecimento) &&
+              !Number.isNaN(Date.parse(relato.dataAcontecimento)) &&
+              new Date(relato.dataAcontecimento).toISOString().slice(0, 10) ===
+                relato.dataAcontecimento,
+          );
         if (
           !Number.isSafeInteger(data?.revision) ||
           data.revision < 0 ||
-          (!validAnamnese && !validTasks && !validGoals)
+          (!validAnamnese && !validTasks && !validGoals && !validRelatos)
         )
           return respond(res, 400);
         const preview = await updatePreview(previewMatch[1], data.type, data.value, data.revision);

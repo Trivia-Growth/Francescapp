@@ -15,7 +15,13 @@ function servidorFicticio(autenticado = true) {
   ];
   const previas = new Map<
     string,
-    { revision: number; anamnese: unknown; tarefas: unknown[]; objetivos?: unknown[] }
+    {
+      revision: number;
+      anamnese: unknown;
+      tarefas: unknown[];
+      objetivos?: unknown[];
+      relatos?: unknown[];
+    }
   >();
   const fetch = vi.fn(async (url: string, options?: RequestInit) => {
     let data: unknown;
@@ -28,7 +34,7 @@ function servidorFicticio(autenticado = true) {
       const previa = previas.get(url) ?? { revision: 0, anamnese: null, tarefas: [] };
       if (options?.method === 'PUT') {
         const dados = JSON.parse(String(options.body)) as {
-          type: 'anamnese' | 'tarefas' | 'objetivos';
+          type: 'anamnese' | 'tarefas' | 'objetivos' | 'relatos';
           value: never;
         };
         previa[dados.type] = dados.value;
@@ -358,4 +364,144 @@ it('guarda objetivos fictícios por paciente e valida campos', async () => {
   await vi.waitFor(() =>
     expect(document.getElementById('goals-list')?.textContent).toContain('Objetivo fictício'),
   );
+});
+
+it('abre relato fictício isolado e descarta conteúdo ao voltar', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  const fetch = servidorFicticio();
+  await import('./demonstracao.js');
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
+  const chamadasAntes = fetch.mock.calls.length;
+  document.getElementById('open-relato')?.click();
+  expect(document.getElementById('relato-view')?.hidden).toBe(false);
+  expect(document.getElementById('login-view')?.hidden).toBe(true);
+  expect(document.getElementById('relato-content')?.textContent).toContain(
+    'não será salvo nem enviado',
+  );
+  const descricao = document.querySelector<HTMLTextAreaElement>('#relato-content textarea');
+  if (!descricao) throw new Error('Descrição ausente');
+  descricao.value = 'Conteúdo fictício';
+  document.getElementById('relato-back')?.click();
+  expect(document.getElementById('relato-content')?.childElementCount).toBe(0);
+  expect(document.activeElement?.id).toBe('open-relato');
+  expect(fetch.mock.calls.length).toBe(chamadasAntes);
+  document.getElementById('open-relato')?.click();
+  expect(document.querySelector<HTMLTextAreaElement>('#relato-content textarea')?.value).toBe('');
+});
+
+it('guarda relato fictício somente na prévia do paciente escolhido', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  servidorFicticio();
+  await import('./demonstracao.js');
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
+  const abrir = () =>
+    document.querySelectorAll<HTMLButtonElement>(
+      '#patients-body button[aria-label^="Abrir relatos"]',
+    );
+  abrir()[0]?.click();
+  await vi.waitFor(() => expect(document.getElementById('relato-view')?.hidden).toBe(false));
+  (document.querySelector('#relato-content input[type=date]') as HTMLInputElement).value =
+    '2026-11-04';
+  (document.querySelector('#relato-content textarea') as HTMLTextAreaElement).value =
+    'Relato fictício';
+  document
+    .querySelector('#relato-content form')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
+  document.querySelector<HTMLButtonElement>('#relato-content section button')?.click();
+  await vi.waitFor(() =>
+    expect(document.getElementById('relato-list')?.textContent).toContain('Relato fictício'),
+  );
+  document.getElementById('relato-back')?.click();
+  abrir()[1]?.click();
+  await vi.waitFor(() => expect(document.getElementById('relato-view')?.hidden).toBe(false));
+  expect(document.getElementById('relato-list')?.textContent).not.toContain('Relato fictício');
+});
+
+it('preserva relato e tela ao expirar sessão durante gravação', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  const fetch = servidorFicticio();
+  await import('./demonstracao.js');
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
+  document
+    .querySelector<HTMLButtonElement>('#patients-body button[aria-label^="Abrir relatos"]')
+    ?.click();
+  await vi.waitFor(() => expect(document.getElementById('relato-view')?.hidden).toBe(false));
+  (document.querySelector('#relato-content input[type=date]') as HTMLInputElement).value =
+    '2026-11-04';
+  const descricao = document.querySelector<HTMLTextAreaElement>('#relato-content textarea');
+  if (!descricao) throw new Error('Descrição ausente');
+  descricao.value = 'Rascunho fictício';
+  document
+    .querySelector('#relato-content form')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
+  fetch.mockImplementationOnce(
+    async () => ({ ok: false, status: 401, json: async () => ({}) }) as never,
+  );
+  document.querySelector<HTMLButtonElement>('#relato-content section button')?.click();
+  await vi.waitFor(() => expect(document.getElementById('login-view')?.hidden).toBe(false));
+  (document.getElementById('demo-password') as HTMLInputElement).value = 'senha fictícia';
+  document
+    .getElementById('demo-login-form')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() => expect(document.getElementById('relato-view')?.hidden).toBe(false));
+  expect(descricao.value).toBe('Rascunho fictício');
+});
+
+it('bloqueia repetição após resposta perdida mesmo ao revisar novamente', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  const fetch = servidorFicticio();
+  await import('./demonstracao.js');
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
+  document
+    .querySelector<HTMLButtonElement>('#patients-body button[aria-label^="Abrir relatos"]')
+    ?.click();
+  await vi.waitFor(() => expect(document.getElementById('relato-view')?.hidden).toBe(false));
+  (document.querySelector('#relato-content input[type=date]') as HTMLInputElement).value =
+    '2026-11-04';
+  const descricao = document.querySelector<HTMLTextAreaElement>('#relato-content textarea');
+  if (!descricao) throw new Error('Descrição ausente');
+  descricao.value = 'Rascunho fictício';
+  const form = document.querySelector<HTMLFormElement>('#relato-content form');
+  if (!form) throw new Error('Formulário ausente');
+  form.dispatchEvent(new Event('submit', { cancelable: true }));
+  fetch.mockImplementationOnce(async () => {
+    throw new Error('resposta perdida');
+  });
+  document.querySelector<HTMLButtonElement>('#relato-content section button')?.click();
+  await vi.waitFor(() =>
+    expect(document.querySelector('#relato-content [role=status]')?.textContent).toContain(
+      'recarregar não confirma',
+    ),
+  );
+  expect(descricao.value).toBe('Rascunho fictício');
+  form.dispatchEvent(new Event('submit', { cancelable: true }));
+  expect(
+    document.querySelector<HTMLButtonElement>('#relato-content section button')?.disabled,
+  ).toBe(true);
+  document.getElementById('relato-back')?.click();
+  document
+    .querySelector<HTMLButtonElement>('#patients-body button[aria-label^="Abrir relatos"]')
+    ?.click();
+  await vi.waitFor(() => expect(document.getElementById('relato-view')?.hidden).toBe(false));
+  expect(document.querySelector('#relato-content [role=status]')?.textContent).toContain(
+    'Gravação bloqueada',
+  );
+  (document.querySelector('#relato-content input[type=date]') as HTMLInputElement).value =
+    '2026-11-04';
+  (document.querySelector('#relato-content textarea') as HTMLTextAreaElement).value =
+    'Rascunho fictício';
+  document
+    .querySelector<HTMLFormElement>('#relato-content form')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
+  expect(
+    document.querySelector<HTMLButtonElement>('#relato-content section button')?.disabled,
+  ).toBe(true);
 });

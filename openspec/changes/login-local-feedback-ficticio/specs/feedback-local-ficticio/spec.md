@@ -38,3 +38,14 @@ A interface SHALL identificar o uso exclusivo de dados fictícios e não represe
 #### Scenario: Uso da demonstração
 - **WHEN** alguém acessa a demonstração
 - **THEN** encontra aviso de que somente dados fictícios são permitidos.
+
+### Requirement: Relato fictício local por paciente
+A demonstração SHALL permitir revisar e guardar relatos fictícios por paciente no armazenamento local, sem representar envio à equipe ou publicação.
+
+#### Scenario: Guardar e consultar após reinício
+- **WHEN** um relato fictício válido for guardado para um paciente e o serviço reiniciado
+- **THEN** o relato permanece disponível na prévia daquele paciente após autenticação.
+
+#### Scenario: Conflito ou falha ao guardar
+- **WHEN** ocorrer conflito de revisão ou falha na gravação
+- **THEN** a interface não afirma sucesso e mantém o rascunho para conferência.

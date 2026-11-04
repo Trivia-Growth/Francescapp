@@ -3,6 +3,8 @@
 import { objetivoSchema, type Objetivo } from '../packages/contracts/src/plano-cuidado';
 import { localizarPendencias, validarSecoesAnamnese } from '../packages/cadastro/src/anamnese';
 import { validarTarefaPlano } from '../packages/cadastro/src/tarefa-plano';
+import { montarRelatoTextual } from './relato-textual';
+import type { RelatoTextual } from '../packages/contracts/src/relato-textual';
 
 // Prévia isolada: usa somente o servidor local de feedback.
 if (import.meta.env.DEV && window.location.hostname === 'localhost') {
@@ -13,6 +15,37 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   };
   const login = elemento('login-view');
   const pacientes = elemento('patients-view');
+  const telaRelato = elemento('relato-view');
+  let desmontarRelato: (() => void) | undefined;
+  elemento('open-relato').addEventListener('click', () => {
+    desmontarRelato = montarRelatoTextual(elemento('relato-content'));
+    login.hidden = true;
+    telaRelato.hidden = false;
+    elemento('relato-title').focus();
+  });
+  elemento('relato-back').addEventListener('click', () => {
+    const form = elemento('relato-content').querySelector('form');
+    if (
+      form &&
+      formulariosAlterados.has(form) &&
+      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
+    )
+      return;
+    if (form) formulariosAlterados.delete(form);
+    desmontarRelato?.();
+    desmontarRelato = undefined;
+    telaRelato.hidden = true;
+    if (selecionado) {
+      selecionado = undefined;
+      pacientes.hidden = false;
+      elemento('patients-title').focus();
+    } else {
+      login.hidden = false;
+      elemento('open-relato').focus();
+    }
+    elemento('relato-list').replaceChildren();
+    elemento('relato-patient').textContent = '';
+  });
   const acoes = elemento('session-actions');
   const tabela = elemento('patients-table');
   const corpo = elemento<HTMLTableSectionElement>('patients-body');
@@ -32,6 +65,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   };
   const tarefas = new Map<string, Tarefa[]>();
   const revisoes = new Map<string, number>();
+  const relatos = new Map<string, RelatoTextual[]>();
+  const relatosComResultadoIncerto = new Set<string>();
   const formulariosAlterados = new Set<HTMLFormElement>();
   const telaObjetivos = elemento('goals-view');
   const formularioObjetivo = elemento<HTMLFormElement>('goal-form');
@@ -64,13 +99,14 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const requisitar = async (caminho: string, opcoes?: RequestInit) => {
     const resposta = await fetch(`/api/local-feedback${caminho}`, opcoes);
     if (resposta.status === 401 && caminho !== '/login') {
-      telaInterrompida = [pacientes, anamnese, telaTarefas, telaObjetivos].find(
+      telaInterrompida = [pacientes, anamnese, telaTarefas, telaObjetivos, telaRelato].find(
         (tela) => !tela.hidden,
       );
       pacientes.hidden = true;
       anamnese.hidden = true;
       telaTarefas.hidden = true;
       telaObjetivos.hidden = true;
+      telaRelato.hidden = true;
       acoes.hidden = true;
       login.hidden = false;
       csrfToken = '';
@@ -118,17 +154,19 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       anamnese: Anamnese | null;
       tarefas: Tarefa[];
       objetivos?: Objetivo[];
+      relatos?: RelatoTextual[];
     };
     revisoes.set(id, previa.revision);
     if (previa.anamnese) anamneses.set(id, previa.anamnese);
     else anamneses.delete(id);
     tarefas.set(id, previa.tarefas);
     objetivos.set(id, previa.objetivos ?? []);
+    relatos.set(id, previa.relatos ?? []);
   };
   const salvarPrevia = async (
     id: string,
-    type: 'anamnese' | 'tarefas' | 'objetivos',
-    value: Anamnese | Tarefa[] | Objetivo[],
+    type: 'anamnese' | 'tarefas' | 'objetivos' | 'relatos',
+    value: Anamnese | Tarefa[] | Objetivo[] | RelatoTextual[],
   ) => {
     const resposta = await requisitar(`/patients/${id}/preview`, {
       method: 'PUT',
@@ -215,6 +253,66 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         telaObjetivos.hidden = false;
         elemento('goals-title').focus();
       });
+      const abrirRelato = document.createElement('button');
+      abrirRelato.type = 'button';
+      abrirRelato.className = 'button-secondary';
+      abrirRelato.textContent = 'Abrir relatos';
+      abrirRelato.setAttribute('aria-label', `Abrir relatos de ${registro.name}`);
+      abrirRelato.addEventListener('click', async () => {
+        try {
+          await carregarPrevia(registro.id);
+        } catch {
+          elemento('workspace-feedback').textContent =
+            'Não foi possível carregar a prévia. Tente novamente.';
+          return;
+        }
+        selecionado = registro.id;
+        const lista = elemento('relato-list');
+        const atualizarRelatos = () => {
+          lista.replaceChildren();
+          for (const relato of relatos.get(registro.id) ?? []) {
+            const item = document.createElement('li');
+            item.textContent = `${relato.dataAcontecimento}: ${relato.descricao} · Categoria: ${relato.categoria || 'Não informada'} · Contexto: ${relato.contexto || 'Não informado'} · Ação: ${relato.acaoTomada || 'Não informada'} · Solicitação de retorno: ${relato.solicitacaoRetorno ? 'Sim' : 'Não'}`;
+            lista.append(item);
+          }
+        };
+        atualizarRelatos();
+        desmontarRelato = montarRelatoTextual(
+          elemento('relato-content'),
+          async (relato) => {
+            const itens = [...(relatos.get(registro.id) ?? []), relato];
+            const voltar = elemento<HTMLButtonElement>('relato-back');
+            voltar.disabled = true;
+            try {
+              await salvarPrevia(registro.id, 'relatos', itens);
+              relatos.set(registro.id, itens);
+              atualizarRelatos();
+              const form = elemento('relato-content').querySelector('form');
+              if (form) formulariosAlterados.delete(form);
+            } catch (erro) {
+              if (erro instanceof Error && erro.message === '401') throw erro;
+              if (!(erro instanceof Error && erro.message === '409'))
+                relatosComResultadoIncerto.add(registro.id);
+              try {
+                await carregarPrevia(registro.id);
+                atualizarRelatos();
+              } catch {
+                /* estado desconhecido */
+              }
+              throw erro;
+            } finally {
+              voltar.disabled = false;
+            }
+          },
+          relatosComResultadoIncerto.has(registro.id),
+        );
+        const formRelato = elemento('relato-content').querySelector('form');
+        formRelato?.addEventListener('input', () => formulariosAlterados.add(formRelato));
+        elemento('relato-patient').textContent = registro.name;
+        pacientes.hidden = true;
+        telaRelato.hidden = false;
+        elemento('relato-title').focus();
+      });
       linha
         .insertCell()
         .append(
@@ -223,6 +321,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
           abrirTarefas,
           document.createTextNode(' '),
           abrirObjetivos,
+          document.createTextNode(' '),
+          abrirRelato,
         );
     }
     tabela.hidden = registros.length === 0;
