@@ -60,6 +60,8 @@ Com autorização do solicitante, quatro chaves foram geradas diretamente no Vau
 
 Preparação familiar adicional: consulta e saída privadas foram escritas para reutilizar a sessão familiar, sem rota pública ou grant de aplicação. A autorização de cada paciente, a revisão independente e as provas reais de revogação seguem pendentes; a migration correspondente ainda não foi aplicada. Nenhum teste foi executado nesta etapa.
 
+Concessão familiar: função privada local preparada para administrador vincular conta familiar ativa existente ao paciente, sem expor rota ou grants. Ainda faltam integração, revisão de repetição e revogação, suporte à sessão técnica e provas reais; migration não aplicada.
+
 Conferência de catálogo após a aplicação: 51 versões remotas correspondem às locais. Quatro referências de segredo distintas e uma referência ativa de atestado foram encontradas, sem leitura de valores. A configuração Auth está presente com Google desativado. Ainda não existe perfil da aplicação para a conta técnica nem lote ativo; criação e integração seguem pendentes.
 
 A rota de criação de contato e o formulário foram ligados ao código existente com flag e botão desativados. A RPC permanece sem grant para aplicação e a integração real não foi verificada. Resultado de envio incerto bloqueia nova tentativa e preserva o valor para conferência. Nenhum teste foi executado nesta etapa.
