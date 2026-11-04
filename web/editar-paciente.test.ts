@@ -1,76 +1,211 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { montarEdicaoPaciente } from './editar-paciente.js';
-import { FalhaApi } from './api.js';
+import { montarEdicaoPaciente, type ServicoEdicaoPaciente } from './editar-paciente.js';
 
+const id = '00000000-0000-4000-8000-000000000001';
 const paciente = {
-  id: '00000000-0000-4000-8000-000000000001',
+  id,
   nome: 'Paciente fictício',
-  nome_preferencia: 'Nome anterior',
+  nome_preferencia: null,
   data_nascimento: null,
   versao: 2,
   contatos: [],
 };
+const vazio = { epoca: 1, reserva: null, resultado_pendente: null };
 
-async function preparar(atualizarPaciente: ReturnType<typeof vi.fn>, acessoPerdido = vi.fn()) {
+it('reconcilia edição após recarga antes de permitir novo envio, sem persistir rascunho', async () => {
+  const ciclo = {
+    consultar: vi
+      .fn()
+      .mockResolvedValueOnce({
+        epoca: 2,
+        reserva: null,
+        resultado_pendente: {
+          recibo_id: id,
+          reserva_id: id,
+          resultado: 'confirmada',
+          paciente_id: id,
+          versao: 3,
+        },
+      })
+      .mockResolvedValue(vazio),
+    encerrar: vi.fn(),
+    reconhecer: vi.fn().mockResolvedValue('reconhecido'),
+    liberar: vi.fn(),
+    editar: vi.fn(),
+  };
+  const servico = {
+    ciclo,
+    consultarPaciente: vi.fn().mockResolvedValue(paciente),
+  } as unknown as ServicoEdicaoPaciente;
+  const raiz = document.createElement('div');
+  montarEdicaoPaciente(raiz, id, servico, vi.fn());
+  expect(raiz.querySelector('form')).toBeNull();
+  raiz.querySelector('button')?.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('foi confirmada'));
+  expect(servico.consultarPaciente).toHaveBeenCalledOnce();
+  expect(raiz.textContent).toContain(`Cadastro atual: ${paciente.nome}`);
+  expect(raiz.textContent).toContain('confirmada na versão 3');
+  expect(raiz.textContent).toContain('O cadastro atual está em outra versão');
+  raiz.querySelector('button')?.click();
+  await vi.waitFor(() => expect(raiz.querySelector('form')).not.toBeNull());
+  expect(ciclo.reconhecer).toHaveBeenCalledOnce();
+  expect(ciclo.liberar).toHaveBeenCalledOnce();
+  expect(sessionStorage.length).toBe(0);
+});
+
+it('preserva rascunho após falha incerta até recarga explícita', async () => {
+  const ciclo = {
+    consultar: vi
+      .fn()
+      .mockResolvedValueOnce(vazio)
+      .mockResolvedValueOnce(vazio)
+      .mockResolvedValue({
+        epoca: 2,
+        reserva: null,
+        resultado_pendente: {
+          recibo_id: id,
+          reserva_id: id,
+          resultado: 'cancelada',
+          paciente_id: id,
+          versao: null,
+        },
+      }),
+    encerrar: vi.fn().mockResolvedValue('vazia'),
+    reconhecer: vi.fn().mockResolvedValue('reconhecido'),
+    liberar: vi.fn(),
+    editar: vi.fn().mockRejectedValue(new Error()),
+  };
   const raiz = document.createElement('div');
   montarEdicaoPaciente(
     raiz,
-    paciente.id,
+    id,
     {
+      ciclo,
       consultarPaciente: vi.fn().mockResolvedValue(paciente),
-      atualizarPaciente,
-    },
-    acessoPerdido,
+    } as unknown as ServicoEdicaoPaciente,
+    vi.fn(),
   );
+  raiz.querySelector('button')?.click();
   await vi.waitFor(() => expect(raiz.querySelector('form')).not.toBeNull());
-  const campos = raiz.querySelectorAll('input');
-  const preferencia = campos[1];
+  const nome = raiz.querySelector('input');
   const motivo = raiz.querySelector('textarea');
-  if (!preferencia || !motivo) throw new Error('Campos ausentes');
-  preferencia.value = '';
-  motivo.value = 'Correção solicitada';
+  if (!nome || !motivo) throw new Error('Campos ausentes');
+  nome.value = 'Nome fictício alterado';
+  motivo.value = 'Correção';
   raiz.querySelector('form')?.requestSubmit();
-  return raiz;
-}
-
-it('preserva comando e chave após resposta incerta e confirma apenas por ação explícita', async () => {
-  const atualizar = vi
-    .fn()
-    .mockRejectedValueOnce(new Error())
-    .mockResolvedValue({ ...paciente, nome_preferencia: null, versao: 3 });
-  const raiz = await preparar(atualizar);
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Não foi possível confirmar'));
-  expect(atualizar).toHaveBeenCalledTimes(1);
-  expect(atualizar.mock.calls[0]?.[1]).toEqual({
-    nome_preferencia: null,
-    versao_esperada: 2,
-    motivo: 'Correção solicitada',
-  });
-  expect(raiz.querySelector('fieldset')?.disabled).toBe(true);
+  await vi.waitFor(() => expect(raiz.textContent).toContain('rascunho permanece'));
   [...raiz.querySelectorAll('button')]
-    .find((botao) => botao.textContent === 'Tentar confirmar salvamento')
+    .find((b) => b.textContent === 'Confirmar situação da edição')
     ?.click();
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Cadastro atualizado.'));
-  expect(atualizar.mock.calls[1]).toEqual(atualizar.mock.calls[0]);
+  await vi.waitFor(() => expect(raiz.textContent).toContain('foi cancelada'));
+  [...raiz.querySelectorAll('button')]
+    .find((b) => b.textContent === 'Reconhecer resultado e liberar edição')
+    ?.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Copie o rascunho'));
+  expect(raiz.querySelector('input')?.value).toBe('Nome fictício alterado');
 });
 
-it('mantém rascunho e impede sobrescrita após conflito', async () => {
-  const atualizar = vi.fn().mockRejectedValue(new FalhaApi('conflito_versao', 409));
-  const raiz = await preparar(atualizar);
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Copie seu rascunho'));
-  expect(raiz.querySelector('textarea')?.value).toBe('Correção solicitada');
-  expect(raiz.querySelectorAll('input')[1]?.value).toBe('');
-  raiz.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
-  expect(atualizar).toHaveBeenCalledTimes(1);
-});
-
-it('descarta dados após perda de acesso', async () => {
-  const acessoPerdido = vi.fn();
-  const raiz = await preparar(
-    vi.fn().mockRejectedValue(new FalhaApi('sem_permissao', 403)),
-    acessoPerdido,
+it('preserva rascunho copiável quando reserva falha e barreira está vazia', async () => {
+  const ciclo = {
+    consultar: vi.fn().mockResolvedValue(vazio),
+    encerrar: vi.fn().mockResolvedValue('vazia'),
+    reconhecer: vi.fn(),
+    liberar: vi.fn(),
+    editar: vi.fn().mockRejectedValue(new Error()),
+  };
+  const raiz = document.createElement('div');
+  montarEdicaoPaciente(
+    raiz,
+    id,
+    {
+      ciclo,
+      consultarPaciente: vi.fn().mockResolvedValue(paciente),
+    } as unknown as ServicoEdicaoPaciente,
+    vi.fn(),
   );
-  await vi.waitFor(() => expect(acessoPerdido).toHaveBeenCalledOnce());
-  expect(raiz.childElementCount).toBe(0);
+  raiz.querySelector('button')?.click();
+  await vi.waitFor(() => expect(raiz.querySelector('form')).not.toBeNull());
+  const nome = raiz.querySelector('input');
+  const motivo = raiz.querySelector('textarea');
+  if (!nome || !motivo) throw new Error('Campos ausentes');
+  nome.value = 'Rascunho fictício';
+  motivo.value = 'Correção';
+  raiz.querySelector('form')?.requestSubmit();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('rascunho permanece'));
+  [...raiz.querySelectorAll('button')]
+    .find((b) => b.textContent === 'Confirmar situação da edição')
+    ?.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Copie o rascunho'));
+  expect(nome.value).toBe('Rascunho fictício');
+  expect(raiz.querySelector('fieldset')?.disabled).toBe(false);
+  expect(raiz.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
+});
+
+it('impede reconhecimento de resultado de outro paciente', async () => {
+  const outro = '00000000-0000-4000-8000-000000000002';
+  const ciclo = {
+    consultar: vi.fn().mockResolvedValue({
+      epoca: 2,
+      reserva: null,
+      resultado_pendente: {
+        recibo_id: id,
+        reserva_id: id,
+        resultado: 'confirmada',
+        paciente_id: outro,
+        versao: 3,
+      },
+    }),
+    encerrar: vi.fn(),
+    reconhecer: vi.fn(),
+    liberar: vi.fn(),
+    editar: vi.fn(),
+  };
+  const raiz = document.createElement('div');
+  montarEdicaoPaciente(
+    raiz,
+    id,
+    { ciclo, consultarPaciente: vi.fn() } as unknown as ServicoEdicaoPaciente,
+    vi.fn(),
+  );
+  raiz.querySelector('button')?.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain(outro));
+  expect(ciclo.reconhecer).not.toHaveBeenCalled();
+  expect(raiz.querySelector('button')?.hidden).toBe(true);
+});
+
+it('não permite reconhecer quando consulta autorizada para conferência falha', async () => {
+  const ciclo = {
+    consultar: vi.fn().mockResolvedValue({
+      epoca: 2,
+      reserva: null,
+      resultado_pendente: {
+        recibo_id: id,
+        reserva_id: id,
+        resultado: 'confirmada',
+        paciente_id: id,
+        versao: 3,
+      },
+    }),
+    encerrar: vi.fn(),
+    reconhecer: vi.fn(),
+    liberar: vi.fn(),
+    editar: vi.fn(),
+  };
+  const raiz = document.createElement('div');
+  montarEdicaoPaciente(
+    raiz,
+    id,
+    {
+      ciclo,
+      consultarPaciente: vi.fn().mockRejectedValue(new Error()),
+    } as unknown as ServicoEdicaoPaciente,
+    vi.fn(),
+  );
+  raiz.querySelector('button')?.click();
+  await vi.waitFor(() =>
+    expect(raiz.textContent).toContain('Não foi possível confirmar a situação'),
+  );
+  expect(ciclo.reconhecer).not.toHaveBeenCalled();
+  expect(raiz.textContent).not.toContain('Reconhecer resultado e liberar edição');
 });

@@ -1,3 +1,4 @@
+export * from './barreira-edicao-paciente.ts';
 export * from './cadastro.ts';
 export * from './barreira-cadastro.ts';
 export * from './barreira-plano.ts';

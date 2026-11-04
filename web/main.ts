@@ -10,6 +10,7 @@ import { montarAnamnese } from './anamnese.js';
 import { criarCicloCadastro } from './ciclo-cadastro.js';
 import { montarPlanoCuidado } from './plano-cuidado.js';
 import { criarServicoPlanoHttp } from './servico-plano-http.js';
+import { criarServicoEdicaoPacienteHttp } from './servico-edicao-paciente-http.js';
 
 function elemento<T extends HTMLElement>(id: string): T {
   const encontrado = document.getElementById(id);
@@ -589,7 +590,9 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
         desmontarEdicao = montarEdicaoPaciente(
           edicaoRaiz,
           paciente.id,
-          api,
+          criarServicoEdicaoPacienteHttp(() =>
+            sessao ? { usuario_id: sessao.usuario.id, session_id: sessao.session_id } : null,
+          ),
           acessoPerdido,
           (pendente) => {
             edicaoPendente = pendente;

@@ -3,28 +3,25 @@ import {
   type AtualizarPaciente,
   type PacienteAdministrativo,
 } from '../packages/contracts/src/index.js';
-import { exigeNovoAcesso, FalhaApi, mensagemFalha, resultadoIncerto } from './api.js';
+import { exigeNovoAcesso, mensagemFalha } from './api.js';
+import type { criarCicloEdicaoPaciente } from './ciclo-edicao-paciente.js';
 
-type Servico = {
+export type ServicoEdicaoPaciente = {
   consultarPaciente(pacienteId: string): Promise<PacienteAdministrativo>;
-  atualizarPaciente(
-    pacienteId: string,
-    entrada: AtualizarPaciente,
-    chave: string,
-  ): Promise<PacienteAdministrativo>;
+  ciclo: ReturnType<typeof criarCicloEdicaoPaciente>;
 };
 
 /** Interface preparada para integração segura; não ativa rota nem autoriza acesso. */
 export function montarEdicaoPaciente(
   raiz: HTMLElement,
   pacienteId: string,
-  servico: Servico,
+  servico: ServicoEdicaoPaciente,
   acessoPerdido: (erro: unknown) => void,
   alteracaoPendente: (pendente: boolean) => void = () => {},
 ): () => void {
   let ativa = true;
-  let pendente: { entrada: AtualizarPaciente; chave: string } | null = null;
-  let conflito = false;
+  let bloqueada = true;
+  let recuperando = false;
   const elemento = <K extends keyof HTMLElementTagNameMap>(tipo: K, texto?: string) => {
     const el = document.createElement(tipo);
     if (texto !== undefined) el.textContent = texto;
@@ -33,7 +30,6 @@ export function montarEdicaoPaciente(
   const descartarAcesso = (erro: unknown) => {
     if (!exigeNovoAcesso(erro)) return false;
     ativa = false;
-    pendente = null;
     raiz.replaceChildren();
     acessoPerdido(erro);
     return true;
@@ -69,47 +65,30 @@ export function montarEdicaoPaciente(
     rotular('Motivo da alteração', motivo);
     const salvar = elemento('button', 'Salvar alterações');
     salvar.type = 'submit';
-    const confirmar = elemento('button', 'Tentar confirmar salvamento');
-    confirmar.type = 'button';
-    confirmar.hidden = true;
     const aviso = elemento('p');
     aviso.setAttribute('role', 'status');
-    form.append(campos, salvar, confirmar, aviso);
-    const enviar = async () => {
-      if (!pendente) return;
-      campos.disabled = salvar.disabled = confirmar.disabled = true;
+    form.append(campos, salvar, aviso);
+    const enviar = async (entrada: AtualizarPaciente) => {
+      campos.disabled = salvar.disabled = true;
       aviso.textContent = 'Salvando cadastro…';
       try {
-        const salvo = await servico.atualizarPaciente(pacienteId, pendente.entrada, pendente.chave);
+        await servico.ciclo.editar(pacienteId, entrada);
         if (!ativa) return;
-        pendente = null;
-        alteracaoPendente(false);
-        desenhar(salvo);
-        const mensagem = raiz.querySelector('[role="status"]');
-        if (mensagem) mensagem.textContent = 'Cadastro atualizado.';
+        aviso.textContent = 'Envio realizado. Confirme o resultado antes de continuar.';
       } catch (erro) {
         if (!ativa || descartarAcesso(erro)) return;
-        if (resultadoIncerto(erro)) {
-          confirmar.hidden = false;
-          confirmar.disabled = false;
-          aviso.textContent =
-            'Não foi possível confirmar o salvamento. Tente confirmar antes de editar novamente.';
-        } else {
-          pendente = null;
-          campos.disabled = false;
-          conflito = erro instanceof FalhaApi && erro.codigo === 'conflito_versao';
-          salvar.disabled = conflito;
-          confirmar.hidden = true;
-          aviso.textContent = conflito
-            ? 'O cadastro foi alterado por outra pessoa. Copie seu rascunho antes de recarregar para consultar a versão atual; suas alterações ainda não foram salvas.'
-            : mensagemFalha(erro);
-        }
+        aviso.textContent =
+          'Não foi possível confirmar o salvamento. Confira o resultado antes de editar novamente; o rascunho permanece nesta tela.';
       }
+      bloqueada = true;
+      recuperar.textContent = 'Confirmar situação da edição';
+      recuperar.hidden = false;
+      recuperar.disabled = false;
     };
     form.addEventListener('input', () => alteracaoPendente(true));
     form.addEventListener('submit', (evento) => {
       evento.preventDefault();
-      if (pendente || conflito) return;
+      if (bloqueada || recuperando) return;
       const dados = {
         ...(nome.value.trim() !== paciente.nome ? { nome: nome.value } : {}),
         ...(preferencia.value.trim() !== (paciente.nome_preferencia ?? '')
@@ -127,14 +106,10 @@ export function montarEdicaoPaciente(
           'Altere ao menos um campo e informe nome válido, data válida e motivo da alteração.';
         return;
       }
-      pendente = { entrada: validado.data, chave: crypto.randomUUID() };
       alteracaoPendente(true);
-      void enviar();
+      void enviar(validado.data);
     });
-    confirmar.addEventListener('click', () => {
-      void enviar();
-    });
-    raiz.replaceChildren(form);
+    raiz.replaceChildren(form, recuperar, status);
   };
   const consultar = () => {
     status.textContent = 'Carregando cadastro…';
@@ -151,10 +126,114 @@ export function montarEdicaoPaciente(
         raiz.append(tentar);
       });
   };
-  consultar();
+  const recuperar = elemento('button', 'Confirmar situação da edição');
+  recuperar.type = 'button';
+  let reconhecido = false;
+  const concluirRecuperacao = () => {
+    recuperar.hidden = true;
+    const form = raiz.querySelector('form');
+    if (!form) {
+      bloqueada = false;
+      consultar();
+      return;
+    }
+    // Versão pode ter mudado; permitir copiar o rascunho, sem permitir sobrescrita.
+    const campos = form.querySelector('fieldset');
+    if (campos) campos.disabled = false;
+    status.textContent = 'Situação confirmada. Copie o rascunho antes de recarregar o cadastro.';
+    const recarregar = elemento('button', 'Recarregar cadastro');
+    recarregar.type = 'button';
+    recarregar.onclick = () => {
+      alteracaoPendente(false);
+      bloqueada = false;
+      consultar();
+    };
+    raiz.append(recarregar);
+  };
+  const recuperarSituacao = () => {
+    if (recuperando) return;
+    recuperando = true;
+    recuperar.disabled = true;
+    status.textContent = 'Confirmando situação da edição…';
+    void (async () => {
+      if (reconhecido) {
+        await servico.ciclo.consultar();
+        servico.ciclo.liberar();
+      } else {
+        let situacao = await servico.ciclo.consultar();
+        if (!situacao.resultado_pendente) {
+          await servico.ciclo.encerrar();
+          situacao = await servico.ciclo.consultar();
+        }
+        if (!ativa) return;
+        if (situacao.resultado_pendente) {
+          const resultado = situacao.resultado_pendente;
+          if (resultado.paciente_id.toLowerCase() !== pacienteId.toLowerCase()) {
+            status.textContent = `Resultado pendente pertence ao paciente ${resultado.paciente_id}. Abra esse cadastro para conferi-lo e reconhecê-lo.`;
+            recuperar.hidden = true;
+            return;
+          }
+          // A conferência usa leitura autorizada atual e não substitui o rascunho.
+          const atual = await servico.consultarPaciente(pacienteId);
+          if (!ativa) return;
+          if (atual.id.toLowerCase() !== pacienteId.toLowerCase())
+            throw new Error('Cadastro divergente');
+          const conferencia = elemento('p');
+          conferencia.textContent = `Cadastro atual: ${atual.nome}; nome de preferência: ${atual.nome_preferencia ?? 'não informado'}; nascimento: ${atual.data_nascimento ?? 'não informado'}; versão: ${atual.versao}.`;
+          raiz.querySelector('[data-conferencia-edicao]')?.remove();
+          conferencia.dataset.conferenciaEdicao = '';
+          raiz.append(conferencia);
+          status.textContent =
+            resultado.resultado === 'confirmada'
+              ? `Uma edição anterior do paciente ${resultado.paciente_id} foi confirmada na versão ${resultado.versao}. ${atual.versao !== resultado.versao ? 'O cadastro atual está em outra versão; alterações posteriores podem ter ocorrido.' : 'Confira o cadastro correspondente.'}`
+              : `Uma edição anterior do paciente ${resultado.paciente_id} foi cancelada.`;
+          recuperar.textContent = 'Reconhecer resultado e liberar edição';
+          recuperar.onclick = () => {
+            if (recuperando) return;
+            recuperando = true;
+            recuperar.disabled = true;
+            void (async () => {
+              if (!reconhecido) {
+                await servico.ciclo.reconhecer();
+                reconhecido = true;
+              }
+              await servico.ciclo.consultar();
+              servico.ciclo.liberar();
+              if (!ativa) return;
+              reconhecido = false;
+              recuperar.onclick = recuperarSituacao;
+              concluirRecuperacao();
+            })()
+              .catch((erro: unknown) => {
+                if (!ativa || descartarAcesso(erro)) return;
+                status.textContent = 'Não foi possível reconhecer o resultado. Tente novamente.';
+                recuperar.disabled = false;
+              })
+              .finally(() => {
+                recuperando = false;
+              });
+          };
+          recuperar.disabled = false;
+          return;
+        }
+        servico.ciclo.liberar();
+      }
+      if (!ativa) return;
+      concluirRecuperacao();
+    })()
+      .catch((erro: unknown) => {
+        if (!ativa || descartarAcesso(erro)) return;
+        status.textContent = 'Não foi possível confirmar a situação. Tente novamente.';
+        recuperar.disabled = false;
+      })
+      .finally(() => {
+        recuperando = false;
+      });
+  };
+  recuperar.onclick = recuperarSituacao;
+  raiz.replaceChildren(status, recuperar);
   return () => {
     ativa = false;
-    pendente = null;
     raiz.replaceChildren();
   };
 }
