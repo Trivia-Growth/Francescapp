@@ -50,13 +50,13 @@ export function criarServicoPlanoHttp(
     let fluxo: string | null;
     try {
       modo = sessionStorage.getItem('modo-acesso');
-      fluxo = sessionStorage.getItem('fluxo-google');
+      fluxo = sessionStorage.getItem(modo === 'tecnica' ? 'fluxo-tecnico' : 'fluxo-google');
     } catch {
       throw new FalhaApi('nao_autenticado', 401);
     }
-    if (modo === 'google' && fluxo && /^[A-Za-z0-9_-]{22}$/.test(fluxo))
-      headers.set('x-fluxo', fluxo);
-    else if (modo !== 'tecnica' || fluxo) throw new FalhaApi('nao_autenticado', 401);
+    if ((modo !== 'google' && modo !== 'tecnica') || !fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo))
+      throw new FalhaApi('nao_autenticado', 401);
+    headers.set('x-fluxo', fluxo);
     if (chave) headers.set('x-chave-idempotencia', uuidSchema.parse(chave));
     if (rota.metodo !== 'GET') headers.set('Content-Type', 'application/json');
     let resposta: Response;

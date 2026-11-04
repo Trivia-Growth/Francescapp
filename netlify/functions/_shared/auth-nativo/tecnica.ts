@@ -4,7 +4,7 @@ import {
   sessaoNativaSchema,
 } from '../../../../packages/contracts/src/identidade.ts';
 import type { FonteDeConfiguracao } from '../../../../supabase/functions/_shared/configuracao.ts';
-import { credencialAuthRejeitada, criarContextoAuthNativo } from './cliente.ts';
+import { credencialAuthRejeitada, criarContextoAuthNativo, fluxoValido } from './cliente.ts';
 
 /** Preparado para revisão; não registrar rota antes da admissão técnica no banco. */
 export async function entrarTecnicaNativa(request: Request, fonte: FonteDeConfiguracao) {
@@ -27,7 +27,8 @@ export async function entrarTecnicaNativa(request: Request, fonte: FonteDeConfig
     request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() !== 'application/json'
   )
     return erro('entrada_invalida', 422);
-  if (request.headers.get('origin') !== url.origin) return erro('sem_permissao', 403);
+  if (request.headers.get('origin') !== url.origin || !fluxoValido(request.headers.get('x-fluxo')))
+    return erro('sem_permissao', 403);
   const leitor = request.body?.getReader();
   if (!leitor) return erro('entrada_invalida', 422);
   let entrada: unknown;

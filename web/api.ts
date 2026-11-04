@@ -147,6 +147,7 @@ export class ClienteFFCM {
       protegido?: boolean;
       encerramento?: boolean;
       pacienteId?: string;
+      fluxoEntrada?: string;
     } = {},
   ): Promise<Dados<R>> {
     const contrato = rotas[rota];
@@ -187,23 +188,26 @@ export class ClienteFFCM {
       // Compara o alvo com o cookie atual no servidor; nunca concede autorização.
       headers.set('x-sessao', sessionId);
     }
-    if (rota !== 'entrarTecnico') {
+    if (rota === 'entrarTecnico') {
+      if (!opcoes.fluxoEntrada || !/^[A-Za-z0-9_-]{22}$/.test(opcoes.fluxoEntrada))
+        throw new FalhaApi('nao_autenticado', 401);
+      headers.set('x-fluxo', opcoes.fluxoEntrada);
+    } else {
       let fluxo: string | null;
       let modo: string | null;
       try {
         modo = sessionStorage.getItem('modo-acesso');
-        fluxo = sessionStorage.getItem('fluxo-google');
+        fluxo = sessionStorage.getItem(
+          modo === 'tecnica' || modo === 'saindo-tecnica' ? 'fluxo-tecnico' : 'fluxo-google',
+        );
       } catch {
         throw new FalhaApi('nao_autenticado', 401);
       }
       const google = modo === 'google' || (opcoes.encerramento && modo === 'saindo-google');
       const tecnica = modo === 'tecnica' || (opcoes.encerramento && modo === 'saindo-tecnica');
       if (!google && !tecnica) throw new FalhaApi('nao_autenticado', 401);
-      if (google) {
-        if (!fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo))
-          throw new FalhaApi('nao_autenticado', 401);
-        headers.set('x-fluxo', fluxo);
-      } else if (fluxo) throw new FalhaApi('nao_autenticado', 401);
+      if (!fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo)) throw new FalhaApi('nao_autenticado', 401);
+      headers.set('x-fluxo', fluxo);
     }
     if (opcoes.chave) headers.set('x-chave-idempotencia', opcoes.chave);
     let corpo: string | undefined;
@@ -278,7 +282,18 @@ export class ClienteFFCM {
       sessionStorage.setItem('modo-acesso', 'bloqueada');
       sessionStorage.removeItem('fluxo-google');
       sessionStorage.removeItem('sessao-tecnica');
-      const entrada = await this.#enviar('entrarTecnico', { email, senha });
+      const bytes = crypto.getRandomValues(new Uint8Array(16));
+      const fluxo = btoa(String.fromCharCode(...bytes))
+        .replaceAll('+', '-')
+        .replaceAll('/', '_')
+        .replaceAll('=', '');
+      sessionStorage.setItem('fluxo-tecnico', fluxo);
+      if (sessionStorage.getItem('fluxo-tecnico') !== fluxo) throw new Error();
+      const entrada = await this.#enviar(
+        'entrarTecnico',
+        { email, senha },
+        { fluxoEntrada: fluxo },
+      );
       sessionStorage.setItem('modo-acesso', 'tecnica');
       // Consulta independente confirma concessão e perfil atuais; não confia só no login.
       return await this.#consultarSessao(entrada);
@@ -444,6 +459,7 @@ export class ClienteFFCM {
       sessionStorage.setItem('modo-acesso', 'bloqueada');
       sessionStorage.removeItem('fluxo-google');
       sessionStorage.removeItem('sessao-tecnica');
+      sessionStorage.removeItem('fluxo-tecnico');
     } catch {
       throw new FalhaApi('nao_autenticado', 401);
     }

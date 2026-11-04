@@ -7,7 +7,12 @@ afterEach(() => {
 });
 it('vincula consulta à sessão e rejeita resposta tardia após troca de identidade', async () => {
   vi.stubGlobal('sessionStorage', {
-    getItem: (chave: string) => (chave === 'modo-acesso' ? 'tecnica' : null),
+    getItem: (chave: string) =>
+      chave === 'modo-acesso'
+        ? 'tecnica'
+        : chave === 'fluxo-tecnico'
+          ? 'AAAAAAAAAAAAAAAAAAAAAA'
+          : null,
   });
   let identidade: { usuario_id: string; session_id: string } | null = {
     usuario_id: id,
@@ -31,7 +36,12 @@ it('vincula consulta à sessão e rejeita resposta tardia após troca de identid
 
 it('envia cursor e limite em cada consulta paginada', async () => {
   vi.stubGlobal('sessionStorage', {
-    getItem: (chave: string) => (chave === 'modo-acesso' ? 'tecnica' : null),
+    getItem: (chave: string) =>
+      chave === 'modo-acesso'
+        ? 'tecnica'
+        : chave === 'fluxo-tecnico'
+          ? 'AAAAAAAAAAAAAAAAAAAAAA'
+          : null,
   });
   const fetch = vi
     .fn()

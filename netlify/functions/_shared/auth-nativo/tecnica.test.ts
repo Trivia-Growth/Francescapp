@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   responder: vi.fn(),
 }));
 vi.mock('./cliente.ts', () => ({
+  fluxoValido: (fluxo: string | null) => fluxo !== null && /^[A-Za-z0-9_-]{22}$/.test(fluxo),
   credencialAuthRejeitada: (erro: { status?: number }) => erro.status === 400,
   criarContextoAuthNativo: () => ({
     origem: 'https://app.example.test',
@@ -27,7 +28,11 @@ const sessao = {
 const pedido = (origem = 'https://app.example.test') =>
   new Request('https://app.example.test/api/auth/tecnica', {
     method: 'POST',
-    headers: { origin: origem, 'content-type': 'application/json' },
+    headers: {
+      origin: origem,
+      'content-type': 'application/json',
+      'x-fluxo': 'AAAAAAAAAAAAAAAAAAAAAA',
+    },
     body: JSON.stringify({ email: 'teste@example.test', senha: 'senha-ficticia' }),
   });
 beforeEach(() => {
@@ -59,4 +64,12 @@ it.each([
 it('rejeita origem externa antes da autenticação', async () => {
   expect((await entrarTecnicaNativa(pedido('https://externo.test'), {})).status).toBe(403);
   expect(mocks.login).not.toHaveBeenCalled();
+});
+
+it('nega tentativa sem seletor antes de autenticar', async () => {
+  const request = pedido();
+  request.headers.delete('x-fluxo');
+  expect((await entrarTecnicaNativa(request, {})).status).toBe(403);
+  expect(mocks.login).not.toHaveBeenCalled();
+  expect(mocks.responder).not.toHaveBeenCalled();
 });

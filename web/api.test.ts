@@ -74,6 +74,7 @@ it('falha fechada quando consulta da barreira falha ou devolve dados inválidos'
 beforeEach(() => {
   const itens = new Map<string, string>([
     ['modo-acesso', 'tecnica'],
+    ['fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA'],
     ['sessao-tecnica', '20000000-0000-4000-8000-000000000001'],
   ]);
   vi.stubGlobal('sessionStorage', {
@@ -100,9 +101,11 @@ it('restaura sessão exclusivamente por cookie same-origin sem credenciais no Ja
 
 it('login técnico não abre desafio e consulta autorização independente', async () => {
   const caminhos: string[] = [];
+  const fluxos: (string | null)[] = [];
   vi.stubGlobal('window', { location: { origin: 'https://app.example.test' } });
   vi.stubGlobal('fetch', async (url: URL, init: RequestInit) => {
     caminhos.push(url.pathname);
+    fluxos.push(new Headers(init.headers).get('x-fluxo'));
     if (url.pathname === '/api/auth/tecnica')
       expect(JSON.parse(String(init.body))).toEqual({
         email: 'a@example.test',
@@ -114,6 +117,8 @@ it('login técnico não abre desafio e consulta autorização independente', asy
     sessao,
   );
   expect(caminhos).toEqual(['/api/auth/tecnica', '/api/sessao']);
+  expect(fluxos[0]).toMatch(/^[A-Za-z0-9_-]{22}$/);
+  expect(fluxos[1]).toBe(fluxos[0]);
 });
 
 it('falha tardia de login anterior não bloqueia o login mais recente', async () => {
