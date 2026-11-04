@@ -20,6 +20,8 @@ RPCs locais de cadastro, barreira e carteira receberam grants restritos a `authe
 
 Revisão de preparação corrigiu as migrations de admissão e carteira para preservar permissões preexistentes do migrador. Teste SQL descartável dos trechos de concessão e limpeza passou; não executou as migrations completas nem comprovou integração remota.
 
+Consulta somente de leitura pelo canal Management API confirmou conexão como `postgres`. Esse canal compartilhado não comprova identidade individual do operador e não deve ser usado como prova de autoria. O bootstrap segue pendente de identificação operacional verificável e revisão; não houve alteração remota.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.
