@@ -13,3 +13,5 @@
 - [ ] 2.3 Revisar e comprovar acesso permitido e negado, outro paciente, revogação, acesso direto e falhas de auditoria/cifra. Testes não executados por instrução do solicitante; integração e ativação permanecem sem evidência.
 
 Preparação local: contrato com descrição e prioridades, tabelas versionadas, operações privadas e composição de cifra no servidor foram escritos. A interface de consulta e a rota GET foram ligadas no código, com serviço desativado; criação, idempotência, grants e ativação permanecem pendentes. Lint e typecheck passaram. Não foram executados testes ou migrations dessas tarefas.
+
+Preparação posterior: formulário de criação e handler privado foram escritos, com proteção contra repetição preparada em migration local. O formulário e POST ainda não estão ligados; revisão da idempotência, grants e provas reais continuam pendentes. Não executar a migration como se a integração estivesse concluída.

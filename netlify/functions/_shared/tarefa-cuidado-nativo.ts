@@ -1,4 +1,4 @@
-import { uuidSchema } from '../../../packages/contracts/src/comum.ts';
+import { chaveIdempotenciaSchema, uuidSchema } from '../../../packages/contracts/src/comum.ts';
 import {
   tarefaCuidadoSchema,
   conteudoTarefaSchema,
@@ -44,6 +44,7 @@ export async function operarTarefaCuidadoNativo(
       cifrar(valor: string, aad: Aad): Promise<CampoCifrado>;
       decifrar(valor: CampoCifrado, aad: Aad): Promise<string>;
     };
+    idempotencia: { calcularDigestIdempotencia(comandoLogico: string): Promise<string> };
     atestador: {
       canonicalizar(valor: unknown): string;
       atestarEntrada(dados: unknown, entrada: Record<string, unknown>): Promise<unknown>;
@@ -85,9 +86,11 @@ export async function operarTarefaCuidadoNativo(
       return erro('nao_autenticado');
     const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
     if (comando.operacao === 'gravar') {
+      const chave = chaveIdempotenciaSchema.safeParse(request.headers.get('x-chave-idempotencia'));
       const tarefa = tarefaCuidadoSchema.safeParse(comando.tarefa);
       const id = uuidSchema.safeParse(comando.tarefa_id);
       if (
+        !chave.success ||
         !tarefa.success ||
         !id.success ||
         !Number.isInteger(comando.versao_esperada) ||
@@ -112,7 +115,18 @@ export async function operarTarefaCuidadoNativo(
       });
       if (new TextEncoder().encode(JSON.stringify(conteudo)).length > 23000)
         return erro('entrada_invalida');
+      const digest = await portas.idempotencia.calcularDigestIdempotencia(
+        portas.atestador.canonicalizar({
+          paciente_id: pacienteId,
+          tarefa_id: aad.tarefa_id,
+          versao_esperada: comando.versao_esperada,
+          tarefa: tarefa.data,
+        }),
+      );
+      if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) throw new Error();
       Object.assign(entrada, {
+        chave_idempotencia: chave.data,
+        digest_idempotencia: digest,
         tarefa_id: aad.tarefa_id,
         registro_id: registroId,
         versao_esperada: comando.versao_esperada,
@@ -158,7 +172,6 @@ export async function operarTarefaCuidadoNativo(
     if (
       comando.operacao === 'gravar' &&
       (registros.length !== 1 ||
-        registros[0]?.registro_id !== entrada.registro_id ||
         registros[0]?.tarefa_id !== entrada.tarefa_id ||
         registros[0]?.versao !== comando.versao_esperada + 1)
     )

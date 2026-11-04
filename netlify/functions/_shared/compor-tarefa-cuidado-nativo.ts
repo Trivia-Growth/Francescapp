@@ -7,6 +7,7 @@ import { credencialAuthRejeitada, criarContextoAuthNativo } from './auth-nativo/
 import { carregarCofreNativo } from './cofre-nativo.ts';
 import { metadadosAtestadoNativo } from './compor-pacientes-nativo.ts';
 import { executarTarefaCuidadoNativo } from './executor-tarefa-cuidado-nativo.ts';
+import { criarIdempotenciaNativa } from './idempotencia-nativa.ts';
 
 type Comando = Parameters<typeof operarTarefaCuidadoNativo>[1];
 type Resultado = Awaited<ReturnType<typeof operarTarefaCuidadoNativo>>;
@@ -104,6 +105,7 @@ export async function comporTarefaCuidadoNativo(
         metadados: (requestId) =>
           metadadosAtestadoNativo(dependencias.keyIdAtestado, requestId, Date.now()),
         cifra: cofre.cifra,
+        idempotencia: criarIdempotenciaNativa(cofre.cifra),
         atestador: cofre.atestador,
         executar: (_request, transporte) => {
           verificarCancelamento();

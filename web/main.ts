@@ -137,9 +137,14 @@ let anamnesePendente = false;
 const planoPanel = elemento('plano-panel');
 const tarefasPanel = elemento('tarefas-panel');
 let desmontarTarefas: (() => void) | null = null;
+let tarefaPendente = false;
+function confirmarDescarteTarefa(): boolean {
+  return !tarefaPendente || window.confirm('Há dados de tarefa não confirmados. Deseja sair?');
+}
 function fecharTarefas(): void {
   desmontarTarefas?.();
   desmontarTarefas = null;
+  tarefaPendente = false;
   tarefasPanel.hidden = true;
   elemento('tarefas-paciente').textContent = '';
 }
@@ -380,8 +385,11 @@ function acessoPerdido(erro: unknown): boolean {
   const alertaPlano = planoPendente
     ? ' O rascunho do plano foi descartado. Confirme a situação antes de repetir um salvamento.'
     : '';
+  const alertaTarefa = tarefaPendente
+    ? ' Uma tarefa ficou sem confirmação. Confira a situação antes de tentar criá-la novamente.'
+    : '';
   mostrarAcesso(
-    `Seu acesso precisa ser validado novamente. Entre com uma conta autorizada.${alertaCadastro}${alertaPlano}`,
+    `Seu acesso precisa ser validado novamente. Entre com uma conta autorizada.${alertaCadastro}${alertaPlano}${alertaTarefa}`,
     'error',
   );
   return true;
@@ -603,6 +611,9 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
             sessao ? { usuario_id: sessao.usuario.id, session_id: sessao.session_id } : null,
           ),
           acessoPerdido,
+          (pendente) => {
+            tarefaPendente = pendente;
+          },
         );
         elemento('tarefas-title').focus();
       });
@@ -892,6 +903,7 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
 async function sair(): Promise<void> {
   if (
     logoutOcupado ||
+    !confirmarDescarteTarefa() ||
     !confirmarDescarteAnamnese() ||
     !confirmarDescartePlano() ||
     !confirmarDescarteEdicao()
@@ -1063,6 +1075,7 @@ fecharPlanoBotao.addEventListener('click', () => {
   acaoPacienteAnterior = null;
 });
 elemento<HTMLButtonElement>('fechar-tarefas').addEventListener('click', () => {
+  if (!confirmarDescarteTarefa()) return;
   fecharTarefas();
   aviso('workspace-feedback', '');
   if (acaoPacienteAnterior?.isConnected && !table.hidden) acaoPacienteAnterior.focus();
@@ -1105,6 +1118,7 @@ window.addEventListener('beforeunload', (evento) => {
     !cadastroPendente &&
     !cadastroEmRevalidacao &&
     !anamnesePendente &&
+    !tarefaPendente &&
     !planoPendente &&
     !edicaoPendente
   )

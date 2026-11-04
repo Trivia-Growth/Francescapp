@@ -17,6 +17,10 @@ export const tarefaCuidadoSchema = z
   .refine(
     (tarefa) => tarefa.estado !== 'concluida' || !!tarefa.acaoRealizada || !!tarefa.justificativa,
   );
+export type TarefaCuidado = z.infer<typeof tarefaCuidadoSchema>;
+export const criacaoTarefaCuidadoSchema = z
+  .object({ tarefa_id: uuidSchema, tarefa: tarefaCuidadoSchema })
+  .strict();
 export const conteudoTarefaSchema = z
   .object({ tarefa: tarefaCuidadoSchema, ator_usuario_id: uuidSchema, data: z.iso.datetime() })
   .strict();
@@ -44,7 +48,9 @@ export const respostaTarefaPrivadaSchema = z.discriminatedUnion('ok', [
   z
     .object({
       ok: z.literal(false),
-      erro: z.object({ codigo: z.enum(['sem_permissao', 'conflito']) }).strict(),
+      erro: z
+        .object({ codigo: z.enum(['sem_permissao', 'conflito', 'conflito_idempotencia']) })
+        .strict(),
       request_id: uuidSchema,
     })
     .strict(),
