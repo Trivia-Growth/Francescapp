@@ -21,6 +21,8 @@ Atualização: paginação foi preparada no banco, servidor e interface, com cur
 
 Montagem local conecta a tela de plano ao fluxo de pacientes; retorno à aba revalida antes de exibir dados e teste com 403 simulado confirma limpeza e saída. Teste HTTP integrado local passou com PostgreSQL, cifra e atestado reais; Auth, Vault e transporte PostgREST foram simulados e grant concedido apenas no banco descartável. Dispatcher segue inativo; isso não comprova acesso ou revogação reais no Supabase.
 
+O teste HTTP integrado foi ampliado para reserva, gravação confirmada com resposta perdida, repetição, revisão, histórico paginado e negativa de outro paciente. A gravação é comprovada no banco antes da repetição; Auth e Vault seguem simulados.
+
 ## Workflow follow-up
 
 - A integração conectada exige tarefas específicas após decisões materiais, testes positivos e negativos no servidor e banco, prova real com dados fictícios e autorização para qualquer operação remota.
