@@ -28,6 +28,8 @@ O contrato de cifra agora identifica e-mail e motivo pela concessão e pelo camp
 
 Migration local prepara leitura restrita da chave HMAC de e-mail, sem atribuir executor a nenhum login. Teste SQL descartável com Vault fictício cobriu acesso autorizado, negativas e configuração ausente. O executor recebe a chave integral: atribuição temporária, revogação, adapter, S-02 e prova Vault real permanecem pendentes. A migration falha explicitamente se o migrador já tiver membership sem `SET`; essa condição operacional precisa ser resolvida antes da aplicação. Nada foi aplicado remotamente.
 
+Adapter local de leitura HMAC foi preparado e testado com conexões simuladas; não há consumidor em runtime. Permanecem pendentes a verificação independente do projeto e do vínculo entre UUID Auth e e-mail antes do acesso ao Vault, além da integração real e dos controles de concessão e revogação do executor.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.
