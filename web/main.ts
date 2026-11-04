@@ -659,10 +659,7 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
       });
       acao.append(editar);
     }
-    // A rota permanece indisponível até a autorização e validação do backend.
-    const contatoDisponivel = false;
     if (
-      contatoDisponivel &&
       sessao.usuario.perfil === 'administrador' &&
       sessao.capacidades.includes('administrar_cadastro')
     ) {

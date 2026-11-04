@@ -1,3 +1,4 @@
+import { criarContatoReservadoHttpSchema } from '../packages/contracts/src/barreira-contato-servidor.js';
 import {
   contratosRotas,
   contratosBarreiraHttp,
@@ -37,7 +38,7 @@ const rotas = {
   listarPacientes: contratosRotas.listarPacientes,
   consultarPaciente: { ...contratosRotas.consultarPaciente, saida: pacienteAdministrativoSchema },
   atualizarPaciente: contratosRotas.atualizarPaciente,
-  criarContato: contratosRotas.criarContato,
+  criarContato: { ...contratosRotas.criarContato, entrada: criarContatoReservadoHttpSchema },
   consultarAnamnese: contratosRotas.consultarAnamnese,
   salvarAnamnese: contratosRotas.salvarAnamnese,
   criarPaciente: contratosRotas.criarPaciente,

@@ -1,5 +1,5 @@
-import { novoContatoSchema } from '../packages/contracts/src/index.js';
-import { exigeNovoAcesso, mensagemFalha, type ClienteFFCM } from './api.js';
+import { novoContatoSchema, type PacienteAdministrativo } from '../packages/contracts/src/index.js';
+import { exigeNovoAcesso, FalhaApi, mensagemFalha, type ClienteFFCM } from './api.js';
 import { criarCicloContato } from './ciclo-contato.js';
 
 /** Montagem preparada para quando a rota de contatos estiver autorizada. */
@@ -12,6 +12,9 @@ export function montarContatoPaciente(
 ): () => void {
   let ativa = true;
   let bloqueada = true;
+  const identidadeAtual = api.identidadeAtual();
+  if (!identidadeAtual) throw new FalhaApi('nao_autenticado', 401);
+  const identidade = { ...identidadeAtual };
   const ciclo = criarCicloContato({
     identidadeAtual: () => api.identidadeAtual(),
     consultar: () => api.consultarBarreiraContato(),
@@ -21,6 +24,54 @@ export function montarContatoPaciente(
     encerrar: async (entrada) => (await api.encerrarBarreiraContato(entrada)).estado,
     reconhecer: async (entrada) => (await api.reconhecerBarreiraContato(entrada)).estado,
   });
+  const lista = document.createElement('section');
+  const tituloLista = document.createElement('h3');
+  tituloLista.textContent = 'Contatos cadastrados';
+  const conteudoLista = document.createElement('div');
+  conteudoLista.textContent = 'Carregando contatos…';
+  lista.append(tituloLista, conteudoLista);
+  let contatosAtualizados = false;
+  let identidadeInvalidada = false;
+  const verificarIdentidade = () => {
+    let atual: ReturnType<ClienteFFCM['identidadeAtual']> = null;
+    try {
+      atual = api.identidadeAtual();
+    } catch {
+      // Falha ao consultar identidade não comprova sessão vigente.
+    }
+    if (
+      identidadeInvalidada ||
+      !atual ||
+      atual.usuario_id.toLowerCase() !== identidade.usuario_id.toLowerCase() ||
+      atual.session_id.toLowerCase() !== identidade.session_id.toLowerCase()
+    ) {
+      identidadeInvalidada = true;
+      contatosAtualizados = false;
+      conteudoLista.replaceChildren();
+      valor.value = '';
+      bloqueada = true;
+      campos.disabled = salvar.disabled = true;
+      throw new FalhaApi('nao_autenticado', 401);
+    }
+  };
+  const mostrarContatos = (paciente: PacienteAdministrativo) => {
+    verificarIdentidade();
+    if (paciente.id.toLowerCase() !== pacienteId.toLowerCase())
+      throw new Error('Paciente divergente');
+    if (!ativa) return;
+    if (paciente.contatos.length === 0) {
+      conteudoLista.textContent = 'Nenhum contato cadastrado.';
+    } else {
+      const itens = document.createElement('ul');
+      for (const contato of paciente.contatos) {
+        const item = document.createElement('li');
+        item.textContent = `${contato.tipo === 'email' ? 'E-mail' : 'Telefone'}: ${contato.valor}`;
+        itens.append(item);
+      }
+      conteudoLista.replaceChildren(itens);
+    }
+    contatosAtualizados = true;
+  };
   const form = document.createElement('form');
   const campos = document.createElement('fieldset');
   const legenda = document.createElement('legend');
@@ -87,6 +138,10 @@ export function montarContatoPaciente(
         etapa = null;
         await ciclo.consultar();
       }
+      if (!contatosAtualizados) {
+        verificarIdentidade();
+        mostrarContatos(await api.consultarPaciente(pacienteId));
+      }
       ciclo.liberar();
       if (!ativa) return;
       bloqueada = false;
@@ -98,7 +153,18 @@ export function montarContatoPaciente(
       contatoConfirmado = false;
     } catch (erro) {
       if (!ativa) return;
-      if (exigeNovoAcesso(erro)) acessoPerdido(erro);
+      try {
+        verificarIdentidade();
+      } catch (identidadeErro) {
+        acessoPerdido(identidadeErro);
+        return;
+      }
+      if (exigeNovoAcesso(erro)) {
+        conteudoLista.replaceChildren();
+        acessoPerdido(erro);
+      }
+      if (!contatosAtualizados)
+        conteudoLista.textContent = 'Não foi possível carregar os contatos.';
       recuperar.hidden = false;
       status.textContent =
         'Não foi possível verificar a operação. Tente novamente antes de adicionar contato.';
@@ -121,20 +187,30 @@ export function montarContatoPaciente(
       return;
     }
     bloqueada = true;
+    contatosAtualizados = false;
+    conteudoLista.textContent = 'Atualizando contatos…';
     campos.disabled = salvar.disabled = true;
     alteracaoPendente(true);
     status.textContent = 'Adicionando contato…';
     void ciclo
       .criar(pacienteId, entrada.data)
-      .then(() => {
+      .then((paciente) => {
         if (!ativa) return;
+        mostrarContatos(paciente);
         valor.value = '';
         alteracaoPendente(false);
         void reconciliar();
       })
       .catch((erro: unknown) => {
         if (!ativa) return;
+        try {
+          verificarIdentidade();
+        } catch (identidadeErro) {
+          acessoPerdido(identidadeErro);
+          return;
+        }
         if (exigeNovoAcesso(erro)) {
+          conteudoLista.replaceChildren();
           acessoPerdido(erro);
           return;
         }
@@ -142,7 +218,7 @@ export function montarContatoPaciente(
         recuperar.hidden = false;
       });
   });
-  raiz.replaceChildren(form);
+  raiz.replaceChildren(lista, form);
   void reconciliar();
   return () => {
     ativa = false;

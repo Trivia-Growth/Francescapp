@@ -78,6 +78,8 @@ Contatos: a migration `20261111200000` foi aplicada ao projeto de teste após re
 
 Atualização: migrations `20261111210000` e `20261111220000` aplicadas ao projeto de teste, mantendo wrappers privados. Ciclo HTTP e interface de contatos foram ligados em código; falta owner restrito com RLS/grants da composição e ativação. O vínculo familiar passa a preparar suporte à sessão técnica, ainda privado. Lint e typecheck passaram; nenhum teste executado.
 
+O botão de contato está acessível ao administrador na interface conectada e informa indisponibilidade enquanto o serviço permanece desativado. A tela lista contatos do DTO administrativo e revalida identidade antes de exibi-los; foi corrigida a validação do corpo HTTP que impedia o envio da reserva. O acesso efetivo ainda depende de grants e configuração do serviço; nenhum teste foi executado.
+
 Conferência de catálogo após a aplicação: 51 versões remotas correspondem às locais. Quatro referências de segredo distintas e uma referência ativa de atestado foram encontradas, sem leitura de valores. A configuração Auth está presente com Google desativado. Ainda não existe perfil da aplicação para a conta técnica nem lote ativo; criação e integração seguem pendentes.
 
 A rota de criação de contato e o formulário foram ligados ao código existente com flag e botão desativados. A RPC permanece sem grant para aplicação e a integração real não foi verificada. Resultado de envio incerto bloqueia nova tentativa e preserva o valor para conferência. Nenhum teste foi executado nesta etapa.
