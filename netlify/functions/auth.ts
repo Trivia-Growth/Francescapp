@@ -10,6 +10,17 @@ export const config = {
 };
 
 export default async function auth(request: Request): Promise<Response> {
+  // Bloqueio operacional até concluir as provas de autenticação e autorização.
+  if (process.env.FFCM_AUTH_ATIVADO !== 'true') {
+    return Response.json(criarErroPublicoSemCampos('servico_indisponivel', crypto.randomUUID()), {
+      status: 503,
+      headers: {
+        'Cache-Control': 'private, no-store',
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'no-referrer',
+      },
+    });
+  }
   switch (new URL(request.url).pathname) {
     case '/api/auth/google':
       return iniciarGoogleNativo(request, process.env);

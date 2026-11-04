@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import auth from '../../auth.ts';
 
 const origem = 'https://app.example.test';
+const fluxo = 'abcdefghijklmnopqrstuv';
 const usuarioId = '11111111-1111-4111-8111-111111111111';
 const usuario = { id: usuarioId, aud: 'authenticated', app_metadata: { provider: 'google' } };
 const autorizada = {
@@ -13,6 +14,7 @@ const exp = Math.floor(Date.now() / 1000) + 3600;
 const accessToken = `${Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')}.${Buffer.from(JSON.stringify({ sub: usuarioId, exp })).toString('base64url')}.${Buffer.from('assinatura-ficticia').toString('base64url')}`;
 
 beforeEach(() => {
+  vi.stubEnv('FFCM_AUTH_ATIVADO', 'true');
   vi.stubEnv('FFCM_SUPABASE_URL', 'https://projeto-ficticio.supabase.co');
   vi.stubEnv('FFCM_SUPABASE_ANON_KEY', 'chave-publica-ficticia');
   vi.stubEnv('FFCM_APP_ORIGIN', origem);
@@ -70,7 +72,8 @@ async function entrar() {
   const inicio = await auth(
     new Request(`${origem}/api/auth/google`, {
       method: 'POST',
-      headers: { origin: origem },
+      headers: { origin: origem, 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ fluxo }),
     }),
   );
   expect(inicio.status).toBe(303);
@@ -92,7 +95,9 @@ describe('entrypoint Netlify com SDK Supabase real e HTTP fictício', () => {
     const transporte = fornecedor();
     const cookie = await entrar();
     transporte.rede.mockClear();
-    const resposta = await auth(new Request(`${origem}/api/sessao`, { headers: { cookie } }));
+    const resposta = await auth(
+      new Request(`${origem}/api/sessao`, { headers: { cookie, 'x-fluxo': fluxo } }),
+    );
     expect(resposta.status).toBe(200);
     expect(await resposta.json()).toEqual({ dados: autorizada, request_id: expect.any(String) });
     expect(transporte.rede.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual([
@@ -110,7 +115,9 @@ describe('entrypoint Netlify com SDK Supabase real e HTTP fictício', () => {
     const cookie = await entrar();
     transporte.rede.mockClear();
     transporte.falhar('usuario');
-    const resposta = await auth(new Request(`${origem}/api/sessao`, { headers: { cookie } }));
+    const resposta = await auth(
+      new Request(`${origem}/api/sessao`, { headers: { cookie, 'x-fluxo': fluxo } }),
+    );
     expect(resposta.status).toBe(401);
     expect(resposta.headers.getSetCookie()).toEqual([]);
     expect(transporte.rede).toHaveBeenCalledTimes(1);
@@ -121,7 +128,9 @@ describe('entrypoint Netlify com SDK Supabase real e HTTP fictício', () => {
     const cookie = await entrar();
     transporte.rede.mockClear();
     transporte.falhar('usuario_indisponivel');
-    const resposta = await auth(new Request(`${origem}/api/sessao`, { headers: { cookie } }));
+    const resposta = await auth(
+      new Request(`${origem}/api/sessao`, { headers: { cookie, 'x-fluxo': fluxo } }),
+    );
     expect(resposta.status).toBe(503);
     expect(resposta.headers.getSetCookie()).toEqual([]);
     expect(transporte.rede).toHaveBeenCalledTimes(1);
@@ -141,7 +150,9 @@ describe('entrypoint Netlify com SDK Supabase real e HTTP fictício', () => {
       const transporte = fornecedor();
       const cookie = await entrar();
       transporte.consultar(consulta);
-      const resposta = await auth(new Request(`${origem}/api/sessao`, { headers: { cookie } }));
+      const resposta = await auth(
+        new Request(`${origem}/api/sessao`, { headers: { cookie, 'x-fluxo': fluxo } }),
+      );
       expect(resposta.status).toBe(401);
       expect(resposta.headers.getSetCookie()).toEqual([]);
       expect((await resposta.json()).erro.codigo).toBe('nao_autenticado');
@@ -152,7 +163,9 @@ describe('entrypoint Netlify com SDK Supabase real e HTTP fictício', () => {
     const transporte = fornecedor();
     const cookie = await entrar();
     transporte.falhar('banco');
-    const resposta = await auth(new Request(`${origem}/api/sessao`, { headers: { cookie } }));
+    const resposta = await auth(
+      new Request(`${origem}/api/sessao`, { headers: { cookie, 'x-fluxo': fluxo } }),
+    );
     expect(resposta.status).toBe(503);
     expect(resposta.headers.getSetCookie()).toEqual([]);
     expect(await resposta.text()).not.toMatch(/confidencial|refresh|access_token/);
@@ -177,7 +190,7 @@ describe('entrypoint Netlify com SDK Supabase real e HTTP fictício', () => {
     const cookie = await entrar();
     const resposta = await auth(
       new Request(`${origem}/api/sessao`, {
-        headers: { cookie, 'x-sessao': '44444444-4444-4444-8444-444444444444' },
+        headers: { cookie, 'x-fluxo': fluxo, 'x-sessao': '44444444-4444-4444-8444-444444444444' },
       }),
     );
     expect(resposta.status).toBe(401);
