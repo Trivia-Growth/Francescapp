@@ -33,6 +33,27 @@ describe('cifra autenticada de campos', () => {
     await expect(cifra.decifrar(campo, aad)).resolves.toBe('Pessoa Fictícia');
   });
 
+  it('vincula email e motivo à concessão e ao campo', async () => {
+    const cifra = criarCifraParaTeste();
+    const concessao = {
+      tabela: 'identidade.concessao_equipe',
+      registro_id: 'd3bc7baf-8868-44ca-97a2-a5dfe73e567a',
+      campo: 'email',
+      formato: 1,
+    } as const;
+    const email = await cifra.cifrar('pessoa@example.test', concessao);
+    const motivo = await cifra.cifrar('Motivo fictício', { ...concessao, campo: 'motivo' });
+    await expect(cifra.decifrar(email, concessao)).resolves.toBe('pessoa@example.test');
+    await expect(cifra.decifrar(motivo, { ...concessao, campo: 'motivo' })).resolves.toBe(
+      'Motivo fictício',
+    );
+    await expect(cifra.decifrar(email, { ...concessao, campo: 'motivo' })).rejects.toThrow();
+    await expect(
+      cifra.decifrar(email, { ...concessao, registro_id: 'd3bc7baf-8868-44ca-97a2-a5dfe73e567b' }),
+    ).rejects.toThrow();
+    await expect(cifra.cifrar('x', { ...concessao, campo: 'outro' } as never)).rejects.toThrow();
+  });
+
   it('gera nonces distintos para o mesmo valor e AAD', async () => {
     const cifra = criarCifraParaTeste();
     const primeiro = await cifra.cifrar('Pessoa Fictícia', aad);

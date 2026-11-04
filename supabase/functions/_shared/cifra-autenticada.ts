@@ -42,7 +42,6 @@ const tabelasAad = new Set([
   'cadastro.contato_paciente',
   'cadastro.pessoa_relacionada',
   'cadastro.relacao_paciente',
-  'identidade.concessao_equipe',
   'auditoria.evento',
 ]);
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -147,6 +146,24 @@ function aadCanonico(aad: MetadadosAad): Uint8Array {
         paciente_id: aad.paciente_id,
         registro_id: aad.registro_id,
         versao: aad.versao,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
+  if (typeof aad === 'object' && aad !== null && aad.tabela === 'identidade.concessao_equipe') {
+    if (
+      typeof aad.registro_id !== 'string' ||
+      !uuid.test(aad.registro_id) ||
+      (aad.campo !== 'email' && aad.campo !== 'motivo') ||
+      aad.formato !== formatoAtual
+    ) {
+      throw new ErroCifraAutenticada();
+    }
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        registro_id: aad.registro_id,
         campo: aad.campo,
         formato: aad.formato,
       }),

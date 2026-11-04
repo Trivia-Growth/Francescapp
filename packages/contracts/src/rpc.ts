@@ -38,11 +38,20 @@ const metadadosAadCamposSchema = z
       'cadastro.contato_paciente',
       'cadastro.pessoa_relacionada',
       'cadastro.relacao_paciente',
-      'identidade.concessao_equipe',
       'auditoria.evento',
     ]),
     registro_id: uuidSchema,
     campo: z.string().min(1).max(80),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+/** A exceção técnica do bootstrap reutiliza o envelope de motivo da concessão. */
+export const metadadosAadConcessaoSchema = z
+  .object({
+    tabela: z.literal('identidade.concessao_equipe'),
+    registro_id: uuidSchema,
+    campo: z.enum(['email', 'motivo']),
     formato: formatoCifraSchema,
   })
   .strict();
@@ -94,6 +103,7 @@ const metadadosAadDiarioSchema = z
 
 export const metadadosAadSchema = z.union([
   metadadosAadCamposSchema,
+  metadadosAadConcessaoSchema,
   metadadosAadSessaoSchema,
   metadadosAadAnamneseSchema,
   metadadosAadPlanoSchema,
