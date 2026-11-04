@@ -10,6 +10,8 @@ Preparação posterior: edição privada usa reserva assinada e confirmação tr
 
 Preparação adicional: contratos HTTP, operações privadas e ciclo web de reconciliação foram implementados localmente, sem registrar rotas. Revisão corrigiu perda de rascunho e exigiu conferência autorizada da versão antes de reconhecer resultado. Executor SQL em contexto real, validação efetiva de origem, Auth/Vault e testes remotos seguem pendentes; a edição permanece indisponível na aplicação.
 
+Retomada: acesso ao projeto confirmado por consulta; Google permanece desativado e a API inclui o schema `api`. O histórico remoto apresenta 20 versões e 17 migrations locais posteriores ainda não constam, sem presumir equivalência por versão. Handler de entrada técnica foi preparado sem registrar rota; a admissão nativa ainda exige Google e a concessão técnica individual precisa de representação e bootstrap revisados. Revisão identificou também desafio CSRF ausente e cookies compartilhados em logins técnicos concorrentes. Nenhuma dessas evidências libera acesso ou comprova cadastro real.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.
