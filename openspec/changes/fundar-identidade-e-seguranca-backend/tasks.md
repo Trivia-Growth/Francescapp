@@ -30,6 +30,8 @@ Migration local prepara leitura restrita da chave HMAC de e-mail, sem atribuir e
 
 Adapter local de leitura HMAC foi preparado e testado com conexões simuladas; não há consumidor em runtime. Permanecem pendentes a verificação independente do projeto e do vínculo entre UUID Auth e e-mail antes do acesso ao Vault, além da integração real e dos controles de concessão e revogação do executor.
 
+Verificador local para projeto e vínculo Auth usa consulta parametrizada somente de leitura na Management API, sem registrar resposta ou credenciais. Testes de contrato usam respostas fictícias. A consulta real de disponibilidade a `auth.users` respondeu após uma falha temporária; o vínculo da conta técnica e a autenticação da conexão SQL ainda não foram comprovados. Nenhuma alteração remota realizada.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.
