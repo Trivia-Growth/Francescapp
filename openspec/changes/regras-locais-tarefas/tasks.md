@@ -9,5 +9,7 @@
 ## 2. Recorte conectado decidido em 04/11/2026
 
 - [ ] 2.1 Definir quem concede e revoga o vínculo profissional-paciente registrado em `cadastro.acesso_paciente`; não inferir vínculo da concessão geral de equipe ou de relação pessoal.
-- [ ] 2.2 Implementar persistência e interface de FR-017 com prioridade baixa, média ou alta, restritas a profissionais vinculados; dependência: 2.1 e controles efetivos de autorização, cifra e auditoria. Manter acesso desativado até revisão e provas.
+- [ ] 2.2 Implementar persistência e interface de FR-017 com prioridade baixa, média ou alta, restritas a profissionais vinculados; usar vínculos ativos preexistentes; controles efetivos de autorização, cifra e auditoria são necessários antes da ativação. Manter acesso desativado até revisão e provas.
 - [ ] 2.3 Revisar e comprovar acesso permitido e negado, outro paciente, revogação, acesso direto e falhas de auditoria/cifra. Testes não executados por instrução do solicitante; integração e ativação permanecem sem evidência.
+
+Preparação local: contrato de prioridades, tabelas versionadas, operações privadas e composição de cifra no servidor foram escritos e receberam revisão estática. Idempotência, interface e integração permanecem pendentes. Não foram executados testes ou migrações.
