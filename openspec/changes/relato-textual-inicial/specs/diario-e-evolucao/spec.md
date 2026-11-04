@@ -21,3 +21,11 @@ A preparação do relato simples SHALL aceitar data do acontecimento e descriç�
 #### Scenario: Preparação sem publicação
 - **WHEN** a preparação local termina
 - **THEN** não afirma envio, consulta ou retorno, nem concede acesso ao relato.
+
+#### Scenario: Revisão local isolada
+- **WHEN** o componente isolado recebe dados válidos fictícios
+- **THEN** permite revisar os campos como texto e informa que nada foi salvo ou enviado.
+
+#### Scenario: Limite da demonstração
+- **WHEN** o componente isolado é apresentado
+- **THEN** informa que se destina a dados fictícios, que o conteúdo será perdido ao sair e que não é canal de atendimento ou emergência.
