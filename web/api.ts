@@ -8,6 +8,8 @@ import {
   sessaoNativaSchema,
   entrarTecnicoSchema,
   chaveIdempotenciaSchema,
+  pacienteAdministrativoSchema,
+  type AtualizarPaciente,
   type CriarPaciente,
   type SalvarAnamnese,
 } from '../packages/contracts/src/index.js';
@@ -31,6 +33,8 @@ const rotas = {
     saida: sessaoNativaSchema,
   },
   listarPacientes: contratosRotas.listarPacientes,
+  consultarPaciente: { ...contratosRotas.consultarPaciente, saida: pacienteAdministrativoSchema },
+  atualizarPaciente: contratosRotas.atualizarPaciente,
   consultarAnamnese: contratosRotas.consultarAnamnese,
   salvarAnamnese: contratosRotas.salvarAnamnese,
   criarPaciente: contratosRotas.criarPaciente,
@@ -125,6 +129,7 @@ export class ClienteFFCM {
   #revisao = 0;
   #tentativaEntrada = 0;
   #saindo = false;
+  #vinculosPaciente = new Map<string, { pacienteId: string; sessionId: string }>();
   #vinculosAnamnese = new Map<string, { pacienteId: string; sessionId: string }>();
 
   limpar(): void {
@@ -162,7 +167,12 @@ export class ClienteFFCM {
       }
     };
     let caminho: string = contrato.caminho;
-    if (rota === 'consultarAnamnese' || rota === 'salvarAnamnese') {
+    if (
+      rota === 'consultarAnamnese' ||
+      rota === 'salvarAnamnese' ||
+      rota === 'consultarPaciente' ||
+      rota === 'atualizarPaciente'
+    ) {
       const parametros = contratosRotas.consultarAnamnese.parametros.safeParse({
         paciente_id: opcoes.pacienteId,
       });
@@ -344,6 +354,25 @@ export class ClienteFFCM {
       { limite: 25, ...(cursor ? { cursor } : {}) },
       { protegido: true },
     );
+  }
+
+  consultarPaciente(pacienteId: string): Promise<Dados<'consultarPaciente'>> {
+    return this.#enviar('consultarPaciente', {}, { protegido: true, pacienteId });
+  }
+
+  atualizarPaciente(
+    pacienteId: string,
+    entrada: AtualizarPaciente,
+    chave: string,
+  ): Promise<Dados<'atualizarPaciente'>> {
+    if (!chaveIdempotenciaSchema.safeParse(chave).success)
+      return Promise.reject(new FalhaApi('entrada_invalida', 422));
+    if (!this.#sessionId) return Promise.reject(new FalhaApi('nao_autenticado', 401));
+    const vinculo = this.#vinculosPaciente.get(chave);
+    if (vinculo && (vinculo.pacienteId !== pacienteId || vinculo.sessionId !== this.#sessionId))
+      return Promise.reject(new FalhaApi('nao_autenticado', 401));
+    this.#vinculosPaciente.set(chave, { pacienteId, sessionId: this.#sessionId });
+    return this.#enviar('atualizarPaciente', entrada, { protegido: true, pacienteId, chave });
   }
 
   consultarAnamnese(pacienteId: string): Promise<Dados<'consultarAnamnese'>> {

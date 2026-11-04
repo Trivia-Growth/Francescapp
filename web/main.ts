@@ -1,3 +1,4 @@
+import { montarEdicaoPaciente } from './editar-paciente.js';
 import type {
   sessaoNativaSchema,
   CriarPaciente,
@@ -105,6 +106,24 @@ const listEmpty = elemento('list-empty');
 const pagination = elemento('pagination');
 const registration = elemento('cadastro');
 const newPatientLink = elemento<HTMLAnchorElement>('new-patient-link');
+const edicaoPanel = elemento('edicao-panel');
+const edicaoRaiz = elemento('edicao-raiz');
+let desmontarEdicao: (() => void) | null = null;
+let edicaoPendente = false;
+function confirmarDescarteEdicao(): boolean {
+  return (
+    !edicaoPendente ||
+    window.confirm(
+      'Há alterações de cadastro não confirmadas. Ao sair, elas serão descartadas e um salvamento incerto não poderá ser confirmado nesta tela. Deseja continuar?',
+    )
+  );
+}
+function fecharEdicao(): void {
+  desmontarEdicao?.();
+  desmontarEdicao = null;
+  edicaoPendente = false;
+  edicaoPanel.hidden = true;
+}
 const anamnesePanel = elemento('anamnese-panel');
 const anamneseRaiz = elemento('anamnese-raiz');
 const anamneseTitulo = elemento('anamnese-paciente');
@@ -280,6 +299,7 @@ function aviso(id: string, texto: string, tom: 'error' | 'success' | 'neutral' =
 function apagarPacientes(): void {
   fecharAnamnese();
   fecharPlano();
+  fecharEdicao();
   tableBody.replaceChildren();
   table.hidden = true;
   listEmpty.hidden = true;
@@ -369,7 +389,13 @@ function aplicarSessao(atual: Sessao): void {
   ) {
     fecharAnamnese();
     fecharPlano();
+    fecharEdicao();
   }
+  if (
+    atual.usuario.perfil !== 'administrador' ||
+    !atual.capacidades.includes('administrar_cadastro')
+  )
+    fecharEdicao();
   sessao = atual;
   elemento('anamnese-coluna').hidden = atual.usuario.perfil === 'familia';
   const podeCadastrar =
@@ -488,7 +514,8 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
         !sessao ||
         sessao.usuario.perfil === 'familia' ||
         !anamnesePanel.hidden ||
-        !planoPanel.hidden
+        !planoPanel.hidden ||
+        !edicaoPanel.hidden
       )
         return;
       anamneseTitulo.textContent = paciente.nome;
@@ -514,7 +541,8 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
         !sessao ||
         sessao.usuario.perfil === 'familia' ||
         !anamnesePanel.hidden ||
-        !planoPanel.hidden
+        !planoPanel.hidden ||
+        !edicaoPanel.hidden
       )
         return;
       planoTitulo.textContent = paciente.nome;
@@ -535,6 +563,42 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
       elemento('plano-title').focus();
     });
     acao.append(abrir, abrirPlano);
+    // A interface fica preparada, mas não deve anunciar rotas ainda inexistentes.
+    const edicaoPacienteDisponivel = false;
+    if (
+      edicaoPacienteDisponivel &&
+      sessao.usuario.perfil === 'administrador' &&
+      sessao.capacidades.includes('administrar_cadastro')
+    ) {
+      const editar = document.createElement('button');
+      editar.type = 'button';
+      editar.className = 'button-secondary';
+      editar.textContent = 'Editar cadastro';
+      editar.setAttribute('aria-label', `Editar cadastro de ${paciente.nome}`);
+      editar.addEventListener('click', () => {
+        if (
+          !sessao ||
+          sessao.usuario.perfil !== 'administrador' ||
+          !sessao.capacidades.includes('administrar_cadastro') ||
+          !edicaoPanel.hidden ||
+          !anamnesePanel.hidden ||
+          !planoPanel.hidden
+        )
+          return;
+        edicaoPanel.hidden = false;
+        desmontarEdicao = montarEdicaoPaciente(
+          edicaoRaiz,
+          paciente.id,
+          api,
+          acessoPerdido,
+          (pendente) => {
+            edicaoPendente = pendente;
+          },
+        );
+        elemento('edicao-title').focus();
+      });
+      acao.append(editar);
+    }
     linha.append(acao);
   }
   return linha;
@@ -741,7 +805,13 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
 }
 
 async function sair(): Promise<void> {
-  if (logoutOcupado || !confirmarDescarteAnamnese() || !confirmarDescartePlano()) return;
+  if (
+    logoutOcupado ||
+    !confirmarDescarteAnamnese() ||
+    !confirmarDescartePlano() ||
+    !confirmarDescarteEdicao()
+  )
+    return;
   logoutOcupado = true;
   ciclo = null;
   cadastroLiberado = false;
@@ -885,6 +955,12 @@ previousButton.addEventListener('click', () => {
   pagina -= 1;
   void carregarPacientes();
 });
+elemento<HTMLButtonElement>('fechar-edicao').addEventListener('click', () => {
+  if (!confirmarDescarteEdicao()) return;
+  fecharEdicao();
+  void carregarPacientes();
+  elemento('patients-title').focus();
+});
 fecharAnamneseBotao.addEventListener('click', () => {
   if (!confirmarDescarteAnamnese()) return;
   fecharAnamnese();
@@ -927,7 +1003,14 @@ document.addEventListener('visibilitychange', () => {
   void revalidarAcesso();
 });
 window.addEventListener('beforeunload', (evento) => {
-  if (!cadastroPendente && !cadastroEmRevalidacao && !anamnesePendente && !planoPendente) return;
+  if (
+    !cadastroPendente &&
+    !cadastroEmRevalidacao &&
+    !anamnesePendente &&
+    !planoPendente &&
+    !edicaoPendente
+  )
+    return;
   // Aviso é apenas mitigação: o navegador pode ignorá-lo e não há recuperação
   // após fechamento sem reconciliação autorizada no servidor.
   evento.preventDefault();
