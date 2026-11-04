@@ -13,6 +13,10 @@
 - [ ] 2.1 Após 1.1–1.3, atualizar delta, design e tarefas executáveis com matriz confirmada e controles concretos; evidência: revisão de coerência entre requisitos, contrato, segurança e roteiro de teste.
 - [ ] 2.2 Após 2.1, revisar independentemente padrões e aderência a FR-015/016 sobre diff definido; registrar achados, correções e limitações antes de solicitar ativação.
 
+Bloqueio de ativação FR-015/016: lista de objetivos e histórico SQL retornam conjuntos completos, enquanto o cliente HTTP limita a resposta a 1 MiB. Um plano ou histórico legítimo pode ultrapassar esse limite e ficar indisponível. Antes de ativar, definir e implementar paginação de ponta a ponta com ordenação estável, contrato, operação SQL atestada, autorização e auditoria por página, interface e testes de continuidade, limites e acesso. Não elevar ou remover o limite como correção: isso não limita memória ou tempo no servidor. A entrada preparada e o dispatcher protegido permanecem inativos até resolver este bloqueio e cumprir S-02.
+
+Desenho mínimo para próxima implementação: paginar objetivos por `objetivo_id` e histórico por `versao`, ambos em ordem crescente com cursor exclusivo e tamanho limitado. Incluir paciente, objetivo quando aplicável, cursor e limite na entrada canônica atestada; revalidar sessão e autorização e auditar cada página. A resposta deve indicar próximo cursor apenas quando houver outra página; interface carrega páginas sem omitir ou repetir registros e trata alterações concorrentes sem alegar snapshot. Testar coleção acima de 1 MiB, fronteiras de página, cursor adulterado ou de outro paciente, acesso revogado entre páginas e conjuntos vazios; definir e testar o comportamento de alterações concorrentes antes de liberar. Esse desenho é preparação, não aprovação de migration ou operação remota.
+
 ## Workflow follow-up
 
 - A integração conectada exige tarefas específicas após decisões materiais, testes positivos e negativos no servidor e banco, prova real com dados fictícios e autorização para qualquer operação remota.
@@ -49,3 +53,5 @@ Composição privada preparada com atestado, autorização e auditoria; teste Po
 Preparação posterior: handler e executor da barreira foram conectados localmente ao PostgreSQL descartável; teste integrado passou com Auth/Vault e transporte simulados. Revisão corrigiu classificação de timeout de consulta como mutação incerta. Fluxo web, outras corridas, Auth/Vault reais e ativação continuam pendentes.
 
 Preparação posterior: controlador web isolado inicia criação bloqueada até consultar e reconhecer a reserva; servidor encaminha reserva e geração na criação. Testes integrados locais de reserva e gravação passaram com fixtures. Revisão corrigiu perda de rascunho durante reconciliação e sucesso indevido de replay usando outra reserva. Rotas, Auth/Vault reais e provas de integração externa continuam pendentes.
+
+Verificação adicional da composição privada: `sh scripts/testar-plano-composicao-integrada-local.sh` passou em PostgreSQL descartável, incluindo negação para usuário inativo, perfil familiar e concessão revogada após reserva. Auth/Vault e transporte seguem simulados; o teste não prova revogação concorrente ou integração remota.

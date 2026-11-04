@@ -30,6 +30,18 @@ begin
  r:=api.plano_composicao_privada(t);
  if r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'REVOGACAO: %',r; end if;
  update identidade.sessao set encerrada_em=null where session_id=sessao;
+ -- Uma reserva não pode sobreviver à perda de autorização do ator.
+ update public.usuario set ativo=false where id=ator;
+ r:=api.plano_composicao_privada(t);
+ if r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'USUARIO_INATIVO: %',r; end if;
+ update public.usuario set ativo=true, perfil='familia' where id=ator;
+ r:=api.plano_composicao_privada(t);
+ if r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'FAMILIA: %',r; end if;
+ update public.usuario set perfil='profissional' where id=ator;
+ update identidade.concessao_equipe set estado='revogada', revogada_em=clock_timestamp(), revogada_por_usuario_id=ator, motivo_revogacao_cifrado=motivo_cifrado where usuario_id=ator;
+ r:=api.plano_composicao_privada(t);
+ if r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'CONCESSAO_REVOGADA: %',r; end if;
+ update identidade.concessao_equipe set estado='vinculada', revogada_em=null, revogada_por_usuario_id=null, motivo_revogacao_cifrado=null where usuario_id=ator;
  t:=jsonb_set(t,'{entrada,paciente_id}',to_jsonb(gen_random_uuid()::text));
  begin
   perform api.plano_composicao_privada(t);
