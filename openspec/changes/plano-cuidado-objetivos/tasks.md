@@ -6,6 +6,7 @@
 - [ ] 1.2 Para cenários de acesso e revogação FR-015/016, confirmar matriz de leitura e escrita por perfil, vínculo e audiência, inclusive acesso familiar; registrar decisões e casos negados nesta change.
 - [ ] 1.3 Para histórico FR-016, modelar ameaças de leitura, escrita e acesso direto e revisar a fundação disponível; evidenciar lacunas de cifra, auditoria, autorização e revogação sem presumir integração.
 - [x] 1.4 Para FR-015/016, definir contrato de domínio local dos campos já confirmados e revisão versionada sem regras clínicas ou concessões; verificar testes de estados, preservação da versão anterior e conflito.
+- [ ] 1.5 Preparar armazenamento privado local e validar sequência, isolamento e imutabilidade; revisão independente e integração segura permanecem pendentes. Não ativar rotas nem usar dados reais.
 
 ## 2. Planejamento da integração
 
@@ -20,3 +21,9 @@
 Evidência 1.4: teste local de contrato passou (2 testes); `pnpm run verificar:rapido` passou. Sem persistência, autorização ou integração comprovadas.
 
 Revisão do contrato identificou metadados misturados à entrada e compartilhamento de referências do histórico; correções e teste focado passaram. A futura fronteira autenticada deve fornecer identidade e data confiáveis. O histórico retornado é mutável pelo consumidor; a revisão local não substitui a revisão da fatia conectada.
+
+Preparação 1.2/1.3: design registra aplicação provisória da decisão de colaboradores da anamnese e análise inicial de ameaças, com controles e provas pendentes. Família não recebe acesso por inferência. Matriz definitiva, hipóteses de operação, campos clínicos, recuperação e integração real seguem sem confirmação; 1.1–1.3 e S-02 permanecem abertos.
+
+Preparação 1.5: migration aditiva cria objetivo por paciente e versões privadas imutáveis com envelope, sequência e predecessor no mesmo objetivo, RLS sem policies e sem grants para papéis de aplicação. `sh scripts/testar-plano-cuidado-local.sh` passou em PostgreSQL descartável: cadeia de versões, conflito de versão, isolamento do predecessor, imutabilidade, formato de envelope e privilégios diretos. Não prova concorrência real entre transações, cifra/AAD, autorização, auditoria, Auth/Vault ou grants remotos. Falta mecanismo comprovado de recuperação e limpeza seletiva compatível com imutabilidade; nenhuma operação remota ou rota foi ativada.
+
+Revisão independente não encontrou bypass concreto no recorte privado. O teste usa fixture privilegiada e cadeia parcial; autoria confiável, privilégios efetivos, operações administrativas e concorrência ainda exigem provas antes da ativação.
