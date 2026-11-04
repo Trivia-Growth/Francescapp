@@ -8,6 +8,28 @@ afterEach(() => {
   vi.resetModules();
 });
 
+function servidorFicticio(autenticado = true) {
+  const pacientes = [
+    { id: '1', name: 'Paciente Exemplo Um', preferredName: 'Exemplo Um' },
+    { id: '2', name: 'Paciente Exemplo Dois', preferredName: '' },
+  ];
+  const fetch = vi.fn(async (url: string, options?: RequestInit) => {
+    let data: unknown;
+    if (url.endsWith('/session'))
+      data = autenticado
+        ? { authenticated: true, csrfToken: 'token-ficticio' }
+        : { authenticated: false };
+    else if (url.endsWith('/login')) data = { authenticated: true, csrfToken: 'token-ficticio' };
+    else if (options?.method === 'POST') {
+      const dados = JSON.parse(String(options.body)) as { name: string; preferredName?: string };
+      data = { patient: { id: '3', ...dados } };
+    } else data = { patients: pacientes };
+    return { ok: true, json: async () => data };
+  });
+  vi.stubGlobal('fetch', fetch);
+  return fetch;
+}
+
 it('mantém a página oculta fora de localhost ou em produção', async () => {
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'exemplo.test' });
@@ -20,28 +42,41 @@ it('mantém a página oculta fora de localhost ou em produção', async () => {
   expect(document.body.hidden).toBe(true);
 });
 
-it('permite cadastrar fictício em memória sem chamar serviço', async () => {
+it('autentica, lista e cadastra com token local', async () => {
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
-  const fetch = vi.fn();
-  vi.stubGlobal('fetch', fetch);
+  const fetch = servidorFicticio(false);
   await import('./demonstracao.js');
-  document.getElementById('demo-login')?.click();
+  await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+  (document.getElementById('demo-password') as HTMLInputElement).value = 'senha fictícia';
+  document
+    .getElementById('demo-login-form')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(document.getElementById('patients-body')?.textContent).toContain('Paciente Exemplo Um'),
+  );
   (document.getElementById('patient-name') as HTMLInputElement).value = 'Pessoa Fictícia';
   document.getElementById('create-form')?.dispatchEvent(new Event('submit', { cancelable: true }));
-  expect(document.getElementById('patients-body')?.textContent).toContain('Pessoa Fictícia');
-  expect(fetch).not.toHaveBeenCalled();
+  await vi.waitFor(() =>
+    expect(document.getElementById('patients-body')?.textContent).toContain('Pessoa Fictícia'),
+  );
+  expect(fetch).toHaveBeenCalledWith(
+    '/api/local-feedback/patients',
+    expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({ 'X-CSRF-Token': 'token-ficticio' }),
+    }),
+  );
 });
 
 it('identifica pendência e guarda anamnese fictícia por paciente na página', async () => {
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
-  const fetch = vi.fn();
-  vi.stubGlobal('fetch', fetch);
+  servidorFicticio();
   await import('./demonstracao.js');
-  document.getElementById('demo-login')?.click();
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
   (document.querySelector('#patients-body button') as HTMLButtonElement).click();
   expect(document.getElementById('anamnese-progress')?.textContent).toContain('incompleta');
   (document.getElementById('anamnese-state') as HTMLSelectElement).value = 'desconhecido';
@@ -59,7 +94,6 @@ it('identifica pendência e guarda anamnese fictícia por paciente na página', 
   expect((document.getElementById('anamnese-source') as HTMLInputElement).value).toBe(
     'Fonte fictícia',
   );
-  expect(fetch).not.toHaveBeenCalled();
 });
 
 it('avisa sobre alterações não guardadas antes de sair da anamnese', async () => {
@@ -67,8 +101,9 @@ it('avisa sobre alterações não guardadas antes de sair da anamnese', async ()
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
   const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  servidorFicticio();
   await import('./demonstracao.js');
-  document.getElementById('demo-login')?.click();
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
   (document.querySelector('#patients-body button') as HTMLButtonElement).click();
   const campo = document.getElementById('anamnese-value') as HTMLTextAreaElement;
   campo.value = 'Alteração fictícia';
@@ -87,8 +122,9 @@ it('recusa estado inválido antes de guardar a anamnese', async () => {
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
+  servidorFicticio();
   await import('./demonstracao.js');
-  document.getElementById('demo-login')?.click();
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
   (document.querySelector('#patients-body button') as HTMLButtonElement).click();
   const estado = document.getElementById('anamnese-state') as HTMLSelectElement;
   estado.add(new Option('Inválido', 'invalido'));
@@ -105,10 +141,9 @@ it('mantém tarefas por paciente e exige registro para concluir sem chamar servi
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
-  const fetch = vi.fn();
-  vi.stubGlobal('fetch', fetch);
+  servidorFicticio();
   await import('./demonstracao.js');
-  document.getElementById('demo-login')?.click();
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
   const abrir = () =>
     document.querySelectorAll<HTMLButtonElement>(
       '#patients-body button[aria-label^="Abrir tarefas"]',
@@ -144,7 +179,6 @@ it('mantém tarefas por paciente e exige registro para concluir sem chamar servi
   document.getElementById('tasks-back')?.click();
   abrir()[0]?.click();
   expect(document.getElementById('tasks-list')?.textContent).toContain('Acompanhar exemplo');
-  expect(fetch).not.toHaveBeenCalled();
 });
 
 it('confirma descarte de alterações de tarefas ao voltar ou sair', async () => {
@@ -152,8 +186,9 @@ it('confirma descarte de alterações de tarefas ao voltar ou sair', async () =>
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
   const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  servidorFicticio();
   await import('./demonstracao.js');
-  document.getElementById('demo-login')?.click();
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
   document
     .querySelector<HTMLButtonElement>('#patients-body button[aria-label^="Abrir tarefas"]')
     ?.click();
@@ -167,5 +202,45 @@ it('confirma descarte de alterações de tarefas ao voltar ou sair', async () =>
   confirmar.mockReturnValue(true);
   document.getElementById('tasks-back')?.click();
   expect(document.getElementById('patients-view')?.hidden).toBe(false);
+  confirmar.mockRestore();
+});
+
+it('oculta dados ao expirar sessão e preserva rascunho até novo login', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  const fetch = servidorFicticio();
+  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  await import('./demonstracao.js');
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
+  (document.querySelector('#patients-body button') as HTMLButtonElement).click();
+  const campo = document.getElementById('anamnese-value') as HTMLTextAreaElement;
+  campo.value = 'Rascunho fictício';
+  campo.dispatchEvent(new Event('input', { bubbles: true }));
+  fetch.mockImplementationOnce(
+    async () => ({ ok: false, status: 401, json: async () => ({}) }) as never,
+  );
+  document.getElementById('logout')?.click();
+  await vi.waitFor(() => expect(document.getElementById('login-view')?.hidden).toBe(false));
+  expect(document.getElementById('anamnese-view')?.hidden).toBe(true);
+  expect(document.getElementById('login-feedback')?.textContent).toContain('Sessão encerrada');
+  (document.getElementById('demo-password') as HTMLInputElement).value = 'senha fictícia';
+  fetch.mockImplementationOnce(
+    async () => ({ ok: false, status: 401, json: async () => ({}) }) as never,
+  );
+  document
+    .getElementById('demo-login-form')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(document.getElementById('login-feedback')?.textContent).toContain(
+      'Não foi possível entrar',
+    ),
+  );
+  expect(campo.value).toBe('Rascunho fictício');
+  document
+    .getElementById('demo-login-form')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() => expect(document.getElementById('anamnese-view')?.hidden).toBe(false));
+  expect(campo.value).toBe('Rascunho fictício');
   confirmar.mockRestore();
 });

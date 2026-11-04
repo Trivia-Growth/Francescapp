@@ -20,6 +20,18 @@ O processo ativo é **OpenSpec**, desde 14/10/2026, com diretrizes em [AGENTS.md
 
 ## Fluxo
 
+## Prévia local para feedback
+
+Para abrir a prévia neste computador, execute na raiz do projeto:
+
+```sh
+node scripts/local-feedback-start.mjs
+```
+
+Informe uma senha local de pelo menos 12 caracteres quando o terminal pedir e abra `http://localhost:5173/demonstracao.html`. Mantenha o terminal aberto durante o uso. O acesso funciona apenas neste computador; os cadastros fictícios ficam salvos em `~/Library/Application Support/FFCMApp Feedback`. Anamneses e tarefas da prévia ficam apenas na memória e são perdidas ao recarregar.
+
+Use somente dados fictícios. Essa prévia não conecta o Supabase e não é um ambiente para informações reais ou clínicas. O login local não substitui as permissões do aplicativo final.
+
 ## Base local de desenvolvimento
 
 Pré-requisitos desta preparação: Node 22.12 ou superior na série 22 e pnpm 9.15.9. Na raiz do repositório, instale somente o que está congelado no lockfile e execute a verificação desta base:

@@ -2,7 +2,7 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self' https://drdpuxcllpymtoskmuqv.supabase.co https://accounts.google.com; object-src 'none'; require-trusted-types-for 'script'; trusted-types 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'; require-trusted-types-for 'script'; trusted-types 'none'">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="referrer" content="no-referrer">
     <meta name="color-scheme" content="light">
@@ -29,10 +29,13 @@
           <p class="access-note">Ambiente de demonstração local com dados fictícios.</p>
         </div>
         <div class="access-form-panel">
-          <p class="feedback">Demonstração local: use somente dados fictícios. Alterações ficam na memória desta página e são perdidas ao recarregar.</p>
-          <h2>Conheça a interface</h2>
-          <p>Esta entrada não autentica uma conta e não acessa dados reais.</p>
-          <button id="demo-login" class="button-primary full-width" type="button">Entrar na demonstração</button>
+          <p class="feedback">Demonstração local: use somente dados fictícios. Cadastros ficam salvos neste computador.</p>
+          <h2>Entrar na demonstração</h2>
+          <p>Use a senha definida ao iniciar o servidor local.</p>
+          <form id="demo-login-form">
+            <div class="field"><label for="demo-password">Senha da demonstração</label><input id="demo-password" type="password" autocomplete="current-password" required></div>
+            <button id="demo-login" class="button-primary full-width" type="submit">Entrar</button>
+          </form>
           <p id="login-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
         </div>
       </section>
@@ -43,7 +46,7 @@
           <a id="new-patient-link" class="button-primary" href="#cadastro" hidden>Cadastrar paciente</a>
         </div>
         <p id="workspace-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
-        <p class="feedback">Demonstração local com dados fictícios. Alterações são perdidas ao recarregar a página.</p>
+        <p class="feedback">Demonstração local com dados fictícios. Cadastros ficam salvos neste computador; anamneses e tarefas são temporárias.</p>
         <div id="workspace" class="workspace">
           <section class="patient-register" aria-labelledby="list-title">
             <div class="section-heading"><h2 id="list-title">Lista de pacientes</h2><button id="reload-patients" class="button-secondary" type="button">Atualizar lista</button></div>

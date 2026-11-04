@@ -3,7 +3,7 @@
 import { localizarPendencias, validarSecoesAnamnese } from '../packages/cadastro/src/anamnese';
 import { validarTarefaPlano } from '../packages/cadastro/src/tarefa-plano';
 
-// Esta página não autentica e nunca chama serviços ou grava dados.
+// Prévia isolada: usa somente o servidor local de feedback.
 if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const elemento = <T extends HTMLElement>(id: string): T => {
     const item = document.getElementById(id);
@@ -20,7 +20,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const nome = elemento<HTMLInputElement>('patient-name');
   const preferencia = elemento<HTMLInputElement>('preferred-name');
   type Anamnese = { estado: string; valor: string; fonte: string; data: string };
-  const anamneses = new Map<object, Anamnese>();
+  const anamneses = new Map<string, Anamnese>();
   type Tarefa = {
     descricao: string;
     responsavel: string;
@@ -29,7 +29,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     estado: string;
     acaoOuJustificativa: string;
   };
-  const tarefas = new Map<object, Tarefa[]>();
+  const tarefas = new Map<string, Tarefa[]>();
   const formulariosAlterados = new Set<HTMLFormElement>();
   const telaTarefas = elemento('tasks-view');
   const formularioTarefa = elemento<HTMLFormElement>('task-form');
@@ -45,37 +45,65 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     concluida: 'Concluída',
     cancelada: 'Cancelada',
   };
-  let selecionado: object | undefined;
+  let selecionado: string | undefined;
   let anamneseAlterada = false;
   const anamnese = elemento('anamnese-view');
   const estado = elemento<HTMLSelectElement>('anamnese-state');
   const valor = elemento<HTMLTextAreaElement>('anamnese-value');
   const fonte = elemento<HTMLInputElement>('anamnese-source');
   const data = elemento<HTMLInputElement>('anamnese-date');
-  const registros = [
-    { nome: 'Paciente Exemplo Um', preferencia: 'Exemplo Um' },
-    { nome: 'Paciente Exemplo Dois', preferencia: '' },
-  ];
+  type Paciente = { id: string; name: string; preferredName?: string };
+  let registros: Paciente[] = [];
+  let csrfToken = '';
+  let telaInterrompida: HTMLElement | undefined;
+  const requisitar = async (caminho: string, opcoes?: RequestInit) => {
+    const resposta = await fetch(`/api/local-feedback${caminho}`, opcoes);
+    if (resposta.status === 401 && caminho !== '/login') {
+      telaInterrompida = [pacientes, anamnese, telaTarefas].find((tela) => !tela.hidden);
+      pacientes.hidden = true;
+      anamnese.hidden = true;
+      telaTarefas.hidden = true;
+      acoes.hidden = true;
+      login.hidden = false;
+      csrfToken = '';
+      elemento('login-feedback').textContent =
+        'Sessão encerrada. Entre novamente para continuar; rascunhos temporários permanecem nesta página até recarregá-la.';
+      elemento('login-title').focus();
+    }
+    if (!resposta.ok) throw new Error(String(resposta.status));
+    return resposta;
+  };
+  const carregar = async () => {
+    try {
+      const resposta = await requisitar('/patients');
+      registros = ((await resposta.json()) as { patients: Paciente[] }).patients;
+      atualizar();
+      elemento('workspace-feedback').textContent = '';
+    } catch {
+      elemento('workspace-feedback').textContent =
+        'Não foi possível carregar os cadastros. Confira a conexão e tente atualizar.';
+    }
+  };
   const atualizar = () => {
     corpo.replaceChildren();
     for (const registro of registros) {
       const linha = corpo.insertRow();
-      linha.insertCell().textContent = registro.nome;
-      linha.insertCell().textContent = registro.preferencia || '—';
+      linha.insertCell().textContent = registro.name;
+      linha.insertCell().textContent = registro.preferredName || '—';
       const abrir = document.createElement('button');
       abrir.type = 'button';
       abrir.className = 'button-secondary';
       abrir.textContent = 'Abrir anamnese';
-      abrir.setAttribute('aria-label', `Abrir anamnese de ${registro.nome}`);
+      abrir.setAttribute('aria-label', `Abrir anamnese de ${registro.name}`);
       abrir.addEventListener('click', () => {
-        selecionado = registro;
+        selecionado = registro.id;
         anamneseAlterada = false;
-        const salvo = anamneses.get(registro);
+        const salvo = anamneses.get(registro.id);
         estado.value = salvo?.estado ?? 'pendente';
         valor.value = salvo?.valor ?? '';
         fonte.value = salvo?.fonte ?? '';
         data.value = salvo?.data ?? '';
-        elemento('anamnese-patient').textContent = registro.nome;
+        elemento('anamnese-patient').textContent = registro.name;
         elemento('anamnese-feedback').textContent = '';
         atualizarProgresso();
         pacientes.hidden = true;
@@ -86,12 +114,12 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       abrirTarefas.type = 'button';
       abrirTarefas.className = 'button-secondary';
       abrirTarefas.textContent = 'Abrir tarefas';
-      abrirTarefas.setAttribute('aria-label', `Abrir tarefas de ${registro.nome}`);
+      abrirTarefas.setAttribute('aria-label', `Abrir tarefas de ${registro.name}`);
       abrirTarefas.addEventListener('click', () => {
-        selecionado = registro;
+        selecionado = registro.id;
         formularioTarefa.reset();
         elemento('task-feedback').textContent = '';
-        elemento('tasks-patient').textContent = registro.nome;
+        elemento('tasks-patient').textContent = registro.name;
         atualizarTarefas();
         pacientes.hidden = true;
         telaTarefas.hidden = false;
@@ -274,7 +302,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     atualizarProgresso();
     elemento('anamnese-feedback').textContent = 'Alterações guardadas somente nesta prévia.';
   });
-  elemento('demo-login').addEventListener('click', () => {
+  const abrirSessao = async () => {
     login.hidden = true;
     pacientes.hidden = false;
     acoes.hidden = false;
@@ -283,16 +311,57 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       'Cadastros fictícios disponíveis nesta demonstração.';
     elemento('new-patient-link').hidden = false;
     elemento('cadastro').hidden = false;
-    atualizar();
-    elemento('patients-title').focus();
+    await carregar();
+    if (!login.hidden) return;
+    if (telaInterrompida && telaInterrompida !== pacientes) {
+      pacientes.hidden = true;
+      telaInterrompida.hidden = false;
+      telaInterrompida = undefined;
+    } else {
+      telaInterrompida = undefined;
+      elemento('patients-title').focus();
+    }
+  };
+  const loginForm = elemento<HTMLFormElement>('demo-login-form');
+  const senha = elemento<HTMLInputElement>('demo-password');
+  loginForm.addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+    const botao = elemento<HTMLButtonElement>('demo-login');
+    botao.disabled = true;
+    elemento('login-feedback').textContent = 'Entrando…';
+    try {
+      const resposta = await requisitar('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: senha.value }),
+      });
+      csrfToken = ((await resposta.json()) as { csrfToken: string }).csrfToken;
+      senha.value = '';
+      elemento('login-feedback').textContent = '';
+      await abrirSessao();
+    } catch {
+      elemento('login-feedback').textContent =
+        'Não foi possível entrar. Confira a senha e a conexão local. Rascunhos temporários permanecem nesta página até recarregá-la.';
+    } finally {
+      botao.disabled = false;
+    }
   });
-  elemento('logout').addEventListener('click', () => {
+  elemento('logout').addEventListener('click', async () => {
     if (!podeDescartar()) return;
-    // Recarregar descarta todos os dados criados durante a demonstração.
-    window.location.reload();
+    try {
+      await requisitar('/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+        body: '{}',
+      });
+      window.location.reload();
+    } catch {
+      elemento('workspace-feedback').textContent =
+        'Não foi possível sair. Confira a conexão e tente novamente.';
+    }
   });
-  elemento('reload-patients').addEventListener('click', atualizar);
-  formulario.addEventListener('submit', (evento) => {
+  elemento('reload-patients').addEventListener('click', carregar);
+  formulario.addEventListener('submit', async (evento) => {
     evento.preventDefault();
     const nomeLimpo = nome.value.trim();
     if (!nomeLimpo) {
@@ -300,10 +369,41 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       nome.focus();
       return;
     }
-    registros.push({ nome: nomeLimpo, preferencia: preferencia.value.trim() });
-    formulario.reset();
-    atualizar();
-    elemento('create-feedback').textContent = 'Cadastro fictício adicionado somente nesta página.';
+    const botao = elemento<HTMLButtonElement>('create-submit');
+    botao.disabled = true;
+    elemento('create-feedback').textContent = 'Salvando cadastro…';
+    try {
+      const resposta = await requisitar('/patients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+        body: JSON.stringify({
+          name: nomeLimpo,
+          preferredName: preferencia.value.trim() || undefined,
+        }),
+      });
+      const { patient } = (await resposta.json()) as { patient: Paciente };
+      registros.push(patient);
+      formulario.reset();
+      atualizar();
+      elemento('create-feedback').textContent = 'Cadastro fictício salvo nesta demonstração local.';
+    } catch {
+      elemento('create-feedback').textContent =
+        'Não foi possível salvar. Confira a conexão e tente novamente.';
+    } finally {
+      botao.disabled = false;
+    }
   });
+  requisitar('/session')
+    .then(async (resposta) => {
+      const sessao = (await resposta.json()) as { authenticated: boolean; csrfToken?: string };
+      if (sessao.authenticated && sessao.csrfToken) {
+        csrfToken = sessao.csrfToken;
+        await abrirSessao();
+      }
+    })
+    .catch(() => {
+      elemento('login-feedback').textContent =
+        'Servidor local indisponível. Inicie a demonstração e recarregue a página.';
+    });
   document.body.hidden = false;
 }
