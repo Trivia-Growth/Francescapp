@@ -49,7 +49,13 @@ export async function comporTarefaCuidadoNativo(
   };
   try {
     verificarCancelamento();
-    const pedido = new Request(request, { signal: controle.signal });
+    // O corpo já pode ter sido lido pelo handler; a composição usa apenas os
+    // cabeçalhos e a URL para autenticação e autorização.
+    const pedido = new Request(request.url, {
+      method: request.method,
+      headers: request.headers,
+      signal: controle.signal,
+    });
     const contexto = criarContextoAuthNativo(pedido, dependencias.fonte);
     const autorizar = async () => {
       const alvo = request.headers.get('x-sessao');

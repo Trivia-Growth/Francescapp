@@ -15,3 +15,7 @@
 Preparação local: contrato com descrição e prioridades, tabelas versionadas, operações privadas e composição de cifra no servidor foram escritos. A interface de consulta e a rota GET foram ligadas no código, com serviço desativado; criação, idempotência, grants e ativação permanecem pendentes. Lint e typecheck passaram. Não foram executados testes ou migrations dessas tarefas.
 
 Preparação posterior: formulário de criação e handler privado foram escritos, com proteção contra repetição preparada em migration local. O formulário e POST ainda não estão ligados; revisão da idempotência, grants e provas reais continuam pendentes. Não executar a migration como se a integração estivesse concluída.
+
+Atualização: as migrations privadas de tarefas foram aplicadas no Supabase de teste, sem liberação da operação. Integração e provas de autorização e idempotência seguem pendentes; nenhum teste foi executado nesta etapa.
+
+O formulário agora usa o cliente HTTP de criação e o POST é encaminhado atrás de flag separada, desativada por padrão. Grants, revisão do fluxo completo e provas reais seguem pendentes; a ligação do código não significa que a jornada esteja disponível.

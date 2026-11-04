@@ -7,12 +7,14 @@ let entrada: ReturnType<typeof criarEntradaTarefaCuidadoNativa> | undefined;
 
 export default async function tarefasCuidado(request: Request): Promise<Response> {
   if (process.env.FFCM_TAREFAS_ATIVADAS !== 'true') return falha('servico_indisponivel');
+  if (request.method === 'POST' && process.env.FFCM_TAREFAS_ESCRITA_ATIVADA !== 'true')
+    return falha('servico_indisponivel');
   try {
     entrada ??= criarEntradaTarefaCuidadoNativa(configurarDependenciasNativas(process.env));
   } catch {
     return falha('configuracao_indisponivel');
   }
-  return entrada.atender(request);
+  return request.method === 'POST' ? entrada.atenderCriacao(request) : entrada.atender(request);
 }
 
 function falha(codigo: 'servico_indisponivel' | 'configuracao_indisponivel'): Response {
