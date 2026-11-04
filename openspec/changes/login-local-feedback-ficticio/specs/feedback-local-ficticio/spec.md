@@ -1,0 +1,40 @@
+# Spec Delta
+
+## Purpose
+
+Permitir feedback sobre uma demonstração local com pessoas fictícias persistidas, sem representar o acesso institucional de produção.
+
+## ADDED Requirements
+
+### Requirement: Acesso local protegido
+A demonstração SHALL exigir autenticação conferida pelo servidor antes de consultar ou gravar cadastros fictícios, e operar somente localmente.
+
+#### Scenario: Entrada válida
+- **WHEN** a senha local configurada for informada corretamente
+- **THEN** a sessão permite consultar e cadastrar pessoas fictícias.
+
+#### Scenario: Acesso não autorizado ou sessão encerrada
+- **WHEN** uma requisição protegida não tiver sessão válida, inclusive após saída
+- **THEN** o servidor nega acesso aos dados e às alterações.
+
+#### Scenario: Senha incorreta
+- **WHEN** a senha informada estiver incorreta
+- **THEN** a entrada é negada sem expor os cadastros.
+
+### Requirement: Cadastro fictício persistente
+A demonstração SHALL permitir criar e listar pessoas fictícias, preservando cadastros válidos entre reinícios locais.
+
+#### Scenario: Cadastro e reinício
+- **WHEN** uma pessoa fictícia com nome válido for cadastrada e o serviço reiniciado
+- **THEN** o cadastro aparece na consulta após nova autenticação.
+
+#### Scenario: Entrada inválida ou falha de gravação
+- **WHEN** o nome obrigatório estiver ausente ou a gravação falhar
+- **THEN** o cadastro não é apresentado como concluído e a falha é comunicada.
+
+### Requirement: Limite da demonstração
+A interface SHALL identificar o uso exclusivo de dados fictícios e não representar a demonstração como sistema de produção conectado.
+
+#### Scenario: Uso da demonstração
+- **WHEN** alguém acessa a demonstração
+- **THEN** encontra aviso de que somente dados fictícios são permitidos.
