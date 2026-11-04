@@ -60,3 +60,29 @@ export async function prepararCamposPacienteCifradosParciais(
     throw new Error('Não foi possível preparar a atualização do cadastro.');
   }
 }
+
+/** Preparação privada, sem autorização nem persistência. A composição futura
+ * deve gravar motivo e evento na mesma transação e passar por S-02. */
+export async function prepararMotivoAtualizacaoPaciente(
+  corpo: unknown,
+  identificadorAuditoria: unknown,
+  cifra: Pick<AdaptadorCifra, 'cifrar'>,
+) {
+  try {
+    const dados = atualizarPacienteSchema.parse(corpo);
+    const auditoria_id = uuidSchema.parse(identificadorAuditoria).toLowerCase();
+    const aad = Object.freeze({
+      tabela: 'auditoria.evento' as const,
+      registro_id: auditoria_id,
+      campo: 'motivo' as const,
+      formato: 1 as const,
+    });
+    return {
+      auditoria_id,
+      motivo: campoCifradoSchema.parse(await cifra.cifrar(dados.motivo, aad)),
+      aad,
+    };
+  } catch {
+    throw new Error('Não foi possível preparar o motivo da atualização.');
+  }
+}

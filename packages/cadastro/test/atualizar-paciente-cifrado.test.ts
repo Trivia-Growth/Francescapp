@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { assinaturasRpc } from '@ffcmapp/contratos';
 import { criarCifraAutenticada } from '../../../supabase/functions/_shared/cifra-autenticada.js';
-import { prepararCamposPacienteCifradosParciais } from '../src/atualizar-paciente-cifrado.js';
+import {
+  prepararCamposPacienteCifradosParciais,
+  prepararMotivoAtualizacaoPaciente,
+} from '../src/atualizar-paciente-cifrado.js';
 
 const cifra = criarCifraAutenticada({
   keyIdAtiva: 'teste',
@@ -12,6 +15,22 @@ const cifra = criarCifraAutenticada({
 const pacienteId = 'a0000000-0000-4000-8000-000000000001';
 
 describe('preparação de atualização do paciente', () => {
+  it('protege motivo para evento específico e rejeita outro evento', async () => {
+    const auditoriaId = 'b0000000-0000-4000-8000-000000000001';
+    const resultado = await prepararMotivoAtualizacaoPaciente(
+      { nome: 'Pessoa fictícia', versao_esperada: 1, motivo: 'Correção fictícia' },
+      auditoriaId,
+      cifra,
+    );
+    expect(JSON.stringify(resultado)).not.toContain('Correção fictícia');
+    expect(await cifra.decifrar(resultado.motivo, resultado.aad)).toBe('Correção fictícia');
+    await expect(
+      cifra.decifrar(resultado.motivo, {
+        ...resultado.aad,
+        registro_id: 'b0000000-0000-4000-8000-000000000002',
+      }),
+    ).rejects.toThrow();
+  });
   it('cifra nome para o paciente correto e preserva limpeza explícita', async () => {
     const resultado = await prepararCamposPacienteCifradosParciais(
       pacienteId,
