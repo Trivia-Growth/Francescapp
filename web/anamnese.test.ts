@@ -127,3 +127,43 @@ it('permite tentar novamente após falha na consulta', async () => {
   await vi.waitFor(() => expect(raiz.querySelector('form')).not.toBeNull());
   expect(consultarAnamnese).toHaveBeenCalledTimes(2);
 });
+
+it('preserva rascunho após conflito de versão e impede novo envio obsoleto', async () => {
+  const raiz = document.createElement('div');
+  const salvarAnamnese = vi.fn().mockRejectedValue(new FalhaApi('conflito_versao', 409));
+  montarAnamnese(
+    raiz,
+    'paciente',
+    {
+      consultarAnamnese: vi.fn().mockResolvedValue({
+        versao: 1,
+        secoes: [
+          {
+            id: 'História',
+            camposEsperados: ['Relato'],
+            respostas: [
+              {
+                campo: 'Relato',
+                estado: 'informado',
+                valor: 'Original',
+                fonte: 'Família',
+                data: '2026-01-01',
+              },
+            ],
+          },
+        ],
+      }),
+      salvarAnamnese,
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.querySelector('textarea')?.value).toBe('Original'));
+  const resposta = raiz.querySelector('textarea') as HTMLTextAreaElement;
+  resposta.value = 'Rascunho';
+  resposta.dispatchEvent(new Event('input', { bubbles: true }));
+  raiz.querySelector('form')?.requestSubmit();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Copie seu rascunho'));
+  expect(resposta.value).toBe('Rascunho');
+  raiz.querySelector('form')?.requestSubmit();
+  expect(salvarAnamnese).toHaveBeenCalledTimes(1);
+});

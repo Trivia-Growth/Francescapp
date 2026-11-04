@@ -4,7 +4,7 @@ import {
   type SalvarAnamnese,
 } from '../packages/contracts/src/index.js';
 import { localizarPendencias } from '../packages/cadastro/src/anamnese.js';
-import { exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
+import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 
 type Servico = {
   consultarAnamnese(pacienteId: string): Promise<Anamnese | null>;
@@ -21,6 +21,7 @@ export function montarAnamnese(
 ): () => void {
   let ativa = true;
   let versao = 0;
+  let conflitoVersao = false;
   let pendente: { entrada: SalvarAnamnese; chave: string } | null = null;
   const descartarAcesso = (erro: unknown): boolean => {
     if (!exigeNovoAcesso(erro)) return false;
@@ -178,9 +179,13 @@ export function montarAnamnese(
           pendente = null;
           campos.removeAttribute('inert');
           novaSecao.disabled = novoCampo.disabled = false;
-          salvar.disabled = adicionarBotao.disabled = false;
+          conflitoVersao = erro instanceof FalhaApi && erro.codigo === 'conflito_versao';
+          salvar.disabled = conflitoVersao;
+          adicionarBotao.disabled = false;
           retry.hidden = true;
-          aviso.textContent = mensagemFalha(erro);
+          aviso.textContent = conflitoVersao
+            ? 'A anamnese foi alterada por outra pessoa. Copie seu rascunho antes de recarregar a página para consultar a versão atual; suas alterações ainda não foram salvas.'
+            : mensagemFalha(erro);
         }
       }
     };
@@ -188,7 +193,7 @@ export function montarAnamnese(
     form.addEventListener('change', () => alteracaoPendente(true));
     form.addEventListener('submit', (evento) => {
       evento.preventDefault();
-      if (pendente) return;
+      if (pendente || conflitoVersao) return;
       const agrupadas = new Map<
         string,
         { id: string; camposEsperados: string[]; respostas: unknown[] }
