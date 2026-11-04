@@ -25,3 +25,7 @@ A referência de identidade FR-035 exige conta individual Google e autorização
 ## Migration Plan
 
 Sem migração remota ou deploy. Interromper os processos locais desfaz a exposição do serviço; o arquivo fictício permanece local até remoção deliberada pelo responsável.
+
+## Prévia fictícia persistente (04/11/2026)
+
+Anamnese e tarefas da demonstração são armazenadas por paciente no computador, exclusivamente no serviço local autenticado. Escritas usam revisão para recusar conflito entre abas e gravação atômica; falhas não confirmam sucesso. O armazenamento não é cifrado e aceita somente dados fictícios. Não representa prontuário, histórico versionado, autorização clínica ou integração de produção. As specs de produção e seus gates permanecem vigentes.

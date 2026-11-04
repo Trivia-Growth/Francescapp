@@ -13,6 +13,7 @@ function servidorFicticio(autenticado = true) {
     { id: '1', name: 'Paciente Exemplo Um', preferredName: 'Exemplo Um' },
     { id: '2', name: 'Paciente Exemplo Dois', preferredName: '' },
   ];
+  const previas = new Map<string, { revision: number; anamnese: unknown; tarefas: unknown[] }>();
   const fetch = vi.fn(async (url: string, options?: RequestInit) => {
     let data: unknown;
     if (url.endsWith('/session'))
@@ -20,7 +21,19 @@ function servidorFicticio(autenticado = true) {
         ? { authenticated: true, csrfToken: 'token-ficticio' }
         : { authenticated: false };
     else if (url.endsWith('/login')) data = { authenticated: true, csrfToken: 'token-ficticio' };
-    else if (options?.method === 'POST') {
+    else if (url.endsWith('/preview')) {
+      const previa = previas.get(url) ?? { revision: 0, anamnese: null, tarefas: [] };
+      if (options?.method === 'PUT') {
+        const dados = JSON.parse(String(options.body)) as {
+          type: 'anamnese' | 'tarefas';
+          value: never;
+        };
+        previa[dados.type] = dados.value;
+        previa.revision++;
+        previas.set(url, previa);
+      }
+      data = previa;
+    } else if (options?.method === 'POST') {
       const dados = JSON.parse(String(options.body)) as { name: string; preferredName?: string };
       data = { patient: { id: '3', ...dados } };
     } else data = { patients: pacientes };
@@ -78,6 +91,7 @@ it('identifica pendência e guarda anamnese fictícia por paciente na página', 
   await import('./demonstracao.js');
   await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
   (document.querySelector('#patients-body button') as HTMLButtonElement).click();
+  await vi.waitFor(() => expect(document.getElementById('anamnese-view')?.hidden).toBe(false));
   expect(document.getElementById('anamnese-progress')?.textContent).toContain('incompleta');
   (document.getElementById('anamnese-state') as HTMLSelectElement).value = 'desconhecido';
   (document.getElementById('anamnese-source') as HTMLInputElement).value = 'Fonte fictícia';
@@ -85,9 +99,12 @@ it('identifica pendência e guarda anamnese fictícia por paciente na página', 
   document
     .getElementById('anamnese-form')
     ?.dispatchEvent(new Event('submit', { cancelable: true }));
-  expect(document.getElementById('anamnese-progress')?.textContent).toContain('sem pendências');
+  await vi.waitFor(() =>
+    expect(document.getElementById('anamnese-progress')?.textContent).toContain('sem pendências'),
+  );
   document.getElementById('back-patients')?.click();
   (document.querySelector('#patients-body button') as HTMLButtonElement).click();
+  await vi.waitFor(() => expect(document.getElementById('anamnese-view')?.hidden).toBe(false));
   expect((document.getElementById('anamnese-state') as HTMLSelectElement).value).toBe(
     'desconhecido',
   );
@@ -105,6 +122,7 @@ it('avisa sobre alterações não guardadas antes de sair da anamnese', async ()
   await import('./demonstracao.js');
   await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
   (document.querySelector('#patients-body button') as HTMLButtonElement).click();
+  await vi.waitFor(() => expect(document.getElementById('anamnese-view')?.hidden).toBe(false));
   const campo = document.getElementById('anamnese-value') as HTMLTextAreaElement;
   campo.value = 'Alteração fictícia';
   campo.dispatchEvent(new Event('input', { bubbles: true }));
@@ -126,6 +144,7 @@ it('recusa estado inválido antes de guardar a anamnese', async () => {
   await import('./demonstracao.js');
   await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
   (document.querySelector('#patients-body button') as HTMLButtonElement).click();
+  await vi.waitFor(() => expect(document.getElementById('anamnese-view')?.hidden).toBe(false));
   const estado = document.getElementById('anamnese-state') as HTMLSelectElement;
   estado.add(new Option('Inválido', 'invalido'));
   estado.value = 'invalido';
@@ -141,7 +160,7 @@ it('mantém tarefas por paciente e exige registro para concluir sem chamar servi
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
-  servidorFicticio();
+  const fetch = servidorFicticio();
   await import('./demonstracao.js');
   await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
   const abrir = () =>
@@ -149,6 +168,7 @@ it('mantém tarefas por paciente e exige registro para concluir sem chamar servi
       '#patients-body button[aria-label^="Abrir tarefas"]',
     );
   abrir()[0]?.click();
+  await vi.waitFor(() => expect(document.getElementById('tasks-view')?.hidden).toBe(false));
   (document.getElementById('task-description') as HTMLInputElement).value = 'Acompanhar exemplo';
   (document.getElementById('task-responsible') as HTMLInputElement).value = 'Profissional fictício';
   (document.getElementById('task-deadline') as HTMLInputElement).value = '2026-12-01';
@@ -160,7 +180,9 @@ it('mantém tarefas por paciente e exige registro para concluir sem chamar servi
   expect(document.getElementById('tasks-list')?.textContent).not.toContain('Acompanhar exemplo');
   (document.getElementById('task-status') as HTMLSelectElement).value = 'pendente';
   form?.dispatchEvent(new Event('submit', { cancelable: true }));
-  expect(document.getElementById('tasks-list')?.textContent).toContain('Acompanhar exemplo');
+  await vi.waitFor(() =>
+    expect(document.getElementById('tasks-list')?.textContent).toContain('Acompanhar exemplo'),
+  );
   const atualizar = document.querySelector('#tasks-list form') as HTMLFormElement;
   (atualizar.querySelector('select') as HTMLSelectElement).value = 'concluida';
   atualizar.dispatchEvent(new Event('submit', { cancelable: true }));
@@ -170,14 +192,40 @@ it('mantém tarefas por paciente e exige registro para concluir sem chamar servi
   botaoAtualizar.focus();
   atualizar.dispatchEvent(new Event('submit', { cancelable: true }));
   expect(document.activeElement).toBe(botaoAtualizar);
-  expect(atualizar.querySelector('[role=status]')?.textContent).toContain('atualizada');
+  await vi.waitFor(() =>
+    expect(atualizar.querySelector('[role=status]')?.textContent).toContain('salva'),
+  );
   expect(document.getElementById('tasks-list')?.textContent).toContain('Concluída');
   expect(document.getElementById('tasks-list')?.textContent).toContain('Ação fictícia');
+  (document.getElementById('task-description') as HTMLInputElement).value = 'Outra tarefa';
+  (document.getElementById('task-responsible') as HTMLInputElement).value = 'Pessoa fictícia';
+  (document.getElementById('task-deadline') as HTMLInputElement).value = '2026-12-01';
+  (document.getElementById('task-priority') as HTMLInputElement).value = 'Alta';
+  let liberar!: (value: never) => void;
+  fetch.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        liberar = resolve;
+      }),
+  );
+  form?.dispatchEvent(new Event('submit', { cancelable: true }));
+  expect((atualizar.querySelector('textarea') as HTMLTextAreaElement).disabled).toBe(true);
+  expect((document.getElementById('tasks-back') as HTMLButtonElement).disabled).toBe(true);
+  liberar({ ok: false, status: 500 } as never);
+  await vi.waitFor(() =>
+    expect((atualizar.querySelector('textarea') as HTMLTextAreaElement).disabled).toBe(false),
+  );
+  expect((document.getElementById('task-description') as HTMLInputElement).value).toBe(
+    'Outra tarefa',
+  );
+
   document.getElementById('tasks-back')?.click();
   abrir()[1]?.click();
+  await vi.waitFor(() => expect(document.getElementById('tasks-view')?.hidden).toBe(false));
   expect(document.getElementById('tasks-list')?.textContent).not.toContain('Acompanhar exemplo');
   document.getElementById('tasks-back')?.click();
   abrir()[0]?.click();
+  await vi.waitFor(() => expect(document.getElementById('tasks-view')?.hidden).toBe(false));
   expect(document.getElementById('tasks-list')?.textContent).toContain('Acompanhar exemplo');
 });
 
@@ -192,6 +240,7 @@ it('confirma descarte de alterações de tarefas ao voltar ou sair', async () =>
   document
     .querySelector<HTMLButtonElement>('#patients-body button[aria-label^="Abrir tarefas"]')
     ?.click();
+  await vi.waitFor(() => expect(document.getElementById('tasks-view')?.hidden).toBe(false));
   const campo = document.getElementById('task-description') as HTMLInputElement;
   campo.value = 'Rascunho fictício';
   campo.dispatchEvent(new Event('input', { bubbles: true }));
@@ -214,6 +263,7 @@ it('oculta dados ao expirar sessão e preserva rascunho até novo login', async 
   await import('./demonstracao.js');
   await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
   (document.querySelector('#patients-body button') as HTMLButtonElement).click();
+  await vi.waitFor(() => expect(document.getElementById('anamnese-view')?.hidden).toBe(false));
   const campo = document.getElementById('anamnese-value') as HTMLTextAreaElement;
   campo.value = 'Rascunho fictício';
   campo.dispatchEvent(new Event('input', { bubbles: true }));

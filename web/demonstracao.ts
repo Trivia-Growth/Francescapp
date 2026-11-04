@@ -30,6 +30,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     acaoOuJustificativa: string;
   };
   const tarefas = new Map<string, Tarefa[]>();
+  const revisoes = new Map<string, number>();
   const formulariosAlterados = new Set<HTMLFormElement>();
   const telaTarefas = elemento('tasks-view');
   const formularioTarefa = elemento<HTMLFormElement>('task-form');
@@ -84,6 +85,50 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         'Não foi possível carregar os cadastros. Confira a conexão e tente atualizar.';
     }
   };
+  const bloquearFormulario = (form: HTMLFormElement, bloqueado: boolean) => {
+    for (const controle of form.querySelectorAll<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement
+    >('input, select, textarea, button'))
+      controle.disabled = bloqueado;
+  };
+  const bloquearTelaTarefas = () => {
+    const controles = [
+      ...telaTarefas.querySelectorAll<
+        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement
+      >('input, select, textarea, button'),
+    ];
+    const estados = controles.map((controle) => controle.disabled);
+    for (const controle of controles) controle.disabled = true;
+    return () =>
+      controles.forEach((controle, indice) => {
+        controle.disabled = estados[indice] ?? false;
+      });
+  };
+  const carregarPrevia = async (id: string) => {
+    const resposta = await requisitar(`/patients/${id}/preview`);
+    const previa = (await resposta.json()) as {
+      revision: number;
+      anamnese: Anamnese | null;
+      tarefas: Tarefa[];
+    };
+    revisoes.set(id, previa.revision);
+    if (previa.anamnese) anamneses.set(id, previa.anamnese);
+    else anamneses.delete(id);
+    tarefas.set(id, previa.tarefas);
+  };
+  const salvarPrevia = async (
+    id: string,
+    type: 'anamnese' | 'tarefas',
+    value: Anamnese | Tarefa[],
+  ) => {
+    const resposta = await requisitar(`/patients/${id}/preview`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify({ type, value, revision: revisoes.get(id) }),
+    });
+    const previa = (await resposta.json()) as { revision: number };
+    revisoes.set(id, previa.revision);
+  };
   const atualizar = () => {
     corpo.replaceChildren();
     for (const registro of registros) {
@@ -95,7 +140,14 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       abrir.className = 'button-secondary';
       abrir.textContent = 'Abrir anamnese';
       abrir.setAttribute('aria-label', `Abrir anamnese de ${registro.name}`);
-      abrir.addEventListener('click', () => {
+      abrir.addEventListener('click', async () => {
+        try {
+          await carregarPrevia(registro.id);
+        } catch {
+          elemento('workspace-feedback').textContent =
+            'Não foi possível carregar a prévia. Tente novamente.';
+          return;
+        }
         selecionado = registro.id;
         anamneseAlterada = false;
         const salvo = anamneses.get(registro.id);
@@ -115,7 +167,14 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       abrirTarefas.className = 'button-secondary';
       abrirTarefas.textContent = 'Abrir tarefas';
       abrirTarefas.setAttribute('aria-label', `Abrir tarefas de ${registro.name}`);
-      abrirTarefas.addEventListener('click', () => {
+      abrirTarefas.addEventListener('click', async () => {
+        try {
+          await carregarPrevia(registro.id);
+        } catch {
+          elemento('workspace-feedback').textContent =
+            'Não foi possível carregar a prévia. Tente novamente.';
+          return;
+        }
         selecionado = registro.id;
         formularioTarefa.reset();
         elemento('task-feedback').textContent = '';
@@ -168,7 +227,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       form.append(rotuloEstado, rotuloAcao, botao, feedback);
       form.addEventListener('input', () => formulariosAlterados.add(form));
       form.addEventListener('change', () => formulariosAlterados.add(form));
-      form.addEventListener('submit', (evento) => {
+      form.addEventListener('submit', async (evento) => {
         evento.preventDefault();
         const resultado = validarTarefaPlano({
           ...tarefa,
@@ -180,14 +239,39 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
           campoAcao.focus();
           return;
         }
-        tarefa.estado = estado.value;
-        tarefa.acaoOuJustificativa = campoAcao.value.trim();
+        if (!selecionado) return;
+        const pacienteId = selecionado;
+        const atualizada = {
+          ...tarefa,
+          estado: estado.value,
+          acaoOuJustificativa: campoAcao.value.trim(),
+        };
+        const atualizadas = (tarefas.get(pacienteId) ?? []).map((item) =>
+          item === tarefa ? atualizada : item,
+        );
+        const liberarTela = bloquearTelaTarefas();
+        try {
+          await salvarPrevia(pacienteId, 'tarefas', atualizadas);
+          tarefa.estado = atualizada.estado;
+          tarefa.acaoOuJustificativa = atualizada.acaoOuJustificativa;
+          tarefas.set(
+            pacienteId,
+            atualizadas.map((item) => (item === atualizada ? tarefa : item)),
+          );
+          if (selecionado !== pacienteId || telaTarefas.hidden) return;
+        } catch {
+          feedback.textContent =
+            'Não foi possível salvar. Confira a conexão ou reabra a prévia se houve alteração em outra aba.';
+          return;
+        } finally {
+          liberarTela();
+        }
         detalhes.textContent = `Responsável: ${tarefa.responsavel} · Prazo: ${tarefa.prazo} · Prioridade: ${tarefa.prioridade} · Estado: ${rotulosEstado[tarefa.estado]}`;
         acao.textContent = tarefa.acaoOuJustificativa
           ? `Ação ou justificativa: ${tarefa.acaoOuJustificativa}`
           : '';
         formulariosAlterados.delete(form);
-        feedback.textContent = 'Tarefa atualizada somente nesta prévia.';
+        feedback.textContent = 'Tarefa fictícia salva nesta demonstração local.';
       });
       item.append(titulo, detalhes, acao, form);
       lista.append(item);
@@ -202,7 +286,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   });
   formularioTarefa.addEventListener('input', () => formulariosAlterados.add(formularioTarefa));
   formularioTarefa.addEventListener('change', () => formulariosAlterados.add(formularioTarefa));
-  formularioTarefa.addEventListener('submit', (evento) => {
+  formularioTarefa.addEventListener('submit', async (evento) => {
     evento.preventDefault();
     if (!selecionado) return;
     const tarefa: Tarefa = {
@@ -227,13 +311,24 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       !window.confirm('Há alterações não guardadas em outras tarefas. Deseja descartá-las?')
     )
       return;
+    const pacienteId = selecionado;
+    const itens = [...(tarefas.get(pacienteId) ?? []), tarefa];
+    const liberarTela = bloquearTelaTarefas();
+    try {
+      await salvarPrevia(pacienteId, 'tarefas', itens);
+      tarefas.set(pacienteId, itens);
+      if (selecionado !== pacienteId || telaTarefas.hidden) return;
+    } catch {
+      elemento('task-feedback').textContent =
+        'Não foi possível salvar. Confira a conexão ou reabra a prévia se houve alteração em outra aba.';
+      return;
+    } finally {
+      liberarTela();
+    }
     formulariosAlterados.clear();
-    const itens = tarefas.get(selecionado) ?? [];
-    itens.push(tarefa);
-    tarefas.set(selecionado, itens);
     formularioTarefa.reset();
     atualizarTarefas();
-    elemento('task-feedback').textContent = 'Tarefa guardada somente nesta prévia.';
+    elemento('task-feedback').textContent = 'Tarefa fictícia salva nesta demonstração local.';
   });
   const secoesDaTela = () =>
     validarSecoesAnamnese([
@@ -272,7 +367,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     pacientes.hidden = false;
     elemento('patients-title').focus();
   });
-  formularioAnamnese.addEventListener('submit', (evento) => {
+  formularioAnamnese.addEventListener('submit', async (evento) => {
     evento.preventDefault();
     if (!selecionado) return;
     if (estado.value !== 'pendente' && (!fonte.value.trim() || !data.value)) {
@@ -292,15 +387,28 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         'Confira o estado, a informação, a fonte e a data.';
       return;
     }
-    anamneses.set(selecionado, {
+    const pacienteId = selecionado;
+    const dados = {
       estado: estado.value,
       valor: valor.value,
       fonte: fonte.value,
       data: data.value,
-    });
+    };
+    bloquearFormulario(formularioAnamnese, true);
+    try {
+      await salvarPrevia(pacienteId, 'anamnese', dados);
+      anamneses.set(pacienteId, dados);
+      if (selecionado !== pacienteId || anamnese.hidden) return;
+    } catch {
+      elemento('anamnese-feedback').textContent =
+        'Não foi possível salvar. Confira a conexão ou reabra a prévia se houve alteração em outra aba.';
+      return;
+    } finally {
+      bloquearFormulario(formularioAnamnese, false);
+    }
     anamneseAlterada = false;
     atualizarProgresso();
-    elemento('anamnese-feedback').textContent = 'Alterações guardadas somente nesta prévia.';
+    elemento('anamnese-feedback').textContent = 'Anamnese fictícia salva nesta demonstração local.';
   });
   const abrirSessao = async () => {
     login.hidden = true;

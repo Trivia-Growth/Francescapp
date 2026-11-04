@@ -101,7 +101,40 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
       body: JSON.stringify({ name: 'Pessoa fictícia', preferredName: 'Pessoa' }),
     });
     assert.equal(created.status, 201);
-    assert.equal((await created.json()).patient.preferredName, 'Pessoa');
+    const patient = (await created.json()).patient;
+    assert.equal(patient.preferredName, 'Pessoa');
+    const previewPath = `/patients/${patient.id}/preview`;
+    const anamnese = { estado: 'informado', valor: 'Fictício', fonte: 'Teste', data: '2026-11-04' };
+    const save = {
+      method: 'PUT',
+      headers: auth,
+      body: JSON.stringify({ type: 'anamnese', value: anamnese, revision: 0 }),
+    };
+    assert.equal((await request(previewPath)).status, 401);
+    assert.equal((await request(previewPath, save)).status, 200);
+    assert.equal((await request(previewPath, save)).status, 409);
+    const tarefa = {
+      descricao: 'Exemplo',
+      responsavel: 'Pessoa fictícia',
+      prazo: '2026-12-01',
+      prioridade: 'Alta',
+      estado: 'pendente',
+      acaoOuJustificativa: '',
+    };
+    assert.equal(
+      (
+        await request(previewPath, {
+          method: 'PUT',
+          headers: auth,
+          body: JSON.stringify({ type: 'tarefas', value: [tarefa], revision: 1 }),
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (await request(previewPath, { ...save, headers: { ...headers, cookie } })).status,
+      403,
+    );
     assert.equal(JSON.parse(await readFile(join(directory, 'patients.json'), 'utf8')).length, 1);
     const logout = await request('/logout', { method: 'POST', headers: auth, body: '{}' });
     assert.equal(logout.status, 204);
@@ -119,6 +152,14 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
       (await (await request('/patients', { headers: { cookie: nextCookie } })).json()).patients[0]
         .name,
       'Pessoa fictícia',
+    );
+    assert.deepEqual(
+      (await (await request(previewPath, { headers: { cookie: nextCookie } })).json()).anamnese,
+      anamnese,
+    );
+    assert.deepEqual(
+      (await (await request(previewPath, { headers: { cookie: nextCookie } })).json()).tarefas,
+      [tarefa],
     );
     await close();
     const invalidDirectory = join(directory, 'arquivo');

@@ -80,12 +80,12 @@
       <section id="anamnese-view" class="patients-layout" aria-labelledby="anamnese-title" hidden>
         <button id="back-patients" class="button-secondary" type="button">Voltar à lista</button>
         <div class="page-heading"><div><h1 id="anamnese-title" tabindex="-1">Anamnese de coordenação</h1><p id="anamnese-patient"></p></div></div>
-        <p class="feedback">Prévia local com dados fictícios. Alterações ficam somente nesta página e são perdidas ao recarregar. Esta tela não está conectada.</p>
+        <p class="feedback">Prévia local: use somente dados fictícios. Informações são salvas neste computador; esta tela não está conectada.</p>
         <section aria-labelledby="section-title">
           <h2 id="section-title">Seção de exemplo</h2>
           <p>Conteúdo ilustrativo para experimentar o preenchimento gradual; as seções clínicas ainda serão definidas.</p>
           <p id="anamnese-progress" role="status" aria-live="polite"></p>
-          <form id="anamnese-form" autocomplete="off">
+          <form id="anamnese-form" autocomplete="off" aria-describedby="anamnese-feedback">
             <div class="field"><label for="anamnese-state">Estado</label><select id="anamnese-state"><option value="pendente">Pendente</option><option value="informado">Informado</option><option value="desconhecido">Desconhecido</option><option value="nao_se_aplica">Não se aplica</option></select></div>
             <div class="field"><label for="anamnese-value">Informação fictícia</label><textarea id="anamnese-value" rows="3"></textarea></div>
             <div class="field"><label for="anamnese-source">Fonte</label><input id="anamnese-source" type="text" maxlength="200"></div>
@@ -99,7 +99,7 @@
       <section id="tasks-view" class="patients-layout" aria-labelledby="tasks-title" hidden>
         <button id="tasks-back" class="button-secondary" type="button">Voltar à lista</button>
         <div class="page-heading"><div><h1 id="tasks-title" tabindex="-1">Tarefas do plano</h1><p id="tasks-patient"></p></div></div>
-        <p class="feedback">Prévia local: use somente dados fictícios. Tarefas ficam apenas nesta página e são perdidas ao recarregar. Esta tela não está conectada.</p>
+        <p class="feedback">Prévia local: use somente dados fictícios. Tarefas são salvas neste computador; esta tela não está conectada.</p>
         <section aria-labelledby="tasks-list-title">
           <h2 id="tasks-list-title">Tarefas deste paciente</h2>
           <p id="tasks-empty">Nenhuma tarefa nesta prévia. Cadastre uma tarefa fictícia abaixo.</p>
@@ -107,7 +107,8 @@
         </section>
         <section aria-labelledby="task-form-title">
           <h2 id="task-form-title">Cadastrar tarefa</h2>
-          <form id="task-form" autocomplete="off">
+          <p id="task-form-help">Todos os campos são obrigatórios, exceto ação realizada ou justificativa, obrigatória apenas para conclusão.</p>
+          <form id="task-form" autocomplete="off" aria-describedby="task-form-help task-feedback">
             <div class="field"><label for="task-description">Tarefa</label><input id="task-description" type="text" maxlength="200" required></div>
             <div class="field"><label for="task-responsible">Responsável</label><input id="task-responsible" type="text" maxlength="200" required></div>
             <div class="field"><label for="task-deadline">Prazo</label><input id="task-deadline" type="date" required></div>
