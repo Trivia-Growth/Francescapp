@@ -328,7 +328,7 @@ it('guarda objetivos fictícios por paciente e valida campos', async () => {
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
-  servidorFicticio();
+  const fetch = servidorFicticio();
   await import('./demonstracao.js');
   await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
   const abrir = () =>
@@ -375,6 +375,35 @@ it('guarda objetivos fictícios por paciente e valida campos', async () => {
   await vi.waitFor(() =>
     expect(document.getElementById('goals-list')?.textContent).toContain('Objetivo fictício'),
   );
+  document.querySelector<HTMLButtonElement>('#goals-list button')?.click();
+  (document.getElementById('goal-description') as HTMLInputElement).value = 'Objetivo revisado';
+  form.dispatchEvent(new Event('submit', { cancelable: true }));
+  expect(document.getElementById('goal-feedback')?.textContent).toContain('motivo');
+  (document.getElementById('goal-reason') as HTMLTextAreaElement).value = 'Nova observação';
+  const executar = fetch.getMockImplementation();
+  if (!executar) throw new Error('Servidor fictício indisponível.');
+  let liberar = () => {};
+  const espera = new Promise<void>((resolve) => {
+    liberar = resolve;
+  });
+  fetch.mockImplementationOnce(async (url, options) => {
+    await espera;
+    return executar(url, options);
+  });
+  form.dispatchEvent(new Event('submit', { cancelable: true }));
+  const botaoRevisar = document.querySelector<HTMLButtonElement>('#goals-list button');
+  if (!botaoRevisar) throw new Error('Botão de revisão indisponível.');
+  expect(botaoRevisar.disabled).toBe(true);
+  botaoRevisar.click();
+  expect((document.getElementById('goal-description') as HTMLInputElement).value).toBe(
+    'Objetivo revisado',
+  );
+  liberar();
+  await vi.waitFor(() =>
+    expect(document.getElementById('goals-list')?.textContent).toContain('Objetivo revisado'),
+  );
+  expect(document.getElementById('goals-list')?.textContent).toContain('Objetivo fictício');
+  expect(document.getElementById('goals-list')?.textContent).toContain('Nova observação');
   document.getElementById('goals-back')?.click();
   abrir()[1]?.click();
   await vi.waitFor(() => expect(document.getElementById('goals-view')?.hidden).toBe(false));
@@ -382,8 +411,9 @@ it('guarda objetivos fictícios por paciente e valida campos', async () => {
   document.getElementById('goals-back')?.click();
   abrir()[0]?.click();
   await vi.waitFor(() =>
-    expect(document.getElementById('goals-list')?.textContent).toContain('Objetivo fictício'),
+    expect(document.getElementById('goals-list')?.textContent).toContain('Objetivo revisado'),
   );
+  expect(document.getElementById('goals-list')?.textContent).toContain('Nova observação');
 });
 
 it('abre relato fictício isolado e descarta conteúdo ao voltar', async () => {

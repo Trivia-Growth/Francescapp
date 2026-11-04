@@ -303,30 +303,42 @@ export function createLocalFeedbackServer({ password, directory }) {
                 'acaoOuJustificativa',
               ]) && ['pendente', 'em_andamento', 'concluida', 'cancelada'].includes(task.estado),
           );
+        const validGoal = (goal) =>
+          strings(goal, [
+            'descricao',
+            'area',
+            'responsavel',
+            'situacaoInicial',
+            'observacaoProgresso',
+            'dataRevisao',
+            'estado',
+          ]) &&
+          ['descricao', 'area', 'responsavel', 'situacaoInicial', 'observacaoProgresso'].every(
+            (key) => goal[key].trim().length > 0,
+          ) &&
+          ['proposto', 'em andamento', 'atingido', 'pausado', 'revisar', 'encerrado'].includes(
+            goal.estado,
+          ) &&
+          /^\d{4}-\d{2}-\d{2}$/.test(goal.dataRevisao) &&
+          !Number.isNaN(Date.parse(goal.dataRevisao)) &&
+          new Date(goal.dataRevisao).toISOString().slice(0, 10) === goal.dataRevisao;
         const validGoals =
           data?.type === 'objetivos' &&
           Array.isArray(data.value) &&
           data.value.length <= 100 &&
           data.value.every(
             (goal) =>
-              strings(goal, [
-                'descricao',
-                'area',
-                'responsavel',
-                'situacaoInicial',
-                'observacaoProgresso',
-                'dataRevisao',
-                'estado',
-              ]) &&
-              ['descricao', 'area', 'responsavel', 'situacaoInicial', 'observacaoProgresso'].every(
-                (key) => goal[key].trim().length > 0,
-              ) &&
-              ['proposto', 'em andamento', 'atingido', 'pausado', 'revisar', 'encerrado'].includes(
-                goal.estado,
-              ) &&
-              /^\d{4}-\d{2}-\d{2}$/.test(goal.dataRevisao) &&
-              !Number.isNaN(Date.parse(goal.dataRevisao)) &&
-              new Date(goal.dataRevisao).toISOString().slice(0, 10) === goal.dataRevisao,
+              validGoal(goal) &&
+              (goal.historico === undefined ||
+                (Array.isArray(goal.historico) &&
+                  goal.historico.length <= 100 &&
+                  goal.historico.every(
+                    (item) =>
+                      validGoal(item?.objetivo) &&
+                      typeof item.motivo === 'string' &&
+                      item.motivo.trim().length > 0 &&
+                      item.motivo.length <= 2000,
+                  ))),
           );
         const validRelatos =
           data?.type === 'relatos' &&

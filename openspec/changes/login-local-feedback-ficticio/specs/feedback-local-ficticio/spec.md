@@ -49,3 +49,14 @@ A demonstração SHALL permitir revisar e guardar relatos fictícios por pacient
 #### Scenario: Conflito ou falha ao guardar
 - **WHEN** ocorrer conflito de revisão ou falha na gravação
 - **THEN** a interface não afirma sucesso e mantém o rascunho para conferência.
+
+### Requirement: Revisão local de objetivos fictícios
+A demonstração SHALL permitir revisar objetivos fictícios por paciente, mantendo versões anteriores e motivo da alteração no armazenamento local.
+
+#### Scenario: Revisar e consultar
+- **WHEN** um objetivo fictício é revisado com motivo válido
+- **THEN** a versão atual e as anteriores ficam disponíveis para o mesmo paciente.
+
+#### Scenario: Conflito ou falha
+- **WHEN** houver conflito ou falha na gravação
+- **THEN** a interface não afirma sucesso e preserva o rascunho para conferência.

@@ -70,7 +70,11 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const formulariosAlterados = new Set<HTMLFormElement>();
   const telaObjetivos = elemento('goals-view');
   const formularioObjetivo = elemento<HTMLFormElement>('goal-form');
-  const objetivos = new Map<string, Objetivo[]>();
+  type ObjetivoLocal = Objetivo & { historico?: { objetivo: Objetivo; motivo: string }[] };
+  const objetivos = new Map<string, ObjetivoLocal[]>();
+  let objetivoEmRevisao: number | undefined;
+  let revisaoDesatualizada = false;
+  let salvandoObjetivo = false;
   const telaTarefas = elemento('tasks-view');
   const formularioTarefa = elemento<HTMLFormElement>('task-form');
   const descricaoTarefa = elemento<HTMLInputElement>('task-description');
@@ -153,7 +157,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       revision: number;
       anamnese: Anamnese | null;
       tarefas: Tarefa[];
-      objetivos?: Objetivo[];
+      objetivos?: ObjetivoLocal[];
       relatos?: RelatoTextual[];
     };
     revisoes.set(id, previa.revision);
@@ -166,7 +170,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const salvarPrevia = async (
     id: string,
     type: 'anamnese' | 'tarefas' | 'objetivos' | 'relatos',
-    value: Anamnese | Tarefa[] | Objetivo[] | RelatoTextual[],
+    value: Anamnese | Tarefa[] | ObjetivoLocal[] | RelatoTextual[],
   ) => {
     const resposta = await requisitar(`/patients/${id}/preview`, {
       method: 'PUT',
@@ -246,6 +250,10 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         }
         selecionado = registro.id;
         formularioObjetivo.reset();
+        objetivoEmRevisao = undefined;
+        revisaoDesatualizada = false;
+        elemento('goal-reason-field').hidden = true;
+        elemento('goal-form-title').textContent = 'Cadastrar objetivo';
         elemento('goal-feedback').textContent = '';
         elemento('goals-patient').textContent = registro.name;
         atualizarObjetivos();
@@ -377,7 +385,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     lista.replaceChildren();
     const itens = selecionado ? (objetivos.get(selecionado) ?? []) : [];
     elemento('goals-empty').hidden = itens.length > 0;
-    for (const objetivo of itens) {
+    for (const [indice, objetivo] of itens.entries()) {
       const item = document.createElement('li');
       const titulo = document.createElement('h3');
       titulo.textContent = objetivo.descricao;
@@ -394,6 +402,46 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         detalhe.textContent = texto;
         item.append(detalhe);
       }
+      if (objetivo.historico?.length) {
+        const historico = document.createElement('details');
+        const resumo = document.createElement('summary');
+        resumo.textContent = 'Histórico de revisões';
+        historico.append(resumo);
+        for (const [versao, anterior] of objetivo.historico.entries()) {
+          const registro = document.createElement('p');
+          registro.textContent = `Versão ${versao + 1}: ${anterior.objetivo.descricao} | Área: ${anterior.objetivo.area} | Responsável: ${anterior.objetivo.responsavel} | Situação inicial: ${anterior.objetivo.situacaoInicial} | Progresso: ${anterior.objetivo.observacaoProgresso} | Revisão: ${anterior.objetivo.dataRevisao} | Estado: ${anterior.objetivo.estado} | Motivo da alteração: ${anterior.motivo}`;
+          historico.append(registro);
+        }
+        item.append(historico);
+      }
+      const revisar = document.createElement('button');
+      revisar.type = 'button';
+      revisar.disabled = salvandoObjetivo;
+      revisar.textContent = 'Revisar objetivo';
+      revisar.setAttribute('aria-label', `Revisar objetivo ${objetivo.descricao}`);
+      revisar.addEventListener('click', () => {
+        if (salvandoObjetivo) return;
+        if (formulariosAlterados.has(formularioObjetivo) && !podeDescartar()) return;
+        objetivoEmRevisao = indice;
+        revisaoDesatualizada = false;
+        const campos: Record<string, keyof Objetivo> = {
+          'goal-description': 'descricao',
+          'goal-area': 'area',
+          'goal-responsible': 'responsavel',
+          'goal-initial': 'situacaoInicial',
+          'goal-progress': 'observacaoProgresso',
+          'goal-date': 'dataRevisao',
+          'goal-status': 'estado',
+        };
+        for (const [id, chave] of Object.entries(campos))
+          elemento<HTMLInputElement>(id).value = objetivo[chave];
+        elemento<HTMLInputElement>('goal-reason').value = '';
+        elemento('goal-reason-field').hidden = false;
+        elemento('goal-form-title').textContent = 'Revisar objetivo';
+        formulariosAlterados.delete(formularioObjetivo);
+        elemento<HTMLInputElement>('goal-description').focus();
+      });
+      item.append(revisar);
       lista.append(item);
     }
   };
@@ -408,7 +456,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   formularioObjetivo.addEventListener('change', () => formulariosAlterados.add(formularioObjetivo));
   formularioObjetivo.addEventListener('submit', async (evento) => {
     evento.preventDefault();
-    if (!selecionado) return;
+    if (!selecionado || salvandoObjetivo) return;
     const campo = (id: string) => elemento<HTMLInputElement>(id).value;
     const resultado = objetivoSchema.safeParse({
       descricao: campo('goal-description'),
@@ -424,13 +472,40 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       return;
     }
     const pacienteId = selecionado;
-    const itens = [...(objetivos.get(pacienteId) ?? []), resultado.data];
+    if (revisaoDesatualizada) {
+      elemento('goal-feedback').textContent =
+        'Confira a lista e selecione novamente o objetivo antes de revisar.';
+      return;
+    }
+    const anteriores = objetivos.get(pacienteId) ?? [];
+    const motivo = campo('goal-reason').trim();
+    if (objetivoEmRevisao !== undefined && !motivo) {
+      elemento('goal-feedback').textContent = 'Informe o motivo da revisão.';
+      return;
+    }
+    const itens = [...anteriores];
+    if (objetivoEmRevisao === undefined) itens.push(resultado.data);
+    else {
+      const anterior = itens[objetivoEmRevisao];
+      if (!anterior) return;
+      const { historico = [], ...objetivoAnterior } = anterior;
+      itens[objetivoEmRevisao] = {
+        ...resultado.data,
+        historico: [...historico, { objetivo: objetivoAnterior, motivo }],
+      };
+    }
+    salvandoObjetivo = true;
+    for (const botao of elemento('goals-list').querySelectorAll('button')) botao.disabled = true;
     bloquearFormulario(formularioObjetivo, true);
     elemento<HTMLButtonElement>('goals-back').disabled = true;
     try {
       await salvarPrevia(pacienteId, 'objetivos', itens);
       objetivos.set(pacienteId, itens);
       formularioObjetivo.reset();
+      objetivoEmRevisao = undefined;
+      revisaoDesatualizada = false;
+      elemento('goal-reason-field').hidden = true;
+      elemento('goal-form-title').textContent = 'Cadastrar objetivo';
       formulariosAlterados.delete(formularioObjetivo);
       atualizarObjetivos();
       elemento('goal-feedback').textContent = 'Objetivo fictício salvo nesta demonstração local.';
@@ -438,6 +513,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       if (erro instanceof Error && erro.message === '409') {
         try {
           await carregarPrevia(pacienteId);
+          if (objetivoEmRevisao !== undefined) revisaoDesatualizada = true;
           atualizarObjetivos();
           elemento('goal-feedback').textContent =
             'A prévia foi alterada. Lista atualizada; confira se o objetivo já aparece antes de tentar novamente para evitar duplicação. Seu rascunho permanece no formulário.';
@@ -448,6 +524,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       } else {
         try {
           await carregarPrevia(pacienteId);
+          if (objetivoEmRevisao !== undefined) revisaoDesatualizada = true;
           atualizarObjetivos();
           elemento('goal-feedback').textContent =
             'Não foi possível confirmar o salvamento. Confira a lista atualizada antes de tentar novamente para evitar duplicar o objetivo. Seu rascunho permanece no formulário.';
@@ -457,6 +534,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         }
       }
     } finally {
+      salvandoObjetivo = false;
+      for (const botao of elemento('goals-list').querySelectorAll('button')) botao.disabled = false;
       bloquearFormulario(formularioObjetivo, false);
       elemento<HTMLButtonElement>('goals-back').disabled = false;
     }

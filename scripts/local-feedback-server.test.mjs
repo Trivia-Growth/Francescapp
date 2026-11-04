@@ -150,6 +150,10 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
       (await salvarObjetivo([{ ...objetivo, dataRevisao: '2026-02-30' }], 2)).status,
       400,
     );
+    assert.equal(
+      (await salvarObjetivo([{ ...objetivo, historico: [{ objetivo, motivo: '' }] }], 2)).status,
+      400,
+    );
     assert.equal((await salvarObjetivo([objetivo], 2)).status, 200);
     assert.equal((await salvarObjetivo([objetivo], 2)).status, 409);
     const relato = {
@@ -246,6 +250,12 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     assert.equal(final.operacoesRelatoCanceladas.includes(concorrente), !foiSalvo);
     assert.equal(final.relatos.length, foiSalvo ? 3 : 2);
     const relatosEsperados = final.relatos;
+    const objetivoRevisado = {
+      ...objetivo,
+      descricao: 'Objetivo revisado',
+      historico: [{ objetivo, motivo: 'Nova observação' }],
+    };
+    assert.equal((await salvarObjetivo([objetivoRevisado], final.revision)).status, 200);
 
     assert.equal(
       (await request(previewPath, { ...save, headers: { ...headers, cookie } })).status,
@@ -279,7 +289,7 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     );
     assert.deepEqual(
       (await (await request(previewPath, { headers: { cookie: nextCookie } })).json()).objetivos,
-      [objetivo],
+      [objetivoRevisado],
     );
     assert.deepEqual(
       (await (await request(previewPath, { headers: { cookie: nextCookie } })).json()).relatos,
