@@ -116,6 +116,27 @@ it('login técnico não abre desafio e consulta autorização independente', asy
   expect(caminhos).toEqual(['/api/auth/tecnica', '/api/sessao']);
 });
 
+it('falha tardia de login anterior não bloqueia o login mais recente', async () => {
+  vi.stubGlobal('window', { location: { origin: 'https://app.example.test' } });
+  let liberar!: (resposta: Response) => void;
+  let tentativas = 0;
+  vi.stubGlobal('fetch', async (url: URL) => {
+    if (url.pathname === '/api/auth/tecnica' && ++tentativas === 1)
+      return new Promise<Response>((resolve) => {
+        liberar = resolve;
+      });
+    return envelope(sessao);
+  });
+  const cliente = new ClienteFFCM();
+  const anterior = cliente.entrar('a@example.test', 'senha-ficticia');
+  const rejeicao = expect(anterior).rejects.toBeInstanceOf(FalhaApi);
+  await expect(cliente.entrar('a@example.test', 'senha-ficticia')).resolves.toEqual(sessao);
+  liberar(new Response(null, { status: 503 }));
+  await rejeicao;
+  expect(sessionStorage.getItem('modo-acesso')).toBe('tecnica');
+  await expect(cliente.consultarSessao()).resolves.toEqual(sessao);
+});
+
 it('recusa troca de cookie entre entrada técnica e confirmação independente', async () => {
   vi.stubGlobal('window', { location: { origin: 'https://app.example.test' } });
   const outra = {

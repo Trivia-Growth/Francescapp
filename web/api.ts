@@ -123,6 +123,7 @@ export class ClienteFFCM {
   #usuarioId: string | null = null;
   // Contador de respostas da interface; não é credencial nem geração de sessão.
   #revisao = 0;
+  #tentativaEntrada = 0;
   #saindo = false;
   #vinculosAnamnese = new Map<string, { pacienteId: string; sessionId: string }>();
 
@@ -261,6 +262,7 @@ export class ClienteFFCM {
   }
 
   async entrar(email: string, senha: string): Promise<Dados<'sessaoAtual'>> {
+    const tentativa = ++this.#tentativaEntrada;
     this.limpar();
     try {
       sessionStorage.setItem('modo-acesso', 'bloqueada');
@@ -272,7 +274,8 @@ export class ClienteFFCM {
       return await this.#consultarSessao(entrada);
     } catch (erro) {
       try {
-        sessionStorage.setItem('modo-acesso', 'bloqueada');
+        if (tentativa === this.#tentativaEntrada)
+          sessionStorage.setItem('modo-acesso', 'bloqueada');
       } catch {
         /* falha fechada */
       }
