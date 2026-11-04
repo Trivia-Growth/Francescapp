@@ -54,7 +54,7 @@ Os pontos de entrada de pacientes, anamnese e plano foram ligados às composiç�
 
 Edição: leitura individual administrativa, adaptador e entrada HTTP foram preparados localmente para permitir reconciliação; as migrations ainda não foram aplicadas e não concedem acesso à aplicação. A entrada está desativada por padrão e depende de integração e validação antes do uso. Nenhum teste foi executado nesta etapa. A preparação de chaves do Vault também está apenas em script local, sem execução remota.
 
-Contatos: operação SQL privada de criação foi preparada com cifra e autorização; ainda faltam executor, rota, interface conectada e provas. A migration não foi aplicada nem concede acesso à aplicação. Nenhum teste foi executado nesta etapa.
+Contatos: operação SQL privada, wrapper invoker e composição de servidor foram preparados com cifra e autorização. Ainda faltam owner/policies, rota, interface conectada e provas; as migrations não foram aplicadas nem concedem acesso à aplicação. Nenhum teste foi executado nesta etapa.
 
 ## Revisão operacional aprovada — 01/11/2026
 
