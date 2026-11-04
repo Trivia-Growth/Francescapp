@@ -485,6 +485,38 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     );
     assert.equal((await salvarEncaminhamento(encaminhamentos)).status, 200);
     assert.equal((await salvarEncaminhamento(encaminhamentos)).status, 409);
+    const guidancePatient = (
+      await (
+        await request('/patients', {
+          method: 'POST',
+          headers: auth,
+          body: JSON.stringify({ name: 'Pessoa orientação' }),
+        })
+      ).json()
+    ).patient;
+    const guidancePath = `/patients/${guidancePatient.id}/preview`;
+    const guidance = {
+      id: '12345678-1234-4234-8234-123456789abc',
+      texto: 'Exemplo',
+      autor: 'Profissional fictício',
+      data: '2026-11-04',
+      destinatarios: 'Família fictícia',
+      validade: null,
+      anterior: false,
+    };
+    const saveGuidance = (value, revision) =>
+      request(guidancePath, {
+        method: 'PUT',
+        headers: auth,
+        body: JSON.stringify({ type: 'orientacoes', value, revision }),
+      });
+    assert.equal((await saveGuidance([{ ...guidance, texto: '' }], 0)).status, 400);
+    assert.equal((await saveGuidance([guidance], 0)).status, 200);
+    assert.equal((await saveGuidance([], 0)).status, 409);
+    assert.deepEqual(
+      (await (await request(guidancePath, { headers: { cookie } })).json()).orientacoes,
+      [guidance],
+    );
     const logout = await request('/logout', { method: 'POST', headers: auth, body: '{}' });
     assert.equal(logout.status, 204);
     assert.match(logout.headers.get('set-cookie'), /Path=\/api\/local-feedback(?:;|$)/);

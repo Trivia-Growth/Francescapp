@@ -631,6 +631,25 @@ export function createLocalFeedbackServer({ password, directory }) {
                 item.estado,
               ),
           );
+        const validOrientacoes =
+          data?.type === 'orientacoes' &&
+          Array.isArray(data.value) &&
+          data.value.length <= 100 &&
+          new Set(data.value.map((item) => item?.id)).size === data.value.length &&
+          data.value.every(
+            (item) =>
+              strings(item, ['id', 'texto', 'autor', 'data', 'destinatarios']) &&
+              /^[a-f0-9-]{36}$/.test(item.id) &&
+              ['texto', 'autor', 'destinatarios'].every((key) => item[key].trim()) &&
+              typeof item.anterior === 'boolean' &&
+              [item.data, ...(item.validade === null ? [] : [item.validade])].every(
+                (date) =>
+                  typeof date === 'string' &&
+                  /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+                  !Number.isNaN(Date.parse(date)) &&
+                  new Date(date).toISOString().slice(0, 10) === date,
+              ),
+          );
         const validAgenda =
           data?.type === 'agenda' &&
           Array.isArray(data.value) &&
@@ -694,7 +713,8 @@ export function createLocalFeedbackServer({ password, directory }) {
             !validRelatos &&
             !validAgenda &&
             !validDocuments &&
-            !validReferrals)
+            !validReferrals &&
+            !validOrientacoes)
         )
           return respond(res, 400);
         const preview = await updatePreview(

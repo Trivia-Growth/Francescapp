@@ -8,6 +8,7 @@ import { montarRelatoTextual } from './relato-textual';
 import { montarResumoCasoLocal } from './resumo-caso-local';
 import { montarLinhaTempoLocal } from './linha-tempo-local';
 import { montarEncaminhamentosLocais, type EncaminhamentoLocal } from './encaminhamentos-local';
+import { montarOrientacoesLocais, type OrientacaoLocal } from './orientacoes-local';
 import { montarDocumentosLocais, type DocumentoLocal } from './documentos-locais';
 import {
   montarPainelPendenciasLocal,
@@ -92,6 +93,9 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const telaObjetivos = elemento('goals-view');
   const telaDocumentos = elemento('documents-view');
   const telaEncaminhamentos = elemento('referrals-view');
+  const telaOrientacoes = elemento('guidance-view');
+  const orientacoes = new Map<string, OrientacaoLocal[]>();
+  let salvandoOrientacao = false;
   const encaminhamentos = new Map<string, EncaminhamentoLocal[]>();
   let salvandoEncaminhamento = false;
   const documentos = new Map<string, DocumentoLocal[]>();
@@ -151,6 +155,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       telaResumo,
       telaDocumentos,
       telaEncaminhamentos,
+      telaOrientacoes,
     ])
       item.hidden = item !== tela;
   };
@@ -180,6 +185,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         telaResumo,
         telaDocumentos,
         telaEncaminhamentos,
+        telaOrientacoes,
       ].find((tela) => !tela.hidden);
       pacientes.hidden = true;
       anamnese.hidden = true;
@@ -191,6 +197,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       telaResumo.hidden = true;
       telaDocumentos.hidden = true;
       telaEncaminhamentos.hidden = true;
+      telaOrientacoes.hidden = true;
       acoes.hidden = true;
       login.hidden = false;
       csrfToken = '';
@@ -246,6 +253,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       agenda?: Compromisso[];
       documentos?: DocumentoLocal[];
       encaminhamentos?: EncaminhamentoLocal[];
+      orientacoes?: OrientacaoLocal[];
     };
     if (geracao !== undefined && geracao !== geracaoNavegacao) return;
     revisoes.set(id, previa.revision);
@@ -257,6 +265,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     agenda.set(id, previa.agenda ?? []);
     documentos.set(id, previa.documentos ?? []);
     encaminhamentos.set(id, previa.encaminhamentos ?? []);
+    orientacoes.set(id, previa.orientacoes ?? []);
   };
   const salvarPrevia = async (
     id: string,
@@ -267,7 +276,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       | 'relatos'
       | 'agenda'
       | 'documentos'
-      | 'encaminhamentos',
+      | 'encaminhamentos'
+      | 'orientacoes',
     value:
       | Anamnese
       | Tarefa[]
@@ -275,7 +285,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       | RelatoTextual[]
       | Compromisso[]
       | DocumentoLocal[]
-      | EncaminhamentoLocal[],
+      | EncaminhamentoLocal[]
+      | OrientacaoLocal[],
   ) => {
     const resposta = await requisitar(`/patients/${id}/preview`, {
       method: 'PUT',
@@ -445,6 +456,43 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         exibirTela(telaEncaminhamentos);
         elemento('referrals-title').focus();
       });
+      const abrirOrientacoes = document.createElement('button');
+      abrirOrientacoes.type = 'button';
+      abrirOrientacoes.className = 'button-secondary';
+      abrirOrientacoes.textContent = 'Abrir orientações';
+      abrirOrientacoes.setAttribute('aria-label', `Abrir orientações de ${registro.name}`);
+      abrirOrientacoes.addEventListener('click', async () => {
+        const geracao = ++geracaoNavegacao;
+        try {
+          await carregarPrevia(registro.id, geracao);
+        } catch {
+          if (geracao === geracaoNavegacao)
+            elemento('workspace-feedback').textContent =
+              'Não foi possível carregar a prévia. Tente novamente.';
+          return;
+        }
+        if (geracao !== geracaoNavegacao) return;
+        selecionado = registro.id;
+        montarOrientacoesLocais(elemento('guidance-content'), {
+          orientacoes: orientacoes.get(registro.id) ?? [],
+          aoSalvar: async (atualizadas) => {
+            salvandoOrientacao = true;
+            try {
+              await salvarPrevia(registro.id, 'orientacoes', atualizadas);
+              orientacoes.set(registro.id, atualizadas);
+              const form = elemento('guidance-content').querySelector('form');
+              if (form) formulariosAlterados.delete(form);
+            } finally {
+              salvandoOrientacao = false;
+            }
+          },
+        });
+        const form = elemento('guidance-content').querySelector('form');
+        form?.addEventListener('input', () => formulariosAlterados.add(form));
+        elemento('guidance-patient').textContent = registro.name;
+        exibirTela(telaOrientacoes);
+        elemento('guidance-title').focus();
+      });
       const abrirResumo = document.createElement('button');
       abrirResumo.type = 'button';
       abrirResumo.className = 'button-secondary';
@@ -467,6 +515,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
           tarefas: tarefas.get(registro.id) ?? [],
           objetivos: objetivos.get(registro.id) ?? [],
           relatos: relatos.get(registro.id) ?? [],
+          encaminhamentos: encaminhamentos.get(registro.id) ?? [],
+          orientacoes: orientacoes.get(registro.id) ?? [],
         });
         montarLinhaTempoLocal(elemento('summary-timeline'), {
           relatos: relatos.get(registro.id) ?? [],
@@ -660,6 +710,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
           document.createTextNode(' '),
           abrirEncaminhamentos,
           document.createTextNode(' '),
+          abrirOrientacoes,
+          document.createTextNode(' '),
           abrirAgenda,
           document.createTextNode(' '),
           abrirTarefas,
@@ -796,6 +848,19 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     geracaoNavegacao++;
     exibirTela(pacientes);
     elemento('open-general-agenda').focus();
+  });
+  elemento('guidance-back').addEventListener('click', () => {
+    if (salvandoOrientacao) return;
+    const form = elemento('guidance-content').querySelector('form');
+    if (
+      form &&
+      formulariosAlterados.has(form) &&
+      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
+    )
+      return;
+    if (form) formulariosAlterados.delete(form);
+    exibirTela(pacientes);
+    elemento('patients-title').focus();
   });
   elemento('referrals-back').addEventListener('click', () => {
     if (salvandoEncaminhamento) return;

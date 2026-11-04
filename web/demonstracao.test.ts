@@ -28,6 +28,7 @@ function servidorFicticio(autenticado = true, legado = false) {
       agenda?: unknown[];
       documentos?: unknown[];
       encaminhamentos?: unknown[];
+      orientacoes?: unknown[];
       operacoesRelato?: string[];
       operacoesRelatoCanceladas?: string[];
     }
@@ -101,7 +102,8 @@ function servidorFicticio(autenticado = true, legado = false) {
             | 'relatos'
             | 'agenda'
             | 'documentos'
-            | 'encaminhamentos';
+            | 'encaminhamentos'
+            | 'orientacoes';
           value: never;
           operationId?: string;
         };
@@ -1092,5 +1094,53 @@ it('guarda encaminhamentos por paciente e recupera ao reabrir', async () => {
   ).click();
   await vi.waitFor(() =>
     expect(document.getElementById('referrals-content')?.textContent).toContain('Serviço fictício'),
+  );
+});
+
+it('guarda orientações por paciente e recupera ao reabrir', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  servidorFicticio();
+  await import('./demonstracao.js');
+  const abrir = (nome: string) =>
+    (
+      document.querySelector(`[aria-label="Abrir orientações de ${nome}"]`) as HTMLButtonElement
+    ).click();
+  await vi.waitFor(() =>
+    expect(
+      document.querySelector('[aria-label="Abrir orientações de Paciente Exemplo Um"]'),
+    ).not.toBeNull(),
+  );
+  abrir('Paciente Exemplo Um');
+  await vi.waitFor(() => expect(document.querySelector('#guidance-content form')).not.toBeNull());
+  (document.querySelector('#guidance-content textarea') as HTMLTextAreaElement).value =
+    'Orientação fictícia';
+  const campos = document.querySelectorAll<HTMLInputElement>('#guidance-content input');
+  campos[0].value = 'Equipe';
+  campos[1].value = '2026-11-04';
+  campos[2].value = 'Família';
+  document
+    .querySelector('#guidance-content form')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(document.getElementById('guidance-content')?.textContent).toContain(
+      'Orientação fictícia',
+    ),
+  );
+  (document.getElementById('guidance-back') as HTMLButtonElement).click();
+  abrir('Paciente Exemplo Dois');
+  await vi.waitFor(() =>
+    expect(document.getElementById('guidance-patient')?.textContent).toBe('Paciente Exemplo Dois'),
+  );
+  expect(document.getElementById('guidance-content')?.textContent).not.toContain(
+    'Orientação fictícia',
+  );
+  (document.getElementById('guidance-back') as HTMLButtonElement).click();
+  abrir('Paciente Exemplo Um');
+  await vi.waitFor(() =>
+    expect(document.getElementById('guidance-content')?.textContent).toContain(
+      'Orientação fictícia',
+    ),
   );
 });

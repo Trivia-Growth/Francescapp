@@ -43,3 +43,36 @@ it('não exibe valor residual quando anamnese está desconhecida', () => {
   expect(raiz.textContent).not.toContain('valor antigo');
   expect(raiz.textContent).toContain('Nenhum objetivo não encerrado');
 });
+
+it('apresenta encaminhamentos e orientações registrados como texto', () => {
+  const raiz = document.createElement('div');
+  montarResumoCasoLocal(raiz, {
+    anamnese: null,
+    tarefas: [],
+    objetivos: [],
+    relatos: [],
+    encaminhamentos: [
+      {
+        id: '1',
+        destino: 'Serviço',
+        motivo: 'Acompanhamento',
+        responsavel: 'Equipe',
+        estado: 'sugerido',
+      },
+    ],
+    orientacoes: [
+      {
+        id: '1',
+        texto: '<b>Orientação</b>',
+        autor: 'Equipe',
+        data: '2026-11-04',
+        destinatarios: 'Família',
+        validade: null,
+        anterior: false,
+      },
+    ],
+  });
+  expect(raiz.textContent).toContain('Serviço · Acompanhamento · Equipe · sugerido');
+  expect(raiz.textContent).toContain('<b>Orientação</b>');
+  expect(raiz.querySelector('b')).toBeNull();
+});

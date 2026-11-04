@@ -1,5 +1,7 @@
 import type { Objetivo } from '../packages/contracts/src/plano-cuidado';
 import type { RelatoTextual } from '../packages/contracts/src/relato-textual';
+import type { EncaminhamentoLocal } from './encaminhamentos-local';
+import type { OrientacaoLocal } from './orientacoes-local';
 
 type RespostaLocal = {
   estado: string;
@@ -24,6 +26,8 @@ export type DadosResumoCasoLocal = {
   tarefas: readonly TarefaLocal[];
   objetivos: readonly Objetivo[];
   relatos: readonly RelatoTextual[];
+  encaminhamentos?: readonly EncaminhamentoLocal[];
+  orientacoes?: readonly OrientacaoLocal[];
 };
 
 /** Apresenta somente dados já carregados pela prévia fictícia; não autoriza acesso. */
@@ -77,6 +81,31 @@ export function montarResumoCasoLocal(raiz: HTMLElement, dados: DadosResumoCasoL
             `${objetivo.descricao} · ${objetivo.estado} · Revisão: ${objetivo.dataRevisao}`,
         )
       : ['Nenhum objetivo não encerrado registrado nesta prévia.'],
+  );
+  secao(
+    'Encaminhamentos',
+    dados.encaminhamentos?.length
+      ? dados.encaminhamentos.map(
+          (item) => `${item.destino} · ${item.motivo} · ${item.responsavel} · ${item.estado}`,
+        )
+      : [
+          dados.encaminhamentos
+            ? 'Nenhum encaminhamento registrado nesta prévia.'
+            : 'Encaminhamentos não carregados nesta prévia.',
+        ],
+  );
+  secao(
+    'Orientações',
+    dados.orientacoes?.length
+      ? dados.orientacoes.map(
+          (item) =>
+            `${item.texto} · ${item.autor} · ${item.data} · Destinatários: ${item.destinatarios}${item.validade ? ` · Validade: ${item.validade}` : ''}${item.anterior ? ' · Anterior' : ''}`,
+        )
+      : [
+          dados.orientacoes
+            ? 'Nenhuma orientação registrada nesta prévia.'
+            : 'Orientações não carregadas nesta prévia.',
+        ],
   );
   const relatos = [...dados.relatos].sort((a, b) =>
     b.dataAcontecimento.localeCompare(a.dataAcontecimento),
