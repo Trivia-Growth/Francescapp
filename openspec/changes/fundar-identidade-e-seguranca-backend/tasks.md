@@ -18,6 +18,8 @@ Cadastro e carteira receberam migrations locais posteriores à admissão técnic
 
 RPCs locais de cadastro, barreira e carteira receberam grants restritos a `authenticated`. Testes SQL descartáveis exercitaram criação e lista com papel autenticado, rejeição de envelope adulterado, revogação e negativa a papéis indevidos. Auth, Vault e assinaturas dos testes são fictícios; PostgREST, JWT real, assinador da aplicação e isolamento de profissionais ainda precisam de prova. Rotas e Supabase remoto permanecem inalterados.
 
+Revisão de preparação corrigiu as migrations de admissão e carteira para preservar permissões preexistentes do migrador. Teste SQL descartável dos trechos de concessão e limpeza passou; não executou as migrations completas nem comprovou integração remota.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.

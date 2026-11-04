@@ -16,8 +16,20 @@ create policy carteira_tecnica_paciente on cadastro.paciente for select to ffcma
    and (u.perfil='administrador' or exists(select 1 from cadastro.acesso_paciente a where a.paciente_id=paciente.id and a.usuario_id=u.id and a.revogada_em is null))
   )
 );
-select set_config('ffcmapp.migrador_carteira_tecnica',current_user,false);
-grant ffcmapp_carteira_owner to current_user with inherit false, set true;
+select set_config('ffcmapp.migrador_carteira_tecnica', current_user, false);
+select set_config('ffcmapp.carteira_tecnica_tinha_owner', exists(
+  select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid
+  join pg_roles u on u.oid=m.member where r.rolname='ffcmapp_carteira_owner' and u.rolname=current_user
+)::text, false);
+do $$ begin
+  if current_setting('ffcmapp.carteira_tecnica_tinha_owner')='false' then
+    execute format('grant ffcmapp_carteira_owner to %I with inherit false, set true', current_user);
+  elsif not exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid
+    join pg_roles u on u.oid=m.member where r.rolname='ffcmapp_carteira_owner' and u.rolname=current_user and m.set_option) then
+    raise exception 'MEMBERSHIP_SEM_SET';
+  end if;
+end $$;
+select set_config('ffcmapp.carteira_tecnica_tinha_create_identidade', exists(select 1 from pg_namespace n cross join lateral aclexplode(coalesce(n.nspacl,acldefault('n',n.nspowner))) a join pg_roles r on r.oid=a.grantee where n.nspname='identidade' and r.rolname='ffcmapp_carteira_owner' and a.privilege_type='CREATE')::text, false);
 grant create on schema identidade to ffcmapp_carteira_owner;
 set role ffcmapp_carteira_owner;
 create or replace function identidade.listar_carteira_privada(p_transporte jsonb) returns jsonb
@@ -129,5 +141,11 @@ begin
 end $$;
 reset role;
 select set_config('role',current_setting('ffcmapp.migrador_carteira_tecnica'),false);
-revoke create on schema identidade from ffcmapp_carteira_owner;
-revoke ffcmapp_carteira_owner from current_user;
+do $$ begin
+  if current_setting('ffcmapp.carteira_tecnica_tinha_create_identidade')='false' then
+    revoke create on schema identidade from ffcmapp_carteira_owner;
+  end if;
+  if current_setting('ffcmapp.carteira_tecnica_tinha_owner')='false' then
+    execute format('revoke ffcmapp_carteira_owner from %I', current_user);
+  end if;
+end $$;
