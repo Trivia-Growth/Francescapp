@@ -27,6 +27,12 @@ export type DadosResumoCasoLocal = {
     birthDate?: string | null;
     phone?: string | null;
     email?: string | null;
+    situacao?: 'entrada' | 'ativo' | 'pausado' | 'encerrado' | 'transferido';
+    historicoSituacao?: readonly {
+      situacao: 'entrada' | 'ativo' | 'pausado' | 'encerrado' | 'transferido';
+      data: string;
+      motivo: string;
+    }[];
   };
   anamnese: AnamneseLocal | null;
   tarefas: readonly TarefaLocal[];
@@ -62,6 +68,18 @@ export function montarResumoCasoLocal(raiz: HTMLElement, dados: DadosResumoCasoL
       ...(paciente.phone ? [`Telefone: ${paciente.phone}`] : []),
       ...(paciente.email ? [`E-mail: ${paciente.email}`] : []),
     ]);
+  }
+  if (dados.paciente) {
+    secao('Situação do acompanhamento', [
+      `Situação atual: ${dados.paciente.situacao ?? 'não informada'}`,
+      ...(dados.paciente.historicoSituacao?.length
+        ? dados.paciente.historicoSituacao.map(
+            (item) => `${item.data} · ${item.situacao} · Motivo: ${item.motivo}`,
+          )
+        : ['Nenhuma alteração de situação registrada nesta prévia.']),
+    ]);
+  } else {
+    secao('Situação do acompanhamento', ['Situação não carregada nesta prévia.']);
   }
   secao(
     'Pessoas de referência',

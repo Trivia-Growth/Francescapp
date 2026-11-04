@@ -122,6 +122,49 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
       ).status,
       400,
     );
+    // Transições preservam histórico e cadastros antigos não ganham situação presumida.
+    assert.equal(patient.situacao, undefined);
+    const transitionPatient = (
+      await (
+        await request('/patients', {
+          method: 'POST',
+          headers: auth,
+          body: JSON.stringify({
+            name: 'Pessoa para transição',
+            situacao: 'entrada',
+            motivoSituacao: 'Início fictício',
+          }),
+        })
+      ).json()
+    ).patient;
+    const transition = (revision, situacao, motivoSituacao) =>
+      request(`/patients/${transitionPatient.id}`, {
+        method: 'PUT',
+        headers: auth,
+        body: JSON.stringify({
+          name: transitionPatient.name,
+          preferredName: '',
+          revision,
+          situacao,
+          motivoSituacao,
+        }),
+      });
+    assert.equal((await transition(0, 'pausado', '')).status, 400);
+    const paused = await transition(0, 'pausado', 'Pausa fictícia');
+    assert.equal(paused.status, 200);
+    assert.equal((await transition(0, 'ativo', 'Retorno')).status, 409);
+    const resumed = (await (await transition(1, 'ativo', 'Retorno fictício')).json()).patient;
+    assert.deepEqual(
+      resumed.historicoSituacao.map((item) => item.situacao),
+      ['entrada', 'pausado', 'ativo'],
+    );
+    assert.ok(resumed.historicoSituacao.every((item) => item.data && item.motivo));
+    const oldClient = await request(`/patients/${transitionPatient.id}`, {
+      method: 'PUT',
+      headers: auth,
+      body: JSON.stringify({ name: transitionPatient.name, preferredName: '', revision: 2 }),
+    });
+    assert.equal((await oldClient.json()).patient.historicoSituacao.length, 3);
     const attachmentPath = `/patients/${patient.id}/attachments`;
     assert.equal((await request(attachmentPath)).status, 401);
     const upload = {
@@ -484,7 +527,7 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
       (await request(previewPath, { ...save, headers: { ...headers, cookie } })).status,
       403,
     );
-    assert.equal(JSON.parse(await readFile(join(directory, 'patients.json'), 'utf8')).length, 2);
+    assert.equal(JSON.parse(await readFile(join(directory, 'patients.json'), 'utf8')).length, 3);
     const documentos = [
       { nome: 'Exame fictício', categoria: 'Exame', metadados: 'Referência fictícia' },
     ];

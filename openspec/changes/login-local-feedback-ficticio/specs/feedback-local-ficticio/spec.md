@@ -83,3 +83,14 @@ A demonstração SHALL permitir anexar, listar e baixar arquivos fictícios por 
 #### Scenario: Acesso sem sessão ou em outro paciente
 - **WHEN** uma requisição não possuir sessão válida ou solicitar o anexo em outro paciente
 - **THEN** o servidor negará o acesso.
+
+### Requirement: Situação fictícia do acompanhamento
+A demonstração SHALL permitir registrar entrada, ativo, pausado, encerrado ou transferido com motivo e data, preservando histórico contínuo por paciente. Cadastros anteriores sem situação permanecem não informados; a prévia não define regras de transição para produção.
+
+#### Scenario: Alterar e consultar
+- **WHEN** a pessoa altera explicitamente a situação fictícia e informa motivo
+- **THEN** a mudança recebe data e fica no histórico do mesmo paciente, sem remover registros anteriores.
+
+#### Scenario: Motivo ausente ou conflito
+- **WHEN** falta motivo para mudança ou a revisão do cadastro está desatualizada
+- **THEN** o servidor rejeita a alteração e preserva o histórico.

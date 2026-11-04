@@ -89,8 +89,23 @@ export function createLocalFeedbackServer({ password, directory }) {
       if (index < 0) return null;
       const patient = patients[index];
       if ((patient.revision ?? 0) !== data.revision) return false;
+      const situacao = data.situacao ?? patient.situacao;
+      const mudouSituacao = situacao !== patient.situacao;
+      if (mudouSituacao && (typeof data.motivoSituacao !== 'string' || !data.motivoSituacao.trim()))
+        return 'invalid';
       const updated = {
         ...patient,
+        situacao,
+        historicoSituacao: mudouSituacao
+          ? [
+              ...(patient.historicoSituacao ?? []),
+              {
+                situacao,
+                data: new Date().toISOString(),
+                motivo: (data.motivoSituacao ?? '').trim(),
+              },
+            ]
+          : (patient.historicoSituacao ?? []),
         name: data.name.trim(),
         preferredName: data.preferredName.trim(),
         ...optionalPatientFields(data),
@@ -374,6 +389,11 @@ export function createLocalFeedbackServer({ password, directory }) {
         if (
           !data ||
           !validOptionalPatientFields(data) ||
+          (data.situacao !== undefined &&
+            (!['entrada', 'ativo', 'pausado', 'encerrado', 'transferido'].includes(data.situacao) ||
+              typeof data.motivoSituacao !== 'string' ||
+              !data.motivoSituacao.trim() ||
+              data.motivoSituacao.trim().length > 1000)) ||
           typeof data.name !== 'string' ||
           !data.name.trim() ||
           data.name.trim().length > 200 ||
@@ -386,6 +406,18 @@ export function createLocalFeedbackServer({ password, directory }) {
           name: data.name.trim(),
           preferredName: (data.preferredName || '').trim(),
           ...optionalPatientFields(data),
+          ...(data.situacao
+            ? {
+                situacao: data.situacao,
+                historicoSituacao: [
+                  {
+                    situacao: data.situacao,
+                    data: new Date().toISOString(),
+                    motivo: data.motivoSituacao.trim(),
+                  },
+                ],
+              }
+            : {}),
         };
         await addPatient(patient);
         return respond(res, 201, { patient });
@@ -401,6 +433,11 @@ export function createLocalFeedbackServer({ password, directory }) {
         if (
           !data ||
           !validOptionalPatientFields(data) ||
+          (data.situacao !== undefined &&
+            !['entrada', 'ativo', 'pausado', 'encerrado', 'transferido'].includes(data.situacao)) ||
+          (data.motivoSituacao !== undefined &&
+            (typeof data.motivoSituacao !== 'string' ||
+              data.motivoSituacao.trim().length > 1000)) ||
           typeof data.name !== 'string' ||
           !data.name.trim() ||
           data.name.trim().length > 200 ||
@@ -413,6 +450,7 @@ export function createLocalFeedbackServer({ password, directory }) {
         const patient = await updatePatient(patientMatch[1], data);
         if (patient === null) return respond(res, 404);
         if (patient === false) return respond(res, 409);
+        if (patient === 'invalid') return respond(res, 400);
         return respond(res, 200, { patient });
       }
       const attachmentMatch = path.match(

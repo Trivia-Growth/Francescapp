@@ -1,5 +1,7 @@
 # Tasks
 
+Prévia permite registrar situação fictícia de acompanhamento e consultar mudanças com data e motivo. Cadastros anteriores sem situação seguem como não informados; somente nome é obrigatório ao criar paciente. Testes locais cobrem persistência e cadastro mínimo.
+
 Prévia local registra pessoas de referência fictícias por paciente, com relação e contato opcional, e exibe a lista no resumo. Não cria conta, convite ou acesso; testes focados cobrem gravação e descarte de rascunho.
 
 Cadastro fictício local aceita nascimento, telefone e e-mail opcionais, exibidos também no resumo. Registros anteriores permanecem legíveis; teste local cobre criação, edição e retomada. Contatos reais não são autorizados nesta prévia.

@@ -182,6 +182,12 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     phone?: string;
     email?: string;
     revision?: number;
+    situacao?: 'entrada' | 'ativo' | 'pausado' | 'encerrado' | 'transferido';
+    historicoSituacao?: {
+      situacao: 'entrada' | 'ativo' | 'pausado' | 'encerrado' | 'transferido';
+      data: string;
+      motivo: string;
+    }[];
   };
   let editando: Paciente | undefined;
   let salvandoCadastro = false;
@@ -819,6 +825,17 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         nascimento.value = registro.birthDate ?? '';
         telefone.value = registro.phone ?? '';
         email.value = registro.email ?? '';
+        elemento<HTMLSelectElement>('patient-situation').value = registro.situacao ?? '';
+        elemento<HTMLTextAreaElement>('patient-situation-reason').value = '';
+        elemento('patient-situation-fields').hidden = false;
+        const historico = elemento('patient-situation-history');
+        historico.replaceChildren();
+        for (const evento of registro.historicoSituacao ?? []) {
+          const item = document.createElement('li');
+          item.textContent = `${evento.situacao} — ${new Date(evento.data).toLocaleString('pt-BR')}${evento.motivo ? ` — ${evento.motivo}` : ''}`;
+          historico.append(item);
+        }
+        elemento('patient-situation-empty').hidden = historico.childElementCount > 0;
         elemento('create-title').textContent = 'Editar paciente';
         elemento('create-submit').textContent = 'Salvar alterações';
         elemento('cancel-edit').hidden = false;
@@ -826,6 +843,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         formulariosAlterados.delete(formulario);
         nome.focus();
       });
+      linha.insertCell().textContent = registro.situacao ?? 'Não informada';
       linha
         .insertCell()
         .append(
@@ -1777,6 +1795,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const cancelarEdicao = () => {
     editando = undefined;
     formulario.reset();
+    elemento('patient-situation-history').replaceChildren();
+    elemento('patient-situation-empty').hidden = false;
     formulariosAlterados.delete(formulario);
     elemento('create-title').textContent = 'Novo paciente';
     elemento('create-submit').textContent = 'Cadastrar paciente';
@@ -1803,6 +1823,18 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       return;
     }
     const cadastroOriginal = editando;
+    const situacao = elemento<HTMLSelectElement>('patient-situation').value;
+    const motivoSituacao = elemento<HTMLTextAreaElement>('patient-situation-reason').value.trim();
+    if (!situacao && cadastroOriginal?.situacao) {
+      elemento('create-feedback').textContent = 'Selecione a situação do acompanhamento.';
+      elemento('patient-situation').focus();
+      return;
+    }
+    if (situacao !== (cadastroOriginal?.situacao ?? '') && !motivoSituacao) {
+      elemento('create-feedback').textContent = 'Informe o motivo da situação.';
+      elemento('patient-situation-reason').focus();
+      return;
+    }
     salvandoCadastro = true;
     geracaoCadastros++;
     bloquearFormulario(formulario, true);
@@ -1822,6 +1854,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
             birthDate: nascimento.value,
             phone: telefone.value.trim(),
             email: email.value.trim(),
+            ...(situacao ? { situacao, motivoSituacao } : {}),
             ...(cadastroOriginal ? { revision: cadastroOriginal.revision ?? 0 } : {}),
           }),
         },

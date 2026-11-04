@@ -66,7 +66,7 @@
             <div id="list-empty" class="empty-state" hidden><h3>Nenhum paciente nesta lista</h3><p id="empty-description">Nenhum cadastro disponível para seu acesso.</p></div>
             <table id="patients-table" hidden>
               <caption class="sr-only">Pacientes fictícios da demonstração</caption>
-              <thead><tr><th scope="col">Nome</th><th scope="col">Nome de preferência</th><th scope="col">Ações</th></tr></thead>
+              <thead><tr><th scope="col">Nome</th><th scope="col">Nome de preferência</th><th scope="col">Situação</th><th scope="col">Ações</th></tr></thead>
               <tbody id="patients-body"></tbody>
             </table>
             <nav id="pagination" class="pagination" aria-label="Páginas de pacientes" hidden><button id="previous-page" class="button-secondary" type="button">Página anterior</button><span id="page-number"></span><button id="next-page" class="button-secondary" type="button">Próxima página</button></nav>
@@ -82,6 +82,11 @@
                 <div class="field"><label for="birth-date">Data de nascimento <span class="label-detail">opcional</span></label><input id="birth-date" name="nascimento" type="date"></div>
                 <div class="field"><label for="patient-phone">Telefone <span class="label-detail">opcional</span></label><input id="patient-phone" name="telefone" type="tel" maxlength="32" pattern="(?=.*[0-9])[+0-9\(\) .\-]{7,32}"></div>
                 <div class="field"><label for="patient-email">E-mail <span class="label-detail">opcional</span></label><input id="patient-email" name="email" type="email" maxlength="254"></div>
+                <div id="patient-situation-fields">
+                  <div class="field"><label for="patient-situation">Situação do acompanhamento</label><select id="patient-situation"><option value="">Selecione</option><option value="entrada">Entrada</option><option value="ativo">Ativo</option><option value="pausado">Pausado</option><option value="encerrado">Encerrado</option><option value="transferido">Transferido</option></select></div>
+                  <div class="field"><label for="patient-situation-reason">Motivo da situação ou mudança</label><textarea id="patient-situation-reason" maxlength="1000" rows="2"></textarea></div>
+                  <h3>Histórico de situação</h3><ul id="patient-situation-history"></ul><p id="patient-situation-empty">Nenhuma mudança registrada nesta prévia.</p>
+                </div>
               </fieldset>
               <button id="create-submit" class="button-primary full-width" type="submit">Cadastrar paciente</button>
               <button id="cancel-edit" class="button-secondary" type="button" hidden>Cancelar edição</button>

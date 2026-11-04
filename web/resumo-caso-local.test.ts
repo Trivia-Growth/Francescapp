@@ -114,3 +114,26 @@ it('apresenta pessoas de referência como texto e distingue lista vazia de dados
   montarResumoCasoLocal(raiz, dados);
   expect(raiz.textContent).toContain('Pessoas de referência não carregadas nesta prévia.');
 });
+
+it('apresenta situação e histórico como texto, incluindo ausência de histórico', () => {
+  const raiz = document.createElement('div');
+  const dados = { anamnese: null, tarefas: [], objetivos: [], relatos: [] };
+  montarResumoCasoLocal(raiz, {
+    ...dados,
+    paciente: {
+      name: 'Paciente fictício',
+      situacao: 'pausado',
+      historicoSituacao: [
+        { situacao: 'pausado', data: '2026-11-04', motivo: '<b>Motivo fictício</b>' },
+      ],
+    },
+  });
+  expect(raiz.textContent).toContain('Situação atual: pausado');
+  expect(raiz.textContent).toContain('2026-11-04 · pausado · Motivo: <b>Motivo fictício</b>');
+  expect(raiz.querySelector('b')).toBeNull();
+  montarResumoCasoLocal(raiz, { ...dados, paciente: { name: 'Paciente fictício' } });
+  expect(raiz.textContent).toContain('Situação atual: não informada');
+  expect(raiz.textContent).toContain('Nenhuma alteração de situação registrada nesta prévia.');
+  montarResumoCasoLocal(raiz, dados);
+  expect(raiz.textContent).toContain('Situação não carregada nesta prévia.');
+});

@@ -9,12 +9,24 @@ afterEach(() => {
   localStorage.clear();
 });
 
-function servidorFicticio(autenticado = true, legado = false) {
+function servidorFicticio(autenticado = true, legado = false, situacao = false) {
   vi.stubGlobal('navigator', {
     locks: { request: async (_nome: string, executar: () => Promise<void>) => executar() },
   });
   const pacientes = [
-    { id: '1', name: 'Paciente Exemplo Um', preferredName: 'Exemplo Um' },
+    {
+      id: '1',
+      name: 'Paciente Exemplo Um',
+      preferredName: 'Exemplo Um',
+      ...(situacao
+        ? {
+            situacao: 'ativo',
+            historicoSituacao: [
+              { situacao: 'ativo', data: '2026-01-01T12:00:00Z', motivo: 'Início fictício' },
+            ],
+          }
+        : {}),
+    },
     { id: '2', name: 'Paciente Exemplo Dois', preferredName: '' },
   ];
   const previas = new Map<
@@ -175,6 +187,53 @@ it('autentica, lista e cadastra com token local', async () => {
       headers: expect.objectContaining({ 'X-CSRF-Token': 'token-ficticio' }),
     }),
   );
+});
+
+it('cadastra paciente somente com nome, sem presumir situação', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  const fetch = servidorFicticio();
+  await import('./demonstracao.js');
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
+  (document.getElementById('patient-name') as HTMLInputElement).value = 'Pessoa mínima';
+  document.getElementById('create-form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(document.getElementById('patients-body')?.textContent).toContain('Pessoa mínima'),
+  );
+  const envio = fetch.mock.calls.find(
+    ([url, options]) => url.endsWith('/patients') && options?.method === 'POST',
+  );
+  expect(JSON.parse(String(envio?.[1]?.body))).not.toHaveProperty('situacao');
+});
+
+it('limpa histórico ao cancelar e rejeita situação vazia em cadastro existente', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  const fetch = servidorFicticio(true, false, true);
+  await import('./demonstracao.js');
+  await vi.waitFor(() =>
+    expect(
+      document.querySelector('[aria-label="Editar cadastro de Paciente Exemplo Um"]'),
+    ).not.toBeNull(),
+  );
+  const editar = document.querySelector<HTMLButtonElement>(
+    '[aria-label="Editar cadastro de Paciente Exemplo Um"]',
+  );
+  editar?.click();
+  expect(document.getElementById('patient-situation-history')?.textContent).toContain(
+    'Início fictício',
+  );
+  (document.getElementById('patient-situation') as HTMLSelectElement).value = '';
+  (document.getElementById('patient-situation-reason') as HTMLTextAreaElement).value =
+    'Motivo fictício';
+  document.getElementById('create-form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+  expect(document.getElementById('create-feedback')?.textContent).toContain('Selecione a situação');
+  expect(fetch.mock.calls.filter(([, options]) => options?.method === 'PUT')).toHaveLength(0);
+  document.getElementById('cancel-edit')?.click();
+  expect(document.getElementById('patient-situation-history')?.textContent).toBe('');
+  expect(document.getElementById('patient-situation-empty')?.hidden).toBe(false);
 });
 
 it('bloqueia troca de cadastro durante salvamento pendente', async () => {
