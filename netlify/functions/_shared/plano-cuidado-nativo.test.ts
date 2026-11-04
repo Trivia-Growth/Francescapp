@@ -66,6 +66,8 @@ const comando = {
   paciente_id,
   objetivo_id,
   versao_esperada: 0,
+  reserva_id: 'f0000000-0000-4000-8000-000000000006',
+  geracao_reserva: 1,
   objetivo,
 };
 describe('plano interno', () => {

@@ -315,7 +315,8 @@ begin
     select * into anterior from operacao.requisicao r where r.ator_usuario_id=ator and r.operacao=acao and r.chave_idempotencia=e->>'chave_idempotencia';
    end if;
   end if;
-  if anterior.digest_entrada is distinct from e->>'digest_idempotencia' or anterior.estado <> 'concluida'
+  if (repeticao and esperada=0 and reserva_linha.estado <> 'confirmada')
+   or anterior.digest_entrada is distinct from e->>'digest_idempotencia' or anterior.estado <> 'concluida'
    or not exists(select 1 from cadastro.objetivo_cuidado_versao v join cadastro.objetivo_cuidado o on o.id=v.objetivo_id
     where v.id=anterior.resultado_id and o.paciente_id=paciente and v.versao=anterior.resultado_versao) then
    insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)

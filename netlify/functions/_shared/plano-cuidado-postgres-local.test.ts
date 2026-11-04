@@ -82,14 +82,33 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
       executar: (_req: Request, transporte: Parameters<typeof executarPlanoCuidadoNativo>[1]) =>
         executarPlanoCuidadoNativo(cliente as never, transporte),
     };
+    const reserva_id = crypto.randomUUID();
     const gravar = {
       operacao: 'gravar' as const,
       paciente_id,
       objetivo_id,
       versao_esperada: 0,
+      reserva_id,
+      geracao_reserva: 1,
       objetivo,
     };
     try {
+      await pool.query('delete from operacao.reserva_plano where ator_usuario_id=$1', [usuario_id]);
+      await pool.query('delete from operacao.recibo_barreira_plano where ator_usuario_id=$1', [
+        usuario_id,
+      ]);
+      await pool.query('delete from operacao.barreira_plano where ator_usuario_id=$1', [
+        usuario_id,
+      ]);
+      await pool.query(
+        "select set_config('request.jwt.claims', json_build_object('sub',$1::text)::text, false)",
+        [usuario_id],
+      );
+      await pool.query('select operacao.reservar_plano_privado($1,1,$2,$3)', [
+        usuario_id,
+        reserva_id,
+        paciente_id,
+      ]);
       expect(await operarPlanoCuidadoNativo(request, gravar, portas)).toMatchObject({
         ok: false,
         erro: { codigo: 'pendencia_externa' },
@@ -109,6 +128,8 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
           requestRevisao,
           {
             ...gravar,
+            reserva_id: undefined,
+            geracao_reserva: undefined,
             versao_esperada: 1,
             objetivo: revisado,
             motivo: 'revisao ficticia',
@@ -174,7 +195,28 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
         headers: { 'x-sessao': session_id, 'x-chave-idempotencia': 'resposta_perdida_123' },
       });
       const objetivoPerdido = 'd0000000-0000-4000-8000-000000000005';
-      const comandoPerdido = { ...gravar, objetivo_id: objetivoPerdido };
+      await pool.query('delete from operacao.reserva_plano where ator_usuario_id=$1', [usuario_id]);
+      await pool.query('delete from operacao.recibo_barreira_plano where ator_usuario_id=$1', [
+        usuario_id,
+      ]);
+      await pool.query('delete from operacao.barreira_plano where ator_usuario_id=$1', [
+        usuario_id,
+      ]);
+      const reservaPerdida = crypto.randomUUID();
+      await pool.query(
+        "select set_config('request.jwt.claims', json_build_object('sub',$1::text)::text, false)",
+        [usuario_id],
+      );
+      await pool.query('select operacao.reservar_plano_privado($1,1,$2,$3)', [
+        usuario_id,
+        reservaPerdida,
+        paciente_id,
+      ]);
+      const comandoPerdido = {
+        ...gravar,
+        objetivo_id: objetivoPerdido,
+        reserva_id: reservaPerdida,
+      };
       let respostaConfirmada: unknown;
       expect(
         await operarPlanoCuidadoNativo(requestPerdido, comandoPerdido, {

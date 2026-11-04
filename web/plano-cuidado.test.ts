@@ -1,7 +1,23 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
 import { FalhaApi } from './api.js';
-import { montarPlanoCuidado } from './plano-cuidado.js';
+import { montarPlanoCuidado as montar, type ServicoPlanoCuidado } from './plano-cuidado.js';
+
+function montarPlanoCuidado(
+  raiz: HTMLElement,
+  paciente: string,
+  servico: Omit<ServicoPlanoCuidado, 'ciclo'> & { criarObjetivo: ReturnType<typeof vi.fn> },
+  acesso: (erro: unknown) => void,
+) {
+  const ciclo = {
+    consultar: vi.fn().mockResolvedValue({ epoca: 1, reserva: null, resultado_pendente: null }),
+    encerrar: vi.fn().mockResolvedValue('vazia'),
+    reconhecer: vi.fn(),
+    liberar: vi.fn(),
+    criar: servico.criarObjetivo,
+  };
+  return montar(raiz, paciente, { ...servico, ciclo }, acesso);
+}
 
 const objetivo = {
   descricao: '<img src=x>',
@@ -136,6 +152,15 @@ it('mantém criação bloqueada após consulta quando salvamento pode concluir d
     vi.fn(),
   );
   await vi.waitFor(() => expect(raiz.textContent).toContain('Adicionar objetivo'));
+  [...raiz.querySelectorAll('button')]
+    .find((b) => b.textContent === 'Confirmar situação de criação')
+    ?.click();
+  await vi.waitFor(() =>
+    expect(
+      [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Adicionar objetivo')
+        ?.disabled,
+    ).toBe(false),
+  );
   [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Adicionar objetivo')?.click();
   const form = raiz.querySelector('form');
   if (!form) throw new Error('Formulário ausente');
@@ -167,7 +192,7 @@ it('mantém criação bloqueada após consulta quando salvamento pode concluir d
     (b) => b.textContent === 'Adicionar objetivo',
   );
   expect(adicionar?.disabled).toBe(true);
-  expect(raiz.textContent).toContain('precisa de confirmação definitiva');
+  expect(raiz.textContent).toContain('Confirme a situação de criação');
   expect(criarObjetivo).toHaveBeenCalledTimes(1);
 });
 
@@ -243,4 +268,107 @@ it('remove dados quando acesso é revogado após redesenho durante consulta de h
   rejeitar(new FalhaApi('negado', 403));
   await vi.waitFor(() => expect(acessoPerdido).toHaveBeenCalledOnce());
   expect(raiz.childElementCount).toBe(0);
+});
+
+it('mantém criação bloqueada após recarga quando confirmação da barreira falha, sem persistir rascunho', async () => {
+  localStorage.clear();
+  const raiz = document.createElement('div');
+  const ciclo = {
+    consultar: vi.fn().mockRejectedValue(new Error('rede')),
+    encerrar: vi.fn(),
+    reconhecer: vi.fn(),
+    liberar: vi.fn(),
+    criar: vi.fn(),
+  };
+  const desmontar = montar(
+    raiz,
+    'paciente',
+    {
+      ciclo,
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi.fn().mockResolvedValue([]),
+      revisarObjetivo: vi.fn(),
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Confirmar situação de criação'));
+  [...raiz.querySelectorAll('button')]
+    .find((b) => b.textContent === 'Confirmar situação de criação')
+    ?.click();
+  await vi.waitFor(() =>
+    expect(raiz.textContent).toContain('Não foi possível confirmar a situação'),
+  );
+  expect(
+    [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Adicionar objetivo')
+      ?.disabled,
+  ).toBe(true);
+  desmontar();
+  montar(
+    raiz,
+    'paciente',
+    {
+      ciclo,
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi.fn().mockResolvedValue([]),
+      revisarObjetivo: vi.fn(),
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Confirmar situação de criação'));
+  expect(
+    [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Adicionar objetivo')
+      ?.disabled,
+  ).toBe(true);
+  expect(localStorage.length).toBe(0);
+  expect(ciclo.criar).not.toHaveBeenCalled();
+});
+
+it('preserva rascunho de revisão e impede abertura durante reconciliação', async () => {
+  const raiz = document.createElement('div');
+  let concluir!: (valor: { epoca: number; reserva: null; resultado_pendente: null }) => void;
+  const ciclo = {
+    consultar: vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            concluir = resolve;
+          }),
+      )
+      .mockResolvedValue({ epoca: 1, reserva: null, resultado_pendente: null }),
+    encerrar: vi.fn().mockResolvedValue('vazia'),
+    reconhecer: vi.fn(),
+    liberar: vi.fn(),
+    criar: vi.fn(),
+  };
+  montar(
+    raiz,
+    'paciente',
+    {
+      ciclo,
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi.fn().mockResolvedValue([atual]),
+      revisarObjetivo: vi.fn(),
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Revisar objetivo'));
+  const botao = (texto: string) =>
+    [...raiz.querySelectorAll('button')].find((b) => b.textContent === texto);
+  botao('Revisar objetivo')?.click();
+  const motivo = [...raiz.querySelectorAll('label')]
+    .find((l) => l.textContent?.includes('Motivo da revisão'))
+    ?.querySelector('textarea');
+  if (!motivo) throw new Error('Motivo ausente');
+  motivo.value = 'Rascunho';
+  expect(botao('Confirmar situação de criação')?.disabled).toBe(true);
+  botao('Confirmar situação de criação')?.click();
+  expect(ciclo.consultar).not.toHaveBeenCalled();
+  expect(motivo.value).toBe('Rascunho');
+  botao('Cancelar')?.click();
+  botao('Confirmar situação de criação')?.click();
+  botao('Revisar objetivo')?.click();
+  expect(raiz.querySelector('form')).toBeNull();
+  concluir({ epoca: 1, reserva: null, resultado_pendente: null });
+  await vi.waitFor(() => expect(botao('Adicionar objetivo')?.disabled).toBe(false));
 });

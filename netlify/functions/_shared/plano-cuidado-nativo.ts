@@ -27,6 +27,8 @@ type Comando =
       paciente_id: string;
       objetivo_id: string;
       versao_esperada: number;
+      reserva_id?: string;
+      geracao_reserva?: number;
       objetivo: unknown;
       motivo?: unknown;
     };
@@ -103,11 +105,18 @@ export async function operarPlanoCuidadoNativo(
       if (!chave.success) return erro('entrada_invalida');
       chaveIdempotencia = chave.data;
       const id = uuidSchema.safeParse(comando.objetivo_id);
+      const reserva = uuidSchema.safeParse(comando.reserva_id);
       const valor = objetivoSchema.safeParse(comando.objetivo);
       const razao = motivoPlanoSchema.safeParse(comando.motivo);
       if (
         !id.success ||
         !valor.success ||
+        (comando.versao_esperada === 0 &&
+          (!reserva.success ||
+            !Number.isSafeInteger(comando.geracao_reserva) ||
+            Number(comando.geracao_reserva) < 1)) ||
+        (comando.versao_esperada > 0 &&
+          (comando.reserva_id !== undefined || comando.geracao_reserva !== undefined)) ||
         !Number.isInteger(comando.versao_esperada) ||
         comando.versao_esperada < 0 ||
         comando.versao_esperada >= 2147483647 ||
@@ -161,6 +170,10 @@ export async function operarPlanoCuidadoNativo(
         }),
       );
       if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) throw new Error();
+      if (comando.versao_esperada === 0) {
+        entrada.reserva_id = uuidSchema.parse(comando.reserva_id).toLowerCase();
+        entrada.geracao_reserva = comando.geracao_reserva;
+      }
       Object.assign(entrada, {
         chave_idempotencia: chaveIdempotencia,
         digest_idempotencia: digest,

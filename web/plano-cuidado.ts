@@ -3,6 +3,7 @@ import {
   type Objetivo,
   type RevisaoObjetivo,
 } from '../packages/contracts/src/plano-cuidado.js';
+import type { criarCicloPlano } from './ciclo-plano.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 
 export type ObjetivoAtual = { objetivo_id: string; versao: number; objetivo: Objetivo };
@@ -14,7 +15,7 @@ export type VersaoHistoricoObjetivo = ObjetivoAtual & {
 export type ServicoPlanoCuidado = {
   consultarHistorico(pacienteId: string, objetivoId: string): Promise<VersaoHistoricoObjetivo[]>;
   consultarObjetivos(pacienteId: string): Promise<ObjetivoAtual[]>;
-  criarObjetivo(pacienteId: string, objetivo: Objetivo): Promise<void>;
+  ciclo: ReturnType<typeof criarCicloPlano>;
   revisarObjetivo(
     pacienteId: string,
     objetivoId: string,
@@ -34,7 +35,8 @@ export function montarPlanoCuidado(
   let ativa = true;
   let gravando = false;
   let bloqueada = false;
-  let criacaoIncerta = false;
+  let criacaoIncerta = true;
+  let recuperando = false;
   const elemento = <K extends keyof HTMLElementTagNameMap>(tipo: K, texto?: string) => {
     const el = document.createElement(tipo);
     if (texto !== undefined) el.textContent = texto;
@@ -69,18 +71,86 @@ export function montarPlanoCuidado(
   const desenhar = (objetivos: ObjetivoAtual[]) => {
     const secao = elemento('section');
     secao.append(elemento('h2', 'Plano de cuidado'));
-    if (criacaoIncerta)
-      secao.append(
-        elemento(
-          'p',
-          'A criação anterior ainda precisa de confirmação definitiva. Não é possível criar outro objetivo nesta sessão.',
-        ),
+    const formulario = elemento('div');
+    if (criacaoIncerta) {
+      const aviso = elemento(
+        'p',
+        'Confirme a situação de criação antes de adicionar outro objetivo.',
       );
+      aviso.setAttribute('role', 'status');
+      const recuperar = elemento('button', 'Confirmar situação de criação');
+      recuperar.type = 'button';
+      recuperar.dataset.recuperacaoPlano = '';
+      recuperar.disabled = recuperando;
+      recuperar.onclick = () => {
+        if (recuperando || formulario.querySelector('form')) return;
+        recuperando = true;
+        recuperar.disabled = true;
+        aviso.textContent = 'Confirmando situação de criação…';
+        void (async () => {
+          let situacao = await servico.ciclo.consultar();
+          if (!situacao.resultado_pendente) {
+            await servico.ciclo.encerrar();
+            situacao = await servico.ciclo.consultar();
+          }
+          if (!ativa) return;
+          if (situacao.resultado_pendente) {
+            aviso.textContent =
+              situacao.resultado_pendente.resultado === 'confirmada'
+                ? 'Uma criação anterior foi confirmada. Confira o plano correspondente.'
+                : 'Uma criação anterior foi cancelada.';
+            recuperar.textContent = 'Reconhecer resultado e liberar criação';
+            let reconhecido = false;
+            recuperar.onclick = () => {
+              if (recuperando || formulario.querySelector('form')) return;
+              recuperando = true;
+              recuperar.disabled = true;
+              void (async () => {
+                if (!reconhecido) {
+                  await servico.ciclo.reconhecer();
+                  reconhecido = true;
+                }
+                await servico.ciclo.consultar();
+                servico.ciclo.liberar();
+                if (!ativa) return;
+                criacaoIncerta = false;
+                bloqueada = false;
+                consultar();
+              })()
+                .catch((erro: unknown) => {
+                  if (!ativa || perdeuAcesso(erro)) return;
+                  aviso.textContent = 'Não foi possível reconhecer o resultado. Tente novamente.';
+                  recuperar.disabled = false;
+                })
+                .finally(() => {
+                  recuperando = false;
+                });
+            };
+            recuperar.disabled = false;
+            return;
+          }
+          servico.ciclo.liberar();
+          criacaoIncerta = false;
+          bloqueada = false;
+          consultar();
+        })()
+          .catch((erro: unknown) => {
+            if (!ativa || perdeuAcesso(erro)) return;
+            aviso.textContent = 'Não foi possível confirmar a situação. Tente novamente.';
+            recuperar.disabled = false;
+          })
+          .finally(() => {
+            recuperando = false;
+          });
+      };
+      secao.append(aviso, recuperar);
+    }
     if (!objetivos.length) secao.append(elemento('p', 'Nenhum objetivo registrado.'));
     const lista = elemento('div');
-    const formulario = elemento('div');
     const abrir = (atual?: ObjetivoAtual) => {
-      if (gravando || bloqueada || formulario.querySelector('form')) return;
+      if (gravando || bloqueada || recuperando || formulario.querySelector('form')) return;
+      const botaoRecuperacao = secao.querySelector<HTMLButtonElement>('[data-recuperacao-plano]');
+      if (botaoRecuperacao) botaoRecuperacao.disabled = true;
       const form = elemento('form');
       form.append(elemento('h3', atual ? 'Revisar objetivo' : 'Novo objetivo'));
       const campos = elemento('fieldset');
@@ -178,6 +248,7 @@ export function montarPlanoCuidado(
       });
       cancelar.addEventListener('click', () => {
         formulario.replaceChildren();
+        if (botaoRecuperacao) botaoRecuperacao.disabled = false;
         alteracaoPendente(false);
       });
       form.addEventListener('input', () => alteracaoPendente(true));
@@ -207,20 +278,30 @@ export function montarPlanoCuidado(
               objetivo: validado.data,
               motivo: razao ?? '',
             })
-          : servico.criarObjetivo(pacienteId, validado.data);
+          : servico.ciclo.criar(pacienteId, validado.data);
         void operacao
           .then(() => {
             if (!ativa) return;
             gravando = false;
             alteracaoPendente(false);
+            if (!atual) criacaoIncerta = true;
             consultar();
           })
           .catch((erro: unknown) => {
             if (!ativa || perdeuAcesso(erro)) return;
             gravando = false;
-            if (resultadoIncerto(erro)) {
+            if (!atual || resultadoIncerto(erro)) {
               bloqueada = true;
-              if (!atual) criacaoIncerta = true;
+              if (!atual) {
+                criacaoIncerta = true;
+                const confirmar = elemento('button', 'Descartar rascunho e confirmar criação');
+                confirmar.type = 'button';
+                confirmar.addEventListener('click', () => {
+                  alteracaoPendente(false);
+                  consultar();
+                });
+                recuperacao.replaceChildren(confirmar);
+              }
               aviso.textContent =
                 'Não foi possível confirmar o salvamento. Preserve seu rascunho e consulte a versão atual antes de tentar novamente.';
               campos.disabled = false;
