@@ -21,3 +21,5 @@ Atualização: as migrations privadas de tarefas foram aplicadas no Supabase de 
 O formulário agora usa o cliente HTTP de criação e o POST é encaminhado atrás de flag separada, desativada por padrão. Grants, revisão do fluxo completo e provas reais seguem pendentes; a ligação do código não significa que a jornada esteja disponível.
 
 Atualização de estados preparada na interface e no servidor, com versão esperada e chave de idempotência. Conflitos e respostas incertas preservam os campos para cópia e oferecem consulta após confirmação. Não há ativação ou testes; autorização, concorrência e reconciliação real permanecem pendentes.
+
+Edição de descrição, responsável, prazo e prioridade adicionada ao formulário existente. A interface permanece dependente do serviço e das permissões protegidas ainda desativados.

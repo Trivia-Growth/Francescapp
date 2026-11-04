@@ -152,7 +152,31 @@ export function montarTarefasCuidado(
   ) => {
     const form = elemento('form');
     const campos = elemento('fieldset');
-    campos.append(elemento('legend', `Atualizar estado: ${registro.tarefa.descricao}`));
+    campos.append(elemento('legend', `Editar tarefa: ${registro.tarefa.descricao}`));
+    const campo = (rotulo: string, tipo: 'text' | 'date', valor: string, tamanho?: number) => {
+      const label = elemento('label', rotulo);
+      const input = elemento('input');
+      input.type = tipo;
+      input.required = true;
+      input.value = valor;
+      if (tamanho) input.maxLength = tamanho;
+      label.append(input);
+      campos.append(label);
+      return input;
+    };
+    const descricao = campo('Descrição', 'text', registro.tarefa.descricao, 4000);
+    const responsavel = campo('Responsável', 'text', registro.tarefa.responsavel, 4000);
+    const prazo = campo('Prazo', 'date', registro.tarefa.prazo);
+    const labelPrioridade = elemento('label', 'Prioridade');
+    const prioridade = elemento('select');
+    for (const [valor, rotulo] of Object.entries(prioridades)) {
+      const opcao = elemento('option', rotulo);
+      opcao.value = valor;
+      prioridade.append(opcao);
+    }
+    prioridade.value = registro.tarefa.prioridade;
+    labelPrioridade.append(prioridade);
+    campos.append(labelPrioridade);
     const labelEstado = elemento('label', 'Estado');
     const estado = elemento('select');
     for (const [valor, rotulo] of Object.entries(estados)) {
@@ -173,7 +197,7 @@ export function montarTarefasCuidado(
     justificativa.value = registro.tarefa.justificativa ?? '';
     labelJustificativa.append(justificativa);
     campos.append(labelEstado, labelAcao, labelJustificativa);
-    const salvar = elemento('button', 'Atualizar estado');
+    const salvar = elemento('button', 'Salvar tarefa');
     salvar.type = 'submit';
     const status = elemento('p');
     status.setAttribute('role', 'status');
@@ -183,6 +207,17 @@ export function montarTarefasCuidado(
     form.addEventListener('submit', (evento) => {
       evento.preventDefault();
       if (recuperacao) return;
+      const descricaoLimpa = descricao.value.trim();
+      const responsavelLimpo = responsavel.value.trim();
+      if (
+        !descricaoLimpa ||
+        !responsavelLimpo ||
+        !prazo.value ||
+        !Object.hasOwn(prioridades, prioridade.value)
+      ) {
+        status.textContent = 'Preencha descrição, responsável, prazo e prioridade.';
+        return;
+      }
       const acaoLimpa = acao.value.trim();
       const justificativaLimpa = justificativa.value.trim();
       if (estado.value === 'concluida' && !acaoLimpa && !justificativaLimpa) {
@@ -193,6 +228,10 @@ export function montarTarefasCuidado(
       if (!permitirAtualizacao(form)) return;
       const tarefa: TarefaCuidado = {
         ...registro.tarefa,
+        descricao: descricaoLimpa,
+        responsavel: responsavelLimpo,
+        prazo: prazo.value,
+        prioridade: prioridade.value as TarefaCuidado['prioridade'],
         estado: estado.value as TarefaCuidado['estado'],
         acaoRealizada: acaoLimpa || undefined,
         justificativa: justificativaLimpa || undefined,
