@@ -426,6 +426,7 @@ it('abre relato fictício isolado e descarta conteúdo ao voltar', async () => {
   const chamadasAntes = fetch.mock.calls.length;
   document.getElementById('open-relato')?.click();
   expect(document.getElementById('relato-view')?.hidden).toBe(false);
+  expect(document.getElementById('relato-back')?.textContent).toBe('Voltar ao acesso');
   expect(document.getElementById('login-view')?.hidden).toBe(true);
   expect(document.getElementById('relato-content')?.textContent).toContain(
     'não será salvo nem enviado',
@@ -463,6 +464,7 @@ it('guarda relato fictício somente na prévia do paciente escolhido', async () 
     );
   abrir()[0]?.click();
   await vi.waitFor(() => expect(document.getElementById('relato-view')?.hidden).toBe(false));
+  expect(document.getElementById('relato-back')?.textContent).toBe('Voltar à lista');
   (document.querySelector('#relato-content input[type=date]') as HTMLInputElement).value =
     '2026-11-04';
   (document.querySelector('#relato-content textarea') as HTMLTextAreaElement).value =

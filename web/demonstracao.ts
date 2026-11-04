@@ -18,6 +18,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const telaRelato = elemento('relato-view');
   let desmontarRelato: (() => void) | undefined;
   elemento('open-relato').addEventListener('click', () => {
+    elemento('relato-back').textContent = 'Voltar ao acesso';
     desmontarRelato = montarRelatoTextual(elemento('relato-content'));
     const form = elemento('relato-content').querySelector('form');
     form?.addEventListener('input', () => formulariosAlterados.add(form));
@@ -362,6 +363,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         const formRelato = elemento('relato-content').querySelector('form');
         formRelato?.addEventListener('input', () => formulariosAlterados.add(formRelato));
         elemento('relato-patient').textContent = registro.name;
+        elemento('relato-back').textContent = 'Voltar à lista';
         pacientes.hidden = true;
         telaRelato.hidden = false;
         elemento('relato-title').focus();
