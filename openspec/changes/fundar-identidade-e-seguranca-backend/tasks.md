@@ -22,6 +22,8 @@ Revisão de preparação corrigiu as migrations de admissão e carteira para pre
 
 Consulta somente de leitura pelo canal Management API confirmou conexão como `postgres`. Esse canal compartilhado não comprova identidade individual do operador e não deve ser usado como prova de autoria. O bootstrap segue pendente de identificação operacional verificável e revisão; não houve alteração remota.
 
+Preparação local: migrations criam cadastro privado de operador associado ao login SQL e função restrita de bootstrap, sem cadastrar operador nem conceder execução. Testes em PostgreSQL descartável passaram para identificação, concessão e RLS; usam Auth fictício e não cobrem a cadeia integral, concorrência ou falha da auditoria. O modelo de função restrita por login individual difere do mecanismo owner-only de D-10 e exige revisão do desenho antes de adoção. Também faltam provisionamento e prova do login no Supabase, preparador operacional, leitura de operadores na auditoria e integração real. Nada foi aplicado remotamente.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.
