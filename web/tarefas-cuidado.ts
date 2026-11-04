@@ -32,6 +32,9 @@ export function montarTarefasCuidado(
 ): () => void {
   let ativa = true;
   let recuperacao = false;
+  let filtroEstado = '';
+  let filtroPrioridade = '';
+  let controlesFiltro: HTMLSelectElement[] = [];
   const formulariosAlterados = new Set<HTMLFormElement>();
   const marcarAlterado = (form: HTMLFormElement) => {
     formulariosAlterados.add(form);
@@ -46,6 +49,7 @@ export function montarTarefasCuidado(
         HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLButtonElement
       >('form input, form textarea, form select, form button'),
     ].filter((controle) => controle.form !== atual && !controle.disabled);
+    controles.push(...controlesFiltro.filter((controle) => !controle.disabled));
     for (const controle of controles) controle.disabled = true;
     return () => {
       for (const controle of controles) controle.disabled = false;
@@ -68,6 +72,7 @@ export function montarTarefasCuidado(
     alta: 'Alta',
   };
   const consultar = () => {
+    controlesFiltro = [];
     const status = elemento('p', 'Carregando tarefas…');
     status.setAttribute('role', 'status');
     raiz.replaceChildren(status);
@@ -80,23 +85,66 @@ export function montarTarefasCuidado(
         if (servico.criarTarefa) secao.append(criarFormulario(servico.criarTarefa));
         if (!registros.length)
           secao.append(elemento('p', 'Nenhuma tarefa encontrada para este paciente.'));
-        for (const registro of registros) {
-          const { tarefa } = registro;
-          const item = elemento('article');
-          item.append(elemento('h3', tarefa.descricao));
-          item.append(elemento('p', `Estado: ${estados[tarefa.estado]}`));
-          const prazo = tarefa.prazo.split('-').reverse().join('/');
-          for (const [rotulo, valor] of [
-            ['Responsável', tarefa.responsavel],
-            ['Prazo', prazo],
-            ['Prioridade', prioridades[tarefa.prioridade]],
-            ...(tarefa.acaoRealizada ? [['Ação realizada', tarefa.acaoRealizada]] : []),
-            ...(tarefa.justificativa ? [['Justificativa', tarefa.justificativa]] : []),
-          ])
-            item.append(elemento('p', `${rotulo}: ${valor}`));
-          if (servico.atualizarTarefa)
-            item.append(criarAtualizacao(registro, servico.atualizarTarefa));
-          secao.append(item);
+        const itens: { registro: RegistroTarefa; elemento: HTMLElement }[] = [];
+        const semResultados = elemento('p', 'Nenhuma tarefa corresponde aos filtros selecionados.');
+        semResultados.setAttribute('role', 'status');
+        if (registros.length) {
+          const filtros = elemento('div');
+          const criarFiltro = (rotulo: string, opcoes: Record<string, string>, valor: string) => {
+            const label = elemento('label', rotulo);
+            const select = elemento('select');
+            const todos = elemento('option', 'Todos');
+            todos.value = '';
+            select.append(todos);
+            for (const [chave, texto] of Object.entries(opcoes)) {
+              const opcao = elemento('option', texto);
+              opcao.value = chave;
+              select.append(opcao);
+            }
+            select.value = valor;
+            label.append(select);
+            filtros.append(label);
+            return select;
+          };
+          const estado = criarFiltro('Filtrar por estado', estados, filtroEstado);
+          const prioridade = criarFiltro('Filtrar por prioridade', prioridades, filtroPrioridade);
+          controlesFiltro = [estado, prioridade];
+          const aplicarFiltros = () => {
+            filtroEstado = estado.value;
+            filtroPrioridade = prioridade.value;
+            let visiveis = 0;
+            for (const item of itens) {
+              const corresponde =
+                (!filtroEstado || item.registro.tarefa.estado === filtroEstado) &&
+                (!filtroPrioridade || item.registro.tarefa.prioridade === filtroPrioridade);
+              item.elemento.hidden = !corresponde;
+              if (corresponde) visiveis++;
+            }
+            semResultados.hidden = visiveis > 0;
+          };
+          estado.addEventListener('change', aplicarFiltros);
+          prioridade.addEventListener('change', aplicarFiltros);
+          secao.append(filtros, semResultados);
+          for (const registro of registros) {
+            const { tarefa } = registro;
+            const item = elemento('article');
+            item.append(elemento('h3', tarefa.descricao));
+            item.append(elemento('p', `Estado: ${estados[tarefa.estado]}`));
+            const prazo = tarefa.prazo.split('-').reverse().join('/');
+            for (const [rotulo, valor] of [
+              ['Responsável', tarefa.responsavel],
+              ['Prazo', prazo],
+              ['Prioridade', prioridades[tarefa.prioridade]],
+              ...(tarefa.acaoRealizada ? [['Ação realizada', tarefa.acaoRealizada]] : []),
+              ...(tarefa.justificativa ? [['Justificativa', tarefa.justificativa]] : []),
+            ])
+              item.append(elemento('p', `${rotulo}: ${valor}`));
+            if (servico.atualizarTarefa)
+              item.append(criarAtualizacao(registro, servico.atualizarTarefa));
+            secao.append(item);
+            itens.push({ registro, elemento: item });
+          }
+          aplicarFiltros();
         }
         raiz.replaceChildren(secao);
       })
