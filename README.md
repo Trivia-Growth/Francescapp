@@ -62,8 +62,8 @@ O workspace reserva `apps/*` e `packages/*` para as próximas fatias, mas não c
 Codex usa skills; Claude usa os comandos `opsx` equivalentes. São seis fluxos: explore, propose, update, apply, sync e archive. Não é necessário escolher ou trocar um modelo automaticamente. Novas skills ficam disponíveis no próximo turno; se a interface não atualizar, reabra a sessão.
 
 ```sh
-openspec list --json
-openspec validate --all --strict --no-interactive
+pnpm exec openspec list --json
+pnpm exec openspec validate --all --strict --no-interactive
 ```
 
 Validação do OpenSpec verifica artefatos, não comprova que o produto existe ou que seus testes passaram.
