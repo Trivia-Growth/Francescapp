@@ -1,9 +1,6 @@
 -- Preparação privada: ativação depende de S-02 e prova de concorrência Auth.
-do $$ begin
- if current_user <> session_user then
-  raise exception 'Migration requer conexão direta como executor';
- end if;
-end $$;
+-- Preserva o executor quando a conexão iniciou com SET ROLE.
+select set_config('ffcmapp.migrador_owner_2', current_user, false);
 create role ffcmapp_carteira_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
 grant usage on schema auth_privado to ffcmapp_carteira_owner;
 grant execute on all functions in schema auth_privado to ffcmapp_carteira_owner;
@@ -13,7 +10,8 @@ grant usage on schema public, cadastro, auditoria to ffcmapp_carteira_owner;
 grant ffcmapp_atestado_verificador_owner to current_user with inherit false, set true;
 set role ffcmapp_atestado_verificador_owner;
 grant execute on function identidade.verificar_assinatura_atestado(text,text,jsonb,jsonb,text) to ffcmapp_carteira_owner;
-set role none;
+reset role;
+select set_config('role', current_setting('ffcmapp.migrador_owner_2'), false);
 revoke ffcmapp_atestado_verificador_owner from current_user;
 grant select (dominio_workspace,google_unico_oauth_confirmado), update (dominio_workspace) on identidade.configuracao_auth_nativo to ffcmapp_carteira_owner;
 grant select (id,perfil,ativo), update (versao) on public.usuario to ffcmapp_carteira_owner;
@@ -126,6 +124,7 @@ begin
  return jsonb_build_object('ok',true,'dados',pagina,'request_id',req);
 end $$;
 revoke all on function identidade.listar_carteira_privada(jsonb) from public,anon,authenticated,service_role;
-set role none;
+reset role;
+select set_config('role', current_setting('ffcmapp.migrador_owner_2'), false);
 revoke create on schema identidade from ffcmapp_carteira_owner;
 revoke ffcmapp_carteira_owner from current_user;

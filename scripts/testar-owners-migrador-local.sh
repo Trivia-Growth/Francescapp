@@ -57,29 +57,3 @@ do \$\$ begin
   raise exception 'Rollback deixou papéis ou grants temporários';
  end if;
 end \$\$;"
-# Uma sessão que entrou com SET ROLE deve ser rejeitada antes de criar papéis.
-rtk proxy psql -X -h "$temporario" -p 5432 -d postgres -v ON_ERROR_STOP=1 -q -c 'create role migrador_com_set_fixture login nosuperuser createrole'
-for migration in \
-  20261104120000_vault_atestado.sql \
-  20261106100000_carteira_nativa.sql \
-  20261106130000_carteira_nativa.sql \
-   20261106190000_wrappers_privados.sql
-do
- if rtk proxy psql -X -h "$temporario" -p 5432 -d postgres -v ON_ERROR_STOP=1 -q \
-   -c 'set role migrador_com_set_fixture' -f "$projeto/supabase/migrations/$migration" >"$temporario/rejeicao.log" 2>&1; then
-  printf 'Migration aceitou SET ROLE de entrada: %s\n' "$migration" >&2
-  exit 1
- fi
- if ! rtk proxy grep -Fq 'Migration requer conexão direta como executor' "$temporario/rejeicao.log"; then
-  rtk proxy cat "$temporario/rejeicao.log" >&2
-  exit 1
- fi
-done
-rtk proxy psql -X -h "$temporario" -p 5432 -d postgres -v ON_ERROR_STOP=1 -q -c "
-do \$\$ begin
- if exists (select 1 from pg_roles where rolname in
-   ('ffcmapp_atestado_vault_owner','ffcmapp_atestado_vault_executor','ffcmapp_atestado_verificador_owner',
-    'ffcmapp_carteira_owner','ffcmapp_api_cadastro_owner','ffcmapp_api_carteira_owner')) then
-  raise exception 'A migration rejeitada criou papéis';
- end if;
-end \$\$;"

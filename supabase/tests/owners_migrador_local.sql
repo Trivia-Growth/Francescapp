@@ -19,17 +19,22 @@ do $$ begin
     raise exception 'Este teste requer PostgreSQL 17';
   end if;
 end $$;
-create role migrador_owners_fixture login nosuperuser createrole;
+create role migrador_owners_fixture nologin nosuperuser createrole;
+create role conexao_migrador_fixture login nosuperuser nocreaterole noinherit;
+grant migrador_owners_fixture to conexao_migrador_fixture with inherit false, set true;
 create role anon nologin;
 create role authenticated nologin;
 create role service_role nologin;
 grant create on database postgres to migrador_owners_fixture;
 alter schema public owner to migrador_owners_fixture;
-set session authorization migrador_owners_fixture;
+set session authorization conexao_migrador_fixture;
+set role migrador_owners_fixture;
 create schema identidade;
 create schema vault;
 create schema extensions;
 create schema auth;
+create schema auth_privado;
+create function auth_privado.uid() returns uuid language sql as $$ select null::uuid $$;
 create schema cadastro;
 create schema auditoria;
 create schema operacao;
@@ -61,9 +66,13 @@ create function operacao.consultar_barreira_cadastro_privado(uuid) returns jsonb
 create function operacao.reconhecer_barreira_cadastro_privado(uuid,uuid) returns jsonb language sql as $$ select null::jsonb $$;
 
 \ir ../migrations/20261104120000_vault_atestado.sql
+do $$ begin if current_user <> 'migrador_owners_fixture' or session_user <> 'conexao_migrador_fixture' then raise exception 'Executor não restaurado'; end if; end $$;
 \ir ../migrations/20261106100000_carteira_nativa.sql
+do $$ begin if current_user <> 'migrador_owners_fixture' or session_user <> 'conexao_migrador_fixture' then raise exception 'Executor não restaurado'; end if; end $$;
 \ir ../migrations/20261106130000_carteira_nativa.sql
+do $$ begin if current_user <> 'migrador_owners_fixture' or session_user <> 'conexao_migrador_fixture' then raise exception 'Executor não restaurado'; end if; end $$;
 \ir ../migrations/20261106190000_wrappers_privados.sql
+do $$ begin if current_user <> 'migrador_owners_fixture' or session_user <> 'conexao_migrador_fixture' then raise exception 'Executor não restaurado'; end if; end $$;
 
 do $$
 declare dono text;
