@@ -5,6 +5,7 @@ import {
   uuidSchema,
 } from '../packages/contracts/src/comum.ts';
 import {
+  atualizacaoTarefaCuidadoSchema,
   criacaoTarefaCuidadoSchema,
   registroTarefaCuidadoSchema,
   type TarefaCuidado,
@@ -17,15 +18,21 @@ type Identidade = { usuario_id: string; session_id: string };
 export function criarServicoTarefasHttp(identidadeAtual: () => Identidade | null) {
   async function solicitar(
     pacienteId: string,
-    criacao?: { tarefa_id: string; tarefa: TarefaCuidado; chave: string },
+    criacao?: { tarefa_id: string; tarefa: TarefaCuidado; chave: string; versao_esperada?: number },
   ) {
     const paciente = uuidSchema.safeParse(pacienteId);
     if (!paciente.success) throw new FalhaApi('entrada_invalida', 422);
     const corpo =
       criacao &&
-      criacaoTarefaCuidadoSchema.safeParse({
+      (criacao.versao_esperada === undefined
+        ? criacaoTarefaCuidadoSchema
+        : atualizacaoTarefaCuidadoSchema
+      ).safeParse({
         tarefa_id: criacao.tarefa_id,
         tarefa: criacao.tarefa,
+        ...(criacao.versao_esperada === undefined
+          ? {}
+          : { versao_esperada: criacao.versao_esperada }),
       });
     if (
       criacao &&
@@ -105,7 +112,11 @@ export function criarServicoTarefasHttp(identidadeAtual: () => Identidade | null
       }
       if (criacao) {
         const registro = sucessoRespostaSchema(registroTarefaCuidadoSchema).parse(envelope).dados;
-        if (registro.tarefa_id !== criacao.tarefa_id) throw new Error();
+        if (
+          registro.tarefa_id !== criacao.tarefa_id ||
+          registro.versao !== (criacao.versao_esperada ?? 0) + 1
+        )
+          throw new Error();
         return registro;
       }
       return sucessoRespostaSchema(registroTarefaCuidadoSchema.array()).parse(envelope).dados;
@@ -119,6 +130,15 @@ export function criarServicoTarefasHttp(identidadeAtual: () => Identidade | null
       const resultado = await solicitar(pacienteId);
       if (!Array.isArray(resultado)) throw new FalhaApi('servico_indisponivel');
       return resultado;
+    },
+    async atualizarTarefa(
+      pacienteId: string,
+      tarefaId: string,
+      versao: number,
+      chave: string,
+      tarefa: TarefaCuidado,
+    ) {
+      await solicitar(pacienteId, { tarefa_id: tarefaId, versao_esperada: versao, tarefa, chave });
     },
     async criarTarefa(pacienteId: string, tarefaId: string, chave: string, tarefa: TarefaCuidado) {
       await solicitar(pacienteId, { tarefa_id: tarefaId, tarefa, chave });

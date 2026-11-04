@@ -1,5 +1,8 @@
 import { chaveIdempotenciaSchema, uuidSchema } from '../../../packages/contracts/src/comum.ts';
-import { criacaoTarefaCuidadoSchema } from '../../../packages/contracts/src/tarefa-cuidado.ts';
+import {
+  atualizacaoTarefaCuidadoSchema,
+  criacaoTarefaCuidadoSchema,
+} from '../../../packages/contracts/src/tarefa-cuidado.ts';
 import {
   codigosErro,
   criarErroPublicoSemCampos,
@@ -68,20 +71,30 @@ export function criarEntradaTarefaCuidadoNativa(dependencias: Dependencias) {
           return erro('entrada_invalida');
         }
         const criacao = criacaoTarefaCuidadoSchema.safeParse(corpo);
-        if (!criacao.success) return erro('entrada_invalida');
+        const atualizacao = atualizacaoTarefaCuidadoSchema.safeParse(corpo);
+        if (!criacao.success && !atualizacao.success) return erro('entrada_invalida');
+        const dados = atualizacao.success
+          ? atualizacao.data
+          : criacao.success
+            ? criacao.data
+            : null;
+        if (!dados) return erro('entrada_invalida');
         const resultado = await comporTarefaCuidadoNativo(
           request,
           {
             operacao: 'gravar',
             paciente_id: paciente.data,
-            tarefa_id: criacao.data.tarefa_id,
-            versao_esperada: 0,
-            tarefa: criacao.data.tarefa,
+            tarefa_id: dados.tarefa_id,
+            versao_esperada: atualizacao.success ? atualizacao.data.versao_esperada : 0,
+            tarefa: dados.tarefa,
           },
           dependencias,
         );
         if (!resultado.ok) {
-          const codigo = codigosErro.find((item) => item === resultado.erro.codigo);
+          const codigo =
+            resultado.erro.codigo === 'conflito'
+              ? 'conflito_versao'
+              : codigosErro.find((item) => item === resultado.erro.codigo);
           return erro(codigo ?? 'servico_indisponivel', resultado.request_id);
         }
         if (!resultado.dados || Array.isArray(resultado.dados)) return erro('servico_indisponivel');
@@ -113,7 +126,10 @@ export function criarEntradaTarefaCuidadoNativa(dependencias: Dependencias) {
           dependencias,
         );
         if (!resultado.ok) {
-          const codigo = codigosErro.find((item) => item === resultado.erro.codigo);
+          const codigo =
+            resultado.erro.codigo === 'conflito'
+              ? 'conflito_versao'
+              : codigosErro.find((item) => item === resultado.erro.codigo);
           return erro(codigo ?? 'servico_indisponivel', resultado.request_id);
         }
         if (!Array.isArray(resultado.dados)) return erro('servico_indisponivel');

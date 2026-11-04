@@ -21,6 +21,13 @@ export type TarefaCuidado = z.infer<typeof tarefaCuidadoSchema>;
 export const criacaoTarefaCuidadoSchema = z
   .object({ tarefa_id: uuidSchema, tarefa: tarefaCuidadoSchema })
   .strict();
+export const atualizacaoTarefaCuidadoSchema = z
+  .object({
+    tarefa_id: uuidSchema,
+    versao_esperada: z.number().int().positive().max(2147483646),
+    tarefa: tarefaCuidadoSchema,
+  })
+  .strict();
 export const conteudoTarefaSchema = z
   .object({ tarefa: tarefaCuidadoSchema, ator_usuario_id: uuidSchema, data: z.iso.datetime() })
   .strict();
