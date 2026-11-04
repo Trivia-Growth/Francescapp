@@ -123,6 +123,8 @@ export const entrarTecnicoSchema = z
   })
   .strict();
 
+export const entrarFamiliarSchema = entrarTecnicoSchema;
+
 export const csrfSchema = z.string().min(32).max(512);
 
 // CSRF via cabeçalho x-csrf, comparado com o cookie selado no servidor.
