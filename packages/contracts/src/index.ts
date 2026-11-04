@@ -18,3 +18,4 @@ export {
 export type { Anamnese, RespostaAnamnese, SalvarAnamnese, SecaoAnamnese } from './anamnese.ts';
 
 export * from './plano-cuidado.ts';
+export * from './relato-textual.ts';
