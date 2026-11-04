@@ -83,7 +83,7 @@ export function montarContatoPaciente(
           tipo.disabled = true;
           valor.readOnly = true;
           status.textContent =
-            'Não foi possível confirmar se o contato foi adicionado. Copie os dados se necessário, feche esta tela e confira o cadastro antes de tentar novamente.';
+            'Não foi possível confirmar se o contato foi adicionado. Não tente adicioná-lo novamente até que a operação seja reconciliada pelo servidor.';
           return;
         }
         if (exigeNovoAcesso(erro)) {

@@ -34,11 +34,26 @@ export async function prepararNovoContatoCifrado(
 
 /** Experimento server-only; não conectar antes da S-02 e autorização no banco. */
 export async function prepararComandoCriarContato(
-  solicitacao: { pacienteId: unknown; corpo: unknown; cabecalhos: unknown; contexto: unknown },
+  solicitacao: {
+    pacienteId: unknown;
+    corpo: unknown;
+    cabecalhos: unknown;
+    contexto: unknown;
+    reservaId?: unknown;
+    geracaoReserva?: unknown;
+  },
   dependencias: Parameters<typeof prepararComandoCriarPaciente>[1],
 ) {
   try {
     const paciente_id = uuidSchema.parse(solicitacao.pacienteId).toLowerCase();
+    const reserva_id = uuidSchema.parse(solicitacao.reservaId).toLowerCase();
+    const geracao_reserva = solicitacao.geracaoReserva;
+    if (
+      typeof geracao_reserva !== 'number' ||
+      !Number.isSafeInteger(geracao_reserva) ||
+      geracao_reserva < 1
+    )
+      throw new Error('Geração inválida.');
     const corpo = novoContatoSchema.parse(solicitacao.corpo);
     const cabecalhos = cabecalhosMutacaoSchema.parse(solicitacao.cabecalhos);
     const contextoValidado = dadosAtestadoSchema
@@ -65,6 +80,8 @@ export async function prepararComandoCriarContato(
       digest_idempotencia,
       auditoria_id: crypto.randomUUID(),
       paciente_id,
+      reserva_id,
+      geracao_reserva,
       ...campos,
     };
     const prova = resultadoAtestacaoSchema.parse(

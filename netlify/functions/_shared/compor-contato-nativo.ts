@@ -8,7 +8,13 @@ import type { configurarDependenciasNativas } from './configurar-dependencias-na
 
 export async function comporContatoNativo(
   request: Request,
-  solicitacao: { pacienteId: string; corpo: unknown; cabecalhos: unknown },
+  solicitacao: {
+    pacienteId: string;
+    corpo: unknown;
+    cabecalhos: unknown;
+    reservaId?: unknown;
+    geracaoReserva?: unknown;
+  },
   dependencias: ReturnType<typeof configurarDependenciasNativas>,
 ) {
   const controle = new AbortController();

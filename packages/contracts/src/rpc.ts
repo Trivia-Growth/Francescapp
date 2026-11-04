@@ -595,6 +595,8 @@ export const assinaturasRpc = {
       .extend({
         paciente_id: uuidSchema,
         contato_id: uuidSchema,
+        reserva_id: uuidSchema,
+        geracao_reserva: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
         tipo: z.enum(['email', 'telefone']),
         valor: campoCifradoSchema,
         aad: z

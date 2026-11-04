@@ -16,7 +16,13 @@ export class ResultadoContatoIncerto extends Error {
 /** Composição somente servidor; contexto e executor exigem autenticação real.
  * Não conectar antes de S-02 e provas de autorização no banco. */
 export async function executarCriacaoContatoPrivado(
-  solicitacao: { pacienteId: unknown; corpo: unknown; cabecalhos: unknown },
+  solicitacao: {
+    pacienteId: unknown;
+    corpo: unknown;
+    cabecalhos: unknown;
+    reservaId?: unknown;
+    geracaoReserva?: unknown;
+  },
   contextoComprovado: unknown,
   dependencias: Preparacao & {
     cifra: Pick<AdaptadorCifra, 'cifrar' | 'decifrar'>;
@@ -27,7 +33,8 @@ export async function executarCriacaoContatoPrivado(
   try {
     if (
       Object.keys(solicitacao).some(
-        (chave) => !['pacienteId', 'corpo', 'cabecalhos'].includes(chave),
+        (chave) =>
+          !['pacienteId', 'corpo', 'cabecalhos', 'reservaId', 'geracaoReserva'].includes(chave),
       )
     ) {
       throw new Error('Solicitação inválida.');
