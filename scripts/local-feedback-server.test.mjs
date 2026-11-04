@@ -103,6 +103,27 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     assert.equal(created.status, 201);
     const patient = (await created.json()).patient;
     assert.equal(patient.preferredName, 'Pessoa');
+    const editPath = `/patients/${patient.id}`;
+    const edit = {
+      method: 'PUT',
+      headers: auth,
+      body: JSON.stringify({ name: 'Pessoa editada', preferredName: '', revision: 0 }),
+    };
+    assert.equal(
+      (await request(editPath, { ...edit, headers: { ...headers, cookie } })).status,
+      403,
+    );
+    assert.equal(
+      (
+        await request(editPath, {
+          ...edit,
+          body: JSON.stringify({ name: ' ', preferredName: '', revision: 0 }),
+        })
+      ).status,
+      400,
+    );
+    const edits = await Promise.all([request(editPath, edit), request(editPath, edit)]);
+    assert.deepEqual(edits.map((response) => response.status).sort(), [200, 409]);
     const previewPath = `/patients/${patient.id}/preview`;
     const anamnese = { estado: 'informado', valor: 'Fictício', fonte: 'Teste', data: '2026-11-04' };
     const save = {
@@ -277,7 +298,7 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     assert.equal(
       (await (await request('/patients', { headers: { cookie: nextCookie } })).json()).patients[0]
         .name,
-      'Pessoa fictícia',
+      'Pessoa editada',
     );
     assert.deepEqual(
       (await (await request(previewPath, { headers: { cookie: nextCookie } })).json()).anamnese,

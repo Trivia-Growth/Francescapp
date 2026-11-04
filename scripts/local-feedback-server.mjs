@@ -49,6 +49,28 @@ export function createLocalFeedbackServer({ password, directory }) {
     pendingWrite = operation.catch(() => {});
     return operation;
   }
+  async function updatePatient(id, data) {
+    const operation = pendingWrite.then(async () => {
+      const patients = await readPatients();
+      const index = patients.findIndex((patient) => patient.id === id);
+      if (index < 0) return null;
+      const patient = patients[index];
+      if ((patient.revision ?? 0) !== data.revision) return false;
+      const updated = {
+        ...patient,
+        name: data.name.trim(),
+        preferredName: data.preferredName.trim(),
+        revision: data.revision + 1,
+      };
+      patients[index] = updated;
+      const temporary = join(directory, `.patients-${randomUUID()}.tmp`);
+      await writeFile(temporary, JSON.stringify(patients), { mode: 0o600, flag: 'wx' });
+      await rename(temporary, file);
+      return updated;
+    });
+    pendingWrite = operation.catch(() => {});
+    return operation;
+  }
   async function updatePreview(id, type, value, revision, operationId) {
     const operation = pendingWrite.then(async () => {
       if (!(await readPatients()).some((patient) => patient.id === id)) return null;
@@ -242,6 +264,30 @@ export function createLocalFeedbackServer({ password, directory }) {
         };
         await addPatient(patient);
         return respond(res, 201, { patient });
+      }
+      const patientMatch = path.match(/^\/api\/local-feedback\/patients\/([0-9a-f-]{36})$/);
+      if (patientMatch && req.method === 'PUT') {
+        let data;
+        try {
+          data = await body(req);
+        } catch {
+          return respond(res, 400);
+        }
+        if (
+          !data ||
+          typeof data.name !== 'string' ||
+          !data.name.trim() ||
+          data.name.trim().length > 200 ||
+          typeof data.preferredName !== 'string' ||
+          data.preferredName.trim().length > 200 ||
+          !Number.isSafeInteger(data.revision) ||
+          data.revision < 0
+        )
+          return respond(res, 400);
+        const patient = await updatePatient(patientMatch[1], data);
+        if (patient === null) return respond(res, 404);
+        if (patient === false) return respond(res, 409);
+        return respond(res, 200, { patient });
       }
       const previewMatch = path.match(
         /^\/api\/local-feedback\/patients\/([0-9a-f-]{36})\/preview$/,

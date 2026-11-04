@@ -112,6 +112,45 @@ it('autentica, lista e cadastra com token local', async () => {
   );
 });
 
+it('bloqueia troca de cadastro durante salvamento pendente', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  const fetch = servidorFicticio();
+  await import('./demonstracao.js');
+  await vi.waitFor(() =>
+    expect(document.querySelectorAll('[aria-label^="Editar cadastro de"]')).toHaveLength(2),
+  );
+  const edits = document.querySelectorAll<HTMLButtonElement>('[aria-label^="Editar cadastro de"]');
+  edits[0]?.click();
+  const nome = document.getElementById('patient-name') as HTMLInputElement;
+  nome.value = 'Nome atualizado';
+  nome.dispatchEvent(new Event('input'));
+  let liberar!: (value: { ok: boolean; json: () => Promise<unknown> }) => void;
+  fetch.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        liberar = resolve;
+      }),
+  );
+  const form = document.getElementById('create-form') as HTMLFormElement;
+  form.dispatchEvent(new Event('submit', { cancelable: true }));
+  expect(nome.disabled).toBe(true);
+  expect((document.getElementById('cancel-edit') as HTMLButtonElement).disabled).toBe(true);
+  expect(edits[1]?.disabled).toBe(true);
+  edits[1]?.click();
+  form.dispatchEvent(new Event('submit', { cancelable: true }));
+  liberar({
+    ok: true,
+    json: async () => ({ patient: { id: '1', name: 'Nome atualizado', preferredName: '' } }),
+  });
+  await vi.waitFor(() =>
+    expect(document.getElementById('patients-body')?.textContent).toContain('Nome atualizado'),
+  );
+  expect(document.querySelectorAll('#patients-body tr')).toHaveLength(2);
+  expect(fetch.mock.calls.filter(([, options]) => options?.method === 'PUT')).toHaveLength(1);
+});
+
 it('identifica pendência e guarda anamnese fictícia por paciente na página', async () => {
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'localhost' });
@@ -183,6 +222,38 @@ it('recusa estado inválido antes de guardar a anamnese', async () => {
     .getElementById('anamnese-form')
     ?.dispatchEvent(new Event('submit', { cancelable: true }));
   expect(document.getElementById('anamnese-feedback')?.textContent).toContain('Confira');
+});
+
+it('preserva alerta de cadastro ao salvar tarefa e voltar à lista', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  servidorFicticio();
+  await import('./demonstracao.js');
+  await vi.waitFor(() =>
+    expect(document.querySelector('[aria-label^="Abrir tarefas"]')).not.toBeNull(),
+  );
+  const nome = document.getElementById('patient-name') as HTMLInputElement;
+  nome.value = 'Rascunho fictício';
+  nome.dispatchEvent(new Event('input', { bubbles: true }));
+  (document.querySelector('[aria-label^="Abrir tarefas"]') as HTMLButtonElement).click();
+  await vi.waitFor(() => expect(document.getElementById('tasks-view')?.hidden).toBe(false));
+  (document.getElementById('task-description') as HTMLInputElement).value = 'Tarefa fictícia';
+  (document.getElementById('task-responsible') as HTMLInputElement).value = 'Pessoa fictícia';
+  (document.getElementById('task-deadline') as HTMLInputElement).value = '2026-12-01';
+  (document.getElementById('task-priority') as HTMLInputElement).value = 'Alta';
+  document.getElementById('task-form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(document.getElementById('task-feedback')?.textContent).toContain('salva'),
+  );
+  document.getElementById('tasks-back')?.click();
+  confirmar.mockClear();
+  confirmar.mockReturnValue(false);
+  document.getElementById('logout')?.click();
+  expect(confirmar).toHaveBeenCalled();
+  expect(nome.value).toBe('Rascunho fictício');
+  confirmar.mockRestore();
 });
 
 it('mantém tarefas por paciente e exige registro para concluir sem chamar serviço', async () => {

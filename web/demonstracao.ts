@@ -99,7 +99,10 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const valor = elemento<HTMLTextAreaElement>('anamnese-value');
   const fonte = elemento<HTMLInputElement>('anamnese-source');
   const data = elemento<HTMLInputElement>('anamnese-date');
-  type Paciente = { id: string; name: string; preferredName?: string };
+  type Paciente = { id: string; name: string; preferredName?: string; revision?: number };
+  let editando: Paciente | undefined;
+  let salvandoCadastro = false;
+  let geracaoCadastros = 0;
   let registros: Paciente[] = [];
   let csrfToken = '';
   let telaInterrompida: HTMLElement | undefined;
@@ -125,9 +128,12 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     return resposta;
   };
   const carregar = async () => {
+    const geracao = ++geracaoCadastros;
     try {
       const resposta = await requisitar('/patients');
-      registros = ((await resposta.json()) as { patients: Paciente[] }).patients;
+      const pacientesCarregados = ((await resposta.json()) as { patients: Paciente[] }).patients;
+      if (geracao !== geracaoCadastros) return;
+      registros = pacientesCarregados;
       atualizar();
       elemento('workspace-feedback').textContent = '';
     } catch {
@@ -368,6 +374,29 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         telaRelato.hidden = false;
         elemento('relato-title').focus();
       });
+      const editar = document.createElement('button');
+      editar.type = 'button';
+      editar.className = 'button-secondary editar-cadastro';
+      editar.disabled = salvandoCadastro;
+      editar.textContent = 'Editar cadastro';
+      editar.setAttribute('aria-label', `Editar cadastro de ${registro.name}`);
+      editar.addEventListener('click', () => {
+        if (salvandoCadastro) return;
+        if (
+          formulariosAlterados.has(formulario) &&
+          !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
+        )
+          return;
+        editando = registro;
+        nome.value = registro.name;
+        preferencia.value = registro.preferredName ?? '';
+        elemento('create-title').textContent = 'Editar paciente';
+        elemento('create-submit').textContent = 'Salvar alterações';
+        elemento('cancel-edit').hidden = false;
+        elemento('create-feedback').textContent = '';
+        formulariosAlterados.delete(formulario);
+        nome.focus();
+      });
       linha
         .insertCell()
         .append(
@@ -378,6 +407,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
           abrirObjetivos,
           document.createTextNode(' '),
           abrirRelato,
+          document.createTextNode(' '),
+          editar,
         );
     }
     tabela.hidden = registros.length === 0;
@@ -653,9 +684,18 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       lista.append(item);
     }
   };
+  const formulariosDeTarefas = () =>
+    [...formulariosAlterados].filter((form) => telaTarefas.contains(form));
+  const limparAlteracoesTarefas = () => {
+    for (const form of formulariosDeTarefas()) formulariosAlterados.delete(form);
+  };
   elemento('tasks-back').addEventListener('click', () => {
-    if (!podeDescartar()) return;
-    formulariosAlterados.clear();
+    if (
+      formulariosDeTarefas().length &&
+      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
+    )
+      return;
+    limparAlteracoesTarefas();
     telaTarefas.hidden = true;
     pacientes.hidden = false;
     elemento('patients-title').focus();
@@ -683,7 +723,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       return;
     }
     if (
-      [...formulariosAlterados].some((form) => form !== formularioTarefa) &&
+      formulariosDeTarefas().some((form) => form !== formularioTarefa) &&
       !window.confirm('Há alterações não guardadas em outras tarefas. Deseja descartá-las?')
     )
       return;
@@ -701,7 +741,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     } finally {
       liberarTela();
     }
-    formulariosAlterados.clear();
+    limparAlteracoesTarefas();
     formularioTarefa.reset();
     atualizarTarefas();
     elemento('task-feedback').textContent = 'Tarefa fictícia salva nesta demonstração local.';
@@ -831,7 +871,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     }
   });
   elemento('logout').addEventListener('click', async () => {
-    if (!podeDescartar()) return;
+    if (salvandoCadastro || !podeDescartar()) return;
     try {
       await requisitar('/logout', {
         method: 'POST',
@@ -844,37 +884,76 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         'Não foi possível sair. Confira a conexão e tente novamente.';
     }
   });
-  elemento('reload-patients').addEventListener('click', carregar);
+  elemento('reload-patients').addEventListener('click', () => {
+    if (!salvandoCadastro) void carregar();
+  });
+  const cancelarEdicao = () => {
+    editando = undefined;
+    formulario.reset();
+    formulariosAlterados.delete(formulario);
+    elemento('create-title').textContent = 'Novo paciente';
+    elemento('create-submit').textContent = 'Cadastrar paciente';
+    elemento('cancel-edit').hidden = true;
+  };
+  formulario.addEventListener('input', () => formulariosAlterados.add(formulario));
+  elemento('cancel-edit').addEventListener('click', () => {
+    if (salvandoCadastro) return;
+    if (
+      formulariosAlterados.has(formulario) &&
+      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
+    )
+      return;
+    cancelarEdicao();
+    elemento('create-feedback').textContent = '';
+  });
   formulario.addEventListener('submit', async (evento) => {
     evento.preventDefault();
+    if (salvandoCadastro) return;
     const nomeLimpo = nome.value.trim();
     if (!nomeLimpo) {
       elemento('create-feedback').textContent = 'Informe o nome fictício.';
       nome.focus();
       return;
     }
-    const botao = elemento<HTMLButtonElement>('create-submit');
-    botao.disabled = true;
+    const cadastroOriginal = editando;
+    salvandoCadastro = true;
+    geracaoCadastros++;
+    bloquearFormulario(formulario, true);
+    elemento<HTMLButtonElement>('reload-patients').disabled = true;
+    for (const botao of corpo.querySelectorAll<HTMLButtonElement>('.editar-cadastro'))
+      botao.disabled = true;
     elemento('create-feedback').textContent = 'Salvando cadastro…';
     try {
-      const resposta = await requisitar('/patients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
-        body: JSON.stringify({
-          name: nomeLimpo,
-          preferredName: preferencia.value.trim() || undefined,
-        }),
-      });
+      const resposta = await requisitar(
+        cadastroOriginal ? `/patients/${cadastroOriginal.id}` : '/patients',
+        {
+          method: cadastroOriginal ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+          body: JSON.stringify({
+            name: nomeLimpo,
+            preferredName: preferencia.value.trim(),
+            ...(cadastroOriginal ? { revision: cadastroOriginal.revision ?? 0 } : {}),
+          }),
+        },
+      );
       const { patient } = (await resposta.json()) as { patient: Paciente };
-      registros.push(patient);
-      formulario.reset();
+      if (cadastroOriginal)
+        registros = registros.map((item) => (item.id === patient.id ? patient : item));
+      else registros.push(patient);
+      cancelarEdicao();
       atualizar();
       elemento('create-feedback').textContent = 'Cadastro fictício salvo nesta demonstração local.';
-    } catch {
+    } catch (erro) {
       elemento('create-feedback').textContent =
-        'Não foi possível salvar. Confira a conexão e tente novamente.';
+        erro instanceof Error && erro.message === '409'
+          ? 'Cadastro alterado em outra aba. Copie seu rascunho, atualize a lista e reabra a edição.'
+          : 'Não foi possível confirmar o salvamento. Preserve o rascunho e atualize a lista para conferir.';
     } finally {
-      botao.disabled = false;
+      salvandoCadastro = false;
+      bloquearFormulario(formulario, false);
+      elemento<HTMLButtonElement>('reload-patients').disabled = false;
+      for (const botao of corpo.querySelectorAll<HTMLButtonElement>('.editar-cadastro'))
+        botao.disabled = false;
     }
   });
   requisitar('/session')
