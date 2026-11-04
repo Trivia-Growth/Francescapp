@@ -68,6 +68,10 @@ Preparador de vínculo familiar cifra o motivo com AAD do registro antes de cham
 
 Retomada operacional: CA pública obtida por HTTPS do endereço indicado pelo código oficial do painel Supabase, fora do repositório. O acesso SQL individual e o bootstrap continuam pendentes; a presença da CA não comprova autoria nem autorização. A alternativa de acesso temporário nativo requer exigir SSL no projeto, o que reinicia o banco e altera a compatibilidade de conexões; não foi ativada nesta etapa.
 
+Atualização operacional: SSL obrigatório e acesso temporário individual nativo foram habilitados no projeto de teste. Nenhum mapeamento individual foi criado: o token disponível não permite consultar o perfil ou membros da organização. O bootstrap e o lote continuam pendentes.
+
+Permissões privadas: migrations `20261111230000` e `20261111240000` aplicadas no projeto de teste. A segunda falhou inicialmente por propriedade da função; a transação foi revertida, a ownership corrigida e a aplicação refeita. Wrappers seguem sem EXECUTE aos papéis de aplicação. O endpoint de perfil informou que o acesso disponível não é individual; não foi criado mapeamento JIT nem bootstrap. Testes seguem adiados.
+
 Contatos: a migration `20261111200000` foi aplicada ao projeto de teste após revisão estática; ela prepara reserva, reconciliação e privilégios privados. A criação passou a exigir reserva, mas ciclo HTTP e cliente ainda não a obtêm, mantendo o caminho fechado. Testes foram adiados a pedido; não há prova de concorrência, autorização ou operação conectada.
 
 Atualização: migrations `20261111210000` e `20261111220000` aplicadas ao projeto de teste, mantendo wrappers privados. Ciclo HTTP e interface de contatos foram ligados em código; falta owner restrito com RLS/grants da composição e ativação. O vínculo familiar passa a preparar suporte à sessão técnica, ainda privado. Lint e typecheck passaram; nenhum teste executado.

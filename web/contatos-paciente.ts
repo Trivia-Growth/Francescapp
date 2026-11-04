@@ -65,6 +65,7 @@ export function montarContatoPaciente(
   recuperar.hidden = true;
   campos.disabled = salvar.disabled = true;
   let etapa: 'encerrar' | 'reconhecer' | null = null;
+  let contatoConfirmado = false;
   const reconciliar = async () => {
     bloqueada = true;
     campos.disabled = salvar.disabled = recuperar.disabled = true;
@@ -72,18 +73,29 @@ export function montarContatoPaciente(
     try {
       if (!etapa) {
         const estado = await ciclo.consultar();
+        contatoConfirmado ||= estado.resultado_pendente?.resultado === 'confirmada';
         etapa = estado.resultado_pendente ? 'reconhecer' : 'encerrar';
       }
       if (etapa === 'reconhecer') await ciclo.reconhecer();
       else await ciclo.encerrar();
       etapa = null;
-      await ciclo.consultar();
+      const atualizado = await ciclo.consultar();
+      if (atualizado.resultado_pendente) {
+        contatoConfirmado ||= atualizado.resultado_pendente.resultado === 'confirmada';
+        etapa = 'reconhecer';
+        await ciclo.reconhecer();
+        etapa = null;
+        await ciclo.consultar();
+      }
       ciclo.liberar();
       if (!ativa) return;
       bloqueada = false;
       campos.disabled = salvar.disabled = false;
       recuperar.hidden = true;
-      status.textContent = 'Operações anteriores verificadas.';
+      status.textContent = contatoConfirmado
+        ? 'Um contato anterior foi adicionado. Confira o cadastro antes de adicionar novamente.'
+        : 'Operações anteriores verificadas. Você pode adicionar um contato.';
+      contatoConfirmado = false;
     } catch (erro) {
       if (!ativa) return;
       if (exigeNovoAcesso(erro)) acessoPerdido(erro);
