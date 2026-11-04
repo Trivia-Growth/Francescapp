@@ -10,8 +10,9 @@ export const config = {
 };
 
 export default async function auth(request: Request): Promise<Response> {
-  // Bloqueio operacional até concluir as provas de autenticação e autorização.
-  if (process.env.FFCM_AUTH_ATIVADO !== 'true') {
+  // A saída continua disponível para sessões existentes mesmo com a entrada bloqueada.
+  const caminho = new URL(request.url).pathname;
+  if (process.env.FFCM_AUTH_ATIVADO !== 'true' && caminho !== '/api/sessao/sair') {
     return Response.json(criarErroPublicoSemCampos('servico_indisponivel', crypto.randomUUID()), {
       status: 503,
       headers: {
@@ -21,7 +22,7 @@ export default async function auth(request: Request): Promise<Response> {
       },
     });
   }
-  switch (new URL(request.url).pathname) {
+  switch (caminho) {
     case '/api/auth/google':
       return iniciarGoogleNativo(request, process.env);
     case '/api/auth/callback':
