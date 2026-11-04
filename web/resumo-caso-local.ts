@@ -34,6 +34,7 @@ export type DadosResumoCasoLocal = {
   relatos: readonly RelatoTextual[];
   encaminhamentos?: readonly EncaminhamentoLocal[];
   orientacoes?: readonly OrientacaoLocal[];
+  pessoasReferencia?: readonly { nome: string; relacao: string; contato: string }[];
 };
 
 /** Apresenta somente dados já carregados pela prévia fictícia; não autoriza acesso. */
@@ -62,6 +63,19 @@ export function montarResumoCasoLocal(raiz: HTMLElement, dados: DadosResumoCasoL
       ...(paciente.email ? [`E-mail: ${paciente.email}`] : []),
     ]);
   }
+  secao(
+    'Pessoas de referência',
+    dados.pessoasReferencia?.length
+      ? dados.pessoasReferencia.map(
+          (pessoa) =>
+            `${pessoa.nome} · ${pessoa.relacao}${pessoa.contato ? ` · Contato: ${pessoa.contato}` : ''}`,
+        )
+      : [
+          dados.pessoasReferencia
+            ? 'Nenhuma pessoa de referência registrada nesta prévia.'
+            : 'Pessoas de referência não carregadas nesta prévia.',
+        ],
+  );
   const anamnese = dados.anamnese;
   const respostas = anamnese ? (Array.isArray(anamnese) ? anamnese : [anamnese]) : [];
   secao(

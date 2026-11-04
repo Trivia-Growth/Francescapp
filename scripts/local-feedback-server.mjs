@@ -687,6 +687,18 @@ export function createLocalFeedbackServer({ password, directory }) {
                   new Date(date).toISOString().slice(0, 10) === date,
               ),
           );
+        const validRelacoes =
+          data?.type === 'relacoes' &&
+          Array.isArray(data.value) &&
+          data.value.length <= 100 &&
+          new Set(data.value.map((item) => item?.id)).size === data.value.length &&
+          data.value.every(
+            (item) =>
+              strings(item, ['id', 'nome', 'relacao', 'contato']) &&
+              /^[a-f0-9-]{36}$/.test(item.id) &&
+              ['nome', 'relacao'].every((key) => item[key].trim()) &&
+              ['nome', 'relacao', 'contato'].every((key) => item[key].length <= 200),
+          );
         const validEvolucoes =
           data?.type === 'evolucoes' &&
           Array.isArray(data.value) &&
@@ -767,7 +779,8 @@ export function createLocalFeedbackServer({ password, directory }) {
             !validDocuments &&
             !validReferrals &&
             !validOrientacoes &&
-            !validEvolucoes)
+            !validEvolucoes &&
+            !validRelacoes)
         )
           return respond(res, 400);
         const preview = await updatePreview(

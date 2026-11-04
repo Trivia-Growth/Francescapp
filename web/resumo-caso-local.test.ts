@@ -97,3 +97,20 @@ it('exibe dados opcionais do paciente como texto e omite campos ausentes', () =>
   expect(raiz.textContent).not.toContain('E-mail:');
   expect(raiz.querySelector('b')).toBeNull();
 });
+
+it('apresenta pessoas de referência como texto e distingue lista vazia de dados não carregados', () => {
+  const raiz = document.createElement('div');
+  const dados = { anamnese: null, tarefas: [], objetivos: [], relatos: [] };
+  montarResumoCasoLocal(raiz, {
+    ...dados,
+    pessoasReferencia: [
+      { nome: '<b>Nome fictício</b>', relacao: 'Familiar', contato: 'Contato fictício' },
+    ],
+  });
+  expect(raiz.textContent).toContain('<b>Nome fictício</b> · Familiar · Contato: Contato fictício');
+  expect(raiz.querySelector('b')).toBeNull();
+  montarResumoCasoLocal(raiz, { ...dados, pessoasReferencia: [] });
+  expect(raiz.textContent).toContain('Nenhuma pessoa de referência registrada nesta prévia.');
+  montarResumoCasoLocal(raiz, dados);
+  expect(raiz.textContent).toContain('Pessoas de referência não carregadas nesta prévia.');
+});

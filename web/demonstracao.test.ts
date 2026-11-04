@@ -29,6 +29,7 @@ function servidorFicticio(autenticado = true, legado = false) {
       documentos?: unknown[];
       encaminhamentos?: unknown[];
       orientacoes?: unknown[];
+      relacoes?: unknown[];
       operacoesRelato?: string[];
       operacoesRelatoCanceladas?: string[];
     }
@@ -103,7 +104,8 @@ function servidorFicticio(autenticado = true, legado = false) {
             | 'agenda'
             | 'documentos'
             | 'encaminhamentos'
-            | 'orientacoes';
+            | 'orientacoes'
+            | 'relacoes';
           value: never;
           operationId?: string;
         };
@@ -1203,4 +1205,41 @@ it('guarda evoluções fictícias isoladas por paciente e recupera ao reabrir', 
       'Registro único de evolução',
     ),
   );
+});
+
+it('cancela edição de pessoa de referência sem manter rascunho sujo', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  const confirmar = vi.fn(() => true);
+  vi.stubGlobal('confirm', confirmar);
+  servidorFicticio();
+  await import('./demonstracao.js');
+  const abrir = '[aria-label="Abrir pessoas de referência de Paciente Exemplo Um"]';
+  await vi.waitFor(() => expect(document.querySelector(abrir)).not.toBeNull());
+  (document.querySelector(abrir) as HTMLButtonElement).click();
+  await vi.waitFor(() => expect(document.querySelector('#relations-content form')).not.toBeNull());
+  const form = document.querySelector('#relations-content form') as HTMLFormElement;
+  const campos = form.querySelectorAll<HTMLInputElement>('input');
+  campos[0].value = 'Pessoa fictícia';
+  campos[1].value = 'Familiar';
+  campos[0].dispatchEvent(new Event('input', { bubbles: true }));
+  form.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(document.querySelector('#relations-content ul')?.textContent).toContain(
+      'Pessoa fictícia',
+    ),
+  );
+  (document.querySelector('#relations-content ul button') as HTMLButtonElement).click();
+  campos[0].value = 'Alteração';
+  campos[0].dispatchEvent(new Event('input', { bubbles: true }));
+  (
+    Array.from(form.querySelectorAll('button')).find(
+      (botao) => botao.textContent === 'Cancelar edição',
+    ) as HTMLButtonElement
+  ).click();
+  expect(confirmar).toHaveBeenCalledTimes(1);
+  (document.getElementById('relations-back') as HTMLButtonElement).click();
+  expect(confirmar).toHaveBeenCalledTimes(1);
+  expect(document.getElementById('patients-view')?.hidden).toBe(false);
 });

@@ -526,6 +526,29 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     );
     assert.equal((await salvarEncaminhamento(encaminhamentos)).status, 200);
     assert.equal((await salvarEncaminhamento(encaminhamentos)).status, 409);
+    const pessoasReferencia = [
+      {
+        id: '12345678-1234-4123-8123-123456789abc',
+        nome: 'Pessoa fictícia',
+        relacao: 'Familiar',
+        contato: '',
+      },
+    ];
+    const revisaoRelacoes = (await (await request(previewPath, { headers: auth })).json()).revision;
+    const salvarRelacoes = (value, revision = revisaoRelacoes) =>
+      request(previewPath, {
+        method: 'PUT',
+        headers: auth,
+        body: JSON.stringify({ type: 'relacoes', value, revision }),
+      });
+    assert.equal((await salvarRelacoes([{ ...pessoasReferencia[0], nome: ' ' }])).status, 400);
+    assert.equal((await salvarRelacoes([...pessoasReferencia, ...pessoasReferencia])).status, 400);
+    assert.equal((await salvarRelacoes(pessoasReferencia)).status, 200);
+    assert.equal((await salvarRelacoes(pessoasReferencia)).status, 409);
+    const previaComRelacoes = await (await request(previewPath, { headers: auth })).json();
+    assert.deepEqual(previaComRelacoes.relacoes, pessoasReferencia);
+    assert.deepEqual(previaComRelacoes.documentos, documentos);
+    assert.deepEqual(previaComRelacoes.encaminhamentos, encaminhamentos);
     const guidancePatient = (
       await (
         await request('/patients', {
@@ -628,6 +651,10 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
       (await (await request(previewPath, { headers: { cookie: nextCookie } })).json())
         .encaminhamentos,
       encaminhamentos,
+    );
+    assert.deepEqual(
+      (await (await request(previewPath, { headers: { cookie: nextCookie } })).json()).relacoes,
+      pessoasReferencia,
     );
     assert.deepEqual(
       (await (await request(guidancePath, { headers: { cookie: nextCookie } })).json()).evolucoes,

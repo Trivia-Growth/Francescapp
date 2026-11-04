@@ -9,6 +9,7 @@ import { montarResumoCasoLocal } from './resumo-caso-local';
 import { montarLinhaTempoLocal } from './linha-tempo-local';
 import { montarEncaminhamentosLocais, type EncaminhamentoLocal } from './encaminhamentos-local';
 import { montarOrientacoesLocais, type OrientacaoLocal } from './orientacoes-local';
+import { montarRelacoesLocais, type PessoaReferenciaLocal } from './relacoes-locais';
 import { montarEvolucoesLocais, type EvolucaoLocal } from './evolucoes-locais';
 import { montarDocumentosLocais, type DocumentoLocal } from './documentos-locais';
 import {
@@ -99,6 +100,9 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const telaEncaminhamentos = elemento('referrals-view');
   const telaOrientacoes = elemento('guidance-view');
   const telaEvolucoes = elemento('evolutions-view');
+  const telaRelacoes = elemento('relations-view');
+  const relacoes = new Map<string, PessoaReferenciaLocal[]>();
+  let salvandoRelacao = false;
   const evolucoes = new Map<string, EvolucaoLocal[]>();
   let salvandoEvolucao = false;
   const orientacoes = new Map<string, OrientacaoLocal[]>();
@@ -164,6 +168,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       telaEncaminhamentos,
       telaOrientacoes,
       telaEvolucoes,
+      telaRelacoes,
     ])
       item.hidden = item !== tela;
   };
@@ -202,6 +207,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         telaDocumentos,
         telaEncaminhamentos,
         telaOrientacoes,
+        telaEvolucoes,
+        telaRelacoes,
       ].find((tela) => !tela.hidden);
       pacientes.hidden = true;
       anamnese.hidden = true;
@@ -214,6 +221,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       telaDocumentos.hidden = true;
       telaEncaminhamentos.hidden = true;
       telaOrientacoes.hidden = true;
+      telaEvolucoes.hidden = true;
+      telaRelacoes.hidden = true;
       acoes.hidden = true;
       login.hidden = false;
       csrfToken = '';
@@ -271,6 +280,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       encaminhamentos?: EncaminhamentoLocal[];
       orientacoes?: OrientacaoLocal[];
       evolucoes?: EvolucaoLocal[];
+      relacoes?: PessoaReferenciaLocal[];
     };
     if (geracao !== undefined && geracao !== geracaoNavegacao) return;
     revisoes.set(id, previa.revision);
@@ -284,6 +294,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     encaminhamentos.set(id, previa.encaminhamentos ?? []);
     orientacoes.set(id, previa.orientacoes ?? []);
     evolucoes.set(id, previa.evolucoes ?? []);
+    relacoes.set(id, previa.relacoes ?? []);
   };
   const salvarPrevia = async (
     id: string,
@@ -296,7 +307,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       | 'documentos'
       | 'encaminhamentos'
       | 'orientacoes'
-      | 'evolucoes',
+      | 'evolucoes'
+      | 'relacoes',
     value:
       | Anamnese
       | Tarefa[]
@@ -306,7 +318,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       | DocumentoLocal[]
       | EncaminhamentoLocal[]
       | OrientacaoLocal[]
-      | EvolucaoLocal[],
+      | EvolucaoLocal[]
+      | PessoaReferenciaLocal[],
   ) => {
     const resposta = await requisitar(`/patients/${id}/preview`, {
       method: 'PUT',
@@ -550,6 +563,57 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         exibirTela(telaEvolucoes);
         elemento('evolutions-title').focus();
       });
+      const abrirRelacoes = document.createElement('button');
+      abrirRelacoes.type = 'button';
+      abrirRelacoes.className = 'button-secondary';
+      abrirRelacoes.textContent = 'Abrir pessoas de referência';
+      abrirRelacoes.setAttribute('aria-label', `Abrir pessoas de referência de ${registro.name}`);
+      abrirRelacoes.addEventListener('click', async () => {
+        const geracao = ++geracaoNavegacao;
+        try {
+          await carregarPrevia(registro.id, geracao);
+        } catch {
+          if (geracao === geracaoNavegacao)
+            elemento('workspace-feedback').textContent =
+              'Não foi possível carregar a prévia. Tente novamente.';
+          return;
+        }
+        if (geracao !== geracaoNavegacao) return;
+        selecionado = registro.id;
+        let itens = relacoes.get(registro.id) ?? [];
+        const salvar = async (atualizados: PessoaReferenciaLocal[]) => {
+          salvandoRelacao = true;
+          try {
+            await salvarPrevia(registro.id, 'relacoes', atualizados);
+            itens = atualizados;
+            relacoes.set(registro.id, atualizados);
+            const form = elemento('relations-content').querySelector('form');
+            if (form) formulariosAlterados.delete(form);
+          } finally {
+            salvandoRelacao = false;
+          }
+        };
+        montarRelacoesLocais(elemento('relations-content'), {
+          pessoas: itens,
+          aoLimpar: () => {
+            const form = elemento('relations-content').querySelector('form');
+            if (form) formulariosAlterados.delete(form);
+          },
+          aoRegistrar: async (dados) => {
+            const item = { ...dados, id: crypto.randomUUID() };
+            await salvar([...itens, item]);
+            return item;
+          },
+          aoAtualizar: async (id, dados) => {
+            await salvar(itens.map((item) => (item.id === id ? { ...dados, id } : item)));
+          },
+        });
+        const form = elemento('relations-content').querySelector('form');
+        form?.addEventListener('input', () => formulariosAlterados.add(form));
+        elemento('relations-patient').textContent = registro.name;
+        exibirTela(telaRelacoes);
+        elemento('relations-title').focus();
+      });
       const abrirResumo = document.createElement('button');
       abrirResumo.type = 'button';
       abrirResumo.className = 'button-secondary';
@@ -575,6 +639,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
           relatos: relatos.get(registro.id) ?? [],
           encaminhamentos: encaminhamentos.get(registro.id) ?? [],
           orientacoes: orientacoes.get(registro.id) ?? [],
+          pessoasReferencia: relacoes.get(registro.id) ?? [],
         });
         montarLinhaTempoLocal(elemento('summary-timeline'), {
           relatos: relatos.get(registro.id) ?? [],
@@ -776,6 +841,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
           document.createTextNode(' '),
           abrirEvolucoes,
           document.createTextNode(' '),
+          abrirRelacoes,
+          document.createTextNode(' '),
           abrirAgenda,
           document.createTextNode(' '),
           abrirTarefas,
@@ -912,6 +979,19 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     geracaoNavegacao++;
     exibirTela(pacientes);
     elemento('open-general-agenda').focus();
+  });
+  elemento('relations-back').addEventListener('click', () => {
+    if (salvandoRelacao) return;
+    const form = elemento('relations-content').querySelector('form');
+    if (
+      form &&
+      formulariosAlterados.has(form) &&
+      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
+    )
+      return;
+    if (form) formulariosAlterados.delete(form);
+    exibirTela(pacientes);
+    elemento('patients-title').focus();
   });
   elemento('evolutions-back').addEventListener('click', () => {
     if (salvandoEvolucao) return;
