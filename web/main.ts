@@ -1,3 +1,4 @@
+import { montarContatoPaciente } from './contatos-paciente.js';
 import { montarEdicaoPaciente } from './editar-paciente.js';
 import type {
   sessaoNativaSchema,
@@ -591,6 +592,7 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
           !planoPanel.hidden
         )
           return;
+        elemento('edicao-title').textContent = 'Editar cadastro';
         edicaoPanel.hidden = false;
         desmontarEdicao = montarEdicaoPaciente(
           edicaoRaiz,
@@ -606,6 +608,42 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
         elemento('edicao-title').focus();
       });
       acao.append(editar);
+    }
+    // A rota permanece indisponível até a autorização e validação do backend.
+    const contatoDisponivel = false;
+    if (
+      contatoDisponivel &&
+      sessao.usuario.perfil === 'administrador' &&
+      sessao.capacidades.includes('administrar_cadastro')
+    ) {
+      const contato = document.createElement('button');
+      contato.type = 'button';
+      contato.className = 'button-secondary';
+      contato.textContent = 'Adicionar contato';
+      contato.setAttribute('aria-label', `Adicionar contato de ${paciente.nome}`);
+      contato.addEventListener('click', () => {
+        if (
+          !sessao ||
+          sessao.usuario.perfil !== 'administrador' ||
+          !sessao.capacidades.includes('administrar_cadastro') ||
+          atendimentoJaAberto()
+        )
+          return;
+        acaoPacienteAnterior = contato;
+        elemento('edicao-title').textContent = `Adicionar contato: ${paciente.nome}`;
+        edicaoPanel.hidden = false;
+        desmontarEdicao = montarContatoPaciente(
+          edicaoRaiz,
+          paciente.id,
+          api,
+          acessoPerdido,
+          (pendente) => {
+            edicaoPendente = pendente;
+          },
+        );
+        elemento('edicao-title').focus();
+      });
+      acao.append(contato);
     }
     linha.append(acao);
   }

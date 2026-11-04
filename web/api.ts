@@ -9,6 +9,7 @@ import {
   entrarTecnicoSchema,
   chaveIdempotenciaSchema,
   pacienteAdministrativoSchema,
+  type novoContatoSchema,
   type AtualizarPaciente,
   type CriarPaciente,
   type SalvarAnamnese,
@@ -35,6 +36,7 @@ const rotas = {
   listarPacientes: contratosRotas.listarPacientes,
   consultarPaciente: { ...contratosRotas.consultarPaciente, saida: pacienteAdministrativoSchema },
   atualizarPaciente: contratosRotas.atualizarPaciente,
+  criarContato: contratosRotas.criarContato,
   consultarAnamnese: contratosRotas.consultarAnamnese,
   salvarAnamnese: contratosRotas.salvarAnamnese,
   criarPaciente: contratosRotas.criarPaciente,
@@ -130,6 +132,7 @@ export class ClienteFFCM {
   #tentativaEntrada = 0;
   #saindo = false;
   #vinculosPaciente = new Map<string, { pacienteId: string; sessionId: string }>();
+  #vinculosContato = new Map<string, { pacienteId: string; sessionId: string }>();
   #vinculosAnamnese = new Map<string, { pacienteId: string; sessionId: string }>();
 
   limpar(): void {
@@ -172,7 +175,8 @@ export class ClienteFFCM {
       rota === 'consultarAnamnese' ||
       rota === 'salvarAnamnese' ||
       rota === 'consultarPaciente' ||
-      rota === 'atualizarPaciente'
+      rota === 'atualizarPaciente' ||
+      rota === 'criarContato'
     ) {
       const parametros = contratosRotas.consultarAnamnese.parametros.safeParse({
         paciente_id: opcoes.pacienteId,
@@ -388,6 +392,21 @@ export class ClienteFFCM {
       return Promise.reject(new FalhaApi('nao_autenticado', 401));
     this.#vinculosPaciente.set(chave, { pacienteId, sessionId: this.#sessionId });
     return this.#enviar('atualizarPaciente', entrada, { protegido: true, pacienteId, chave });
+  }
+
+  criarContato(
+    pacienteId: string,
+    entrada: ReturnType<typeof novoContatoSchema.parse>,
+    chave: string,
+  ): Promise<Dados<'criarContato'>> {
+    if (!chaveIdempotenciaSchema.safeParse(chave).success)
+      return Promise.reject(new FalhaApi('entrada_invalida', 422));
+    if (!this.#sessionId) return Promise.reject(new FalhaApi('nao_autenticado', 401));
+    const vinculo = this.#vinculosContato.get(chave);
+    if (vinculo && (vinculo.pacienteId !== pacienteId || vinculo.sessionId !== this.#sessionId))
+      return Promise.reject(new FalhaApi('nao_autenticado', 401));
+    this.#vinculosContato.set(chave, { pacienteId, sessionId: this.#sessionId });
+    return this.#enviar('criarContato', entrada, { protegido: true, pacienteId, chave });
   }
 
   consultarAnamnese(pacienteId: string): Promise<Dados<'consultarAnamnese'>> {
