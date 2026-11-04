@@ -10,15 +10,23 @@ Prévia local integrada ao domínio, apenas com dados fictícios em memória. Te
 
 ## Dependências para uso real
 
-A persistência e o uso de dados reais não são tarefas executáveis desta mudança. Exigem decisões e planejamento próprios para seções e critérios, modelo, permissões por paciente e audiência, retenção, auditoria, proteção e recuperação. Exigem ainda validação de fronteira e provas positivas e negativas no servidor e banco, incluindo revogação, outro paciente e acesso direto, além de integração real em ambiente autorizado. Operações remotas requerem autorização específica.
+A persistência local com dados fictícios integra o planejamento; o uso de dados reais permanece bloqueado. Uso real exige decisões para seções e critérios, audiência, retenção e recuperação, além de auditoria e proteção verificadas. Exigem ainda validação de fronteira e provas positivas e negativas no servidor e banco, incluindo revogação, outro paciente e acesso direto, além de integração real em ambiente autorizado. Operações remotas requerem autorização específica.
 
-### Preparação da próxima fatia conectada
+### Preparação da fatia conectada
 
-Esta preparação não autoriza migração nem transforma o domínio em persistência. A próxima mudança deve preservar FR-003 (fase Inicial): preenchimento gradual em seções, estados informado, desconhecido, não se aplica e pendente, fonte e data, e localização de seções incompletas. Deve preservar histórico contínuo por paciente e respostas versionadas, distinguindo informação relatada de avaliação clínica. Recarregar deve recuperar o progresso salvo; dados de teste devem ser fictícios.
+Esta preparação não autoriza migração remota nem transforma o domínio em persistência. A fatia deve preservar FR-003 (fase Inicial): preenchimento gradual em seções, estados informado, desconhecido, não se aplica e pendente, fonte e data, e localização de seções incompletas. Deve preservar histórico contínuo por paciente e respostas versionadas, distinguindo informação relatada de avaliação clínica. Recarregar deve recuperar o progresso salvo; dados de teste devem ser fictícios.
 
 - [ ] Definir com o solicitante seções, campos e critérios de pendência aplicáveis, sem inferir diagnóstico ou completude clínica.
-- [ ] Confirmar leitura e escrita por perfil, vínculo com paciente e audiência, inclusive revogação; acesso à agenda e relação pessoal não concedem acesso por inferência.
-- [ ] Projetar armazenamento versionado, concorrência e proveniência, proteção de conteúdo, auditoria sem conteúdo clínico desnecessário, retenção e recuperação. Registrar decisões e ameaças no planejamento da próxima mudança antes de implementar.
+- [x] Registrar decisão provisória: colaboradores ativos com concessão vigente consultam e editam qualquer anamnese sem vínculo individual; familiares não recebem acesso por inferência. FFCM deverá definir regra definitiva. Revogação e sessão devem ser verificadas no servidor e banco.
+- [ ] Projetar armazenamento versionado, concorrência e proveniência, proteção de conteúdo, auditoria sem conteúdo clínico desnecessário, retenção e recuperação. Registrar decisões e ameaças nesta mudança antes de implementar.
 - [ ] Planejar integração de servidor e banco com testes positivos e negativos: outro paciente, outro perfil/audiência, acesso direto, revogação e caminhos privilegiados. Comprovar persistência e retomada em ambiente local autorizado; adapters fictícios não comprovam integração externa.
 
-Os itens acima são gates de planejamento, não decisões clínicas ou autorização de operações remotas. A mudança futura precisa conciliar proposta, requisitos, design e tarefas antes da implementação.
+Os itens acima são gates de planejamento, não decisões clínicas ou autorização de operações remotas. Proposta, requisitos, design e tarefas devem permanecer coerentes durante a implementação.
+
+## Persistência local da anamnese
+
+- [ ] Implementar contrato interno proposto no design com versões, cifra autenticada, auditoria e autorização sob lock; integrar a sessão e atestados existentes sem grants diretos.
+- [ ] Comprovar persistência e retomada com dados fictícios, concorrência, autorização positiva e negativa, familiar, usuário inativo, concessão e sessão revogadas, acesso direto e caminhos privilegiados.
+- [ ] Revisar ameaça e integração reais antes de disponibilizar execução; não usar dados reais nem operar remotamente sem autorização.
+
+Em 04/11/2026, criada migration local para versões privadas de anamnese, ainda sem RPC ou grants para a aplicação. `scripts/testar-anamnese-local.sh` passou em PostgreSQL descartável sem Docker para versões, conflito, imutabilidade, RLS e privilégios diretos. O formato do envelope não comprova cifra autenticada; sessão, atestado, auditoria e acesso seguro precisam ser integrados e verificados. A limpeza seletiva futura também exige mecanismo controlado compatível com a imutabilidade. Nenhuma evidência de persistência conectada ou migration remota.

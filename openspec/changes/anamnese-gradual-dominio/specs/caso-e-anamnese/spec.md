@@ -20,3 +20,17 @@ Para apoiar FR-003 (fase Inicial), o domínio SHALL identificar campos esperados
 
 - **WHEN** uma resposta informada, desconhecida ou não aplicável for representada no domínio
 - **THEN** sua fonte e data permanecem associadas à resposta; informação relatada não se torna diagnóstico confirmado por essa representação.
+
+### Requirement: Acesso provisório da equipe à anamnese
+
+Até definição da FFCM, o sistema SHALL permitir consulta e edição da anamnese a colaboradores ativos com concessão de equipe vigente, sem exigir vínculo individual por paciente. A relação familiar ou permissão de agenda não SHALL conceder acesso por inferência. A autorização SHALL ser revalidada no servidor e no banco, inclusive após revogação.
+
+#### Scenario: Colaborador autorizado
+
+- **WHEN** colaborador ativo com concessão e sessão vigentes consulta ou edita anamnese
+- **THEN** a operação é autorizada mesmo sem vínculo individual com o paciente.
+
+#### Scenario: Acesso negado ou revogado
+
+- **WHEN** familiar, usuário inativo, sessão encerrada ou concessão revogada tenta consultar ou editar
+- **THEN** a operação é negada também no acesso direto ao banco.
