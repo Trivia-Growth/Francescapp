@@ -30,6 +30,7 @@ const rotas = {
     saida: sessaoNativaSchema,
   },
   listarPacientes: contratosRotas.listarPacientes,
+  consultarAnamnese: contratosRotas.consultarAnamnese,
   criarPaciente: contratosRotas.criarPaciente,
   sairSessao: contratosRotas.sairSessao,
   consultarBarreira: {
@@ -136,6 +137,7 @@ export class ClienteFFCM {
       chave?: string;
       protegido?: boolean;
       encerramento?: boolean;
+      pacienteId?: string;
     } = {},
   ): Promise<Dados<R>> {
     const contrato = rotas[rota];
@@ -155,7 +157,15 @@ export class ClienteFFCM {
         throw new FalhaApi('nao_autenticado', 401);
       }
     };
-    const url = new URL(contrato.caminho, window.location.origin);
+    let caminho: string = contrato.caminho;
+    if (rota === 'consultarAnamnese') {
+      const parametros = contratosRotas.consultarAnamnese.parametros.safeParse({
+        paciente_id: opcoes.pacienteId,
+      });
+      if (!parametros.success) throw new FalhaApi('entrada_invalida', 422);
+      caminho = caminho.replace(':paciente_id', encodeURIComponent(parametros.data.paciente_id));
+    }
+    const url = new URL(caminho, window.location.origin);
     const headers = new Headers({ Accept: 'application/json' });
     if (opcoes.protegido) {
       if (!sessionId || (this.#saindo && !opcoes.encerramento))
@@ -328,6 +338,10 @@ export class ClienteFFCM {
       { limite: 25, ...(cursor ? { cursor } : {}) },
       { protegido: true },
     );
+  }
+
+  consultarAnamnese(pacienteId: string): Promise<Dados<'consultarAnamnese'>> {
+    return this.#enviar('consultarAnamnese', {}, { protegido: true, pacienteId });
   }
 
   criarPaciente(

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { eventoAuditoriaSchema } from './auditoria.ts';
+import { anamneseSchema } from './anamnese.ts';
 import { reservaCadastroSchema } from './rpc.ts';
 
 import {
@@ -353,6 +354,13 @@ export const contratosRotas = {
     '/api/pacientes/:paciente_id',
     vazioSchema,
     z.union([pacienteBasicoSchema, pacienteAdministrativoSchema]),
+    pacienteParametrosSchema,
+  ),
+  // Contratos locais; exposição depende da composição autorizada da rota.
+  consultarAnamnese: consulta(
+    '/api/pacientes/:paciente_id/anamnese',
+    vazioSchema,
+    anamneseSchema.nullable(),
     pacienteParametrosSchema,
   ),
   atualizarPaciente: mutacaoIdempotente(
