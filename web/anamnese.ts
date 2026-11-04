@@ -232,12 +232,22 @@ export function montarAnamnese(
     });
     raiz.replaceChildren(form);
   };
-  void servico
-    .consultarAnamnese(pacienteId)
-    .then(desenhar)
-    .catch((erro: unknown) => {
-      if (ativa && !descartarAcesso(erro)) status.textContent = mensagemFalha(erro);
-    });
+  const consultar = () => {
+    status.textContent = 'Carregando anamnese…';
+    raiz.replaceChildren(status);
+    void servico
+      .consultarAnamnese(pacienteId)
+      .then(desenhar)
+      .catch((erro: unknown) => {
+        if (!ativa || descartarAcesso(erro)) return;
+        status.textContent = mensagemFalha(erro);
+        const tentarNovamente = elemento('button', 'Tentar novamente');
+        tentarNovamente.type = 'button';
+        tentarNovamente.addEventListener('click', consultar);
+        raiz.append(tentarNovamente);
+      });
+  };
+  consultar();
   return () => {
     ativa = false;
     pendente = null;

@@ -113,3 +113,17 @@ it.each([401, 403])(
     expect(raiz.childElementCount).toBe(0);
   },
 );
+
+it('permite tentar novamente após falha na consulta', async () => {
+  const raiz = document.createElement('div');
+  const consultarAnamnese = vi.fn().mockRejectedValueOnce(new Error()).mockResolvedValueOnce(null);
+  montarAnamnese(raiz, 'paciente', { consultarAnamnese, salvarAnamnese: vi.fn() }, vi.fn());
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Serviço indisponível'));
+  const botao = [...raiz.querySelectorAll('button')].find(
+    (item) => item.textContent === 'Tentar novamente',
+  );
+  expect(botao).toBeDefined();
+  botao?.click();
+  await vi.waitFor(() => expect(raiz.querySelector('form')).not.toBeNull());
+  expect(consultarAnamnese).toHaveBeenCalledTimes(2);
+});
