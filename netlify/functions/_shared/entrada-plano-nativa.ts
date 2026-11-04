@@ -27,7 +27,7 @@ export function criarEntradaPlanoNativa(
           headers,
         });
       const url = new URL(request.url);
-      if (url.search || url.hash) return erro('entrada_invalida');
+      if (url.hash) return erro('entrada_invalida');
       const item = /^\/api\/pacientes\/([^/]+)\/plano(?:\/([^/]+)(\/historico)?)?$/.exec(
         url.pathname,
       );
@@ -64,6 +64,15 @@ export function criarEntradaPlanoNativa(
       )
         return erro('entrada_invalida');
       let entrada: unknown = {};
+      if (request.method === 'GET') {
+        const consulta: Record<string, string> = {};
+        for (const [chave, valor] of url.searchParams) {
+          if ((chave !== 'cursor' && chave !== 'limite') || Object.hasOwn(consulta, chave))
+            return erro('entrada_invalida');
+          consulta[chave] = valor;
+        }
+        entrada = consulta;
+      } else if (url.search) return erro('entrada_invalida');
       if (request.method !== 'GET') {
         if (
           request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() !==
@@ -138,9 +147,19 @@ export function criarEntradaPlanoNativa(
         if (!item) return erro('entrada_invalida');
         const paciente_id = item[1] as string;
         let comando: Parameters<typeof comporPlanoCuidadoNativo>[1];
-        if (nome === 'consultar') comando = { operacao: 'ler', paciente_id };
+        if (nome === 'consultar')
+          comando = {
+            operacao: 'ler',
+            paciente_id,
+            ...planoHttp.consultar.entrada.parse(validada.data),
+          };
         else if (nome === 'historico')
-          comando = { operacao: 'historico', paciente_id, objetivo_id: item[2] as string };
+          comando = {
+            operacao: 'historico',
+            paciente_id,
+            objetivo_id: item[2] as string,
+            ...planoHttp.historico.entrada.parse(validada.data),
+          };
         else if (nome === 'criar') {
           const dados = planoHttp.criar.entrada.parse(validada.data);
           comando = { operacao: 'gravar', paciente_id, versao_esperada: 0, ...dados };

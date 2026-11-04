@@ -20,8 +20,14 @@ type Autorizacao =
   | { estado: 'autorizado'; identidade: Identidade }
   | { estado: 'nao_autenticado' | 'sem_permissao' | 'servico_indisponivel' };
 type Comando =
-  | { operacao: 'ler'; paciente_id: string }
-  | { operacao: 'historico'; paciente_id: string; objetivo_id: string }
+  | { operacao: 'ler'; paciente_id: string; cursor?: string; limite?: number }
+  | {
+      operacao: 'historico';
+      paciente_id: string;
+      objetivo_id: string;
+      cursor?: string;
+      limite?: number;
+    }
   | {
       operacao: 'gravar';
       paciente_id: string;
@@ -48,6 +54,10 @@ export async function operarPlanoCuidadoNativo(
     cifra: {
       cifrar(valor: string, aad: Aad): Promise<CampoCifrado>;
       decifrar(valor: CampoCifrado, aad: Aad): Promise<string>;
+    };
+    cursor: {
+      abrir(cursor: string, vinculo: { usuarioId: string; sessaoId: string }): Promise<string>;
+      emitir(cursor: string, vinculo: { usuarioId: string; sessaoId: string }): Promise<string>;
     };
     idempotencia: {
       calcularDigestIdempotencia(comandoLogico: string): Promise<string>;
@@ -142,6 +152,48 @@ export async function operarPlanoCuidadoNativo(
     )
       return erro('nao_autenticado');
     const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+    let cursorInterno: string | number | null = null;
+    let vinculoCursor: { usuarioId: string; sessaoId: string } | undefined;
+    if (comando.operacao !== 'gravar') {
+      const limite = comando.limite ?? 20;
+      if (
+        !Number.isInteger(limite) ||
+        limite < 1 ||
+        limite > 20 ||
+        (comando.cursor !== undefined &&
+          (typeof comando.cursor !== 'string' ||
+            comando.cursor.length > 512 ||
+            comando.cursor.length === 0))
+      )
+        return erro('entrada_invalida');
+      // Deriva domínio do cursor a partir da sessão, paciente e operação, sem expor esses dados no token.
+      const contexto = `${identidade.session_id}:${pacienteId}:${comando.operacao}:${objetivoId ?? ''}`;
+      const hash = new Uint8Array(
+        await crypto.subtle.digest('SHA-256', new TextEncoder().encode(contexto)),
+      );
+      hash[6] = ((hash[6] ?? 0) & 15) | 64;
+      hash[8] = ((hash[8] ?? 0) & 63) | 128;
+      const hex = Array.from(hash.slice(0, 16), (b) => b.toString(16).padStart(2, '0')).join('');
+      vinculoCursor = {
+        usuarioId: identidade.usuario_id,
+        sessaoId: `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`,
+      };
+      if (comando.cursor !== undefined) {
+        try {
+          const aberto = await portas.cursor.abrir(comando.cursor, vinculoCursor);
+          if (comando.operacao === 'historico') {
+            if (!/^00000000-0000-4000-8000-[0-9a-f]{12}$/.test(aberto))
+              return erro('entrada_invalida');
+            cursorInterno = Number.parseInt(aberto.slice(-12), 16);
+            if (cursorInterno < 1 || cursorInterno > 2147483647) return erro('entrada_invalida');
+          } else cursorInterno = uuidSchema.parse(aberto).toLowerCase();
+        } catch {
+          return erro('entrada_invalida');
+        }
+      }
+      entrada.cursor = cursorInterno;
+      entrada.limite = limite;
+    }
     if (comando.operacao === 'historico') entrada.objetivo_id = objetivoId;
     if (comando.operacao === 'gravar' && objetivoId && objetivo) {
       const registroId = crypto.randomUUID();
@@ -228,8 +280,17 @@ export async function operarPlanoCuidadoNativo(
             ? 'conflito_idempotencia'
             : 'sem_permissao',
       );
-    if ((comando.operacao !== 'gravar') !== Array.isArray(resposta.dados)) throw new Error();
-    const registros = Array.isArray(resposta.dados) ? resposta.dados : [resposta.dados];
+    const pagina = 'itens' in resposta.dados ? resposta.dados : undefined;
+    if ((comando.operacao !== 'gravar') !== (pagina !== undefined)) throw new Error();
+    const registros = pagina
+      ? pagina.itens
+      : [resposta.dados as Exclude<typeof resposta.dados, { itens: unknown }>];
+    if (
+      pagina &&
+      (registros.length > (comando.operacao === 'gravar' ? 0 : (comando.limite ?? 20)) ||
+        (pagina.proximo_cursor !== null && registros.length === 0))
+    )
+      throw new Error();
     if (
       comando.operacao === 'gravar' &&
       (registros.length !== 1 ||
@@ -240,15 +301,19 @@ export async function operarPlanoCuidadoNativo(
       throw new Error();
     const vistos = new Set<string>();
     const resultado = [];
+    let ultimoObjetivo = typeof cursorInterno === 'string' ? cursorInterno : '';
     for (const [indice, registro] of registros.entries()) {
       if (
         registro.paciente_id.toLowerCase() !== pacienteId ||
         (comando.operacao === 'historico'
-          ? registro.objetivo_id.toLowerCase() !== objetivoId || registro.versao !== indice + 1
-          : vistos.has(registro.objetivo_id.toLowerCase()))
+          ? registro.objetivo_id.toLowerCase() !== objetivoId ||
+            registro.versao !== Number(cursorInterno ?? 0) + indice + 1
+          : vistos.has(registro.objetivo_id.toLowerCase()) ||
+            (comando.operacao === 'ler' && registro.objetivo_id.toLowerCase() <= ultimoObjetivo))
       )
         throw new Error();
       vistos.add(registro.objetivo_id.toLowerCase());
+      ultimoObjetivo = registro.objetivo_id.toLowerCase();
       const aad: Aad = {
         tabela: 'cadastro.objetivo_cuidado_versao',
         paciente_id: pacienteId,
@@ -264,6 +329,28 @@ export async function operarPlanoCuidadoNativo(
       if (registro.versao > 1 && !conteudo.motivo) throw new Error();
       resultado.push({ objetivo_id: aad.objetivo_id, versao: registro.versao, ...conteudo });
     }
+    let proximoCursor: string | null = null;
+    if (
+      pagina &&
+      pagina.proximo_cursor !== null &&
+      comando.operacao !== 'gravar' &&
+      vinculoCursor
+    ) {
+      const ultimo = registros.at(-1);
+      if (
+        !ultimo ||
+        (comando.operacao === 'historico'
+          ? typeof pagina.proximo_cursor !== 'number' || pagina.proximo_cursor !== ultimo.versao
+          : typeof pagina.proximo_cursor !== 'string' ||
+            pagina.proximo_cursor.toLowerCase() !== ultimo.objetivo_id.toLowerCase())
+      )
+        throw new Error();
+      const valor =
+        typeof pagina.proximo_cursor === 'number'
+          ? `00000000-0000-4000-8000-${pagina.proximo_cursor.toString(16).padStart(12, '0')}`
+          : pagina.proximo_cursor;
+      proximoCursor = await portas.cursor.emitir(valor, vinculoCursor);
+    }
     const atual = await portas.revalidar(request);
     if (
       request.signal.aborted ||
@@ -274,7 +361,10 @@ export async function operarPlanoCuidadoNativo(
       return erro(iniciada ? 'pendencia_externa' : 'nao_autenticado');
     return {
       ok: true as const,
-      dados: comando.operacao !== 'gravar' ? resultado : resultado[0],
+      dados:
+        comando.operacao !== 'gravar'
+          ? { itens: resultado, proximo_cursor: proximoCursor }
+          : resultado[0],
       request_id: requestId,
     };
   } catch {

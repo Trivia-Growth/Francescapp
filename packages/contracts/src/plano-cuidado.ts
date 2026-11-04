@@ -76,7 +76,17 @@ export const respostaPlanoPrivadaSchema = z.discriminatedUnion('ok', [
   z
     .object({
       ok: z.literal(true),
-      dados: z.union([registroPlanoSchema, z.array(registroPlanoSchema)]),
+      dados: z.union([
+        registroPlanoSchema,
+        z
+          .object({
+            itens: z.array(registroPlanoSchema).max(20),
+            proximo_cursor: z
+              .union([uuidSchema, z.number().int().positive().max(2147483647)])
+              .nullable(),
+          })
+          .strict(),
+      ]),
       request_id: uuidSchema,
       repeticao: z.boolean().optional().default(false),
     })

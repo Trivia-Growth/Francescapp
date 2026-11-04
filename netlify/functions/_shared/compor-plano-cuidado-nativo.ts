@@ -105,6 +105,7 @@ export async function comporPlanoCuidadoNativo(
         metadados: (requestId) =>
           metadadosAtestadoNativo(dependencias.keyIdAtestado, requestId, Date.now()),
         cifra: cofre.cifra,
+        cursor: cofre.cursor,
         idempotencia: criarIdempotenciaNativa(cofre.cifra),
         atestador: cofre.atestador,
         executar: (_request, transporte) => {

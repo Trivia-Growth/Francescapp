@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { uuidSchema } from './comum.ts';
+import { cursorSchema, uuidSchema } from './comum.ts';
 import { conteudoPlanoSchema, objetivoSchema, motivoPlanoSchema } from './plano-cuidado.ts';
 import {
   consultaBarreiraPlanoResultadoSchema,
@@ -12,20 +12,29 @@ const epoca = z.number().int().positive().safe();
 const registro = conteudoPlanoSchema
   .extend({ objetivo_id: uuidSchema, versao: z.number().int().positive().max(2147483647) })
   .strict();
+const paginacao = z
+  .object({
+    cursor: cursorSchema.optional(),
+    limite: z.coerce.number().int().min(1).max(20).default(20),
+  })
+  .strict();
+const pagina = z
+  .object({ itens: z.array(registro).max(20), proximo_cursor: cursorSchema.nullable() })
+  .strict();
 const vazio = z.object({}).strict();
 /** Contrato preparado, sem registrar rota pública. */
 export const planoHttp = {
   consultar: {
     metodo: 'GET',
     caminho: '/api/pacientes/:paciente_id/plano',
-    entrada: vazio,
-    saida: z.array(registro),
+    entrada: paginacao,
+    saida: pagina,
   },
   historico: {
     metodo: 'GET',
     caminho: '/api/pacientes/:paciente_id/plano/:objetivo_id/historico',
-    entrada: vazio,
-    saida: z.array(registro),
+    entrada: paginacao,
+    saida: pagina,
   },
   criar: {
     metodo: 'POST',

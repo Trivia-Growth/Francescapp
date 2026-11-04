@@ -1,3 +1,4 @@
+import { criarCursorReconciliacao } from '../../../packages/cadastro/src/cursor-reconciliacao.ts';
 import { describe, expect, it, vi } from 'vitest';
 import { criarAtestadorOperacao } from '../../../supabase/functions/_shared/atestado-operacao.ts';
 import { criarCifraAutenticada } from '../../../supabase/functions/_shared/cifra-autenticada.ts';
@@ -38,6 +39,7 @@ function portas() {
       expira_em: '2026-11-04T12:00:30Z',
     }),
     cifra,
+    cursor: criarCursorReconciliacao(new Uint8Array(32).fill(7)),
     idempotencia: criarIdempotenciaNativa(cifra),
     atestador: criarAtestadorOperacao({ keyId: 'teste', chave: new Uint8Array(32).fill(3) }),
     executar: vi.fn(
@@ -181,7 +183,7 @@ describe('plano interno', () => {
         executar: async (_r, t) => ({
           ok: true,
           request_id: t.p_transporte.entrada.request_id,
-          dados: [],
+          dados: { itens: [], proximo_cursor: null },
         }),
         revalidar: async () => ({ estado: 'nao_autenticado' }),
       },
@@ -204,16 +206,105 @@ describe('plano interno', () => {
     const executar = async (
       _r: Request,
       t: { p_transporte: { entrada: Record<string, unknown> } },
-    ) => ({ ok: true, request_id: t.p_transporte.entrada.request_id, dados: [registro] });
+    ) => ({
+      ok: true,
+      request_id: t.p_transporte.entrada.request_id,
+      dados: { itens: [registro], proximo_cursor: null },
+    });
     const resultado = await operarPlanoCuidadoNativo(request(), historico, { ...deps, executar });
-    expect(resultado).toMatchObject({ ok: true, dados: [{ objetivo_id, versao: 1, objetivo }] });
+    expect(resultado).toMatchObject({
+      ok: true,
+      dados: { itens: [{ objetivo_id, versao: 1, objetivo }] },
+    });
     const trocado = await operarPlanoCuidadoNativo(request(), historico, {
       ...deps,
       executar: async (r, t) => ({
         ...(await executar(r, t)),
-        dados: [{ ...registro, objetivo_id: 'e0000000-0000-4000-8000-000000000005' }],
+        dados: {
+          itens: [{ ...registro, objetivo_id: 'e0000000-0000-4000-8000-000000000005' }],
+          proximo_cursor: null,
+        },
       }),
     });
     expect(trocado).toMatchObject({ ok: false, erro: { codigo: 'servico_indisponivel' } });
+  });
+  it('continua histórico com cursor atestado e recusa uso em outro paciente ou sessão', async () => {
+    const deps = portas();
+    await operarPlanoCuidadoNativo(request(), comando, deps);
+    const entrada = deps.executar.mock.calls[0]?.[1].p_transporte.entrada;
+    if (!entrada) throw new Error('Gravação não executada.');
+    const registro = {
+      registro_id: entrada.registro_id,
+      objetivo_id,
+      paciente_id,
+      versao: 1,
+      conteudo: entrada.conteudo,
+    };
+    const executar = vi.fn(
+      async (_r: Request, t: { p_transporte: { entrada: Record<string, unknown> } }) => ({
+        ok: true,
+        request_id: t.p_transporte.entrada.request_id,
+        dados:
+          t.p_transporte.entrada.cursor === null
+            ? { itens: [registro], proximo_cursor: 1 }
+            : { itens: [], proximo_cursor: null },
+      }),
+    );
+    const consulta = { operacao: 'historico' as const, paciente_id, objetivo_id, limite: 1 };
+    const primeira = await operarPlanoCuidadoNativo(request(), consulta, { ...deps, executar });
+    if (
+      !primeira.ok ||
+      !primeira.dados ||
+      !('proximo_cursor' in primeira.dados) ||
+      !primeira.dados.proximo_cursor
+    )
+      throw new Error('Cursor ausente.');
+    const cursor = primeira.dados.proximo_cursor;
+    expect(
+      await operarPlanoCuidadoNativo(request(), { ...consulta, cursor }, { ...deps, executar }),
+    ).toMatchObject({ ok: true, dados: { itens: [], proximo_cursor: null } });
+    expect(executar.mock.calls[1]?.[1].p_transporte.entrada).toMatchObject({
+      cursor: 1,
+      limite: 1,
+    });
+    expect(
+      await operarPlanoCuidadoNativo(
+        request(),
+        { ...consulta, cursor, paciente_id: 'e0000000-0000-4000-8000-000000000005' },
+        { ...deps, executar },
+      ),
+    ).toMatchObject({ ok: false, erro: { codigo: 'entrada_invalida' } });
+    const outraSessao = 'e0000000-0000-4000-8000-000000000005';
+    const identidade = { usuario_id, session_id: outraSessao };
+    const autorizado = async () => ({ estado: 'autorizado' as const, identidade });
+    expect(
+      await operarPlanoCuidadoNativo(
+        new Request('https://exemplo.test', { headers: { 'x-sessao': outraSessao } }),
+        { ...consulta, cursor },
+        { ...deps, autorizar: autorizado, revalidar: autorizado, executar },
+      ),
+    ).toMatchObject({ ok: false, erro: { codigo: 'entrada_invalida' } });
+    expect(
+      await operarPlanoCuidadoNativo(
+        request(),
+        { ...consulta, cursor: `${cursor.slice(0, -1)}${cursor.endsWith('A') ? 'B' : 'A'}` },
+        { ...deps, executar },
+      ),
+    ).toMatchObject({ ok: false, erro: { codigo: 'entrada_invalida' } });
+    expect(
+      await operarPlanoCuidadoNativo(
+        request(),
+        { ...consulta, cursor, objetivo_id: 'e0000000-0000-4000-8000-000000000005' },
+        { ...deps, executar },
+      ),
+    ).toMatchObject({ ok: false, erro: { codigo: 'entrada_invalida' } });
+    expect(
+      await operarPlanoCuidadoNativo(
+        request(),
+        { ...consulta, cursor },
+        { ...deps, executar, autorizar: async () => ({ estado: 'sem_permissao' as const }) },
+      ),
+    ).toMatchObject({ ok: false, erro: { codigo: 'sem_permissao' } });
+    expect(executar).toHaveBeenCalledTimes(2);
   });
 });

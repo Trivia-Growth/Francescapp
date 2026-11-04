@@ -38,7 +38,7 @@ it('mostra texto como texto e envia revisão com versão esperada', async () => 
     'paciente',
     {
       consultarHistorico: vi.fn(),
-      consultarObjetivos: vi.fn().mockResolvedValue([atual]),
+      consultarObjetivos: vi.fn().mockResolvedValue({ itens: [atual], proximo_cursor: null }),
       criarObjetivo: vi.fn(),
       revisarObjetivo,
     },
@@ -69,7 +69,7 @@ it('preserva rascunho e bloqueia reenvio quando resultado é incerto', async () 
     'paciente',
     {
       consultarHistorico: vi.fn(),
-      consultarObjetivos: vi.fn().mockResolvedValue([atual]),
+      consultarObjetivos: vi.fn().mockResolvedValue({ itens: [atual], proximo_cursor: null }),
       criarObjetivo: vi.fn(),
       revisarObjetivo,
     },
@@ -110,7 +110,7 @@ it('remove dados quando acesso é revogado', async () => {
 it('consulta plano atual sem perder rascunho nem reenviar após conflito', async () => {
   const raiz = document.createElement('div');
   const revisarObjetivo = vi.fn().mockRejectedValue(new FalhaApi('conflito_versao', 409));
-  const consultarObjetivos = vi.fn().mockResolvedValue([atual]);
+  const consultarObjetivos = vi.fn().mockResolvedValue({ itens: [atual], proximo_cursor: null });
   montarPlanoCuidado(
     raiz,
     'paciente',
@@ -138,13 +138,13 @@ it('consulta plano atual sem perder rascunho nem reenviar após conflito', async
     .find((b) => b.textContent === 'Descartar rascunho e abrir plano atual')
     ?.click();
   expect(raiz.querySelector('form')).toBeNull();
-  expect(raiz.textContent).toContain('Revisar objetivo');
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Revisar objetivo'));
 });
 
 it('mantém criação bloqueada após consulta quando salvamento pode concluir depois', async () => {
   const raiz = document.createElement('div');
   const criarObjetivo = vi.fn().mockRejectedValue(new Error());
-  const consultarObjetivos = vi.fn().mockResolvedValue([]);
+  const consultarObjetivos = vi.fn().mockResolvedValue({ itens: [], proximo_cursor: null });
   montarPlanoCuidado(
     raiz,
     'paciente',
@@ -188,6 +188,7 @@ it('mantém criação bloqueada após consulta quando salvamento pode concluir d
   [...raiz.querySelectorAll('button')]
     .find((b) => b.textContent === 'Descartar rascunho e abrir plano atual')
     ?.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Adicionar objetivo'));
   const adicionar = [...raiz.querySelectorAll('button')].find(
     (b) => b.textContent === 'Adicionar objetivo',
   );
@@ -201,21 +202,24 @@ it('consulta histórico sob demanda e limpa dados ao perder acesso', async () =>
   const acessoPerdido = vi.fn();
   const consultarHistorico = vi
     .fn()
-    .mockResolvedValueOnce([
-      {
-        ...atual,
-        ator_usuario_id: 'autor',
-        data: '2026-11-04T12:00:00Z',
-        motivo: '<script>motivo</script>',
-      },
-    ])
+    .mockResolvedValueOnce({
+      itens: [
+        {
+          ...atual,
+          ator_usuario_id: 'autor',
+          data: '2026-11-04T12:00:00Z',
+          motivo: '<script>motivo</script>',
+        },
+      ],
+      proximo_cursor: null,
+    })
     .mockRejectedValueOnce(new FalhaApi('negado', 403));
   montarPlanoCuidado(
     raiz,
     'paciente',
     {
       consultarHistorico,
-      consultarObjetivos: vi.fn().mockResolvedValue([atual]),
+      consultarObjetivos: vi.fn().mockResolvedValue({ itens: [atual], proximo_cursor: null }),
       criarObjetivo: vi.fn(),
       revisarObjetivo: vi.fn(),
     },
@@ -228,7 +232,7 @@ it('consulta histórico sob demanda e limpa dados ao perder acesso', async () =>
   );
   botao?.click();
   await vi.waitFor(() => expect(raiz.textContent).toContain('<script>motivo</script>'));
-  expect(consultarHistorico).toHaveBeenCalledWith('paciente', 'objetivo');
+  expect(consultarHistorico).toHaveBeenCalledWith('paciente', 'objetivo', undefined);
   expect(raiz.querySelector('script')).toBeNull();
   botao?.click();
   await vi.waitFor(() => expect(acessoPerdido).toHaveBeenCalledOnce());
@@ -247,7 +251,7 @@ it('remove dados quando acesso é revogado após redesenho durante consulta de h
     'paciente',
     {
       consultarHistorico: vi.fn().mockReturnValue(historico),
-      consultarObjetivos: vi.fn().mockResolvedValue([atual]),
+      consultarObjetivos: vi.fn().mockResolvedValue({ itens: [atual], proximo_cursor: null }),
       criarObjetivo: vi.fn(),
       revisarObjetivo: vi.fn().mockResolvedValue(undefined),
     },
@@ -286,7 +290,7 @@ it('mantém criação bloqueada após recarga quando confirmação da barreira f
     {
       ciclo,
       consultarHistorico: vi.fn(),
-      consultarObjetivos: vi.fn().mockResolvedValue([]),
+      consultarObjetivos: vi.fn().mockResolvedValue({ itens: [], proximo_cursor: null }),
       revisarObjetivo: vi.fn(),
     },
     vi.fn(),
@@ -309,7 +313,7 @@ it('mantém criação bloqueada após recarga quando confirmação da barreira f
     {
       ciclo,
       consultarHistorico: vi.fn(),
-      consultarObjetivos: vi.fn().mockResolvedValue([]),
+      consultarObjetivos: vi.fn().mockResolvedValue({ itens: [], proximo_cursor: null }),
       revisarObjetivo: vi.fn(),
     },
     vi.fn(),
@@ -347,7 +351,7 @@ it('preserva rascunho de revisão e impede abertura durante reconciliação', as
     {
       ciclo,
       consultarHistorico: vi.fn(),
-      consultarObjetivos: vi.fn().mockResolvedValue([atual]),
+      consultarObjetivos: vi.fn().mockResolvedValue({ itens: [atual], proximo_cursor: null }),
       revisarObjetivo: vi.fn(),
     },
     vi.fn(),

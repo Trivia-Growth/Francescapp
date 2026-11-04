@@ -17,6 +17,8 @@ Bloqueio de ativação FR-015/016: lista de objetivos e histórico SQL retornam 
 
 Desenho mínimo para próxima implementação: paginar objetivos por `objetivo_id` e histórico por `versao`, ambos em ordem crescente com cursor exclusivo e tamanho limitado. Incluir paciente, objetivo quando aplicável, cursor e limite na entrada canônica atestada; revalidar sessão e autorização e auditar cada página. A resposta deve indicar próximo cursor apenas quando houver outra página; interface carrega páginas sem omitir ou repetir registros e trata alterações concorrentes sem alegar snapshot. Testar coleção acima de 1 MiB, fronteiras de página, cursor adulterado ou de outro paciente, acesso revogado entre páginas e conjuntos vazios; definir e testar o comportamento de alterações concorrentes antes de liberar. Esse desenho é preparação, não aprovação de migration ou operação remota.
 
+Atualização: paginação foi preparada no banco, servidor e interface, com cursor vinculado ao contexto. Testes locais percorreram histórico de 55 versões e mais de 1 MiB em três páginas, além de revogação entre páginas e cursores inválidos; PostgreSQL e cifra foram reais, Auth/Vault e transporte simulados. Alterações concorrentes não constituem snapshot e precisam de prova antes da ativação. Nenhuma rota ou migration remota foi ativada.
+
 ## Workflow follow-up
 
 - A integração conectada exige tarefas específicas após decisões materiais, testes positivos e negativos no servidor e banco, prova real com dados fictícios e autorização para qualquer operação remota.

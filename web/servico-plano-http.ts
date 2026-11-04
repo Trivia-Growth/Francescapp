@@ -38,6 +38,13 @@ export function criarServicoPlanoHttp(
       caminho = caminho.replace(':paciente_id', encodeURIComponent(uuidSchema.parse(paciente)));
     if (caminho.includes(':objetivo_id'))
       caminho = caminho.replace(':objetivo_id', encodeURIComponent(uuidSchema.parse(objetivo)));
+    if (rota.metodo === 'GET') {
+      const parametros = new URLSearchParams();
+      for (const [nomeParametro, valor] of Object.entries(corpo))
+        if (valor !== undefined && valor !== null) parametros.set(nomeParametro, String(valor));
+      const query = parametros.toString();
+      if (query) caminho += `?${query}`;
+    }
     const headers = new Headers({ Accept: 'application/json', 'x-sessao': atual.session_id });
     let modo: string | null;
     let fluxo: string | null;
@@ -131,14 +138,19 @@ export function criarServicoPlanoHttp(
   });
   return {
     ciclo,
-    consultarObjetivos: async (paciente) =>
-      (await enviar('consultar', {}, paciente)) as Awaited<
-        ReturnType<ServicoPlanoCuidado['consultarObjetivos']>
-      >,
-    consultarHistorico: async (paciente, objetivo) =>
-      (await enviar('historico', {}, paciente, objetivo)) as Awaited<
-        ReturnType<ServicoPlanoCuidado['consultarHistorico']>
-      >,
+    consultarObjetivos: async (paciente, cursor) =>
+      (await enviar(
+        'consultar',
+        { limite: 20, ...(cursor ? { cursor } : {}) },
+        paciente,
+      )) as Awaited<ReturnType<ServicoPlanoCuidado['consultarObjetivos']>>,
+    consultarHistorico: async (paciente, objetivo, cursor) =>
+      (await enviar(
+        'historico',
+        { limite: 20, ...(cursor ? { cursor } : {}) },
+        paciente,
+        objetivo,
+      )) as Awaited<ReturnType<ServicoPlanoCuidado['consultarHistorico']>>,
     revisarObjetivo: async (paciente, objetivo, versao, revisao) => {
       await enviar(
         'revisar',

@@ -1,3 +1,4 @@
+import { criarCursorReconciliacao } from '../../../packages/cadastro/src/cursor-reconciliacao.ts';
 import { expect, it } from 'vitest';
 import pg from 'pg';
 import { criarAtestadorOperacao } from '../../../supabase/functions/_shared/atestado-operacao.ts';
@@ -40,6 +41,7 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
       estado: 'autorizado' as const,
       identidade: { usuario_id, session_id },
     });
+    const tamanhosBanco: number[] = [];
     const cliente = {
       schema: () => ({
         rpc: async (_nome: string, args: { p_transporte: unknown }) => {
@@ -54,6 +56,7 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
               JSON.stringify(args.p_transporte),
             ]);
             await c.query('commit');
+            tamanhosBanco.push(Buffer.byteLength(JSON.stringify(result.rows[0].dados)));
             return { data: result.rows[0].dados, error: null };
           } catch (error) {
             await c.query('rollback');
@@ -68,6 +71,7 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
       autorizar: autorizado,
       revalidar: autorizado,
       cifra,
+      cursor: criarCursorReconciliacao(new Uint8Array(32).fill(7)),
       idempotencia: criarIdempotenciaNativa(cifra),
       atestador: criarAtestadorOperacao({ keyId: 'teste', chave: new Uint8Array(32).fill(0x42) }),
       metadados: (request_id: string) => {
@@ -140,11 +144,111 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
       const historico = { operacao: 'historico' as const, paciente_id, objetivo_id };
       expect(await operarPlanoCuidadoNativo(request, historico, portas)).toMatchObject({
         ok: true,
-        dados: [
-          { versao: 1, objetivo },
-          { versao: 2, objetivo: revisado, motivo: 'revisao ficticia' },
-        ],
+        dados: {
+          itens: [
+            { versao: 1, objetivo },
+            { versao: 2, objetivo: revisado, motivo: 'revisao ficticia' },
+          ],
+          proximo_cursor: null,
+        },
       });
+      const pagina1 = await operarPlanoCuidadoNativo(request, { ...historico, limite: 1 }, portas);
+      expect(pagina1).toMatchObject({ ok: true, dados: { itens: [{ versao: 1 }] } });
+      if (
+        !pagina1.ok ||
+        !pagina1.dados ||
+        !('itens' in pagina1.dados) ||
+        !pagina1.dados.proximo_cursor
+      )
+        throw new Error('cursor ausente');
+      const cursor = pagina1.dados.proximo_cursor;
+      const pagina2 = await operarPlanoCuidadoNativo(
+        request,
+        { ...historico, limite: 1, cursor },
+        portas,
+      );
+      expect(pagina2).toMatchObject({
+        ok: true,
+        dados: { itens: [{ versao: 2 }], proximo_cursor: null },
+      });
+      await pool.query(
+        'update identidade.sessao set encerrada_em=clock_timestamp() where session_id=$1',
+        [session_id],
+      );
+      expect(
+        await operarPlanoCuidadoNativo(request, { ...historico, limite: 1, cursor }, portas),
+      ).toMatchObject({ ok: false, erro: { codigo: 'sem_permissao' } });
+      await pool.query('update identidade.sessao set encerrada_em=null where session_id=$1', [
+        session_id,
+      ]);
+      // Volume legítimo acima do teto de transporte deve atravessar páginas limitadas.
+      const objetivoGrande = crypto.randomUUID();
+      await pool.query('insert into cadastro.objetivo_cuidado(id,paciente_id) values($1,$2)', [
+        objetivoGrande,
+        paciente_id,
+      ]);
+      for (let versao = 1; versao <= 55; versao++) {
+        const registroId = crypto.randomUUID();
+        const conteudo = {
+          objetivo: { ...objetivo, descricao: 'x'.repeat(20_000) },
+          ...(versao > 1 ? { motivo: 'revisao ficticia' } : {}),
+          ator_usuario_id: usuario_id,
+          data: '2026-11-04T12:00:00.000Z',
+        };
+        const envelope = await cifra.cifrar(JSON.stringify(conteudo), {
+          tabela: 'cadastro.objetivo_cuidado_versao',
+          paciente_id,
+          objetivo_id: objetivoGrande,
+          registro_id: registroId,
+          versao,
+          campo: 'conteudo',
+          formato: 1,
+        });
+        await pool.query(
+          'insert into cadastro.objetivo_cuidado_versao(id,objetivo_id,versao,versao_esperada,conteudo_cifrado,criado_por_usuario_id) values($1,$2,$3,$4,$5,$6)',
+          [
+            registroId,
+            objetivoGrande,
+            versao,
+            versao === 1 ? null : versao - 1,
+            JSON.stringify(envelope),
+            usuario_id,
+          ],
+        );
+      }
+      tamanhosBanco.length = 0;
+      let cursorVolume: string | undefined;
+      let totalBytes = 0;
+      const versoes: number[] = [];
+      do {
+        const paginaVolume = await operarPlanoCuidadoNativo(
+          request,
+          {
+            operacao: 'historico',
+            paciente_id,
+            objetivo_id: objetivoGrande,
+            limite: 20,
+            cursor: cursorVolume,
+          },
+          portas,
+        );
+        if (
+          !paginaVolume.ok ||
+          !paginaVolume.dados ||
+          !('itens' in paginaVolume.dados) ||
+          !paginaVolume.dados.itens
+        )
+          throw new Error('pagina indisponivel');
+        const tamanho = Buffer.byteLength(JSON.stringify(paginaVolume));
+        expect(tamanho).toBeLessThan(1024 * 1024);
+        totalBytes += tamanho;
+        versoes.push(...paginaVolume.dados.itens.map((item) => item.versao));
+        cursorVolume = paginaVolume.dados.proximo_cursor ?? undefined;
+      } while (cursorVolume);
+      expect(totalBytes).toBeGreaterThan(1024 * 1024);
+      expect(versoes).toEqual(Array.from({ length: 55 }, (_, indice) => indice + 1));
+      expect(tamanhosBanco.length).toBe(3);
+      expect(tamanhosBanco.every((tamanho) => tamanho < 1024 * 1024)).toBe(true);
       const cifrados = await pool.query(
         'select conteudo_cifrado from cadastro.objetivo_cuidado_versao where objetivo_id=$1 order by versao',
         [objetivo_id],

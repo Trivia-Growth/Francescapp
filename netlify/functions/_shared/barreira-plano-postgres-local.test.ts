@@ -1,3 +1,4 @@
+import { criarCursorReconciliacao } from '../../../packages/cadastro/src/cursor-reconciliacao.ts';
 import { expect, it } from 'vitest';
 import pg from 'pg';
 import { criarAtestadorOperacao } from '../../../supabase/functions/_shared/atestado-operacao.ts';
@@ -140,6 +141,7 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
         objetivo,
       };
       const portasPlano = {
+        cursor: criarCursorReconciliacao(new Uint8Array(32).fill(7)),
         ...portas,
         cifra,
         idempotencia: criarIdempotenciaNativa(cifra),

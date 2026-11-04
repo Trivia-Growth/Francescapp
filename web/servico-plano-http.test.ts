@@ -28,3 +28,20 @@ it('vincula consulta à sessão e rejeita resposta tardia após troca de identid
   resolver(Response.json({ dados: [], request_id: id }));
   await expect(consulta).rejects.toMatchObject({ status: 401 });
 });
+
+it('envia cursor e limite em cada consulta paginada', async () => {
+  vi.stubGlobal('sessionStorage', {
+    getItem: (chave: string) => (chave === 'modo-acesso' ? 'tecnica' : null),
+  });
+  const fetch = vi
+    .fn()
+    .mockResolvedValue(
+      Response.json({ dados: { itens: [], proximo_cursor: null }, request_id: id }),
+    );
+  vi.stubGlobal('fetch', fetch);
+  const servico = criarServicoPlanoHttp(() => ({ usuario_id: id, session_id: id }));
+  await servico.consultarObjetivos(id, 'cursor-ficticio');
+  const url = new URL(fetch.mock.calls[0]?.[0] as string, 'https://exemplo.test');
+  expect(url.searchParams.get('limite')).toBe('20');
+  expect(url.searchParams.get('cursor')).toBe('cursor-ficticio');
+});

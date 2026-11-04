@@ -12,9 +12,14 @@ export type VersaoHistoricoObjetivo = ObjetivoAtual & {
   data: string;
   motivo?: string;
 };
+export type Pagina<T> = { itens: T[]; proximo_cursor: string | null };
 export type ServicoPlanoCuidado = {
-  consultarHistorico(pacienteId: string, objetivoId: string): Promise<VersaoHistoricoObjetivo[]>;
-  consultarObjetivos(pacienteId: string): Promise<ObjetivoAtual[]>;
+  consultarHistorico(
+    pacienteId: string,
+    objetivoId: string,
+    cursor?: string,
+  ): Promise<Pagina<VersaoHistoricoObjetivo>>;
+  consultarObjetivos(pacienteId: string, cursor?: string): Promise<Pagina<ObjetivoAtual>>;
   ciclo: ReturnType<typeof criarCicloPlano>;
   revisarObjetivo(
     pacienteId: string,
@@ -37,6 +42,7 @@ export function montarPlanoCuidado(
   let bloqueada = false;
   let criacaoIncerta = true;
   let recuperando = false;
+  let cursores: (string | undefined)[] = [];
   const elemento = <K extends keyof HTMLElementTagNameMap>(tipo: K, texto?: string) => {
     const el = document.createElement(tipo);
     if (texto !== undefined) el.textContent = texto;
@@ -49,28 +55,33 @@ export function montarPlanoCuidado(
     acessoPerdido(erro);
     return true;
   };
-  const consultar = () => {
+  const consultar = (cursor?: string) => {
+    if (!cursor) cursores = [];
     const status = elemento('p', 'Carregando plano de cuidado…');
     status.setAttribute('role', 'status');
     raiz.replaceChildren(status);
     void servico
-      .consultarObjetivos(pacienteId)
-      .then((objetivos) => {
+      .consultarObjetivos(pacienteId, cursor)
+      .then((pagina) => {
         if (!ativa) return;
-        desenhar(objetivos);
+        desenhar(pagina, cursor);
       })
       .catch((erro: unknown) => {
         if (!ativa || perdeuAcesso(erro)) return;
         status.textContent = mensagemFalha(erro);
         const tentar = elemento('button', 'Tentar novamente');
         tentar.type = 'button';
-        tentar.addEventListener('click', consultar);
+        tentar.addEventListener('click', () => consultar(cursor));
         raiz.append(tentar);
       });
   };
-  const desenhar = (objetivos: ObjetivoAtual[]) => {
+  const desenhar = (pagina: Pagina<ObjetivoAtual>, cursorAtual?: string) => {
+    const objetivos = pagina.itens;
     const secao = elemento('section');
     secao.append(elemento('h2', 'Plano de cuidado'));
+    secao.append(
+      elemento('p', 'A lista pode mudar entre páginas. Atualize para consultar novamente.'),
+    );
     const formulario = elemento('div');
     if (criacaoIncerta) {
       const aviso = elemento(
@@ -145,7 +156,7 @@ export function montarPlanoCuidado(
       };
       secao.append(aviso, recuperar);
     }
-    if (!objetivos.length) secao.append(elemento('p', 'Nenhum objetivo registrado.'));
+    if (!objetivos.length) secao.append(elemento('p', 'Nenhum objetivo nesta página.'));
     const lista = elemento('div');
     const abrir = (atual?: ObjetivoAtual) => {
       if (gravando || bloqueada || recuperando || formulario.querySelector('form')) return;
@@ -207,15 +218,16 @@ export function montarPlanoCuidado(
       const consultarAtual = elemento('button', 'Consultar versão atual');
       consultarAtual.type = 'button';
       consultarAtual.hidden = true;
-      consultarAtual.addEventListener('click', () => {
+      const carregarAtual = (cursor?: string) => {
         consultarAtual.disabled = true;
         recuperacao.replaceChildren(elemento('p', 'Consultando plano de cuidado…'));
         void servico
-          .consultarObjetivos(pacienteId)
-          .then((atuais) => {
+          .consultarObjetivos(pacienteId, cursor)
+          .then((paginaAtual) => {
             if (!ativa) return;
+            const atuais = paginaAtual.itens;
             recuperacao.replaceChildren(elemento('h4', 'Plano atual'));
-            if (!atuais.length) recuperacao.append(elemento('p', 'Nenhum objetivo registrado.'));
+            if (!atuais.length) recuperacao.append(elemento('p', 'Nenhum objetivo nesta página.'));
             for (const registro of atuais) {
               const item = elemento('article');
               item.append(elemento('h5', registro.objetivo.descricao));
@@ -230,12 +242,19 @@ export function montarPlanoCuidado(
                 item.append(elemento('p', `${rotulo}: ${valor}`));
               recuperacao.append(item);
             }
+            if (paginaAtual.proximo_cursor) {
+              const mais = elemento('button', 'Próxima página do plano atual');
+              mais.type = 'button';
+              mais.onclick = () => carregarAtual(paginaAtual.proximo_cursor ?? undefined);
+              recuperacao.append(mais);
+            }
             const descartar = elemento('button', 'Descartar rascunho e abrir plano atual');
             descartar.type = 'button';
             descartar.addEventListener('click', () => {
               bloqueada = false;
               alteracaoPendente(false);
-              desenhar(atuais);
+              cursores = [];
+              consultar();
             });
             recuperacao.append(descartar);
             consultarAtual.disabled = false;
@@ -245,7 +264,8 @@ export function montarPlanoCuidado(
             recuperacao.replaceChildren(elemento('p', mensagemFalha(erro)));
             consultarAtual.disabled = false;
           });
-      });
+      };
+      consultarAtual.addEventListener('click', () => carregarAtual());
       cancelar.addEventListener('click', () => {
         formulario.replaceChildren();
         if (botaoRecuperacao) botaoRecuperacao.disabled = false;
@@ -341,16 +361,21 @@ export function montarPlanoCuidado(
       const historico = elemento('div');
       const consultarHistorico = elemento('button', 'Consultar histórico');
       consultarHistorico.type = 'button';
-      consultarHistorico.addEventListener('click', () => {
+      const carregarHistorico = (cursor?: string) => {
         consultarHistorico.disabled = true;
         const status = elemento('p', 'Carregando histórico…');
         status.setAttribute('role', 'status');
-        historico.replaceChildren(status);
+        historico.querySelector('[data-status-historico]')?.remove();
+        status.dataset.statusHistorico = '';
+        if (!cursor) historico.replaceChildren(status);
+        else historico.append(status);
         void servico
-          .consultarHistorico(pacienteId, atual.objetivo_id)
-          .then((versoes) => {
+          .consultarHistorico(pacienteId, atual.objetivo_id, cursor)
+          .then((paginaHistorico) => {
+            const versoes = paginaHistorico.itens;
             if (!ativa || !raiz.contains(item)) return;
-            historico.replaceChildren(elemento('h4', 'Histórico do objetivo'));
+            status.remove();
+            if (!cursor) historico.replaceChildren(elemento('h4', 'Histórico do objetivo'));
             if (!versoes.length) historico.append(elemento('p', 'Nenhuma versão encontrada.'));
             for (const versao of versoes) {
               const registro = elemento('section');
@@ -370,14 +395,24 @@ export function montarPlanoCuidado(
                 registro.append(elemento('p', `${rotulo}: ${valor}`));
               historico.append(registro);
             }
-            consultarHistorico.disabled = false;
+            if (paginaHistorico.proximo_cursor) {
+              consultarHistorico.textContent = 'Carregar mais versões';
+              consultarHistorico.onclick = () =>
+                carregarHistorico(paginaHistorico.proximo_cursor ?? undefined);
+              consultarHistorico.disabled = false;
+            } else {
+              consultarHistorico.textContent = 'Consultar histórico';
+              consultarHistorico.onclick = () => carregarHistorico();
+              consultarHistorico.disabled = false;
+            }
           })
           .catch((erro: unknown) => {
             if (!ativa || perdeuAcesso(erro) || !raiz.contains(item)) return;
             status.textContent = mensagemFalha(erro);
             consultarHistorico.disabled = false;
           });
-      });
+      };
+      consultarHistorico.onclick = () => carregarHistorico();
       item.append(revisar, consultarHistorico, historico);
       lista.append(item);
     }
@@ -385,7 +420,27 @@ export function montarPlanoCuidado(
     adicionar.type = 'button';
     adicionar.disabled = criacaoIncerta;
     adicionar.addEventListener('click', () => abrir());
-    secao.append(lista, adicionar, formulario);
+    secao.append(lista);
+    if (cursores.length) {
+      const anterior = elemento('button', 'Página anterior de objetivos');
+      anterior.type = 'button';
+      anterior.addEventListener('click', () => {
+        if (formulario.querySelector('form') || recuperando || gravando) return;
+        consultar(cursores.pop());
+      });
+      secao.append(anterior);
+    }
+    if (pagina.proximo_cursor) {
+      const proxima = elemento('button', 'Próxima página de objetivos');
+      proxima.type = 'button';
+      proxima.addEventListener('click', () => {
+        if (formulario.querySelector('form') || recuperando || gravando) return;
+        cursores.push(cursorAtual);
+        consultar(pagina.proximo_cursor ?? undefined);
+      });
+      secao.append(proxima);
+    }
+    secao.append(adicionar, formulario);
     raiz.replaceChildren(secao);
   };
   consultar();
