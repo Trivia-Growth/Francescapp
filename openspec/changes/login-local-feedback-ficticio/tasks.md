@@ -28,3 +28,7 @@ Atualização de 04/11/2026: prévia local permite editar nomes fictícios, com 
 Atualização de 04/11/2026: agenda fictícia por paciente permite cadastrar, editar e cancelar compromissos locais, sinalizando sobreposição; resumo local reúne dados já registrados por paciente. Teste do servidor cobre validação, conflito e persistência após reinício; 17 testes existentes da interface passaram. Não há calendário consolidado, recorrência, integração Google, confirmação externa, identidade de autoria ou autorização real. FR-023/025/049/050 continuam pendentes. Revisão independente, teste visual e gate de ativação permanecem pendentes.
 
 Revisão do diff identificou troca incorreta de paciente em aberturas simultâneas; correção por geração e teste de respostas fora de ordem passaram. O arquivo da interface passou com 19 testes; o resumo não atribui diagnóstico nem trata informação ausente como avaliação clínica. Teste visual e gate de ativação permanecem pendentes.
+
+Atualização de 04/11/2026: prévia de anamnese permite múltiplos campos em seções nomeadas pelo usuário e preserva leitura do formato anterior. Testes de interface cobrem legado e reabertura; persistência local não comprova integração ou autorização clínica. Gate de ativação continua pendente.
+
+Atualização de 04/11/2026: metadados fictícios de documentos integrados à prévia local por paciente. Testes cobrem falha e preservação do rascunho, reabertura na interface e persistência após reinício. Não há anexos, Drive nem integração de produção; gate de ativação permanece pendente.

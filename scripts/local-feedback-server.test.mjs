@@ -125,7 +125,24 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     const edits = await Promise.all([request(editPath, edit), request(editPath, edit)]);
     assert.deepEqual(edits.map((response) => response.status).sort(), [200, 409]);
     const previewPath = `/patients/${patient.id}/preview`;
-    const anamnese = { estado: 'informado', valor: 'Fictício', fonte: 'Teste', data: '2026-11-04' };
+    const anamnese = [
+      {
+        secao: 'Seção um',
+        campo: 'Campo um',
+        estado: 'informado',
+        valor: 'Fictício',
+        fonte: 'Teste',
+        data: '2026-11-04',
+      },
+      {
+        secao: 'Seção dois',
+        campo: 'Campo dois',
+        estado: 'desconhecido',
+        valor: '',
+        fonte: 'Teste',
+        data: '2026-11-04',
+      },
+    ];
     const save = {
       method: 'PUT',
       headers: auth,
@@ -324,6 +341,24 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
       403,
     );
     assert.equal(JSON.parse(await readFile(join(directory, 'patients.json'), 'utf8')).length, 1);
+    const documentos = [
+      { nome: 'Exame fictício', categoria: 'Exame', metadados: 'Referência fictícia' },
+    ];
+    const currentPreview = await (await request(previewPath, { headers: auth })).json();
+    assert.equal(
+      (
+        await request(previewPath, {
+          method: 'PUT',
+          headers: auth,
+          body: JSON.stringify({
+            type: 'documentos',
+            value: documentos,
+            revision: currentPreview.revision,
+          }),
+        })
+      ).status,
+      200,
+    );
     const logout = await request('/logout', { method: 'POST', headers: auth, body: '{}' });
     assert.equal(logout.status, 204);
     assert.match(logout.headers.get('set-cookie'), /Path=\/api\/local-feedback(?:;|$)/);
@@ -360,6 +395,10 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     assert.deepEqual(
       (await (await request(previewPath, { headers: { cookie: nextCookie } })).json()).agenda,
       [cancelado],
+    );
+    assert.deepEqual(
+      (await (await request(previewPath, { headers: { cookie: nextCookie } })).json()).documentos,
+      documentos,
     );
     await close();
     const invalidDirectory = join(directory, 'arquivo');

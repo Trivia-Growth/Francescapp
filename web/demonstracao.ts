@@ -1,10 +1,10 @@
 /// <reference types="vite/client" />
 
 import { objetivoSchema, type Objetivo } from '../packages/contracts/src/plano-cuidado';
-import { localizarPendencias, validarSecoesAnamnese } from '../packages/cadastro/src/anamnese';
 import { validarTarefaPlano } from '../packages/cadastro/src/tarefa-plano';
 import { montarRelatoTextual } from './relato-textual';
 import { montarResumoCasoLocal } from './resumo-caso-local';
+import { montarDocumentosLocais, type DocumentoLocal } from './documentos-locais';
 import {
   montarPainelPendenciasLocal,
   type DadosPainelPendenciasLocal,
@@ -61,7 +61,15 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const formulario = elemento<HTMLFormElement>('create-form');
   const nome = elemento<HTMLInputElement>('patient-name');
   const preferencia = elemento<HTMLInputElement>('preferred-name');
-  type Anamnese = { estado: string; valor: string; fonte: string; data: string };
+  type RespostaLocal = {
+    secao: string;
+    campo: string;
+    estado: string;
+    valor: string;
+    fonte: string;
+    data: string;
+  };
+  type Anamnese = RespostaLocal[] | Omit<RespostaLocal, 'secao' | 'campo'>;
   const anamneses = new Map<string, Anamnese>();
   type Tarefa = {
     descricao: string;
@@ -77,6 +85,9 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const chaveOperacao = (id: string) => `relato-pendente:${id}`;
   const formulariosAlterados = new Set<HTMLFormElement>();
   const telaObjetivos = elemento('goals-view');
+  const telaDocumentos = elemento('documents-view');
+  const documentos = new Map<string, DocumentoLocal[]>();
+  let salvandoDocumento = false;
   const formularioObjetivo = elemento<HTMLFormElement>('goal-form');
   type ObjetivoLocal = Objetivo & { historico?: { objetivo: Objetivo; motivo: string }[] };
   const objetivos = new Map<string, ObjetivoLocal[]>();
@@ -127,15 +138,12 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       telaAgenda,
       telaAgendaGeral,
       telaResumo,
+      telaDocumentos,
     ])
       item.hidden = item !== tela;
   };
   let anamneseAlterada = false;
   const anamnese = elemento('anamnese-view');
-  const estado = elemento<HTMLSelectElement>('anamnese-state');
-  const valor = elemento<HTMLTextAreaElement>('anamnese-value');
-  const fonte = elemento<HTMLInputElement>('anamnese-source');
-  const data = elemento<HTMLInputElement>('anamnese-date');
   type Paciente = { id: string; name: string; preferredName?: string; revision?: number };
   let editando: Paciente | undefined;
   let salvandoCadastro = false;
@@ -158,6 +166,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         telaAgenda,
         telaAgendaGeral,
         telaResumo,
+        telaDocumentos,
       ].find((tela) => !tela.hidden);
       pacientes.hidden = true;
       anamnese.hidden = true;
@@ -167,6 +176,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       telaAgenda.hidden = true;
       telaAgendaGeral.hidden = true;
       telaResumo.hidden = true;
+      telaDocumentos.hidden = true;
       acoes.hidden = true;
       login.hidden = false;
       csrfToken = '';
@@ -220,6 +230,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       objetivos?: ObjetivoLocal[];
       relatos?: RelatoTextual[];
       agenda?: Compromisso[];
+      documentos?: DocumentoLocal[];
     };
     if (geracao !== undefined && geracao !== geracaoNavegacao) return;
     revisoes.set(id, previa.revision);
@@ -229,11 +240,18 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     objetivos.set(id, previa.objetivos ?? []);
     relatos.set(id, previa.relatos ?? []);
     agenda.set(id, previa.agenda ?? []);
+    documentos.set(id, previa.documentos ?? []);
   };
   const salvarPrevia = async (
     id: string,
-    type: 'anamnese' | 'tarefas' | 'objetivos' | 'relatos' | 'agenda',
-    value: Anamnese | Tarefa[] | ObjetivoLocal[] | RelatoTextual[] | Compromisso[],
+    type: 'anamnese' | 'tarefas' | 'objetivos' | 'relatos' | 'agenda' | 'documentos',
+    value:
+      | Anamnese
+      | Tarefa[]
+      | ObjetivoLocal[]
+      | RelatoTextual[]
+      | Compromisso[]
+      | DocumentoLocal[],
   ) => {
     const resposta = await requisitar(`/patients/${id}/preview`, {
       method: 'PUT',
@@ -268,15 +286,65 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         selecionado = registro.id;
         anamneseAlterada = false;
         const salvo = anamneses.get(registro.id);
-        estado.value = salvo?.estado ?? 'pendente';
-        valor.value = salvo?.valor ?? '';
-        fonte.value = salvo?.fonte ?? '';
-        data.value = salvo?.data ?? '';
+        desenharCampos(
+          salvo
+            ? Array.isArray(salvo)
+              ? salvo
+              : [{ secao: 'Exemplo', campo: 'Exemplo', ...salvo }]
+            : [
+                {
+                  secao: 'Exemplo',
+                  campo: 'Exemplo',
+                  estado: 'pendente',
+                  valor: '',
+                  fonte: '',
+                  data: '',
+                },
+              ],
+        );
         elemento('anamnese-patient').textContent = registro.name;
         elemento('anamnese-feedback').textContent = '';
         atualizarProgresso();
         exibirTela(anamnese);
         elemento('anamnese-title').focus();
+      });
+      const abrirDocumentos = document.createElement('button');
+      abrirDocumentos.type = 'button';
+      abrirDocumentos.className = 'button-secondary';
+      abrirDocumentos.textContent = 'Abrir documentos';
+      abrirDocumentos.setAttribute('aria-label', `Abrir documentos de ${registro.name}`);
+      abrirDocumentos.addEventListener('click', async () => {
+        const geracao = ++geracaoNavegacao;
+        try {
+          await carregarPrevia(registro.id, geracao);
+        } catch {
+          if (geracao === geracaoNavegacao)
+            elemento('workspace-feedback').textContent =
+              'Não foi possível carregar a prévia. Tente novamente.';
+          return;
+        }
+        if (geracao !== geracaoNavegacao) return;
+        selecionado = registro.id;
+        const itens = documentos.get(registro.id) ?? [];
+        montarDocumentosLocais(elemento('documents-content'), {
+          documentos: itens,
+          aoRegistrar: async (documento) => {
+            salvandoDocumento = true;
+            try {
+              await salvarPrevia(registro.id, 'documentos', [...itens, documento]);
+              documentos.set(registro.id, itens);
+              const form = elemento('documents-content').querySelector('form');
+              if (form) formulariosAlterados.delete(form);
+            } finally {
+              salvandoDocumento = false;
+            }
+          },
+        });
+        const form = elemento('documents-content').querySelector('form');
+        form?.addEventListener('input', () => formulariosAlterados.add(form));
+        elemento('documents-patient').textContent = registro.name;
+        exibirTela(telaDocumentos);
+        elemento('documents-title').focus();
       });
       const abrirResumo = document.createElement('button');
       abrirResumo.type = 'button';
@@ -484,6 +552,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
           document.createTextNode(' '),
           abrirResumo,
           document.createTextNode(' '),
+          abrirDocumentos,
+          document.createTextNode(' '),
           abrirAgenda,
           document.createTextNode(' '),
           abrirTarefas,
@@ -617,6 +687,19 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     geracaoNavegacao++;
     exibirTela(pacientes);
     elemento('open-general-agenda').focus();
+  });
+  elemento('documents-back').addEventListener('click', () => {
+    if (salvandoDocumento) return;
+    const form = elemento('documents-content').querySelector('form');
+    if (
+      form &&
+      formulariosAlterados.has(form) &&
+      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
+    )
+      return;
+    if (form) formulariosAlterados.delete(form);
+    exibirTela(pacientes);
+    elemento('patients-title').focus();
   });
   elemento('summary-back').addEventListener('click', () => {
     telaResumo.hidden = true;
@@ -1124,28 +1207,89 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     atualizarTarefas();
     elemento('task-feedback').textContent = 'Tarefa fictícia salva nesta demonstração local.';
   });
-  const secoesDaTela = () =>
-    validarSecoesAnamnese([
-      {
-        id: 'exemplo',
-        camposEsperados: ['exemplo'],
-        respostas: [
-          {
-            campo: 'exemplo',
-            estado: estado.value,
-            valor: valor.value,
-            fonte: fonte.value,
-            data: data.value,
-          },
-        ],
-      },
-    ]);
-  const atualizarProgresso = () => {
-    const incompleta = localizarPendencias(secoesDaTela()).length > 0;
-    elemento('anamnese-progress').textContent = incompleta
-      ? 'Seção incompleta: há informação pendente.'
-      : 'Seção sem pendências nesta prévia.';
+  const camposRaiz = elemento('anamnese-fields');
+  const primeiroCampo = camposRaiz.firstElementChild;
+  if (!primeiroCampo) throw new Error('Campo de anamnese ausente');
+  const modeloCampo = primeiroCampo.cloneNode(true) as HTMLFieldSetElement;
+  const desenharCampos = (respostas: RespostaLocal[]) => {
+    camposRaiz.replaceChildren();
+    for (const [indice, resposta] of respostas.entries()) {
+      const bloco = modeloCampo.cloneNode(true) as HTMLFieldSetElement;
+      for (const controle of bloco.querySelectorAll<
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      >('input, textarea, select')) {
+        const nome =
+          controle.name ||
+          (
+            {
+              'anamnese-state': 'estado',
+              'anamnese-value': 'valor',
+              'anamnese-source': 'fonte',
+              'anamnese-date': 'data',
+            } as Record<string, string>
+          )[controle.id];
+        if (!nome) throw new Error('Campo de anamnese inválido');
+        controle.name = nome;
+        controle.value = resposta[nome as keyof RespostaLocal];
+        if (indice > 0 && controle.id) {
+          const antigo = controle.id;
+          controle.id = `${antigo}-${indice}`;
+          bloco.querySelector(`label[for="${antigo}"]`)?.setAttribute('for', controle.id);
+        }
+      }
+      const remover = document.createElement('button');
+      remover.type = 'button';
+      remover.textContent = 'Remover campo';
+      remover.setAttribute('aria-label', `Remover campo ${resposta.campo || indice + 1}`);
+      remover.addEventListener('click', () => {
+        bloco.remove();
+        anamneseAlterada = true;
+        atualizarProgresso();
+        elemento('anamnese-feedback').textContent =
+          'Campo removido do rascunho. Guarde para confirmar.';
+        elemento('anamnese-add').focus();
+      });
+      bloco.append(remover);
+      camposRaiz.append(bloco);
+    }
   };
+  const lerCampos = (): RespostaLocal[] =>
+    Array.from(camposRaiz.querySelectorAll<HTMLFieldSetElement>('fieldset')).map((bloco) => {
+      const obter = (nome: string) =>
+        bloco.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+          `[name="${nome}"]`,
+        )?.value ?? '';
+      return {
+        secao: obter('secao'),
+        campo: obter('campo'),
+        estado: obter('estado'),
+        valor: obter('valor'),
+        fonte: obter('fonte'),
+        data: obter('data'),
+      };
+    });
+  const atualizarProgresso = () => {
+    const respostas = lerCampos();
+    const incompleta = respostas.some((item) => item.estado === 'pendente');
+    elemento('anamnese-progress').textContent =
+      respostas.length === 0
+        ? 'Nenhum campo registrado nesta prévia.'
+        : incompleta
+          ? 'Anamnese incompleta: há informação pendente.'
+          : 'Anamnese sem pendências nesta prévia.';
+  };
+  elemento('anamnese-add').addEventListener('click', () => {
+    const respostas = lerCampos();
+    if (respostas.length >= 100) {
+      elemento('anamnese-feedback').textContent = 'Limite de 100 campos nesta prévia.';
+      return;
+    }
+    respostas.push({ secao: '', campo: '', estado: 'pendente', valor: '', fonte: '', data: '' });
+    desenharCampos(respostas);
+    anamneseAlterada = true;
+    elemento('anamnese-feedback').textContent = 'Há alterações não guardadas nesta prévia.';
+    camposRaiz.lastElementChild?.querySelector<HTMLInputElement>('input')?.focus();
+  });
   const podeDescartar = () =>
     (!anamneseAlterada && formulariosAlterados.size === 0) ||
     window.confirm('Há alterações não guardadas. Deseja descartá-las?');
@@ -1164,30 +1308,22 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   formularioAnamnese.addEventListener('submit', async (evento) => {
     evento.preventDefault();
     if (!selecionado) return;
-    if (estado.value !== 'pendente' && (!fonte.value.trim() || !data.value)) {
-      elemento('anamnese-feedback').textContent = 'Informe fonte e data para este estado.';
-      fonte.focus();
-      return;
-    }
-    if (estado.value === 'informado' && !valor.value.trim()) {
-      elemento('anamnese-feedback').textContent = 'Informe a informação fictícia.';
-      valor.focus();
-      return;
-    }
-    try {
-      secoesDaTela();
-    } catch {
+    const dados = lerCampos();
+    if (
+      dados.some(
+        (item) =>
+          !item.secao.trim() ||
+          !item.campo.trim() ||
+          !['pendente', 'informado', 'desconhecido', 'nao_se_aplica'].includes(item.estado) ||
+          (item.estado !== 'pendente' && (!item.fonte.trim() || !item.data)) ||
+          (item.estado === 'informado' && !item.valor.trim()),
+      )
+    ) {
       elemento('anamnese-feedback').textContent =
-        'Confira o estado, a informação, a fonte e a data.';
+        'Confira seção, campo, estado, informação, fonte e data.';
       return;
     }
     const pacienteId = selecionado;
-    const dados = {
-      estado: estado.value,
-      valor: valor.value,
-      fonte: fonte.value,
-      data: data.value,
-    };
     bloquearFormulario(formularioAnamnese, true);
     try {
       await salvarPrevia(pacienteId, 'anamnese', dados);

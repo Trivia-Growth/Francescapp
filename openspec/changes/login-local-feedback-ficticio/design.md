@@ -32,3 +32,7 @@ Anamnese e tarefas da demonstração são armazenadas por paciente no computador
 
 
 Relatos fictícios usam o arquivo de prévia por paciente e a revisão concorrente já existente. A interface preserva o rascunho em falhas e oferece conferência da lista. A preparação isolada continua descartável; o armazenamento local não é cifrado nem adequado a dados reais.
+
+A prévia aceita múltiplos campos nomeados pelo usuário, associados a seções livres, com estado, valor, fonte e data. A leitura do formato anterior apresenta sua resposta como campo Exemplo; ao salvar, preserva seu conteúdo no formato de lista. Os nomes são organização fictícia, sem regras clínicas inferidas.
+
+Metadados de documentos fictícios persistem na mesma prévia por paciente e usam revisão concorrente. Não há upload, anexo ou integração com Drive. Falha preserva rascunho; armazenamento local não é cifrado nem adequado a dados reais.

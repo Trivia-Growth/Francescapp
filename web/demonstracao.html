@@ -93,14 +93,15 @@
         <div class="page-heading"><div><h1 id="anamnese-title" tabindex="-1">Anamnese de coordenação</h1><p id="anamnese-patient"></p></div></div>
         <p class="feedback">Prévia local: use somente dados fictícios. Informações são salvas neste computador; esta tela não está conectada.</p>
         <section aria-labelledby="section-title">
-          <h2 id="section-title">Seção de exemplo</h2>
-          <p>Conteúdo ilustrativo para experimentar o preenchimento gradual; as seções clínicas ainda serão definidas.</p>
+          <h2 id="section-title">Seções e campos</h2>
+          <p>Defina seções e campos para esta prévia fictícia.</p>
           <p id="anamnese-progress" role="status" aria-live="polite"></p>
           <form id="anamnese-form" autocomplete="off" aria-describedby="anamnese-feedback">
-            <div class="field"><label for="anamnese-state">Estado</label><select id="anamnese-state"><option value="pendente">Pendente</option><option value="informado">Informado</option><option value="desconhecido">Desconhecido</option><option value="nao_se_aplica">Não se aplica</option></select></div>
+            <div id="anamnese-fields"><fieldset class="anamnese-field"><legend>Campo</legend><div class="field"><label>Seção <input name="secao" maxlength="200" value="Exemplo" required></label></div><div class="field"><label>Campo <input name="campo" maxlength="200" value="Exemplo" required></label></div><div class="field"><label for="anamnese-state">Estado</label><select id="anamnese-state"><option value="pendente">Pendente</option><option value="informado">Informado</option><option value="desconhecido">Desconhecido</option><option value="nao_se_aplica">Não se aplica</option></select></div>
             <div class="field"><label for="anamnese-value">Informação fictícia</label><textarea id="anamnese-value" rows="3"></textarea></div>
             <div class="field"><label for="anamnese-source">Fonte</label><input id="anamnese-source" type="text" maxlength="200"></div>
             <div class="field"><label for="anamnese-date">Data</label><input id="anamnese-date" type="date"></div>
+            </fieldset></div><button id="anamnese-add" type="button">Adicionar campo</button>
             <button class="button-primary" type="submit">Guardar nesta prévia</button>
           </form>
           <p id="anamnese-feedback" class="feedback" role="status" aria-live="polite"></p>
@@ -139,6 +140,13 @@
           <button class="button-primary" type="submit">Guardar nesta prévia</button>
           <button id="agenda-cancel-edit" class="button-secondary" type="button" hidden>Cancelar edição</button>
         </form><p id="agenda-feedback" class="feedback" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="documents-view" class="patients-layout" aria-labelledby="documents-title" hidden>
+        <button id="documents-back" class="button-secondary" type="button">Voltar à lista</button>
+        <h1 id="documents-title" tabindex="-1">Documentos fictícios</h1><p id="documents-patient"></p>
+        <p class="feedback">Somente metadados fictícios são salvos neste computador. Esta prévia não envia nem armazena anexos e não se conecta ao Google Drive.</p>
+        <div id="documents-content"></div>
       </section>
 
       <section id="tasks-view" class="patients-layout" aria-labelledby="tasks-title" hidden>

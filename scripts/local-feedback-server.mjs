@@ -384,8 +384,37 @@ export function createLocalFeedbackServer({ password, directory }) {
           keys.every((key) => typeof item[key] === 'string' && item[key].length <= 2000);
         const validAnamnese =
           data?.type === 'anamnese' &&
-          strings(data.value, ['estado', 'valor', 'fonte', 'data']) &&
-          ['pendente', 'informado', 'desconhecido', 'nao_se_aplica'].includes(data.value.estado);
+          ((strings(data.value, ['estado', 'valor', 'fonte', 'data']) &&
+            ['pendente', 'informado', 'desconhecido', 'nao_se_aplica'].includes(
+              data.value.estado,
+            )) ||
+            (Array.isArray(data.value) &&
+              data.value.length <= 100 &&
+              data.value.every(
+                (item) =>
+                  strings(item, ['secao', 'campo', 'estado', 'valor', 'fonte', 'data']) &&
+                  item.secao.trim() &&
+                  item.campo.trim() &&
+                  ['pendente', 'informado', 'desconhecido', 'nao_se_aplica'].includes(
+                    item.estado,
+                  ) &&
+                  (item.estado === 'pendente' || (item.fonte.trim() && item.data)) &&
+                  (item.estado !== 'informado' || item.valor.trim()),
+              )));
+        const validDocuments =
+          data?.type === 'documentos' &&
+          Array.isArray(data.value) &&
+          data.value.length <= 100 &&
+          data.value.every(
+            (item) =>
+              strings(item, ['nome', 'categoria']) &&
+              item.nome.trim() &&
+              item.categoria.trim() &&
+              (item.metadados === undefined ||
+                (typeof item.metadados === 'string' && item.metadados.length <= 200)) &&
+              item.nome.length <= 200 &&
+              item.categoria.length <= 200,
+          );
         const validTasks =
           data?.type === 'tarefas' &&
           Array.isArray(data.value) &&
@@ -495,7 +524,12 @@ export function createLocalFeedbackServer({ password, directory }) {
               ))) ||
           !Number.isSafeInteger(data?.revision) ||
           data.revision < 0 ||
-          (!validAnamnese && !validTasks && !validGoals && !validRelatos && !validAgenda)
+          (!validAnamnese &&
+            !validTasks &&
+            !validGoals &&
+            !validRelatos &&
+            !validAgenda &&
+            !validDocuments)
         )
           return respond(res, 400);
         const preview = await updatePreview(

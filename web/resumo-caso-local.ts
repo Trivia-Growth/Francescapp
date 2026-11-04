@@ -1,7 +1,15 @@
 import type { Objetivo } from '../packages/contracts/src/plano-cuidado';
 import type { RelatoTextual } from '../packages/contracts/src/relato-textual';
 
-type AnamneseLocal = { estado: string; valor: string; fonte: string; data: string };
+type RespostaLocal = {
+  estado: string;
+  valor: string;
+  fonte: string;
+  data: string;
+  secao?: string;
+  campo?: string;
+};
+type AnamneseLocal = RespostaLocal | RespostaLocal[];
 type TarefaLocal = {
   descricao: string;
   responsavel: string;
@@ -36,12 +44,14 @@ export function montarResumoCasoLocal(raiz: HTMLElement, dados: DadosResumoCasoL
     raiz.append(bloco);
   };
   const anamnese = dados.anamnese;
+  const respostas = anamnese ? (Array.isArray(anamnese) ? anamnese : [anamnese]) : [];
   secao(
     'Anamnese',
-    anamnese && anamnese.estado !== 'pendente'
-      ? [
-          `Estado: ${anamnese.estado}${anamnese.estado === 'informado' && anamnese.valor ? ` · ${anamnese.valor}` : ''} · Fonte: ${anamnese.fonte} · Data: ${anamnese.data}`,
-        ]
+    respostas.length
+      ? respostas.map(
+          (item) =>
+            `${item.secao ? `${item.secao} · ${item.campo} · ` : ''}Estado: ${item.estado}${item.estado === 'informado' && item.valor ? ` · ${item.valor}` : ''}${item.estado !== 'pendente' ? ` · Fonte: ${item.fonte} · Data: ${item.data}` : ''}`,
+        )
       : ['Informação insuficiente: anamnese pendente nesta prévia.'],
   );
   const pendentes = dados.tarefas.filter(

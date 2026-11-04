@@ -9,7 +9,7 @@ afterEach(() => {
   localStorage.clear();
 });
 
-function servidorFicticio(autenticado = true) {
+function servidorFicticio(autenticado = true, legado = false) {
   vi.stubGlobal('navigator', {
     locks: { request: async (_nome: string, executar: () => Promise<void>) => executar() },
   });
@@ -26,10 +26,22 @@ function servidorFicticio(autenticado = true) {
       objetivos?: unknown[];
       relatos?: unknown[];
       agenda?: unknown[];
+      documentos?: unknown[];
       operacoesRelato?: string[];
       operacoesRelatoCanceladas?: string[];
     }
   >();
+  if (legado)
+    previas.set('/api/local-feedback/patients/1/preview', {
+      revision: 1,
+      anamnese: {
+        estado: 'informado',
+        valor: 'Legado fictício',
+        fonte: 'Teste',
+        data: '2026-01-01',
+      },
+      tarefas: [],
+    });
   const fetch = vi.fn(async (url: string, options?: RequestInit) => {
     let data: unknown;
     if (url.endsWith('/session'))
@@ -81,7 +93,7 @@ function servidorFicticio(autenticado = true) {
         }
       } else if (options?.method === 'PUT') {
         const dados = JSON.parse(String(options.body)) as {
-          type: 'anamnese' | 'tarefas' | 'objetivos' | 'relatos' | 'agenda';
+          type: 'anamnese' | 'tarefas' | 'objetivos' | 'relatos' | 'agenda' | 'documentos';
           value: never;
           operationId?: string;
         };
@@ -210,6 +222,115 @@ it('identifica pendência e guarda anamnese fictícia por paciente na página', 
   expect((document.getElementById('anamnese-source') as HTMLInputElement).value).toBe(
     'Fonte fictícia',
   );
+});
+
+it('preserva anamnese legada e reabre campos em duas seções', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  servidorFicticio(true, true);
+  await import('./demonstracao.js');
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
+  (document.querySelector('#patients-body button') as HTMLButtonElement).click();
+  await vi.waitFor(() => expect(document.getElementById('anamnese-view')?.hidden).toBe(false));
+  expect((document.getElementById('anamnese-value') as HTMLTextAreaElement).value).toBe(
+    'Legado fictício',
+  );
+  document.getElementById('anamnese-add')?.click();
+  const segundo = document.querySelectorAll<HTMLFieldSetElement>('#anamnese-fields fieldset')[1];
+  (segundo.querySelector('[name="secao"]') as HTMLInputElement).value = 'Outra seção';
+  (segundo.querySelector('[name="campo"]') as HTMLInputElement).value = 'Outro campo';
+  (segundo.querySelector('[name="estado"]') as HTMLSelectElement).value = 'desconhecido';
+  (segundo.querySelector('[name="fonte"]') as HTMLInputElement).value = 'Equipe fictícia';
+  (segundo.querySelector('[name="data"]') as HTMLInputElement).value = '2026-01-02';
+  document
+    .getElementById('anamnese-form')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(document.getElementById('anamnese-feedback')?.textContent).toContain('salva'),
+  );
+  document.getElementById('back-patients')?.click();
+  (document.querySelector('#patients-body button') as HTMLButtonElement).click();
+  await vi.waitFor(() =>
+    expect(document.querySelectorAll('#anamnese-fields fieldset')).toHaveLength(2),
+  );
+  expect((document.getElementById('anamnese-value') as HTMLTextAreaElement).value).toBe(
+    'Legado fictício',
+  );
+  expect(
+    document.querySelectorAll<HTMLInputElement>('#anamnese-fields [name="secao"]')[1].value,
+  ).toBe('Outra seção');
+});
+
+it('limita campos e permite remover sem perder outros rascunhos', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  servidorFicticio();
+  await import('./demonstracao.js');
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
+  (document.querySelector('#patients-body button') as HTMLButtonElement).click();
+  await vi.waitFor(() => expect(document.getElementById('anamnese-view')?.hidden).toBe(false));
+  (document.getElementById('anamnese-value') as HTMLTextAreaElement).value = 'Rascunho';
+  const adicionar = document.getElementById('anamnese-add') as HTMLButtonElement;
+  for (let indice = 1; indice < 101; indice++) adicionar.click();
+  expect(document.querySelectorAll('#anamnese-fields fieldset')).toHaveLength(100);
+  expect(document.getElementById('anamnese-feedback')?.textContent).toContain('Limite de 100');
+  document.querySelectorAll<HTMLButtonElement>('#anamnese-fields fieldset button')[1].click();
+  expect(document.querySelectorAll('#anamnese-fields fieldset')).toHaveLength(99);
+  expect((document.getElementById('anamnese-value') as HTMLTextAreaElement).value).toBe('Rascunho');
+  adicionar.click();
+  expect(document.querySelectorAll('#anamnese-fields fieldset')).toHaveLength(100);
+  for (const remover of document.querySelectorAll<HTMLButtonElement>(
+    '#anamnese-fields fieldset button',
+  ))
+    remover.click();
+  document
+    .getElementById('anamnese-form')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(document.getElementById('anamnese-feedback')?.textContent).toContain('salva'),
+  );
+  document.getElementById('back-patients')?.click();
+  (document.querySelector('#patients-body button') as HTMLButtonElement).click();
+  await vi.waitFor(() => expect(document.getElementById('anamnese-view')?.hidden).toBe(false));
+  expect(document.querySelectorAll('#anamnese-fields fieldset')).toHaveLength(0);
+});
+
+it('guarda e reabre metadados de documentos por paciente', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  servidorFicticio();
+  await import('./demonstracao.js');
+  await vi.waitFor(() =>
+    expect(
+      document.querySelector('[aria-label="Abrir documentos de Paciente Exemplo Um"]'),
+    ).not.toBeNull(),
+  );
+  const abrir = () =>
+    (
+      document.querySelector(
+        '[aria-label="Abrir documentos de Paciente Exemplo Um"]',
+      ) as HTMLButtonElement
+    ).click();
+  abrir();
+  await vi.waitFor(() => expect(document.getElementById('documents-view')?.hidden).toBe(false));
+  const inputs = document.querySelectorAll<HTMLInputElement>('#documents-content input');
+  inputs[0].value = 'Exame fictício';
+  inputs[1].value = 'Exame';
+  document
+    .querySelector('#documents-content form')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() =>
+    expect(document.getElementById('documents-content')?.textContent).toContain(
+      'Documento registrado',
+    ),
+  );
+  document.getElementById('documents-back')?.click();
+  abrir();
+  await vi.waitFor(() => expect(document.getElementById('documents-view')?.hidden).toBe(false));
+  expect(document.getElementById('documents-content')?.textContent).toContain('Exame fictício');
 });
 
 it('avisa sobre alterações não guardadas antes de sair da anamnese', async () => {
