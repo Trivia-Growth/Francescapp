@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { criarAtestadorOperacao } from '../../../supabase/functions/_shared/atestado-operacao.ts';
 import { criarCifraAutenticada } from '../../../supabase/functions/_shared/cifra-autenticada.ts';
+import { criarIdempotenciaNativa } from './idempotencia-nativa.ts';
 import { operarPlanoCuidadoNativo } from './plano-cuidado-nativo.ts';
 
 const usuario_id = 'a0000000-0000-4000-8000-000000000001';
@@ -16,7 +17,10 @@ const objetivo = {
   dataRevisao: '2026-12-01',
   estado: 'proposto',
 };
-const request = () => new Request('https://exemplo.test', { headers: { 'x-sessao': session_id } });
+const request = () =>
+  new Request('https://exemplo.test', {
+    headers: { 'x-sessao': session_id, 'x-chave-idempotencia': 'chave_ficticia_123456' },
+  });
 function portas() {
   const identidade = { usuario_id, session_id };
   const cifra = criarCifraAutenticada({
@@ -34,6 +38,7 @@ function portas() {
       expira_em: '2026-11-04T12:00:30Z',
     }),
     cifra,
+    idempotencia: criarIdempotenciaNativa(cifra),
     atestador: criarAtestadorOperacao({ keyId: 'teste', chave: new Uint8Array(32).fill(3) }),
     executar: vi.fn(
       async (
@@ -78,6 +83,34 @@ describe('plano interno', () => {
       usuario_id,
       session_id,
     });
+  });
+  it('repete o comando com HMAC estável e devolve a versão original', async () => {
+    const deps = portas();
+    let original: Awaited<ReturnType<typeof deps.executar>> | undefined;
+    const executar: typeof deps.executar = vi.fn(async (req, transporte) => {
+      const resposta = await deps.executar(req, transporte);
+      if (!original) {
+        original = resposta;
+        return { ...resposta, repeticao: false };
+      }
+      return { ...original, request_id: resposta.request_id, repeticao: true };
+    });
+    const primeira = await operarPlanoCuidadoNativo(request(), comando, { ...deps, executar });
+    const segunda = await operarPlanoCuidadoNativo(request(), comando, { ...deps, executar });
+    expect(primeira.ok && segunda.ok && segunda.dados).toEqual(primeira.ok && primeira.dados);
+    const entradas = executar.mock.calls.map((chamada) => chamada[1].p_transporte.entrada);
+    expect(entradas[0]?.digest_idempotencia).toBe(entradas[1]?.digest_idempotencia);
+    expect(entradas[0]?.registro_id).not.toBe(entradas[1]?.registro_id);
+    expect(entradas[0]?.chave_idempotencia).toBe('chave_ficticia_123456');
+    const conflito = await operarPlanoCuidadoNativo(request(), comando, {
+      ...deps,
+      executar: async (_req, t) => ({
+        ok: false,
+        request_id: t.p_transporte.entrada.request_id,
+        erro: { codigo: 'conflito_idempotencia' },
+      }),
+    });
+    expect(conflito).toMatchObject({ ok: false, erro: { codigo: 'conflito_idempotencia' } });
   });
   it('rejeita resposta de outro paciente e não entrega conteúdo', async () => {
     const deps = portas();
@@ -126,7 +159,13 @@ describe('plano interno', () => {
       await operarPlanoCuidadoNativo(request(), { ...comando, versao_esperada: 1 }, deps),
     ).toMatchObject({ ok: false, erro: { codigo: 'entrada_invalida' } });
     expect(
-      await operarPlanoCuidadoNativo(new Request('https://exemplo.test'), comando, deps),
+      await operarPlanoCuidadoNativo(
+        new Request('https://exemplo.test', {
+          headers: { 'x-chave-idempotencia': 'chave_ficticia_123456' },
+        }),
+        comando,
+        deps,
+      ),
     ).toMatchObject({ ok: false, erro: { codigo: 'nao_autenticado' } });
     expect(deps.executar).not.toHaveBeenCalled();
   });
@@ -146,5 +185,33 @@ describe('plano interno', () => {
       },
     );
     expect(resultado).toMatchObject({ ok: false, erro: { codigo: 'nao_autenticado' } });
+  });
+  it('consulta histórico de um objetivo e recusa registros de outro', async () => {
+    const deps = portas();
+    await operarPlanoCuidadoNativo(request(), comando, deps);
+    const entrada = deps.executar.mock.calls[0]?.[1].p_transporte.entrada;
+    if (!entrada) throw new Error('Gravação não executada.');
+    const registro = {
+      registro_id: entrada.registro_id,
+      objetivo_id,
+      paciente_id,
+      versao: 1,
+      conteudo: entrada.conteudo,
+    };
+    const historico = { operacao: 'historico' as const, paciente_id, objetivo_id };
+    const executar = async (
+      _r: Request,
+      t: { p_transporte: { entrada: Record<string, unknown> } },
+    ) => ({ ok: true, request_id: t.p_transporte.entrada.request_id, dados: [registro] });
+    const resultado = await operarPlanoCuidadoNativo(request(), historico, { ...deps, executar });
+    expect(resultado).toMatchObject({ ok: true, dados: [{ objetivo_id, versao: 1, objetivo }] });
+    const trocado = await operarPlanoCuidadoNativo(request(), historico, {
+      ...deps,
+      executar: async (r, t) => ({
+        ...(await executar(r, t)),
+        dados: [{ ...registro, objetivo_id: 'e0000000-0000-4000-8000-000000000005' }],
+      }),
+    });
+    expect(trocado).toMatchObject({ ok: false, erro: { codigo: 'servico_indisponivel' } });
   });
 });

@@ -78,12 +78,15 @@ export const respostaPlanoPrivadaSchema = z.discriminatedUnion('ok', [
       ok: z.literal(true),
       dados: z.union([registroPlanoSchema, z.array(registroPlanoSchema)]),
       request_id: uuidSchema,
+      repeticao: z.boolean().optional().default(false),
     })
     .strict(),
   z
     .object({
       ok: z.literal(false),
-      erro: z.object({ codigo: z.enum(['sem_permissao', 'conflito']) }).strict(),
+      erro: z
+        .object({ codigo: z.enum(['sem_permissao', 'conflito', 'conflito_idempotencia']) })
+        .strict(),
       request_id: uuidSchema,
     })
     .strict(),

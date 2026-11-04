@@ -1,4 +1,4 @@
-import { uuidSchema } from '../../../packages/contracts/src/comum.ts';
+import { chaveIdempotenciaSchema, uuidSchema } from '../../../packages/contracts/src/comum.ts';
 import {
   objetivoSchema,
   motivoPlanoSchema,
@@ -21,6 +21,7 @@ type Autorizacao =
   | { estado: 'nao_autenticado' | 'sem_permissao' | 'servico_indisponivel' };
 type Comando =
   | { operacao: 'ler'; paciente_id: string }
+  | { operacao: 'historico'; paciente_id: string; objetivo_id: string }
   | {
       operacao: 'gravar';
       paciente_id: string;
@@ -46,6 +47,9 @@ export async function operarPlanoCuidadoNativo(
       cifrar(valor: string, aad: Aad): Promise<CampoCifrado>;
       decifrar(valor: CampoCifrado, aad: Aad): Promise<string>;
     };
+    idempotencia: {
+      calcularDigestIdempotencia(comandoLogico: string): Promise<string>;
+    };
     atestador: {
       canonicalizar(valor: unknown): string;
       atestarEntrada(dados: unknown, entrada: Record<string, unknown>): Promise<unknown>;
@@ -70,19 +74,34 @@ export async function operarPlanoCuidadoNativo(
       | 'sem_permissao'
       | 'servico_indisponivel'
       | 'conflito_versao'
+      | 'conflito_idempotencia'
       | 'pendencia_externa',
   ) => ({ ok: false as const, erro: { codigo }, request_id: requestId });
   let iniciada = false;
   try {
     if (request.signal.aborted) return erro('servico_indisponivel');
     const paciente = uuidSchema.safeParse(comando.paciente_id);
-    if (!paciente.success || (comando.operacao !== 'ler' && comando.operacao !== 'gravar'))
+    if (
+      !paciente.success ||
+      (comando.operacao !== 'ler' &&
+        comando.operacao !== 'gravar' &&
+        comando.operacao !== 'historico')
+    )
       return erro('entrada_invalida');
     const pacienteId = paciente.data.toLowerCase();
     let objetivoId: string | undefined;
     let objetivo: Objetivo | undefined;
     let motivo: string | undefined;
+    let chaveIdempotencia: string | undefined;
+    if (comando.operacao === 'historico') {
+      const id = uuidSchema.safeParse(comando.objetivo_id);
+      if (!id.success) return erro('entrada_invalida');
+      objetivoId = id.data.toLowerCase();
+    }
     if (comando.operacao === 'gravar') {
+      const chave = chaveIdempotenciaSchema.safeParse(request.headers.get('x-chave-idempotencia'));
+      if (!chave.success) return erro('entrada_invalida');
+      chaveIdempotencia = chave.data;
       const id = uuidSchema.safeParse(comando.objetivo_id);
       const valor = objetivoSchema.safeParse(comando.objetivo);
       const razao = motivoPlanoSchema.safeParse(comando.motivo);
@@ -114,6 +133,7 @@ export async function operarPlanoCuidadoNativo(
     )
       return erro('nao_autenticado');
     const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+    if (comando.operacao === 'historico') entrada.objetivo_id = objetivoId;
     if (comando.operacao === 'gravar' && objetivoId && objetivo) {
       const registroId = crypto.randomUUID();
       const aad: Aad = {
@@ -131,7 +151,19 @@ export async function operarPlanoCuidadoNativo(
         ator_usuario_id: identidade.usuario_id,
         data: new Date().toISOString(),
       });
+      const digest = await portas.idempotencia.calcularDigestIdempotencia(
+        portas.atestador.canonicalizar({
+          paciente_id: pacienteId,
+          objetivo_id: objetivoId,
+          versao_esperada: comando.versao_esperada,
+          objetivo,
+          ...(motivo === undefined ? {} : { motivo }),
+        }),
+      );
+      if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) throw new Error();
       Object.assign(entrada, {
+        chave_idempotencia: chaveIdempotencia,
+        digest_idempotencia: digest,
         objetivo_id: objetivoId,
         registro_id: registroId,
         versao_esperada: comando.versao_esperada,
@@ -145,7 +177,11 @@ export async function operarPlanoCuidadoNativo(
       ...portas.metadados(requestId),
       ...identidade,
       operacao:
-        comando.operacao === 'ler' ? 'api.ler_plano_cuidado' : 'api.gravar_objetivo_cuidado',
+        comando.operacao === 'ler'
+          ? 'api.ler_plano_cuidado'
+          : comando.operacao === 'historico'
+            ? 'api.ler_historico_objetivo_cuidado'
+            : 'api.gravar_objetivo_cuidado',
     });
     if (metadados.request_id !== requestId) throw new Error();
     const prova = resultadoAtestacaoSchema.parse(
@@ -172,23 +208,31 @@ export async function operarPlanoCuidadoNativo(
     );
     if (request.signal.aborted || resposta.request_id !== requestId) throw new Error();
     if (!resposta.ok)
-      return erro(resposta.erro.codigo === 'conflito' ? 'conflito_versao' : 'sem_permissao');
-    if ((comando.operacao === 'ler') !== Array.isArray(resposta.dados)) throw new Error();
+      return erro(
+        resposta.erro.codigo === 'conflito'
+          ? 'conflito_versao'
+          : resposta.erro.codigo === 'conflito_idempotencia'
+            ? 'conflito_idempotencia'
+            : 'sem_permissao',
+      );
+    if ((comando.operacao !== 'gravar') !== Array.isArray(resposta.dados)) throw new Error();
     const registros = Array.isArray(resposta.dados) ? resposta.dados : [resposta.dados];
     if (
       comando.operacao === 'gravar' &&
       (registros.length !== 1 ||
-        registros[0]?.registro_id !== entrada.registro_id ||
+        (!resposta.repeticao && registros[0]?.registro_id !== entrada.registro_id) ||
         registros[0]?.objetivo_id !== objetivoId ||
         registros[0]?.versao !== comando.versao_esperada + 1)
     )
       throw new Error();
     const vistos = new Set<string>();
     const resultado = [];
-    for (const registro of registros) {
+    for (const [indice, registro] of registros.entries()) {
       if (
         registro.paciente_id.toLowerCase() !== pacienteId ||
-        vistos.has(registro.objetivo_id.toLowerCase())
+        (comando.operacao === 'historico'
+          ? registro.objetivo_id.toLowerCase() !== objetivoId || registro.versao !== indice + 1
+          : vistos.has(registro.objetivo_id.toLowerCase()))
       )
         throw new Error();
       vistos.add(registro.objetivo_id.toLowerCase());
@@ -217,7 +261,7 @@ export async function operarPlanoCuidadoNativo(
       return erro(iniciada ? 'pendencia_externa' : 'nao_autenticado');
     return {
       ok: true as const,
-      dados: comando.operacao === 'ler' ? resultado : resultado[0],
+      dados: comando.operacao !== 'gravar' ? resultado : resultado[0],
       request_id: requestId,
     };
   } catch {

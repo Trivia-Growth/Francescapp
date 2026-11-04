@@ -47,3 +47,5 @@ A fundação descreve RPC auditada, cifra/AAD, Vault e atestado, mas suas tarefa
 ## Migration Plan
 
 Preparar migração aditiva local e testes; nenhuma operação remota ocorre sem autorização explícita. Antes de ativar, definir recuperação e reversão que preservem dados e histórico; uma reversão não elimina registros sem procedimento aprovado.
+
+A gravação privada local exige chave idempotente e digest HMAC do comando lógico, atestados pelo servidor confiável. O recibo registra ator, operação e referência à versão, sem conteúdo clínico; repetição revalida autorização e retorna a versão original, inclusive quando identificadores gerados mudarem. Reuso com digest diferente ou paciente distinto gera conflito; gravação, recibo e auditoria compartilham transação. Integração real e concorrência específica ainda exigem prova.

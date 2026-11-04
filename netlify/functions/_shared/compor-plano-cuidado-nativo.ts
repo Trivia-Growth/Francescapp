@@ -2,6 +2,7 @@ import type { Pool } from 'pg';
 import { sessaoNativaSchema } from '../../../packages/contracts/src/identidade.ts';
 import type { FonteDeConfiguracao } from '../../../supabase/functions/_shared/configuracao.ts';
 import type { ReferenciasCifraCofre } from '../../../supabase/functions/_shared/cofre-vault.ts';
+import { criarIdempotenciaNativa } from './idempotencia-nativa.ts';
 import { operarPlanoCuidadoNativo } from './plano-cuidado-nativo.ts';
 import { credencialAuthRejeitada, criarContextoAuthNativo } from './auth-nativo/cliente.ts';
 import { carregarCofreNativo } from './cofre-nativo.ts';
@@ -104,6 +105,7 @@ export async function comporPlanoCuidadoNativo(
         metadados: (requestId) =>
           metadadosAtestadoNativo(dependencias.keyIdAtestado, requestId, Date.now()),
         cifra: cofre.cifra,
+        idempotencia: criarIdempotenciaNativa(cofre.cifra),
         atestador: cofre.atestador,
         executar: (_request, transporte) => {
           verificarCancelamento();
