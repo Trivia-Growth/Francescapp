@@ -9,6 +9,7 @@ import {
   entrarTecnicoSchema,
   chaveIdempotenciaSchema,
   type CriarPaciente,
+  type SalvarAnamnese,
 } from '../packages/contracts/src/index.js';
 
 export class FalhaApi extends Error {
@@ -31,6 +32,7 @@ const rotas = {
   },
   listarPacientes: contratosRotas.listarPacientes,
   consultarAnamnese: contratosRotas.consultarAnamnese,
+  salvarAnamnese: contratosRotas.salvarAnamnese,
   criarPaciente: contratosRotas.criarPaciente,
   sairSessao: contratosRotas.sairSessao,
   consultarBarreira: {
@@ -122,6 +124,7 @@ export class ClienteFFCM {
   // Contador de respostas da interface; não é credencial nem geração de sessão.
   #revisao = 0;
   #saindo = false;
+  #vinculosAnamnese = new Map<string, { pacienteId: string; sessionId: string }>();
 
   limpar(): void {
     this.#sessionId = null;
@@ -158,7 +161,7 @@ export class ClienteFFCM {
       }
     };
     let caminho: string = contrato.caminho;
-    if (rota === 'consultarAnamnese') {
+    if (rota === 'consultarAnamnese' || rota === 'salvarAnamnese') {
       const parametros = contratosRotas.consultarAnamnese.parametros.safeParse({
         paciente_id: opcoes.pacienteId,
       });
@@ -342,6 +345,21 @@ export class ClienteFFCM {
 
   consultarAnamnese(pacienteId: string): Promise<Dados<'consultarAnamnese'>> {
     return this.#enviar('consultarAnamnese', {}, { protegido: true, pacienteId });
+  }
+
+  salvarAnamnese(
+    pacienteId: string,
+    entrada: SalvarAnamnese,
+    chave: string,
+  ): Promise<Dados<'salvarAnamnese'>> {
+    if (!chaveIdempotenciaSchema.safeParse(chave).success)
+      return Promise.reject(new FalhaApi('entrada_invalida', 422));
+    if (!this.#sessionId) return Promise.reject(new FalhaApi('nao_autenticado', 401));
+    const vinculo = this.#vinculosAnamnese.get(chave);
+    if (vinculo && (vinculo.pacienteId !== pacienteId || vinculo.sessionId !== this.#sessionId))
+      return Promise.reject(new FalhaApi('nao_autenticado', 401));
+    this.#vinculosAnamnese.set(chave, { pacienteId, sessionId: this.#sessionId });
+    return this.#enviar('salvarAnamnese', entrada, { protegido: true, pacienteId, chave });
   }
 
   criarPaciente(
