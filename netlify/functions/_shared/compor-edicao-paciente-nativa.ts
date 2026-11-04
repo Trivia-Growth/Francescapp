@@ -1,3 +1,9 @@
+import {
+  uuidSchema,
+  dadosAtestadoSchema,
+  resultadoAtestacaoSchema,
+} from '../../../packages/contracts/src/index.ts';
+import { projetarPacienteAdministrativoExperimental } from '../../../packages/cadastro/src/projetar-paciente-experimental.ts';
 import type { Pool } from 'pg';
 import { sessaoNativaSchema } from '../../../packages/contracts/src/identidade.ts';
 import type { FonteDeConfiguracao } from '../../../supabase/functions/_shared/configuracao.ts';
@@ -13,9 +19,15 @@ import {
 } from './executor-edicao-paciente-nativo.ts';
 
 type Comando =
+  | { tipo: 'consultar'; pacienteId: string }
   | { tipo: 'barreira'; entrada: Parameters<typeof operarBarreiraEdicaoPaciente>[1] }
   | { tipo: 'editar'; entrada: Parameters<typeof operarEdicaoPaciente>[1] };
 type Resultado =
+  | {
+      ok: true;
+      dados: Awaited<ReturnType<typeof projetarPacienteAdministrativoExperimental>>;
+      request_id: string;
+    }
   | Awaited<ReturnType<typeof operarEdicaoPaciente>>
   | Awaited<ReturnType<typeof operarBarreiraEdicaoPaciente>>;
 
@@ -64,7 +76,7 @@ export async function comporEdicaoPacienteNativa(
     const contexto = criarContextoAuthNativo(pedido, dependencias.fonte);
     const autorizar = async () => {
       const alvo = request.headers.get('x-sessao');
-      if (!alvo || request.headers.get('origin') !== contexto.origem)
+      if (!alvo || (request.method !== 'GET' && request.headers.get('origin') !== contexto.origem))
         return { estado: 'nao_autenticado' as const };
       const usuario = await contexto.cliente.auth.getUser();
       verificarCancelamento();
@@ -113,6 +125,79 @@ export async function comporEdicaoPacienteNativa(
         metadadosAtestadoNativo(dependencias.keyIdAtestado, requestId, Date.now()),
       atestador: cofre.atestador,
     };
+    if (comando.tipo === 'consultar') {
+      return await noPrazo(async () => {
+        const requestId = crypto.randomUUID();
+        const pacienteId = uuidSchema.parse(comando.pacienteId).toLowerCase();
+        const entrada = { request_id: requestId, paciente_id: pacienteId };
+        const metadados = {
+          ...comum.metadados(requestId),
+          ...inicial.identidade,
+          operacao: 'api.consultar_paciente_edicao',
+        };
+        const prova = resultadoAtestacaoSchema.parse(
+          await cofre.atestador.atestarEntrada(metadados, entrada),
+        );
+        const dados = dadosAtestadoSchema.parse(JSON.parse(prova.dadosCanonicos));
+        if (
+          cofre.atestador.canonicalizar(entrada) !== prova.entradaCanonica ||
+          cofre.atestador.canonicalizar(dados) !== prova.dadosCanonicos ||
+          Object.entries(metadados).some(
+            ([chave, valor]) => dados[chave as keyof typeof dados] !== valor,
+          )
+        )
+          throw new Error();
+        const resultado = await contexto.cliente
+          .schema('api')
+          .rpc('consultar_paciente_edicao_privado', {
+            p_transporte: {
+              entrada: { ...entrada, atestado: { ...dados, mac: prova.atestado.mac } },
+              entrada_canonica: prova.entradaCanonica,
+              dados_canonicos: prova.dadosCanonicos,
+            },
+          });
+        if (resultado.error) throw new Error();
+        const envelope: unknown = resultado.data;
+        if (
+          !envelope ||
+          typeof envelope !== 'object' ||
+          !('ok' in envelope) ||
+          !('request_id' in envelope) ||
+          envelope.request_id !== requestId
+        )
+          throw new Error();
+        if (envelope.ok === false) {
+          if (
+            !('erro' in envelope) ||
+            !envelope.erro ||
+            typeof envelope.erro !== 'object' ||
+            !('codigo' in envelope.erro) ||
+            envelope.erro.codigo !== 'sem_permissao'
+          )
+            throw new Error();
+          return {
+            ok: false as const,
+            erro: { codigo: 'sem_permissao' as const },
+            request_id: requestId,
+          };
+        }
+        if (envelope.ok !== true || !('dados' in envelope)) throw new Error();
+        const projetado = await projetarPacienteAdministrativoExperimental(
+          envelope.dados,
+          cofre.cifra,
+        );
+        if (projetado.id.toLowerCase() !== pacienteId) throw new Error();
+        const atual = await autorizar();
+        if (
+          atual.estado !== 'autorizado' ||
+          atual.identidade.usuario_id.toLowerCase() !==
+            inicial.identidade.usuario_id.toLowerCase() ||
+          atual.identidade.session_id.toLowerCase() !== inicial.identidade.session_id.toLowerCase()
+        )
+          throw new Error();
+        return { ok: true as const, dados: projetado, request_id: requestId };
+      });
+    }
     if (comando.tipo === 'barreira') {
       return await noPrazo(() =>
         operarBarreiraEdicaoPaciente(pedido, comando.entrada, {
