@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+import { montarBuscaPacientesLocal, correspondeBuscaPacienteLocal } from './busca-pacientes-local';
+
 import { objetivoSchema, type Objetivo } from '../packages/contracts/src/plano-cuidado';
 import { validarTarefaPlano } from '../packages/cadastro/src/tarefa-plano';
 import { montarRelatoTextual } from './relato-textual';
@@ -261,9 +263,13 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     const previa = (await resposta.json()) as { revision: number };
     revisoes.set(id, previa.revision);
   };
+  let buscaPaciente = '';
   const atualizar = () => {
     corpo.replaceChildren();
-    for (const registro of registros) {
+    const resultados = registros.filter((registro) =>
+      correspondeBuscaPacienteLocal(registro, buscaPaciente),
+    );
+    for (const registro of resultados) {
       const linha = corpo.insertRow();
       linha.insertCell().textContent = registro.name;
       linha.insertCell().textContent = registro.preferredName || '—';
@@ -315,8 +321,11 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       abrirDocumentos.setAttribute('aria-label', `Abrir documentos de ${registro.name}`);
       abrirDocumentos.addEventListener('click', async () => {
         const geracao = ++geracaoNavegacao;
+        let anexos: { id: string; name: string; size: number }[];
         try {
           await carregarPrevia(registro.id, geracao);
+          const resposta = await requisitar(`/patients/${registro.id}/attachments`);
+          anexos = ((await resposta.json()) as { attachments: typeof anexos }).attachments;
         } catch {
           if (geracao === geracaoNavegacao)
             elemento('workspace-feedback').textContent =
@@ -328,6 +337,28 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         const itens = documentos.get(registro.id) ?? [];
         montarDocumentosLocais(elemento('documents-content'), {
           documentos: itens,
+          anexos,
+          urlAnexo: (id) => `/api/local-feedback/patients/${registro.id}/attachments/${id}`,
+          aoAnexar: async (arquivo) => {
+            salvandoDocumento = true;
+            try {
+              const bytes = new Uint8Array(await arquivo.arrayBuffer());
+              let binario = '';
+              for (const byte of bytes) binario += String.fromCharCode(byte);
+              const resposta = await requisitar(`/patients/${registro.id}/attachments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                body: JSON.stringify({ name: arquivo.name, content: btoa(binario) }),
+              });
+              return (
+                (await resposta.json()) as {
+                  attachment: { id: string; name: string; size: number };
+                }
+              ).attachment;
+            } finally {
+              salvandoDocumento = false;
+            }
+          },
           aoRegistrar: async (documento) => {
             salvandoDocumento = true;
             try {
@@ -565,9 +596,12 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
           editar,
         );
     }
-    tabela.hidden = registros.length === 0;
-    vazio.hidden = registros.length !== 0;
-    elemento('list-status').textContent = `${registros.length} pacientes fictícios nesta lista.`;
+    tabela.hidden = resultados.length === 0;
+    vazio.hidden = resultados.length !== 0;
+    elemento('empty-description').textContent = buscaPaciente.trim()
+      ? 'Nenhum paciente encontrado para esta busca.'
+      : 'Nenhum cadastro disponível para seu acesso.';
+    elemento('list-status').textContent = `${resultados.length} pacientes fictícios nesta lista.`;
   };
   const abrirTarefasPaciente = async (registro: Paciente) => {
     const geracao = ++geracaoNavegacao;
@@ -1339,6 +1373,10 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     anamneseAlterada = false;
     atualizarProgresso();
     elemento('anamnese-feedback').textContent = 'Anamnese fictícia salva nesta demonstração local.';
+  });
+  montarBuscaPacientesLocal(elemento('patient-search'), (texto) => {
+    buscaPaciente = texto;
+    atualizar();
   });
   const abrirSessao = async () => {
     login.hidden = true;

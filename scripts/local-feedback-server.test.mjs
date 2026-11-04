@@ -103,6 +103,76 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
     assert.equal(created.status, 201);
     const patient = (await created.json()).patient;
     assert.equal(patient.preferredName, 'Pessoa');
+    const attachmentPath = `/patients/${patient.id}/attachments`;
+    assert.equal((await request(attachmentPath)).status, 401);
+    const upload = {
+      method: 'POST',
+      headers: auth,
+      body: JSON.stringify({
+        name: 'exemplo.txt',
+        content: Buffer.from('fictício').toString('base64'),
+      }),
+    };
+    assert.equal(
+      (await request(attachmentPath, { ...upload, headers: { ...headers, cookie } })).status,
+      403,
+    );
+    assert.equal(
+      (
+        await request(attachmentPath, {
+          ...upload,
+          body: JSON.stringify({ name: '../exemplo.txt', content: 'YWJj' }),
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await request(attachmentPath, {
+          ...upload,
+          body: JSON.stringify({ name: 'exemplo.pdf', content: 'YWJj' }),
+        })
+      ).status,
+      400,
+    );
+    const attachment = await request(attachmentPath, upload);
+    assert.equal(attachment.status, 201);
+    const { id: attachmentId } = (await attachment.json()).attachment;
+    assert.equal(
+      (await (await request(attachmentPath, { headers: { cookie } })).json()).attachments[0].name,
+      'exemplo.txt',
+    );
+    assert.equal(
+      (await request(`${attachmentPath}/${attachmentId}`, { headers: { cookie } })).status,
+      200,
+    );
+    assert.equal(
+      (
+        await request(
+          `/patients/00000000-0000-4000-8000-000000000000/attachments/${attachmentId}`,
+          { headers: { cookie } },
+        )
+      ).status,
+      404,
+    );
+
+    const second = await request('/patients', {
+      method: 'POST',
+      headers: auth,
+      body: JSON.stringify({ name: 'Outra pessoa fictícia' }),
+    });
+    const secondId = (await second.json()).patient.id;
+    assert.equal(
+      (await request(`/patients/${secondId}/attachments/${attachmentId}`, { headers: { cookie } }))
+        .status,
+      404,
+    );
+    assert.deepEqual(
+      (await (await request(`/patients/${secondId}/attachments`, { headers: { cookie } })).json())
+        .attachments,
+      [],
+    );
+
     const editPath = `/patients/${patient.id}`;
     const edit = {
       method: 'PUT',
@@ -340,7 +410,7 @@ test('sessão local, proteção de origem e persistência de pacientes fictício
       (await request(previewPath, { ...save, headers: { ...headers, cookie } })).status,
       403,
     );
-    assert.equal(JSON.parse(await readFile(join(directory, 'patients.json'), 'utf8')).length, 1);
+    assert.equal(JSON.parse(await readFile(join(directory, 'patients.json'), 'utf8')).length, 2);
     const documentos = [
       { nome: 'Exame fictício', categoria: 'Exame', metadados: 'Referência fictícia' },
     ];

@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
-import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { pathToFileURL } from 'node:url';
@@ -340,6 +340,110 @@ export function createLocalFeedbackServer({ password, directory }) {
         if (patient === null) return respond(res, 404);
         if (patient === false) return respond(res, 409);
         return respond(res, 200, { patient });
+      }
+      const attachmentMatch = path.match(
+        /^\/api\/local-feedback\/patients\/([0-9a-f-]{36})\/attachments(?:\/([0-9a-f-]{36}))?$/,
+      );
+      if (attachmentMatch && ['GET', 'POST'].includes(req.method)) {
+        const [, patientId, attachmentId] = attachmentMatch;
+        if (!(await readPatients()).some((patient) => patient.id === patientId))
+          return respond(res, 404);
+        const folder = join(directory, `attachments-${patientId}`);
+        if (req.method === 'GET' && attachmentId) {
+          try {
+            const attachment = JSON.parse(
+              await readFile(join(folder, `${attachmentId}.json`), 'utf8'),
+            );
+            const bytes = Buffer.from(attachment.content, 'base64');
+            res.writeHead(200, {
+              'Cache-Control': 'no-store',
+              'X-Content-Type-Options': 'nosniff',
+              'Content-Type': 'application/octet-stream',
+              'Content-Disposition': `attachment; filename="arquivo-ficticio"; filename*=UTF-8''${encodeURIComponent(attachment.name)}`,
+              'Content-Length': bytes.length,
+            });
+            return res.end(bytes);
+          } catch (error) {
+            if (error.code === 'ENOENT') return respond(res, 404);
+            throw error;
+          }
+        }
+        if (req.method === 'GET') {
+          let files;
+          try {
+            files = await readdir(folder);
+          } catch (error) {
+            if (error.code === 'ENOENT') return respond(res, 200, { attachments: [] });
+            throw error;
+          }
+          const attachments = await Promise.all(
+            files
+              .filter((name) => /^[0-9a-f-]{36}\.json$/.test(name))
+              .map(async (name) => {
+                const {
+                  id,
+                  name: filename,
+                  size,
+                } = JSON.parse(await readFile(join(folder, name), 'utf8'));
+                return { id, name: filename, size };
+              }),
+          );
+          return respond(res, 200, { attachments });
+        }
+        if (attachmentId) return respond(res, 404);
+        let data;
+        try {
+          data = await body(req);
+        } catch {
+          return respond(res, 400, { error: 'Arquivo inválido ou grande demais.' });
+        }
+        if (
+          typeof data?.name !== 'string' ||
+          !data.name.trim() ||
+          data.name.length > 200 ||
+          /[\/\\]/.test(data.name) ||
+          [...data.name].some(
+            (character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+          ) ||
+          typeof data.content !== 'string' ||
+          !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(data.content)
+        )
+          return respond(res, 400, { error: 'Arquivo inválido.' });
+        const bytes = Buffer.from(data.content, 'base64');
+        const ext = data.name.toLowerCase().split('.').pop();
+        const valid =
+          (ext === 'pdf' && bytes.subarray(0, 5).toString() === '%PDF-') ||
+          (ext === 'png' && bytes.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex'))) ||
+          (['jpg', 'jpeg'].includes(ext) &&
+            bytes.subarray(0, 3).equals(Buffer.from('ffd8ff', 'hex'))) ||
+          (ext === 'txt' &&
+            !bytes.includes(0) &&
+            Buffer.from(bytes.toString('utf8')).equals(bytes));
+        if (!bytes.length || bytes.length > 2 * 1024 * 1024 || !valid)
+          return respond(res, 400, { error: 'Use PDF, PNG, JPEG ou TXT válido de até 2 MB.' });
+        await mkdir(folder, { recursive: true, mode: 0o700 });
+        await chmod(folder, 0o700);
+        const id = randomUUID();
+        const temporary = join(folder, `.attachment-${randomUUID()}.tmp`);
+        try {
+          await writeFile(
+            temporary,
+            JSON.stringify({
+              id,
+              name: data.name.trim(),
+              size: bytes.length,
+              content: data.content,
+            }),
+            { mode: 0o600, flag: 'wx' },
+          );
+          await rename(temporary, join(folder, `${id}.json`));
+        } catch (error) {
+          await rm(temporary, { force: true });
+          throw error;
+        }
+        return respond(res, 201, {
+          attachment: { id, name: data.name.trim(), size: bytes.length },
+        });
       }
       const previewMatch = path.match(
         /^\/api\/local-feedback\/patients\/([0-9a-f-]{36})\/preview$/,

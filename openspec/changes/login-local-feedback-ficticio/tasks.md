@@ -32,3 +32,5 @@ Revisão do diff identificou troca incorreta de paciente em aberturas simultâne
 Atualização de 04/11/2026: prévia de anamnese permite múltiplos campos em seções nomeadas pelo usuário e preserva leitura do formato anterior. Testes de interface cobrem legado e reabertura; persistência local não comprova integração ou autorização clínica. Gate de ativação continua pendente.
 
 Atualização de 04/11/2026: metadados fictícios de documentos integrados à prévia local por paciente. Testes cobrem falha e preservação do rascunho, reabertura na interface e persistência após reinício. Não há anexos, Drive nem integração de produção; gate de ativação permanece pendente.
+
+Atualização posterior: prévia permite anexar e baixar arquivos fictícios locais de até 2 MB, sem Drive. Teste do servidor cobre sessão, CSRF, validação e isolamento entre dois pacientes; revisão identificou escrita não atômica, corrigida e conferida. Armazenamento sem cifra continua inadequado para dados reais.

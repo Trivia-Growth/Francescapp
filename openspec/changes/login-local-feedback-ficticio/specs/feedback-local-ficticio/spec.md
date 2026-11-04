@@ -72,3 +72,14 @@ A demonstração SHALL reunir compromissos locais de todos os pacientes fictíci
 #### Scenario: Agenda vazia ou indisponível
 - **WHEN** não há compromissos ou ocorre falha na leitura
 - **THEN** a interface apresenta o estado correspondente sem afirmar que a consulta foi concluída em caso de erro.
+
+### Requirement: Anexos fictícios locais
+A demonstração SHALL permitir anexar, listar e baixar arquivos fictícios por paciente, sem representar integração com Drive ou armazenamento de produção.
+
+#### Scenario: Guardar e consultar
+- **WHEN** um arquivo fictício permitido for anexado ao paciente
+- **THEN** uma sessão local válida poderá listá-lo e baixá-lo para aquele paciente.
+
+#### Scenario: Acesso sem sessão ou em outro paciente
+- **WHEN** uma requisição não possuir sessão válida ou solicitar o anexo em outro paciente
+- **THEN** o servidor negará o acesso.
