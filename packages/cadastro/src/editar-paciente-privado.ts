@@ -15,7 +15,14 @@ import {
 
 /** Composição local privada. Não autentica contexto, não concede acesso nem ativa RPC. */
 export async function prepararEdicaoPacientePrivada(
-  solicitacao: { pacienteId: unknown; corpo: unknown; cabecalhos: unknown; contexto: unknown },
+  solicitacao: {
+    pacienteId: unknown;
+    reservaId: unknown;
+    geracaoReserva: number;
+    corpo: unknown;
+    cabecalhos: unknown;
+    contexto: unknown;
+  },
   dependencias: {
     cifra: Pick<AdaptadorCifra, 'cifrar'>;
     idempotencia: { calcularDigestIdempotencia(comandoLogico: string): Promise<string> };
@@ -27,6 +34,9 @@ export async function prepararEdicaoPacientePrivada(
 ) {
   try {
     const paciente_id = uuidSchema.parse(solicitacao.pacienteId).toLowerCase();
+    const reserva_id = uuidSchema.parse(solicitacao.reservaId).toLowerCase();
+    const geracao_reserva = solicitacao.geracaoReserva;
+    if (!Number.isSafeInteger(geracao_reserva) || geracao_reserva < 1) throw new Error();
     const corpo = atualizarPacienteSchema.parse(solicitacao.corpo);
     if (corpo.versao_esperada >= 2147483647) throw new Error();
     const cabecalhos = cabecalhosMutacaoSchema.parse(solicitacao.cabecalhos);
@@ -61,6 +71,8 @@ export async function prepararEdicaoPacientePrivada(
     );
     const entrada = {
       request_id: contexto.request_id,
+      reserva_id,
+      geracao_reserva,
       chave_idempotencia: cabecalhos['x-chave-idempotencia'],
       digest_idempotencia,
       ...campos,
@@ -72,7 +84,6 @@ export async function prepararEdicaoPacientePrivada(
       await dependencias.atestador.atestarEntrada({ ...contexto, operacao }, entrada),
     );
     const dados = dadosAtestadoSchema.parse(JSON.parse(prova.dadosCanonicos));
-    const entradaAssinada = JSON.parse(prova.entradaCanonica) as Record<string, unknown>;
     if (
       dependencias.atestador.canonicalizar(entrada) !== prova.entradaCanonica ||
       dependencias.atestador.canonicalizar(dados) !== prova.dadosCanonicos ||
@@ -88,9 +99,7 @@ export async function prepararEdicaoPacientePrivada(
     return {
       p_entrada: {
         entrada: {
-          ...entradaAssinada,
-          paciente_id,
-          versao_esperada: corpo.versao_esperada,
+          ...entrada,
           atestado: { ...dados, mac: prova.atestado.mac },
         },
         entrada_canonica: prova.entradaCanonica,

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 projeto=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-temporario=$(mktemp -d "${TMPDIR:-/tmp}/ffcm-editar-paciente.XXXXXXXX")
+temporario=$(mktemp -d /tmp/ffcm-editar-paciente.XXXXXXXX)
 iniciado=0
 cleanup() {
  resultado=$?
@@ -15,3 +15,4 @@ rtk proxy initdb -D "$temporario/data" --no-instructions --auth=trust >/dev/null
 rtk proxy pg_ctl -D "$temporario/data" -t 30 -o "-k $temporario -p 5432 -c listen_addresses= -c unix_socket_permissions=0700" -l "$temporario/postgres.log" start >/dev/null
 iniciado=1
 rtk proxy psql -X -h "$temporario" -p 5432 -d postgres -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/tests/editar_paciente_privado_local.sql"
+FFCM_EDICAO_SOCKET="$temporario" rtk proxy pnpm exec vitest run packages/cadastro/test/editar-paciente-integracao-local.test.ts --reporter=minimal --silent=passed-only

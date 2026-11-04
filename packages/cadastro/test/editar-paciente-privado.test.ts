@@ -23,6 +23,8 @@ it('compõe tentativa cifrada, preserva idempotência lógica e valida retorno p
     },
   };
   const solicitacao = {
+    reservaId: '90000000-0000-4000-8000-000000000001',
+    geracaoReserva: 1,
     pacienteId: 'a0000000-0000-4000-8000-000000000001',
     corpo: {
       nome: 'Pessoa fictícia',
@@ -53,6 +55,10 @@ it('compõe tentativa cifrada, preserva idempotência lógica e valida retorno p
   const a = JSON.parse(primeira.p_entrada.entrada_canonica);
   const b = JSON.parse(segunda.p_entrada.entrada_canonica);
   expect(a.digest_idempotencia).toBe(b.digest_idempotencia);
+  expect(a.paciente_id).toBe(solicitacao.pacienteId);
+  expect(a.versao_esperada).toBe(solicitacao.corpo.versao_esperada);
+  const { atestado: _atestado, ...entradaUsada } = primeira.p_entrada.entrada;
+  expect(a).toEqual(entradaUsada);
   expect(a.auditoria_id).not.toBe(b.auditoria_id);
   expect(a.aad.motivo.registro_id).toBe(a.auditoria_id);
   expect(a.nome_preferencia).toBeNull();

@@ -6,6 +6,8 @@ Preparação local: edição privada de paciente e interface isolada foram esbo�
 
 Atualização: SQL privado foi adaptado à exceção técnica individual e preparador de servidor foi criado; testes locais usam fixtures e não comprovam bootstrap técnico, Auth real ou mutação técnica com auditoria. A interface permanece indisponível: endpoints ainda ausentes, contrato público e resposta privada divergem, e recuperação após recarga não está comprovada. S-02 e integração real seguem pendentes.
 
+Preparação posterior: edição privada usa reserva assinada e confirmação transacional; teste local cobre edição, replay, cancelamento e requisição tardia. Revisão estática não encontrou bypass concreto no recorte. Auth e atestado usam fixtures; faltam composição HTTP, reconciliação na interface, provas reais e concorrência de revogação. Nenhuma rota foi ativada.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.

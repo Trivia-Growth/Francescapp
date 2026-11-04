@@ -19,7 +19,8 @@ language plpgsql security invoker set search_path='' as $$
 #variable_conflict use_variable
 declare
  e jsonb:=p_transporte->'entrada'; a jsonb:=e->'atestado';
- ator uuid; sessao uuid; req uuid; paciente uuid; reserva uuid; auditoria_id uuid; epoca bigint;
+ ator uuid; sessao uuid; req uuid; paciente uuid; reserva uuid; auditoria_id uuid; epoca bigint; geracao bigint;
+ b record; reserva_atual record;
  inicio timestamptz; fim timestamptz; concessao uuid; dominio text; sujeito text;
  google record;
  anterior operacao.requisicao; campo text; autorizado boolean:=false; repeticao boolean:=false; resultado jsonb;
@@ -27,20 +28,20 @@ begin
  if jsonb_typeof(p_transporte) is distinct from 'object'
   or p_transporte - array['entrada','entrada_canonica','dados_canonicos'] <> '{}'::jsonb
   or jsonb_typeof(e) is distinct from 'object'
-  or e - array['request_id','paciente_id','versao_esperada','auditoria_id','chave_idempotencia','digest_idempotencia','nome','nome_preferencia','data_nascimento','motivo','aad','atestado'] <> '{}'::jsonb
+  or e - array['request_id','paciente_id','versao_esperada','reserva_id','geracao_reserva','auditoria_id','chave_idempotencia','digest_idempotencia','nome','nome_preferencia','data_nascimento','motivo','aad','atestado'] <> '{}'::jsonb
   or jsonb_typeof(a) is distinct from 'object' then
   raise exception using errcode='42501',message='SEM_PERMISSAO';
  end if;
  begin
   ator:=auth_privado.uid(); sessao:=(auth_privado.jwt()->>'session_id')::uuid;
   req:=(e->>'request_id')::uuid; paciente:=(e->>'paciente_id')::uuid;
-  epoca:=(e->>'versao_esperada')::bigint; auditoria_id:=(e->>'auditoria_id')::uuid;
+  epoca:=(e->>'versao_esperada')::bigint; reserva:=(e->>'reserva_id')::uuid; geracao:=(e->>'geracao_reserva')::bigint; auditoria_id:=(e->>'auditoria_id')::uuid;
   inicio:=(a->>'emitido_em')::timestamptz; fim:=(a->>'expira_em')::timestamptz;
  exception when invalid_text_representation or invalid_datetime_format or datetime_field_overflow or numeric_value_out_of_range then
   raise exception using errcode='42501',message='SEM_PERMISSAO';
  end;
  if ator is null or sessao is null or req is null or paciente is null or auditoria_id is null or epoca is null or epoca<1 or epoca>=2147483647
-  or inicio is null or fim is null or a->>'usuario_id' is distinct from ator::text
+  or reserva is null or geracao is null or geracao<1 or inicio is null or fim is null or a->>'usuario_id' is distinct from ator::text
   or a->>'session_id' is distinct from sessao::text or a->>'request_id' is distinct from req::text
   or a->>'operacao' is distinct from 'api.editar_paciente'
   or inicio>clock_timestamp() or fim<=clock_timestamp() or fim<=inicio or fim-inicio>interval '30 seconds'
@@ -99,7 +100,8 @@ begin
   end if;
   return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','sem_permissao'),'request_id',req);
  end if;
- if jsonb_typeof(e->'versao_esperada') is distinct from 'number' or coalesce(e->>'versao_esperada','') !~ '^[1-9][0-9]*$'
+ if jsonb_typeof(e->'geracao_reserva') is distinct from 'number' or coalesce(e->>'geracao_reserva','') !~ '^[1-9][0-9]*$'
+  or jsonb_typeof(e->'versao_esperada') is distinct from 'number' or coalesce(e->>'versao_esperada','') !~ '^[1-9][0-9]*$'
   or jsonb_typeof(e->'chave_idempotencia') is distinct from 'string' or length(btrim(e->>'chave_idempotencia')) not between 1 and 256
   or jsonb_typeof(e->'digest_idempotencia') is distinct from 'string' or coalesce(e->>'digest_idempotencia','') !~ '^[A-Za-z0-9_-]{43}$'
   or jsonb_typeof(e->'aad') is distinct from 'object' or (e->'aad') - array['nome','nome_preferencia','data_nascimento','motivo'] <> '{}'::jsonb
@@ -129,8 +131,23 @@ begin
  if fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
   raise exception using errcode='PZ001',message='EXPIRACAO_INTERNA';
  end if;
+ select * into b from operacao.barreira_edicao_paciente where ator_usuario_id=ator for update;
+ select * into reserva_atual from operacao.reserva_edicao_paciente re where re.id=reserva and re.ator_usuario_id=ator and re.epoca=geracao and re.paciente_reservado_id=paciente for update;
+ if not found or b.epoca is distinct from geracao or b.reserva_atual is distinct from reserva
+  or b.resultado_pendente is not null or reserva_atual.estado not in ('aberta','confirmada') then
+  insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+   values(gen_random_uuid(),ator,'api.editar_paciente','paciente',paciente,'negado',req);
+  return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','conflito'),'request_id',req);
+ end if;
+ if fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
+  raise exception using errcode='PZ001',message='EXPIRACAO_INTERNA';
+ end if;
  select * into anterior from operacao.requisicao r where r.ator_usuario_id=ator and r.operacao='api.editar_paciente' and r.chave_idempotencia=e->>'chave_idempotencia';
  repeticao:=found;
+ if (reserva_atual.estado='aberta' and repeticao) or (reserva_atual.estado='confirmada' and (not repeticao or reserva_atual.chave_idempotencia is distinct from e->>'chave_idempotencia' or reserva_atual.digest_idempotencia is distinct from e->>'digest_idempotencia')) then
+  insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id) values(gen_random_uuid(),ator,'api.editar_paciente','paciente',paciente,'negado',req);
+  return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','conflito_idempotencia'),'request_id',req);
+ end if;
  if not repeticao then
   if not exists(select 1 from cadastro.paciente p where p.id=paciente and p.versao=epoca) then
    insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id) values(gen_random_uuid(),ator,'api.editar_paciente','paciente',paciente,'negado',req);
@@ -152,6 +169,9 @@ begin
  if anterior.digest_entrada is distinct from e->>'digest_idempotencia' or anterior.estado is distinct from 'concluida' or anterior.resultado_id is distinct from paciente or anterior.resultado_versao is distinct from (epoca+1)::integer then
   insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id) values(gen_random_uuid(),ator,'api.editar_paciente','paciente',paciente,'negado',req);
   return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','conflito_idempotencia'),'request_id',req);
+ end if;
+ if reserva_atual.estado='aberta' then
+  update operacao.reserva_edicao_paciente set estado='confirmada',chave_idempotencia=e->>'chave_idempotencia',digest_idempotencia=e->>'digest_idempotencia',paciente_id=paciente,versao_resultado=anterior.resultado_versao where id=reserva;
  end if;
  if repeticao then
   insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id) values(gen_random_uuid(),ator,'api.editar_paciente','paciente',paciente,'permitido',req);
