@@ -72,6 +72,8 @@ Atualização operacional: SSL obrigatório e acesso temporário individual nati
 
 Permissões privadas: migrations `20261111230000` e `20261111240000` aplicadas no projeto de teste. A segunda falhou inicialmente por propriedade da função; a transação foi revertida, a ownership corrigida e a aplicação refeita. Wrappers seguem sem EXECUTE aos papéis de aplicação. O endpoint de perfil informou que o acesso disponível não é individual; não foi criado mapeamento JIT nem bootstrap. Testes seguem adiados.
 
+Preparador de operador SQL escrito com cadastro inicialmente inativo, CA obtida de fonte oficial e verificações de log antes de enviar senha. Permanece sem execução: identidade individual, proteção dos logs externos, revisão e concessões precisam ser resolvidas antes do bootstrap; não há lote configurado.
+
 Contatos: a migration `20261111200000` foi aplicada ao projeto de teste após revisão estática; ela prepara reserva, reconciliação e privilégios privados. A criação passou a exigir reserva, mas ciclo HTTP e cliente ainda não a obtêm, mantendo o caminho fechado. Testes foram adiados a pedido; não há prova de concorrência, autorização ou operação conectada.
 
 Atualização: migrations `20261111210000` e `20261111220000` aplicadas ao projeto de teste, mantendo wrappers privados. Ciclo HTTP e interface de contatos foram ligados em código; falta owner restrito com RLS/grants da composição e ativação. O vínculo familiar passa a preparar suporte à sessão técnica, ainda privado. Lint e typecheck passaram; nenhum teste executado.
