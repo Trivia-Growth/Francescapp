@@ -433,7 +433,16 @@ it('abre relato fictício isolado e descarta conteúdo ao voltar', async () => {
   const descricao = document.querySelector<HTMLTextAreaElement>('#relato-content textarea');
   if (!descricao) throw new Error('Descrição ausente');
   descricao.value = 'Conteúdo fictício';
+  descricao.dispatchEvent(new Event('input', { bubbles: true }));
+  const confirmar = vi
+    .spyOn(window, 'confirm')
+    .mockReturnValueOnce(false)
+    .mockReturnValueOnce(true);
   document.getElementById('relato-back')?.click();
+  expect(document.getElementById('relato-view')?.hidden).toBe(false);
+  expect(descricao.value).toBe('Conteúdo fictício');
+  document.getElementById('relato-back')?.click();
+  expect(confirmar).toHaveBeenCalledTimes(2);
   expect(document.getElementById('relato-content')?.childElementCount).toBe(0);
   expect(document.activeElement?.id).toBe('open-relato');
   expect(fetch.mock.calls.length).toBe(chamadasAntes);

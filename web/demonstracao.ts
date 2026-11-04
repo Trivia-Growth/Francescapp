@@ -19,6 +19,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   let desmontarRelato: (() => void) | undefined;
   elemento('open-relato').addEventListener('click', () => {
     desmontarRelato = montarRelatoTextual(elemento('relato-content'));
+    const form = elemento('relato-content').querySelector('form');
+    form?.addEventListener('input', () => formulariosAlterados.add(form));
     login.hidden = true;
     telaRelato.hidden = false;
     elemento('relato-title').focus();
