@@ -38,3 +38,5 @@ assert segunda['ok'] and segunda['repeticao'], segunda
 assert primeira['dados'] == segunda['dados'], (primeira, segunda)
 PYTEST
 rtk proxy psql -X -h "$temporario" -p 5432 -U cadeia_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -c "do \$\$ begin if (select count(*) from operacao.requisicao where chave_idempotencia='concorrente') <> 1 or (select count(*) from cadastro.anamnese_versao where paciente_id='40000000-0000-4000-8000-000000000002') <> 1 or (select count(*) from auditoria.evento where objeto_id='40000000-0000-4000-8000-000000000002' and resultado='permitido') <> 2 then raise exception 'CONCORRENCIA_INCONSISTENTE'; end if; end \$\$;"
+
+rtk proxy psql -X -h "$temporario" -p 5432 -U cadeia_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/tests/anamnese_revogacao_concorrente_local.sql"
