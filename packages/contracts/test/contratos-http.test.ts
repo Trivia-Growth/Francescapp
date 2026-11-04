@@ -19,6 +19,29 @@ import {
 const uuid = '31a7e0e6-8b2f-4c85-8baf-9422b39a4175';
 
 describe('contratos HTTP da fundação', () => {
+  it('exige chave idempotente e prova de sessão na escrita preparada da anamnese', () => {
+    const rota = contratosRotas.salvarAnamnese;
+    const cabecalhos = {
+      'x-chave-idempotencia': 'chave_ficticia_123456',
+      'x-ffcm-prova-sessao': `${'A'.repeat(42)}A`,
+      'x-ffcm-geracao-sessao': '1',
+    };
+    expect(rota.metodo).toBe('PATCH');
+    expect(rota.caminho).toBe('/api/pacientes/:paciente_id/anamnese');
+    expect(rota.parametros.safeParse({ paciente_id: uuid }).success).toBe(true);
+    expect(rota.cabecalhos.safeParse(cabecalhos).success).toBe(true);
+    expect(
+      rota.cabecalhos.safeParse({ ...cabecalhos, 'x-chave-idempotencia': 'curta' }).success,
+    ).toBe(false);
+    expect(
+      rota.cabecalhos.safeParse({ 'x-chave-idempotencia': cabecalhos['x-chave-idempotencia'] })
+        .success,
+    ).toBe(false);
+    expect(rota.entrada.safeParse({ versao_esperada: 0, secoes: [] }).success).toBe(true);
+    expect(rota.entrada.safeParse({ secoes: [] }).success).toBe(false);
+    expect(rota.saida.safeParse({ versao: 1, secoes: [] }).success).toBe(true);
+  });
+
   it('valida apenas estrutura de cursor e envelope da reconciliação, sem provar opacidade', () => {
     const rota = contratosRotas.consultarOperacoesCadastro;
     const exemploQueNaoEOpaco = 'pessoa-ficticia@example.test';

@@ -426,7 +426,12 @@ describe('interfaces internas consumidas por banco, sessão e handlers', () => {
   });
   it('cobre as rotas com RPC definida e identifica a reconciliação ainda sem RPC', () => {
     const rotasSemRpc = Object.keys(contratosRotas).filter((rota) => !(rota in assinaturasRpc));
-    expect(rotasSemRpc).toEqual(['desafioTecnico', 'consultarOperacoesCadastro']);
+    expect(rotasSemRpc).toEqual([
+      'desafioTecnico',
+      'consultarOperacoesCadastro',
+      'consultarAnamnese',
+      'salvarAnamnese',
+    ]);
     expect(Object.keys(assinaturasRpc).every((rota) => rota in contratosRotas)).toBe(true);
     expect(contratosRpc.admitirSessao.contexto).toBe('somente-servidor');
   });

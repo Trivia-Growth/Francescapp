@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { eventoAuditoriaSchema } from './auditoria.ts';
-import { anamneseSchema } from './anamnese.ts';
+import { anamneseSchema, salvarAnamneseSchema } from './anamnese.ts';
 import { reservaCadastroSchema } from './rpc.ts';
 
 import {
@@ -361,6 +361,14 @@ export const contratosRotas = {
     '/api/pacientes/:paciente_id/anamnese',
     vazioSchema,
     anamneseSchema.nullable(),
+    pacienteParametrosSchema,
+  ),
+  // Contrato preparado; replay autorizado e prova integrada ainda pendentes.
+  salvarAnamnese: mutacaoIdempotente(
+    'PATCH',
+    '/api/pacientes/:paciente_id/anamnese',
+    salvarAnamneseSchema,
+    anamneseSchema,
     pacienteParametrosSchema,
   ),
   atualizarPaciente: mutacaoIdempotente(

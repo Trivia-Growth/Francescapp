@@ -8,7 +8,7 @@ import {
   resultadoAtestacaoSchema,
   type CampoCifrado,
 } from '../../../packages/contracts/src/rpc.ts';
-import { uuidSchema } from '../../../packages/contracts/src/comum.ts';
+import { chaveIdempotenciaSchema, uuidSchema } from '../../../packages/contracts/src/comum.ts';
 
 type Aad = {
   tabela: 'cadastro.anamnese_versao';
@@ -43,6 +43,9 @@ export async function operarAnamneseNativa(
       cifrar(valor: string, aad: Aad): Promise<CampoCifrado>;
       decifrar(valor: CampoCifrado, aad: Aad): Promise<string>;
     };
+    idempotencia: {
+      calcularDigestIdempotencia(comandoLogico: string): Promise<string>;
+    };
     atestador: {
       canonicalizar(valor: unknown): string;
       atestarEntrada(dados: unknown, entrada: Record<string, unknown>): Promise<unknown>;
@@ -66,6 +69,7 @@ export async function operarAnamneseNativa(
       | 'nao_autenticado'
       | 'sem_permissao'
       | 'conflito_versao'
+      | 'conflito_idempotencia'
       | 'servico_indisponivel'
       | 'pendencia_externa',
   ) => ({ ok: false as const, erro: { codigo }, request_id: requestId });
@@ -77,7 +81,11 @@ export async function operarAnamneseNativa(
       return erro('entrada_invalida');
     const pacienteId = paciente.data.toLowerCase();
     let secoes: ReturnType<typeof validarSecoesAnamnese> | undefined;
+    let chaveIdempotencia: string | undefined;
     if (comando.operacao === 'gravar') {
+      const chave = chaveIdempotenciaSchema.safeParse(request.headers.get('x-chave-idempotencia'));
+      if (!chave.success) return erro('entrada_invalida');
+      chaveIdempotencia = chave.data;
       if (
         !Number.isInteger(comando.versao_esperada) ||
         comando.versao_esperada < 0 ||
@@ -112,8 +120,18 @@ export async function operarAnamneseNativa(
         campo: 'conteudo',
         formato: 1,
       };
+      const digest = await portas.idempotencia.calcularDigestIdempotencia(
+        portas.atestador.canonicalizar({
+          paciente_id: pacienteId,
+          versao_esperada: comando.versao_esperada,
+          secoes,
+        }),
+      );
+      if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) throw new Error();
       Object.assign(entrada, {
         registro_id: registroId,
+        chave_idempotencia: chaveIdempotencia,
+        digest_idempotencia: digest,
         versao_esperada: comando.versao_esperada,
         conteudo: campoCifradoSchema.parse(await portas.cifra.cifrar(JSON.stringify(secoes), aad)),
         aad,
@@ -153,11 +171,17 @@ export async function operarAnamneseNativa(
     );
     if (request.signal.aborted || resposta.request_id !== requestId) throw new Error();
     if (!resposta.ok)
-      return erro(resposta.erro.codigo === 'conflito' ? 'conflito_versao' : 'sem_permissao');
+      return erro(
+        resposta.erro.codigo === 'conflito'
+          ? 'conflito_versao'
+          : resposta.erro.codigo === 'conflito_idempotencia'
+            ? 'conflito_idempotencia'
+            : 'sem_permissao',
+      );
     if (
       comando.operacao === 'gravar' &&
       (!resposta.dados ||
-        resposta.dados.registro_id !== entrada.registro_id ||
+        (!resposta.repeticao && resposta.dados.registro_id !== entrada.registro_id) ||
         resposta.dados.versao !== comando.versao_esperada + 1)
     )
       throw new Error();

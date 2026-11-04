@@ -57,17 +57,23 @@ describe('resposta privada da anamnese', () => {
   };
   it('aceita ausência, registro cifrado e erros previstos', () => {
     for (const resposta of [
-      { ok: true, dados: null, request_id },
-      { ok: true, dados, request_id },
+      { ok: true, dados: null, request_id, repeticao: false },
+      { ok: true, dados, request_id, repeticao: false },
+      { ok: true, dados, request_id, repeticao: true },
       { ok: false, erro: { codigo: 'conflito' }, request_id },
+      { ok: false, erro: { codigo: 'conflito_idempotencia' }, request_id },
       { ok: false, erro: { codigo: 'sem_permissao' }, request_id },
     ])
       expect(respostaAnamnesePrivadaSchema.safeParse(resposta).success).toBe(true);
   });
   it('rejeita versões inválidas e campos extras na resposta privada', () => {
+    expect(respostaAnamnesePrivadaSchema.safeParse({ ok: true, dados, request_id }).success).toBe(
+      false,
+    );
     expect(
       respostaAnamnesePrivadaSchema.safeParse({
         ok: true,
+        repeticao: false,
         dados: { ...dados, versao: 0 },
         request_id,
       }).success,
@@ -75,6 +81,7 @@ describe('resposta privada da anamnese', () => {
     expect(
       respostaAnamnesePrivadaSchema.safeParse({
         ok: true,
+        repeticao: false,
         dados: { ...dados, texto: 'exemplo' },
         request_id,
       }).success,

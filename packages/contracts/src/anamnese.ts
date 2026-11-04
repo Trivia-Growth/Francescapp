@@ -110,6 +110,7 @@ export const respostaAnamnesePrivadaSchema = z.discriminatedUnion('ok', [
   z
     .object({
       ok: z.literal(true),
+      repeticao: z.boolean(),
       dados: z
         .object({
           registro_id: uuidSchema,
@@ -125,7 +126,9 @@ export const respostaAnamnesePrivadaSchema = z.discriminatedUnion('ok', [
   z
     .object({
       ok: z.literal(false),
-      erro: z.object({ codigo: z.enum(['sem_permissao', 'conflito']) }).strict(),
+      erro: z
+        .object({ codigo: z.enum(['sem_permissao', 'conflito', 'conflito_idempotencia']) })
+        .strict(),
       request_id: uuidSchema,
     })
     .strict(),
