@@ -19,6 +19,8 @@ Desenho mínimo para próxima implementação: paginar objetivos por `objetivo_i
 
 Atualização: paginação foi preparada no banco, servidor e interface, com cursor vinculado ao contexto. Testes locais percorreram histórico de 55 versões e mais de 1 MiB em três páginas, além de revogação entre páginas e cursores inválidos; PostgreSQL e cifra foram reais, Auth/Vault e transporte simulados. Alterações concorrentes não constituem snapshot e precisam de prova antes da ativação. Nenhuma rota ou migration remota foi ativada.
 
+Teste concorrente posterior executou a cadeia SQL atual e passou para revogação de sessão e concessão nas duas ordens, repetição após revogação e conflito de revisões. As conexões comprovaram bloqueio entre transações, sem identificar a linha responsável; Auth e atestado permanecem fixtures e não comprovam integração remota.
+
 Montagem local conecta a tela de plano ao fluxo de pacientes; retorno à aba revalida antes de exibir dados e teste com 403 simulado confirma limpeza e saída. Teste HTTP integrado local passou com PostgreSQL, cifra e atestado reais; Auth, Vault e transporte PostgREST foram simulados e grant concedido apenas no banco descartável. Dispatcher segue inativo; isso não comprova acesso ou revogação reais no Supabase.
 
 O teste HTTP integrado foi ampliado para reserva, gravação confirmada com resposta perdida, repetição, revisão, histórico paginado e negativa de outro paciente. A gravação é comprovada no banco antes da repetição; Auth e Vault seguem simulados.

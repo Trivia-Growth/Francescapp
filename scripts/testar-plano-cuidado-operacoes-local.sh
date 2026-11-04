@@ -15,3 +15,7 @@ iniciado=1
 rtk proxy createdb -h "$temporario" -p 5432 -U cadeia_fixture ffcm_cadeia_local
 rtk proxy psql -X -h "$temporario" -p 5432 -U cadeia_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/tests/plano_cuidado_operacoes_local.sql"
 
+for migration in 20261107150000_plano_cuidado_historico_privado.sql 20261107160000_plano_cuidado_reserva_privada.sql 20261107170000_plano_composicao_privada.sql 20261108130000_plano_cuidado_paginacao_privada.sql; do
+  rtk proxy psql -X -h "$temporario" -p 5432 -U cadeia_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/migrations/$migration"
+done
+rtk proxy psql -X -h "$temporario" -p 5432 -U cadeia_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/tests/plano_revogacao_concorrente_local.sql"
