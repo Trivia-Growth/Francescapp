@@ -14,6 +14,8 @@ Retomada: acesso ao projeto confirmado por consulta; Google permanece desativado
 
 Preparação local posterior: a entrada técnica usa identificador separado por tentativa; migration local admite somente conta técnica com concessão e exceção individual vinculadas. Teste SQL descartável comprovou admissão e negativas de outra conta e concessão revogada; testes de interface usam respostas fictícias. Permanecem sem prova regressão Google após a migration, revogação de sessão já admitida, Auth real e duplicação de aba. Cadastro e carteira ainda exigem Google; rotas não foram ativadas e o banco remoto não foi alterado.
 
+Cadastro e carteira receberam migrations locais posteriores à admissão técnica. Testes em PostgreSQL descartável cobriram criação, repetição, auditoria e sessão encerrada, além de lista e retirada da exceção; Auth e Vault são fixtures. O teste da carteira não percorreu a cadeia completa de migrations e não comprova regressão Google, profissional/vínculo ou revogação de sessão e concessão. Integração real, bootstrap e ativação continuam pendentes; nada foi aplicado remotamente.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.
