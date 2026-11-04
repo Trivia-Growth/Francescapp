@@ -16,3 +16,5 @@ export {
   validarSecoesAnamnese,
 } from './anamnese.ts';
 export type { Anamnese, RespostaAnamnese, SalvarAnamnese, SecaoAnamnese } from './anamnese.ts';
+
+export * from './plano-cuidado.ts';

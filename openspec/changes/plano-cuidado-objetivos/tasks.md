@@ -1,0 +1,22 @@
+# Tasks
+
+## 1. Preparação independente
+
+- [ ] 1.1 Para FR-015/016, validar com equipe campos adicionais, responsável pela validação e periodicidade por caso; registrar respostas e exemplos fictícios nesta change, sem definir conduta por inferência.
+- [ ] 1.2 Para cenários de acesso e revogação FR-015/016, confirmar matriz de leitura e escrita por perfil, vínculo e audiência, inclusive acesso familiar; registrar decisões e casos negados nesta change.
+- [ ] 1.3 Para histórico FR-016, modelar ameaças de leitura, escrita e acesso direto e revisar a fundação disponível; evidenciar lacunas de cifra, auditoria, autorização e revogação sem presumir integração.
+- [x] 1.4 Para FR-015/016, definir contrato de domínio local dos campos já confirmados e revisão versionada sem regras clínicas ou concessões; verificar testes de estados, preservação da versão anterior e conflito.
+
+## 2. Planejamento da integração
+
+- [ ] 2.1 Após 1.1–1.3, atualizar delta, design e tarefas executáveis com matriz confirmada e controles concretos; evidência: revisão de coerência entre requisitos, contrato, segurança e roteiro de teste.
+- [ ] 2.2 Após 2.1, revisar independentemente padrões e aderência a FR-015/016 sobre diff definido; registrar achados, correções e limitações antes de solicitar ativação.
+
+## Workflow follow-up
+
+- A integração conectada exige tarefas específicas após decisões materiais, testes positivos e negativos no servidor e banco, prova real com dados fictícios e autorização para qualquer operação remota.
+- Na ativação da fatia, executar verificações previstas em AGENTS.md e roteiro de teste; registrar bloqueios, nunca tomar mocks ou testes pulados como prova de integração.
+
+Evidência 1.4: teste local de contrato passou (2 testes); `pnpm run verificar:rapido` passou. Sem persistência, autorização ou integração comprovadas.
+
+Revisão do contrato identificou metadados misturados à entrada e compartilhamento de referências do histórico; correções e teste focado passaram. A futura fronteira autenticada deve fornecer identidade e data confiáveis. O histórico retornado é mutável pelo consumidor; a revisão local não substitui a revisão da fatia conectada.
