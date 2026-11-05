@@ -19,8 +19,11 @@ grant select (id, ativo, perfil), update (versao) on public.usuario to ffcmapp_a
 grant select (id, usuario_id, perfil, estado, metodo, subject_google), update (versao) on identidade.concessao_equipe to ffcmapp_agenda_google_owner;
 grant select (session_id, usuario_id, concessao_id, metodo, revogada_em, encerrada_em), update (revogada_em) on identidade.sessao to ffcmapp_agenda_google_owner;
 grant select on identidade.configuracao_auth_nativo to ffcmapp_agenda_google_owner;
+grant select (id,nome_cifrado,nome_preferencia_cifrado,versao) on cadastro.paciente to ffcmapp_agenda_google_owner;
 grant select (id,paciente_id,usuario_id,revogada_em), update (id) on cadastro.acesso_paciente to ffcmapp_agenda_google_owner;
 grant insert (id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id) on auditoria.evento to ffcmapp_agenda_google_owner;
+create policy agenda_google_paciente on cadastro.paciente for select to ffcmapp_agenda_google_owner
+  using (exists(select 1 from cadastro.acesso_paciente ap where ap.paciente_id=cadastro.paciente.id and ap.usuario_id=nullif(current_setting('ffcmapp.agenda_usuario',true),'')::uuid and ap.revogada_em is null));
 create policy agenda_google_acesso on cadastro.acesso_paciente for select to ffcmapp_agenda_google_owner
   using (usuario_id=nullif(current_setting('ffcmapp.agenda_usuario',true),'')::uuid);
 create policy agenda_google_acesso_lock on cadastro.acesso_paciente for update to ffcmapp_agenda_google_owner
@@ -199,7 +202,7 @@ begin
   if jsonb_typeof(p_transporte) is distinct from 'object'
     or p_transporte - array['entrada','entrada_canonica','dados_canonicos'] <> '{}'::jsonb
     or jsonb_typeof(e) is distinct from 'object'
-    or e - array['request_id','hash','valor_hash','geracao','subject','operacao_id','evento_id','acao','desfecho','paciente_id','atestado'] <> '{}'::jsonb
+    or e - array['request_id','hash','valor_hash','geracao','subject','operacao_id','evento_id','acao','desfecho','paciente_id','eventos','atestado'] <> '{}'::jsonb
     or jsonb_typeof(a) is distinct from 'object' then
     raise exception using errcode='42501', message='SEM_PERMISSAO';
   end if;
@@ -212,7 +215,7 @@ begin
     raise exception using errcode='42501', message='SEM_PERMISSAO';
   end;
   if v_usuario is null or v_sessao is null or v_req is null or v_inicio is null or v_fim is null
-    or v_acao not in ('agenda.registrar','agenda.consumir','agenda.salvar','agenda.ler','agenda.revogar','agenda.reservar_escrita','agenda.pendencia','agenda.resolver_escrita','agenda.vincular')
+    or v_acao not in ('agenda.registrar','agenda.consumir','agenda.salvar','agenda.ler','agenda.revogar','agenda.reservar_escrita','agenda.pendencia','agenda.resolver_escrita','agenda.vincular','agenda.consultar_vinculos')
     or v_acao is null or a->>'usuario_id' is distinct from v_usuario::text
     or a->>'session_id' is distinct from v_sessao::text or a->>'request_id' is distinct from v_req::text
     or v_inicio>clock_timestamp() or v_fim<=clock_timestamp() or v_fim<=v_inicio or v_fim-v_inicio>interval '30 seconds'
@@ -260,6 +263,31 @@ begin
       v_resultado := to_jsonb(identidade.agenda_google_salvar_credencial(p_valor,(e->>'geracao')::bigint,e->>'subject'));
     when 'agenda.ler' then v_resultado := identidade.agenda_google_ler_credencial();
     when 'agenda.revogar' then v_resultado := to_jsonb(identidade.agenda_google_revogar_credencial());
+    when 'agenda.consultar_vinculos' then
+      if jsonb_typeof(e->'eventos') is distinct from 'array' or jsonb_array_length(e->'eventos') not between 1 and 250
+        or exists(select 1 from jsonb_array_elements(e->'eventos') x where jsonb_typeof(x)<>'string' or (x#>>'{}') !~ '^[A-Za-z0-9_-]{1,1024}$')
+        or coalesce(e->>'geracao','') !~ '^[0-9]{1,18}$' then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+      perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_usuario::text, 0));
+      if not exists (select 1 from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id
+        join identidade.agenda_google_credencial g on g.usuario_id=s.usuario_id and g.subject_google=c.subject_google
+        where s.usuario_id=v_usuario and s.session_id=v_sessao and c.perfil='profissional'
+          and c.subject_google=e->>'subject' and g.geracao=(e->>'geracao')::bigint) then
+        raise exception using errcode='42501',message='SEM_PERMISSAO';
+      end if;
+      -- Mantém revogação de acesso bloqueada até concluir leitura e auditoria.
+      perform 1 from cadastro.acesso_paciente ap join identidade.agenda_google_vinculo_paciente v on v.paciente_id=ap.paciente_id
+        where ap.usuario_id=v_usuario and ap.revogada_em is null and v.usuario_id=v_usuario
+          and v.subject_google=e->>'subject' and v.evento_id in (select jsonb_array_elements_text(e->'eventos')) for share of ap;
+      select coalesce(jsonb_agg(jsonb_build_object('evento_id',v.evento_id,'paciente',jsonb_build_object('paciente_id',p.id,'nome',p.nome_cifrado,'nome_preferencia',p.nome_preferencia_cifrado,'versao',p.versao)) order by v.evento_id),'[]'::jsonb)
+        into v_resultado from identidade.agenda_google_vinculo_paciente v
+        join cadastro.paciente p on p.id=v.paciente_id
+        join cadastro.acesso_paciente ap on ap.paciente_id=v.paciente_id and ap.usuario_id=v_usuario and ap.revogada_em is null
+        where v.usuario_id=v_usuario and v.subject_google=e->>'subject' and v.evento_id in (select jsonb_array_elements_text(e->'eventos'));
+      insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+        select gen_random_uuid(),v_usuario,'agenda.consultar_vinculo','paciente',v.paciente_id,'permitido',v_req
+        from identidade.agenda_google_vinculo_paciente v
+        join cadastro.acesso_paciente ap on ap.paciente_id=v.paciente_id and ap.usuario_id=v_usuario and ap.revogada_em is null
+        where v.usuario_id=v_usuario and v.subject_google=e->>'subject' and v.evento_id in (select jsonb_array_elements_text(e->'eventos'));
     when 'agenda.vincular' then
       declare v_paciente uuid; v_existente uuid;
       begin

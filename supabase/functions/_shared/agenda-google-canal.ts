@@ -19,6 +19,7 @@ export function criarCanalAgenda(config: {
     agenda_google_reservar_escrita: 'agenda.reservar_escrita',
     agenda_google_resolver_escrita: 'agenda.resolver_escrita',
     agenda_google_vincular: 'agenda.vincular',
+    agenda_google_consultar_vinculos: 'agenda.consultar_vinculos',
   };
   return {
     async identidade() {
@@ -46,7 +47,9 @@ export function criarCanalAgenda(config: {
                   ? ['p_operacao_id', 'p_subject', 'p_desfecho']
                   : nome === 'agenda_google_vincular'
                     ? ['p_evento_id', 'p_paciente_id', 'p_subject', 'p_geracao']
-                    : [];
+                    : nome === 'agenda_google_consultar_vinculos'
+                      ? ['p_eventos', 'p_subject', 'p_geracao']
+                      : [];
       if (
         Object.keys(argumentos).some((campo) => !permitidos.includes(campo)) ||
         permitidos.some((campo) => typeof argumentos[campo] !== 'string')
@@ -63,6 +66,16 @@ export function criarCanalAgenda(config: {
             ).join('');
       const requestId = crypto.randomUUID();
       const agora = Date.now();
+      const eventos: unknown =
+        argumentos.p_eventos === undefined ? undefined : JSON.parse(argumentos.p_eventos);
+      if (
+        eventos !== undefined &&
+        (!Array.isArray(eventos) ||
+          eventos.length < 1 ||
+          eventos.length > 250 ||
+          eventos.some((v) => typeof v !== 'string' || !/^[A-Za-z0-9_-]{1,1024}$/.test(v)))
+      )
+        throw new Error('Conexão indisponível.');
       const entrada = {
         request_id: requestId,
         ...(argumentos.p_hash ? { hash: argumentos.p_hash } : {}),
@@ -71,6 +84,7 @@ export function criarCanalAgenda(config: {
         ...(argumentos.p_operacao_id ? { operacao_id: argumentos.p_operacao_id } : {}),
         ...(argumentos.p_evento_id ? { evento_id: argumentos.p_evento_id } : {}),
         ...(argumentos.p_paciente_id ? { paciente_id: argumentos.p_paciente_id } : {}),
+        ...(eventos ? { eventos } : {}),
         ...(argumentos.p_acao ? { acao: argumentos.p_acao } : {}),
         ...(argumentos.p_desfecho ? { desfecho: argumentos.p_desfecho } : {}),
         ...(digest ? { valor_hash: digest } : {}),

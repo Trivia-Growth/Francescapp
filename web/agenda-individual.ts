@@ -48,7 +48,12 @@ export function montarAgendaIndividual(
   const operacoesRaiz = document.createElement('div');
   raiz.append(operacoesRaiz);
   const operacoes = montarOperacoesAgenda(operacoesRaiz, cabecalhos, () => void carregar());
-  const vinculos = montarVinculoAgenda(operacoesRaiz, cabecalhos, listarPacientes);
+  const vinculos = montarVinculoAgenda(
+    operacoesRaiz,
+    cabecalhos,
+    listarPacientes,
+    () => void carregar(),
+  );
   async function carregar(): Promise<void> {
     const versao = ++consulta;
     lista.replaceChildren();
@@ -92,6 +97,7 @@ export function montarAgendaIndividual(
         throw new Error();
       if (!ativa || versao !== consulta) return;
       const itens = corpo.dados as Compromisso[];
+      const estadosVinculo = new Map<string, HTMLElement>();
       const data = new Intl.DateTimeFormat('pt-BR', {
         dateStyle: 'full',
         timeStyle: 'short',
@@ -113,7 +119,10 @@ export function montarAgendaIndividual(
         } else {
           horario.textContent = `${data.format(new Date(item.inicio))} – ${data.format(new Date(item.fim))} · Horário de São Paulo`;
         }
-        linha.append(nome, horario);
+        const estadoVinculo = document.createElement('span');
+        estadoVinculo.textContent = 'Consultando vínculo…';
+        estadosVinculo.set(item.id, estadoVinculo);
+        linha.append(nome, horario, estadoVinculo);
         if (item.etag) {
           const editar = document.createElement('button');
           editar.type = 'button';
@@ -144,6 +153,62 @@ export function montarAgendaIndividual(
         linha.append(vincular);
         lista.append(linha);
       }
+      for (let indice = 0; indice < itens.length; indice += 250) {
+        const lote = itens.slice(indice, indice + 250).map((item) => item.id);
+        try {
+          const headers = cabecalhos();
+          headers.set('Content-Type', 'application/json');
+          const respostaVinculos = await fetch('/api/agenda/google/vinculos/consulta', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ eventos_ids: lote }),
+            credentials: 'same-origin',
+            cache: 'no-store',
+            redirect: 'error',
+            referrerPolicy: 'no-referrer',
+            signal: AbortSignal.timeout(20000),
+          });
+          if (!respostaVinculos.ok) throw new Error();
+          const dados: unknown = await respostaVinculos.json();
+          if (
+            !dados ||
+            typeof dados !== 'object' ||
+            !('dados' in dados) ||
+            !Array.isArray(dados.dados) ||
+            !dados.dados.every(
+              (v: unknown) =>
+                v &&
+                typeof v === 'object' &&
+                'evento_id' in v &&
+                typeof v.evento_id === 'string' &&
+                lote.includes(v.evento_id) &&
+                'paciente_id' in v &&
+                typeof v.paciente_id === 'string' &&
+                'nome' in v &&
+                typeof v.nome === 'string' &&
+                v.nome.length > 0,
+            )
+          )
+            throw new Error();
+          if (!ativa || versao !== consulta) return;
+          const encontrados = new Map<string, string>(
+            dados.dados.map((v: { evento_id: string; nome: string }) => [v.evento_id, v.nome]),
+          );
+          for (const id of lote) {
+            const destino = estadosVinculo.get(id);
+            if (destino)
+              destino.textContent = encontrados.has(id)
+                ? `Paciente: ${encontrados.get(id)}`
+                : 'Vínculo não disponível';
+          }
+        } catch {
+          if (!ativa || versao !== consulta) return;
+          for (const id of lote) {
+            const destino = estadosVinculo.get(id);
+            if (destino) destino.textContent = 'Não foi possível consultar o vínculo';
+          }
+        }
+      }
       status.textContent = itens.length
         ? `${itens.length} compromisso(s) no período.`
         : 'Nenhum compromisso nos próximos 30 dias.';
@@ -155,6 +220,14 @@ export function montarAgendaIndividual(
       if (ativa && versao === consulta) atualizar.disabled = false;
     }
   }
+  const ocultarDados = () => {
+    if (document.hidden) {
+      consulta += 1;
+      lista.replaceChildren();
+      vinculos.ocultar();
+    } else if (ativa) void carregar();
+  };
+  document.addEventListener('visibilitychange', ocultarDados);
   atualizar.addEventListener('click', () => void carregar());
   conectar.addEventListener('click', async () => {
     conectar.disabled = true;
@@ -191,6 +264,7 @@ export function montarAgendaIndividual(
   void carregar();
   return () => {
     ativa = false;
+    document.removeEventListener('visibilitychange', ocultarDados);
     operacoes.desmontar();
     vinculos.desmontar();
     consulta += 1;

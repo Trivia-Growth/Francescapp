@@ -4,6 +4,7 @@ export function montarVinculoAgenda(
   raiz: HTMLElement,
   cabecalhos: () => Headers,
   listar: (cursor?: string) => Promise<Pagina>,
+  atualizado: () => void,
 ) {
   let ativa = true;
   let ocupado = false;
@@ -95,6 +96,7 @@ export function montarVinculoAgenda(
       }
       if (dados.estado !== 'vinculado') throw new Error();
       estado.textContent = 'Vínculo confirmado.';
+      atualizado();
     } catch {
       if (ativa) {
         estado.textContent =
@@ -145,6 +147,12 @@ export function montarVinculoAgenda(
       titulo.tabIndex = -1;
       titulo.focus();
       void carregar();
+    },
+    ocultar: () => {
+      revisao += 1;
+      secao.hidden = true;
+      lista.replaceChildren();
+      evento.textContent = '';
     },
     desmontar: () => {
       ativa = false;

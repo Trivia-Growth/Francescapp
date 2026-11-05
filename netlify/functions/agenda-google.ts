@@ -8,6 +8,7 @@ export const config = {
     '/api/agenda/google/compromissos',
     '/api/agenda/google/operacoes',
     '/api/agenda/google/vinculos',
+    '/api/agenda/google/vinculos/consulta',
     '/api/agenda/google/pendencia',
     '/api/agenda/google/reconciliar',
   ],

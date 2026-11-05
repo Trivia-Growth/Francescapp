@@ -10,6 +10,11 @@ export function criarRepositorioAgenda(canal: CanalAgenda): RepositorioStateAgen
   salvarCredencial(refresh: string, geracao: string, subject: string): Promise<void>;
   lerCredencial(): Promise<Readonly<{ refresh: string; geracao: string }> | null>;
   revogarCredencial(): Promise<void>;
+  consultarVinculos(
+    eventos: readonly string[],
+    subject: string,
+    geracao: string,
+  ): Promise<readonly { evento_id: string; paciente: unknown }[]>;
   vincularPaciente(
     eventoId: string,
     pacienteId: string,
@@ -144,6 +149,32 @@ export function criarRepositorioAgenda(canal: CanalAgenda): RepositorioStateAgen
           p_desfecho: desfecho,
         })) === true
       );
+    },
+    async consultarVinculos(eventos, subject, geracao) {
+      const resposta = await canal.chamar('agenda_google_consultar_vinculos', {
+        p_eventos: JSON.stringify(eventos),
+        p_subject: subject,
+        p_geracao: geracao,
+      });
+      if (
+        !Array.isArray(resposta) ||
+        resposta.length > eventos.length ||
+        resposta.some(
+          (item) =>
+            typeof item !== 'object' ||
+            item === null ||
+            typeof item.evento_id !== 'string' ||
+            !eventos.includes(item.evento_id) ||
+            !('paciente' in item) ||
+            typeof item.paciente !== 'object' ||
+            item.paciente === null,
+        )
+      )
+        throw new Error('Conexão indisponível.');
+      return resposta.map((item) => ({
+        evento_id: item.evento_id as string,
+        paciente: item.paciente as unknown,
+      }));
     },
     async vincularPaciente(eventoId, pacienteId, subject, geracao) {
       const resultado = await canal.chamar('agenda_google_vincular', {
