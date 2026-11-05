@@ -10,7 +10,7 @@ const enderecoJwksGoogle = 'https://www.googleapis.com/oauth2/v3/certs';
 const limiteRespostaBytes = 65_536;
 
 /** O fetch injetado é dependência confiável do servidor, nunca entrada do cliente. */
-export function criarValidadorGoogleComJwks(buscar: FetchImplementation = fetch) {
+export function criarInfraGoogleJwks(buscar: FetchImplementation = fetch) {
   let cache:
     | { bytes: Uint8Array<ArrayBuffer>; expira: number; expiraMonotonico: number }
     | undefined;
@@ -118,8 +118,13 @@ export function criarValidadorGoogleComJwks(buscar: FetchImplementation = fetch)
       }
     },
   });
-  return (
+  const validar = (
     token: string,
     configuracao: Omit<ConfiguracaoValidacaoIdTokenGoogle, 'chaveDeVerificacao'>,
   ) => validarIdTokenGoogle(token, { ...configuracao, chaveDeVerificacao });
+  return { validar, chaveDeVerificacao };
+}
+
+export function criarValidadorGoogleComJwks(buscar: FetchImplementation = fetch) {
+  return criarInfraGoogleJwks(buscar).validar;
 }
