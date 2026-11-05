@@ -1,3 +1,4 @@
+import { montarAgendaIndividual } from './agenda-individual.js';
 import { montarContatoPaciente } from './contatos-paciente.js';
 import { montarSelecaoProfissional } from './selecao-profissional.js';
 import { montarEdicaoPaciente } from './editar-paciente.js';
@@ -361,7 +362,17 @@ function aviso(id: string, texto: string, tom: 'error' | 'success' | 'neutral' =
   destino.dataset.tone = tom;
 }
 
+let desmontarAgenda: (() => void) | null = null;
+let sessaoAgenda: string | null = null;
+function fecharAgenda(): void {
+  desmontarAgenda?.();
+  desmontarAgenda = null;
+  sessaoAgenda = null;
+  elemento('agenda-individual').hidden = true;
+}
+
 function apagarPacientes(): void {
+  fecharAgenda();
   fecharSelecao();
   fecharTarefas();
   fecharAnamnese();
@@ -479,6 +490,20 @@ function aplicarSessao(atual: Sessao): void {
     fecharSelecao();
   if (atual.usuario.perfil !== 'profissional') fecharTarefas();
   sessao = atual;
+  let acessoGoogle = false;
+  try {
+    acessoGoogle = sessionStorage.getItem('modo-acesso') === 'google';
+  } catch {
+    /* acesso indisponível */
+  }
+  if (atual.usuario.perfil === 'profissional' && acessoGoogle) {
+    if (sessaoAgenda !== atual.session_id) {
+      fecharAgenda();
+      sessaoAgenda = atual.session_id;
+      elemento('agenda-individual').hidden = false;
+      desmontarAgenda = montarAgendaIndividual(elemento('agenda-individual'), atual.session_id);
+    }
+  } else fecharAgenda();
   elemento('anamnese-coluna').textContent =
     atual.usuario.perfil === 'familia' ? 'Paciente' : 'Atendimento';
   const podeCadastrar =

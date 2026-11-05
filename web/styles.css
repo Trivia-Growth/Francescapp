@@ -593,3 +593,31 @@ td:last-child {
   border-color: var(--field-line);
   color: var(--primary);
 }
+
+.agenda-individual {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: #f2f5eb;
+  border-radius: 14px;
+}
+.agenda-individual h2 {
+  margin-top: 0;
+}
+.agenda-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+}
+.agenda-lista {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.agenda-lista li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: .5rem 1rem;
+  padding: .8rem 0;
+  border-bottom: 1px solid #dfe5d4;
+}
