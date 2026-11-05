@@ -50,6 +50,7 @@ const rotas = {
   },
   sairFamiliar: { ...contratosRotas.sairSessao, caminho: '/api/familiar/sessao/sair' },
   listarPacientes: contratosRotas.listarPacientes,
+  listarConcessoes: contratosRotas.listarConcessoes,
   listarPacientesFamiliar: {
     ...contratosRotas.listarPacientes,
     caminho: '/api/familiar/pacientes',
@@ -464,6 +465,14 @@ export class ClienteFFCM {
     return this.#enviar(
       familiar ? 'listarPacientesFamiliar' : 'listarPacientes',
       { limite: 25, ...(cursor ? { cursor } : {}) },
+      { protegido: true },
+    );
+  }
+
+  listarProfissionais(cursor?: string): Promise<Dados<'listarConcessoes'>> {
+    return this.#enviar(
+      'listarConcessoes',
+      { estado: 'vinculada', limite: 25, ...(cursor ? { cursor } : {}) },
       { protegido: true },
     );
   }

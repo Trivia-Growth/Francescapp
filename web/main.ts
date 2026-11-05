@@ -1,4 +1,5 @@
 import { montarContatoPaciente } from './contatos-paciente.js';
+import { montarSelecaoProfissional } from './selecao-profissional.js';
 import { montarEdicaoPaciente } from './editar-paciente.js';
 import type {
   sessaoNativaSchema,
@@ -133,6 +134,31 @@ function fecharEdicao(): void {
   edicaoPendente = false;
   edicaoPanel.hidden = true;
 }
+const selecaoPanel = document.createElement('section');
+selecaoPanel.className = 'anamnese-panel';
+selecaoPanel.hidden = true;
+selecaoPanel.setAttribute('aria-labelledby', 'selecao-profissional-title');
+const selecaoTitulo = document.createElement('h2');
+selecaoTitulo.id = 'selecao-profissional-title';
+selecaoTitulo.tabIndex = -1;
+const selecaoFechar = document.createElement('button');
+selecaoFechar.type = 'button';
+selecaoFechar.className = 'button-secondary';
+selecaoFechar.textContent = 'Fechar seleção';
+const selecaoRaiz = document.createElement('div');
+selecaoPanel.append(selecaoTitulo, selecaoFechar, selecaoRaiz);
+patientsView.append(selecaoPanel);
+let desmontarSelecao: (() => void) | null = null;
+function fecharSelecao(): void {
+  desmontarSelecao?.();
+  desmontarSelecao = null;
+  selecaoPanel.hidden = true;
+  selecaoTitulo.textContent = '';
+}
+selecaoFechar.addEventListener('click', () => {
+  fecharSelecao();
+  acaoPacienteAnterior?.focus();
+});
 const pacienteFamiliarPanel = elemento('paciente-familiar-panel');
 const pacienteFamiliarDados = elemento('paciente-familiar-dados');
 const pacienteFamiliarTentar = elemento<HTMLButtonElement>('paciente-familiar-tentar');
@@ -336,6 +362,7 @@ function aviso(id: string, texto: string, tom: 'error' | 'success' | 'neutral' =
 }
 
 function apagarPacientes(): void {
+  fecharSelecao();
   fecharTarefas();
   fecharAnamnese();
   fecharPlano();
@@ -433,6 +460,7 @@ function aplicarSessao(atual: Sessao): void {
       sessao.usuario.perfil !== atual.usuario.perfil ||
       atual.usuario.perfil === 'familia')
   ) {
+    fecharSelecao();
     fecharTarefas();
     fecharAnamnese();
     fecharPlano();
@@ -444,6 +472,11 @@ function aplicarSessao(atual: Sessao): void {
     !atual.capacidades.includes('administrar_cadastro')
   )
     fecharEdicao();
+  if (
+    atual.usuario.perfil !== 'administrador' ||
+    !atual.capacidades.includes('administrar_concessoes')
+  )
+    fecharSelecao();
   if (atual.usuario.perfil !== 'profissional') fecharTarefas();
   sessao = atual;
   elemento('anamnese-coluna').textContent =
@@ -594,17 +627,19 @@ async function entrarFamiliar(evento: SubmitEvent): Promise<void> {
 }
 
 function atendimentoJaAberto(): boolean {
-  const titulo = !pacienteFamiliarPanel.hidden
-    ? 'paciente-familiar-title'
-    : !anamnesePanel.hidden
-      ? 'anamnese-title'
-      : !planoPanel.hidden
-        ? 'plano-title'
-        : !tarefasPanel.hidden
-          ? 'tarefas-title'
-          : !edicaoPanel.hidden
-            ? 'edicao-title'
-            : null;
+  const titulo = !selecaoPanel.hidden
+    ? 'selecao-profissional-title'
+    : !pacienteFamiliarPanel.hidden
+      ? 'paciente-familiar-title'
+      : !anamnesePanel.hidden
+        ? 'anamnese-title'
+        : !planoPanel.hidden
+          ? 'plano-title'
+          : !tarefasPanel.hidden
+            ? 'tarefas-title'
+            : !edicaoPanel.hidden
+              ? 'edicao-title'
+              : null;
   if (!titulo) return false;
   aviso('workspace-feedback', 'Feche o atendimento aberto antes de selecionar outro.');
   elemento(titulo).focus();
@@ -711,6 +746,31 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
         elemento('tarefas-title').focus();
       });
       acao.append(tarefas);
+    }
+    if (
+      sessao.usuario.perfil === 'administrador' &&
+      sessao.capacidades.includes('administrar_concessoes')
+    ) {
+      const selecionar = document.createElement('button');
+      selecionar.type = 'button';
+      selecionar.className = 'button-secondary';
+      selecionar.textContent = 'Selecionar profissional';
+      selecionar.setAttribute('aria-label', `Selecionar profissional para ${paciente.nome}`);
+      selecionar.addEventListener('click', () => {
+        if (
+          !sessao ||
+          sessao.usuario.perfil !== 'administrador' ||
+          !sessao.capacidades.includes('administrar_concessoes') ||
+          atendimentoJaAberto()
+        )
+          return;
+        acaoPacienteAnterior = selecionar;
+        selecaoTitulo.textContent = `Profissional para ${paciente.nome}`;
+        selecaoPanel.hidden = false;
+        desmontarSelecao = montarSelecaoProfissional(selecaoRaiz, api, acessoPerdido);
+        selecaoTitulo.focus();
+      });
+      acao.append(selecionar);
     }
     // A interface fica preparada, mas não deve anunciar rotas ainda inexistentes.
     const edicaoPacienteDisponivel = false;

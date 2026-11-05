@@ -505,7 +505,7 @@ export const assinaturasRpc = {
     contextoRpcUsuarioSchema
       .extend({ ...paginacao, estado: estadoConcessaoSchema.optional() })
       .strict(),
-    paginaInterna(concessaoSaidaSchema),
+    paginaInterna(concessaoSaidaSchema.extend({ ativo: z.boolean().nullable() })),
   ),
   criarConcessao: assinatura(
     'api.criar_concessao_equipe',

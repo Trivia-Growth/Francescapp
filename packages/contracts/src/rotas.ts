@@ -311,7 +311,12 @@ export const contratosRotas = {
   listarConcessoes: consulta(
     '/api/admin/concessoes-equipe',
     consultaConcessoesSchema,
-    paginaSchema(concessaoEquipeSchema),
+    paginaSchema(
+      concessaoEquipeSchema.omit({ metodo: true }).extend({
+        email: z.string().email().max(254),
+        ativo: z.boolean().nullable(),
+      }),
+    ),
   ),
   criarConcessao: mutacaoIdempotente(
     'POST',
