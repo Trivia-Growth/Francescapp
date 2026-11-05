@@ -7,8 +7,8 @@ type CanalAgenda = Readonly<{
 }>;
 
 export function criarRepositorioAgenda(canal: CanalAgenda): RepositorioStateAgenda & {
-  salvarCredencial(refresh: string, geracao: string): Promise<void>;
-  lerCredencial(): Promise<string | null>;
+  salvarCredencial(refresh: string, geracao: string, subject: string): Promise<void>;
+  lerCredencial(): Promise<Readonly<{ refresh: string; geracao: string }> | null>;
   revogarCredencial(): Promise<void>;
 } {
   const conferir = async (usuarioId: string, sessaoId: string) => {
@@ -42,26 +42,36 @@ export function criarRepositorioAgenda(canal: CanalAgenda): RepositorioStateAgen
         throw new Error('Conexão indisponível.');
       return { selado: resultado.selado, geracao: resultado.geracao };
     },
-    async salvarCredencial(refresh, geracao) {
+    async salvarCredencial(refresh, geracao, subject) {
       if (
         !refresh ||
         refresh.length > 4096 ||
         !/^[0-9]{1,19}$/.test(geracao) ||
+        !subject ||
+        subject.length > 255 ||
         (await canal.chamar('agenda_google_salvar_credencial', {
           p_refresh: refresh,
           p_geracao: geracao,
+          p_subject: subject,
         })) !== true
       )
         throw new Error('Conexão indisponível.');
     },
     async lerCredencial() {
       const resultado = await canal.chamar('agenda_google_ler_credencial', {});
+      if (resultado === null) return null;
       if (
-        resultado !== null &&
-        (typeof resultado !== 'string' || !resultado || resultado.length > 4096)
+        typeof resultado !== 'object' ||
+        !('refresh' in resultado) ||
+        typeof resultado.refresh !== 'string' ||
+        !resultado.refresh ||
+        resultado.refresh.length > 4096 ||
+        !('geracao' in resultado) ||
+        typeof resultado.geracao !== 'string' ||
+        !/^[0-9]{1,19}$/.test(resultado.geracao)
       )
         throw new Error('Conexão indisponível.');
-      return resultado;
+      return { refresh: resultado.refresh, geracao: resultado.geracao };
     },
     async revogarCredencial() {
       if ((await canal.chamar('agenda_google_revogar_credencial', {})) !== true)

@@ -1,7 +1,13 @@
 import { criarErroPublicoSemCampos } from '../../packages/contracts/src/erros.ts';
 import { comporAgendaGoogle } from './_shared/compor-agenda-google.ts';
 
-export const config = { path: ['/api/agenda/google/conectar', '/api/agenda/google/callback'] };
+export const config = {
+  path: [
+    '/api/agenda/google/conectar',
+    '/api/agenda/google/callback',
+    '/api/agenda/google/compromissos',
+  ],
+};
 
 export default async function agendaGoogle(request: Request): Promise<Response> {
   // Liberar somente após revisão e provas reais registradas no OpenSpec.

@@ -1,3 +1,4 @@
+import { processarLeituraAgenda } from './agenda-google-leitura-handler.ts';
 import { criarCanalAgenda } from '../../../supabase/functions/_shared/agenda-google-canal.ts';
 import { criarExecutorAgendaPostgres } from '../../../supabase/functions/_shared/agenda-google-postgres.ts';
 import { criarRepositorioAgenda } from '../../../supabase/functions/_shared/agenda-google-repositorio.ts';
@@ -62,10 +63,48 @@ export async function comporAgendaGoogle(
       },
     };
     const repositorio = criarRepositorioAgenda(canal);
+    const autorizar = async (pedido: Request) => {
+      const autorizacao = await autorizarOperacaoNativa(pedido, fonte);
+      if (autorizacao.estado !== 'autorizado') {
+        identidade = undefined;
+        return null;
+      }
+      const resultado = await autorizacao.contexto.cliente.auth.getUser();
+      if (
+        resultado.error ||
+        autorizacao.contexto.cookiesAlterados ||
+        resultado.data.user?.id !== autorizacao.sessao.usuario.id
+      ) {
+        identidade = undefined;
+        return null;
+      }
+      const google =
+        resultado.data.user.identities?.filter((item) => item.provider === 'google') ?? [];
+      const subject = google.length === 1 ? google[0]?.identity_data?.sub : undefined;
+      if (typeof subject !== 'string' || !subject) {
+        identidade = undefined;
+        return null;
+      }
+      identidade = {
+        usuarioId: autorizacao.sessao.usuario.id,
+        sessaoId: autorizacao.sessao.session_id,
+        subjectGoogle: subject,
+      };
+      return identidade;
+    };
+    const oauth = { clientId, clientSecret, redirectUri: `${origem}/api/agenda/google/callback` };
+    if (new URL(request.url).pathname === '/api/agenda/google/compromissos') {
+      return await processarLeituraAgenda(request, {
+        origem,
+        oauth,
+        autorizar,
+        lerCredencial: () => repositorio.lerCredencial(),
+      });
+    }
     return await processarConexaoAgenda(request, {
       origem,
       retorno: '/?agenda=conectada',
-      oauth: { clientId, clientSecret, redirectUri: `${origem}/api/agenda/google/callback` },
+      oauth,
       validacao: (nonce) => ({
         audienciaEsperada: clientId,
         dominioWorkspace: dominio,
@@ -74,35 +113,7 @@ export async function comporAgendaGoogle(
       }),
       state: criarStateAgenda(chave, repositorio),
       cookie: criarCookieAgenda(chave),
-      async autorizar(pedido) {
-        const autorizacao = await autorizarOperacaoNativa(pedido, fonte);
-        if (autorizacao.estado !== 'autorizado') {
-          identidade = undefined;
-          return null;
-        }
-        const resultado = await autorizacao.contexto.cliente.auth.getUser();
-        if (
-          resultado.error ||
-          autorizacao.contexto.cookiesAlterados ||
-          resultado.data.user?.id !== autorizacao.sessao.usuario.id
-        ) {
-          identidade = undefined;
-          return null;
-        }
-        const google =
-          resultado.data.user.identities?.filter((item) => item.provider === 'google') ?? [];
-        const subject = google.length === 1 ? google[0]?.identity_data?.sub : undefined;
-        if (typeof subject !== 'string' || !subject) {
-          identidade = undefined;
-          return null;
-        }
-        identidade = {
-          usuarioId: autorizacao.sessao.usuario.id,
-          sessaoId: autorizacao.sessao.session_id,
-          subjectGoogle: subject,
-        };
-        return identidade;
-      },
+      autorizar,
       async salvar(refresh, geracao, atual) {
         if (
           !identidade ||
@@ -110,7 +121,7 @@ export async function comporAgendaGoogle(
           identidade.sessaoId !== atual.sessaoId
         )
           throw new Error();
-        await repositorio.salvarCredencial(refresh, geracao);
+        await repositorio.salvarCredencial(refresh, geracao, atual.subjectGoogle);
       },
     });
   } finally {

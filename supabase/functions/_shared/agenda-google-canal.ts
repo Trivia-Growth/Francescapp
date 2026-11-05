@@ -35,7 +35,7 @@ export function criarCanalAgenda(config: {
           : nome === 'agenda_google_consumir_state'
             ? ['p_hash']
             : nome === 'agenda_google_salvar_credencial'
-              ? ['p_refresh', 'p_geracao']
+              ? ['p_refresh', 'p_geracao', 'p_subject']
               : [];
       if (
         Object.keys(argumentos).some((campo) => !permitidos.includes(campo)) ||
@@ -57,6 +57,7 @@ export function criarCanalAgenda(config: {
         request_id: requestId,
         ...(argumentos.p_hash ? { hash: argumentos.p_hash } : {}),
         ...(argumentos.p_geracao ? { geracao: argumentos.p_geracao } : {}),
+        ...(argumentos.p_subject ? { subject: argumentos.p_subject } : {}),
         ...(digest ? { valor_hash: digest } : {}),
       };
       const prova = await config.atestador.atestarEntrada(

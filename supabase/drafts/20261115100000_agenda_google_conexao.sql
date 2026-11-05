@@ -61,6 +61,8 @@ create table identidade.agenda_google_state (
 );
 create table identidade.agenda_google_credencial (
   usuario_id uuid primary key,
+  subject_google text not null check (length(subject_google) between 1 and 255),
+  geracao bigint not null,
   segredo_id uuid not null unique
 );
 revoke all on identidade.agenda_google_state, identidade.agenda_google_credencial, identidade.agenda_google_geracao, identidade.agenda_google_requisicao from public, anon, authenticated, service_role;
@@ -100,31 +102,50 @@ begin
 end $$;
 
 -- O armazenamento e a substituição são transacionais; erro não remove segredo vigente.
-create function identidade.agenda_google_salvar_credencial(p_refresh text, p_geracao bigint)
+create function identidade.agenda_google_salvar_credencial(p_refresh text, p_geracao bigint, p_subject text)
 returns boolean language plpgsql security definer set search_path = '' as $$
 declare v_usuario uuid; v_sessao uuid; v_antigo uuid; v_novo uuid; v_geracao bigint;
 begin
   select c.usuario_id,c.sessao_id into v_usuario,v_sessao from identidade.agenda_google_contexto() c;
-  if v_usuario is null or p_refresh is null or octet_length(p_refresh) not between 1 and 4096 then return false; end if;
+  if v_usuario is null or p_refresh is null or octet_length(p_refresh) not between 1 and 4096
+    or p_subject is null or length(p_subject) not between 1 and 255 then return false; end if;
+  if not exists (select 1 from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id
+    join auth_privado.identidades() i on i.user_id=s.usuario_id and i.provider='google' and i.provider_id=c.subject_google
+    where s.usuario_id=v_usuario and s.session_id=v_sessao and c.subject_google=p_subject) then return false; end if;
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_usuario::text, 0));
   select geracao into v_geracao from identidade.agenda_google_geracao where usuario_id=v_usuario;
   if v_geracao is null or v_geracao is distinct from p_geracao then return false; end if;
+  update identidade.agenda_google_geracao set geracao=geracao+1 where usuario_id=v_usuario returning geracao into v_geracao;
   select segredo_id into v_antigo from identidade.agenda_google_credencial where usuario_id=v_usuario for update;
   v_novo := vault.create_secret(p_refresh, null, null, null);
-  insert into identidade.agenda_google_credencial(usuario_id,segredo_id) values(v_usuario,v_novo)
-    on conflict(usuario_id) do update set segredo_id=excluded.segredo_id;
+  insert into identidade.agenda_google_credencial(usuario_id,subject_google,geracao,segredo_id) values(v_usuario,p_subject,v_geracao,v_novo)
+    on conflict(usuario_id) do update set subject_google=excluded.subject_google,geracao=excluded.geracao,segredo_id=excluded.segredo_id;
   if v_antigo is not null then delete from vault.secrets where id=v_antigo; end if;
   return true;
 end $$;
 create function identidade.agenda_google_ler_credencial()
-returns text language plpgsql security definer set search_path = '' as $$
-declare v_usuario uuid; v_sessao uuid; v_refresh text;
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_usuario uuid; v_sessao uuid; v_refresh text; v_atual text; v_registrado text; v_geracao bigint;
 begin
   select c.usuario_id,c.sessao_id into v_usuario,v_sessao from identidade.agenda_google_contexto() c;
   if v_usuario is null then return null; end if;
-  select d.decrypted_secret into v_refresh from identidade.agenda_google_credencial c
-    join vault.decrypted_secrets d on d.id=c.segredo_id where c.usuario_id=v_usuario;
-  return v_refresh;
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_usuario::text, 0));
+  select con.subject_google into v_atual from identidade.sessao s
+    join identidade.concessao_equipe con on con.id=s.concessao_id
+    where s.usuario_id=v_usuario and s.session_id=v_sessao;
+  select c.subject_google into v_registrado from identidade.agenda_google_credencial c where c.usuario_id=v_usuario;
+  if v_registrado is not null and v_registrado is distinct from v_atual then
+    perform identidade.agenda_google_revogar_credencial();
+    return null;
+  end if;
+  select d.decrypted_secret,c.geracao into v_refresh,v_geracao from identidade.agenda_google_credencial c
+    join vault.decrypted_secrets d on d.id=c.segredo_id
+    join identidade.sessao s on s.usuario_id=c.usuario_id and s.session_id=v_sessao
+    join identidade.concessao_equipe con on con.id=s.concessao_id and con.subject_google=c.subject_google
+    join auth_privado.identidades() i on i.user_id=c.usuario_id and i.provider='google' and i.provider_id=c.subject_google
+    where c.usuario_id=v_usuario;
+  if v_refresh is null then return null; end if;
+  return pg_catalog.jsonb_build_object('refresh',v_refresh,'geracao',v_geracao::text);
 end $$;
 create function identidade.agenda_google_revogar_credencial()
 returns boolean language plpgsql security definer set search_path = '' as $$
@@ -152,7 +173,7 @@ begin
   if jsonb_typeof(p_transporte) is distinct from 'object'
     or p_transporte - array['entrada','entrada_canonica','dados_canonicos'] <> '{}'::jsonb
     or jsonb_typeof(e) is distinct from 'object'
-    or e - array['request_id','hash','valor_hash','geracao','atestado'] <> '{}'::jsonb
+    or e - array['request_id','hash','valor_hash','geracao','subject','atestado'] <> '{}'::jsonb
     or jsonb_typeof(a) is distinct from 'object' then
     raise exception using errcode='42501', message='SEM_PERMISSAO';
   end if;
@@ -210,15 +231,15 @@ begin
     when 'agenda.consumir' then v_resultado := identidade.agenda_google_consumir_state(e->>'hash');
     when 'agenda.salvar' then
       if coalesce(e->>'geracao','') !~ '^[0-9]{1,18}$' then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
-      v_resultado := to_jsonb(identidade.agenda_google_salvar_credencial(p_valor,(e->>'geracao')::bigint));
-    when 'agenda.ler' then v_resultado := to_jsonb(identidade.agenda_google_ler_credencial());
+      v_resultado := to_jsonb(identidade.agenda_google_salvar_credencial(p_valor,(e->>'geracao')::bigint,e->>'subject'));
+    when 'agenda.ler' then v_resultado := identidade.agenda_google_ler_credencial();
     when 'agenda.revogar' then v_resultado := to_jsonb(identidade.agenda_google_revogar_credencial());
   end case;
   if v_fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=v_sessao and s.user_id=v_usuario and (s.not_after is null or s.not_after>clock_timestamp())) then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
   return v_resultado;
 end $$;
 revoke all on function identidade.agenda_google_contexto(), identidade.agenda_google_registrar_state(text,text),
-  identidade.agenda_google_consumir_state(text), identidade.agenda_google_salvar_credencial(text,bigint),
+  identidade.agenda_google_consumir_state(text), identidade.agenda_google_salvar_credencial(text,bigint,text),
   identidade.agenda_google_ler_credencial(), identidade.agenda_google_revogar_credencial(),
   identidade.agenda_google_operacao_privada(jsonb,text)
   from public, anon, authenticated, service_role;
