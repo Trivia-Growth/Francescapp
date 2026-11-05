@@ -1,3 +1,4 @@
+import { processarVinculoAgenda } from './agenda-google-vinculo-handler.ts';
 import { processarReconciliacaoAgenda } from './agenda-google-reconciliacao-handler.ts';
 import { processarEscritaAgenda } from './agenda-google-escrita-handler.ts';
 import { processarLeituraAgenda } from './agenda-google-leitura-handler.ts';
@@ -107,6 +108,15 @@ export async function comporAgendaGoogle(
         lerCredencial: () => repositorio.lerCredencial(),
         pendencia: () => repositorio.pendencia(),
         resolverEscrita: (...args) => repositorio.resolverEscrita(...args),
+      });
+    }
+    if (new URL(request.url).pathname === '/api/agenda/google/vinculos') {
+      return await processarVinculoAgenda(request, {
+        origem,
+        oauth,
+        autorizar,
+        lerCredencial: () => repositorio.lerCredencial(),
+        vincularPaciente: (...args) => repositorio.vincularPaciente(...args),
       });
     }
     if (new URL(request.url).pathname === '/api/agenda/google/operacoes') {

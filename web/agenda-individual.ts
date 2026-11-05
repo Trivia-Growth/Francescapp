@@ -1,8 +1,15 @@
+import { montarVinculoAgenda } from './agenda-vinculo.js';
 import { montarOperacoesAgenda } from './agenda-operacoes.js';
 
 type Compromisso = { id: string; inicio: string; fim: string; titulo: string; etag?: string };
 
-export function montarAgendaIndividual(raiz: HTMLElement, sessaoId: string): () => void {
+export function montarAgendaIndividual(
+  raiz: HTMLElement,
+  sessaoId: string,
+  listarPacientes: (
+    cursor?: string,
+  ) => Promise<{ itens: readonly { id: string; nome: string }[]; proximo_cursor: string | null }>,
+): () => void {
   let ativa = true;
   let consulta = 0;
   const titulo = document.createElement('h2');
@@ -41,6 +48,7 @@ export function montarAgendaIndividual(raiz: HTMLElement, sessaoId: string): () 
   const operacoesRaiz = document.createElement('div');
   raiz.append(operacoesRaiz);
   const operacoes = montarOperacoesAgenda(operacoesRaiz, cabecalhos, () => void carregar());
+  const vinculos = montarVinculoAgenda(operacoesRaiz, cabecalhos, listarPacientes);
   async function carregar(): Promise<void> {
     const versao = ++consulta;
     lista.replaceChildren();
@@ -122,6 +130,18 @@ export function montarAgendaIndividual(raiz: HTMLElement, sessaoId: string): () 
           if (!/^\d{4}-\d{2}-\d{2}$/.test(item.inicio)) linha.append(editar);
           linha.append(cancelar);
         }
+        const vincular = document.createElement('button');
+        vincular.type = 'button';
+        vincular.className = 'button-secondary';
+        vincular.textContent = 'Vincular paciente';
+        vincular.setAttribute(
+          'aria-label',
+          `Vincular paciente ao compromisso de ${horario.textContent}`,
+        );
+        vincular.addEventListener('click', () =>
+          vinculos.abrir(item.id, horario.textContent ?? ''),
+        );
+        linha.append(vincular);
         lista.append(linha);
       }
       status.textContent = itens.length
@@ -172,6 +192,7 @@ export function montarAgendaIndividual(raiz: HTMLElement, sessaoId: string): () 
   return () => {
     ativa = false;
     operacoes.desmontar();
+    vinculos.desmontar();
     consulta += 1;
     raiz.replaceChildren();
   };

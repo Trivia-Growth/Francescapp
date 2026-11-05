@@ -6,7 +6,7 @@ create role ffcmapp_agenda_google_owner nologin nosuperuser nocreatedb nocreater
 grant ffcmapp_agenda_google_owner to current_user with inherit false, set true;
 grant usage, create on schema identidade to ffcmapp_agenda_google_owner;
 grant usage on schema identidade to ffcmapp_agenda_google_executor;
-grant usage on schema auth_privado, vault, extensions to ffcmapp_agenda_google_owner;
+grant usage on schema auth_privado, vault, extensions, cadastro, auditoria to ffcmapp_agenda_google_owner;
 grant execute on function extensions.digest(bytea,text) to ffcmapp_agenda_google_owner;
 grant ffcmapp_atestado_verificador_owner to current_user with inherit false, set true;
 set role ffcmapp_atestado_verificador_owner;
@@ -19,6 +19,14 @@ grant select (id, ativo, perfil), update (versao) on public.usuario to ffcmapp_a
 grant select (id, usuario_id, perfil, estado, metodo, subject_google), update (versao) on identidade.concessao_equipe to ffcmapp_agenda_google_owner;
 grant select (session_id, usuario_id, concessao_id, metodo, revogada_em, encerrada_em), update (revogada_em) on identidade.sessao to ffcmapp_agenda_google_owner;
 grant select on identidade.configuracao_auth_nativo to ffcmapp_agenda_google_owner;
+grant select (id,paciente_id,usuario_id,revogada_em), update (id) on cadastro.acesso_paciente to ffcmapp_agenda_google_owner;
+grant insert (id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id) on auditoria.evento to ffcmapp_agenda_google_owner;
+create policy agenda_google_acesso on cadastro.acesso_paciente for select to ffcmapp_agenda_google_owner
+  using (usuario_id=nullif(current_setting('ffcmapp.agenda_usuario',true),'')::uuid);
+create policy agenda_google_acesso_lock on cadastro.acesso_paciente for update to ffcmapp_agenda_google_owner
+  using (usuario_id=nullif(current_setting('ffcmapp.agenda_usuario',true),'')::uuid) with check (false);
+create policy agenda_google_auditoria on auditoria.evento for insert to ffcmapp_agenda_google_owner
+  with check (ator_usuario_id=nullif(current_setting('ffcmapp.agenda_usuario',true),'')::uuid);
 create policy agenda_google_usuario on public.usuario for select to ffcmapp_agenda_google_owner
   using (id=nullif(current_setting('ffcmapp.agenda_usuario',true),'')::uuid);
 create policy agenda_google_concessao on identidade.concessao_equipe for select to ffcmapp_agenda_google_owner
@@ -43,6 +51,14 @@ grant execute on function vault._crypto_aead_det_decrypt(bytea,bytea,bigint,byte
 set role ffcmapp_agenda_google_owner;
 alter default privileges revoke execute on functions from public;
 
+create table identidade.agenda_google_vinculo_paciente (
+  usuario_id uuid not null,
+  subject_google text not null,
+  evento_id text not null check (evento_id ~ '^[A-Za-z0-9_-]{1,1024}$'),
+  paciente_id uuid not null,
+  criado_em timestamptz not null default clock_timestamp(),
+  primary key(usuario_id,subject_google,evento_id)
+);
 create table identidade.agenda_google_escrita (
   usuario_id uuid not null,
   operacao_id uuid not null,
@@ -75,7 +91,7 @@ create table identidade.agenda_google_credencial (
   geracao bigint not null,
   segredo_id uuid not null unique
 );
-revoke all on identidade.agenda_google_state, identidade.agenda_google_credencial, identidade.agenda_google_geracao, identidade.agenda_google_requisicao, identidade.agenda_google_escrita from public, anon, authenticated, service_role;
+revoke all on identidade.agenda_google_state, identidade.agenda_google_credencial, identidade.agenda_google_geracao, identidade.agenda_google_requisicao, identidade.agenda_google_escrita, identidade.agenda_google_vinculo_paciente from public, anon, authenticated, service_role;
 
 -- Contexto interno somente após verificação do atestado pelo wrapper privado.
 -- Funções auxiliares não têm grants para executor ou papéis públicos.
@@ -183,7 +199,7 @@ begin
   if jsonb_typeof(p_transporte) is distinct from 'object'
     or p_transporte - array['entrada','entrada_canonica','dados_canonicos'] <> '{}'::jsonb
     or jsonb_typeof(e) is distinct from 'object'
-    or e - array['request_id','hash','valor_hash','geracao','subject','operacao_id','evento_id','acao','desfecho','atestado'] <> '{}'::jsonb
+    or e - array['request_id','hash','valor_hash','geracao','subject','operacao_id','evento_id','acao','desfecho','paciente_id','atestado'] <> '{}'::jsonb
     or jsonb_typeof(a) is distinct from 'object' then
     raise exception using errcode='42501', message='SEM_PERMISSAO';
   end if;
@@ -196,7 +212,7 @@ begin
     raise exception using errcode='42501', message='SEM_PERMISSAO';
   end;
   if v_usuario is null or v_sessao is null or v_req is null or v_inicio is null or v_fim is null
-    or v_acao not in ('agenda.registrar','agenda.consumir','agenda.salvar','agenda.ler','agenda.revogar','agenda.reservar_escrita','agenda.pendencia','agenda.resolver_escrita')
+    or v_acao not in ('agenda.registrar','agenda.consumir','agenda.salvar','agenda.ler','agenda.revogar','agenda.reservar_escrita','agenda.pendencia','agenda.resolver_escrita','agenda.vincular')
     or v_acao is null or a->>'usuario_id' is distinct from v_usuario::text
     or a->>'session_id' is distinct from v_sessao::text or a->>'request_id' is distinct from v_req::text
     or v_inicio>clock_timestamp() or v_fim<=clock_timestamp() or v_fim<=v_inicio or v_fim-v_inicio>interval '30 seconds'
@@ -244,6 +260,29 @@ begin
       v_resultado := to_jsonb(identidade.agenda_google_salvar_credencial(p_valor,(e->>'geracao')::bigint,e->>'subject'));
     when 'agenda.ler' then v_resultado := identidade.agenda_google_ler_credencial();
     when 'agenda.revogar' then v_resultado := to_jsonb(identidade.agenda_google_revogar_credencial());
+    when 'agenda.vincular' then
+      declare v_paciente uuid; v_existente uuid;
+      begin
+        if coalesce(e->>'paciente_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+          or coalesce(e->>'evento_id','') !~ '^[A-Za-z0-9_-]{1,1024}$' then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+        v_paciente := (e->>'paciente_id')::uuid;
+        if coalesce(e->>'geracao','') !~ '^[0-9]{1,18}$' then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+        perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_usuario::text, 0));
+        if not exists (select 1 from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id
+          join identidade.agenda_google_credencial g on g.usuario_id=s.usuario_id and g.subject_google=c.subject_google
+          where s.usuario_id=v_usuario and s.session_id=v_sessao and c.perfil='profissional' and c.subject_google=e->>'subject' and g.geracao=(e->>'geracao')::bigint) then
+          raise exception using errcode='42501',message='SEM_PERMISSAO';
+        end if;
+        perform 1 from cadastro.acesso_paciente ap where ap.usuario_id=v_usuario and ap.paciente_id=v_paciente and ap.revogada_em is null for share;
+        if not found then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+        insert into identidade.agenda_google_vinculo_paciente(usuario_id,subject_google,evento_id,paciente_id)
+          values(v_usuario,e->>'subject',e->>'evento_id',v_paciente) on conflict do nothing;
+        select paciente_id into v_existente from identidade.agenda_google_vinculo_paciente
+          where usuario_id=v_usuario and subject_google=e->>'subject' and evento_id=e->>'evento_id';
+        insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+          values(gen_random_uuid(),v_usuario,'agenda.vincular','paciente',v_paciente,case when v_existente=v_paciente then 'permitido' else 'negado' end,v_req);
+        v_resultado := jsonb_build_object('estado',case when v_existente=v_paciente then 'vinculado' else 'conflito' end);
+      end;
     when 'agenda.pendencia' then
       select case when w.subject_google=(select c.subject_google from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id where s.usuario_id=v_usuario and s.session_id=v_sessao)
         then jsonb_build_object('operacao_id',w.operacao_id,'evento_id',w.evento_id,'acao',w.acao)

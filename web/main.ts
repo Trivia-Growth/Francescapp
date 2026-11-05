@@ -501,7 +501,11 @@ function aplicarSessao(atual: Sessao): void {
       fecharAgenda();
       sessaoAgenda = atual.session_id;
       elemento('agenda-individual').hidden = false;
-      desmontarAgenda = montarAgendaIndividual(elemento('agenda-individual'), atual.session_id);
+      desmontarAgenda = montarAgendaIndividual(
+        elemento('agenda-individual'),
+        atual.session_id,
+        (cursor) => api.listarPacientes(cursor),
+      );
     }
   } else fecharAgenda();
   elemento('anamnese-coluna').textContent =

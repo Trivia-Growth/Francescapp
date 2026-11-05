@@ -10,6 +10,12 @@ export function criarRepositorioAgenda(canal: CanalAgenda): RepositorioStateAgen
   salvarCredencial(refresh: string, geracao: string, subject: string): Promise<void>;
   lerCredencial(): Promise<Readonly<{ refresh: string; geracao: string }> | null>;
   revogarCredencial(): Promise<void>;
+  vincularPaciente(
+    eventoId: string,
+    pacienteId: string,
+    subject: string,
+    geracao: string,
+  ): Promise<'vinculado' | 'conflito'>;
   pendencia(): Promise<
     | {
         operacao_id: string;
@@ -138,6 +144,22 @@ export function criarRepositorioAgenda(canal: CanalAgenda): RepositorioStateAgen
           p_desfecho: desfecho,
         })) === true
       );
+    },
+    async vincularPaciente(eventoId, pacienteId, subject, geracao) {
+      const resultado = await canal.chamar('agenda_google_vincular', {
+        p_evento_id: eventoId,
+        p_paciente_id: pacienteId,
+        p_subject: subject,
+        p_geracao: geracao,
+      });
+      if (
+        typeof resultado !== 'object' ||
+        resultado === null ||
+        !('estado' in resultado) ||
+        (resultado.estado !== 'vinculado' && resultado.estado !== 'conflito')
+      )
+        throw new Error('Conexão indisponível.');
+      return resultado.estado;
     },
     async revogarCredencial() {
       if ((await canal.chamar('agenda_google_revogar_credencial', {})) !== true)

@@ -18,6 +18,7 @@ export function criarCanalAgenda(config: {
     agenda_google_pendencia: 'agenda.pendencia',
     agenda_google_reservar_escrita: 'agenda.reservar_escrita',
     agenda_google_resolver_escrita: 'agenda.resolver_escrita',
+    agenda_google_vincular: 'agenda.vincular',
   };
   return {
     async identidade() {
@@ -43,7 +44,9 @@ export function criarCanalAgenda(config: {
                 ? ['p_operacao_id', 'p_evento_id', 'p_acao', 'p_subject']
                 : nome === 'agenda_google_resolver_escrita'
                   ? ['p_operacao_id', 'p_subject', 'p_desfecho']
-                  : [];
+                  : nome === 'agenda_google_vincular'
+                    ? ['p_evento_id', 'p_paciente_id', 'p_subject', 'p_geracao']
+                    : [];
       if (
         Object.keys(argumentos).some((campo) => !permitidos.includes(campo)) ||
         permitidos.some((campo) => typeof argumentos[campo] !== 'string')
@@ -67,6 +70,7 @@ export function criarCanalAgenda(config: {
         ...(argumentos.p_subject ? { subject: argumentos.p_subject } : {}),
         ...(argumentos.p_operacao_id ? { operacao_id: argumentos.p_operacao_id } : {}),
         ...(argumentos.p_evento_id ? { evento_id: argumentos.p_evento_id } : {}),
+        ...(argumentos.p_paciente_id ? { paciente_id: argumentos.p_paciente_id } : {}),
         ...(argumentos.p_acao ? { acao: argumentos.p_acao } : {}),
         ...(argumentos.p_desfecho ? { desfecho: argumentos.p_desfecho } : {}),
         ...(digest ? { valor_hash: digest } : {}),
