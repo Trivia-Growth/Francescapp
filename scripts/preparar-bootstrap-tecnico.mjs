@@ -83,6 +83,7 @@ export async function prepararBootstrap(entrada) {
     referenciaCifra,
     arquivo,
     confirmacao,
+    operadorServicoTeste,
   } = entrada;
   validarConexao(conexao, projetoRef);
   if (
@@ -103,15 +104,47 @@ export async function prepararBootstrap(entrada) {
   if (confirmacao !== `EXECUTAR BOOTSTRAP ${projetoRef}`) throw new Error();
   const pool = criarPoolCofre(conexao);
   try {
-    const executor = criarExecutorCofrePostgres(pool);
-    const valor = await executor.executar('identidade.ler_chave_cifra_vault', {
-      p_referencia: referenciaCifra,
-    });
+    const lerServico = async (tipo, referencia) => {
+      const cliente = await pool.connect();
+      let destruir = true;
+      try {
+        await cliente.query('BEGIN');
+        await cliente.query("SET LOCAL statement_timeout = '10s'");
+        const resposta = await cliente.query(
+          'select identidade.ler_cofre_servico_teste($1::text,$2::text,$3::uuid,$4::text) as chave',
+          [projetoRef, tipo, requestId, referencia],
+        );
+        if (resposta.rows.length !== 1 || typeof resposta.rows[0].chave !== 'string')
+          throw new Error();
+        await cliente.query('COMMIT');
+        destruir = false;
+        return resposta.rows[0].chave;
+      } finally {
+        cliente.release(destruir);
+      }
+    };
+    const valor =
+      operadorServicoTeste === true
+        ? await lerServico('cifra', referenciaCifra)
+        : await criarExecutorCofrePostgres(pool).executar('identidade.ler_chave_cifra_vault', {
+            p_referencia: referenciaCifra,
+          });
     if (typeof valor !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(valor)) throw new Error();
     const chaveCifra = Uint8Array.from(Buffer.from(valor, 'base64'));
     if (chaveCifra.length !== 32 || Buffer.from(chaveCifra).toString('base64') !== valor)
       throw new Error();
-    const chaveHmac = await carregarChaveHmacBootstrap(pool);
+    const hmac = operadorServicoTeste === true ? await lerServico('hmac', null) : null;
+    if (
+      hmac !== null &&
+      (!/^[A-Za-z0-9+/]{43}=$/.test(hmac) ||
+        Buffer.from(hmac, 'base64').length !== 32 ||
+        Buffer.from(hmac, 'base64').toString('base64') !== hmac)
+    )
+      throw new Error();
+    const chaveHmac =
+      hmac === null
+        ? await carregarChaveHmacBootstrap(pool)
+        : Uint8Array.from(Buffer.from(hmac, 'base64'));
     const cifra = criarCifraAutenticada({
       keyIdAtiva: keyId,
       chavesDeCifra: { [keyId]: chaveCifra },

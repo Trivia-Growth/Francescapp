@@ -80,20 +80,36 @@ test('bootstrap técnico restringe operador, alvo, repetição e auditoria', () 
       '-f',
       'supabase/drafts/20261112100000_operador_servico_temporario.sql',
     ]);
+    sql(`create function identidade.ler_chave_cifra_vault(text) returns text language sql as $$ select 'chave-ficticia'::text $$;
+      create function identidade.ler_chave_hmac_email_bootstrap() returns text language sql as $$ select 'hmac-ficticio'::text $$;`);
+    run('psql', [
+      '-X',
+      '-q',
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-f',
+      'supabase/drafts/20261112110000_cofre_servico_temporario.sql',
+    ]);
     sql(`insert into identidade.bootstrap_tecnico_controle(projeto_ref) values ('fixture');
+      insert into identidade.cofre_servico_teste_configuracao(projeto_ref,referencia_cifra) values ('fixture','ffcmapp.cifra.teste');
       insert into auditoria.operador_tecnico(codigo,papel_oid,papel_nome,ativo,tipo,expira_em) values ('op_0123456789abcdef0123456789abcdef', 'operador_fixture'::regrole::oid, 'operador_fixture', true, 'servico_teste', clock_timestamp() + interval '1 hour');
       grant usage on schema identidade to operador_fixture;
       grant execute on function identidade.bootstrap_tecnico(text,uuid,uuid,jsonb,text,jsonb,uuid) to operador_fixture;
+      grant execute on function identidade.ler_cofre_servico_teste(text,text,uuid,text) to operador_fixture;
       grant usage on schema identidade to outro_fixture;
       grant execute on function identidade.bootstrap_tecnico(text,uuid,uuid,jsonb,text,jsonb,uuid) to outro_fixture;
+      grant execute on function identidade.ler_cofre_servico_teste(text,text,uuid,text) to outro_fixture;
       set session authorization outro_fixture;
       do $$ begin
         begin perform identidade.bootstrap_tecnico('fixture',gen_random_uuid(),gen_random_uuid(),'{}','h','{}',gen_random_uuid()); raise exception 'outro login aceito'; exception when insufficient_privilege then null; end;
+        begin perform identidade.ler_cofre_servico_teste('fixture','cifra',gen_random_uuid(),'ffcmapp.cifra.teste'); raise exception 'outro login leu cofre'; exception when insufficient_privilege then null; end;
       end $$;
       reset session authorization;
       set session authorization operador_fixture;
       do $$ declare e jsonb := '{"formato":1,"key_id":"teste","nonce":"n","ciphertext":"c","tag":"t"}'; r text;
       begin
+        if identidade.ler_cofre_servico_teste('fixture','cifra',gen_random_uuid(),'ffcmapp.cifra.teste') <> 'chave-ficticia' or identidade.ler_cofre_servico_teste('fixture','hmac',gen_random_uuid(),null) <> 'hmac-ficticio' then raise exception 'cofre indisponível'; end if;
+        begin perform identidade.ler_cofre_servico_teste('outro','cifra',gen_random_uuid(),'ffcmapp.cifra.teste'); raise exception 'outro alvo aceito'; exception when no_data_found then null; end;
         begin perform identidade.bootstrap_tecnico('outro','51000000-0000-4000-8000-000000000001','52000000-0000-4000-8000-000000000001',e,'h',e,gen_random_uuid()); raise exception 'alvo aceito'; exception when invalid_parameter_value then null; end;
         begin perform identidade.bootstrap_tecnico('fixture','51000000-0000-4000-8000-000000000002','52000000-0000-4000-8000-000000000001',e,'h',e,gen_random_uuid()); raise exception 'UUID ausente aceito'; exception when foreign_key_violation then null; end;
         r := identidade.bootstrap_tecnico('fixture','51000000-0000-4000-8000-000000000001','52000000-0000-4000-8000-000000000001',e,'h',e,gen_random_uuid());
@@ -105,18 +121,22 @@ test('bootstrap técnico restringe operador, alvo, repetição e auditoria', () 
       reset session authorization;
       do $$ begin
         if (select count(*) from auditoria.evento where operador_restrito='op_0123456789abcdef0123456789abcdef' and acao='bootstrap.tecnico') <> 2 then raise exception 'auditoria inválida'; end if;
+        if (select count(*) from auditoria.evento where operador_restrito='op_0123456789abcdef0123456789abcdef' and acao='bootstrap.cofre_servico') <> 2 then raise exception 'auditoria do cofre inválida'; end if;
         if has_function_privilege('anon','identidade.bootstrap_tecnico(text,uuid,uuid,jsonb,text,jsonb,uuid)','execute') or has_function_privilege('service_role','identidade.bootstrap_tecnico(text,uuid,uuid,jsonb,text,jsonb,uuid)','execute') then raise exception 'bootstrap exposto'; end if;
+        if has_function_privilege('anon','identidade.ler_cofre_servico_teste(text,text,uuid,text)','execute') or has_function_privilege('service_role','identidade.ler_cofre_servico_teste(text,text,uuid,text)','execute') then raise exception 'cofre de serviço exposto'; end if;
       end $$;
       update auditoria.operador_tecnico set expira_em=clock_timestamp() - interval '1 second';
       set session authorization operador_fixture;
       do $$ begin
         begin perform identidade.bootstrap_tecnico('fixture',gen_random_uuid(),gen_random_uuid(),'{}','h','{}',gen_random_uuid()); raise exception 'operador expirado aceito'; exception when insufficient_privilege then null; end;
+        begin perform identidade.ler_cofre_servico_teste('fixture','cifra',gen_random_uuid(),'ffcmapp.cifra.teste'); raise exception 'operador expirado leu cofre'; exception when insufficient_privilege then null; end;
       end $$;
       reset session authorization;
       update auditoria.operador_tecnico set ativo=false, expira_em=clock_timestamp() + interval '1 hour';
       set session authorization operador_fixture;
       do $$ begin
         begin perform identidade.bootstrap_tecnico('fixture',gen_random_uuid(),gen_random_uuid(),'{}','h','{}',gen_random_uuid()); raise exception 'operador inativo aceito'; exception when insufficient_privilege then null; end;
+        begin perform identidade.ler_cofre_servico_teste('fixture','hmac',gen_random_uuid(),null); raise exception 'operador inativo leu cofre'; exception when insufficient_privilege then null; end;
       end $$;`);
   } finally {
     if (started) spawnSync('pg_ctl', ['-D', data, 'stop', '-m', 'fast'], { env });
