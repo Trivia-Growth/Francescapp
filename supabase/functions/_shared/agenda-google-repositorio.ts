@@ -10,6 +10,27 @@ export function criarRepositorioAgenda(canal: CanalAgenda): RepositorioStateAgen
   salvarCredencial(refresh: string, geracao: string, subject: string): Promise<void>;
   lerCredencial(): Promise<Readonly<{ refresh: string; geracao: string }> | null>;
   revogarCredencial(): Promise<void>;
+  consultarDesconexao(
+    subject: string,
+    operacaoId: string,
+  ): Promise<
+    | { estado: 'desconhecido' }
+    | {
+        estado: 'desconectado' | 'conflito';
+        conexao_atual: 'conectado' | 'desconectado';
+        versao_atual: string;
+      }
+  >;
+  statusConexao(subject: string): Promise<{ estado: 'conectado' | 'desconectado'; versao: string }>;
+  desconectar(
+    subject: string,
+    geracao: string,
+    operacaoId: string,
+  ): Promise<{
+    estado: 'desconectado' | 'conflito';
+    conexao_atual: 'conectado' | 'desconectado';
+    versao_atual: string;
+  }>;
   consultarVinculos(
     eventos: readonly string[],
     subject: string,
@@ -191,6 +212,67 @@ export function criarRepositorioAgenda(canal: CanalAgenda): RepositorioStateAgen
       )
         throw new Error('Conexão indisponível.');
       return resultado.estado;
+    },
+    async consultarDesconexao(subject, operacaoId) {
+      const resultado = await canal.chamar('agenda_google_consultar_desconexao', {
+        p_subject: subject,
+        p_operacao_id: operacaoId,
+      });
+      if (typeof resultado !== 'object' || resultado === null || !('estado' in resultado))
+        throw new Error('Conexão indisponível.');
+      if (resultado.estado === 'desconhecido') return { estado: 'desconhecido' as const };
+      if (
+        (resultado.estado !== 'desconectado' && resultado.estado !== 'conflito') ||
+        !('conexao_atual' in resultado) ||
+        (resultado.conexao_atual !== 'conectado' && resultado.conexao_atual !== 'desconectado') ||
+        !('versao_atual' in resultado) ||
+        typeof resultado.versao_atual !== 'string' ||
+        !/^[0-9]{1,18}$/.test(resultado.versao_atual)
+      )
+        throw new Error('Conexão indisponível.');
+      return {
+        estado: resultado.estado,
+        conexao_atual: resultado.conexao_atual,
+        versao_atual: resultado.versao_atual,
+      };
+    },
+    async statusConexao(subject) {
+      const resultado = await canal.chamar('agenda_google_status_conexao', { p_subject: subject });
+      if (
+        typeof resultado !== 'object' ||
+        resultado === null ||
+        !('estado' in resultado) ||
+        (resultado.estado !== 'conectado' && resultado.estado !== 'desconectado') ||
+        !('versao' in resultado) ||
+        typeof resultado.versao !== 'string' ||
+        !/^[0-9]{1,18}$/.test(resultado.versao)
+      )
+        throw new Error('Conexão indisponível.');
+      return { estado: resultado.estado, versao: resultado.versao };
+    },
+    async desconectar(subject, geracao, operacaoId) {
+      const resultado = await canal.chamar('agenda_google_desconectar', {
+        p_subject: subject,
+        p_geracao: geracao,
+        p_operacao_id: operacaoId,
+      });
+      if (
+        typeof resultado !== 'object' ||
+        resultado === null ||
+        !('estado' in resultado) ||
+        (resultado.estado !== 'desconectado' && resultado.estado !== 'conflito') ||
+        !('conexao_atual' in resultado) ||
+        (resultado.conexao_atual !== 'conectado' && resultado.conexao_atual !== 'desconectado') ||
+        !('versao_atual' in resultado) ||
+        typeof resultado.versao_atual !== 'string' ||
+        !/^[0-9]{1,18}$/.test(resultado.versao_atual)
+      )
+        throw new Error('Conexão indisponível.');
+      return {
+        estado: resultado.estado,
+        conexao_atual: resultado.conexao_atual,
+        versao_atual: resultado.versao_atual,
+      };
     },
     async revogarCredencial() {
       if ((await canal.chamar('agenda_google_revogar_credencial', {})) !== true)

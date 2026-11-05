@@ -504,6 +504,7 @@ function aplicarSessao(atual: Sessao): void {
       desmontarAgenda = montarAgendaIndividual(
         elemento('agenda-individual'),
         atual.session_id,
+        atual.usuario.id,
         (cursor) => api.listarPacientes(cursor),
       );
     }

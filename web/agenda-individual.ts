@@ -6,12 +6,41 @@ type Compromisso = { id: string; inicio: string; fim: string; titulo: string; et
 export function montarAgendaIndividual(
   raiz: HTMLElement,
   sessaoId: string,
+  usuarioId: string,
   listarPacientes: (
     cursor?: string,
   ) => Promise<{ itens: readonly { id: string; nome: string }[]; proximo_cursor: string | null }>,
 ): () => void {
   let ativa = true;
   let consulta = 0;
+  let suspensa = true;
+  const marcadorDesconexao = `ffcm-agenda-desconexao-incerta:${usuarioId}`;
+  type PedidoDesconexao = { operacao_id: string; versao: string };
+  let pedidoDesconexao: PedidoDesconexao | null = null;
+  let armazenamentoDisponivel = true;
+  try {
+    const salvo = localStorage.getItem(marcadorDesconexao);
+    if (salvo) {
+      const valor: unknown = JSON.parse(salvo);
+      if (
+        !valor ||
+        typeof valor !== 'object' ||
+        !('operacao_id' in valor) ||
+        typeof valor.operacao_id !== 'string' ||
+        !/^[0-9a-f-]{36}$/i.test(valor.operacao_id) ||
+        !('versao' in valor) ||
+        typeof valor.versao !== 'string' ||
+        !/^\d{1,20}$/.test(valor.versao)
+      )
+        throw new Error();
+      pedidoDesconexao = { operacao_id: valor.operacao_id, versao: valor.versao };
+    }
+  } catch {
+    armazenamentoDisponivel = false;
+  }
+  let versaoConexao: string | null = null;
+  let autorizacaoDesconexao: string | null = null;
+  let operacaoConexao: string | null = null;
   const titulo = document.createElement('h2');
   titulo.textContent = 'Minha agenda';
   const descricao = document.createElement('p');
@@ -30,9 +59,18 @@ export function montarAgendaIndividual(
   conectar.className = 'button-secondary';
   conectar.type = 'button';
   conectar.textContent = 'Conectar agenda Google';
+  const desconectar = document.createElement('button');
+  desconectar.type = 'button';
+  desconectar.className = 'button-secondary';
+  desconectar.textContent = 'Desconectar agenda Google';
+  const reconciliarDesconexao = document.createElement('button');
+  reconciliarDesconexao.type = 'button';
+  reconciliarDesconexao.className = 'button-secondary';
+  reconciliarDesconexao.textContent = 'Verificar desconexão';
+  reconciliarDesconexao.hidden = true;
   const acoes = document.createElement('div');
   acoes.className = 'agenda-acoes';
-  acoes.append(atualizar, conectar);
+  acoes.append(atualizar, conectar, desconectar, reconciliarDesconexao);
   raiz.replaceChildren(titulo, descricao, acoes, status, lista);
 
   function cabecalhos(): Headers {
@@ -225,10 +263,189 @@ export function montarAgendaIndividual(
       consulta += 1;
       lista.replaceChildren();
       vinculos.ocultar();
-    } else if (ativa) void carregar();
+    } else if (ativa && !suspensa) void carregar();
   };
   document.addEventListener('visibilitychange', ocultarDados);
   atualizar.addEventListener('click', () => void carregar());
+  function aplicarConexao(estado: 'conectado' | 'desconectado', versao: string): void {
+    versaoConexao = versao;
+    suspensa = estado !== 'conectado';
+    conectar.disabled = estado === 'conectado';
+    desconectar.disabled = estado !== 'conectado';
+    atualizar.disabled = estado !== 'conectado';
+    operacoesRaiz.hidden = estado !== 'conectado';
+    if (estado === 'conectado') void carregar();
+  }
+  async function verificarConexao(): Promise<void> {
+    try {
+      const resposta = await fetch('/api/agenda/google/conexao', {
+        headers: cabecalhos(),
+        credentials: 'same-origin',
+        cache: 'no-store',
+        redirect: 'error',
+        referrerPolicy: 'no-referrer',
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!resposta.ok) throw new Error();
+      const dados: unknown = await resposta.json();
+      if (!ativa) return;
+      if (
+        !dados ||
+        typeof dados !== 'object' ||
+        !('estado' in dados) ||
+        (dados.estado !== 'conectado' && dados.estado !== 'desconectado') ||
+        !('versao' in dados) ||
+        typeof dados.versao !== 'string' ||
+        !/^\d{1,20}$/.test(dados.versao) ||
+        !('operacao_id' in dados) ||
+        typeof dados.operacao_id !== 'string' ||
+        !/^[0-9a-f-]{36}$/i.test(dados.operacao_id) ||
+        !('autorizacao' in dados) ||
+        typeof dados.autorizacao !== 'string' ||
+        dados.autorizacao.length === 0 ||
+        dados.autorizacao.length > 8192
+      )
+        throw new Error();
+      operacaoConexao = dados.operacao_id;
+      autorizacaoDesconexao = dados.autorizacao;
+      aplicarConexao(dados.estado, dados.versao);
+      if (dados.estado === 'desconectado')
+        status.textContent = 'Agenda desconectada. Autorize a conexão para consultá-la.';
+    } catch {
+      if (ativa)
+        status.textContent =
+          'Não foi possível verificar a conexão. Recarregue a página para tentar novamente.';
+    }
+  }
+  async function enviarDesconexao(): Promise<void> {
+    if (!pedidoDesconexao || !autorizacaoDesconexao) return;
+    reconciliarDesconexao.disabled = true;
+    status.textContent = 'Verificando desconexão…';
+    try {
+      const headers = cabecalhos();
+      headers.set('Content-Type', 'application/json');
+      const resposta = await fetch('/api/agenda/google/desconectar', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ...pedidoDesconexao, autorizacao: autorizacaoDesconexao }),
+        credentials: 'same-origin',
+        cache: 'no-store',
+        redirect: 'error',
+        referrerPolicy: 'no-referrer',
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!resposta.ok) throw new Error();
+      const dados: unknown = await resposta.json();
+      if (!ativa) return;
+      if (
+        !dados ||
+        typeof dados !== 'object' ||
+        !('estado' in dados) ||
+        (dados.estado !== 'desconectado' && dados.estado !== 'conflito') ||
+        !('conexao_atual' in dados) ||
+        (dados.conexao_atual !== 'conectado' && dados.conexao_atual !== 'desconectado') ||
+        !('versao_atual' in dados) ||
+        typeof dados.versao_atual !== 'string' ||
+        !/^\d{1,20}$/.test(dados.versao_atual) ||
+        !('revogacao_google' in dados) ||
+        dados.revogacao_google !== 'nao_comprovada'
+      )
+        throw new Error();
+      localStorage.removeItem(marcadorDesconexao);
+      pedidoDesconexao = null;
+      reconciliarDesconexao.hidden = true;
+      await verificarConexao();
+      status.textContent =
+        dados.estado === 'conflito'
+          ? 'A conexão mudou antes da desconexão. Confira a situação atual.'
+          : 'Desconexão no aplicativo confirmada. A revogação no Google não foi comprovada; pendências anteriores permanecem.';
+    } catch {
+      if (ativa) {
+        reconciliarDesconexao.hidden = false;
+        status.textContent =
+          'Não foi possível confirmar a desconexão. Use “Verificar desconexão” para consultar o resultado da mesma operação.';
+      }
+    } finally {
+      if (ativa) reconciliarDesconexao.disabled = false;
+    }
+  }
+  desconectar.addEventListener('click', () => {
+    if (
+      !versaoConexao ||
+      !operacaoConexao ||
+      !autorizacaoDesconexao ||
+      !armazenamentoDisponivel ||
+      !window.confirm(
+        'Desconectar a agenda Google? Será necessário autorizar novamente para voltar a usá-la.',
+      )
+    )
+      return;
+    const pedido = { operacao_id: operacaoConexao, versao: versaoConexao };
+    try {
+      localStorage.setItem(marcadorDesconexao, JSON.stringify(pedido));
+    } catch {
+      status.textContent = 'Não foi possível preparar a desconexão com segurança.';
+      return;
+    }
+    pedidoDesconexao = pedido;
+    suspensa = true;
+    conectar.disabled = desconectar.disabled = atualizar.disabled = true;
+    consulta += 1;
+    lista.replaceChildren();
+    vinculos.ocultar();
+    operacoesRaiz.hidden = true;
+    void enviarDesconexao();
+  });
+  reconciliarDesconexao.addEventListener('click', async () => {
+    if (!pedidoDesconexao) return;
+    reconciliarDesconexao.disabled = true;
+    status.textContent = 'Consultando recibo…';
+    try {
+      const url = new URL('/api/agenda/google/desconexao/recibo', window.location.origin);
+      url.searchParams.set('operacao_id', pedidoDesconexao.operacao_id);
+      const resposta = await fetch(url, {
+        headers: cabecalhos(),
+        credentials: 'same-origin',
+        cache: 'no-store',
+        redirect: 'error',
+        referrerPolicy: 'no-referrer',
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!resposta.ok) throw new Error();
+      const dados: unknown = await resposta.json();
+      if (!ativa) return;
+      if (!dados || typeof dados !== 'object' || !('estado' in dados)) throw new Error();
+      if (dados.estado === 'desconhecido') {
+        status.textContent =
+          'O recibo ainda não está disponível. A operação pode estar em trânsito; tente verificar mais tarde.';
+        return;
+      }
+      if (
+        (dados.estado !== 'desconectado' && dados.estado !== 'conflito') ||
+        !('conexao_atual' in dados) ||
+        (dados.conexao_atual !== 'conectado' && dados.conexao_atual !== 'desconectado') ||
+        !('versao_atual' in dados) ||
+        typeof dados.versao_atual !== 'string' ||
+        !/^\d{1,20}$/.test(dados.versao_atual) ||
+        !('revogacao_google' in dados) ||
+        dados.revogacao_google !== 'nao_comprovada'
+      )
+        throw new Error();
+      localStorage.removeItem(marcadorDesconexao);
+      pedidoDesconexao = null;
+      reconciliarDesconexao.hidden = true;
+      await verificarConexao();
+      status.textContent =
+        dados.estado === 'conflito'
+          ? 'A conexão mudou antes da desconexão. Confira a situação atual.'
+          : 'Desconexão no aplicativo confirmada. A revogação no Google não foi comprovada; pendências anteriores permanecem.';
+    } catch {
+      if (ativa)
+        status.textContent = 'Não foi possível consultar o recibo. Tente novamente mais tarde.';
+    } finally {
+      if (ativa) reconciliarDesconexao.disabled = false;
+    }
+  });
   conectar.addEventListener('click', async () => {
     conectar.disabled = true;
     status.textContent = 'Preparando conexão com Google…';
@@ -258,10 +475,19 @@ export function montarAgendaIndividual(
         status.textContent =
           'Não foi possível iniciar a conexão. Tente novamente quando o serviço estiver disponível.';
     } finally {
-      if (ativa) conectar.disabled = false;
+      if (ativa && !pedidoDesconexao) conectar.disabled = false;
     }
   });
-  void carregar();
+  conectar.disabled = desconectar.disabled = atualizar.disabled = true;
+  operacoesRaiz.hidden = true;
+  if (!armazenamentoDisponivel) {
+    status.textContent =
+      'Não foi possível recuperar a situação da desconexão. Procure suporte antes de continuar.';
+  } else if (pedidoDesconexao) {
+    reconciliarDesconexao.hidden = false;
+    status.textContent =
+      'Uma desconexão não foi confirmada. Verifique o resultado antes de continuar.';
+  } else void verificarConexao();
   return () => {
     ativa = false;
     document.removeEventListener('visibilitychange', ocultarDados);

@@ -11,6 +11,13 @@ export type ConfiguracaoOAuthAgenda = Readonly<{
   redirectUri: string;
 }>;
 
+export class ErroRefreshGoogleAusente extends Error {
+  constructor() {
+    super('Google não forneceu credencial de renovação.');
+    this.name = 'ErroRefreshGoogleAusente';
+  }
+}
+
 const escopo = 'https://www.googleapis.com/auth/calendar.events';
 const base64url = (bytes: Uint8Array) =>
   btoa(String.fromCharCode(...bytes))
@@ -91,9 +98,6 @@ export async function trocarCodigoAgenda(
       !('access_token' in dados) ||
       typeof dados.access_token !== 'string' ||
       !dados.access_token ||
-      !('refresh_token' in dados) ||
-      typeof dados.refresh_token !== 'string' ||
-      !dados.refresh_token ||
       !('id_token' in dados) ||
       typeof dados.id_token !== 'string' ||
       !dados.id_token ||
@@ -105,8 +109,15 @@ export async function trocarCodigoAgenda(
     if (validacao.audienciaEsperada !== config.clientId || !subjectEsperado) throw new Error();
     const identidade = await validarIdTokenGoogle(dados.id_token, validacao);
     if (identidade.subject !== subjectEsperado) throw new Error();
+    if (
+      !('refresh_token' in dados) ||
+      typeof dados.refresh_token !== 'string' ||
+      !dados.refresh_token
+    )
+      throw new ErroRefreshGoogleAusente();
     return { accessToken: dados.access_token, refreshToken: dados.refresh_token };
-  } catch {
+  } catch (erro) {
+    if (erro instanceof ErroRefreshGoogleAusente) throw erro;
     throw new Error('Consentimento indisponível.');
   } finally {
     clearTimeout(prazo);

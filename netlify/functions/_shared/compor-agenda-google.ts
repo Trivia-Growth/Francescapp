@@ -1,3 +1,5 @@
+import { criarIntencaoDesconexao } from './agenda-google-desconexao-intencao.ts';
+import { processarDesconexaoAgenda } from './agenda-google-desconexao-handler.ts';
 import { consultarVinculosAgenda } from './agenda-google-consulta-vinculos-handler.ts';
 import { processarVinculoAgenda } from './agenda-google-vinculo-handler.ts';
 import { processarReconciliacaoAgenda } from './agenda-google-reconciliacao-handler.ts';
@@ -127,6 +129,16 @@ export async function comporAgendaGoogle(
         autorizar,
         lerCredencial: () => repositorio.lerCredencial(),
         vincularPaciente: (...args) => repositorio.vincularPaciente(...args),
+      });
+    }
+    if (new URL(request.url).pathname === '/api/agenda/google/desconectar') {
+      return await processarDesconexaoAgenda(request, {
+        origem,
+        intencao: criarIntencaoDesconexao(chave),
+        autorizar,
+        statusConexao: (subject) => repositorio.statusConexao(subject),
+        consultarDesconexao: (...args) => repositorio.consultarDesconexao(...args),
+        desconectar: (...args) => repositorio.desconectar(...args),
       });
     }
     if (new URL(request.url).pathname === '/api/agenda/google/operacoes') {

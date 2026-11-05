@@ -4,6 +4,9 @@ import { comporAgendaGoogle } from './_shared/compor-agenda-google.ts';
 export const config = {
   path: [
     '/api/agenda/google/conectar',
+    '/api/agenda/google/desconectar',
+    '/api/agenda/google/desconexao/recibo',
+    '/api/agenda/google/conexao',
     '/api/agenda/google/callback',
     '/api/agenda/google/compromissos',
     '/api/agenda/google/operacoes',

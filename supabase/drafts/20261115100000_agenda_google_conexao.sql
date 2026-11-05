@@ -54,6 +54,14 @@ grant execute on function vault._crypto_aead_det_decrypt(bytea,bytea,bigint,byte
 set role ffcmapp_agenda_google_owner;
 alter default privileges revoke execute on functions from public;
 
+create table identidade.agenda_google_desconexao_recibo (
+  usuario_id uuid not null,
+  operacao_id uuid not null,
+  subject_google text not null,
+  versao bigint not null,
+  resultado text not null check (resultado in ('desconectado','conflito')),
+  primary key(usuario_id,operacao_id)
+);
 create table identidade.agenda_google_vinculo_paciente (
   usuario_id uuid not null,
   subject_google text not null,
@@ -94,7 +102,7 @@ create table identidade.agenda_google_credencial (
   geracao bigint not null,
   segredo_id uuid not null unique
 );
-revoke all on identidade.agenda_google_state, identidade.agenda_google_credencial, identidade.agenda_google_geracao, identidade.agenda_google_requisicao, identidade.agenda_google_escrita, identidade.agenda_google_vinculo_paciente from public, anon, authenticated, service_role;
+revoke all on identidade.agenda_google_state, identidade.agenda_google_credencial, identidade.agenda_google_geracao, identidade.agenda_google_requisicao, identidade.agenda_google_escrita, identidade.agenda_google_vinculo_paciente, identidade.agenda_google_desconexao_recibo from public, anon, authenticated, service_role;
 
 -- Contexto interno somente após verificação do atestado pelo wrapper privado.
 -- Funções auxiliares não têm grants para executor ou papéis públicos.
@@ -215,7 +223,7 @@ begin
     raise exception using errcode='42501', message='SEM_PERMISSAO';
   end;
   if v_usuario is null or v_sessao is null or v_req is null or v_inicio is null or v_fim is null
-    or v_acao not in ('agenda.registrar','agenda.consumir','agenda.salvar','agenda.ler','agenda.revogar','agenda.reservar_escrita','agenda.pendencia','agenda.resolver_escrita','agenda.vincular','agenda.consultar_vinculos')
+    or v_acao not in ('agenda.registrar','agenda.consumir','agenda.salvar','agenda.ler','agenda.revogar','agenda.reservar_escrita','agenda.pendencia','agenda.resolver_escrita','agenda.vincular','agenda.consultar_vinculos','agenda.desconectar','agenda.status_conexao','agenda.consultar_desconexao')
     or v_acao is null or a->>'usuario_id' is distinct from v_usuario::text
     or a->>'session_id' is distinct from v_sessao::text or a->>'request_id' is distinct from v_req::text
     or v_inicio>clock_timestamp() or v_fim<=clock_timestamp() or v_fim<=v_inicio or v_fim-v_inicio>interval '30 seconds'
@@ -263,6 +271,76 @@ begin
       v_resultado := to_jsonb(identidade.agenda_google_salvar_credencial(p_valor,(e->>'geracao')::bigint,e->>'subject'));
     when 'agenda.ler' then v_resultado := identidade.agenda_google_ler_credencial();
     when 'agenda.revogar' then v_resultado := to_jsonb(identidade.agenda_google_revogar_credencial());
+    when 'agenda.status_conexao' then
+      declare v_geracao bigint; v_conectado boolean;
+      begin
+        if not exists(select 1 from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id
+          where s.usuario_id=v_usuario and s.session_id=v_sessao and c.subject_google=e->>'subject') then
+          raise exception using errcode='42501',message='SEM_PERMISSAO';
+        end if;
+        perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_usuario::text, 0));
+        insert into identidade.agenda_google_geracao(usuario_id) values(v_usuario) on conflict do nothing;
+        select geracao into v_geracao from identidade.agenda_google_geracao where usuario_id=v_usuario;
+        select exists(select 1 from identidade.agenda_google_credencial g where g.usuario_id=v_usuario and g.subject_google=e->>'subject') into v_conectado;
+        v_resultado := jsonb_build_object('estado',case when v_conectado then 'conectado' else 'desconectado' end,'versao',v_geracao::text);
+      end;
+    when 'agenda.consultar_desconexao' then
+      declare v_recibo record; v_geracao bigint; v_conectado boolean;
+      begin
+        if coalesce(e->>'operacao_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+          or not exists(select 1 from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id
+            where s.usuario_id=v_usuario and s.session_id=v_sessao and c.subject_google=e->>'subject') then
+          raise exception using errcode='42501',message='SEM_PERMISSAO';
+        end if;
+        perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_usuario::text, 0));
+        select * into v_recibo from identidade.agenda_google_desconexao_recibo r
+          where r.usuario_id=v_usuario and r.operacao_id=(e->>'operacao_id')::uuid and r.subject_google=e->>'subject';
+        if not found then
+          v_resultado := jsonb_build_object('estado','desconhecido');
+        else
+          select geracao into v_geracao from identidade.agenda_google_geracao where usuario_id=v_usuario;
+          select exists(select 1 from identidade.agenda_google_credencial g where g.usuario_id=v_usuario and g.subject_google=e->>'subject') into v_conectado;
+          v_resultado := jsonb_build_object('estado',v_recibo.resultado,'conexao_atual',case when v_conectado then 'conectado' else 'desconectado' end,'versao_atual',v_geracao::text);
+        end if;
+      end;
+    when 'agenda.desconectar' then
+      declare v_geracao bigint; v_subject text; v_recibo record; v_desfecho text; v_conectado boolean;
+      begin
+        if coalesce(e->>'subject','')='' or coalesce(e->>'geracao','') !~ '^[0-9]{1,18}$'
+          or coalesce(e->>'operacao_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then
+          raise exception using errcode='42501',message='SEM_PERMISSAO';
+        end if;
+        perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_usuario::text, 0));
+        if not exists(select 1 from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id
+          where s.usuario_id=v_usuario and s.session_id=v_sessao and c.subject_google=e->>'subject') then
+          raise exception using errcode='42501',message='SEM_PERMISSAO';
+        end if;
+        select * into v_recibo from identidade.agenda_google_desconexao_recibo r where r.usuario_id=v_usuario and r.operacao_id=(e->>'operacao_id')::uuid;
+        if found then
+          if v_recibo.subject_google is distinct from e->>'subject' or v_recibo.versao::text is distinct from e->>'geracao' then
+            raise exception using errcode='42501',message='SEM_PERMISSAO';
+          end if;
+          v_resultado := jsonb_build_object('estado',v_recibo.resultado);
+        else
+          insert into identidade.agenda_google_geracao(usuario_id) values(v_usuario) on conflict do nothing;
+          select geracao into v_geracao from identidade.agenda_google_geracao where usuario_id=v_usuario;
+          select g.subject_google into v_subject from identidade.agenda_google_credencial g where g.usuario_id=v_usuario;
+          if v_geracao::text is distinct from e->>'geracao' or (v_subject is not null and v_subject is distinct from e->>'subject') then
+            v_desfecho := 'conflito';
+          else
+            perform identidade.agenda_google_revogar_credencial();
+            insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+              values(gen_random_uuid(),v_usuario,'agenda.desconectar','usuario',v_usuario,'permitido',v_req);
+            v_desfecho := 'desconectado';
+          end if;
+          insert into identidade.agenda_google_desconexao_recibo(usuario_id,operacao_id,subject_google,versao,resultado)
+            values(v_usuario,(e->>'operacao_id')::uuid,e->>'subject',(e->>'geracao')::bigint,v_desfecho);
+          v_resultado := jsonb_build_object('estado',v_desfecho);
+        end if;
+        select geracao into v_geracao from identidade.agenda_google_geracao where usuario_id=v_usuario;
+        select exists(select 1 from identidade.agenda_google_credencial g where g.usuario_id=v_usuario and g.subject_google=e->>'subject') into v_conectado;
+        v_resultado := v_resultado || jsonb_build_object('conexao_atual',case when v_conectado then 'conectado' else 'desconectado' end,'versao_atual',v_geracao::text);
+      end;
     when 'agenda.consultar_vinculos' then
       if jsonb_typeof(e->'eventos') is distinct from 'array' or jsonb_array_length(e->'eventos') not between 1 and 250
         or exists(select 1 from jsonb_array_elements(e->'eventos') x where jsonb_typeof(x)<>'string' or (x#>>'{}') !~ '^[A-Za-z0-9_-]{1,1024}$')

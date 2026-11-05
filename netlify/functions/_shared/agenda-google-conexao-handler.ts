@@ -1,5 +1,6 @@
 import type { criarCookieAgenda } from './agenda-google-cookie.ts';
 import {
+  ErroRefreshGoogleAusente,
   iniciarConsentimentoAgenda,
   trocarCodigoAgenda,
   type ConfiguracaoOAuthAgenda,
@@ -108,7 +109,17 @@ export async function processarConexaoAgenda(request: Request, portas: Portas): 
       status: 303,
       headers: { ...headers, Location: retorno.toString(), 'Set-Cookie': portas.cookie.limpar() },
     });
-  } catch {
+  } catch (erro) {
+    if (erro instanceof ErroRefreshGoogleAusente) {
+      const retorno = new URL(portas.retorno, portas.origem);
+      if (retorno.origin !== portas.origem || retorno.username || retorno.password)
+        return indisponivel();
+      retorno.searchParams.set('agenda', 'autorizar-novamente');
+      return new Response(null, {
+        status: 303,
+        headers: { ...headers, Location: retorno.toString(), 'Set-Cookie': portas.cookie.limpar() },
+      });
+    }
     return indisponivel();
   }
 }
