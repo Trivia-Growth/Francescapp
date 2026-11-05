@@ -10,6 +10,26 @@ export function criarRepositorioAgenda(canal: CanalAgenda): RepositorioStateAgen
   salvarCredencial(refresh: string, geracao: string, subject: string): Promise<void>;
   lerCredencial(): Promise<Readonly<{ refresh: string; geracao: string }> | null>;
   revogarCredencial(): Promise<void>;
+  pendencia(): Promise<
+    | {
+        operacao_id: string;
+        evento_id: string;
+        acao: 'criar' | 'alterar' | 'cancelar';
+      }
+    | { conta_anterior: true }
+    | null
+  >;
+  reservarEscrita(
+    operacaoId: string,
+    eventoId: string,
+    acao: string,
+    subject: string,
+  ): Promise<boolean>;
+  resolverEscrita(
+    operacaoId: string,
+    subject: string,
+    desfecho: 'confirmada' | 'nao_realizada',
+  ): Promise<boolean>;
 } {
   const conferir = async (usuarioId: string, sessaoId: string) => {
     const identidade = await canal.identidade();
@@ -72,6 +92,52 @@ export function criarRepositorioAgenda(canal: CanalAgenda): RepositorioStateAgen
       )
         throw new Error('Conexão indisponível.');
       return { refresh: resultado.refresh, geracao: resultado.geracao };
+    },
+    async pendencia() {
+      const resultado = await canal.chamar('agenda_google_pendencia', {});
+      if (resultado === null) return null;
+      if (
+        typeof resultado === 'object' &&
+        'conta_anterior' in resultado &&
+        resultado.conta_anterior === true
+      )
+        return { conta_anterior: true as const };
+      if (
+        typeof resultado !== 'object' ||
+        !('operacao_id' in resultado) ||
+        typeof resultado.operacao_id !== 'string' ||
+        !('evento_id' in resultado) ||
+        typeof resultado.evento_id !== 'string' ||
+        !('acao' in resultado) ||
+        (resultado.acao !== 'criar' &&
+          resultado.acao !== 'alterar' &&
+          resultado.acao !== 'cancelar')
+      )
+        throw new Error('Conexão indisponível.');
+      return {
+        operacao_id: resultado.operacao_id,
+        evento_id: resultado.evento_id,
+        acao: resultado.acao,
+      };
+    },
+    async reservarEscrita(operacaoId, eventoId, acao, subject) {
+      return (
+        (await canal.chamar('agenda_google_reservar_escrita', {
+          p_operacao_id: operacaoId,
+          p_evento_id: eventoId,
+          p_acao: acao,
+          p_subject: subject,
+        })) === true
+      );
+    },
+    async resolverEscrita(operacaoId, subject, desfecho) {
+      return (
+        (await canal.chamar('agenda_google_resolver_escrita', {
+          p_operacao_id: operacaoId,
+          p_subject: subject,
+          p_desfecho: desfecho,
+        })) === true
+      );
     },
     async revogarCredencial() {
       if ((await canal.chamar('agenda_google_revogar_credencial', {})) !== true)

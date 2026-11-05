@@ -1,6 +1,7 @@
 /** Uso exclusivo no servidor, após autorização da sessão e obtenção do token pelo cofre. */
 export type CompromissoGoogle = Readonly<{
   id: string;
+  etag: string;
   inicio: string;
   fim: string;
   titulo: string;
@@ -65,6 +66,8 @@ export async function consultarAgendaGoogleIndividual(
           typeof item !== 'object' ||
           item === null ||
           typeof item.id !== 'string' ||
+          typeof item.etag !== 'string' ||
+          !item.etag ||
           typeof item.start !== 'object' ||
           item.start === null ||
           typeof item.end !== 'object' ||
@@ -76,6 +79,7 @@ export async function consultarAgendaGoogleIndividual(
         if (typeof inicioEvento !== 'string' || typeof fimEvento !== 'string') return indisponivel;
         compromissos.push({
           id: item.id,
+          etag: item.etag,
           inicio: inicioEvento,
           fim: fimEvento,
           titulo: 'Compromisso',

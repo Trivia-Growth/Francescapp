@@ -43,6 +43,16 @@ grant execute on function vault._crypto_aead_det_decrypt(bytea,bytea,bigint,byte
 set role ffcmapp_agenda_google_owner;
 alter default privileges revoke execute on functions from public;
 
+create table identidade.agenda_google_escrita (
+  usuario_id uuid not null,
+  operacao_id uuid not null,
+  evento_id text not null check (evento_id ~ '^[A-Za-z0-9_-]{1,1024}$'),
+  acao text not null check (acao in ('criar','alterar','cancelar')),
+  subject_google text not null,
+  estado text not null check (estado in ('pendente','confirmada','nao_realizada')),
+  primary key(usuario_id,operacao_id)
+);
+create unique index agenda_google_escrita_unica_pendente on identidade.agenda_google_escrita(usuario_id) where estado='pendente';
 create table identidade.agenda_google_requisicao (
   request_id uuid primary key,
   expira_em timestamptz not null
@@ -65,7 +75,7 @@ create table identidade.agenda_google_credencial (
   geracao bigint not null,
   segredo_id uuid not null unique
 );
-revoke all on identidade.agenda_google_state, identidade.agenda_google_credencial, identidade.agenda_google_geracao, identidade.agenda_google_requisicao from public, anon, authenticated, service_role;
+revoke all on identidade.agenda_google_state, identidade.agenda_google_credencial, identidade.agenda_google_geracao, identidade.agenda_google_requisicao, identidade.agenda_google_escrita from public, anon, authenticated, service_role;
 
 -- Contexto interno somente após verificação do atestado pelo wrapper privado.
 -- Funções auxiliares não têm grants para executor ou papéis públicos.
@@ -173,7 +183,7 @@ begin
   if jsonb_typeof(p_transporte) is distinct from 'object'
     or p_transporte - array['entrada','entrada_canonica','dados_canonicos'] <> '{}'::jsonb
     or jsonb_typeof(e) is distinct from 'object'
-    or e - array['request_id','hash','valor_hash','geracao','subject','atestado'] <> '{}'::jsonb
+    or e - array['request_id','hash','valor_hash','geracao','subject','operacao_id','evento_id','acao','desfecho','atestado'] <> '{}'::jsonb
     or jsonb_typeof(a) is distinct from 'object' then
     raise exception using errcode='42501', message='SEM_PERMISSAO';
   end if;
@@ -186,7 +196,7 @@ begin
     raise exception using errcode='42501', message='SEM_PERMISSAO';
   end;
   if v_usuario is null or v_sessao is null or v_req is null or v_inicio is null or v_fim is null
-    or v_acao not in ('agenda.registrar','agenda.consumir','agenda.salvar','agenda.ler','agenda.revogar')
+    or v_acao not in ('agenda.registrar','agenda.consumir','agenda.salvar','agenda.ler','agenda.revogar','agenda.reservar_escrita','agenda.pendencia','agenda.resolver_escrita')
     or v_acao is null or a->>'usuario_id' is distinct from v_usuario::text
     or a->>'session_id' is distinct from v_sessao::text or a->>'request_id' is distinct from v_req::text
     or v_inicio>clock_timestamp() or v_fim<=clock_timestamp() or v_fim<=v_inicio or v_fim-v_inicio>interval '30 seconds'
@@ -234,6 +244,37 @@ begin
       v_resultado := to_jsonb(identidade.agenda_google_salvar_credencial(p_valor,(e->>'geracao')::bigint,e->>'subject'));
     when 'agenda.ler' then v_resultado := identidade.agenda_google_ler_credencial();
     when 'agenda.revogar' then v_resultado := to_jsonb(identidade.agenda_google_revogar_credencial());
+    when 'agenda.pendencia' then
+      select case when w.subject_google=(select c.subject_google from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id where s.usuario_id=v_usuario and s.session_id=v_sessao)
+        then jsonb_build_object('operacao_id',w.operacao_id,'evento_id',w.evento_id,'acao',w.acao)
+        else jsonb_build_object('conta_anterior',true) end into v_resultado
+        from identidade.agenda_google_escrita w where w.usuario_id=v_usuario and w.estado='pendente';
+    when 'agenda.reservar_escrita' then
+      if coalesce(e->>'operacao_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+        or coalesce(e->>'evento_id','') !~ '^[A-Za-z0-9_-]{1,1024}$'
+        or coalesce(e->>'acao','') not in ('criar','alterar','cancelar')
+        or not exists (select 1 from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id where s.usuario_id=v_usuario and s.session_id=v_sessao and c.subject_google=e->>'subject') then
+        raise exception using errcode='42501',message='SEM_PERMISSAO';
+      end if;
+      begin
+      insert into identidade.agenda_google_escrita(usuario_id,operacao_id,evento_id,acao,subject_google,estado)
+        values(v_usuario,(e->>'operacao_id')::uuid,e->>'evento_id',e->>'acao',e->>'subject','pendente')
+        on conflict(usuario_id,operacao_id) do update set estado='pendente'
+        where identidade.agenda_google_escrita.estado='nao_realizada'
+          and identidade.agenda_google_escrita.evento_id=excluded.evento_id and identidade.agenda_google_escrita.acao=excluded.acao
+          and identidade.agenda_google_escrita.subject_google=excluded.subject_google;
+      v_resultado := to_jsonb(found);
+      exception when unique_violation then v_resultado := 'false'::jsonb; end;
+    when 'agenda.resolver_escrita' then
+      if coalesce(e->>'operacao_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then
+        raise exception using errcode='42501',message='SEM_PERMISSAO';
+      end if;
+      if coalesce(e->>'desfecho','') not in ('confirmada','nao_realizada') then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+      update identidade.agenda_google_escrita set estado=e->>'desfecho'
+        where usuario_id=v_usuario and operacao_id=(e->>'operacao_id')::uuid and estado='pendente'
+          and subject_google=e->>'subject'
+          and exists(select 1 from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id where s.usuario_id=v_usuario and s.session_id=v_sessao and c.subject_google=e->>'subject');
+      v_resultado := to_jsonb(found);
   end case;
   if v_fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=v_sessao and s.user_id=v_usuario and (s.not_after is null or s.not_after>clock_timestamp())) then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
   return v_resultado;

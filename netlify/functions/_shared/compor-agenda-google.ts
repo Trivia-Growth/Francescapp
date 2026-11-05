@@ -1,3 +1,5 @@
+import { processarReconciliacaoAgenda } from './agenda-google-reconciliacao-handler.ts';
+import { processarEscritaAgenda } from './agenda-google-escrita-handler.ts';
 import { processarLeituraAgenda } from './agenda-google-leitura-handler.ts';
 import { criarCanalAgenda } from '../../../supabase/functions/_shared/agenda-google-canal.ts';
 import { criarExecutorAgendaPostgres } from '../../../supabase/functions/_shared/agenda-google-postgres.ts';
@@ -93,6 +95,30 @@ export async function comporAgendaGoogle(
       return identidade;
     };
     const oauth = { clientId, clientSecret, redirectUri: `${origem}/api/agenda/google/callback` };
+    if (
+      ['/api/agenda/google/pendencia', '/api/agenda/google/reconciliar'].includes(
+        new URL(request.url).pathname,
+      )
+    ) {
+      return await processarReconciliacaoAgenda(request, {
+        origem,
+        oauth,
+        autorizar,
+        lerCredencial: () => repositorio.lerCredencial(),
+        pendencia: () => repositorio.pendencia(),
+        resolverEscrita: (...args) => repositorio.resolverEscrita(...args),
+      });
+    }
+    if (new URL(request.url).pathname === '/api/agenda/google/operacoes') {
+      return await processarEscritaAgenda(request, {
+        origem,
+        oauth,
+        autorizar,
+        lerCredencial: () => repositorio.lerCredencial(),
+        reservarEscrita: (...args) => repositorio.reservarEscrita(...args),
+        resolverEscrita: (...args) => repositorio.resolverEscrita(...args),
+      });
+    }
     if (new URL(request.url).pathname === '/api/agenda/google/compromissos') {
       return await processarLeituraAgenda(request, {
         origem,

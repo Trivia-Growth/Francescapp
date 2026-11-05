@@ -6,6 +6,9 @@ export const config = {
     '/api/agenda/google/conectar',
     '/api/agenda/google/callback',
     '/api/agenda/google/compromissos',
+    '/api/agenda/google/operacoes',
+    '/api/agenda/google/pendencia',
+    '/api/agenda/google/reconciliar',
   ],
 };
 

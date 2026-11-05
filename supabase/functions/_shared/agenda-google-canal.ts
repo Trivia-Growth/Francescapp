@@ -15,6 +15,9 @@ export function criarCanalAgenda(config: {
     agenda_google_salvar_credencial: 'agenda.salvar',
     agenda_google_ler_credencial: 'agenda.ler',
     agenda_google_revogar_credencial: 'agenda.revogar',
+    agenda_google_pendencia: 'agenda.pendencia',
+    agenda_google_reservar_escrita: 'agenda.reservar_escrita',
+    agenda_google_resolver_escrita: 'agenda.resolver_escrita',
   };
   return {
     async identidade() {
@@ -36,7 +39,11 @@ export function criarCanalAgenda(config: {
             ? ['p_hash']
             : nome === 'agenda_google_salvar_credencial'
               ? ['p_refresh', 'p_geracao', 'p_subject']
-              : [];
+              : nome === 'agenda_google_reservar_escrita'
+                ? ['p_operacao_id', 'p_evento_id', 'p_acao', 'p_subject']
+                : nome === 'agenda_google_resolver_escrita'
+                  ? ['p_operacao_id', 'p_subject', 'p_desfecho']
+                  : [];
       if (
         Object.keys(argumentos).some((campo) => !permitidos.includes(campo)) ||
         permitidos.some((campo) => typeof argumentos[campo] !== 'string')
@@ -58,6 +65,10 @@ export function criarCanalAgenda(config: {
         ...(argumentos.p_hash ? { hash: argumentos.p_hash } : {}),
         ...(argumentos.p_geracao ? { geracao: argumentos.p_geracao } : {}),
         ...(argumentos.p_subject ? { subject: argumentos.p_subject } : {}),
+        ...(argumentos.p_operacao_id ? { operacao_id: argumentos.p_operacao_id } : {}),
+        ...(argumentos.p_evento_id ? { evento_id: argumentos.p_evento_id } : {}),
+        ...(argumentos.p_acao ? { acao: argumentos.p_acao } : {}),
+        ...(argumentos.p_desfecho ? { desfecho: argumentos.p_desfecho } : {}),
         ...(digest ? { valor_hash: digest } : {}),
       };
       const prova = await config.atestador.atestarEntrada(
