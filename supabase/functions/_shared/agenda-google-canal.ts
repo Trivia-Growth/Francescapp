@@ -18,6 +18,7 @@ export function criarCanalAgenda(config: {
     agenda_google_desconectar: 'agenda.desconectar',
     agenda_google_status_conexao: 'agenda.status_conexao',
     agenda_google_consultar_desconexao: 'agenda.consultar_desconexao',
+    agenda_google_cancelar_desconexao: 'agenda.cancelar_desconexao',
     agenda_google_pendencia: 'agenda.pendencia',
     agenda_google_reservar_escrita: 'agenda.reservar_escrita',
     agenda_google_resolver_escrita: 'agenda.resolver_escrita',
@@ -56,9 +57,11 @@ export function criarCanalAgenda(config: {
                         ? ['p_subject']
                         : nome === 'agenda_google_consultar_desconexao'
                           ? ['p_subject', 'p_operacao_id']
-                          : nome === 'agenda_google_consultar_vinculos'
-                            ? ['p_eventos', 'p_subject', 'p_geracao']
-                            : [];
+                          : nome === 'agenda_google_cancelar_desconexao'
+                            ? ['p_subject', 'p_geracao', 'p_operacao_id']
+                            : nome === 'agenda_google_consultar_vinculos'
+                              ? ['p_eventos', 'p_subject', 'p_geracao']
+                              : [];
       if (
         Object.keys(argumentos).some((campo) => !permitidos.includes(campo)) ||
         permitidos.some((campo) => typeof argumentos[campo] !== 'string')

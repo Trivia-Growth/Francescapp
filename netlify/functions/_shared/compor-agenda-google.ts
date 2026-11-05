@@ -131,13 +131,21 @@ export async function comporAgendaGoogle(
         vincularPaciente: (...args) => repositorio.vincularPaciente(...args),
       });
     }
-    if (new URL(request.url).pathname === '/api/agenda/google/desconectar') {
+    if (
+      [
+        '/api/agenda/google/desconectar',
+        '/api/agenda/google/conexao',
+        '/api/agenda/google/desconexao/recibo',
+        '/api/agenda/google/desconexao/cancelar',
+      ].includes(new URL(request.url).pathname)
+    ) {
       return await processarDesconexaoAgenda(request, {
         origem,
         intencao: criarIntencaoDesconexao(chave),
         autorizar,
         statusConexao: (subject) => repositorio.statusConexao(subject),
         consultarDesconexao: (...args) => repositorio.consultarDesconexao(...args),
+        cancelarDesconexao: (...args) => repositorio.cancelarDesconexao(...args),
         desconectar: (...args) => repositorio.desconectar(...args),
       });
     }

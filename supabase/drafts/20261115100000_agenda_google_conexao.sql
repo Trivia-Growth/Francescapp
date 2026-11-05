@@ -59,7 +59,7 @@ create table identidade.agenda_google_desconexao_recibo (
   operacao_id uuid not null,
   subject_google text not null,
   versao bigint not null,
-  resultado text not null check (resultado in ('desconectado','conflito')),
+  resultado text not null check (resultado in ('desconectado','conflito','cancelada')),
   primary key(usuario_id,operacao_id)
 );
 create table identidade.agenda_google_vinculo_paciente (
@@ -223,7 +223,7 @@ begin
     raise exception using errcode='42501', message='SEM_PERMISSAO';
   end;
   if v_usuario is null or v_sessao is null or v_req is null or v_inicio is null or v_fim is null
-    or v_acao not in ('agenda.registrar','agenda.consumir','agenda.salvar','agenda.ler','agenda.revogar','agenda.reservar_escrita','agenda.pendencia','agenda.resolver_escrita','agenda.vincular','agenda.consultar_vinculos','agenda.desconectar','agenda.status_conexao','agenda.consultar_desconexao')
+    or v_acao not in ('agenda.registrar','agenda.consumir','agenda.salvar','agenda.ler','agenda.revogar','agenda.reservar_escrita','agenda.pendencia','agenda.resolver_escrita','agenda.vincular','agenda.consultar_vinculos','agenda.desconectar','agenda.status_conexao','agenda.consultar_desconexao','agenda.cancelar_desconexao')
     or v_acao is null or a->>'usuario_id' is distinct from v_usuario::text
     or a->>'session_id' is distinct from v_sessao::text or a->>'request_id' is distinct from v_req::text
     or v_inicio>clock_timestamp() or v_fim<=clock_timestamp() or v_fim<=v_inicio or v_fim-v_inicio>interval '30 seconds'
@@ -283,6 +283,33 @@ begin
         select geracao into v_geracao from identidade.agenda_google_geracao where usuario_id=v_usuario;
         select exists(select 1 from identidade.agenda_google_credencial g where g.usuario_id=v_usuario and g.subject_google=e->>'subject') into v_conectado;
         v_resultado := jsonb_build_object('estado',case when v_conectado then 'conectado' else 'desconectado' end,'versao',v_geracao::text);
+      end;
+    when 'agenda.cancelar_desconexao' then
+      declare v_recibo record; v_geracao bigint; v_conectado boolean; v_desfecho text;
+      begin
+        if coalesce(e->>'operacao_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+          or coalesce(e->>'geracao','') !~ '^(0|[1-9][0-9]{0,17})$'
+          or not exists(select 1 from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id
+            where s.usuario_id=v_usuario and s.session_id=v_sessao and c.subject_google=e->>'subject') then
+          raise exception using errcode='42501',message='SEM_PERMISSAO';
+        end if;
+        -- Mesmo lock de desconectar: cancelamento e pedido atrasado têm ordem única.
+        perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_usuario::text, 0));
+        select * into v_recibo from identidade.agenda_google_desconexao_recibo r where r.usuario_id=v_usuario and r.operacao_id=(e->>'operacao_id')::uuid;
+        if found then
+          if v_recibo.subject_google is distinct from e->>'subject' or v_recibo.versao::text is distinct from e->>'geracao' then
+            raise exception using errcode='42501',message='SEM_PERMISSAO';
+          end if;
+          v_desfecho := v_recibo.resultado;
+        else
+          insert into identidade.agenda_google_desconexao_recibo(usuario_id,operacao_id,subject_google,versao,resultado)
+            values(v_usuario,(e->>'operacao_id')::uuid,e->>'subject',(e->>'geracao')::bigint,'cancelada');
+          v_desfecho := 'cancelada';
+        end if;
+        select geracao into v_geracao from identidade.agenda_google_geracao where usuario_id=v_usuario;
+        if v_geracao is null then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+        select exists(select 1 from identidade.agenda_google_credencial g where g.usuario_id=v_usuario and g.subject_google=e->>'subject') into v_conectado;
+        v_resultado := jsonb_build_object('estado',v_desfecho,'conexao_atual',case when v_conectado then 'conectado' else 'desconectado' end,'versao_atual',v_geracao::text);
       end;
     when 'agenda.consultar_desconexao' then
       declare v_recibo record; v_geracao bigint; v_conectado boolean;

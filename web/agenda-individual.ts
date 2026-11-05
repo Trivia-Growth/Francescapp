@@ -68,9 +68,14 @@ export function montarAgendaIndividual(
   reconciliarDesconexao.className = 'button-secondary';
   reconciliarDesconexao.textContent = 'Verificar desconexão';
   reconciliarDesconexao.hidden = true;
+  const cancelarDesconexao = document.createElement('button');
+  cancelarDesconexao.type = 'button';
+  cancelarDesconexao.className = 'button-secondary';
+  cancelarDesconexao.textContent = 'Cancelar tentativa de desconexão';
+  cancelarDesconexao.hidden = true;
   const acoes = document.createElement('div');
   acoes.className = 'agenda-acoes';
-  acoes.append(atualizar, conectar, desconectar, reconciliarDesconexao);
+  acoes.append(atualizar, conectar, desconectar, reconciliarDesconexao, cancelarDesconexao);
   raiz.replaceChildren(titulo, descricao, acoes, status, lista);
 
   function cabecalhos(): Headers {
@@ -354,6 +359,7 @@ export function montarAgendaIndividual(
       localStorage.removeItem(marcadorDesconexao);
       pedidoDesconexao = null;
       reconciliarDesconexao.hidden = true;
+      cancelarDesconexao.hidden = true;
       await verificarConexao();
       status.textContent =
         dados.estado === 'conflito'
@@ -416,12 +422,15 @@ export function montarAgendaIndividual(
       if (!ativa) return;
       if (!dados || typeof dados !== 'object' || !('estado' in dados)) throw new Error();
       if (dados.estado === 'desconhecido') {
+        cancelarDesconexao.hidden = false;
         status.textContent =
-          'O recibo ainda não está disponível. A operação pode estar em trânsito; tente verificar mais tarde.';
+          'O recibo ainda não está disponível. Você pode verificar mais tarde ou cancelar a tentativa de desconexão.';
         return;
       }
       if (
-        (dados.estado !== 'desconectado' && dados.estado !== 'conflito') ||
+        (dados.estado !== 'desconectado' &&
+          dados.estado !== 'conflito' &&
+          dados.estado !== 'cancelada') ||
         !('conexao_atual' in dados) ||
         (dados.conexao_atual !== 'conectado' && dados.conexao_atual !== 'desconectado') ||
         !('versao_atual' in dados) ||
@@ -434,16 +443,72 @@ export function montarAgendaIndividual(
       localStorage.removeItem(marcadorDesconexao);
       pedidoDesconexao = null;
       reconciliarDesconexao.hidden = true;
+      cancelarDesconexao.hidden = true;
       await verificarConexao();
       status.textContent =
-        dados.estado === 'conflito'
-          ? 'A conexão mudou antes da desconexão. Confira a situação atual.'
-          : 'Desconexão no aplicativo confirmada. A revogação no Google não foi comprovada; pendências anteriores permanecem.';
+        dados.estado === 'cancelada'
+          ? 'Tentativa de desconexão cancelada.'
+          : dados.estado === 'conflito'
+            ? 'A conexão mudou antes da desconexão. Confira a situação atual.'
+            : 'Desconexão no aplicativo confirmada. A revogação no Google não foi comprovada; pendências anteriores permanecem.';
     } catch {
       if (ativa)
         status.textContent = 'Não foi possível consultar o recibo. Tente novamente mais tarde.';
     } finally {
       if (ativa) reconciliarDesconexao.disabled = false;
+    }
+  });
+  cancelarDesconexao.addEventListener('click', async () => {
+    if (!pedidoDesconexao || !window.confirm('Cancelar a tentativa pendente de desconexão?'))
+      return;
+    cancelarDesconexao.disabled = reconciliarDesconexao.disabled = true;
+    status.textContent = 'Cancelando tentativa…';
+    try {
+      const headers = cabecalhos();
+      headers.set('Content-Type', 'application/json');
+      const resposta = await fetch('/api/agenda/google/desconexao/cancelar', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(pedidoDesconexao),
+        credentials: 'same-origin',
+        cache: 'no-store',
+        redirect: 'error',
+        referrerPolicy: 'no-referrer',
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!resposta.ok) throw new Error();
+      const dados: unknown = await resposta.json();
+      if (!ativa) return;
+      if (
+        !dados ||
+        typeof dados !== 'object' ||
+        !('estado' in dados) ||
+        !['cancelada', 'desconectado', 'conflito'].includes(String(dados.estado)) ||
+        !('conexao_atual' in dados) ||
+        (dados.conexao_atual !== 'conectado' && dados.conexao_atual !== 'desconectado') ||
+        !('versao_atual' in dados) ||
+        typeof dados.versao_atual !== 'string' ||
+        !/^\d{1,20}$/.test(dados.versao_atual) ||
+        !('revogacao_google' in dados) ||
+        dados.revogacao_google !== 'nao_comprovada'
+      )
+        throw new Error();
+      localStorage.removeItem(marcadorDesconexao);
+      pedidoDesconexao = null;
+      cancelarDesconexao.hidden = reconciliarDesconexao.hidden = true;
+      await verificarConexao();
+      status.textContent =
+        dados.estado === 'cancelada'
+          ? 'Tentativa de desconexão cancelada.'
+          : dados.estado === 'desconectado'
+            ? 'A desconexão já havia sido confirmada no aplicativo. A revogação no Google não foi comprovada.'
+            : 'A conexão mudou; confira a situação atual.';
+    } catch {
+      if (ativa)
+        status.textContent =
+          'Não foi possível confirmar o cancelamento. Tente novamente ou consulte o recibo.';
+    } finally {
+      if (ativa) cancelarDesconexao.disabled = reconciliarDesconexao.disabled = false;
     }
   });
   conectar.addEventListener('click', async () => {

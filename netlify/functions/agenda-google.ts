@@ -6,6 +6,7 @@ export const config = {
     '/api/agenda/google/conectar',
     '/api/agenda/google/desconectar',
     '/api/agenda/google/desconexao/recibo',
+    '/api/agenda/google/desconexao/cancelar',
     '/api/agenda/google/conexao',
     '/api/agenda/google/callback',
     '/api/agenda/google/compromissos',

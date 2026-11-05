@@ -16,14 +16,27 @@ export async function processarDesconexaoAgenda(
       operacaoId: string,
     ): Promise<
       | { estado: 'desconhecido' }
-      | { estado: 'desconectado' | 'conflito'; conexao_atual: Estado; versao_atual: string }
+      | {
+          estado: 'desconectado' | 'conflito' | 'cancelada';
+          conexao_atual: Estado;
+          versao_atual: string;
+        }
     >;
+    cancelarDesconexao(
+      subject: string,
+      versao: string,
+      operacaoId: string,
+    ): Promise<{
+      estado: 'desconectado' | 'conflito' | 'cancelada';
+      conexao_atual: Estado;
+      versao_atual: string;
+    }>;
     desconectar(
       subject: string,
       versao: string,
       operacaoId: string,
     ): Promise<{
-      estado: 'desconectado' | 'conflito';
+      estado: 'desconectado' | 'conflito' | 'cancelada';
       conexao_atual: Estado;
       versao_atual: string;
     }>;
@@ -51,12 +64,14 @@ export async function processarDesconexaoAgenda(
     const consultar = request.method === 'GET' && url.pathname === '/api/agenda/google/conexao';
     const desconectar =
       request.method === 'POST' && url.pathname === '/api/agenda/google/desconectar';
+    const cancelar =
+      request.method === 'POST' && url.pathname === '/api/agenda/google/desconexao/cancelar';
     const consultarRecibo =
       request.method === 'GET' && url.pathname === '/api/agenda/google/desconexao/recibo';
     if (
       url.origin !== portas.origem ||
       url.hash ||
-      (!consultar && !desconectar && !consultarRecibo) ||
+      (!consultar && !desconectar && !consultarRecibo && !cancelar) ||
       (!consultarRecibo && url.search)
     )
       return erro(422);
@@ -70,7 +85,7 @@ export async function processarDesconexaoAgenda(
     )
       return erro(422);
     if (
-      desconectar &&
+      (desconectar || cancelar) &&
       (request.headers.get('origin') !== portas.origem ||
         request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() !==
           'application/json' ||
@@ -135,13 +150,25 @@ export async function processarDesconexaoAgenda(
       !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
         dados.operacao_id,
       ) ||
-      !('autorizacao' in dados) ||
-      typeof dados.autorizacao !== 'string' ||
-      dados.autorizacao.length < 1 ||
-      dados.autorizacao.length > 2048 ||
       !('versao' in dados) ||
       typeof dados.versao !== 'string' ||
       !/^(0|[1-9][0-9]{0,17})$/.test(dados.versao)
+    )
+      return erro(422);
+    if (cancelar) {
+      if ('autorizacao' in dados) return erro(422);
+      const resultado = await portas.cancelarDesconexao(
+        identidade.subjectGoogle,
+        dados.versao,
+        dados.operacao_id,
+      );
+      return Response.json({ ...resultado, revogacao_google: 'nao_comprovada' }, { headers });
+    }
+    if (
+      !('autorizacao' in dados) ||
+      typeof dados.autorizacao !== 'string' ||
+      dados.autorizacao.length < 1 ||
+      dados.autorizacao.length > 2048
     )
       return erro(422);
     if (
