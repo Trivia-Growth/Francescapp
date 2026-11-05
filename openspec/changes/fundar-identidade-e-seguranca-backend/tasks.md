@@ -108,6 +108,8 @@ A rota de criação de contato e o formulário foram ligados ao código existent
 
 Família: preparadas localmente admissão por senha e sessão privada vinculada a perfil familiar e acesso vigente ao paciente. Falta integrar consulta, saída, permissões e convite; a migration não foi aplicada e nenhuma rota foi ativada. Testes não foram executados.
 
+Convite familiar: rota de ativação permanece bloqueada e SQL de preparação fora das migrations. Revisão identificou janela entre confirmação do vínculo no banco e alteração de senha no Auth: revogação nesse intervalo deve impedir admissão, mas a senha ainda pode ser alterada. A recuperação após resultado incerto e a entrega efetiva do token de recuperação não foram comprovadas; provisionamento de conta familiar nova continua pendente. Não ativar antes de resolver e provar esses cenários, incluindo revogação concorrente e recuperação sem recriar acesso.
+
 ## Revisão operacional aprovada — 01/11/2026
 
 Aplicar D-14 do design: Auth/SDK Supabase nativos substituem o protocolo próprio de autenticação/sessão. Os IDs e checkboxes abaixo permanecem rastreáveis; instruções históricas de desafio/nonce Google próprio, JWKS próprio, selagem/cifra de refresh, prova por geração e autorização curta de sessão não são mais obrigações de implementação. Não marcar esses mecanismos como concluídos nem promovê-los ao runtime. Atestado de escrita/cifra de campos e os controles de negócio permanecem.

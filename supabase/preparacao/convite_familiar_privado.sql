@@ -67,7 +67,8 @@ begin
   end if;
   v_sessao := api.consultar_sessao_nativa(p_request_id);
   if v_sessao is null or v_sessao #>> '{usuario,perfil}' is distinct from 'administrador'
-    or v_sessao #>> '{usuario,id}' is distinct from v_ator::text then
+    or v_sessao #>> '{usuario,id}' is distinct from v_ator::text
+    or v_sessao #>> '{usuario,ativo}' is distinct from 'true' then
     return jsonb_build_object('ok', false, 'codigo', 'sem_permissao');
   end if;
   perform 1 from cadastro.paciente where id = p_paciente_id for share;
@@ -102,10 +103,11 @@ begin
   end if;
   v_sessao := api.consultar_sessao_nativa(p_request_id);
   if v_sessao is null or v_sessao #>> '{usuario,perfil}' is distinct from 'administrador'
-    or v_sessao #>> '{usuario,id}' is distinct from v_ator::text then
+    or v_sessao #>> '{usuario,id}' is distinct from v_ator::text
+    or v_sessao #>> '{usuario,ativo}' is distinct from 'true' then
     return jsonb_build_object('ok', false, 'codigo', 'sem_permissao');
   end if;
-  select estado, tentativa_envio_id, email_cifrado into v_convite
+  select paciente_id, estado, tentativa_envio_id, email_cifrado into v_convite
     from identidade.convite_familiar where id = p_convite_id for update;
   if not found or v_convite.estado = 'ativado' then
     return jsonb_build_object('ok', false, 'codigo', 'convite_indisponivel');
@@ -136,7 +138,8 @@ begin
   end if;
   v_sessao := api.consultar_sessao_nativa(p_request_id);
   if v_sessao is null or v_sessao #>> '{usuario,perfil}' is distinct from 'administrador'
-    or v_sessao #>> '{usuario,id}' is distinct from v_ator::text then
+    or v_sessao #>> '{usuario,id}' is distinct from v_ator::text
+    or v_sessao #>> '{usuario,ativo}' is distinct from 'true' then
     return jsonb_build_object('ok', false, 'codigo', 'sem_permissao');
   end if;
   update identidade.convite_familiar

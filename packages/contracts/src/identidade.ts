@@ -17,6 +17,17 @@ export const criarConviteFamiliarSchema = z
 export const reenviarConviteFamiliarSchema = z.object({ convite_id: uuidSchema }).strict();
 
 export const estadoConviteFamiliarSchema = z.enum(['pendente', 'enviado', 'falha', 'ativado']);
+export const ativarConviteFamiliarSchema = z
+  .object({
+    convite_id: uuidSchema,
+    tipo: z.enum(['invite', 'recovery']),
+    token_hash: z.string().regex(/^[a-f0-9]{64}$/i),
+    senha: z.string().min(1).max(1024),
+  })
+  .strict();
+export const resultadoAtivacaoFamiliarSchema = z
+  .object({ ok: z.literal(true), usuario_id: uuidSchema })
+  .strict();
 
 export const entradaVinculoFamiliarPrivadoSchema = z
   .object({
