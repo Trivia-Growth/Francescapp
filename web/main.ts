@@ -751,6 +751,31 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
       sessao.usuario.perfil === 'administrador' &&
       sessao.capacidades.includes('administrar_concessoes')
     ) {
+      // Só disponibilizar após validação integrada das rotas e do convite.
+      const conviteFamiliarDisponivel = false;
+      if (conviteFamiliarDisponivel) {
+        const convidar = document.createElement('button');
+        convidar.type = 'button';
+        convidar.className = 'button-secondary';
+        convidar.textContent = 'Convidar familiar';
+        convidar.setAttribute('aria-label', `Convidar familiar de ${paciente.nome}`);
+        convidar.addEventListener('click', () => {
+          if (
+            !sessao ||
+            sessao.usuario.perfil !== 'administrador' ||
+            !sessao.capacidades.includes('administrar_concessoes') ||
+            atendimentoJaAberto()
+          )
+            return;
+          try {
+            sessionStorage.setItem(`convite-paciente:${sessao.session_id}`, paciente.id);
+            window.location.assign('/consulta-convite/');
+          } catch {
+            aviso('workspace-feedback', 'Não foi possível abrir o convite nesta aba.');
+          }
+        });
+        acao.append(convidar);
+      }
       const selecionar = document.createElement('button');
       selecionar.type = 'button';
       selecionar.className = 'button-secondary';
