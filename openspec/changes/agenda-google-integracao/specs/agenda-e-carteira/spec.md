@@ -27,3 +27,18 @@ O sistema SHALL identificar origem e autoria e informar sucesso de criação, al
 #### Scenario: Resposta incerta
 - **WHEN** uma escrita não recebe confirmação
 - **THEN** o sistema informa falha ou pendência e não afirma que a operação ocorreu; nova tentativa exige conferir estado externo e permissão vigente.
+
+### Requirement: Agenda individual e exposição mínima
+O início SHALL usar a agenda individual e o fuso de São Paulo; o profissional autoriza sua conexão Google. Eventos existentes SHALL ser vinculados manualmente ao paciente. Ao detectar conflito, o sistema SHALL avisar e deixar a decisão à equipe. Consulta sem acesso clínico SHALL exibir título genérico sem identificar paciente. Fase Inicial; complementa FR-023/025/049/050.
+
+#### Scenario: Conflito de horário
+- **WHEN** uma operação identificar conflito de horário
+- **THEN** o sistema avisa e a equipe decide como proceder.
+
+#### Scenario: Consulta sem acesso clínico
+- **WHEN** pessoa autorizada à agenda não possui acesso clínico ao paciente
+- **THEN** o compromisso aparece com título genérico, sem identificar paciente.
+
+#### Scenario: Evento existente
+- **WHEN** um evento preexistente precisar ser associado a paciente
+- **THEN** a equipe faz o vínculo manualmente.

@@ -4,7 +4,7 @@
 
 ### Requirement: Guarda e canais institucionais de anexos
 
-O produto SHALL guardar anexos no Drive compartilhado institucional e vincular cada documento ao paciente, classificação e audiência aplicáveis. Familiares SHALL acessar somente pelo app; participantes institucionais autorizados poderão acessar também pelo Drive. Fase Inicial; complementa FR-029 a FR-031 e SC-007/010.
+O produto SHALL guardar anexos no Drive compartilhado institucional e organizar pastas por paciente, com categorias gerais e de cuidado, e vincular cada documento ao paciente, classificação e audiência aplicáveis. Familiares SHALL acessar somente pelo app; participantes institucionais autorizados poderão acessar também pelo Drive. Fase Inicial; complementa FR-029 a FR-031 e SC-007/010.
 
 #### Scenario: Anexo autorizado
 - **WHEN** um anexo é concluído com classificação e audiência confirmadas

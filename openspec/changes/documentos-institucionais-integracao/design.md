@@ -14,7 +14,7 @@ As specs preservam FR-029 a FR-031; o delta `registrar-fundacao-real` confirma D
 
 - Guarda no Drive compartilhado confirmado, nunca Meu Drive como fallback. Alternativa de outro provedor contraria decisão vigente.
 - Autorização deve conferir identidade, vínculo ao caso e audiência no servidor; acesso institucional direto exige coerência com compartilhamento gerido. Interface ou vínculo isolados não autorizam.
-- Integração e segredos permanecem no servidor. Não definir formato de credencial, árvore, enumeração de audiência ou política de revogação sem decisões necessárias.
+- Integração e segredos permanecem no servidor. Organizar por pastas de paciente e categorias gerais e de cuidado; família acessa somente pelo app. Formato de credencial, detalhes de audiência e política de revogação permanecem pendentes.
 - Contrato isolado sem consumidor não prova integração e adiciona abstração prematura; implementar com a primeira operação real após decisões.
 
 ## Risks / Trade-offs
@@ -29,4 +29,4 @@ Nenhuma operação remota autorizada. Após decisões, planejar implantação, r
 
 ## Open Questions
 
-Bloqueadores materiais, não decisões adiáveis para implementação: identificador e raiz do Drive; organização/categorias; identidade e consentimento Google; modelo e alterações de compartilhamento direto; audiência e sua revogação; tipos e limites de arquivos; tratamento de mudanças externas e falhas parciais. Confirmar com solicitante e registrar decisões antes de tarefas dependentes.
+Bloqueadores materiais, não decisões adiáveis para implementação: identificador e raiz do Drive; detalhes operacionais da organização; identidade e consentimento Google; modelo e alterações de compartilhamento direto; audiência e sua revogação; tipos e limites de arquivos; tratamento de mudanças externas e falhas parciais. Confirmar com solicitante e registrar decisões antes de tarefas dependentes.

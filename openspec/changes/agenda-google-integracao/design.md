@@ -18,13 +18,13 @@ A fundação distingue sessão e concessões de aplicação do consentimento Cal
 
 ## Risks / Trade-offs
 
-- [Exposição de dados clínicos pela agenda] Mitigação: autorização de caso e audiência independente; campos e redação dependem de decisão explícita.
-- [Alteração concorrente ou resposta perdida] Mitigação: conferir estado externo; política de conflito e reconciliação precisa de decisão antes da implementação.
+- [Exposição de dados clínicos pela agenda] Mitigação: autorização de caso e audiência independente; sem acesso clínico, exibir título genérico sem identificação do paciente.
+- [Alteração concorrente ou resposta perdida] Mitigação: conferir estado externo; avisar sobre conflito e deixar a decisão à equipe; conferir estado externo antes de repetir operação incerta.
 - [Revogação ou falha da ACL Google] Mitigação: revalidar concessões e testar permissões da aplicação e Google em conjunto, inclusive acesso direto.
 
 ## Bloqueadores materiais
 
-Antes de implementação, confirmar calendários e fuso, alcance de operações em séries, resolução de conflito, vínculo de eventos existentes a pacientes, campos exibidos sem acesso clínico e estratégia de sincronização. A jornada existente exige preservar demais ocorrências em remarcação individual; não interpretar isso como autorização para operações adicionais na série. Confirmar também estratégia de consentimento e guarda de credenciais e condições reais de prova. Estas perguntas afetam contrato e tarefas; não são decisões adiadas durante execução.
+Decisões aprovadas: fuso de São Paulo; início pela agenda individual e por compromissos individuais, com operações adicionais em séries posteriores; conflitos são avisados para decisão da equipe; eventos existentes são vinculados manualmente; sem acesso clínico, título genérico sem paciente. O profissional autoriza a conexão Google. Consultar e confirmar alterações diretamente no Google Calendar; em resposta incerta, informar a necessidade de conferir antes de repetir. A jornada existente exige preservar demais ocorrências em remarcação individual. Detalhar guarda de credenciais e condições reais de prova antes da implementação dependente.
 
 ## Migration Plan
 
