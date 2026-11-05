@@ -1,4 +1,6 @@
-type Compromisso = { id: string; inicio: string; fim: string; titulo: string };
+import { montarOperacoesAgenda } from './agenda-operacoes.js';
+
+type Compromisso = { id: string; inicio: string; fim: string; titulo: string; etag?: string };
 
 export function montarAgendaIndividual(raiz: HTMLElement, sessaoId: string): () => void {
   let ativa = true;
@@ -36,6 +38,9 @@ export function montarAgendaIndividual(raiz: HTMLElement, sessaoId: string): () 
       throw new Error();
     return new Headers({ Accept: 'application/json', 'x-sessao': sessaoId, 'x-fluxo': fluxo });
   }
+  const operacoesRaiz = document.createElement('div');
+  raiz.append(operacoesRaiz);
+  const operacoes = montarOperacoesAgenda(operacoesRaiz, cabecalhos, () => void carregar());
   async function carregar(): Promise<void> {
     const versao = ++consulta;
     lista.replaceChildren();
@@ -68,6 +73,7 @@ export function montarAgendaIndividual(raiz: HTMLElement, sessaoId: string): () 
           return (
             typeof v.id === 'string' &&
             typeof v.titulo === 'string' &&
+            (v.etag === undefined || typeof v.etag === 'string') &&
             typeof v.inicio === 'string' &&
             typeof v.fim === 'string' &&
             Number.isFinite(Date.parse(v.inicio)) &&
@@ -78,7 +84,11 @@ export function montarAgendaIndividual(raiz: HTMLElement, sessaoId: string): () 
         throw new Error();
       if (!ativa || versao !== consulta) return;
       const itens = corpo.dados as Compromisso[];
-      const data = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full', timeStyle: 'short' });
+      const data = new Intl.DateTimeFormat('pt-BR', {
+        dateStyle: 'full',
+        timeStyle: 'short',
+        timeZone: 'America/Sao_Paulo',
+      });
       const dia = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full', timeZone: 'UTC' });
       for (const item of itens) {
         const linha = document.createElement('li');
@@ -93,9 +103,25 @@ export function montarAgendaIndividual(raiz: HTMLElement, sessaoId: string): () 
               ? `${dia.format(inicio)} · Dia inteiro`
               : `${dia.format(inicio)} – ${dia.format(ultimoDia)} · Dias inteiros`;
         } else {
-          horario.textContent = `${data.format(new Date(item.inicio))} – ${data.format(new Date(item.fim))}`;
+          horario.textContent = `${data.format(new Date(item.inicio))} – ${data.format(new Date(item.fim))} · Horário de São Paulo`;
         }
         linha.append(nome, horario);
+        if (item.etag) {
+          const editar = document.createElement('button');
+          editar.type = 'button';
+          editar.className = 'button-secondary';
+          editar.textContent = 'Alterar';
+          editar.setAttribute('aria-label', `Alterar compromisso de ${horario.textContent}`);
+          editar.addEventListener('click', () => operacoes.editar(item));
+          const cancelar = document.createElement('button');
+          cancelar.type = 'button';
+          cancelar.className = 'button-secondary';
+          cancelar.textContent = 'Cancelar compromisso';
+          cancelar.setAttribute('aria-label', `Cancelar compromisso de ${horario.textContent}`);
+          cancelar.addEventListener('click', () => operacoes.cancelar(item));
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(item.inicio)) linha.append(editar);
+          linha.append(cancelar);
+        }
         lista.append(linha);
       }
       status.textContent = itens.length
@@ -145,6 +171,7 @@ export function montarAgendaIndividual(raiz: HTMLElement, sessaoId: string): () 
   void carregar();
   return () => {
     ativa = false;
+    operacoes.desmontar();
     consulta += 1;
     raiz.replaceChildren();
   };
