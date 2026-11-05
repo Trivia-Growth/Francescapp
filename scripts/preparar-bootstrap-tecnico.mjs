@@ -12,7 +12,7 @@ const refValida = /^[a-z0-9]{20}$/;
 const uuidValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const repositorio = await realpath(fileURLToPath(new URL('..', import.meta.url)));
 
-function validarConexao(config, ref) {
+export function validarConexao(config, ref) {
   if (
     !config ||
     !refValida.test(ref) ||
@@ -68,7 +68,7 @@ export async function arquivoPrivado(caminho, dados) {
   return salvo;
 }
 
-export async function prepararBootstrap(entrada) {
+export async function prepararBootstrap(entrada, dependencias = {}) {
   const {
     projetoRef,
     projetoRefConfirmado,
@@ -84,11 +84,18 @@ export async function prepararBootstrap(entrada) {
     arquivo,
     confirmacao,
     operadorServicoTeste,
+    loteId,
+    loteIdentificacao,
   } = entrada;
   validarConexao(conexao, projetoRef);
   if (
     !uuidValido.test(concessaoId ?? '') ||
     !uuidValido.test(requestId ?? '') ||
+    (operadorServicoTeste === true &&
+      (!uuidValido.test(loteId ?? '') ||
+        typeof loteIdentificacao !== 'string' ||
+        !loteIdentificacao.trim() ||
+        loteIdentificacao.length > 200)) ||
     typeof motivo !== 'string' ||
     !motivo.trim() ||
     motivo.length > 4096 ||
@@ -98,11 +105,17 @@ export async function prepararBootstrap(entrada) {
     !/^ffcmapp\.cifra\.[a-z0-9][a-z0-9_-]{0,63}$/.test(referenciaCifra ?? '')
   )
     throw new Error();
-  await verificarAlvoBootstrap({ projetoRef, projetoRefConfirmado, uuidAuth, email, token });
+  await (dependencias.verificarAlvoBootstrap ?? verificarAlvoBootstrap)({
+    projetoRef,
+    projetoRefConfirmado,
+    uuidAuth,
+    email,
+    token,
+  });
   if (confirmacao === undefined)
     return 'prévia: projeto e vínculo Auth verificados; nenhuma conexão SQL realizada';
   if (confirmacao !== `EXECUTAR BOOTSTRAP ${projetoRef}`) throw new Error();
-  const pool = criarPoolCofre(conexao);
+  const pool = (dependencias.criarPoolCofre ?? criarPoolCofre)(conexao);
   try {
     const lerServico = async (tipo, referencia) => {
       const cliente = await pool.connect();
@@ -177,18 +190,21 @@ export async function prepararBootstrap(entrada) {
     try {
       await cliente.query('BEGIN');
       await cliente.query("SET LOCAL statement_timeout = '10s'");
-      const resposta = await cliente.query(
-        'select identidade.bootstrap_tecnico($1::text,$2::uuid,$3::uuid,$4::jsonb,$5::text,$6::jsonb,$7::uuid) as resultado',
-        [
-          projetoRef,
-          uuidAuth,
-          concessaoId,
-          JSON.stringify(salvo.emailCifrado),
-          salvo.emailHmac,
-          JSON.stringify(salvo.motivoCifrado),
-          requestId,
-        ],
-      );
+      const parametros = [
+        projetoRef,
+        uuidAuth,
+        concessaoId,
+        JSON.stringify(salvo.emailCifrado),
+        salvo.emailHmac,
+        JSON.stringify(salvo.motivoCifrado),
+        requestId,
+      ];
+      const comando =
+        operadorServicoTeste === true
+          ? 'select identidade.bootstrap_lote_servico($1::text,$2::uuid,$3::uuid,$4::jsonb,$5::text,$6::jsonb,$7::uuid,$8::uuid,$9::text) as resultado'
+          : 'select identidade.bootstrap_tecnico($1::text,$2::uuid,$3::uuid,$4::jsonb,$5::text,$6::jsonb,$7::uuid) as resultado';
+      if (operadorServicoTeste === true) parametros.push(loteId, loteIdentificacao);
+      const resposta = await cliente.query(comando, parametros);
       if (
         resposta.rows.length !== 1 ||
         !['inicializado', 'ja_inicializado'].includes(resposta.rows[0].resultado)
