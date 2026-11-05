@@ -4,7 +4,9 @@ import { randomBytes, X509Certificate } from 'node:crypto';
 import pg from 'pg';
 
 async function executar(entrada) {
-  const { projetoRef, projetoRefConfirmado, conexao, senhaOperador, confirmacao } = entrada;
+  const { projetoRef, projetoRefConfirmado, conexao, senhaOperador, confirmacao, expiraEm } =
+    entrada;
+  const servico = expiraEm !== undefined;
   if (
     !/^[a-z0-9]{20}$/.test(projetoRef ?? '') ||
     projetoRef !== projetoRefConfirmado ||
@@ -24,7 +26,11 @@ async function executar(entrada) {
     typeof senhaOperador !== 'string' ||
     senhaOperador.length < 32 ||
     senhaOperador.length > 256 ||
-    senhaOperador.includes('\0')
+    senhaOperador.includes('\0') ||
+    (servico &&
+      (typeof expiraEm !== 'string' ||
+        !Number.isFinite(Date.parse(expiraEm)) ||
+        Date.parse(expiraEm) <= Date.now()))
   )
     throw new Error();
   const direto = conexao.host === `db.${projetoRef}.supabase.co`;
@@ -58,7 +64,9 @@ async function executar(entrada) {
     'Controles não comprovam ausência em logs externos ou canais não consultáveis.\n',
   );
   process.stdout.write(
-    `Cadastro ${codigo}; login ${papel}. Confirme o vínculo humano em registro externo controlado.\n`,
+    servico
+      ? `Cadastro ${codigo}; login ${papel}. Serviço temporário, sem identidade humana atribuída.\n`
+      : `Cadastro ${codigo}; login ${papel}. Confirme o vínculo humano em registro externo controlado.\n`,
   );
   const cliente = new pg.Client({
     host: conexao.host,
@@ -115,9 +123,9 @@ async function executar(entrada) {
       `CREATE ROLE "${papel}" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS PASSWORD ${literal}`,
     );
     const cadastro = await cliente.query(
-      `INSERT INTO auditoria.operador_tecnico (codigo,papel_oid,papel_nome,ativo)
-      SELECT $1, oid, rolname, false FROM pg_catalog.pg_roles WHERE rolname = $2`,
-      [codigo, papel],
+      `INSERT INTO auditoria.operador_tecnico (codigo,papel_oid,papel_nome,ativo,tipo,expira_em)
+      SELECT $1, oid, rolname, false, $3, $4::timestamptz FROM pg_catalog.pg_roles WHERE rolname = $2`,
+      [codigo, papel, servico ? 'servico_teste' : 'individual', servico ? expiraEm : null],
     );
     if (cadastro.rowCount !== 1) throw new Error();
     commitEnviado = true;

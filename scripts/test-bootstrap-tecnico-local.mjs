@@ -37,7 +37,7 @@ test('bootstrap técnico restringe operador, alvo, repetição e auditoria', () 
       'start',
     ]);
     started = true;
-    sql(`create role anon; create role authenticated; create role service_role; create role operador_fixture login;
+    sql(`create role anon; create role authenticated; create role service_role; create role operador_fixture login; create role outro_fixture login;
       create schema auth; create table auth.users(id uuid primary key);
       insert into auth.users values ('51000000-0000-4000-8000-000000000001');`);
     run('psql', [
@@ -72,10 +72,25 @@ test('bootstrap técnico restringe operador, alvo, repetição e auditoria', () 
       '-f',
       'supabase/migrations/20261110180000_bootstrap_tecnico.sql',
     ]);
+    run('psql', [
+      '-X',
+      '-q',
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-f',
+      'supabase/drafts/20261112100000_operador_servico_temporario.sql',
+    ]);
     sql(`insert into identidade.bootstrap_tecnico_controle(projeto_ref) values ('fixture');
-      insert into auditoria.operador_tecnico values ('op_0123456789abcdef0123456789abcdef', 'operador_fixture'::regrole::oid, 'operador_fixture', true);
+      insert into auditoria.operador_tecnico(codigo,papel_oid,papel_nome,ativo,tipo,expira_em) values ('op_0123456789abcdef0123456789abcdef', 'operador_fixture'::regrole::oid, 'operador_fixture', true, 'servico_teste', clock_timestamp() + interval '1 hour');
       grant usage on schema identidade to operador_fixture;
       grant execute on function identidade.bootstrap_tecnico(text,uuid,uuid,jsonb,text,jsonb,uuid) to operador_fixture;
+      grant usage on schema identidade to outro_fixture;
+      grant execute on function identidade.bootstrap_tecnico(text,uuid,uuid,jsonb,text,jsonb,uuid) to outro_fixture;
+      set session authorization outro_fixture;
+      do $$ begin
+        begin perform identidade.bootstrap_tecnico('fixture',gen_random_uuid(),gen_random_uuid(),'{}','h','{}',gen_random_uuid()); raise exception 'outro login aceito'; exception when insufficient_privilege then null; end;
+      end $$;
+      reset session authorization;
       set session authorization operador_fixture;
       do $$ declare e jsonb := '{"formato":1,"key_id":"teste","nonce":"n","ciphertext":"c","tag":"t"}'; r text;
       begin
@@ -92,7 +107,13 @@ test('bootstrap técnico restringe operador, alvo, repetição e auditoria', () 
         if (select count(*) from auditoria.evento where operador_restrito='op_0123456789abcdef0123456789abcdef' and acao='bootstrap.tecnico') <> 2 then raise exception 'auditoria inválida'; end if;
         if has_function_privilege('anon','identidade.bootstrap_tecnico(text,uuid,uuid,jsonb,text,jsonb,uuid)','execute') or has_function_privilege('service_role','identidade.bootstrap_tecnico(text,uuid,uuid,jsonb,text,jsonb,uuid)','execute') then raise exception 'bootstrap exposto'; end if;
       end $$;
-      update auditoria.operador_tecnico set ativo=false;
+      update auditoria.operador_tecnico set expira_em=clock_timestamp() - interval '1 second';
+      set session authorization operador_fixture;
+      do $$ begin
+        begin perform identidade.bootstrap_tecnico('fixture',gen_random_uuid(),gen_random_uuid(),'{}','h','{}',gen_random_uuid()); raise exception 'operador expirado aceito'; exception when insufficient_privilege then null; end;
+      end $$;
+      reset session authorization;
+      update auditoria.operador_tecnico set ativo=false, expira_em=clock_timestamp() + interval '1 hour';
       set session authorization operador_fixture;
       do $$ begin
         begin perform identidade.bootstrap_tecnico('fixture',gen_random_uuid(),gen_random_uuid(),'{}','h','{}',gen_random_uuid()); raise exception 'operador inativo aceito'; exception when insufficient_privilege then null; end;
