@@ -107,6 +107,12 @@
             <p class="small-text">O cadastro não cria conta nem concede acesso ao paciente ou a familiares.</p>
           </section>
         </div>
+        <section id="paciente-familiar-panel" class="anamnese-panel" aria-labelledby="paciente-familiar-title" hidden>
+          <div class="section-heading"><h2 id="paciente-familiar-title" tabindex="-1">Paciente</h2><button id="fechar-paciente-familiar" class="button-secondary" type="button">Fechar paciente</button></div>
+          <p id="paciente-familiar-status" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
+          <div id="paciente-familiar-dados" hidden><p><strong>Nome:</strong> <span id="paciente-familiar-nome"></span></p><p><strong>Nome de preferência:</strong> <span id="paciente-familiar-preferencia"></span></p></div>
+          <button id="paciente-familiar-tentar" class="button-secondary" type="button" hidden>Tentar novamente</button>
+        </section>
         <section id="plano-panel" class="anamnese-panel" aria-labelledby="plano-title" hidden>
           <div class="section-heading"><h2 id="plano-title" tabindex="-1">Plano de cuidado: <span id="plano-paciente"></span></h2><button id="fechar-plano" class="button-secondary" type="button">Fechar plano</button></div>
           <p>Para abrir outro paciente, feche este plano. Ao fechar, alterações não salvas serão descartadas; um salvamento sem confirmação não poderá ser confirmado nesta tela.</p>

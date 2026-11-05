@@ -86,6 +86,8 @@ Consulta individual de paciente familiar preparada na migration `20261112040000`
 
 O cliente e a rota individual familiar foram preparados sob flag desativada, sem grant público à RPC; a tela ainda não usa a consulta. Gestão de vínculo profissional continua pendente de atestado, idempotência, revalidação e distinção segura de vínculos familiares. Sem testes nesta etapa.
 
+A tela familiar agora permite abrir a identificação básica do paciente pela consulta individual, com limpeza de dados em troca de sessão. A rota segue desativada e sem grant público; integração e provas reais continuam pendentes.
+
 Contatos: a migration `20261111200000` foi aplicada ao projeto de teste após revisão estática; ela prepara reserva, reconciliação e privilégios privados. A criação passou a exigir reserva, mas ciclo HTTP e cliente ainda não a obtêm, mantendo o caminho fechado. Testes foram adiados a pedido; não há prova de concorrência, autorização ou operação conectada.
 
 Atualização: migrations `20261111210000` e `20261111220000` aplicadas ao projeto de teste, mantendo wrappers privados. Ciclo HTTP e interface de contatos foram ligados em código; falta owner restrito com RLS/grants da composição e ativação. O vínculo familiar passa a preparar suporte à sessão técnica, ainda privado. Lint e typecheck passaram; nenhum teste executado.

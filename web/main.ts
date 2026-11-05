@@ -133,6 +133,22 @@ function fecharEdicao(): void {
   edicaoPendente = false;
   edicaoPanel.hidden = true;
 }
+const pacienteFamiliarPanel = elemento('paciente-familiar-panel');
+const pacienteFamiliarDados = elemento('paciente-familiar-dados');
+const pacienteFamiliarTentar = elemento<HTMLButtonElement>('paciente-familiar-tentar');
+let pacienteFamiliarId: string | null = null;
+let consultaFamiliar = 0;
+function fecharPacienteFamiliar(): void {
+  consultaFamiliar += 1;
+  pacienteFamiliarId = null;
+  pacienteFamiliarPanel.hidden = true;
+  pacienteFamiliarDados.hidden = true;
+  pacienteFamiliarTentar.hidden = true;
+  elemento('paciente-familiar-nome').textContent = '';
+  elemento('paciente-familiar-preferencia').textContent = '';
+  aviso('paciente-familiar-status', '');
+}
+
 const anamnesePanel = elemento('anamnese-panel');
 const anamneseRaiz = elemento('anamnese-raiz');
 const anamneseTitulo = elemento('anamnese-paciente');
@@ -324,6 +340,7 @@ function apagarPacientes(): void {
   fecharAnamnese();
   fecharPlano();
   fecharEdicao();
+  fecharPacienteFamiliar();
   tableBody.replaceChildren();
   table.hidden = true;
   listEmpty.hidden = true;
@@ -413,12 +430,14 @@ function aplicarSessao(atual: Sessao): void {
     sessao &&
     (sessao.session_id !== atual.session_id ||
       sessao.usuario.id !== atual.usuario.id ||
+      sessao.usuario.perfil !== atual.usuario.perfil ||
       atual.usuario.perfil === 'familia')
   ) {
     fecharTarefas();
     fecharAnamnese();
     fecharPlano();
     fecharEdicao();
+    fecharPacienteFamiliar();
   }
   if (
     atual.usuario.perfil !== 'administrador' ||
@@ -427,7 +446,8 @@ function aplicarSessao(atual: Sessao): void {
     fecharEdicao();
   if (atual.usuario.perfil !== 'profissional') fecharTarefas();
   sessao = atual;
-  elemento('anamnese-coluna').hidden = atual.usuario.perfil === 'familia';
+  elemento('anamnese-coluna').textContent =
+    atual.usuario.perfil === 'familia' ? 'Paciente' : 'Atendimento';
   const podeCadastrar =
     atual.usuario.perfil === 'administrador' && atual.capacidades.includes('administrar_cadastro');
   if (podeCadastrar && !ciclo) {
@@ -574,15 +594,17 @@ async function entrarFamiliar(evento: SubmitEvent): Promise<void> {
 }
 
 function atendimentoJaAberto(): boolean {
-  const titulo = !anamnesePanel.hidden
-    ? 'anamnese-title'
-    : !planoPanel.hidden
-      ? 'plano-title'
-      : !tarefasPanel.hidden
-        ? 'tarefas-title'
-        : !edicaoPanel.hidden
-          ? 'edicao-title'
-          : null;
+  const titulo = !pacienteFamiliarPanel.hidden
+    ? 'paciente-familiar-title'
+    : !anamnesePanel.hidden
+      ? 'anamnese-title'
+      : !planoPanel.hidden
+        ? 'plano-title'
+        : !tarefasPanel.hidden
+          ? 'tarefas-title'
+          : !edicaoPanel.hidden
+            ? 'edicao-title'
+            : null;
   if (!titulo) return false;
   aviso('workspace-feedback', 'Feche o atendimento aberto antes de selecionar outro.');
   elemento(titulo).focus();
@@ -596,7 +618,24 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
   const preferencia = document.createElement('td');
   preferencia.textContent = paciente.nome_preferencia ?? 'Não informado';
   linha.append(nome, preferencia);
-  if (sessao && sessao.usuario.perfil !== 'familia') {
+  if (sessao?.usuario.perfil === 'familia') {
+    const acao = document.createElement('td');
+    const abrir = document.createElement('button');
+    abrir.type = 'button';
+    abrir.className = 'button-secondary';
+    abrir.textContent = 'Abrir paciente';
+    abrir.setAttribute('aria-label', `Abrir paciente ${paciente.nome}`);
+    abrir.addEventListener('click', () => {
+      if (!sessao || sessao.usuario.perfil !== 'familia' || atendimentoJaAberto()) return;
+      acaoPacienteAnterior = abrir;
+      pacienteFamiliarId = paciente.id;
+      pacienteFamiliarPanel.hidden = false;
+      elemento('paciente-familiar-title').focus();
+      void consultarPacienteFamiliar();
+    });
+    acao.append(abrir);
+    linha.append(acao);
+  } else if (sessao) {
     const acao = document.createElement('td');
     const abrir = document.createElement('button');
     abrir.type = 'button';
@@ -749,6 +788,32 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
     linha.append(acao);
   }
   return linha;
+}
+
+async function consultarPacienteFamiliar(): Promise<void> {
+  const id = pacienteFamiliarId;
+  if (!id || !sessao || sessao.usuario.perfil !== 'familia') return;
+  const versao = revisao;
+  const numero = ++consultaFamiliar;
+  const atual = () =>
+    versao === revisao && numero === consultaFamiliar && pacienteFamiliarId === id;
+  pacienteFamiliarDados.hidden = true;
+  pacienteFamiliarTentar.hidden = true;
+  aviso('paciente-familiar-status', 'Consultando paciente…');
+  try {
+    const paciente = await api.consultarPacienteFamiliar(id);
+    if (!atual()) return;
+    if (paciente.id !== id) throw new Error('Paciente retornado não corresponde à consulta.');
+    elemento('paciente-familiar-nome').textContent = paciente.nome;
+    elemento('paciente-familiar-preferencia').textContent =
+      paciente.nome_preferencia ?? 'Não informado';
+    pacienteFamiliarDados.hidden = false;
+    aviso('paciente-familiar-status', '');
+  } catch (erro) {
+    if (!atual() || acessoPerdido(erro)) return;
+    aviso('paciente-familiar-status', `${mensagemFalha(erro)} Tente novamente.`, 'error');
+    pacienteFamiliarTentar.hidden = false;
+  }
 }
 
 async function carregarPacientes(): Promise<boolean> {
@@ -1111,6 +1176,14 @@ elemento<HTMLButtonElement>('fechar-edicao').addEventListener('click', () => {
   void carregarPacientes();
   elemento('patients-title').focus();
 });
+pacienteFamiliarTentar.addEventListener('click', () => void consultarPacienteFamiliar());
+elemento<HTMLButtonElement>('fechar-paciente-familiar').addEventListener('click', () => {
+  fecharPacienteFamiliar();
+  aviso('workspace-feedback', '');
+  if (acaoPacienteAnterior?.isConnected && !table.hidden) acaoPacienteAnterior.focus();
+  else elemento('patients-title').focus();
+  acaoPacienteAnterior = null;
+});
 fecharAnamneseBotao.addEventListener('click', () => {
   if (!confirmarDescarteAnamnese()) return;
   fecharAnamnese();
@@ -1160,6 +1233,7 @@ for (const campo of [
 }
 document.addEventListener('visibilitychange', () => {
   if (sessao) {
+    if (pacienteFamiliarPanel.contains(document.activeElement)) focoAposLoginOculto = true;
     patientsView.hidden = true;
     sessionActions.hidden = true;
     revalidacaoStatus.hidden = false;
