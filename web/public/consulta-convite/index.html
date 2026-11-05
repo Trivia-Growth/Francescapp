@@ -20,6 +20,7 @@
       <input id="email" type="email" autocomplete="off" maxlength="254" required>
       <label for="motivo">Motivo da autorização</label>
       <input id="motivo" autocomplete="off" maxlength="500" required>
+      <label><input id="autorizar-acesso" type="checkbox" required> Autorizo esta pessoa a acessar o acompanhamento deste paciente.</label>
       <button type="submit">Registrar convite</button>
       <button id="novo" type="button">Iniciar outro convite</button>
     </form>
@@ -32,8 +33,10 @@
       <label for="tentativa">Código da tentativa</label>
       <input id="tentativa" autocomplete="off" required>
       <button type="submit">Consultar</button>
+      <button id="cancelar-autorizacao" type="button">Cancelar autorização pendente</button>
     </form>
     <p id="status" role="status" aria-live="polite"></p>
+    <p>Para retirar um acesso já ativado, use a revogação de acesso do paciente.</p>
     <p><a href="/">Voltar para o início</a></p>
   </main>
 </body>

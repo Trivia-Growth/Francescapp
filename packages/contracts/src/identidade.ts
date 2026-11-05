@@ -10,6 +10,8 @@ export const criarConviteFamiliarSchema = z
   .object({
     convite_id: uuidSchema,
     tentativa_id: uuidSchema,
+    acesso_id: uuidSchema,
+    autorizar_acesso: z.literal(true),
     paciente_id: uuidSchema,
     email: emailSchema,
     motivo: motivoSchema,

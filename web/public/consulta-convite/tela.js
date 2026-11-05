@@ -3,6 +3,7 @@ const convite = document.querySelector('#convite');
 const tentativa = document.querySelector('#tentativa');
 const status = document.querySelector('#status');
 const botao = form.querySelector('button');
+const cancelarAutorizacao = document.querySelector('#cancelar-autorizacao');
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const mensagens = {
   resultado_incerto:
@@ -17,6 +18,7 @@ const criacaoStatus = document.querySelector('#criacao-status');
 const pacienteStatus = document.querySelector('#paciente-status');
 const email = document.querySelector('#email');
 const motivo = document.querySelector('#motivo');
+const autorizacao = document.querySelector('#autorizar-acesso');
 const novo = document.querySelector('#novo');
 const criarBotao = criacao.querySelector('button[type="submit"]');
 let pacienteConfirmado = null;
@@ -41,10 +43,19 @@ function recuperarCodigos(sessao, paciente) {
   const armazenado = sessionStorage.getItem(chave);
   if (armazenado) {
     const dados = JSON.parse(armazenado);
-    if (uuid.test(dados.convite_id ?? '') && uuid.test(dados.tentativa_id ?? '')) return dados;
+    if (
+      uuid.test(dados.convite_id ?? '') &&
+      uuid.test(dados.tentativa_id ?? '') &&
+      uuid.test(dados.acesso_id ?? '')
+    )
+      return dados;
     throw new Error();
   }
-  const dados = { convite_id: crypto.randomUUID(), tentativa_id: crypto.randomUUID() };
+  const dados = {
+    convite_id: crypto.randomUUID(),
+    tentativa_id: crypto.randomUUID(),
+    acesso_id: crypto.randomUUID(),
+  };
   sessionStorage.setItem(chave, JSON.stringify(dados));
   return dados;
 }
@@ -109,7 +120,7 @@ novo.addEventListener('click', () => {
 
 criacao.addEventListener('submit', async (evento) => {
   evento.preventDefault();
-  if (!email.validity.valid || !motivo.value.trim()) {
+  if (!email.validity.valid || !motivo.value.trim() || !autorizacao.checked) {
     criacaoStatus.textContent = 'Confira o e-mail e o motivo.';
     return;
   }
@@ -142,6 +153,7 @@ criacao.addEventListener('submit', async (evento) => {
       },
       body: JSON.stringify({
         ...codigos,
+        autorizar_acesso: true,
         paciente_id: paciente,
         email: email.value.trim(),
         motivo: motivo.value.trim(),
@@ -206,5 +218,47 @@ form.addEventListener('submit', async (evento) => {
     status.textContent = 'Não foi possível consultar. Verifique seu acesso e tente novamente.';
   } finally {
     botao.disabled = false;
+  }
+});
+
+cancelarAutorizacao.addEventListener('click', async () => {
+  if (!uuid.test(convite.value.trim()) || !uuid.test(tentativa.value.trim())) {
+    status.textContent = 'Informe os códigos do convite e da tentativa.';
+    return;
+  }
+  if (!window.confirm('Cancelar a autorização pendente deste convite?')) return;
+  let sessao;
+  try {
+    sessao = sessaoAtual();
+  } catch {
+    status.textContent = 'Entre novamente para cancelar a autorização.';
+    return;
+  }
+  cancelarAutorizacao.disabled = true;
+  status.textContent = 'Cancelando autorização…';
+  try {
+    const resposta = await fetch('/api/admin/convites-familiares/cancelamento', {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: {
+        'content-type': 'application/json',
+        'x-fluxo': sessao.fluxo,
+        'x-sessao': sessao.sessao,
+      },
+      body: JSON.stringify({
+        convite_id: convite.value.trim(),
+        tentativa_id: tentativa.value.trim(),
+      }),
+    });
+    if (!resposta.ok) throw new Error();
+    const resultado = await resposta.json();
+    if (resultado?.dados?.cancelada !== true) throw new Error();
+    status.textContent = 'Autorização pendente cancelada.';
+  } catch {
+    status.textContent =
+      'Não foi possível confirmar o cancelamento. Verifique a situação antes de continuar.';
+  } finally {
+    cancelarAutorizacao.disabled = false;
   }
 });

@@ -50,6 +50,12 @@ input {
   background: white;
   color: inherit;
 }
+input[type="checkbox"] {
+  width: 1.2rem;
+  min-height: 1.2rem;
+  margin: 0 0.4rem 0 0;
+  vertical-align: middle;
+}
 button {
   min-height: 2.75rem;
   border: 0;

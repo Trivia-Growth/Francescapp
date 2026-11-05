@@ -94,6 +94,66 @@ export async function registrarConviteFamiliarNativo(
     typeof resultado.data?.repeticao !== 'boolean'
   )
     throw new Error('Convite indisponível.');
+  // A autorização de acesso é uma decisão explícita, distinta do convite.
+  const acessoId = dados.acesso_id.toLowerCase();
+  const requestAutorizacao = crypto.randomUUID();
+  const autorizacao = {
+    convite_id: conviteId,
+    acesso_id: acessoId,
+    request_id: requestAutorizacao,
+    digest_autorizacao: await cofre.cifra.calcularHmac(
+      `autorizacao-familiar:${JSON.stringify([conviteId, acessoId, dados.motivo])}`,
+    ),
+    motivo_cifrado: await cofre.cifra.cifrar(dados.motivo, {
+      tabela: 'cadastro.acesso_paciente',
+      registro_id: acessoId,
+      campo: 'motivo_concessao',
+      formato: 1,
+    }),
+  };
+  const metaAutorizacao = {
+    ...metadadosAtestadoNativo(contexto.keyId, requestAutorizacao, Date.now()),
+    usuario_id: contexto.usuarioId.toLowerCase(),
+    session_id: contexto.sessaoId.toLowerCase(),
+    operacao: 'api.preautorizar_acesso_familiar',
+  };
+  const provaAutorizacao = resultadoAtestacaoSchema.parse(
+    await cofre.atestador.atestarEntrada(metaAutorizacao, autorizacao),
+  );
+  const dadosAutorizacao = dadosAtestadoSchema.parse(JSON.parse(provaAutorizacao.dadosCanonicos));
+  const assinadaAutorizacao = JSON.parse(provaAutorizacao.entradaCanonica) as Record<
+    string,
+    unknown
+  >;
+  const motivoAssinado = assinadaAutorizacao.motivo_cifrado;
+  if (
+    Object.keys(assinadaAutorizacao).length !== Object.keys(autorizacao).length ||
+    (['convite_id', 'acesso_id', 'request_id', 'digest_autorizacao'] as const).some(
+      (campo) => assinadaAutorizacao[campo] !== autorizacao[campo],
+    ) ||
+    typeof motivoAssinado !== 'object' ||
+    motivoAssinado === null ||
+    Object.keys(motivoAssinado).length !== Object.keys(autorizacao.motivo_cifrado).length ||
+    Object.entries(autorizacao.motivo_cifrado).some(
+      ([campo, valor]) => (motivoAssinado as Record<string, unknown>)[campo] !== valor,
+    ) ||
+    Object.entries(metaAutorizacao).some(
+      ([campo, valor]) => dadosAutorizacao[campo as keyof typeof metaAutorizacao] !== valor,
+    )
+  )
+    throw new Error('Convite indisponível.');
+  const aprovada = await cliente.schema('api').rpc('preautorizar_acesso_familiar_privado', {
+    p_transporte: {
+      entrada: {
+        ...assinadaAutorizacao,
+        atestado: { ...dadosAutorizacao, mac: provaAutorizacao.atestado.mac },
+      },
+      entrada_canonica: provaAutorizacao.entradaCanonica,
+      dados_canonicos: provaAutorizacao.dadosCanonicos,
+    },
+  });
+  if (aprovada.error || aprovada.data?.ok !== true || aprovada.data?.convite_id !== conviteId)
+    throw new Error('Convite indisponível.');
   // Registro repetido pode ter enviado antes da resposta perdida; jamais reenviar automaticamente.
   if (resultado.data.repeticao)
     return { convite_id: conviteId, envio: 'resultado_incerto' as const };
