@@ -61,6 +61,7 @@
           <section class="patient-register" aria-labelledby="list-title">
             <div class="section-heading"><h2 id="list-title">Lista de pacientes</h2><button id="reload-patients" class="button-secondary" type="button">Atualizar lista</button></div>
             <div id="patient-search"></div>
+            <div class="field"><label for="patient-situation-filter">Situação do acompanhamento</label><select id="patient-situation-filter"><option value="todos">Todas</option><option value="entrada">Entrada</option><option value="ativo">Ativo</option><option value="pausado">Pausado</option><option value="encerrado">Encerrado</option><option value="transferido">Transferido</option><option value="">Não informada</option></select></div>
             <p id="list-status" class="list-status" role="status" aria-live="polite" aria-atomic="true"></p>
             <div id="list-loading" class="list-loading" aria-hidden="true" hidden><span></span><span></span><span></span></div>
             <div id="list-empty" class="empty-state" hidden><h3>Nenhum paciente nesta lista</h3><p id="empty-description">Nenhum cadastro disponível para seu acesso.</p></div>

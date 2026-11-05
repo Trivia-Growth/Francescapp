@@ -336,10 +336,20 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     revisoes.set(id, previa.revision);
   };
   let buscaPaciente = '';
+  const filtroSituacao = elemento<HTMLSelectElement>('patient-situation-filter');
+  const rotulosSituacao: Record<NonNullable<Paciente['situacao']>, string> = {
+    entrada: 'Entrada',
+    ativo: 'Ativo',
+    pausado: 'Pausado',
+    encerrado: 'Encerrado',
+    transferido: 'Transferido',
+  };
   const atualizar = () => {
     corpo.replaceChildren();
-    const resultados = registros.filter((registro) =>
-      correspondeBuscaPacienteLocal(registro, buscaPaciente),
+    const resultados = registros.filter(
+      (registro) =>
+        correspondeBuscaPacienteLocal(registro, buscaPaciente) &&
+        (filtroSituacao.value === 'todos' || (registro.situacao ?? '') === filtroSituacao.value),
     );
     for (const registro of resultados) {
       const linha = corpo.insertRow();
@@ -843,7 +853,9 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         formulariosAlterados.delete(formulario);
         nome.focus();
       });
-      linha.insertCell().textContent = registro.situacao ?? 'Não informada';
+      linha.insertCell().textContent = registro.situacao
+        ? rotulosSituacao[registro.situacao]
+        : 'Não informada';
       linha
         .insertCell()
         .append(
@@ -874,9 +886,10 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     }
     tabela.hidden = resultados.length === 0;
     vazio.hidden = resultados.length !== 0;
-    elemento('empty-description').textContent = buscaPaciente.trim()
-      ? 'Nenhum paciente encontrado para esta busca.'
-      : 'Nenhum cadastro disponível para seu acesso.';
+    elemento('empty-description').textContent =
+      buscaPaciente.trim() || filtroSituacao.value !== 'todos'
+        ? 'Nenhum paciente encontrado para os filtros selecionados.'
+        : 'Nenhum cadastro disponível para seu acesso.';
     elemento('list-status').textContent = `${resultados.length} pacientes fictícios nesta lista.`;
   };
   const abrirTarefasPaciente = async (registro: Paciente) => {
@@ -1726,6 +1739,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     atualizarProgresso();
     elemento('anamnese-feedback').textContent = 'Anamnese fictícia salva nesta demonstração local.';
   });
+  filtroSituacao.addEventListener('change', atualizar);
   montarBuscaPacientesLocal(elemento('patient-search'), (texto) => {
     buscaPaciente = texto;
     atualizar();

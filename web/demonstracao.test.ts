@@ -139,6 +139,55 @@ function servidorFicticio(autenticado = true, legado = false, situacao = false) 
   return fetch;
 }
 
+it('combina situação e busca sem perder cadastros não informados', async () => {
+  document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
+  vi.stubGlobal('location', { hostname: 'localhost' });
+  vi.stubEnv('DEV', true);
+  const original = servidorFicticio();
+  const situacoes = ['entrada', 'ativo', 'pausado', 'encerrado', 'transferido'];
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, options?: RequestInit) => {
+      if (url.endsWith('/patients'))
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            patients: [
+              ...situacoes.map((situacao, i) => ({ id: String(i), name: `Pessoa ${i}`, situacao })),
+              { id: 'sem', name: 'Pessoa sem situação', preferredName: 'Apelido fictício' },
+            ],
+          }),
+        });
+      return original(url, options);
+    }),
+  );
+  await import('./demonstracao.js');
+  await vi.waitFor(() => expect(document.querySelectorAll('#patients-body tr')).toHaveLength(6));
+  const filtro = document.getElementById('patient-situation-filter') as HTMLSelectElement;
+  const busca = document.querySelector('#patient-search input') as HTMLInputElement;
+  for (const [indice, situacao] of situacoes.entries()) {
+    filtro.value = situacao;
+    filtro.dispatchEvent(new Event('change'));
+    expect(document.querySelectorAll('#patients-body tr')).toHaveLength(1);
+    expect(document.getElementById('patients-body')?.textContent).toContain(`Pessoa ${indice}`);
+  }
+  filtro.value = '';
+  filtro.dispatchEvent(new Event('change'));
+  expect(document.getElementById('patients-body')?.textContent).toContain('Não informada');
+  busca.value = 'apelido';
+  busca.dispatchEvent(new Event('input'));
+  expect(document.querySelectorAll('#patients-body tr')).toHaveLength(1);
+  filtro.value = 'ativo';
+  filtro.dispatchEvent(new Event('change'));
+  expect(document.getElementById('list-empty')?.hidden).toBe(false);
+  expect(document.getElementById('empty-description')?.textContent).toContain('filtros');
+  busca.value = '';
+  busca.dispatchEvent(new Event('input'));
+  filtro.value = 'todos';
+  filtro.dispatchEvent(new Event('change'));
+  expect(document.querySelectorAll('#patients-body tr')).toHaveLength(6);
+});
+
 it('mantém a página oculta fora de localhost ou em produção', async () => {
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'exemplo.test' });
