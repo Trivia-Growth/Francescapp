@@ -31,6 +31,15 @@ export const campoCifradoSchema = z
     tag: base64UrlSchema,
   })
   .strict();
+export const reservaReenvioFamiliarSchema = z
+  .object({
+    ok: z.literal(true),
+    repeticao: z.boolean(),
+    convite_id: uuidSchema,
+    tentativa_id: uuidSchema,
+    email_cifrado: campoCifradoSchema,
+  })
+  .strict();
 const metadadosAadCamposSchema = z
   .object({
     tabela: z.enum([
@@ -49,7 +58,7 @@ const metadadosAadCamposSchema = z
 /** A exceção técnica do bootstrap reutiliza o envelope de motivo da concessão. */
 export const metadadosAadConcessaoSchema = z
   .object({
-    tabela: z.literal('identidade.concessao_equipe'),
+    tabela: z.enum(['identidade.concessao_equipe', 'identidade.convite_familiar']),
     registro_id: uuidSchema,
     campo: z.enum(['email', 'motivo']),
     formato: formatoCifraSchema,

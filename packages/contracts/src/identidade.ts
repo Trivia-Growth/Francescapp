@@ -8,6 +8,8 @@ const motivoSchema = z.string().trim().min(1).max(500);
 /** Contratos de entrada, sem concessão de acesso ou ativação de rota. */
 export const criarConviteFamiliarSchema = z
   .object({
+    convite_id: uuidSchema,
+    tentativa_id: uuidSchema,
     paciente_id: uuidSchema,
     email: emailSchema,
     motivo: motivoSchema,

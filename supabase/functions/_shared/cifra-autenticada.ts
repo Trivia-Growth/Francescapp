@@ -192,7 +192,11 @@ function aadCanonico(aad: MetadadosAad): Uint8Array {
       }),
     );
   }
-  if (typeof aad === 'object' && aad !== null && aad.tabela === 'identidade.concessao_equipe') {
+  if (
+    typeof aad === 'object' &&
+    aad !== null &&
+    (aad.tabela === 'identidade.concessao_equipe' || aad.tabela === 'identidade.convite_familiar')
+  ) {
     if (
       typeof aad.registro_id !== 'string' ||
       !uuid.test(aad.registro_id) ||

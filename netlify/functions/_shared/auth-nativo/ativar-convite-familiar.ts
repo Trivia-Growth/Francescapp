@@ -2,7 +2,6 @@ import { criarErroPublicoSemCampos } from '../../../../packages/contracts/src/er
 import {
   ativarConviteFamiliarSchema,
   resultadoAtivacaoFamiliarSchema,
-  sessaoNativaSchema,
 } from '../../../../packages/contracts/src/identidade.ts';
 import {
   dadosAtestadoSchema,
@@ -128,21 +127,9 @@ export async function ativarConviteFamiliarNativo(request: Request, fonte: Fonte
     // Só a conta e o vínculo já aprovados no banco podem receber senha.
     const senha = await contexto.cliente.auth.updateUser({ password: dados.data.senha });
     if (senha.error || senha.data.user?.id !== usuarioId) return erro('servico_indisponivel', 503);
-    const admissao = await contexto.cliente.schema('api').rpc('admitir_sessao_familiar_privada', {
-      p_request_id: requestId,
-    });
-    const sessao = sessaoNativaSchema.safeParse(admissao.data);
-    if (
-      admissao.error ||
-      !sessao.success ||
-      !sessao.data.usuario.ativo ||
-      sessao.data.usuario.perfil !== 'familia' ||
-      sessao.data.usuario.id !== usuarioId
-    )
-      return erro('servico_indisponivel', 503);
-    return contexto.responder(
-      Response.json({ dados: sessao.data, request_id: requestId }, { headers }),
-    );
+    // A sessão OTP não é admitida nem enviada ao navegador. A entrada normal
+    // por senha cria sessão separada e revalida perfil e acesso vigentes.
+    return Response.json({ dados: { senha_definida: true }, request_id: requestId }, { headers });
   } catch {
     return erro('servico_indisponivel', 503);
   }

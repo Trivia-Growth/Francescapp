@@ -8,7 +8,8 @@ grant usage on schema identidade, cadastro, auditoria, public, auth_privado to f
 grant execute on function auth_privado.uid(), auth_privado.jwt(), auth_privado.sessoes() to ffcmapp_ativar_familiar_owner;
 grant select (id, perfil, ativo), update (versao) on public.usuario to ffcmapp_ativar_familiar_owner;
 grant select (paciente_id, usuario_id, revogada_em), update (versao) on cadastro.acesso_paciente to ffcmapp_ativar_familiar_owner;
-grant select (id, paciente_id, email_hmac, estado, usuario_id, tentativa_envio_id), update (estado, usuario_id, ativado_em, atualizado_em)
+grant select (id, paciente_id, email_hmac, estado, usuario_id, tentativa_envio_id, ultima_tentativa_id),
+  update (estado, usuario_id, ativado_em, atualizado_em, tentativa_envio_id, ultima_tentativa_id)
   on identidade.convite_familiar to ffcmapp_ativar_familiar_owner;
 grant insert (id, ator_usuario_id, acao, tipo_objeto, objeto_id, resultado, request_id)
   on auditoria.evento to ffcmapp_ativar_familiar_owner;
@@ -88,14 +89,15 @@ begin
   if not found then return jsonb_build_object('ok', false); end if;
   select paciente_id, estado into paciente, estado_anterior from identidade.convite_familiar
     where id = convite and email_hmac = e ->> 'email_hmac'
-      and (estado in ('pendente', 'enviado', 'falha') or (estado = 'ativado' and usuario_id = ator))
-      and tentativa_envio_id is null for update;
+      and (estado in ('pendente', 'enviado', 'falha') or (estado = 'ativado' and usuario_id = ator)) for update;
   if not found then return jsonb_build_object('ok', false); end if;
   perform 1 from cadastro.acesso_paciente where paciente_id = paciente and usuario_id = ator and revogada_em is null for share;
   if not found then return jsonb_build_object('ok', false); end if;
   if estado_anterior <> 'ativado' then
     update identidade.convite_familiar set estado = 'ativado', usuario_id = ator,
-      ativado_em = clock_timestamp(), atualizado_em = clock_timestamp() where id = convite;
+      ativado_em = clock_timestamp(), atualizado_em = clock_timestamp(),
+      ultima_tentativa_id = coalesce(tentativa_envio_id, ultima_tentativa_id), tentativa_envio_id = null
+      where id = convite;
   end if;
   insert into auditoria.evento(id, ator_usuario_id, acao, tipo_objeto, objeto_id, resultado, request_id)
     values (gen_random_uuid(), ator, 'ativar_convite_familiar', 'convite_familiar', convite, 'permitido', req);

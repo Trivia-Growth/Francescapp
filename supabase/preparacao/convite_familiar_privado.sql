@@ -5,12 +5,14 @@ create table identidade.convite_familiar (
   id uuid primary key,
   paciente_id uuid not null references cadastro.paciente(id) on delete no action,
   email_hmac text not null check (length(btrim(email_hmac)) > 0),
+  digest_entrada text not null check (length(btrim(digest_entrada)) > 0),
   email_cifrado jsonb not null,
   motivo_cifrado jsonb not null,
   criado_por_usuario_id uuid not null references public.usuario(id) on delete no action,
   estado text not null default 'pendente' check (estado in ('pendente', 'enviado', 'falha', 'ativado')),
   usuario_id uuid references public.usuario(id) on delete no action,
   tentativa_envio_id uuid,
+  ultima_tentativa_id uuid,
   criado_em timestamptz not null default clock_timestamp(),
   atualizado_em timestamptz not null default clock_timestamp(),
   ativado_em timestamptz,
@@ -52,16 +54,16 @@ revoke all on identidade.convite_familiar from public, anon, authenticated, serv
 -- Interface privada: o executor futuro deve fornecer cifra e HMAC confiáveis.
 -- O índice resolve concorrência sem depender de consulta prévia.
 create function identidade.registrar_convite_familiar_privado(
-  p_id uuid, p_request_id uuid, p_paciente_id uuid, p_email_hmac text,
+  p_id uuid, p_request_id uuid, p_paciente_id uuid, p_email_hmac text, p_digest_entrada text,
   p_email_cifrado jsonb, p_motivo_cifrado jsonb
 ) returns jsonb language plpgsql security invoker set search_path = '' as $$
 declare
   v_ator uuid := auth_privado.uid();
   v_sessao jsonb;
-  v_id uuid;
+  v_id uuid; v_existente record;
 begin
   if p_id is null or p_request_id is null or p_paciente_id is null
-    or nullif(btrim(p_email_hmac), '') is null
+    or nullif(btrim(p_email_hmac), '') is null or nullif(btrim(p_digest_entrada), '') is null
     or p_email_cifrado is null or p_motivo_cifrado is null then
     raise exception using errcode = '22004', message = 'PARAMETRO_OBRIGATORIO';
   end if;
@@ -75,19 +77,42 @@ begin
   if not found then
     return jsonb_build_object('ok', false, 'codigo', 'paciente_indisponivel');
   end if;
+  select paciente_id, email_hmac, digest_entrada, criado_por_usuario_id, estado into v_existente
+    from identidade.convite_familiar where id = p_id for update;
+  if found then
+    if v_existente.paciente_id is distinct from p_paciente_id or v_existente.email_hmac is distinct from p_email_hmac
+      or v_existente.digest_entrada is distinct from p_digest_entrada or v_existente.criado_por_usuario_id is distinct from v_ator
+      or v_existente.estado = 'ativado' then
+      return jsonb_build_object('ok', false, 'codigo', 'operacao_divergente');
+    end if;
+    insert into auditoria.evento(id, ator_usuario_id, acao, tipo_objeto, objeto_id, resultado, request_id)
+      values (gen_random_uuid(), v_ator, 'registrar_convite_familiar', 'convite_familiar', p_id, 'permitido', p_request_id);
+    return jsonb_build_object('ok', true, 'convite_id', p_id, 'repeticao', true);
+  end if;
   insert into identidade.convite_familiar (
-    id, paciente_id, email_hmac, email_cifrado, motivo_cifrado, criado_por_usuario_id
-  ) values (p_id, p_paciente_id, p_email_hmac, p_email_cifrado, p_motivo_cifrado, v_ator)
-  on conflict (paciente_id, email_hmac) where estado in ('pendente', 'enviado', 'falha')
-  do nothing returning id into v_id;
+    id, paciente_id, email_hmac, digest_entrada, email_cifrado, motivo_cifrado, criado_por_usuario_id
+  ) values (p_id, p_paciente_id, p_email_hmac, p_digest_entrada, p_email_cifrado, p_motivo_cifrado, v_ator)
+  on conflict do nothing returning id into v_id;
   if v_id is null then
+    select paciente_id, email_hmac, digest_entrada, criado_por_usuario_id, estado into v_existente
+      from identidade.convite_familiar where id = p_id for update;
+    if found then
+      if v_existente.paciente_id is distinct from p_paciente_id or v_existente.email_hmac is distinct from p_email_hmac
+        or v_existente.digest_entrada is distinct from p_digest_entrada or v_existente.criado_por_usuario_id is distinct from v_ator
+        or v_existente.estado = 'ativado' then
+        return jsonb_build_object('ok', false, 'codigo', 'operacao_divergente');
+      end if;
+      insert into auditoria.evento(id, ator_usuario_id, acao, tipo_objeto, objeto_id, resultado, request_id)
+        values (gen_random_uuid(), v_ator, 'registrar_convite_familiar', 'convite_familiar', p_id, 'permitido', p_request_id);
+      return jsonb_build_object('ok', true, 'convite_id', p_id, 'repeticao', true);
+    end if;
     return jsonb_build_object('ok', false, 'codigo', 'convite_pendente');
   end if;
   insert into auditoria.evento(id, ator_usuario_id, acao, tipo_objeto, objeto_id, resultado, request_id)
     values (gen_random_uuid(), v_ator, 'registrar_convite_familiar', 'convite_familiar', v_id, 'permitido', p_request_id);
-  return jsonb_build_object('ok', true, 'convite_id', v_id);
+  return jsonb_build_object('ok', true, 'convite_id', v_id, 'repeticao', false);
 end $$;
-revoke all on function identidade.registrar_convite_familiar_privado(uuid, uuid, uuid, text, jsonb, jsonb)
+revoke all on function identidade.registrar_convite_familiar_privado(uuid, uuid, uuid, text, text, jsonb, jsonb)
   from public, anon, authenticated, service_role;
 
 -- Reserva e conclusão ocorrem em transações distintas: nenhuma transação fica
@@ -107,10 +132,19 @@ begin
     or v_sessao #>> '{usuario,ativo}' is distinct from 'true' then
     return jsonb_build_object('ok', false, 'codigo', 'sem_permissao');
   end if;
-  select paciente_id, estado, tentativa_envio_id, email_cifrado into v_convite
+  select paciente_id, estado, tentativa_envio_id, ultima_tentativa_id, email_cifrado into v_convite
     from identidade.convite_familiar where id = p_convite_id for update;
   if not found or v_convite.estado = 'ativado' then
     return jsonb_build_object('ok', false, 'codigo', 'convite_indisponivel');
+  end if;
+  if v_convite.ultima_tentativa_id = p_tentativa_id then
+    return jsonb_build_object('ok', false, 'codigo', 'tentativa_concluida');
+  end if;
+  if v_convite.tentativa_envio_id = p_tentativa_id then
+    insert into auditoria.evento(id, ator_usuario_id, acao, tipo_objeto, objeto_id, resultado, request_id)
+      values (gen_random_uuid(), v_ator, 'reservar_reenvio_familiar', 'convite_familiar', p_convite_id, 'permitido', p_request_id);
+    return jsonb_build_object('ok', true, 'repeticao', true, 'convite_id', p_convite_id, 'tentativa_id', p_tentativa_id,
+      'email_cifrado', v_convite.email_cifrado);
   end if;
   if v_convite.tentativa_envio_id is not null then
     return jsonb_build_object('ok', false, 'codigo', 'envio_em_andamento');
@@ -119,7 +153,7 @@ begin
     atualizado_em = clock_timestamp() where id = p_convite_id;
   insert into auditoria.evento(id, ator_usuario_id, acao, tipo_objeto, objeto_id, resultado, request_id)
     values (gen_random_uuid(), v_ator, 'reservar_reenvio_familiar', 'convite_familiar', p_convite_id, 'permitido', p_request_id);
-  return jsonb_build_object('ok', true, 'convite_id', p_convite_id, 'tentativa_id', p_tentativa_id,
+  return jsonb_build_object('ok', true, 'repeticao', false, 'convite_id', p_convite_id, 'tentativa_id', p_tentativa_id,
     'email_cifrado', v_convite.email_cifrado);
 end $$;
 revoke all on function identidade.reservar_reenvio_familiar_privado(uuid, uuid, uuid)
@@ -144,7 +178,7 @@ begin
   end if;
   update identidade.convite_familiar
     set estado = case when p_enviado then 'enviado' else 'falha' end,
-      tentativa_envio_id = null, atualizado_em = clock_timestamp()
+      tentativa_envio_id = null, ultima_tentativa_id = p_tentativa_id, atualizado_em = clock_timestamp()
     where id = p_convite_id and tentativa_envio_id = p_tentativa_id and estado <> 'ativado';
   if not found then
     return jsonb_build_object('ok', false, 'codigo', 'tentativa_indisponivel');
@@ -157,21 +191,54 @@ end $$;
 revoke all on function identidade.concluir_reenvio_familiar_privado(uuid, uuid, uuid, boolean)
   from public, anon, authenticated, service_role;
 
+-- Consulta não presume entrega: uma reserva aberta continua incerta.
+create function identidade.consultar_tentativa_familiar_privada(
+  p_convite_id uuid, p_tentativa_id uuid, p_request_id uuid
+) returns jsonb language plpgsql security invoker set search_path = '' as $$
+declare
+  v_ator uuid := auth_privado.uid(); v_sessao jsonb; v_convite record; v_estado text;
+begin
+  if p_convite_id is null or p_tentativa_id is null or p_request_id is null then
+    raise exception using errcode = '22004', message = 'PARAMETRO_OBRIGATORIO';
+  end if;
+  v_sessao := api.consultar_sessao_nativa(p_request_id);
+  if v_sessao is null or v_sessao #>> '{usuario,perfil}' is distinct from 'administrador'
+    or v_sessao #>> '{usuario,id}' is distinct from v_ator::text
+    or v_sessao #>> '{usuario,ativo}' is distinct from 'true' then
+    return jsonb_build_object('ok', false, 'codigo', 'sem_permissao');
+  end if;
+  select estado, tentativa_envio_id, ultima_tentativa_id into v_convite
+    from identidade.convite_familiar where id = p_convite_id;
+  if not found then return jsonb_build_object('ok', false, 'codigo', 'convite_indisponivel'); end if;
+  v_estado := case
+    when v_convite.tentativa_envio_id = p_tentativa_id then 'resultado_incerto'
+    when v_convite.ultima_tentativa_id = p_tentativa_id and v_convite.estado = 'ativado' then 'ativado'
+    when v_convite.ultima_tentativa_id = p_tentativa_id and v_convite.estado = 'enviado' then 'enviado'
+    when v_convite.ultima_tentativa_id = p_tentativa_id and v_convite.estado = 'falha' then 'falha'
+    else 'tentativa_indisponivel' end;
+  insert into auditoria.evento(id, ator_usuario_id, acao, tipo_objeto, objeto_id, resultado, request_id)
+    values (gen_random_uuid(), v_ator, 'consultar_tentativa_familiar', 'convite_familiar', p_convite_id, 'permitido', p_request_id);
+  return jsonb_build_object('ok', true, 'estado', v_estado);
+end $$;
+revoke all on function identidade.consultar_tentativa_familiar_privada(uuid, uuid, uuid)
+  from public, anon, authenticated, service_role;
+
 -- Owner sem login e sem bypass de RLS. Nenhum grant de execução à aplicação.
 create role ffcmapp_convite_familiar_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
 grant ffcmapp_convite_familiar_owner to current_user with inherit false, set true;
 grant usage, create on schema api to ffcmapp_convite_familiar_owner;
 grant usage on schema identidade, cadastro, auditoria, public, auth_privado to ffcmapp_convite_familiar_owner;
 grant execute on function auth_privado.uid(), auth_privado.jwt(), api.consultar_sessao_nativa(uuid),
-  identidade.registrar_convite_familiar_privado(uuid, uuid, uuid, text, jsonb, jsonb),
+  identidade.registrar_convite_familiar_privado(uuid, uuid, uuid, text, text, jsonb, jsonb),
   identidade.reservar_reenvio_familiar_privado(uuid, uuid, uuid),
-  identidade.concluir_reenvio_familiar_privado(uuid, uuid, uuid, boolean)
+  identidade.concluir_reenvio_familiar_privado(uuid, uuid, uuid, boolean),
+  identidade.consultar_tentativa_familiar_privada(uuid, uuid, uuid)
   to ffcmapp_convite_familiar_owner;
 grant select (id), update (versao) on cadastro.paciente to ffcmapp_convite_familiar_owner;
-grant insert (id, paciente_id, email_hmac, email_cifrado, motivo_cifrado, criado_por_usuario_id)
+grant insert (id, paciente_id, email_hmac, digest_entrada, email_cifrado, motivo_cifrado, criado_por_usuario_id)
   on identidade.convite_familiar to ffcmapp_convite_familiar_owner;
-grant select (id, paciente_id, email_hmac, email_cifrado, estado, criado_por_usuario_id, tentativa_envio_id),
-  update (estado, tentativa_envio_id, atualizado_em)
+grant select (id, paciente_id, email_hmac, digest_entrada, email_cifrado, estado, criado_por_usuario_id, tentativa_envio_id, ultima_tentativa_id),
+  update (estado, tentativa_envio_id, ultima_tentativa_id, atualizado_em)
   on identidade.convite_familiar to ffcmapp_convite_familiar_owner;
 grant insert (id, ator_usuario_id, acao, tipo_objeto, objeto_id, resultado, request_id)
   on auditoria.evento to ffcmapp_convite_familiar_owner;
@@ -185,7 +252,7 @@ create policy convite_familiar_update on identidade.convite_familiar for update 
   using (estado <> 'ativado') with check (estado <> 'ativado');
 create policy convite_familiar_auditoria on auditoria.evento for insert to ffcmapp_convite_familiar_owner
   with check (ator_usuario_id = (select auth_privado.uid())
-    and acao in ('registrar_convite_familiar', 'reservar_reenvio_familiar', 'concluir_reenvio_familiar')
+    and acao in ('registrar_convite_familiar', 'reservar_reenvio_familiar', 'concluir_reenvio_familiar', 'consultar_tentativa_familiar')
     and tipo_objeto = 'convite_familiar');
 
 -- Permissão mínima ao verificador pertencente a outro owner; não concede ao cliente.
@@ -221,9 +288,10 @@ begin
   if jsonb_typeof(p_transporte) is distinct from 'object'
     or p_transporte - array['entrada', 'entrada_canonica', 'dados_canonicos'] <> '{}'::jsonb
     or jsonb_typeof(e) is distinct from 'object'
-    or e - array['convite_id', 'request_id', 'paciente_id', 'email_hmac', 'email_cifrado', 'motivo_cifrado', 'atestado'] <> '{}'::jsonb
+    or e - array['convite_id', 'request_id', 'paciente_id', 'email_hmac', 'digest_entrada', 'email_cifrado', 'motivo_cifrado', 'atestado'] <> '{}'::jsonb
     or jsonb_typeof(a) is distinct from 'object'
     or jsonb_typeof(e -> 'email_hmac') is distinct from 'string'
+    or jsonb_typeof(e -> 'digest_entrada') is distinct from 'string'
     or jsonb_typeof(e -> 'email_cifrado') is distinct from 'object'
     or jsonb_typeof(e -> 'motivo_cifrado') is distinct from 'object' then
     raise exception using errcode = '42501', message = 'SEM_PERMISSAO';
@@ -244,7 +312,7 @@ begin
     or identidade.verificar_assinatura_atestado(p_transporte ->> 'entrada_canonica', p_transporte ->> 'dados_canonicos', e - 'atestado', a - 'mac', a ->> 'mac') is distinct from true then
     raise exception using errcode = '42501', message = 'SEM_PERMISSAO';
   end if;
-  resultado := identidade.registrar_convite_familiar_privado(convite, req, paciente, e ->> 'email_hmac', e -> 'email_cifrado', e -> 'motivo_cifrado');
+  resultado := identidade.registrar_convite_familiar_privado(convite, req, paciente, e ->> 'email_hmac', e ->> 'digest_entrada', e -> 'email_cifrado', e -> 'motivo_cifrado');
   if fim <= clock_timestamp() then
     raise exception using errcode = 'PZ001', message = 'EXPIRACAO_INTERNA';
   end if;
@@ -265,8 +333,8 @@ begin
     or e - array['convite_id', 'tentativa_id', 'request_id', 'acao', 'enviado', 'atestado'] <> '{}'::jsonb
     or jsonb_typeof(a) is distinct from 'object'
     or jsonb_typeof(e -> 'acao') is distinct from 'string'
-    or e ->> 'acao' not in ('reservar', 'concluir')
-    or (e ->> 'acao' = 'reservar' and e ? 'enviado')
+    or e ->> 'acao' not in ('reservar', 'concluir', 'consultar')
+    or (e ->> 'acao' in ('reservar', 'consultar') and e ? 'enviado')
     or (e ->> 'acao' = 'concluir' and jsonb_typeof(e -> 'enviado') is distinct from 'boolean') then
     raise exception using errcode = '42501', message = 'SEM_PERMISSAO';
   end if;
@@ -288,8 +356,10 @@ begin
   end if;
   if acao = 'reservar' then
     resultado := identidade.reservar_reenvio_familiar_privado(convite, tentativa, req);
-  else
+  elsif acao = 'concluir' then
     resultado := identidade.concluir_reenvio_familiar_privado(convite, tentativa, req, (e ->> 'enviado')::boolean);
+  else
+    resultado := identidade.consultar_tentativa_familiar_privada(convite, tentativa, req);
   end if;
   if fim <= clock_timestamp() then
     raise exception using errcode = 'PZ001', message = 'EXPIRACAO_INTERNA';
