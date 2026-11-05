@@ -63,13 +63,16 @@ create table identidade.agenda_google_desconexao_recibo (
   primary key(usuario_id,operacao_id)
 );
 create table identidade.agenda_google_vinculo_paciente (
+  id uuid primary key default gen_random_uuid(),
   usuario_id uuid not null,
   subject_google text not null,
   evento_id text not null check (evento_id ~ '^[A-Za-z0-9_-]{1,1024}$'),
   paciente_id uuid not null,
   criado_em timestamptz not null default clock_timestamp(),
-  primary key(usuario_id,subject_google,evento_id)
+  retirado_em timestamptz,
+  constraint agenda_google_vinculo_ordem check (retirado_em is null or retirado_em>=criado_em)
 );
+create unique index agenda_google_vinculo_ativo on identidade.agenda_google_vinculo_paciente(usuario_id,subject_google,evento_id) where retirado_em is null;
 create table identidade.agenda_google_escrita (
   usuario_id uuid not null,
   operacao_id uuid not null,
@@ -210,7 +213,7 @@ begin
   if jsonb_typeof(p_transporte) is distinct from 'object'
     or p_transporte - array['entrada','entrada_canonica','dados_canonicos'] <> '{}'::jsonb
     or jsonb_typeof(e) is distinct from 'object'
-    or e - array['request_id','hash','valor_hash','geracao','subject','operacao_id','evento_id','acao','desfecho','paciente_id','eventos','atestado'] <> '{}'::jsonb
+    or e - array['request_id','hash','valor_hash','geracao','subject','operacao_id','evento_id','acao','desfecho','paciente_id','vinculo_id','eventos','atestado'] <> '{}'::jsonb
     or jsonb_typeof(a) is distinct from 'object' then
     raise exception using errcode='42501', message='SEM_PERMISSAO';
   end if;
@@ -223,7 +226,7 @@ begin
     raise exception using errcode='42501', message='SEM_PERMISSAO';
   end;
   if v_usuario is null or v_sessao is null or v_req is null or v_inicio is null or v_fim is null
-    or v_acao not in ('agenda.registrar','agenda.consumir','agenda.salvar','agenda.ler','agenda.revogar','agenda.reservar_escrita','agenda.pendencia','agenda.resolver_escrita','agenda.vincular','agenda.consultar_vinculos','agenda.desconectar','agenda.status_conexao','agenda.consultar_desconexao','agenda.cancelar_desconexao')
+    or v_acao not in ('agenda.registrar','agenda.consumir','agenda.salvar','agenda.ler','agenda.revogar','agenda.reservar_escrita','agenda.pendencia','agenda.resolver_escrita','agenda.vincular','agenda.retirar_vinculo','agenda.consultar_vinculos','agenda.desconectar','agenda.status_conexao','agenda.consultar_desconexao','agenda.cancelar_desconexao')
     or v_acao is null or a->>'usuario_id' is distinct from v_usuario::text
     or a->>'session_id' is distinct from v_sessao::text or a->>'request_id' is distinct from v_req::text
     or v_inicio>clock_timestamp() or v_fim<=clock_timestamp() or v_fim<=v_inicio or v_fim-v_inicio>interval '30 seconds'
@@ -382,17 +385,17 @@ begin
       -- Mantém revogação de acesso bloqueada até concluir leitura e auditoria.
       perform 1 from cadastro.acesso_paciente ap join identidade.agenda_google_vinculo_paciente v on v.paciente_id=ap.paciente_id
         where ap.usuario_id=v_usuario and ap.revogada_em is null and v.usuario_id=v_usuario
-          and v.subject_google=e->>'subject' and v.evento_id in (select jsonb_array_elements_text(e->'eventos')) for share of ap;
-      select coalesce(jsonb_agg(jsonb_build_object('evento_id',v.evento_id,'paciente',jsonb_build_object('paciente_id',p.id,'nome',p.nome_cifrado,'nome_preferencia',p.nome_preferencia_cifrado,'versao',p.versao)) order by v.evento_id),'[]'::jsonb)
+          and v.subject_google=e->>'subject' and v.retirado_em is null and v.evento_id in (select jsonb_array_elements_text(e->'eventos')) for share of ap;
+      select coalesce(jsonb_agg(jsonb_build_object('evento_id',v.evento_id,'vinculo_id',v.id,'paciente',jsonb_build_object('paciente_id',p.id,'nome',p.nome_cifrado,'nome_preferencia',p.nome_preferencia_cifrado,'versao',p.versao)) order by v.evento_id),'[]'::jsonb)
         into v_resultado from identidade.agenda_google_vinculo_paciente v
         join cadastro.paciente p on p.id=v.paciente_id
         join cadastro.acesso_paciente ap on ap.paciente_id=v.paciente_id and ap.usuario_id=v_usuario and ap.revogada_em is null
-        where v.usuario_id=v_usuario and v.subject_google=e->>'subject' and v.evento_id in (select jsonb_array_elements_text(e->'eventos'));
+        where v.usuario_id=v_usuario and v.subject_google=e->>'subject' and v.retirado_em is null and v.evento_id in (select jsonb_array_elements_text(e->'eventos'));
       insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
         select gen_random_uuid(),v_usuario,'agenda.consultar_vinculo','paciente',v.paciente_id,'permitido',v_req
         from identidade.agenda_google_vinculo_paciente v
         join cadastro.acesso_paciente ap on ap.paciente_id=v.paciente_id and ap.usuario_id=v_usuario and ap.revogada_em is null
-        where v.usuario_id=v_usuario and v.subject_google=e->>'subject' and v.evento_id in (select jsonb_array_elements_text(e->'eventos'));
+        where v.usuario_id=v_usuario and v.subject_google=e->>'subject' and v.retirado_em is null and v.evento_id in (select jsonb_array_elements_text(e->'eventos'));
     when 'agenda.vincular' then
       declare v_paciente uuid; v_existente uuid;
       begin
@@ -411,10 +414,39 @@ begin
         insert into identidade.agenda_google_vinculo_paciente(usuario_id,subject_google,evento_id,paciente_id)
           values(v_usuario,e->>'subject',e->>'evento_id',v_paciente) on conflict do nothing;
         select paciente_id into v_existente from identidade.agenda_google_vinculo_paciente
-          where usuario_id=v_usuario and subject_google=e->>'subject' and evento_id=e->>'evento_id';
+          where usuario_id=v_usuario and subject_google=e->>'subject' and evento_id=e->>'evento_id' and retirado_em is null;
         insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
           values(gen_random_uuid(),v_usuario,'agenda.vincular','paciente',v_paciente,case when v_existente=v_paciente then 'permitido' else 'negado' end,v_req);
         v_resultado := jsonb_build_object('estado',case when v_existente=v_paciente then 'vinculado' else 'conflito' end);
+      end;
+    when 'agenda.retirar_vinculo' then
+      declare v_paciente uuid; v_vinculo uuid; v_retirado timestamptz;
+      begin
+        if coalesce(e->>'paciente_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+          or coalesce(e->>'vinculo_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+          or coalesce(e->>'evento_id','') !~ '^[A-Za-z0-9_-]{1,1024}$'
+          or coalesce(e->>'geracao','') !~ '^[0-9]{1,18}$' then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+        v_paciente := (e->>'paciente_id')::uuid; v_vinculo := (e->>'vinculo_id')::uuid;
+        perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_usuario::text, 0));
+        if not exists (select 1 from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id
+          join identidade.agenda_google_credencial g on g.usuario_id=s.usuario_id and g.subject_google=c.subject_google
+          where s.usuario_id=v_usuario and s.session_id=v_sessao and c.perfil='profissional' and c.subject_google=e->>'subject' and g.geracao=(e->>'geracao')::bigint) then
+          raise exception using errcode='42501',message='SEM_PERMISSAO';
+        end if;
+        perform 1 from cadastro.acesso_paciente ap where ap.usuario_id=v_usuario and ap.paciente_id=v_paciente and ap.revogada_em is null for share;
+        if not found then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+        select retirado_em into v_retirado from identidade.agenda_google_vinculo_paciente
+          where id=v_vinculo and usuario_id=v_usuario and subject_google=e->>'subject' and evento_id=e->>'evento_id' and paciente_id=v_paciente for update;
+        if found then
+          if v_retirado is null then update identidade.agenda_google_vinculo_paciente set retirado_em=clock_timestamp() where id=v_vinculo; end if;
+          insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+            values(gen_random_uuid(),v_usuario,'agenda.retirar_vinculo','paciente',v_paciente,'permitido',v_req);
+          v_resultado := jsonb_build_object('estado','retirado');
+        else
+          insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+            values(gen_random_uuid(),v_usuario,'agenda.retirar_vinculo','paciente',v_paciente,'negado',v_req);
+          v_resultado := jsonb_build_object('estado','nao_encontrado');
+        end if;
       end;
     when 'agenda.pendencia' then
       select case when w.subject_google=(select c.subject_google from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id where s.usuario_id=v_usuario and s.session_id=v_sessao)

@@ -44,7 +44,14 @@ export function criarRepositorioAgenda(canal: CanalAgenda): RepositorioStateAgen
     eventos: readonly string[],
     subject: string,
     geracao: string,
-  ): Promise<readonly { evento_id: string; paciente: unknown }[]>;
+  ): Promise<readonly { evento_id: string; vinculo_id: string; paciente: unknown }[]>;
+  retirarVinculo(
+    eventoId: string,
+    pacienteId: string,
+    vinculoId: string,
+    subject: string,
+    geracao: string,
+  ): Promise<'retirado' | 'nao_encontrado'>;
   vincularPaciente(
     eventoId: string,
     pacienteId: string,
@@ -195,6 +202,10 @@ export function criarRepositorioAgenda(canal: CanalAgenda): RepositorioStateAgen
             item === null ||
             typeof item.evento_id !== 'string' ||
             !eventos.includes(item.evento_id) ||
+            typeof item.vinculo_id !== 'string' ||
+            !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+              item.vinculo_id,
+            ) ||
             !('paciente' in item) ||
             typeof item.paciente !== 'object' ||
             item.paciente === null,
@@ -203,8 +214,26 @@ export function criarRepositorioAgenda(canal: CanalAgenda): RepositorioStateAgen
         throw new Error('Conexão indisponível.');
       return resposta.map((item) => ({
         evento_id: item.evento_id as string,
+        vinculo_id: item.vinculo_id as string,
         paciente: item.paciente as unknown,
       }));
+    },
+    async retirarVinculo(eventoId, pacienteId, vinculoId, subject, geracao) {
+      const resultado = await canal.chamar('agenda_google_retirar_vinculo', {
+        p_evento_id: eventoId,
+        p_paciente_id: pacienteId,
+        p_vinculo_id: vinculoId,
+        p_subject: subject,
+        p_geracao: geracao,
+      });
+      if (
+        typeof resultado !== 'object' ||
+        resultado === null ||
+        !('estado' in resultado) ||
+        (resultado.estado !== 'retirado' && resultado.estado !== 'nao_encontrado')
+      )
+        throw new Error('Conexão indisponível.');
+      return resultado.estado;
     },
     async vincularPaciente(eventoId, pacienteId, subject, geracao) {
       const resultado = await canal.chamar('agenda_google_vincular', {

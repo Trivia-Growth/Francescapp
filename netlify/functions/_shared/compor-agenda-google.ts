@@ -1,3 +1,4 @@
+import { retirarVinculoAgenda } from './agenda-google-retirar-vinculo-handler.ts';
 import { criarIntencaoDesconexao } from './agenda-google-desconexao-intencao.ts';
 import { processarDesconexaoAgenda } from './agenda-google-desconexao-handler.ts';
 import { consultarVinculosAgenda } from './agenda-google-consulta-vinculos-handler.ts';
@@ -120,6 +121,14 @@ export async function comporAgendaGoogle(
         lerCredencial: () => repositorio.lerCredencial(),
         consultarVinculos: (...args) => repositorio.consultarVinculos(...args),
         cifra: cofre.cifra,
+      });
+    }
+    if (new URL(request.url).pathname === '/api/agenda/google/vinculos/retirar') {
+      return await retirarVinculoAgenda(request, {
+        origem,
+        autorizar,
+        lerCredencial: () => repositorio.lerCredencial(),
+        retirarVinculo: (...args) => repositorio.retirarVinculo(...args),
       });
     }
     if (new URL(request.url).pathname === '/api/agenda/google/vinculos') {

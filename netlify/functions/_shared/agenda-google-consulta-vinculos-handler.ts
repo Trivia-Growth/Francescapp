@@ -3,7 +3,7 @@ import type { AdaptadorCifra } from '../../../packages/contracts/src/index.ts';
 
 type Identidade = Readonly<{ usuarioId: string; sessaoId: string; subjectGoogle: string }>;
 type Credencial = Readonly<{ refresh: string; geracao: string }>;
-type VinculoCifrado = Readonly<{ evento_id: string; paciente: unknown }>;
+type VinculoCifrado = Readonly<{ evento_id: string; vinculo_id: string; paciente: unknown }>;
 
 /** Resposta inclui apenas vínculos cujo acesso ao paciente foi conferido no banco. */
 export async function consultarVinculosAgenda(
@@ -101,6 +101,7 @@ export async function consultarVinculosAgenda(
       const paciente = await projetarPacienteBasicoExperimental(vinculo.paciente, portas.cifra);
       saida.push({
         evento_id: vinculo.evento_id,
+        vinculo_id: vinculo.vinculo_id,
         paciente_id: paciente.id,
         nome: paciente.nome_preferencia ?? paciente.nome,
       });
@@ -127,10 +128,11 @@ export async function consultarVinculosAgenda(
           typeof v.paciente.paciente_id !== 'string'
         )
           throw new Error();
-        return `${v.evento_id}:${v.paciente.paciente_id}`;
+        return `${v.evento_id}:${v.vinculo_id}:${v.paciente.paciente_id}`;
       }),
     );
-    if (saida.some((v) => !autorizados.has(`${v.evento_id}:${v.paciente_id}`))) return erro(503);
+    if (saida.some((v) => !autorizados.has(`${v.evento_id}:${v.vinculo_id}:${v.paciente_id}`)))
+      return erro(503);
     return Response.json({ dados: saida }, { headers });
   } catch {
     return erro(503);

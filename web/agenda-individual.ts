@@ -227,6 +227,8 @@ export function montarAgendaIndividual(
                 lote.includes(v.evento_id) &&
                 'paciente_id' in v &&
                 typeof v.paciente_id === 'string' &&
+                'vinculo_id' in v &&
+                typeof v.vinculo_id === 'string' &&
                 'nome' in v &&
                 typeof v.nome === 'string' &&
                 v.nome.length > 0,
@@ -234,15 +236,81 @@ export function montarAgendaIndividual(
           )
             throw new Error();
           if (!ativa || versao !== consulta) return;
-          const encontrados = new Map<string, string>(
-            dados.dados.map((v: { evento_id: string; nome: string }) => [v.evento_id, v.nome]),
+          const encontrados = new Map<
+            string,
+            { nome: string; paciente_id: string; vinculo_id: string }
+          >(
+            dados.dados.map(
+              (v: { evento_id: string; nome: string; paciente_id: string; vinculo_id: string }) => [
+                v.evento_id,
+                v,
+              ],
+            ),
           );
           for (const id of lote) {
             const destino = estadosVinculo.get(id);
-            if (destino)
-              destino.textContent = encontrados.has(id)
-                ? `Paciente: ${encontrados.get(id)}`
-                : 'Vínculo não disponível';
+            if (!destino) continue;
+            const vinculo = encontrados.get(id);
+            if (!vinculo) {
+              destino.textContent = 'Vínculo não disponível';
+              continue;
+            }
+            destino.textContent = `Paciente: ${vinculo.nome}`;
+            const retirar = document.createElement('button');
+            retirar.type = 'button';
+            retirar.className = 'button-secondary';
+            retirar.textContent = 'Retirar vínculo';
+            retirar.setAttribute('aria-label', `Retirar vínculo com ${vinculo.nome}`);
+            retirar.addEventListener('click', async () => {
+              if (
+                !window.confirm(
+                  `Retirar o vínculo com ${vinculo.nome}? O compromisso permanecerá no Google Calendar.`,
+                )
+              )
+                return;
+              retirar.disabled = true;
+              destino.textContent = 'Retirando vínculo…';
+              try {
+                const headers = cabecalhos();
+                headers.set('Content-Type', 'application/json');
+                const resposta = await fetch('/api/agenda/google/vinculos/retirar', {
+                  method: 'POST',
+                  headers,
+                  body: JSON.stringify({
+                    evento_id: id,
+                    paciente_id: vinculo.paciente_id,
+                    vinculo_id: vinculo.vinculo_id,
+                  }),
+                  credentials: 'same-origin',
+                  cache: 'no-store',
+                  redirect: 'error',
+                  referrerPolicy: 'no-referrer',
+                  signal: AbortSignal.timeout(20000),
+                });
+                if (!resposta.ok) throw new Error();
+                const resultado: unknown = await resposta.json();
+                if (!ativa || versao !== consulta) return;
+                if (
+                  !resultado ||
+                  typeof resultado !== 'object' ||
+                  !('estado' in resultado) ||
+                  (resultado.estado !== 'retirado' && resultado.estado !== 'nao_encontrado')
+                )
+                  throw new Error();
+                destino.textContent =
+                  resultado.estado === 'retirado'
+                    ? 'Vínculo retirado. O compromisso permanece na agenda.'
+                    : 'Vínculo não encontrado. Atualize a agenda.';
+                retirar.remove();
+              } catch {
+                if (ativa && versao === consulta) {
+                  destino.textContent =
+                    'Não foi possível confirmar a retirada. Tente novamente ou atualize a agenda.';
+                  retirar.disabled = false;
+                }
+              }
+            });
+            destino.after(retirar);
           }
         } catch {
           if (!ativa || versao !== consulta) return;
