@@ -5,6 +5,19 @@ import { perfilSchema, uuidSchema, versaoSchema } from './comum.ts';
 const emailSchema = z.string().trim().email().max(254);
 const motivoSchema = z.string().trim().min(1).max(500);
 
+/** Contratos de entrada, sem concessão de acesso ou ativação de rota. */
+export const criarConviteFamiliarSchema = z
+  .object({
+    paciente_id: uuidSchema,
+    email: emailSchema,
+    motivo: motivoSchema,
+  })
+  .strict();
+
+export const reenviarConviteFamiliarSchema = z.object({ convite_id: uuidSchema }).strict();
+
+export const estadoConviteFamiliarSchema = z.enum(['pendente', 'enviado', 'falha', 'ativado']);
+
 export const entradaVinculoFamiliarPrivadoSchema = z
   .object({
     operacao_id: uuidSchema,
