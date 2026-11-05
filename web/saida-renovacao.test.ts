@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 beforeEach(() => {
   sessionStorage.clear();
   sessionStorage.setItem('modo-acesso', 'tecnica');
+  sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
   sessionStorage.setItem('sessao-tecnica', '20000000-0000-4000-8000-000000000001');
 });
 

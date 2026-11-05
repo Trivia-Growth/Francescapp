@@ -15,6 +15,7 @@ afterEach(() => {
 it.each([404, 401])('abre paciente real e trata falha %s sem sucesso simulado', async (status) => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   sessionStorage.setItem('modo-acesso', 'tecnica');
+  sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
   sessionStorage.setItem('sessao-tecnica', sessionId);
   const caminhos: string[] = [];
   vi.stubGlobal('fetch', async (url: URL) => {
@@ -55,7 +56,7 @@ it.each([404, 401])('abre paciente real e trata falha %s sem sucesso simulado', 
     expect(document.getElementById('anamnese-raiz')?.querySelector('form')).toBeNull();
     expect(document.activeElement?.id).toBe('anamnese-title');
     document.getElementById('fechar-anamnese')?.click();
-    expect(document.activeElement?.id).toBe('patients-title');
+    expect(document.activeElement).toBe(document.querySelector('#patients-body button'));
     expect(document.getElementById('anamnese-raiz')?.textContent).toBe('');
   }
 });
@@ -63,6 +64,7 @@ it.each([404, 401])('abre paciente real e trata falha %s sem sucesso simulado', 
 it('protege edição não salva ao fechar, sair ou recarregar', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   sessionStorage.setItem('modo-acesso', 'tecnica');
+  sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
   sessionStorage.setItem('sessao-tecnica', sessionId);
   const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
   vi.stubGlobal('fetch', async (url: URL) => {

@@ -15,6 +15,7 @@ afterEach(() => {
 it('abre plano do paciente pela rota HTTP e trata dispatcher inativo sem simular sucesso', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   sessionStorage.setItem('modo-acesso', 'tecnica');
+  sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
   sessionStorage.setItem('sessao-tecnica', sessionId);
   const caminhos: string[] = [];
   vi.stubGlobal('fetch', async (url: URL | string) => {
@@ -36,9 +37,13 @@ it('abre plano do paciente pela rota HTTP e trata dispatcher inativo sem simular
   });
   await import('./main.js');
   await vi.waitFor(() =>
-    expect(document.querySelectorAll('#patients-body button')).toHaveLength(2),
+    expect(
+      document.querySelector('[aria-label="Abrir plano de cuidado de Paciente fictício"]'),
+    ).not.toBeNull(),
   );
-  document.querySelectorAll<HTMLButtonElement>('#patients-body button')[1]?.click();
+  document
+    .querySelector<HTMLButtonElement>('[aria-label="Abrir plano de cuidado de Paciente fictício"]')
+    ?.click();
   await vi.waitFor(() =>
     expect(document.querySelector('#plano-raiz button')?.textContent).toBe('Tentar novamente'),
   );
@@ -47,12 +52,15 @@ it('abre plano do paciente pela rota HTTP e trata dispatcher inativo sem simular
   expect(document.activeElement?.id).toBe('plano-title');
   document.getElementById('fechar-plano')?.click();
   expect(document.getElementById('plano-raiz')?.textContent).toBe('');
-  expect(document.activeElement?.id).toBe('patients-title');
+  expect(document.activeElement).toBe(
+    document.querySelector('[aria-label="Abrir plano de cuidado de Paciente fictício"]'),
+  );
 });
 
 it('encerra acesso e limpa plano quando permissão é revogada após retorno à aba', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   sessionStorage.setItem('modo-acesso', 'tecnica');
+  sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
   sessionStorage.setItem('sessao-tecnica', sessionId);
   let consultasPlano = 0;
   let responder: ((resposta: Response) => void) | undefined;
@@ -80,9 +88,13 @@ it('encerra acesso e limpa plano quando permissão é revogada após retorno à 
   });
   await import('./main.js');
   await vi.waitFor(() =>
-    expect(document.querySelectorAll('#patients-body button')).toHaveLength(2),
+    expect(
+      document.querySelector('[aria-label="Abrir plano de cuidado de Paciente fictício"]'),
+    ).not.toBeNull(),
   );
-  document.querySelectorAll<HTMLButtonElement>('#patients-body button')[1]?.click();
+  document
+    .querySelector<HTMLButtonElement>('[aria-label="Abrir plano de cuidado de Paciente fictício"]')
+    ?.click();
   await vi.waitFor(() =>
     expect(document.getElementById('plano-raiz')?.textContent).toContain('Nenhum objetivo'),
   );

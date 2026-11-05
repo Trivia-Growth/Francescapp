@@ -5,6 +5,7 @@ beforeEach(() => {
   const itens = new Map<string, string>([
     ['modo-acesso', 'tecnica'],
     ['sessao-tecnica', '20000000-0000-4000-8000-000000000001'],
+    ['fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA'],
   ]);
   vi.stubGlobal('sessionStorage', {
     getItem: (chave: string) => itens.get(chave) ?? null,

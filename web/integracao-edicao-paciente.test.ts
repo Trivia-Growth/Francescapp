@@ -14,6 +14,7 @@ afterEach(() => {
 it('não oferece edição enquanto as rotas de paciente não estão disponíveis', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   sessionStorage.setItem('modo-acesso', 'tecnica');
+  sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
   sessionStorage.setItem('sessao-tecnica', sessionId);
   const fetch = vi.fn(async (url: URL) => {
     if (url.pathname === '/api/sessao')

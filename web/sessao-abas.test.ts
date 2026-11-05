@@ -18,6 +18,7 @@ it('outra aba com login recusado não impede saída da sessão original', async 
     if (url.pathname === '/api/sessao') return envelope(sessao);
     if (url.pathname === '/api/sessao/sair') {
       expect(new Headers(opcoes.headers).get('x-sessao')).toBe(sessionId);
+      expect(new Headers(opcoes.headers).get('x-fluxo')).toBe('AAAAAAAAAAAAAAAAAAAAAA');
       expect(opcoes.credentials).toBe('same-origin');
       return envelope({ encerrada_localmente: true, pendencia_externa: false });
     }
@@ -27,6 +28,7 @@ it('outra aba com login recusado não impede saída da sessão original', async 
     const itens = new Map<string, string>([
       ['modo-acesso', 'tecnica'],
       ['sessao-tecnica', '20000000-0000-4000-8000-000000000001'],
+      ['fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA'],
     ]);
     return {
       getItem: (chave: string) => itens.get(chave) ?? null,
