@@ -409,7 +409,7 @@ export const contratosRotas = {
   criarAcessoPaciente: mutacaoIdempotente(
     'POST',
     '/api/pacientes/:paciente_id/acessos',
-    criarAcessoPacienteSchema,
+    criarAcessoPacienteSchema.extend({ acesso_id: uuidSchema }),
     operacaoConcluidaSchema,
     pacienteParametrosSchema,
   ),
