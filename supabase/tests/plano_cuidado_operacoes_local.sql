@@ -4,24 +4,27 @@
 grant ffcmapp_carteira_owner to current_user with inherit false, set true;
 grant ffcmapp_atestado_verificador_owner to current_user with inherit true, set true;
 \ir ../migrations/20261107130000_plano_cuidado_operacoes_privadas.sql
-grant ffcmapp_plano_owner to current_user with inherit true, set false;
+-- Papel não superusuário reproduz membership concedida sem SET.
 begin;
+create role migrador_plano_fixture nologin nosuperuser createrole;
+grant ffcmapp_plano_owner to migrador_plano_fixture with admin true, inherit false, set false;
+set role migrador_plano_fixture;
+grant ffcmapp_plano_owner to migrador_plano_fixture with inherit true, set false granted by migrador_plano_fixture;
 \set ON_ERROR_STOP off
 \ir ../migrations/20261107140000_plano_cuidado_idempotencia_privada.sql
 \if :ERROR
 \else
-\quit 1
+\set ON_ERROR_STOP on
+select 1/0; -- A migration deveria recusar membership sem SET.
 \endif
 \set ON_ERROR_STOP on
 rollback;
 do $$ begin
- if not exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member
-  where r.rolname='ffcmapp_plano_owner' and u.rolname=current_user and not m.set_option and m.inherit_option)
-  or exists(select 1 from pg_policies where policyname='plano_requisicao_selecao') then
+ if exists(select 1 from pg_policies where policyname='plano_requisicao_selecao') then
   raise exception 'FALHA_FECHADA_MEMBERSHIP';
  end if;
 end $$;
-grant ffcmapp_plano_owner to current_user with set true;
+grant ffcmapp_plano_owner to current_user with inherit true, set true;
 \ir ../migrations/20261107140000_plano_cuidado_idempotencia_privada.sql
 
 do $$
