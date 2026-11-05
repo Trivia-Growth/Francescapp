@@ -13,7 +13,7 @@ A fundação distingue sessão e concessões de aplicação do consentimento Cal
 ## Decisions
 
 - A operação futura valida sessão e concessões no servidor e banco; ACL Google e OAuth não substituem autorização da aplicação. Identidade, caso, audiência e permissão de agenda são controles distintos. Alternativa de depender apenas da interface ou de escopo OAuth não satisfaz revogação nem isolamento.
-- Tokens e integração permanecem no servidor, com guarda apropriada; escopos Calendar exigem consentimento e guarda próprios, separados do login. Não fixar mecanismo de credencial antes de verificar disponibilidade e limites da stack.
+- Tokens e integração permanecem no servidor; escopos Calendar exigem consentimento do próprio profissional, separados do login. Decisão autorizada: usar Supabase Vault para guarda das credenciais Google no servidor. Disponibilidade e limites no plano vigente, ciclo de renovação e revogação precisam de prova antes da ativação; não contratar recursos adicionais sem autorização.
 - Identificar origem, versão externa e operação idempotente; confirmação somente após resposta ou reconciliação na origem. Alternativa de presumir sucesso ou reenviar sem conferir pode gerar divergência ou duplicação.
 
 ## Risks / Trade-offs
@@ -24,7 +24,7 @@ A fundação distingue sessão e concessões de aplicação do consentimento Cal
 
 ## Bloqueadores materiais
 
-Decisões aprovadas: fuso de São Paulo; início pela agenda individual e por compromissos individuais, com operações adicionais em séries posteriores; conflitos são avisados para decisão da equipe; eventos existentes são vinculados manualmente; sem acesso clínico, título genérico sem paciente. O profissional autoriza a conexão Google. Consultar e confirmar alterações diretamente no Google Calendar; em resposta incerta, informar a necessidade de conferir antes de repetir. A jornada existente exige preservar demais ocorrências em remarcação individual. Detalhar guarda de credenciais e condições reais de prova antes da implementação dependente.
+Decisões aprovadas: fuso de São Paulo; início pela agenda individual e por compromissos individuais, com operações adicionais em séries posteriores; conflitos são avisados para decisão da equipe; eventos existentes são vinculados manualmente; sem acesso clínico, título genérico sem paciente. O profissional autoriza a conexão Google. Consultar e confirmar alterações diretamente no Google Calendar; em resposta incerta, informar a necessidade de conferir antes de repetir. A jornada existente exige preservar demais ocorrências em remarcação individual. Credenciais Google ficam no Vault no servidor; condições reais de prova permanecem pendentes.
 
 ## Migration Plan
 
