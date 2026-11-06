@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { montarRelatoTextual } from './relato-textual.ts';
 
 describe('preparação local do relato', () => {
@@ -36,3 +36,27 @@ describe('preparação local do relato', () => {
     expect(raiz.childElementCount).toBe(0);
   });
 });
+
+it.each(['400', '403', '404'])(
+  'preserva o rascunho após rejeição definitiva %s',
+  async (codigo) => {
+    const raiz = document.createElement('div');
+    const salvar = async () => {
+      throw new Error(codigo);
+    };
+    montarRelatoTextual(raiz, salvar);
+    const data = raiz.querySelector('input[type=date]') as HTMLInputElement;
+    const descricao = raiz.querySelector('textarea') as HTMLTextAreaElement;
+    data.value = '2026-11-04';
+    descricao.value = 'Relato fictício';
+    raiz
+      .querySelector('form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    [...raiz.querySelectorAll('button')]
+      .find((b) => b.textContent?.startsWith('Guardar relato'))
+      ?.click();
+    await vi.waitFor(() => expect(raiz.textContent).toContain('seu rascunho permanece aqui'));
+    expect(raiz.textContent).not.toContain('resultado incerto');
+    expect(descricao.value).toBe('Relato fictício');
+  },
+);
