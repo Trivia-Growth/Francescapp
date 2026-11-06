@@ -65,3 +65,5 @@ Preparação posterior: controlador web isolado inicia criação bloqueada até 
 Verificação adicional da composição privada: `sh scripts/testar-plano-composicao-integrada-local.sh` passou em PostgreSQL descartável, incluindo negação para usuário inativo, perfil familiar e concessão revogada após reserva. Auth/Vault e transporte seguem simulados; o teste não prova revogação concorrente ou integração remota.
 
 Prova no Supabase de teste: um objetivo fictício foi reservado, criado e recuperado no paciente do lote; conteúdo decifrado, versão e auditoria confirmados. Handler, cifra, atestado, Vault e PostgreSQL reais; JWT e autorização simulados no contexto SQL. Grants e memberships temporários foram removidos e conferidos ausentes. Jornada HTTP, Auth real e negativas por perfil continuam pendentes; rota permanece fechada.
+
+A tela do plano pede confirmação antes de descartar alterações ao cancelar; teste web focado passou. Integração HTTP real e ativação permanecem pendentes.
