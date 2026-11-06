@@ -1,5 +1,6 @@
 import { type ClienteFFCM, mensagemFalha } from './api.js';
 import { criarCicloAcesso } from './ciclo-acesso.js';
+import { montarRevogacaoVinculo } from './revogacao-vinculo.js';
 
 export function montarSelecaoProfissional(
   raiz: HTMLElement,
@@ -9,6 +10,9 @@ export function montarSelecaoProfissional(
   alteracaoPendente: (pendente: boolean) => void = () => {},
 ): () => void {
   let ativa = true;
+  let pendenciaConcessao = false;
+  let pendenciaRevogacao = false;
+  const informarPendencia = () => alteracaoPendente(pendenciaConcessao || pendenciaRevogacao);
   let consulta = 0;
   let cursores: (string | undefined)[] = [undefined];
   let pagina = 0;
@@ -41,7 +45,10 @@ export function montarSelecaoProfissional(
   const motivo = document.createElement('textarea');
   motivo.required = true;
   motivo.maxLength = 4000;
-  motivo.addEventListener('input', () => alteracaoPendente(motivo.value.trim().length > 0));
+  motivo.addEventListener('input', () => {
+    pendenciaConcessao = motivo.value.trim().length > 0;
+    informarPendencia();
+  });
   rotuloMotivo.append(motivo);
   const recuperar = document.createElement('button');
   recuperar.type = 'button';
@@ -114,6 +121,8 @@ export function montarSelecaoProfissional(
             if (cursor && vistos.has(cursor)) throw new Error('Cursor repetido');
             if (cursor) vistos.add(cursor);
           } while (!encontrado && cursor);
+          await identificarProfissionais();
+          if (!ativa) return;
           const nome = encontrado && nomesProfissionais.get(encontrado.usuario_id.toLowerCase());
           if (
             !encontrado ||
@@ -161,7 +170,8 @@ export function montarSelecaoProfissional(
         if (!ativa) return;
         if (motivo.value === razao) {
           motivo.value = '';
-          alteracaoPendente(false);
+          pendenciaConcessao = false;
+          informarPendencia();
         }
         explicacao.textContent = 'Concessão enviada. Verifique o resultado antes de continuar.';
         void atualizarVinculos().catch(() => {});
@@ -191,10 +201,61 @@ export function montarSelecaoProfissional(
   tentarVinculos.textContent = 'Tentar consultar vínculos novamente';
   tentarVinculos.hidden = true;
   vinculos.append(tituloVinculos, estadoVinculos, listaVinculos, maisVinculos, tentarVinculos);
+  const areaRevogacao = document.createElement('section');
+  const avisoRevogacao = document.createElement('p');
+  avisoRevogacao.textContent =
+    'Após recarregar, pedidos de revogação anteriores podem ainda ser concluídos; consulte o estado atual.';
+  vinculos.append(avisoRevogacao);
   raiz.prepend(vinculos);
+  raiz.append(areaRevogacao);
   const nomesProfissionais = new Map<string, string>();
+  let identificacoesCompletas = false;
+  let geracaoIdentificacoes = 0;
+  let consultaIdentificacoes: Promise<void> | undefined;
+  async function identificarProfissionais(): Promise<void> {
+    if (identificacoesCompletas || !ativa) return;
+    if (consultaIdentificacoes) return consultaIdentificacoes;
+    const geracao = geracaoIdentificacoes;
+    const executar = async () => {
+      const nomes = new Map<string, string[]>();
+      const vistos = new Set<string>();
+      let cursor: string | undefined;
+      do {
+        const pagina = await api.listarProfissionais(cursor);
+        if (!ativa) return;
+        for (const item of pagina.itens) {
+          if (item.perfil !== 'profissional' || !item.usuario_id) continue;
+          const id = item.usuario_id.toLowerCase();
+          const emails = nomes.get(id) ?? [];
+          emails.push(item.email);
+          nomes.set(id, emails);
+        }
+        cursor = pagina.proximo_cursor ?? undefined;
+        if (cursor && vistos.has(cursor)) throw new Error('Cursor repetido');
+        if (cursor) vistos.add(cursor);
+      } while (cursor);
+      if (geracao !== geracaoIdentificacoes) return;
+      nomesProfissionais.clear();
+      for (const [id, emails] of nomes) {
+        const email = emails[0];
+        if (emails.length === 1 && email) nomesProfissionais.set(id, email);
+      }
+      identificacoesCompletas = true;
+      atualizarIdentificacoes();
+    };
+    const pendente = executar();
+    consultaIdentificacoes = pendente;
+    try {
+      await pendente;
+    } finally {
+      if (consultaIdentificacoes === pendente) consultaIdentificacoes = undefined;
+    }
+  }
   const vinculosExibidos: {
     linha: HTMLLIElement;
+    texto: HTMLSpanElement;
+    botao: HTMLButtonElement | null;
+    id: string;
     usuarioId: string;
     revogado: boolean;
     versao: number;
@@ -204,7 +265,8 @@ export function montarSelecaoProfissional(
       const nome =
         nomesProfissionais.get(item.usuarioId.toLowerCase()) ??
         'Identificação indisponível nesta página';
-      item.linha.textContent = `${nome} · ${item.revogado ? 'Revogado' : 'Ativo'} · versão ${item.versao}`;
+      item.texto.textContent = `${nome} · ${item.revogado ? 'Revogado' : 'Ativo'} · versão ${item.versao}`;
+      if (item.botao) item.botao.disabled = !nomesProfissionais.has(item.usuarioId.toLowerCase());
     }
   };
   let cursorVinculos: string | undefined;
@@ -212,12 +274,29 @@ export function montarSelecaoProfissional(
   let atualizacaoPendente = false;
   let geracaoAtualizacao = 0;
   async function atualizarVinculos(): Promise<void> {
+    revogacao.invalidarSelecao();
     atualizacaoPendente = true;
     geracaoAtualizacao++;
+    geracaoIdentificacoes++;
+    identificacoesCompletas = false;
+    nomesProfissionais.clear();
+    atualizarIdentificacoes();
+    if (consultaIdentificacoes) await consultaIdentificacoes.catch(() => {});
     if (consultaVinculos) await consultaVinculos;
     if (!ativa) return;
     if (!(await carregarVinculos())) throw new Error('Consulta de vínculos indisponível');
   }
+  const revogacao = montarRevogacaoVinculo(
+    areaRevogacao,
+    pacienteId,
+    api,
+    atualizarVinculos,
+    acessoPerdido,
+    (pendente) => {
+      pendenciaRevogacao = pendente;
+      informarPendencia();
+    },
+  );
   function carregarVinculos(): Promise<boolean> {
     if (consultaVinculos) return consultaVinculos;
     const executar = async (): Promise<boolean> => {
@@ -238,8 +317,24 @@ export function montarSelecaoProfissional(
         }
         for (const item of paginaAtual.itens) {
           const linha = document.createElement('li');
+          const texto = document.createElement('span');
+          linha.append(texto);
+          const botao = item.revogado ? null : document.createElement('button');
+          if (botao) {
+            botao.type = 'button';
+            botao.textContent = 'Selecionar para revogação';
+            botao.disabled = true;
+            botao.addEventListener('click', () => {
+              const nome = nomesProfissionais.get(item.usuario_id.toLowerCase());
+              if (nome) revogacao.selecionar({ id: item.id, versao: item.versao, nome });
+            });
+            linha.append(botao);
+          }
           vinculosExibidos.push({
             linha,
+            texto,
+            botao,
+            id: item.id,
             usuarioId: item.usuario_id,
             revogado: item.revogado,
             versao: item.versao,
@@ -247,6 +342,12 @@ export function montarSelecaoProfissional(
           listaVinculos.append(linha);
         }
         atualizarIdentificacoes();
+        if (paginaAtual.itens.length)
+          void identificarProfissionais().catch((erro) => {
+            if (ativa && !acessoPerdido(erro))
+              estadoVinculos.textContent =
+                'Não foi possível identificar profissionais. Tente atualizar a lista.';
+          });
         cursorVinculos = paginaAtual.proximo_cursor ?? undefined;
         maisVinculos.hidden = !cursorVinculos;
         tentarVinculos.hidden = true;
@@ -292,11 +393,6 @@ export function montarSelecaoProfissional(
           item.ativo === true &&
           item.usuario_id !== null,
       );
-      for (const profissional of resultado.itens) {
-        if (profissional.perfil === 'profissional' && profissional.usuario_id)
-          nomesProfissionais.set(profissional.usuario_id.toLowerCase(), profissional.email);
-      }
-      atualizarIdentificacoes();
       const vazio = document.createElement('option');
       vazio.value = '';
       vazio.textContent = profissionais.length
@@ -341,6 +437,7 @@ export function montarSelecaoProfissional(
   return () => {
     ativa = false;
     consulta += 1;
+    revogacao.destruir();
     raiz.replaceChildren();
   };
 }

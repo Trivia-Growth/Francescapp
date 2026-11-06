@@ -341,3 +341,149 @@ it('aguarda atualização concorrente e repete reinício após falha sem usar cu
   await vi.waitFor(() => expect(listar).toHaveBeenCalledTimes(5));
   expect(listar.mock.calls[4]).toEqual([id, undefined]);
 });
+
+it('identifica vínculos em outras páginas e não escolhe entre identidades ambíguas', async () => {
+  const raiz = document.createElement('div');
+  const id = 'a0000000-0000-4000-8000-000000000001';
+  const outro = 'a0000000-0000-4000-8000-000000000002';
+  const item = (usuario_id: string, email: string) => ({
+    perfil: 'profissional',
+    estado: 'revogada',
+    ativo: false,
+    usuario_id,
+    email,
+  });
+  const listar = vi.fn(async (cursor?: string) =>
+    cursor
+      ? {
+          itens: [
+            item(id, 'antigo@example.test'),
+            item(id, 'novo@example.test'),
+            item(outro, 'outro@example.test'),
+          ],
+          proximo_cursor: null,
+        }
+      : { itens: [], proximo_cursor: 'proxima' },
+  );
+  let epoca = 1;
+  const api = {
+    identidadeAtual: () => ({ usuario_id: id, session_id: id }),
+    consultarBarreiraAcesso: async () => ({ epoca, reserva: null, resultado_pendente: null }),
+    encerrarBarreiraAcesso: async () => {
+      epoca++;
+      return { estado: 'vazia' };
+    },
+    listarProfissionais: listar,
+    listarVinculosProfissionais: async () => ({
+      itens: [
+        { id, usuario_id: id, revogado: true, versao: 2 },
+        { id: outro, usuario_id: outro, revogado: false, versao: 1 },
+      ],
+      proximo_cursor: null,
+    }),
+  } as unknown as ClienteFFCM;
+  montarSelecaoProfissional(raiz, id, api, () => false);
+  await vi.waitFor(() => expect(raiz.textContent).toContain('outro@example.test · Ativo'));
+  expect(raiz.textContent).toContain('Identificação indisponível nesta página · Revogado');
+  expect(raiz.textContent).not.toContain('antigo@example.test · Revogado');
+  expect(
+    listar.mock.calls.filter(([cursor]) => cursor === 'proxima').length,
+  ).toBeGreaterThanOrEqual(1);
+});
+
+it('encaminha erro de autorização ao identificar vínculos', async () => {
+  const raiz = document.createElement('div');
+  const negado = new Error('403');
+  const acessoPerdido = vi.fn().mockReturnValue(true);
+  const api = {
+    ...barreiraIndisponivel,
+    listarProfissionais: vi.fn().mockRejectedValue(negado),
+    listarVinculosProfissionais: vi.fn().mockResolvedValue({
+      itens: [{ id: 'vinculo', usuario_id: 'pessoa', revogado: false, versao: 1 }],
+      proximo_cursor: null,
+    }),
+  } as unknown as ClienteFFCM;
+  montarSelecaoProfissional(raiz, 'paciente', api, acessoPerdido);
+  await vi.waitFor(() => expect(acessoPerdido).toHaveBeenCalledWith(negado));
+});
+
+it('atualiza identificação após consultar novamente vínculos', async () => {
+  const raiz = document.createElement('div');
+  const id = 'a0000000-0000-4000-8000-000000000001';
+  let nome = 'antes@example.test';
+  let epoca = 1;
+  const api = {
+    identidadeAtual: () => ({ usuario_id: id, session_id: id }),
+    consultarBarreiraAcesso: async () => ({ epoca, reserva: null, resultado_pendente: null }),
+    encerrarBarreiraAcesso: async () => {
+      epoca++;
+      return { estado: 'vazia' };
+    },
+    listarProfissionais: async () => ({
+      itens: [
+        { perfil: 'profissional', estado: 'vinculada', ativo: true, usuario_id: id, email: nome },
+      ],
+      proximo_cursor: null,
+    }),
+    listarVinculosProfissionais: async () => ({
+      itens: [{ id, usuario_id: id, revogado: false, versao: 1 }],
+      proximo_cursor: null,
+    }),
+  } as unknown as ClienteFFCM;
+  montarSelecaoProfissional(raiz, id, api, () => false);
+  await vi.waitFor(() => expect(raiz.textContent).toContain('antes@example.test · Ativo'));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Operações anteriores verificadas.'));
+  nome = 'depois@example.test';
+  [...raiz.querySelectorAll('button')]
+    .find((b) => b.textContent === 'Verificar operação pendente')
+    ?.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('depois@example.test · Ativo'));
+  expect(raiz.textContent).not.toContain('antes@example.test · Ativo');
+});
+
+it('revoga vínculo selecionado com motivo e atualiza estado observado', async () => {
+  const raiz = document.createElement('div');
+  const id = 'a0000000-0000-4000-8000-000000000001';
+  let revogado = false;
+  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  const revogar = vi.fn().mockImplementation(async () => {
+    revogado = true;
+    return { id, versao: 2 };
+  });
+  const api = {
+    ...barreiraIndisponivel,
+    listarProfissionais: async () => ({
+      itens: [
+        {
+          perfil: 'profissional',
+          estado: 'vinculada',
+          ativo: true,
+          usuario_id: id,
+          email: 'pessoa@example.test',
+        },
+      ],
+      proximo_cursor: null,
+    }),
+    listarVinculosProfissionais: async () => ({
+      itens: [{ id, usuario_id: id, revogado, versao: revogado ? 2 : 1 }],
+      proximo_cursor: null,
+    }),
+    revogarAcessoPaciente: revogar,
+  } as unknown as ClienteFFCM;
+  montarSelecaoProfissional(raiz, id, api, () => false);
+  await vi.waitFor(() => expect(raiz.textContent).toContain('pessoa@example.test · Ativo'));
+  [...raiz.querySelectorAll('button')]
+    .find((b) => b.textContent === 'Selecionar para revogação')
+    ?.click();
+  const motivo = [...raiz.querySelectorAll('textarea')][1] as HTMLTextAreaElement;
+  motivo.value = 'Motivo fictício';
+  [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Revogar acesso')?.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('pessoa@example.test · Revogado'));
+  expect(revogar).toHaveBeenCalledWith(
+    id,
+    id,
+    { versao_esperada: 1, motivo: 'Motivo fictício' },
+    expect.any(String),
+  );
+  confirmar.mockRestore();
+});

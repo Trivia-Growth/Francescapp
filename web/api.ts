@@ -88,6 +88,7 @@ const rotas = {
     ...contratosRotas.criarAcessoPaciente,
     entrada: criarAcessoReservadoHttpSchema,
   },
+  revogarAcessoPaciente: contratosRotas.revogarAcessoPaciente,
   consultarBarreiraAcesso: {
     ...contratosBarreiraAcessoHttp.consultar,
     saida: contratosBarreiraAcessoHttp.consultar.saida.shape.dados,
@@ -233,6 +234,7 @@ export class ClienteFFCM {
       protegido?: boolean;
       encerramento?: boolean;
       pacienteId?: string;
+      acessoId?: string;
       fluxoEntrada?: string;
     } = {},
   ): Promise<Dados<R>> {
@@ -262,13 +264,22 @@ export class ClienteFFCM {
       rota === 'consultarPacienteFamiliar' ||
       rota === 'atualizarPaciente' ||
       rota === 'criarContato' ||
-      rota === 'criarAcessoPaciente'
+      rota === 'criarAcessoPaciente' ||
+      rota === 'revogarAcessoPaciente'
     ) {
       const parametros = contratosRotas.consultarAnamnese.parametros.safeParse({
         paciente_id: opcoes.pacienteId,
       });
       if (!parametros.success) throw new FalhaApi('entrada_invalida', 422);
       caminho = caminho.replace(':paciente_id', encodeURIComponent(parametros.data.paciente_id));
+    }
+    if (rota === 'revogarAcessoPaciente') {
+      const parametros = contratosRotas.revogarAcessoPaciente.parametros.safeParse({
+        paciente_id: opcoes.pacienteId,
+        acesso_id: opcoes.acessoId,
+      });
+      if (!parametros.success) throw new FalhaApi('entrada_invalida', 422);
+      caminho = caminho.replace(':acesso_id', encodeURIComponent(parametros.data.acesso_id));
     }
     const url = new URL(caminho, window.location.origin);
     const headers = new Headers({ Accept: 'application/json' });
@@ -585,6 +596,19 @@ export class ClienteFFCM {
       { entrada, ...reserva },
       { protegido: true, pacienteId, chave },
     );
+  }
+  revogarAcessoPaciente(
+    pacienteId: string,
+    acessoId: string,
+    entrada: { versao_esperada: number; motivo: string },
+    chave: string,
+  ) {
+    return this.#enviar('revogarAcessoPaciente', entrada, {
+      protegido: true,
+      pacienteId,
+      acessoId,
+      chave,
+    });
   }
   consultarBarreiraAcesso() {
     return this.#enviar('consultarBarreiraAcesso', {}, { protegido: true });
