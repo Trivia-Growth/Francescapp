@@ -3,7 +3,6 @@ import {
   type Anamnese,
   type SalvarAnamnese,
 } from '../packages/contracts/src/index.js';
-import { localizarPendencias } from '../packages/cadastro/src/anamnese.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 
 type Servico = {
@@ -53,17 +52,8 @@ export function montarAnamnese(
     retry.hidden = true;
     form.append(elemento('h2', 'Anamnese de coordenação'));
     const secoes = resultado?.secoes ?? [];
-    const pendencias = localizarPendencias(secoes);
-    form.append(
-      elemento(
-        'p',
-        !secoes.length
-          ? 'Adicione uma seção e um campo para começar.'
-          : pendencias.length
-            ? `Seções com pendências: ${pendencias.map((p) => p.secao).join(', ')}.`
-            : 'Nenhuma pendência identificada nos campos informados.',
-      ),
-    );
+    const resumoPendencias = elemento('p');
+    form.append(resumoPendencias);
     if (!secoes.length) form.append(elemento('p', 'Nenhuma seção registrada.'));
     type Campo = {
       secao: string;
@@ -75,6 +65,41 @@ export function montarAnamnese(
       data: HTMLInputElement;
     };
     const entradas: Campo[] = [];
+    const respostaDe = (e: Campo) =>
+      e.estado.value === 'pendente'
+        ? { campo: e.campo, estado: 'pendente' }
+        : {
+            campo: e.campo,
+            estado: e.estado.value,
+            fonte: e.fonte.value,
+            data: e.data.value,
+            ...(e.estado.value === 'informado' ? { valor: e.valor.value } : {}),
+          };
+    const atualizarPendencias = () => {
+      const secoesPendentes = [
+        ...new Set(
+          entradas
+            .filter(
+              (e) =>
+                e.esperado &&
+                (e.estado.value === 'pendente' ||
+                  !salvarAnamneseSchema.safeParse({
+                    versao_esperada: versao,
+                    secoes: [
+                      { id: e.secao, camposEsperados: [e.campo], respostas: [respostaDe(e)] },
+                    ],
+                  }).success),
+            )
+            .map((e) => e.secao),
+        ),
+      ];
+      resumoPendencias.textContent =
+        !entradas.length && !secoes.length
+          ? 'Adicione uma seção e um campo para começar.'
+          : secoesPendentes.length
+            ? `Seções com pendências: ${secoesPendentes.join(', ')}.`
+            : 'Nenhuma pendência identificada nos campos informados.';
+    };
     const adicionar = (
       secao: string,
       campo: string,
@@ -117,10 +142,14 @@ export function montarAnamnese(
         valor.disabled = estado.value !== 'informado';
         fonte.disabled = data.disabled = estado.value === 'pendente';
       };
-      estado.addEventListener('change', atualizar);
+      estado.addEventListener('change', () => {
+        atualizar();
+        atualizarPendencias();
+      });
       atualizar();
       entradas.push({ secao, campo, esperado, estado, valor, fonte, data });
       campos.append(grupo);
+      atualizarPendencias();
     };
     for (const secao of secoes) {
       const nomes = new Set([...secao.camposEsperados, ...secao.respostas.map((r) => r.campo)]);
@@ -132,6 +161,7 @@ export function montarAnamnese(
           secao.respostas.find((r) => r.campo === campo),
         );
     }
+    atualizarPendencias();
     const novaSecao = elemento('input');
     const novoCampo = elemento('input');
     const rotularNovo = (texto: string, controle: HTMLElement) => {
@@ -191,7 +221,10 @@ export function montarAnamnese(
         }
       }
     };
-    form.addEventListener('input', () => alteracaoPendente(true));
+    form.addEventListener('input', () => {
+      alteracaoPendente(true);
+      atualizarPendencias();
+    });
     form.addEventListener('change', () => alteracaoPendente(true));
     form.addEventListener('submit', (evento) => {
       evento.preventDefault();
@@ -211,17 +244,7 @@ export function montarAnamnese(
       for (const e of entradas) {
         const secao = agrupadas.get(e.secao) ?? { id: e.secao, camposEsperados: [], respostas: [] };
         if (e.esperado) secao.camposEsperados.push(e.campo);
-        const resposta =
-          e.estado.value === 'pendente'
-            ? { campo: e.campo, estado: 'pendente' }
-            : {
-                campo: e.campo,
-                estado: e.estado.value,
-                fonte: e.fonte.value,
-                data: e.data.value,
-                ...(e.estado.value === 'informado' ? { valor: e.valor.value } : {}),
-              };
-        secao.respostas.push(resposta);
+        secao.respostas.push(respostaDe(e));
         agrupadas.set(e.secao, secao);
       }
       const validada = salvarAnamneseSchema.safeParse({

@@ -3,6 +3,41 @@ import { it, expect, vi } from 'vitest';
 import { montarAnamnese } from './anamnese.js';
 import { FalhaApi } from './api.js';
 
+it('atualiza pendências ao alterar estado no rascunho', async () => {
+  const raiz = document.createElement('div');
+  montarAnamnese(
+    raiz,
+    'paciente',
+    {
+      consultarAnamnese: vi.fn().mockResolvedValue({
+        versao: 1,
+        secoes: [{ id: 'História', camposEsperados: ['Relato'], respostas: [] }],
+      }),
+      salvarAnamnese: vi.fn(),
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Seções com pendências: História'));
+  const estado = raiz.querySelector('select') as HTMLSelectElement;
+  estado.value = 'informado';
+  estado.dispatchEvent(new Event('change', { bubbles: true }));
+  expect(raiz.textContent).toContain('Seções com pendências: História');
+  const resposta = raiz.querySelector('textarea') as HTMLTextAreaElement;
+  const [fonte, data] = raiz.querySelectorAll('fieldset input');
+  if (!fonte || !data) throw new Error('Campos ausentes');
+  resposta.value = 'Relato';
+  fonte.value = 'Família';
+  data.value = '2026-01-01';
+  data.dispatchEvent(new Event('input', { bubbles: true }));
+  expect(raiz.textContent).toContain('Nenhuma pendência identificada nos campos informados.');
+  fonte.value = '';
+  fonte.dispatchEvent(new Event('input', { bubbles: true }));
+  expect(raiz.textContent).toContain('Seções com pendências: História');
+  estado.value = 'pendente';
+  estado.dispatchEvent(new Event('change', { bubbles: true }));
+  expect(raiz.textContent).toContain('Seções com pendências: História');
+});
+
 it('mostra pendências e respostas recebidas sem interpretar conteúdo como HTML', async () => {
   const raiz = document.createElement('div');
   const servico = {
