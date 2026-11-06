@@ -45,6 +45,7 @@ export async function consultarAgendaGoogleIndividual(
       url.searchParams.set('timeMax', new Date(fim).toISOString());
       url.searchParams.set('timeZone', 'America/Sao_Paulo');
       url.searchParams.set('singleEvents', 'true');
+      url.searchParams.set('orderBy', 'startTime');
       url.searchParams.set('maxResults', '250');
       if (pagina) url.searchParams.set('pageToken', pagina);
       const resposta = await fetch(url, {
