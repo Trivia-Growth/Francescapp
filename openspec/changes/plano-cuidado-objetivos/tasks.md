@@ -69,3 +69,5 @@ Prova no Supabase de teste: um objetivo fictício foi reservado, criado e recupe
 A tela do plano pede confirmação antes de descartar alterações ao cancelar; teste web focado passou. Integração HTTP real e ativação permanecem pendentes.
 
 Atualização de 06/11/2026: migration `20261112122000` aplicada ao Supabase de teste para exigir registro de auditoria; conferidos os privilégios do migrador antes da aplicação. Testes SQL locais cobriram inclusão suprimida e rollback. A aplicação não concede acesso às RPCs e não comprova a jornada HTTP nem encerra S-02.
+
+Atualização de 06/11/2026: migration `20261112200000` aplicada ao Supabase de teste para registrar negativas de Auth sem perfil. Teste SQL local usou fixtures; integração real, grant e rota do plano permanecem pendentes.
