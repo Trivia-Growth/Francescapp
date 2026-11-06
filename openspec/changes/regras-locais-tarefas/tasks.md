@@ -23,3 +23,5 @@ O formulário agora usa o cliente HTTP de criação e o POST é encaminhado atr�
 Atualização de estados preparada na interface e no servidor, com versão esperada e chave de idempotência. Conflitos e respostas incertas preservam os campos para cópia e oferecem consulta após confirmação. Não há ativação ou testes; autorização, concorrência e reconciliação real permanecem pendentes.
 
 Edição de descrição, responsável, prazo e prioridade adicionada ao formulário existente. A interface permanece dependente do serviço e das permissões protegidas ainda desativados.
+
+A leitura do corpo HTTP foi limitada por cancelamento e prazo; teste de regressão passou. Fixture SQL adicional gravou três versões por profissional vinculado com dados fictícios; não comprova semântica completa nem integração Auth/Vault real.

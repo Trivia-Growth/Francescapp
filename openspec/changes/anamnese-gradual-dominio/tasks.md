@@ -52,3 +52,5 @@ Revisão incremental S-02 do recorte de anamnese `9a7f728^..a5bd692`: revisores 
 Teste integrado local ampliado: sessão encerrada impede leitura e replay de gravação mesmo com autorização simulada obsoleta; passou em PostgreSQL descartável com cifra e atestado reais. Lint e typecheck passaram. Auth e PostgREST permanecem fixtures; isso não comprova revogação no ambiente real nem libera a rota.
 
 Prova no Supabase de teste: uma resposta fictícia foi gravada na anamnese do paciente do lote e recuperada após decifragem, com versão e auditoria confirmadas. Handler, cifra, atestado, Vault e PostgreSQL reais; identidade/autorização e JWT simulados no contexto SQL. Grants e memberships temporários foram removidos dentro das transações e conferidos ausentes. Não comprova jornada HTTP nem negativas reais por perfil; rota segue fechada.
+
+A interface agora impede salvar enquanto há seção ou campo digitado ainda não adicionado, preservando rascunho; teste web focado passou. Rota permanece desativada.

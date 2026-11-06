@@ -48,3 +48,5 @@ Limitação identificada antes da preparação de cancelamento — desconexão: 
 Preparação posterior: cancelamento autenticado de intenção de desconexão grava recibo `cancelada` sob o mesmo bloqueio do POST original. Se cancelar vencer, POST atrasado encontra o recibo e não altera credencial; se desconexão vencer, cancelamento devolve o desfecho anterior. Operação não depende do comprovante antigo e não altera conexão nova. Implementação SQL local ainda requer provas de corrida, isolamento entre usuários e revisão antes da ativação.
 
 Retirada de vínculo manual preparada com UUID por associação, exclusão lógica e auditoria: exige profissional, paciente vinculado, subject e geração vigentes; repetição de vínculo antigo não remove outro posterior. Não modifica Google. Provas de acesso direto, revogação concorrente, histórico e repetição permanecem pendentes; gate fechado.
+
+Marcador local de resultado incerto foi isolado por usuário; marcador antigo sem autoria permanece bloqueado para recuperação. Teste focado passou. A agenda continua desativada e sem prova Google real.
