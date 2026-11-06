@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'">
+  <title>Ativar acesso familiar | FFCMApp</title>
+  <link rel="stylesheet" href="/convite-familiar/tela.css">
+  <script type="module" src="/convite-familiar/tela.js"></script>
+</head>
+<body>
+  <header><span>FFCMApp</span><span>Francescato</span></header>
+  <main>
+    <h1>Ativar acesso familiar</h1>
+    <p>Crie sua senha para acessar o acompanhamento. Depois, entre com seu e-mail e sua senha.</p>
+    <form id="ativacao" hidden>
+      <label for="senha">Senha</label>
+      <input id="senha" type="password" autocomplete="new-password" maxlength="1024" required>
+      <label for="confirmacao">Confirme a senha</label>
+      <input id="confirmacao" type="password" autocomplete="new-password" maxlength="1024" required>
+      <button type="submit">Criar senha</button>
+    </form>
+    <p id="status" role="status" aria-live="polite"></p>
+    <p><a href="/">Voltar para entrada</a></p>
+  </main>
+</body>
+</html>

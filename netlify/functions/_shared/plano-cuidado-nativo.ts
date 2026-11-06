@@ -1,0 +1,373 @@
+import { chaveIdempotenciaSchema, uuidSchema } from '../../../packages/contracts/src/comum.ts';
+import {
+  objetivoSchema,
+  motivoPlanoSchema,
+  conteudoPlanoSchema,
+  respostaPlanoPrivadaSchema,
+  type Objetivo,
+} from '../../../packages/contracts/src/plano-cuidado.ts';
+import {
+  campoCifradoSchema,
+  dadosAtestadoSchema,
+  resultadoAtestacaoSchema,
+  type MetadadosAad,
+  type CampoCifrado,
+} from '../../../packages/contracts/src/rpc.ts';
+
+type Aad = Extract<MetadadosAad, { tabela: 'cadastro.objetivo_cuidado_versao' }>;
+type Identidade = { usuario_id: string; session_id: string };
+type Autorizacao =
+  | { estado: 'autorizado'; identidade: Identidade }
+  | { estado: 'nao_autenticado' | 'sem_permissao' | 'servico_indisponivel' };
+type Comando =
+  | { operacao: 'ler'; paciente_id: string; cursor?: string; limite?: number }
+  | {
+      operacao: 'historico';
+      paciente_id: string;
+      objetivo_id: string;
+      cursor?: string;
+      limite?: number;
+    }
+  | {
+      operacao: 'gravar';
+      paciente_id: string;
+      objetivo_id: string;
+      versao_esperada: number;
+      reserva_id?: string;
+      geracao_reserva?: number;
+      objetivo: unknown;
+      motivo?: unknown;
+    };
+/** Operação interna sem rota ou grant; banco autoriza e audita antes da leitura. */
+export async function operarPlanoCuidadoNativo(
+  request: Request,
+  comando: Comando,
+  portas: {
+    autorizar(request: Request): Promise<Autorizacao>;
+    revalidar(request: Request): Promise<Autorizacao>;
+    metadados(requestId: string): {
+      key_id: string;
+      emitido_em: string;
+      expira_em: string;
+      request_id: string;
+    };
+    cifra: {
+      cifrar(valor: string, aad: Aad): Promise<CampoCifrado>;
+      decifrar(valor: CampoCifrado, aad: Aad): Promise<string>;
+    };
+    cursor: {
+      abrir(cursor: string, vinculo: { usuarioId: string; sessaoId: string }): Promise<string>;
+      emitir(cursor: string, vinculo: { usuarioId: string; sessaoId: string }): Promise<string>;
+    };
+    idempotencia: {
+      calcularDigestIdempotencia(comandoLogico: string): Promise<string>;
+    };
+    atestador: {
+      canonicalizar(valor: unknown): string;
+      atestarEntrada(dados: unknown, entrada: Record<string, unknown>): Promise<unknown>;
+    };
+    executar(
+      request: Request,
+      transporte: {
+        p_transporte: {
+          entrada: Record<string, unknown>;
+          entrada_canonica: string;
+          dados_canonicos: string;
+        };
+      },
+    ): Promise<unknown>;
+  },
+) {
+  const requestId = crypto.randomUUID();
+  const erro = (
+    codigo:
+      | 'entrada_invalida'
+      | 'nao_autenticado'
+      | 'sem_permissao'
+      | 'servico_indisponivel'
+      | 'conflito_versao'
+      | 'conflito_idempotencia'
+      | 'pendencia_externa',
+  ) => ({ ok: false as const, erro: { codigo }, request_id: requestId });
+  let iniciada = false;
+  try {
+    if (request.signal.aborted) return erro('servico_indisponivel');
+    const paciente = uuidSchema.safeParse(comando.paciente_id);
+    if (
+      !paciente.success ||
+      (comando.operacao !== 'ler' &&
+        comando.operacao !== 'gravar' &&
+        comando.operacao !== 'historico')
+    )
+      return erro('entrada_invalida');
+    const pacienteId = paciente.data.toLowerCase();
+    let objetivoId: string | undefined;
+    let objetivo: Objetivo | undefined;
+    let motivo: string | undefined;
+    let chaveIdempotencia: string | undefined;
+    if (comando.operacao === 'historico') {
+      const id = uuidSchema.safeParse(comando.objetivo_id);
+      if (!id.success) return erro('entrada_invalida');
+      objetivoId = id.data.toLowerCase();
+    }
+    if (comando.operacao === 'gravar') {
+      const chave = chaveIdempotenciaSchema.safeParse(request.headers.get('x-chave-idempotencia'));
+      if (!chave.success) return erro('entrada_invalida');
+      chaveIdempotencia = chave.data;
+      const id = uuidSchema.safeParse(comando.objetivo_id);
+      const reserva = uuidSchema.safeParse(comando.reserva_id);
+      const valor = objetivoSchema.safeParse(comando.objetivo);
+      const razao = motivoPlanoSchema.safeParse(comando.motivo);
+      if (
+        !id.success ||
+        !valor.success ||
+        (comando.versao_esperada === 0 &&
+          (!reserva.success ||
+            !Number.isSafeInteger(comando.geracao_reserva) ||
+            Number(comando.geracao_reserva) < 1)) ||
+        (comando.versao_esperada > 0 &&
+          (comando.reserva_id !== undefined || comando.geracao_reserva !== undefined)) ||
+        !Number.isInteger(comando.versao_esperada) ||
+        comando.versao_esperada < 0 ||
+        comando.versao_esperada >= 2147483647 ||
+        (comando.versao_esperada > 0 && !razao.success) ||
+        (comando.motivo !== undefined && !razao.success)
+      )
+        return erro('entrada_invalida');
+      objetivoId = id.data.toLowerCase();
+      objetivo = valor.data;
+      motivo = razao.success ? razao.data : undefined;
+      if (new TextEncoder().encode(JSON.stringify({ objetivo, motivo })).length > 23_000)
+        return erro('entrada_invalida');
+    }
+    const autorizacao = await portas.autorizar(request);
+    if (autorizacao.estado !== 'autorizado') return erro(autorizacao.estado);
+    const identidade = {
+      usuario_id: uuidSchema.parse(autorizacao.identidade.usuario_id).toLowerCase(),
+      session_id: uuidSchema.parse(autorizacao.identidade.session_id).toLowerCase(),
+    };
+    if (
+      request.signal.aborted ||
+      request.headers.get('x-sessao')?.toLowerCase() !== identidade.session_id
+    )
+      return erro('nao_autenticado');
+    const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+    let cursorInterno: string | number | null = null;
+    let vinculoCursor: { usuarioId: string; sessaoId: string } | undefined;
+    if (comando.operacao !== 'gravar') {
+      const limite = comando.limite ?? 20;
+      if (
+        !Number.isInteger(limite) ||
+        limite < 1 ||
+        limite > 20 ||
+        (comando.cursor !== undefined &&
+          (typeof comando.cursor !== 'string' ||
+            comando.cursor.length > 512 ||
+            comando.cursor.length === 0))
+      )
+        return erro('entrada_invalida');
+      // Deriva domínio do cursor a partir da sessão, paciente e operação, sem expor esses dados no token.
+      const contexto = `${identidade.session_id}:${pacienteId}:${comando.operacao}:${objetivoId ?? ''}`;
+      const hash = new Uint8Array(
+        await crypto.subtle.digest('SHA-256', new TextEncoder().encode(contexto)),
+      );
+      hash[6] = ((hash[6] ?? 0) & 15) | 64;
+      hash[8] = ((hash[8] ?? 0) & 63) | 128;
+      const hex = Array.from(hash.slice(0, 16), (b) => b.toString(16).padStart(2, '0')).join('');
+      vinculoCursor = {
+        usuarioId: identidade.usuario_id,
+        sessaoId: `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`,
+      };
+      if (comando.cursor !== undefined) {
+        try {
+          const aberto = await portas.cursor.abrir(comando.cursor, vinculoCursor);
+          if (comando.operacao === 'historico') {
+            if (!/^00000000-0000-4000-8000-[0-9a-f]{12}$/.test(aberto))
+              return erro('entrada_invalida');
+            cursorInterno = Number.parseInt(aberto.slice(-12), 16);
+            if (cursorInterno < 1 || cursorInterno > 2147483647) return erro('entrada_invalida');
+          } else cursorInterno = uuidSchema.parse(aberto).toLowerCase();
+        } catch {
+          return erro('entrada_invalida');
+        }
+      }
+      entrada.cursor = cursorInterno;
+      entrada.limite = limite;
+    }
+    if (comando.operacao === 'historico') entrada.objetivo_id = objetivoId;
+    if (comando.operacao === 'gravar' && objetivoId && objetivo) {
+      const registroId = crypto.randomUUID();
+      const aad: Aad = {
+        tabela: 'cadastro.objetivo_cuidado_versao',
+        paciente_id: pacienteId,
+        objetivo_id: objetivoId,
+        registro_id: registroId,
+        versao: comando.versao_esperada + 1,
+        campo: 'conteudo',
+        formato: 1,
+      };
+      const conteudo = conteudoPlanoSchema.parse({
+        objetivo,
+        ...(motivo === undefined ? {} : { motivo }),
+        ator_usuario_id: identidade.usuario_id,
+        data: new Date().toISOString(),
+      });
+      const digest = await portas.idempotencia.calcularDigestIdempotencia(
+        portas.atestador.canonicalizar({
+          paciente_id: pacienteId,
+          objetivo_id: objetivoId,
+          versao_esperada: comando.versao_esperada,
+          objetivo,
+          ...(motivo === undefined ? {} : { motivo }),
+        }),
+      );
+      if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) throw new Error();
+      if (comando.versao_esperada === 0) {
+        entrada.reserva_id = uuidSchema.parse(comando.reserva_id).toLowerCase();
+        entrada.geracao_reserva = comando.geracao_reserva;
+      }
+      Object.assign(entrada, {
+        chave_idempotencia: chaveIdempotencia,
+        digest_idempotencia: digest,
+        objetivo_id: objetivoId,
+        registro_id: registroId,
+        versao_esperada: comando.versao_esperada,
+        conteudo: campoCifradoSchema.parse(
+          await portas.cifra.cifrar(JSON.stringify(conteudo), aad),
+        ),
+        aad,
+      });
+    }
+    const metadados = dadosAtestadoSchema.omit({ digest_entrada: true }).parse({
+      ...portas.metadados(requestId),
+      ...identidade,
+      operacao:
+        comando.operacao === 'ler'
+          ? 'api.ler_plano_cuidado'
+          : comando.operacao === 'historico'
+            ? 'api.ler_historico_objetivo_cuidado'
+            : 'api.gravar_objetivo_cuidado',
+    });
+    if (metadados.request_id !== requestId) throw new Error();
+    const prova = resultadoAtestacaoSchema.parse(
+      await portas.atestador.atestarEntrada(metadados, entrada),
+    );
+    const dados = dadosAtestadoSchema.parse(JSON.parse(prova.dadosCanonicos));
+    if (
+      portas.atestador.canonicalizar(entrada) !== prova.entradaCanonica ||
+      portas.atestador.canonicalizar(dados) !== prova.dadosCanonicos ||
+      Object.entries(metadados).some(([k, v]) => dados[k as keyof typeof dados] !== v) ||
+      Object.entries(dados).some(([k, v]) => prova.atestado[k as keyof typeof dados] !== v)
+    )
+      throw new Error();
+    if (request.signal.aborted) throw new Error();
+    iniciada = comando.operacao === 'gravar';
+    const resposta = respostaPlanoPrivadaSchema.parse(
+      await portas.executar(request, {
+        p_transporte: {
+          entrada: { ...entrada, atestado: prova.atestado },
+          entrada_canonica: prova.entradaCanonica,
+          dados_canonicos: prova.dadosCanonicos,
+        },
+      }),
+    );
+    if (request.signal.aborted || resposta.request_id !== requestId) throw new Error();
+    if (!resposta.ok)
+      return erro(
+        resposta.erro.codigo === 'conflito'
+          ? 'conflito_versao'
+          : resposta.erro.codigo === 'conflito_idempotencia'
+            ? 'conflito_idempotencia'
+            : 'sem_permissao',
+      );
+    const pagina = 'itens' in resposta.dados ? resposta.dados : undefined;
+    if ((comando.operacao !== 'gravar') !== (pagina !== undefined)) throw new Error();
+    const registros = pagina
+      ? pagina.itens
+      : [resposta.dados as Exclude<typeof resposta.dados, { itens: unknown }>];
+    if (
+      pagina &&
+      (registros.length > (comando.operacao === 'gravar' ? 0 : (comando.limite ?? 20)) ||
+        (pagina.proximo_cursor !== null && registros.length === 0))
+    )
+      throw new Error();
+    if (
+      comando.operacao === 'gravar' &&
+      (registros.length !== 1 ||
+        (!resposta.repeticao && registros[0]?.registro_id !== entrada.registro_id) ||
+        registros[0]?.objetivo_id !== objetivoId ||
+        registros[0]?.versao !== comando.versao_esperada + 1)
+    )
+      throw new Error();
+    const vistos = new Set<string>();
+    const resultado = [];
+    let ultimoObjetivo = typeof cursorInterno === 'string' ? cursorInterno : '';
+    for (const [indice, registro] of registros.entries()) {
+      if (
+        registro.paciente_id.toLowerCase() !== pacienteId ||
+        (comando.operacao === 'historico'
+          ? registro.objetivo_id.toLowerCase() !== objetivoId ||
+            registro.versao !== Number(cursorInterno ?? 0) + indice + 1
+          : vistos.has(registro.objetivo_id.toLowerCase()) ||
+            (comando.operacao === 'ler' && registro.objetivo_id.toLowerCase() <= ultimoObjetivo))
+      )
+        throw new Error();
+      vistos.add(registro.objetivo_id.toLowerCase());
+      ultimoObjetivo = registro.objetivo_id.toLowerCase();
+      const aad: Aad = {
+        tabela: 'cadastro.objetivo_cuidado_versao',
+        paciente_id: pacienteId,
+        objetivo_id: registro.objetivo_id.toLowerCase(),
+        registro_id: registro.registro_id.toLowerCase(),
+        versao: registro.versao,
+        campo: 'conteudo',
+        formato: 1,
+      };
+      const conteudo = conteudoPlanoSchema.parse(
+        JSON.parse(await portas.cifra.decifrar(registro.conteudo, aad)),
+      );
+      if (registro.versao > 1 && !conteudo.motivo) throw new Error();
+      resultado.push({ objetivo_id: aad.objetivo_id, versao: registro.versao, ...conteudo });
+    }
+    let proximoCursor: string | null = null;
+    if (
+      pagina &&
+      pagina.proximo_cursor !== null &&
+      comando.operacao !== 'gravar' &&
+      vinculoCursor
+    ) {
+      const ultimo = registros.at(-1);
+      if (
+        !ultimo ||
+        (comando.operacao === 'historico'
+          ? typeof pagina.proximo_cursor !== 'number' || pagina.proximo_cursor !== ultimo.versao
+          : typeof pagina.proximo_cursor !== 'string' ||
+            pagina.proximo_cursor.toLowerCase() !== ultimo.objetivo_id.toLowerCase())
+      )
+        throw new Error();
+      const valor =
+        typeof pagina.proximo_cursor === 'number'
+          ? `00000000-0000-4000-8000-${pagina.proximo_cursor.toString(16).padStart(12, '0')}`
+          : pagina.proximo_cursor;
+      proximoCursor = await portas.cursor.emitir(valor, vinculoCursor);
+    }
+    const atual = await portas.revalidar(request);
+    if (
+      request.signal.aborted ||
+      atual.estado !== 'autorizado' ||
+      atual.identidade.usuario_id.toLowerCase() !== identidade.usuario_id ||
+      atual.identidade.session_id.toLowerCase() !== identidade.session_id
+    )
+      return erro(iniciada ? 'pendencia_externa' : 'nao_autenticado');
+    return {
+      ok: true as const,
+      dados:
+        comando.operacao !== 'gravar'
+          ? { itens: resultado, proximo_cursor: proximoCursor }
+          : resultado[0],
+      request_id: requestId,
+    };
+  } catch {
+    return erro(iniciada ? 'pendencia_externa' : 'servico_indisponivel');
+  }
+}

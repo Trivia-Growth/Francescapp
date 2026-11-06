@@ -5,6 +5,44 @@ import { perfilSchema, uuidSchema, versaoSchema } from './comum.ts';
 const emailSchema = z.string().trim().email().max(254);
 const motivoSchema = z.string().trim().min(1).max(500);
 
+/** Contratos de entrada, sem concessão de acesso ou ativação de rota. */
+export const criarConviteFamiliarSchema = z
+  .object({
+    convite_id: uuidSchema,
+    tentativa_id: uuidSchema,
+    acesso_id: uuidSchema,
+    autorizar_acesso: z.literal(true),
+    paciente_id: uuidSchema,
+    email: emailSchema,
+    motivo: motivoSchema,
+  })
+  .strict();
+
+export const reenviarConviteFamiliarSchema = z.object({ convite_id: uuidSchema }).strict();
+
+export const estadoConviteFamiliarSchema = z.enum(['pendente', 'enviado', 'falha', 'ativado']);
+export const ativarConviteFamiliarSchema = z
+  .object({
+    convite_id: uuidSchema,
+    tipo: z.enum(['invite', 'recovery']),
+    token_hash: z.string().regex(/^[a-f0-9]{64}$/i),
+    senha: z.string().min(1).max(1024),
+  })
+  .strict();
+export const resultadoAtivacaoFamiliarSchema = z
+  .object({ ok: z.literal(true), usuario_id: uuidSchema })
+  .strict();
+
+export const entradaVinculoFamiliarPrivadoSchema = z
+  .object({
+    operacao_id: uuidSchema,
+    request_id: uuidSchema,
+    paciente_id: uuidSchema,
+    familiar_id: uuidSchema,
+    motivo: motivoSchema,
+  })
+  .strict();
+
 export const metodoConcessaoSchema = z.literal('google_workspace');
 export const estadoConcessaoSchema = z.enum(['pendente', 'vinculada', 'revogada']);
 export type EstadoConcessao = z.infer<typeof estadoConcessaoSchema>;
@@ -72,6 +110,10 @@ export const sessaoAtualSchema = z
   })
   .strict();
 
+/** Contexto nativo, não credencial: permite rejeitar mutações/saída de uma aba
+ * antiga quando os cookies já pertencem a outro login. Autoridade fica no banco. */
+export const sessaoNativaSchema = sessaoAtualSchema.extend({ session_id: uuidSchema }).strict();
+
 export const entradaSessaoRespostaSchema = z
   .object({
     sessao: sessaoAtualSchema,
@@ -110,12 +152,16 @@ export const entrarGoogleSchema = z
   })
   .strict();
 
+export const solicitarRecuperacaoSchema = z.object({ email: emailSchema }).strict();
+
 export const entrarTecnicoSchema = z
   .object({
     email: emailSchema,
     senha: z.string().min(1).max(1_024),
   })
   .strict();
+
+export const entrarFamiliarSchema = entrarTecnicoSchema;
 
 export const csrfSchema = z.string().min(32).max(512);
 

@@ -129,6 +129,8 @@ const entradas: Record<Rota, Record<string, unknown>> = {
     ...mutacao,
     paciente_id: uuid,
     contato_id: uuid,
+    reserva_id: uuid,
+    geracao_reserva: 1,
     tipo: 'email',
     valor: cifra,
     aad: { tabela: 'cadastro.contato_paciente', registro_id: uuid, campo: 'valor', formato: 1 },
@@ -174,7 +176,7 @@ const saidas: Record<Rota, unknown> = {
   renovarSessao: sessao,
   sairSessao: { encerrada_localmente: true, pendencia_externa: false },
   sessaoAtual: sessao,
-  listarConcessoes: pagina(concessao),
+  listarConcessoes: pagina({ ...concessao, ativo: null }),
   criarConcessao: concessao,
   revogarConcessao: concessao,
   atualizarAcessoUsuario: { usuario_id: uuid, perfil: 'profissional', ativo: false, versao: 1 },
@@ -426,7 +428,12 @@ describe('interfaces internas consumidas por banco, sessão e handlers', () => {
   });
   it('cobre as rotas com RPC definida e identifica a reconciliação ainda sem RPC', () => {
     const rotasSemRpc = Object.keys(contratosRotas).filter((rota) => !(rota in assinaturasRpc));
-    expect(rotasSemRpc).toEqual(['desafioTecnico', 'consultarOperacoesCadastro']);
+    expect(rotasSemRpc).toEqual([
+      'desafioTecnico',
+      'consultarOperacoesCadastro',
+      'consultarAnamnese',
+      'salvarAnamnese',
+    ]);
     expect(Object.keys(assinaturasRpc).every((rota) => rota in contratosRotas)).toBe(true);
     expect(contratosRpc.admitirSessao.contexto).toBe('somente-servidor');
   });

@@ -1,10 +1,22 @@
+import { criarContatoReservadoHttpSchema } from '../packages/contracts/src/barreira-contato-servidor.js';
 import {
   contratosRotas,
+  contratosBarreiraHttp,
+  contratosBarreiraContatoHttp,
   erroRespostaSchema,
   mensagensErro,
   statusErroHttp,
   sucessoRespostaSchema,
+  sessaoNativaSchema,
+  entrarTecnicoSchema,
+  entrarFamiliarSchema,
+  chaveIdempotenciaSchema,
+  pacienteAdministrativoSchema,
+  pacienteBasicoSchema,
+  type novoContatoSchema,
+  type AtualizarPaciente,
   type CriarPaciente,
+  type SalvarAnamnese,
 } from '../packages/contracts/src/index.js';
 
 export class FalhaApi extends Error {
@@ -17,8 +29,79 @@ export class FalhaApi extends Error {
   }
 }
 
-type Rota = keyof typeof contratosRotas;
-type Dados<R extends Rota> = ReturnType<(typeof contratosRotas)[R]['saida']['parse']>;
+const rotas = {
+  sessaoAtual: { ...contratosRotas.sessaoAtual, saida: sessaoNativaSchema },
+  entrarTecnico: {
+    metodo: 'POST',
+    caminho: '/api/auth/tecnica',
+    entrada: entrarTecnicoSchema,
+    saida: sessaoNativaSchema,
+  },
+  entrarFamiliar: {
+    metodo: 'POST',
+    caminho: '/api/auth/familiar',
+    entrada: entrarFamiliarSchema,
+    saida: sessaoNativaSchema,
+  },
+  sessaoFamiliar: {
+    ...contratosRotas.sessaoAtual,
+    caminho: '/api/familiar/sessao',
+    saida: sessaoNativaSchema,
+  },
+  sairFamiliar: { ...contratosRotas.sairSessao, caminho: '/api/familiar/sessao/sair' },
+  listarPacientes: contratosRotas.listarPacientes,
+  listarConcessoes: contratosRotas.listarConcessoes,
+  listarPacientesFamiliar: {
+    ...contratosRotas.listarPacientes,
+    caminho: '/api/familiar/pacientes',
+  },
+  consultarPaciente: { ...contratosRotas.consultarPaciente, saida: pacienteAdministrativoSchema },
+  consultarPacienteFamiliar: {
+    ...contratosRotas.consultarPaciente,
+    caminho: '/api/familiar/pacientes/:paciente_id',
+    saida: pacienteBasicoSchema,
+  },
+  atualizarPaciente: contratosRotas.atualizarPaciente,
+  criarContato: { ...contratosRotas.criarContato, entrada: criarContatoReservadoHttpSchema },
+  consultarAnamnese: contratosRotas.consultarAnamnese,
+  salvarAnamnese: contratosRotas.salvarAnamnese,
+  criarPaciente: contratosRotas.criarPaciente,
+  sairSessao: contratosRotas.sairSessao,
+  consultarBarreiraContato: {
+    ...contratosBarreiraContatoHttp.consultar,
+    saida: contratosBarreiraContatoHttp.consultar.saida.shape.dados,
+  },
+  reservarBarreiraContato: {
+    ...contratosBarreiraContatoHttp.reservar,
+    saida: contratosBarreiraContatoHttp.reservar.saida.shape.dados,
+  },
+  encerrarBarreiraContato: {
+    ...contratosBarreiraContatoHttp.encerrar,
+    saida: contratosBarreiraContatoHttp.encerrar.saida.shape.dados,
+  },
+  reconhecerBarreiraContato: {
+    ...contratosBarreiraContatoHttp.reconhecer,
+    saida: contratosBarreiraContatoHttp.reconhecer.saida.shape.dados,
+  },
+  consultarBarreira: {
+    ...contratosBarreiraHttp.consultar,
+    saida: contratosBarreiraHttp.consultar.saida.shape.dados,
+  },
+  reservarBarreira: {
+    ...contratosBarreiraHttp.reservar,
+    saida: contratosBarreiraHttp.reservar.saida.shape.dados,
+  },
+  encerrarBarreira: {
+    ...contratosBarreiraHttp.encerrar,
+    saida: contratosBarreiraHttp.encerrar.saida.shape.dados,
+  },
+  reconhecerBarreira: {
+    ...contratosBarreiraHttp.reconhecer,
+    saida: contratosBarreiraHttp.reconhecer.saida.shape.dados,
+  },
+} as const;
+type Rota = keyof typeof rotas;
+type Dados<R extends Rota> = ReturnType<(typeof rotas)[R]['saida']['parse']>;
 
 const limiteResposta = 1_048_576;
 
@@ -84,113 +167,35 @@ export function resultadoIncerto(erro: unknown): boolean {
 
 /** Uma instância por página. Credenciais e respostas nunca entram em armazenamento ou logs. */
 export class ClienteFFCM {
-  #accessToken: string | null = null;
-  #csrf: string | null = null;
-  #seletorSessao: string | null = null;
-  #provaSessao: string | null = null;
-  #geracaoSessao: number | null = null;
+  #sessionId: string | null = null;
   #usuarioId: string | null = null;
-  #geracao = 0;
+  // Contador de respostas da interface; não é credencial nem geração de sessão.
+  #revisao = 0;
+  #tentativaEntrada = 0;
   #saindo = false;
-  #renovacao: Promise<void> | null = null;
+  #vinculosPaciente = new Map<string, { pacienteId: string; sessionId: string }>();
+  #vinculosContato = new Map<string, { pacienteId: string; sessionId: string }>();
+  #vinculosAnamnese = new Map<string, { pacienteId: string; sessionId: string }>();
 
   limpar(): void {
-    this.#accessToken = null;
-    this.#csrf = null;
-    this.#seletorSessao = null;
-    this.#provaSessao = null;
-    this.#geracaoSessao = null;
+    this.#sessionId = null;
     this.#usuarioId = null;
     this.#saindo = false;
-    this.#renovacao = null;
-    this.#geracao += 1;
-  }
-
-  async #renovar(): Promise<void> {
-    if (this.#renovacao) return this.#renovacao;
-    const geracao = this.#geracao;
-    const csrf = this.#csrf;
-    const seletorSessao = this.#seletorSessao;
-    const usuarioId = this.#usuarioId;
-    const provaSessao = this.#provaSessao;
-    const geracaoSessao = this.#geracaoSessao;
-    if (!csrf || !seletorSessao || !usuarioId || !provaSessao || !geracaoSessao || this.#saindo)
-      throw new FalhaApi('nao_autenticado', 401);
-    const renovacao = (async () => {
-      try {
-        const entrada = await this.#enviar(
-          'renovarSessao',
-          {},
-          { csrf, seletorSessao, provaSessao, geracaoSessao },
-        );
-        if (
-          entrada.csrf !== csrf ||
-          entrada.seletor_sessao !== seletorSessao ||
-          entrada.sessao.usuario.id !== usuarioId ||
-          entrada.geracao_sessao !== geracaoSessao + 1 ||
-          entrada.prova_sessao === provaSessao
-        ) {
-          throw new FalhaApi('nao_autenticado', 401);
-        }
-        if (geracao !== this.#geracao) throw new FalhaApi('nao_autenticado', 401);
-        this.#accessToken = entrada.access_token;
-        this.#provaSessao = entrada.prova_sessao;
-        this.#geracaoSessao = entrada.geracao_sessao;
-      } catch (erro) {
-        if (geracao === this.#geracao) {
-          this.limpar();
-          throw new FalhaApi('nao_autenticado', 401);
-        }
-        throw erro;
-      }
-    })();
-    this.#renovacao = renovacao;
-    try {
-      await renovacao;
-    } finally {
-      if (this.#renovacao === renovacao) this.#renovacao = null;
-    }
-  }
-
-  async #consultar<R extends 'sessaoAtual' | 'listarPacientes'>(
-    rota: R,
-    entrada: unknown = {},
-  ): Promise<Dados<R>> {
-    const geracao = this.#geracao;
-    const token = this.#accessToken;
-    const geracaoSessao = this.#geracaoSessao;
-    try {
-      return await this.#enviar(rota, entrada, { protegido: true });
-    } catch (erro) {
-      if (
-        !(erro instanceof FalhaApi) ||
-        erro.status !== 401 ||
-        !token ||
-        geracao !== this.#geracao ||
-        this.#saindo
-      )
-        throw erro;
-      if (token === this.#accessToken && geracaoSessao === this.#geracaoSessao)
-        await this.#renovar();
-      if (geracao !== this.#geracao) throw new FalhaApi('nao_autenticado', 401);
-      return this.#enviar(rota, entrada, { protegido: true });
-    }
+    this.#revisao += 1;
   }
 
   async #enviar<R extends Rota>(
     rota: R,
     entrada: unknown = {},
     opcoes: {
-      csrf?: string;
-      seletorDesafio?: string;
       chave?: string;
       protegido?: boolean;
-      seletorSessao?: string;
-      provaSessao?: string;
-      geracaoSessao?: number;
+      encerramento?: boolean;
+      pacienteId?: string;
+      fluxoEntrada?: string;
     } = {},
   ): Promise<Dados<R>> {
-    const contrato = contratosRotas[rota];
+    const contrato = rotas[rota];
     const falhaRespostaInvalida = (status: number): FalhaApi => {
       if (opcoes.protegido && contrato.metodo !== 'GET')
         return new FalhaApi('servico_indisponivel', 0, status === 401 || status === 403);
@@ -198,35 +203,71 @@ export class ClienteFFCM {
     };
     const validada = contrato.entrada.safeParse(entrada);
     if (!validada.success) throw new FalhaApi('entrada_invalida', 422);
-    const geracao = this.#geracao;
-    const geracaoSessao = this.#geracaoSessao;
+    const revisao = this.#revisao;
+    const sessionId = this.#sessionId;
     const conferirGeracao = () => {
-      if (geracao !== this.#geracao) {
+      if (revisao !== this.#revisao || (opcoes.protegido && sessionId !== this.#sessionId)) {
         if (opcoes.protegido && contrato.metodo !== 'GET')
           throw new FalhaApi('servico_indisponivel');
         throw new FalhaApi('nao_autenticado', 401);
       }
-      if (opcoes.protegido && geracaoSessao !== this.#geracaoSessao) {
-        if (contrato.metodo === 'GET') throw new FalhaApi('nao_autenticado', 401);
-        throw new FalhaApi('servico_indisponivel');
-      }
     };
-    const url = new URL(contrato.caminho, window.location.origin);
+    let caminho: string = contrato.caminho;
+    if (
+      rota === 'consultarAnamnese' ||
+      rota === 'salvarAnamnese' ||
+      rota === 'consultarPaciente' ||
+      rota === 'consultarPacienteFamiliar' ||
+      rota === 'atualizarPaciente' ||
+      rota === 'criarContato'
+    ) {
+      const parametros = contratosRotas.consultarAnamnese.parametros.safeParse({
+        paciente_id: opcoes.pacienteId,
+      });
+      if (!parametros.success) throw new FalhaApi('entrada_invalida', 422);
+      caminho = caminho.replace(':paciente_id', encodeURIComponent(parametros.data.paciente_id));
+    }
+    const url = new URL(caminho, window.location.origin);
     const headers = new Headers({ Accept: 'application/json' });
     if (opcoes.protegido) {
-      if (!this.#accessToken || !this.#provaSessao || !this.#geracaoSessao || this.#saindo)
+      if (!sessionId || (this.#saindo && !opcoes.encerramento))
         throw new FalhaApi('nao_autenticado', 401);
-      headers.set('Authorization', `Bearer ${this.#accessToken}`);
-      headers.set('x-ffcm-prova-sessao', this.#provaSessao);
-      headers.set('x-ffcm-geracao-sessao', String(this.#geracaoSessao));
+      // Compara o alvo com o cookie atual no servidor; nunca concede autorização.
+      headers.set('x-sessao', sessionId);
     }
-    if (opcoes.provaSessao && opcoes.geracaoSessao) {
-      headers.set('x-ffcm-prova-sessao', opcoes.provaSessao);
-      headers.set('x-ffcm-geracao-sessao', String(opcoes.geracaoSessao));
+    if (rota === 'entrarTecnico' || rota === 'entrarFamiliar') {
+      if (!opcoes.fluxoEntrada || !/^[A-Za-z0-9_-]{22}$/.test(opcoes.fluxoEntrada))
+        throw new FalhaApi('nao_autenticado', 401);
+      headers.set('x-fluxo', opcoes.fluxoEntrada);
+    } else {
+      let fluxo: string | null;
+      let modo: string | null;
+      try {
+        modo = sessionStorage.getItem('modo-acesso');
+        fluxo = sessionStorage.getItem(
+          modo === 'familiar' || modo === 'saindo-familiar'
+            ? 'fluxo-familiar'
+            : modo === 'tecnica' || modo === 'saindo-tecnica'
+              ? 'fluxo-tecnico'
+              : 'fluxo-google',
+        );
+      } catch {
+        throw new FalhaApi('nao_autenticado', 401);
+      }
+      const google = modo === 'google' || (opcoes.encerramento && modo === 'saindo-google');
+      const tecnica = modo === 'tecnica' || (opcoes.encerramento && modo === 'saindo-tecnica');
+      const familiar = modo === 'familiar' || (opcoes.encerramento && modo === 'saindo-familiar');
+      const rotaFamiliar =
+        rota === 'sessaoFamiliar' ||
+        rota === 'sairFamiliar' ||
+        rota === 'listarPacientesFamiliar' ||
+        rota === 'consultarPacienteFamiliar';
+      if (familiar && !rotaFamiliar) throw new FalhaApi('servico_indisponivel', 503);
+      if ((!google && !tecnica && !familiar) || (!familiar && rotaFamiliar))
+        throw new FalhaApi('nao_autenticado', 401);
+      if (!fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo)) throw new FalhaApi('nao_autenticado', 401);
+      headers.set('x-fluxo', fluxo);
     }
-    if (opcoes.csrf) headers.set('x-csrf', opcoes.csrf);
-    if (opcoes.seletorDesafio) headers.set('x-desafio', opcoes.seletorDesafio);
-    if (opcoes.seletorSessao) headers.set('x-sessao', opcoes.seletorSessao);
     if (opcoes.chave) headers.set('x-chave-idempotencia', opcoes.chave);
     let corpo: string | undefined;
     if (contrato.metodo === 'GET') {
@@ -294,110 +335,313 @@ export class ClienteFFCM {
   }
 
   async entrar(email: string, senha: string): Promise<Dados<'sessaoAtual'>> {
-    this.limpar();
-    const desafio = await this.#enviar('desafioTecnico');
-    const entrada = await this.#enviar(
-      'entrarTecnico',
-      { email, senha },
-      { csrf: desafio.csrf, seletorDesafio: desafio.seletor_desafio },
-    );
-    this.#accessToken = entrada.access_token;
-    this.#csrf = entrada.csrf;
-    this.#seletorSessao = entrada.seletor_sessao;
-    this.#provaSessao = entrada.prova_sessao;
-    this.#geracaoSessao = entrada.geracao_sessao;
-    this.#usuarioId = entrada.sessao.usuario.id;
-    const geracao = this.#geracao;
-    try {
-      // Perfil/capacidades atuais vêm do servidor, nunca de um JWT decodificado pelo cliente.
-      return await this.consultarSessao();
-    } catch (erro) {
-      if (this.#geracao === geracao) this.limpar();
-      throw erro;
-    }
+    return this.#entrar(email, senha, 'tecnica');
   }
 
-  /** O provedor recebe apenas o nonce; desafio, CSRF e credencial ficam em memória. */
-  async entrarGoogle(
-    obterCredencial: (nonce: string) => Promise<string>,
+  async entrarFamiliar(email: string, senha: string): Promise<Dados<'sessaoFamiliar'>> {
+    return this.#entrar(email, senha, 'familiar');
+  }
+
+  async #entrar(
+    email: string,
+    senha: string,
+    modo: 'tecnica' | 'familiar',
   ): Promise<Dados<'sessaoAtual'>> {
+    const tentativa = ++this.#tentativaEntrada;
     this.limpar();
-    const geracao = this.#geracao;
-    const desafio = await this.#enviar('desafioGoogle');
-    let credencial: string;
     try {
-      credencial = await obterCredencial(desafio.nonce_hash);
-    } catch {
-      throw new FalhaApi('servico_indisponivel');
-    }
-    if (geracao !== this.#geracao) throw new FalhaApi('nao_autenticado', 401);
-    const entrada = await this.#enviar(
-      'entrarGoogle',
-      { desafio_id: desafio.desafio_id, credencial },
-      { csrf: desafio.csrf, seletorDesafio: desafio.seletor_desafio },
-    );
-    this.#accessToken = entrada.access_token;
-    this.#csrf = entrada.csrf;
-    this.#seletorSessao = entrada.seletor_sessao;
-    this.#provaSessao = entrada.prova_sessao;
-    this.#geracaoSessao = entrada.geracao_sessao;
-    this.#usuarioId = entrada.sessao.usuario.id;
-    try {
-      return await this.consultarSessao();
+      sessionStorage.setItem('modo-acesso', 'bloqueada');
+      sessionStorage.removeItem('fluxo-google');
+      sessionStorage.removeItem('sessao-tecnica');
+      sessionStorage.removeItem('fluxo-familiar');
+      sessionStorage.removeItem('sessao-familiar');
+      const bytes = crypto.getRandomValues(new Uint8Array(16));
+      const fluxo = btoa(String.fromCharCode(...bytes))
+        .replaceAll('+', '-')
+        .replaceAll('/', '_')
+        .replaceAll('=', '');
+      const chaveFluxo = modo === 'tecnica' ? 'fluxo-tecnico' : 'fluxo-familiar';
+      sessionStorage.setItem(chaveFluxo, fluxo);
+      if (sessionStorage.getItem(chaveFluxo) !== fluxo) throw new Error();
+      const entrada = await this.#enviar(
+        modo === 'tecnica' ? 'entrarTecnico' : 'entrarFamiliar',
+        { email, senha },
+        { fluxoEntrada: fluxo },
+      );
+      sessionStorage.setItem('modo-acesso', modo);
+      // Consulta independente confirma concessão e perfil atuais; não confia só no login.
+      return await this.#consultarSessao(entrada, modo === 'familiar');
     } catch (erro) {
-      if (this.#geracao === geracao) this.limpar();
+      try {
+        if (tentativa === this.#tentativaEntrada)
+          sessionStorage.setItem('modo-acesso', 'bloqueada');
+      } catch {
+        /* falha fechada */
+      }
       throw erro;
     }
   }
 
-  consultarSessao(): Promise<Dados<'sessaoAtual'>> {
-    return this.#consultar('sessaoAtual');
+  async consultarSessao(): Promise<Dados<'sessaoAtual'>> {
+    let familiar: boolean;
+    try {
+      familiar = sessionStorage.getItem('modo-acesso') === 'familiar';
+    } catch {
+      throw new FalhaApi('nao_autenticado', 401);
+    }
+    return this.#consultarSessao(undefined, familiar);
+  }
+
+  async consultarSessaoFamiliar(): Promise<Dados<'sessaoFamiliar'>> {
+    return this.#consultarSessao(undefined, true);
+  }
+
+  async #consultarSessao(
+    entrada?: Dados<'sessaoAtual'>,
+    familiar = false,
+  ): Promise<Dados<'sessaoAtual'>> {
+    if (this.#saindo) throw new FalhaApi('nao_autenticado', 401);
+    const revisao = this.#revisao;
+    const anterior = this.#sessionId;
+    let modo: string | null;
+    let esperada: string | null;
+    try {
+      modo = sessionStorage.getItem('modo-acesso');
+      esperada = sessionStorage.getItem(familiar ? 'sessao-familiar' : 'sessao-tecnica');
+    } catch {
+      throw new FalhaApi('nao_autenticado', 401);
+    }
+    if (
+      (familiar ? modo !== 'familiar' : modo === 'familiar') ||
+      ((modo === 'tecnica' || modo === 'familiar') && !entrada && !esperada)
+    )
+      throw new FalhaApi('nao_autenticado', 401);
+    let atual: Dados<'sessaoAtual'>;
+    try {
+      atual = await this.#enviar(familiar ? 'sessaoFamiliar' : 'sessaoAtual');
+    } catch (erro) {
+      if (
+        erro instanceof FalhaApi &&
+        (erro.status === 401 || erro.status === 403) &&
+        revisao === this.#revisao &&
+        !this.#saindo
+      )
+        this.limpar();
+      throw erro;
+    }
+    if (revisao !== this.#revisao) throw new FalhaApi('nao_autenticado', 401);
+    if (
+      !atual.usuario.ativo ||
+      ((modo === 'tecnica' || modo === 'familiar') && !entrada && atual.session_id !== esperada) ||
+      (entrada &&
+        (atual.session_id !== entrada.session_id || atual.usuario.id !== entrada.usuario.id)) ||
+      (anterior && (atual.session_id !== anterior || atual.usuario.id !== this.#usuarioId))
+    ) {
+      this.limpar();
+      throw new FalhaApi('nao_autenticado', 401);
+    }
+    if ((modo === 'tecnica' || modo === 'familiar') && entrada) {
+      try {
+        const chaveSessao = familiar ? 'sessao-familiar' : 'sessao-tecnica';
+        sessionStorage.setItem(chaveSessao, atual.session_id);
+        if (sessionStorage.getItem(chaveSessao) !== atual.session_id) throw new Error();
+      } catch {
+        this.limpar();
+        throw new FalhaApi('nao_autenticado', 401);
+      }
+    }
+    this.#sessionId = atual.session_id;
+    this.#usuarioId = atual.usuario.id;
+    return atual;
   }
 
   listarPacientes(cursor?: string): Promise<Dados<'listarPacientes'>> {
-    return this.#consultar('listarPacientes', { limite: 25, ...(cursor ? { cursor } : {}) });
+    let familiar: boolean;
+    try {
+      familiar = sessionStorage.getItem('modo-acesso') === 'familiar';
+    } catch {
+      throw new FalhaApi('nao_autenticado', 401);
+    }
+    return this.#enviar(
+      familiar ? 'listarPacientesFamiliar' : 'listarPacientes',
+      { limite: 25, ...(cursor ? { cursor } : {}) },
+      { protegido: true },
+    );
   }
 
-  criarPaciente(entrada: CriarPaciente, chave: string): Promise<Dados<'criarPaciente'>> {
-    if (!this.#provaSessao || !this.#geracaoSessao)
+  listarProfissionais(cursor?: string): Promise<Dados<'listarConcessoes'>> {
+    return this.#enviar(
+      'listarConcessoes',
+      { estado: 'vinculada', limite: 25, ...(cursor ? { cursor } : {}) },
+      { protegido: true },
+    );
+  }
+
+  consultarPacienteFamiliar(pacienteId: string): Promise<Dados<'consultarPacienteFamiliar'>> {
+    return this.#enviar('consultarPacienteFamiliar', {}, { protegido: true, pacienteId });
+  }
+
+  consultarPaciente(pacienteId: string): Promise<Dados<'consultarPaciente'>> {
+    return this.#enviar('consultarPaciente', {}, { protegido: true, pacienteId });
+  }
+
+  atualizarPaciente(
+    pacienteId: string,
+    entrada: AtualizarPaciente,
+    chave: string,
+  ): Promise<Dados<'atualizarPaciente'>> {
+    if (!chaveIdempotenciaSchema.safeParse(chave).success)
+      return Promise.reject(new FalhaApi('entrada_invalida', 422));
+    if (!this.#sessionId) return Promise.reject(new FalhaApi('nao_autenticado', 401));
+    const vinculo = this.#vinculosPaciente.get(chave);
+    if (vinculo && (vinculo.pacienteId !== pacienteId || vinculo.sessionId !== this.#sessionId))
       return Promise.reject(new FalhaApi('nao_autenticado', 401));
-    const cabecalhos = contratosRotas.criarPaciente.cabecalhos.safeParse({
-      'x-chave-idempotencia': chave,
-      'x-ffcm-prova-sessao': this.#provaSessao,
-      'x-ffcm-geracao-sessao': String(this.#geracaoSessao),
-    });
-    if (!cabecalhos.success) return Promise.reject(new FalhaApi('entrada_invalida', 422));
-    return this.#enviar('criarPaciente', entrada, { chave, protegido: true });
+    this.#vinculosPaciente.set(chave, { pacienteId, sessionId: this.#sessionId });
+    return this.#enviar('atualizarPaciente', entrada, { protegido: true, pacienteId, chave });
+  }
+
+  criarContato(
+    pacienteId: string,
+    entrada: ReturnType<typeof novoContatoSchema.parse>,
+    chave: string,
+    reserva: { reserva_id: string; geracao_reserva: number },
+  ): Promise<Dados<'criarContato'>> {
+    if (!chaveIdempotenciaSchema.safeParse(chave).success)
+      return Promise.reject(new FalhaApi('entrada_invalida', 422));
+    if (!this.#sessionId) return Promise.reject(new FalhaApi('nao_autenticado', 401));
+    const vinculo = this.#vinculosContato.get(chave);
+    if (vinculo && (vinculo.pacienteId !== pacienteId || vinculo.sessionId !== this.#sessionId))
+      return Promise.reject(new FalhaApi('nao_autenticado', 401));
+    this.#vinculosContato.set(chave, { pacienteId, sessionId: this.#sessionId });
+    return this.#enviar(
+      'criarContato',
+      { entrada, ...reserva },
+      { protegido: true, pacienteId, chave },
+    );
+  }
+
+  consultarAnamnese(pacienteId: string): Promise<Dados<'consultarAnamnese'>> {
+    return this.#enviar('consultarAnamnese', {}, { protegido: true, pacienteId });
+  }
+
+  salvarAnamnese(
+    pacienteId: string,
+    entrada: SalvarAnamnese,
+    chave: string,
+  ): Promise<Dados<'salvarAnamnese'>> {
+    if (!chaveIdempotenciaSchema.safeParse(chave).success)
+      return Promise.reject(new FalhaApi('entrada_invalida', 422));
+    if (!this.#sessionId) return Promise.reject(new FalhaApi('nao_autenticado', 401));
+    const vinculo = this.#vinculosAnamnese.get(chave);
+    if (vinculo && (vinculo.pacienteId !== pacienteId || vinculo.sessionId !== this.#sessionId))
+      return Promise.reject(new FalhaApi('nao_autenticado', 401));
+    this.#vinculosAnamnese.set(chave, { pacienteId, sessionId: this.#sessionId });
+    return this.#enviar('salvarAnamnese', entrada, { protegido: true, pacienteId, chave });
+  }
+
+  criarPaciente(
+    entrada: CriarPaciente,
+    chave: string,
+    reserva: { reserva_id: string; geracao_reserva: number },
+  ): Promise<Dados<'criarPaciente'>> {
+    if (!chaveIdempotenciaSchema.safeParse(chave).success)
+      return Promise.reject(new FalhaApi('entrada_invalida', 422));
+    return this.#enviar('criarPaciente', { entrada, ...reserva }, { chave, protegido: true });
+  }
+
+  consultarBarreira(): Promise<Dados<'consultarBarreira'>> {
+    return this.#enviar('consultarBarreira', {}, { protegido: true });
+  }
+
+  reservarBarreira(entrada: { epoca: number; reserva_id: string }): Promise<
+    Dados<'reservarBarreira'>
+  > {
+    return this.#enviar('reservarBarreira', entrada, { protegido: true });
+  }
+
+  encerrarBarreira(entrada: {
+    epoca: number;
+    reserva_id: string | null;
+    comando_id: string;
+  }): Promise<Dados<'encerrarBarreira'>> {
+    return this.#enviar('encerrarBarreira', entrada, { protegido: true });
+  }
+
+  reconhecerBarreira(entrada: { comando_id: string }): Promise<Dados<'reconhecerBarreira'>> {
+    return this.#enviar('reconhecerBarreira', entrada, { protegido: true });
+  }
+
+  identidadeAtual(): { usuario_id: string; session_id: string } | null {
+    return this.#usuarioId && this.#sessionId && !this.#saindo
+      ? { usuario_id: this.#usuarioId, session_id: this.#sessionId }
+      : null;
+  }
+
+  consultarBarreiraContato() {
+    return this.#enviar('consultarBarreiraContato', {}, { protegido: true });
+  }
+  reservarBarreiraContato(entrada: { epoca: number; reserva_id: string; paciente_id: string }) {
+    return this.#enviar('reservarBarreiraContato', entrada, { protegido: true });
+  }
+  encerrarBarreiraContato(entrada: {
+    epoca: number;
+    reserva_id: string | null;
+    comando_id: string;
+  }) {
+    return this.#enviar('encerrarBarreiraContato', entrada, { protegido: true });
+  }
+  reconhecerBarreiraContato(entrada: { comando_id: string }) {
+    return this.#enviar('reconhecerBarreiraContato', entrada, { protegido: true });
   }
 
   async sair(): Promise<Dados<'sairSessao'>> {
-    if (!this.#csrf || !this.#seletorSessao || !this.#provaSessao || !this.#geracaoSessao)
+    let familiar: boolean;
+    try {
+      const modo = sessionStorage.getItem('modo-acesso');
+      familiar = modo === 'familiar' || modo === 'saindo-familiar';
+    } catch {
       throw new FalhaApi('nao_autenticado', 401);
-    this.#saindo = true;
-    const geracao = this.#geracao;
-    const renovacao = this.#renovacao;
-    if (renovacao) {
-      try {
-        await renovacao;
-      } catch {
-        // Sem confirmação não há prova vigente para afirmar que o servidor revogou.
-        throw new FalhaApi('renovacao_incerta');
-      }
-      if (geracao !== this.#geracao || !this.#saindo) throw new FalhaApi('nao_autenticado', 401);
     }
-    this.#accessToken = null;
-    this.#geracao += 1;
-    // Se a rede falhar, preserva os dados mínimos em memória para tentar encerrar novamente.
+    return this.#sair(familiar);
+  }
+
+  async sairFamiliar(): Promise<Dados<'sairFamiliar'>> {
+    return this.#sair(true);
+  }
+
+  async #sair(familiar: boolean): Promise<Dados<'sairSessao'>> {
+    if (!this.#sessionId) throw new FalhaApi('nao_autenticado', 401);
+    try {
+      const modo = sessionStorage.getItem('modo-acesso');
+      if (familiar ? modo === 'familiar' : modo === 'google' || modo === 'tecnica')
+        sessionStorage.setItem('modo-acesso', `saindo-${modo}`);
+      else if (
+        familiar
+          ? modo !== 'saindo-familiar'
+          : modo !== 'saindo-google' && modo !== 'saindo-tecnica'
+      )
+        throw new Error();
+    } catch {
+      throw new FalhaApi('nao_autenticado', 401);
+    }
+    this.#saindo = true;
+    this.#revisao += 1;
+    // Rede incerta preserva somente o alvo para nova tentativa, sem liberar consultas.
     const resultado = await this.#enviar(
-      'sairSessao',
+      familiar ? 'sairFamiliar' : 'sairSessao',
       {},
-      {
-        csrf: this.#csrf,
-        seletorSessao: this.#seletorSessao,
-        provaSessao: this.#provaSessao,
-        geracaoSessao: this.#geracaoSessao,
-      },
+      { protegido: true, encerramento: true },
     );
+    try {
+      sessionStorage.setItem('modo-acesso', 'bloqueada');
+      sessionStorage.removeItem('fluxo-google');
+      sessionStorage.removeItem('sessao-tecnica');
+      sessionStorage.removeItem('fluxo-tecnico');
+      sessionStorage.removeItem('fluxo-familiar');
+      sessionStorage.removeItem('sessao-familiar');
+    } catch {
+      throw new FalhaApi('nao_autenticado', 401);
+    }
     this.limpar();
     return resultado;
   }

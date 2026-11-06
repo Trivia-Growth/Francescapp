@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { eventoAuditoriaSchema } from './auditoria.ts';
+import { anamneseSchema, salvarAnamneseSchema } from './anamnese.ts';
+import { reservaCadastroSchema } from './rpc.ts';
 
 import {
   atualizarAcessoUsuarioSchema,
@@ -309,7 +311,12 @@ export const contratosRotas = {
   listarConcessoes: consulta(
     '/api/admin/concessoes-equipe',
     consultaConcessoesSchema,
-    paginaSchema(concessaoEquipeSchema),
+    paginaSchema(
+      concessaoEquipeSchema.omit({ metodo: true }).extend({
+        email: z.string().email().max(254),
+        ativo: z.boolean().nullable(),
+      }),
+    ),
   ),
   criarConcessao: mutacaoIdempotente(
     'POST',
@@ -345,13 +352,28 @@ export const contratosRotas = {
   criarPaciente: mutacaoIdempotente(
     'POST',
     '/api/pacientes',
-    criarPacienteSchema,
+    reservaCadastroSchema.extend({ entrada: criarPacienteSchema }).strict(),
     pacienteAdministrativoSchema,
   ),
   consultarPaciente: consulta(
     '/api/pacientes/:paciente_id',
     vazioSchema,
     z.union([pacienteBasicoSchema, pacienteAdministrativoSchema]),
+    pacienteParametrosSchema,
+  ),
+  // Contratos locais; exposição depende da composição autorizada da rota.
+  consultarAnamnese: consulta(
+    '/api/pacientes/:paciente_id/anamnese',
+    vazioSchema,
+    anamneseSchema.nullable(),
+    pacienteParametrosSchema,
+  ),
+  // Contrato preparado; replay autorizado e prova integrada ainda pendentes.
+  salvarAnamnese: mutacaoIdempotente(
+    'PATCH',
+    '/api/pacientes/:paciente_id/anamnese',
+    salvarAnamneseSchema,
+    anamneseSchema,
     pacienteParametrosSchema,
   ),
   atualizarPaciente: mutacaoIdempotente(
@@ -364,7 +386,7 @@ export const contratosRotas = {
   criarContato: mutacaoIdempotente(
     'POST',
     '/api/pacientes/:paciente_id/contatos',
-    novoContatoSchema,
+    reservaCadastroSchema.extend({ entrada: novoContatoSchema }).strict(),
     pacienteAdministrativoSchema,
     pacienteParametrosSchema,
   ),
@@ -392,7 +414,7 @@ export const contratosRotas = {
   criarAcessoPaciente: mutacaoIdempotente(
     'POST',
     '/api/pacientes/:paciente_id/acessos',
-    criarAcessoPacienteSchema,
+    criarAcessoPacienteSchema.extend({ acesso_id: uuidSchema }),
     operacaoConcluidaSchema,
     pacienteParametrosSchema,
   ),

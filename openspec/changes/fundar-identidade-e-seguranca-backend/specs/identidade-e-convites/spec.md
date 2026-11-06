@@ -50,6 +50,22 @@ O sistema SHALL verificar sessão e autorização vigentes nas operações prote
 - **WHEN** a sessão local for encerrada e o encerramento no provedor falhar
 - **THEN** a sessão local continua bloqueada e a pendência externa é informada sem reabrir o acesso.
 
+#### Scenario: Encerramento externo durante operação autorizada
+- **WHEN** uma operação protegida já autorizada estiver em execução e sua sessão Auth for encerrada fora do FFCMApp
+- **THEN** essa operação pode terminar; novas operações após o encerramento são negadas, mesmo com JWT ainda válido.
+
+#### Scenario: Mudança externa da identidade Auth durante operação autorizada
+- **WHEN** uma operação protegida já autorizada estiver em execução e dados ou vínculos da identidade Auth forem alterados fora do FFCMApp, incluindo desvinculação Google
+- **THEN** essa operação pode terminar; novas operações conferem identidade, perfil, sessão e demais autorizações vigentes e são negadas se não atenderem aos requisitos, mesmo com JWT ainda válido.
+
+#### Scenario: Revogação pelo FFCMApp concorre com operação
+- **WHEN** uma revogação pelo FFCMApp concorrer com uma operação protegida no seu escopo
+- **THEN** a revogação e a autorização são coordenadas no banco; operação ordenada após a revogação é negada.
+
+#### Scenario: Saída pelo FFCMApp concorre com operação
+- **WHEN** a saída pelo FFCMApp concorrer com uma operação protegida da mesma sessão
+- **THEN** o bloqueio local e a autorização da operação são coordenados no banco; operação ordenada após o bloqueio é negada, inclusive se o encerramento externo falhar.
+
 #### Scenario: Configuração obrigatória ausente
 - **WHEN** uma entrada depender de configuração de identidade indisponível
 - **THEN** retorna indisponibilidade identificável, sem sessão simulada, dados de exemplo ou exposição de segredos.

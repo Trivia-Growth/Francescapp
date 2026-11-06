@@ -1,0 +1,856 @@
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createServer } from 'node:http';
+import { chmod, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
+import { pathToFileURL } from 'node:url';
+
+const PREFIX = '/api/local-feedback';
+const ORIGIN = 'http://localhost:5173';
+const COOKIE = 'local_feedback_session';
+const MAX_BODY = 8 * 1024 * 1024;
+export const defaultFeedbackDirectory = join(
+  homedir(),
+  'Library',
+  'Application Support',
+  'FFCMApp Feedback',
+);
+
+export function createLocalFeedbackServer({ password, directory }) {
+  if (typeof password !== 'string' || password.length < 12) {
+    throw new Error('LOCAL_FEEDBACK_PASSWORD deve ter pelo menos 12 caracteres.');
+  }
+  const passwordHash = createHash('sha256').update(password).digest();
+  const sessions = new Map();
+  const attempts = [];
+  let pendingWrite = Promise.resolve();
+  const file = join(directory, 'patients.json');
+
+  async function readPatients() {
+    try {
+      const data = JSON.parse(await readFile(file, 'utf8'));
+      if (!Array.isArray(data)) throw new Error('Invalid storage');
+      return data;
+    } catch (error) {
+      if (error.code === 'ENOENT') return [];
+      throw error;
+    }
+  }
+  async function addPatient(patient) {
+    const operation = pendingWrite.then(async () => {
+      await mkdir(directory, { recursive: true, mode: 0o700 });
+      await chmod(directory, 0o700);
+      const patients = await readPatients();
+      patients.push(patient);
+      const temporary = join(directory, `.patients-${randomUUID()}.tmp`);
+      await writeFile(temporary, JSON.stringify(patients), { mode: 0o600, flag: 'wx' });
+      await rename(temporary, file);
+    });
+    pendingWrite = operation.catch(() => {});
+    return operation;
+  }
+  function validOptionalPatientFields(data) {
+    if (
+      data.birthDate !== undefined &&
+      (typeof data.birthDate !== 'string' ||
+        (data.birthDate !== '' &&
+          (!/^\d{4}-\d{2}-\d{2}$/.test(data.birthDate) ||
+            Number.isNaN(Date.parse(data.birthDate)) ||
+            new Date(data.birthDate).toISOString().slice(0, 10) !== data.birthDate)))
+    )
+      return false;
+    if (
+      data.phone !== undefined &&
+      (typeof data.phone !== 'string' ||
+        (data.phone.trim() !== '' &&
+          (!/^[+\d() .-]{7,32}$/.test(data.phone.trim()) || !/\d/.test(data.phone))))
+    )
+      return false;
+    if (
+      data.email !== undefined &&
+      (typeof data.email !== 'string' ||
+        data.email.trim().length > 254 ||
+        (data.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())))
+    )
+      return false;
+    return true;
+  }
+  function optionalPatientFields(data) {
+    return Object.fromEntries(
+      ['birthDate', 'phone', 'email']
+        .filter((field) => data[field] !== undefined)
+        .map((field) => [field, data[field].trim()]),
+    );
+  }
+  async function updatePatient(id, data) {
+    const operation = pendingWrite.then(async () => {
+      const patients = await readPatients();
+      const index = patients.findIndex((patient) => patient.id === id);
+      if (index < 0) return null;
+      const patient = patients[index];
+      if ((patient.revision ?? 0) !== data.revision) return false;
+      const situacao = data.situacao ?? patient.situacao;
+      const mudouSituacao = situacao !== patient.situacao;
+      if (mudouSituacao && (typeof data.motivoSituacao !== 'string' || !data.motivoSituacao.trim()))
+        return 'invalid';
+      const updated = {
+        ...patient,
+        situacao,
+        historicoSituacao: mudouSituacao
+          ? [
+              ...(patient.historicoSituacao ?? []),
+              {
+                situacao,
+                data: new Date().toISOString(),
+                motivo: (data.motivoSituacao ?? '').trim(),
+              },
+            ]
+          : (patient.historicoSituacao ?? []),
+        name: data.name.trim(),
+        preferredName: data.preferredName.trim(),
+        ...optionalPatientFields(data),
+        revision: data.revision + 1,
+      };
+      patients[index] = updated;
+      const temporary = join(directory, `.patients-${randomUUID()}.tmp`);
+      await writeFile(temporary, JSON.stringify(patients), { mode: 0o600, flag: 'wx' });
+      await rename(temporary, file);
+      return updated;
+    });
+    pendingWrite = operation.catch(() => {});
+    return operation;
+  }
+  function normalizarVinculos(preview, id) {
+    preview.objetivos = (preview.objetivos ?? []).map((goal, index) => ({
+      ...goal,
+      id: goal.id ?? createHash('sha256').update(`${id}:${index}`).digest('hex'),
+    }));
+    preview.tarefas = (preview.tarefas ?? []).map(({ objetivoIndice, ...task }) => ({
+      ...task,
+      ...(task.objetivoId === undefined &&
+      objetivoIndice !== undefined &&
+      preview.objetivos[objetivoIndice]
+        ? { objetivoId: preview.objetivos[objetivoIndice].id }
+        : {}),
+    }));
+    return preview;
+  }
+  async function updatePreview(id, type, value, revision, operationId) {
+    const operation = pendingWrite.then(async () => {
+      if (!(await readPatients()).some((patient) => patient.id === id)) return null;
+      await mkdir(directory, { recursive: true, mode: 0o700 });
+      await chmod(directory, 0o700);
+      const path = join(directory, `preview-${id}.json`);
+      let preview = { revision: 0, anamnese: null, tarefas: [] };
+      try {
+        preview = JSON.parse(await readFile(path, 'utf8'));
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+      normalizarVinculos(preview, id);
+      const reconciliation = type === 'reconciliar-relato';
+      if (operationId && preview.operacoesRelato?.includes(operationId)) {
+        if (!reconciliation) {
+          const digest = createHash('sha256').update(JSON.stringify(value[0])).digest('hex');
+          if (preview.digestsRelato?.[operationId] !== digest) return false;
+        }
+        return preview;
+      }
+      if (operationId && preview.operacoesRelatoCanceladas?.includes(operationId))
+        return reconciliation ? preview : false;
+      if (reconciliation) {
+        preview.operacoesRelatoCanceladas = [
+          ...(preview.operacoesRelatoCanceladas ?? []),
+          operationId,
+        ];
+      } else {
+        if (
+          preview.revision !== revision ||
+          (operationId && (preview.relatos ?? []).length >= 100) ||
+          (type === 'relatos' &&
+            !operationId &&
+            (preview.operacoesRelato?.length || preview.operacoesRelatoCanceladas?.length))
+        )
+          return false;
+        if (
+          type === 'tarefas' &&
+          value.some(
+            (task) =>
+              task.objetivoId !== undefined &&
+              !(preview.objetivos ?? []).some((goal) => goal.id === task.objetivoId),
+          )
+        )
+          return 'invalid';
+        if (
+          type === 'objetivos' &&
+          (new Set(value.map((goal) => goal.id)).size !== value.length ||
+            (preview.tarefas ?? []).some(
+              (task) =>
+                task.objetivoId !== undefined && !value.some((goal) => goal.id === task.objetivoId),
+            ))
+        )
+          return 'invalid';
+        if (operationId) {
+          preview.operacoesRelato = [...(preview.operacoesRelato ?? []), operationId];
+          preview.digestsRelato = {
+            ...preview.digestsRelato,
+            [operationId]: createHash('sha256').update(JSON.stringify(value[0])).digest('hex'),
+          };
+        }
+        preview[type] = operationId ? [...(preview.relatos ?? []), value[0]] : value;
+      }
+      preview.revision += 1;
+      const temporary = join(directory, `.preview-${randomUUID()}.tmp`);
+      await writeFile(temporary, JSON.stringify(preview), { mode: 0o600, flag: 'wx' });
+      await rename(temporary, path);
+      return preview;
+    });
+    pendingWrite = operation.catch(() => {});
+    return operation;
+  }
+  async function readPreview(id) {
+    if (!(await readPatients()).some((patient) => patient.id === id)) return null;
+    try {
+      return normalizarVinculos(
+        JSON.parse(await readFile(join(directory, `preview-${id}.json`), 'utf8')),
+        id,
+      );
+    } catch (error) {
+      if (error.code === 'ENOENT') return { revision: 0, anamnese: null, tarefas: [] };
+      throw error;
+    }
+  }
+  function respond(res, status, body, headers = {}) {
+    res.writeHead(status, {
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      ...headers,
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json; charset=utf-8' }),
+    });
+    res.end(body === undefined ? undefined : JSON.stringify(body));
+  }
+  function session(req) {
+    const token = (req.headers.cookie || '')
+      .split(';')
+      .map((part) => part.trim())
+      .find((part) => part.startsWith(`${COOKIE}=`))
+      ?.slice(COOKIE.length + 1);
+    const entry = sessions.get(token);
+    if (!entry) return null;
+    if (entry.expires <= Date.now()) {
+      sessions.delete(token);
+      return null;
+    }
+    return entry;
+  }
+  async function body(req) {
+    let size = 0;
+    const chunks = [];
+    for await (const chunk of req) {
+      size += chunk.length;
+      if (size > MAX_BODY) throw new Error('body too large');
+      chunks.push(chunk);
+    }
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  }
+  return createServer(async (req, res) => {
+    try {
+      // Accept only literal loopback hosts, including the Vite proxy host.
+      if (
+        !['127.0.0.1:4174', 'localhost:5173'].includes(req.headers.host) ||
+        req.socket.remoteAddress !== '127.0.0.1'
+      )
+        return respond(res, 403);
+      const path = new URL(req.url, 'http://127.0.0.1').pathname;
+      if (!path.startsWith(`${PREFIX}/`)) return respond(res, 404);
+      if (
+        req.method !== 'GET' &&
+        (req.headers.origin !== ORIGIN || req.headers['content-type'] !== 'application/json')
+      )
+        return respond(res, 403);
+      if (req.method === 'GET' && req.headers.origin && req.headers.origin !== ORIGIN)
+        return respond(res, 403);
+      if (path === `${PREFIX}/session` && req.method === 'GET') {
+        const current = session(req);
+        return respond(
+          res,
+          200,
+          current
+            ? { authenticated: true, csrfToken: current.csrfToken }
+            : { authenticated: false },
+        );
+      }
+      if (path === `${PREFIX}/login` && req.method === 'POST') {
+        const now = Date.now();
+        while (attempts.length && attempts[0] <= now - 60_000) attempts.shift();
+        if (attempts.length >= 10) return respond(res, 429);
+        attempts.push(now);
+        let data;
+        try {
+          data = await body(req);
+        } catch {
+          return respond(res, 400);
+        }
+        if (
+          !data ||
+          typeof data.password !== 'string' ||
+          !timingSafeEqual(createHash('sha256').update(data.password).digest(), passwordHash)
+        )
+          return respond(res, 401);
+        attempts.length = 0;
+        const token = randomBytes(32).toString('hex');
+        const csrfToken = randomBytes(32).toString('hex');
+        sessions.set(token, { expires: now + 8 * 60 * 60 * 1000, csrfToken });
+        return respond(
+          res,
+          200,
+          { authenticated: true, csrfToken },
+          {
+            'Set-Cookie': `${COOKIE}=${token}; HttpOnly; SameSite=Strict; Path=/api/local-feedback; Max-Age=28800`,
+          },
+        );
+      }
+      const current = session(req);
+      if (!current) return respond(res, 401);
+      if (req.method !== 'GET' && req.headers['x-csrf-token'] !== current.csrfToken)
+        return respond(res, 403);
+      if (path === `${PREFIX}/logout` && req.method === 'POST') {
+        const token = (req.headers.cookie || '')
+          .split(';')
+          .map((part) => part.trim())
+          .find((part) => part.startsWith(`${COOKIE}=`))
+          ?.slice(COOKIE.length + 1);
+        sessions.delete(token);
+        return respond(res, 204, undefined, {
+          'Set-Cookie': `${COOKIE}=; HttpOnly; SameSite=Strict; Path=/api/local-feedback; Max-Age=0`,
+        });
+      }
+      if (path === `${PREFIX}/pending-tasks` && req.method === 'GET') {
+        const patients = await readPatients();
+        const groups = await Promise.all(
+          patients.map(async (patient) => {
+            let preview;
+            try {
+              preview = JSON.parse(
+                await readFile(join(directory, `preview-${patient.id}.json`), 'utf8'),
+              );
+            } catch (error) {
+              if (error.code !== 'ENOENT') throw error;
+              preview = {};
+            }
+            return {
+              id: patient.id,
+              nome: patient.name,
+              tarefas: (preview.tarefas ?? []).map(({ descricao, responsavel, prazo, estado }) => ({
+                descricao,
+                responsavel,
+                prazo,
+                estado,
+              })),
+            };
+          }),
+        );
+        return respond(res, 200, { patients: groups });
+      }
+      if (path === `${PREFIX}/agenda` && req.method === 'GET') {
+        const patients = await readPatients();
+        const groups = await Promise.all(
+          patients.map(async (patient) => {
+            let preview;
+            try {
+              preview = JSON.parse(
+                await readFile(join(directory, `preview-${patient.id}.json`), 'utf8'),
+              );
+            } catch (error) {
+              if (error.code !== 'ENOENT') throw error;
+              return [];
+            }
+            return (preview.agenda ?? []).map(({ data, hora, descricao, estado }) => ({
+              patientId: patient.id,
+              patientName: patient.name,
+              data,
+              hora,
+              descricao,
+              estado,
+            }));
+          }),
+        );
+        return respond(res, 200, { appointments: groups.flat() });
+      }
+      if (path === `${PREFIX}/patients` && req.method === 'GET')
+        return respond(res, 200, { patients: await readPatients() });
+      if (path === `${PREFIX}/patients` && req.method === 'POST') {
+        let data;
+        try {
+          data = await body(req);
+        } catch {
+          return respond(res, 400);
+        }
+        if (
+          !data ||
+          !validOptionalPatientFields(data) ||
+          (data.situacao !== undefined &&
+            (!['entrada', 'ativo', 'pausado', 'encerrado', 'transferido'].includes(data.situacao) ||
+              typeof data.motivoSituacao !== 'string' ||
+              !data.motivoSituacao.trim() ||
+              data.motivoSituacao.trim().length > 1000)) ||
+          typeof data.name !== 'string' ||
+          !data.name.trim() ||
+          data.name.trim().length > 200 ||
+          (data.preferredName !== undefined &&
+            (typeof data.preferredName !== 'string' || data.preferredName.trim().length > 200))
+        )
+          return respond(res, 400);
+        const patient = {
+          id: randomUUID(),
+          name: data.name.trim(),
+          preferredName: (data.preferredName || '').trim(),
+          ...optionalPatientFields(data),
+          ...(data.situacao
+            ? {
+                situacao: data.situacao,
+                historicoSituacao: [
+                  {
+                    situacao: data.situacao,
+                    data: new Date().toISOString(),
+                    motivo: data.motivoSituacao.trim(),
+                  },
+                ],
+              }
+            : {}),
+        };
+        await addPatient(patient);
+        return respond(res, 201, { patient });
+      }
+      const patientMatch = path.match(/^\/api\/local-feedback\/patients\/([0-9a-f-]{36})$/);
+      if (patientMatch && req.method === 'PUT') {
+        let data;
+        try {
+          data = await body(req);
+        } catch {
+          return respond(res, 400);
+        }
+        if (
+          !data ||
+          !validOptionalPatientFields(data) ||
+          (data.situacao !== undefined &&
+            !['entrada', 'ativo', 'pausado', 'encerrado', 'transferido'].includes(data.situacao)) ||
+          (data.motivoSituacao !== undefined &&
+            (typeof data.motivoSituacao !== 'string' ||
+              data.motivoSituacao.trim().length > 1000)) ||
+          typeof data.name !== 'string' ||
+          !data.name.trim() ||
+          data.name.trim().length > 200 ||
+          typeof data.preferredName !== 'string' ||
+          data.preferredName.trim().length > 200 ||
+          !Number.isSafeInteger(data.revision) ||
+          data.revision < 0
+        )
+          return respond(res, 400);
+        const patient = await updatePatient(patientMatch[1], data);
+        if (patient === null) return respond(res, 404);
+        if (patient === false) return respond(res, 409);
+        if (patient === 'invalid') return respond(res, 400);
+        return respond(res, 200, { patient });
+      }
+      const attachmentMatch = path.match(
+        /^\/api\/local-feedback\/patients\/([0-9a-f-]{36})\/attachments(?:\/([0-9a-f-]{36}))?$/,
+      );
+      if (attachmentMatch && ['GET', 'POST'].includes(req.method)) {
+        const [, patientId, attachmentId] = attachmentMatch;
+        if (!(await readPatients()).some((patient) => patient.id === patientId))
+          return respond(res, 404);
+        const folder = join(directory, `attachments-${patientId}`);
+        if (req.method === 'GET' && attachmentId) {
+          try {
+            const attachment = JSON.parse(
+              await readFile(join(folder, `${attachmentId}.json`), 'utf8'),
+            );
+            const bytes = Buffer.from(attachment.content, 'base64');
+            res.writeHead(200, {
+              'Cache-Control': 'no-store',
+              'X-Content-Type-Options': 'nosniff',
+              'Content-Type': 'application/octet-stream',
+              'Content-Disposition': `attachment; filename="arquivo-ficticio"; filename*=UTF-8''${encodeURIComponent(attachment.name)}`,
+              'Content-Length': bytes.length,
+            });
+            return res.end(bytes);
+          } catch (error) {
+            if (error.code === 'ENOENT') return respond(res, 404);
+            throw error;
+          }
+        }
+        if (req.method === 'GET') {
+          let files;
+          try {
+            files = await readdir(folder);
+          } catch (error) {
+            if (error.code === 'ENOENT') return respond(res, 200, { attachments: [] });
+            throw error;
+          }
+          const attachments = await Promise.all(
+            files
+              .filter((name) => /^[0-9a-f-]{36}\.json$/.test(name))
+              .map(async (name) => {
+                const {
+                  id,
+                  name: filename,
+                  size,
+                } = JSON.parse(await readFile(join(folder, name), 'utf8'));
+                return { id, name: filename, size };
+              }),
+          );
+          return respond(res, 200, { attachments });
+        }
+        if (attachmentId) return respond(res, 404);
+        let data;
+        try {
+          data = await body(req);
+        } catch {
+          return respond(res, 400, { error: 'Arquivo inválido ou grande demais.' });
+        }
+        if (
+          typeof data?.name !== 'string' ||
+          !data.name.trim() ||
+          data.name.length > 200 ||
+          /[\/\\]/.test(data.name) ||
+          [...data.name].some(
+            (character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+          ) ||
+          typeof data.content !== 'string' ||
+          !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(data.content)
+        )
+          return respond(res, 400, { error: 'Arquivo inválido.' });
+        const bytes = Buffer.from(data.content, 'base64');
+        const ext = data.name.toLowerCase().split('.').pop();
+        const valid =
+          (ext === 'pdf' && bytes.subarray(0, 5).toString() === '%PDF-') ||
+          (ext === 'png' && bytes.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex'))) ||
+          (['jpg', 'jpeg'].includes(ext) &&
+            bytes.subarray(0, 3).equals(Buffer.from('ffd8ff', 'hex'))) ||
+          (ext === 'txt' &&
+            !bytes.includes(0) &&
+            Buffer.from(bytes.toString('utf8')).equals(bytes));
+        if (!bytes.length || bytes.length > 2 * 1024 * 1024 || !valid)
+          return respond(res, 400, { error: 'Use PDF, PNG, JPEG ou TXT válido de até 2 MB.' });
+        await mkdir(folder, { recursive: true, mode: 0o700 });
+        await chmod(folder, 0o700);
+        const id = randomUUID();
+        const temporary = join(folder, `.attachment-${randomUUID()}.tmp`);
+        try {
+          await writeFile(
+            temporary,
+            JSON.stringify({
+              id,
+              name: data.name.trim(),
+              size: bytes.length,
+              content: data.content,
+            }),
+            { mode: 0o600, flag: 'wx' },
+          );
+          await rename(temporary, join(folder, `${id}.json`));
+        } catch (error) {
+          await rm(temporary, { force: true });
+          throw error;
+        }
+        return respond(res, 201, {
+          attachment: { id, name: data.name.trim(), size: bytes.length },
+        });
+      }
+      const previewMatch = path.match(
+        /^\/api\/local-feedback\/patients\/([0-9a-f-]{36})\/preview$/,
+      );
+      if (previewMatch && req.method === 'POST') {
+        let data;
+        try {
+          data = await body(req);
+        } catch {
+          return respond(res, 400);
+        }
+        if (
+          typeof data?.operationId !== 'string' ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+            data.operationId,
+          )
+        )
+          return respond(res, 400);
+        const preview = await updatePreview(
+          previewMatch[1],
+          'reconciliar-relato',
+          null,
+          null,
+          data.operationId,
+        );
+        return preview ? respond(res, 200, preview) : respond(res, 404);
+      }
+      if (previewMatch && req.method === 'GET') {
+        const preview = await readPreview(previewMatch[1]);
+        return preview ? respond(res, 200, preview) : respond(res, 404);
+      }
+      if (previewMatch && req.method === 'PUT') {
+        let data;
+        try {
+          data = await body(req);
+        } catch {
+          return respond(res, 400);
+        }
+        const strings = (item, keys) =>
+          item &&
+          typeof item === 'object' &&
+          keys.every((key) => typeof item[key] === 'string' && item[key].length <= 2000);
+        const validAnamnese =
+          data?.type === 'anamnese' &&
+          ((strings(data.value, ['estado', 'valor', 'fonte', 'data']) &&
+            ['pendente', 'informado', 'desconhecido', 'nao_se_aplica'].includes(
+              data.value.estado,
+            )) ||
+            (Array.isArray(data.value) &&
+              data.value.length <= 100 &&
+              data.value.every(
+                (item) =>
+                  strings(item, ['secao', 'campo', 'estado', 'valor', 'fonte', 'data']) &&
+                  item.secao.trim() &&
+                  item.campo.trim() &&
+                  ['pendente', 'informado', 'desconhecido', 'nao_se_aplica'].includes(
+                    item.estado,
+                  ) &&
+                  (item.estado === 'pendente' || (item.fonte.trim() && item.data)) &&
+                  (item.estado !== 'informado' || item.valor.trim()),
+              )));
+        const validDocuments =
+          data?.type === 'documentos' &&
+          Array.isArray(data.value) &&
+          data.value.length <= 100 &&
+          data.value.every(
+            (item) =>
+              strings(item, ['nome', 'categoria']) &&
+              item.nome.trim() &&
+              item.categoria.trim() &&
+              (item.metadados === undefined ||
+                (typeof item.metadados === 'string' && item.metadados.length <= 200)) &&
+              item.nome.length <= 200 &&
+              item.categoria.length <= 200,
+          );
+        const validTasks =
+          data?.type === 'tarefas' &&
+          Array.isArray(data.value) &&
+          data.value.length <= 100 &&
+          data.value.every(
+            (task) =>
+              strings(task, [
+                'descricao',
+                'responsavel',
+                'prazo',
+                'prioridade',
+                'estado',
+                'acaoOuJustificativa',
+              ]) &&
+              ['pendente', 'em_andamento', 'concluida', 'cancelada'].includes(task.estado) &&
+              (task.objetivoId === undefined ||
+                (typeof task.objetivoId === 'string' &&
+                  /^[a-f0-9-]{36,64}$/.test(task.objetivoId))) &&
+              task.objetivoIndice === undefined,
+          );
+        const validGoal = (goal) =>
+          strings(goal, [
+            'descricao',
+            'area',
+            'responsavel',
+            'situacaoInicial',
+            'observacaoProgresso',
+            'dataRevisao',
+            'estado',
+          ]) &&
+          ['descricao', 'area', 'responsavel', 'situacaoInicial', 'observacaoProgresso'].every(
+            (key) => goal[key].trim().length > 0,
+          ) &&
+          ['proposto', 'em andamento', 'atingido', 'pausado', 'revisar', 'encerrado'].includes(
+            goal.estado,
+          ) &&
+          /^\d{4}-\d{2}-\d{2}$/.test(goal.dataRevisao) &&
+          !Number.isNaN(Date.parse(goal.dataRevisao)) &&
+          new Date(goal.dataRevisao).toISOString().slice(0, 10) === goal.dataRevisao;
+        const validGoals =
+          data?.type === 'objetivos' &&
+          Array.isArray(data.value) &&
+          data.value.length <= 100 &&
+          data.value.every(
+            (goal) =>
+              validGoal(goal) &&
+              typeof goal.id === 'string' &&
+              /^[a-f0-9-]{36,64}$/.test(goal.id) &&
+              (goal.historico === undefined ||
+                (Array.isArray(goal.historico) &&
+                  goal.historico.length <= 100 &&
+                  goal.historico.every(
+                    (item) =>
+                      validGoal(item?.objetivo) &&
+                      typeof item.motivo === 'string' &&
+                      item.motivo.trim().length > 0 &&
+                      item.motivo.length <= 2000,
+                  ))),
+          );
+        const validReferrals =
+          data?.type === 'encaminhamentos' &&
+          Array.isArray(data.value) &&
+          data.value.length <= 100 &&
+          new Set(data.value.map((item) => item?.id)).size === data.value.length &&
+          data.value.every(
+            (item) =>
+              strings(item, ['id', 'destino', 'motivo', 'responsavel', 'estado']) &&
+              /^[a-f0-9-]{36}$/.test(item.id) &&
+              ['destino', 'motivo', 'responsavel'].every(
+                (key) => item[key].trim().length > 0 && item[key].length <= 2000,
+              ) &&
+              ['sugerido', 'agendado', 'realizado', 'retorno pendente', 'concluído'].includes(
+                item.estado,
+              ),
+          );
+        const validOrientacoes =
+          data?.type === 'orientacoes' &&
+          Array.isArray(data.value) &&
+          data.value.length <= 100 &&
+          new Set(data.value.map((item) => item?.id)).size === data.value.length &&
+          data.value.every(
+            (item) =>
+              strings(item, ['id', 'texto', 'autor', 'data', 'destinatarios']) &&
+              /^[a-f0-9-]{36}$/.test(item.id) &&
+              ['texto', 'autor', 'destinatarios'].every((key) => item[key].trim()) &&
+              typeof item.anterior === 'boolean' &&
+              [item.data, ...(item.validade === null ? [] : [item.validade])].every(
+                (date) =>
+                  typeof date === 'string' &&
+                  /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+                  !Number.isNaN(Date.parse(date)) &&
+                  new Date(date).toISOString().slice(0, 10) === date,
+              ),
+          );
+        const validRelacoes =
+          data?.type === 'relacoes' &&
+          Array.isArray(data.value) &&
+          data.value.length <= 100 &&
+          new Set(data.value.map((item) => item?.id)).size === data.value.length &&
+          data.value.every(
+            (item) =>
+              strings(item, ['id', 'nome', 'relacao', 'contato']) &&
+              /^[a-f0-9-]{36}$/.test(item.id) &&
+              ['nome', 'relacao'].every((key) => item[key].trim()) &&
+              ['nome', 'relacao', 'contato'].every((key) => item[key].length <= 200),
+          );
+        const validEvolucoes =
+          data?.type === 'evolucoes' &&
+          Array.isArray(data.value) &&
+          data.value.length <= 100 &&
+          new Set(data.value.map((item) => item?.id)).size === data.value.length &&
+          data.value.every(
+            (item) =>
+              strings(item, ['id', 'texto', 'data', 'autor', 'area', 'estado']) &&
+              /^[a-f0-9-]{36}$/.test(item.id) &&
+              ['texto', 'autor', 'area'].every((key) => item[key].trim()) &&
+              ['rascunho', 'publicada'].includes(item.estado) &&
+              /^\d{4}-\d{2}-\d{2}$/.test(item.data) &&
+              !Number.isNaN(Date.parse(item.data)) &&
+              new Date(item.data).toISOString().slice(0, 10) === item.data,
+          );
+        const validAgenda =
+          data?.type === 'agenda' &&
+          Array.isArray(data.value) &&
+          data.value.length <= 100 &&
+          data.value.every(
+            (event) =>
+              strings(event, [
+                'descricao',
+                'profissional',
+                'data',
+                'hora',
+                'local',
+                'participantes',
+                'estado',
+              ]) &&
+              ['descricao', 'profissional', 'local', 'participantes'].every(
+                (key) => event[key].trim().length > 0 && event[key].length <= 200,
+              ) &&
+              /^\d{4}-\d{2}-\d{2}$/.test(event.data) &&
+              !Number.isNaN(Date.parse(event.data)) &&
+              new Date(event.data).toISOString().slice(0, 10) === event.data &&
+              /^([01]\d|2[0-3]):[0-5]\d$/.test(event.hora) &&
+              Number.isInteger(event.duracao) &&
+              event.duracao >= 1 &&
+              event.duracao <= 1440 &&
+              ['agendado', 'cancelado'].includes(event.estado),
+          );
+        const validRelatos =
+          data?.type === 'relatos' &&
+          Array.isArray(data.value) &&
+          data.value.length <= 100 &&
+          data.value.every(
+            (relato) =>
+              strings(relato, [
+                'dataAcontecimento',
+                'descricao',
+                'categoria',
+                'contexto',
+                'acaoTomada',
+              ]) &&
+              relato.descricao.trim().length > 0 &&
+              typeof relato.solicitacaoRetorno === 'boolean' &&
+              /^\d{4}-\d{2}-\d{2}$/.test(relato.dataAcontecimento) &&
+              !Number.isNaN(Date.parse(relato.dataAcontecimento)) &&
+              new Date(relato.dataAcontecimento).toISOString().slice(0, 10) ===
+                relato.dataAcontecimento,
+          );
+        if (
+          (data?.operationId !== undefined &&
+            (data.type !== 'relatos' ||
+              data.value?.length !== 1 ||
+              typeof data.operationId !== 'string' ||
+              !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+                data.operationId,
+              ))) ||
+          !Number.isSafeInteger(data?.revision) ||
+          data.revision < 0 ||
+          (!validAnamnese &&
+            !validTasks &&
+            !validGoals &&
+            !validRelatos &&
+            !validAgenda &&
+            !validDocuments &&
+            !validReferrals &&
+            !validOrientacoes &&
+            !validEvolucoes &&
+            !validRelacoes)
+        )
+          return respond(res, 400);
+        const preview = await updatePreview(
+          previewMatch[1],
+          data.type,
+          data.value,
+          data.revision,
+          data.operationId,
+        );
+        if (preview === null) return respond(res, 404);
+        if (preview === false) return respond(res, 409);
+        if (preview === 'invalid') return respond(res, 400);
+        return respond(res, 200, preview);
+      }
+      return respond(res, 404);
+    } catch {
+      return respond(res, 500);
+    }
+  });
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    const server = createLocalFeedbackServer({
+      password: process.env.LOCAL_FEEDBACK_PASSWORD,
+      directory: defaultFeedbackDirectory,
+    });
+    server.listen(4174, '127.0.0.1', () =>
+      console.log('Serviço de feedback local ativo em 127.0.0.1:4174; somente dados fictícios.'),
+    );
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+  }
+}

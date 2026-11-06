@@ -1,8 +1,15 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+
+beforeEach(() => {
+  sessionStorage.clear();
+  sessionStorage.setItem('modo-acesso', 'tecnica');
+  sessionStorage.setItem('sessao-tecnica', '20000000-0000-4000-8000-000000000001');
+});
 
 afterEach(() => {
+  sessionStorage.clear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.resetModules();
@@ -15,8 +22,8 @@ it.each([true, false])(
     let oculta = false;
     vi.spyOn(document, 'hidden', 'get').mockImplementation(() => oculta);
     const id = '10000000-0000-4000-8000-000000000001';
-    const csrf = 'a'.repeat(43);
     const sessao = {
+      session_id: '20000000-0000-4000-8000-000000000001',
       usuario: { id, perfil: 'administrador', ativo: true, versao: 1 },
       capacidades: ['administrar_cadastro'],
     };
@@ -24,18 +31,15 @@ it.each([true, false])(
     let liberar!: (response: Response) => void;
     let consultas = 0;
     let listas = 0;
+    let autenticada = false;
     vi.stubGlobal('fetch', async (url: URL, init: RequestInit) => {
-      if (url.pathname === '/api/sessao/desafio-tecnico')
-        return envelope({ csrf, seletor_desafio: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' });
-      if (url.pathname === '/api/sessao/tecnica')
-        return envelope({
-          sessao,
-          access_token: 'token-ficticio',
-          prova_sessao: 'A'.repeat(43),
-          geracao_sessao: 1,
-          csrf,
-          seletor_sessao: id,
-        });
+      if (url.pathname === '/api/sessao' && !autenticada)
+        return new Response(null, { status: 401 });
+      if (url.pathname === '/api/auth/tecnica') {
+        autenticada = true;
+        return envelope(sessao);
+      }
+
       if (url.pathname === '/api/sessao') {
         consultas++;
         if (consultas === 1)

@@ -42,7 +42,6 @@ const tabelasAad = new Set([
   'cadastro.contato_paciente',
   'cadastro.pessoa_relacionada',
   'cadastro.relacao_paciente',
-  'identidade.concessao_equipe',
   'auditoria.evento',
 ]);
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -67,6 +66,154 @@ function keyIdValido(keyId: unknown): keyId is string {
 }
 
 function aadCanonico(aad: MetadadosAad): Uint8Array {
+  if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.acesso_paciente') {
+    if (
+      !uuid.test(aad.registro_id) ||
+      (aad.campo !== 'motivo_concessao' && aad.campo !== 'motivo_revogacao') ||
+      aad.formato !== formatoAtual
+    ) {
+      throw new ErroCifraAutenticada();
+    }
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        registro_id: aad.registro_id,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
+  if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.tarefa_cuidado_versao') {
+    if (
+      !uuid.test(aad.paciente_id) ||
+      !uuid.test(aad.tarefa_id) ||
+      !uuid.test(aad.registro_id) ||
+      !Number.isInteger(aad.versao) ||
+      aad.versao < 1 ||
+      aad.versao > 2147483647 ||
+      aad.campo !== 'conteudo' ||
+      aad.formato !== formatoAtual
+    )
+      throw new ErroCifraAutenticada();
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        paciente_id: aad.paciente_id,
+        tarefa_id: aad.tarefa_id,
+        registro_id: aad.registro_id,
+        versao: aad.versao,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
+  if (
+    typeof aad === 'object' &&
+    aad !== null &&
+    aad.tabela === 'cadastro.objetivo_cuidado_versao'
+  ) {
+    if (
+      !uuid.test(aad.paciente_id) ||
+      !uuid.test(aad.objetivo_id) ||
+      !uuid.test(aad.registro_id) ||
+      !Number.isInteger(aad.versao) ||
+      aad.versao < 1 ||
+      aad.versao > 2147483647 ||
+      aad.campo !== 'conteudo' ||
+      aad.formato !== formatoAtual
+    )
+      throw new ErroCifraAutenticada();
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        paciente_id: aad.paciente_id,
+        objetivo_id: aad.objetivo_id,
+        registro_id: aad.registro_id,
+        versao: aad.versao,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
+  if (
+    typeof aad === 'object' &&
+    aad !== null &&
+    aad.tabela === 'cadastro.diario_rascunho_textual'
+  ) {
+    if (
+      typeof aad.paciente_id !== 'string' ||
+      !uuid.test(aad.paciente_id) ||
+      typeof aad.autor_usuario_id !== 'string' ||
+      !uuid.test(aad.autor_usuario_id) ||
+      typeof aad.registro_id !== 'string' ||
+      !uuid.test(aad.registro_id) ||
+      !Number.isInteger(aad.versao) ||
+      aad.versao < 1 ||
+      aad.versao > 2147483647 ||
+      aad.campo !== 'conteudo' ||
+      aad.formato !== formatoAtual
+    ) {
+      throw new ErroCifraAutenticada();
+    }
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        paciente_id: aad.paciente_id,
+        autor_usuario_id: aad.autor_usuario_id,
+        registro_id: aad.registro_id,
+        versao: aad.versao,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
+  if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.anamnese_versao') {
+    if (
+      typeof aad.paciente_id !== 'string' ||
+      !uuid.test(aad.paciente_id) ||
+      typeof aad.registro_id !== 'string' ||
+      !uuid.test(aad.registro_id) ||
+      !Number.isInteger(aad.versao) ||
+      aad.versao < 1 ||
+      aad.versao > 2147483647 ||
+      aad.campo !== 'conteudo' ||
+      aad.formato !== formatoAtual
+    ) {
+      throw new ErroCifraAutenticada();
+    }
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        paciente_id: aad.paciente_id,
+        registro_id: aad.registro_id,
+        versao: aad.versao,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
+  if (
+    typeof aad === 'object' &&
+    aad !== null &&
+    (aad.tabela === 'identidade.concessao_equipe' || aad.tabela === 'identidade.convite_familiar')
+  ) {
+    if (
+      typeof aad.registro_id !== 'string' ||
+      !uuid.test(aad.registro_id) ||
+      (aad.campo !== 'email' && aad.campo !== 'motivo') ||
+      aad.formato !== formatoAtual
+    ) {
+      throw new ErroCifraAutenticada();
+    }
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        registro_id: aad.registro_id,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
   if (typeof aad === 'object' && aad !== null && aad.tabela === 'identidade.sessao') {
     if (
       typeof aad.registro_id !== 'string' ||

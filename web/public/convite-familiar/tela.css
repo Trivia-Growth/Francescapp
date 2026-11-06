@@ -1,0 +1,80 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+  color: #263024;
+  background: #f5f6f1;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.2rem clamp(1rem, 5vw, 3rem);
+  background: #344832;
+  color: white;
+  font-weight: 600;
+}
+main {
+  max-width: 36rem;
+  margin: clamp(2rem, 9vh, 5rem) auto;
+  padding: 0 1.25rem;
+}
+h1 {
+  font-size: clamp(1.8rem, 5vw, 2.4rem);
+  line-height: 1.15;
+}
+p {
+  line-height: 1.55;
+}
+form {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 2rem;
+}
+label {
+  font-weight: 650;
+}
+input {
+  width: 100%;
+  min-height: 2.75rem;
+  margin-bottom: 0.8rem;
+  border: 1px solid #aebca8;
+  border-radius: 5px;
+  padding: 0.6rem;
+  font: inherit;
+  background: white;
+  color: inherit;
+}
+input[type="checkbox"] {
+  width: 1.2rem;
+  min-height: 1.2rem;
+  margin: 0 0.4rem 0 0;
+  vertical-align: middle;
+}
+button {
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: 5px;
+  padding: 0.7rem 1rem;
+  font: inherit;
+  font-weight: 700;
+  color: white;
+  background: #344832;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+a {
+  color: #344832;
+}
+:focus-visible {
+  outline: 3px solid #6d855e;
+  outline-offset: 3px;
+}

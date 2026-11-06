@@ -32,7 +32,7 @@ describe('módulo de cadastro', () => {
 
     const resposta = await modulo.executar({
       operacao: 'criarPaciente',
-      corpo: { nome: 'Pessoa de Teste' },
+      corpo: { entrada: { nome: 'Pessoa de Teste' }, reserva_id: ids.paciente, geracao_reserva: 1 },
       cabecalhos: {
         'x-chave-idempotencia': 'chave-idempotente-de-teste-001',
         'x-ffcm-prova-sessao': 'A'.repeat(43),
@@ -231,7 +231,7 @@ describe('módulo de cadastro', () => {
     await expect(
       modulo.executar({
         operacao: 'criarPaciente',
-        corpo: { nome: '   ' },
+        corpo: { entrada: { nome: '   ' }, reserva_id: ids.paciente, geracao_reserva: 1 },
         cabecalhos: {
           'x-chave-idempotencia': 'chave-idempotente-de-teste-001',
           'x-ffcm-prova-sessao': 'A'.repeat(43),

@@ -4,7 +4,7 @@
 
 ### Requirement: Áudio original excluído após revisão confirmada
 
-O sistema SHALL permitir ouvir o áudio enquanto a transcrição estiver em revisão e solicitar sua exclusão após a confirmação humana da revisão. A exclusão SHALL preservar texto revisado, autoria e histórico do registro. Apenas gerar ou salvar rascunho MUST NOT disparar exclusão por revisão. Fase Inicial; complementa FR-010/012/042. Confirmado em 16/10/2026; não define prazo para áudios abandonados nem retenção externa.
+O sistema SHALL permitir ouvir o áudio enquanto a transcrição estiver em revisão e solicitar sua exclusão após a confirmação humana da revisão. A exclusão SHALL preservar texto revisado, autoria e histórico do registro. Apenas gerar ou salvar rascunho MUST NOT disparar exclusão por revisão. Fase Inicial; complementa FR-010/012/042. Confirmado em 16/10/2026.
 
 #### Scenario: Transcrição ainda em revisão
 - **WHEN** o autor abrir um rascunho transcrito ainda não confirmado
@@ -25,3 +25,10 @@ O sistema SHALL distinguir exclusão pendente, confirmada e falha. Indisponibili
 #### Scenario: Repetir exclusão confirmada
 - **WHEN** a exclusão confirmada for repetida para o mesmo áudio
 - **THEN** nenhum outro arquivo é removido e o resultado continua identificável sem duplicar a revisão ou publicação.
+
+### Requirement: Áudio abandonado e fornecedor
+Áudio abandonado SHALL ter prazo de 30 dias com aviso. O fornecedor e sua política SHALL ser definidos antes do uso real. Fase Inicial; complementa FR-010/012.
+
+#### Scenario: Áudio abandonado
+- **WHEN** um áudio permanecer abandonado
+- **THEN** aplica-se o prazo de 30 dias com aviso.

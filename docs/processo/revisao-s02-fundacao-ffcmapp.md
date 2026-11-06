@@ -1,5 +1,17 @@
 # Revisão no Sol — S-02: preparação da fundação
 
+## Retomada vigente — 01/11/2026
+
+O solicitante aprovou permanentemente Supabase nativo sem custo adicional no plano vigente, conforme D-14 da mudança. O histórico abaixo é preservado, não uma lista cumulativa de bloqueadores: desafio/JWKS próprios, cifra de refresh, prova por geração e autoridade adicional de sessão foram dispensados. Permanecem concessões, RLS, revogação, auditoria, cifra de campos e atestado de escrita aplicáveis. A revisão do desenho nativo e as provas reais continuam pendentes; S-02 não está aprovada. Início Google, callback, admissão, consulta e saída têm código local e testes com fixtures; não há publicação comprovada.
+
+Revisão estática independente em 01/11/2026, posterior a D-14: não confirmou achado novo além dos bloqueios já conhecidos. Callback concorrente ainda pode sobrescrever cookies fora de ordem; leituras de `auth.identities`/`auth.sessions` nas operações privadas precisam de solução e prova de revogação concorrente. Permanecem sem comprovação Auth/Vault reais, canal do executor, grants finais e jornada integrada. A admissão local prepara vinculação de pré-concessão por HMAC, mas Google único OAuth e `identity_data.custom_claims.hd` precisam de prova no projeto. SQL e handlers privados não têm execução concedida à aplicação; testes com fixtures não substituem S-02 integrada. Os tokens Google são descartados neste login; Calendar/Drive ainda não estão ativados.
+
+Preparação posterior: migrations privadas `20261106180000` e `20261106190000` propõem bloqueios Auth e wrappers com owners restritos, ainda sem execução concedida à aplicação. Testes locais usam Auth/Vault fictícios; a carteira no teste dos wrappers é substituída por fixture. Revisão corrigiu verificação inicial dos triggers das FKs, mas ela não garante que permaneçam habilitados após a migration nem impede operações privilegiadas com `session_replication_role=replica`. A ordem dos locks e o privilégio `UPDATE(id)` necessário ao owner precisam de comprovação e revisão no ambiente real. Adaptador de cofre com pool injetado também requer prova de TLS, identidade e grants; suas leituras de chaves ocorrem em transações separadas. Nada disso conclui S-02 ou autoriza ativação.
+
+Correção local posterior: operações privadas passaram a obter bloqueios de Auth e revalidar expiração após espera e antes de retornar sucesso. Wrappers usam subtransação para reverter efeitos e registrar a negativa sem PII na transação externa. Testes descartáveis exercitaram composição, criação e carteira com expiração após espera, assinatura real e Auth/Vault fictícios; falha de auditoria bloqueou a resposta. Revisão estática independente não encontrou novo problema no recorte. Ordem dos locks, privilégios, integração real e S-02 continuam pendentes.
+
+Admissão/consulta nativas também foram ajustadas para bloquear registros Auth e revalidar expiração. Testes locais de duas conexões exercitaram expiração durante espera e após escrita de admissão, confirmando rollback de usuário, concessão e sessão; a auditoria da transação também é revertida nesse último caso. O helper legado privado `sessao_atual_valida` ainda usa `statement_timestamp`; revisão não encontrou caminho exposto atual, mas seu eventual uso exige nova análise. A aplicação parcial da cadeia deixa essas RPCs indisponíveis até as migrations posteriores de bloqueio e grants. Auth/gateway reais e S-02 permanecem não comprovados.
+
 **Estado:** revisão independente realizada em 27/10/2026; não aprovada. Não libera integração de
 operações protegidas. **Base:** `e76bec57ef18728bc916a18eb2e5b3204c5617eb`,
 mais alterações locais rastreadas e arquivos novos, ainda sem commit. Mudança:
@@ -1752,3 +1764,16 @@ Na interface local, erro de cursor em página posterior agora permite retorno
 à primeira página pela atualização da lista; falha temporária preserva a
 navegação para trás sem mostrar dados antigos. Testes web passaram (54/54),
 sem validação visual em navegador ou endpoint real.
+
+Na revisão incremental da adaptação Auth nativa (`6f8a2cd...cafdf04`),
+revisores independentes conferiram padrões e aderência a D-14, sem novos
+achados concretos nesse recorte. Os testes de identidade usam fixtures; Auth,
+gateway, acesso direto e revogação no projeto real continuam sem prova.
+Esta revisão parcial não aprova S-02 nem libera as rotas protegidas.
+
+Na consulta de configuração Auth de 03/11/2026, `sessions_inactivity_timeout`
+e `sessions_timebox` retornaram zero no projeto de teste. A documentação do
+Supabase descreve esses limites como configurados com valores positivos; não
+foi observado limite positivo nesta consulta. Se esses ajustes forem alterados,
+reavaliar a verificação de sessão, pois uma linha Auth pode persistir após o
+prazo configurado. Isso não comprova autenticação, autorização ou revogação reais.

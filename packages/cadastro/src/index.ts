@@ -1,3 +1,6 @@
+export { localizarPendencias, validarSecoesAnamnese } from './anamnese.ts';
+export type { RespostaAnamnese, SecaoAnamnese } from './anamnese.ts';
+
 import {
   assinaturasRpc,
   contratosRotas,

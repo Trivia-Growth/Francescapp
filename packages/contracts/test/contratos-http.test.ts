@@ -19,6 +19,29 @@ import {
 const uuid = '31a7e0e6-8b2f-4c85-8baf-9422b39a4175';
 
 describe('contratos HTTP da fundação', () => {
+  it('exige chave idempotente e prova de sessão na escrita preparada da anamnese', () => {
+    const rota = contratosRotas.salvarAnamnese;
+    const cabecalhos = {
+      'x-chave-idempotencia': 'chave_ficticia_123456',
+      'x-ffcm-prova-sessao': `${'A'.repeat(42)}A`,
+      'x-ffcm-geracao-sessao': '1',
+    };
+    expect(rota.metodo).toBe('PATCH');
+    expect(rota.caminho).toBe('/api/pacientes/:paciente_id/anamnese');
+    expect(rota.parametros.safeParse({ paciente_id: uuid }).success).toBe(true);
+    expect(rota.cabecalhos.safeParse(cabecalhos).success).toBe(true);
+    expect(
+      rota.cabecalhos.safeParse({ ...cabecalhos, 'x-chave-idempotencia': 'curta' }).success,
+    ).toBe(false);
+    expect(
+      rota.cabecalhos.safeParse({ 'x-chave-idempotencia': cabecalhos['x-chave-idempotencia'] })
+        .success,
+    ).toBe(false);
+    expect(rota.entrada.safeParse({ versao_esperada: 0, secoes: [] }).success).toBe(true);
+    expect(rota.entrada.safeParse({ secoes: [] }).success).toBe(false);
+    expect(rota.saida.safeParse({ versao: 1, secoes: [] }).success).toBe(true);
+  });
+
   it('valida apenas estrutura de cursor e envelope da reconciliação, sem provar opacidade', () => {
     const rota = contratosRotas.consultarOperacoesCadastro;
     const exemploQueNaoEOpaco = 'pessoa-ficticia@example.test';
@@ -307,6 +330,23 @@ describe('contratos HTTP da fundação', () => {
         'x-ffcm-prova-sessao': `${'A'.repeat(42)}B`,
       }).success,
     ).toBe(false);
+  });
+
+  it('exige reserva prévia válida na criação de paciente', () => {
+    const corpo = {
+      entrada: { nome: 'Pessoa fictícia' },
+      reserva_id: 'd0000000-0000-4000-8000-000000000001',
+      geracao_reserva: 1,
+    };
+    const schema = contratosRotas.criarPaciente.entrada;
+    expect(schema.safeParse(corpo).success).toBe(true);
+    expect(schema.safeParse({ nome: 'Pessoa fictícia' }).success).toBe(false);
+    expect(schema.safeParse({ ...corpo, geracao_reserva: 0 }).success).toBe(false);
+    expect(
+      schema.safeParse({ ...corpo, geracao_reserva: Number.MAX_SAFE_INTEGER + 1 }).success,
+    ).toBe(false);
+    expect(schema.safeParse({ ...corpo, reserva_id: 'inválido' }).success).toBe(false);
+    expect(schema.safeParse({ ...corpo, extra: true }).success).toBe(false);
   });
 
   it('rejeita telefone formado somente por pontuação ou espaços', () => {

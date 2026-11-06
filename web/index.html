@@ -2,7 +2,7 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'; trusted-types 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self' https://drdpuxcllpymtoskmuqv.supabase.co https://accounts.google.com; object-src 'none'; require-trusted-types-for 'script'; trusted-types 'none'">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="referrer" content="no-referrer">
     <meta name="color-scheme" content="light">
@@ -29,8 +29,29 @@
           <p class="access-note">Acesso restrito a pessoas previamente autorizadas.</p>
         </div>
         <div class="access-form-panel">
-          <h2>Acesso técnico</h2>
-          <p>Use a conta técnica individual autorizada para esta etapa.</p>
+          <h2>Entre com sua conta autorizada</h2>
+          <p>Use sua conta Google para acessar o acompanhamento.</p>
+          <form id="google-login-form" action="/api/auth/google" method="post">
+            <input type="hidden" name="fluxo" id="google-fluxo">
+            <button class="button-primary full-width" type="submit">Entrar com Google</button>
+          </form>
+          <p class="small-text">Entrar não concede acesso automaticamente. A conexão com a agenda será solicitada separadamente.</p>
+          <details>
+          <summary>Acesso de familiares</summary>
+          <p>Entre com a conta familiar autorizada pela equipe.</p>
+          <form id="familiar-login-form" method="post" autocomplete="on" aria-describedby="familiar-feedback">
+            <fieldset id="familiar-login-fields" disabled>
+              <legend class="sr-only">Credenciais da conta familiar</legend>
+              <div class="field"><label for="familiar-email">E-mail</label><input id="familiar-email" name="email" type="email" autocomplete="username" required maxlength="254" autocapitalize="none" spellcheck="false"></div>
+              <div class="field"><label for="familiar-senha">Senha</label><input id="familiar-senha" name="senha" type="password" autocomplete="current-password" required maxlength="1024"></div>
+              <button id="familiar-login-submit" class="button-primary full-width" type="submit">Entrar</button>
+            </fieldset>
+          </form>
+          <p id="familiar-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
+          </details>
+          <details>
+          <summary>Acesso técnico excepcional</summary>
+          <p>Somente para a conta técnica individual previamente autorizada.</p>
           <form id="login-form" method="post" autocomplete="on" aria-describedby="login-feedback">
             <fieldset id="login-fields" disabled>
               <legend class="sr-only">Credenciais da conta técnica</legend>
@@ -41,13 +62,13 @@
               <div class="field">
                 <label for="password">Senha</label>
                 <input id="password" name="senha" type="password" autocomplete="current-password" required maxlength="1024">
-                <button id="toggle-password" class="password-toggle" type="button" aria-controls="password" aria-pressed="false">Mostrar senha</button>
+                <button id="toggle-password" class="password-toggle" type="button" aria-controls="password">Mostrar senha</button>
               </div>
               <button id="login-submit" class="button-primary full-width" type="submit">Entrar</button>
             </fieldset>
           </form>
+          </details>
           <p id="login-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
-          <p class="small-text">Esta entrada é exclusiva da conta técnica. Outros acessos dependem da liberação de sua jornada.</p>
         </div>
       </section>
 
@@ -56,6 +77,7 @@
           <div><h1 id="patients-title" tabindex="-1">Pacientes</h1><p id="scope-description">Cadastros disponíveis para seu acesso.</p></div>
           <a id="new-patient-link" class="button-primary" href="#cadastro" hidden>Cadastrar paciente</a>
         </div>
+        <section id="agenda-individual" class="agenda-individual" aria-label="Minha agenda" hidden></section>
         <p id="workspace-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
         <div id="workspace" class="workspace">
           <section class="patient-register" aria-labelledby="list-title">
@@ -65,7 +87,7 @@
             <div id="list-empty" class="empty-state" hidden><h3>Nenhum paciente nesta lista</h3><p id="empty-description">Nenhum cadastro disponível para seu acesso.</p></div>
             <table id="patients-table" hidden>
               <caption class="sr-only">Pacientes retornados pelo serviço para seu acesso atual</caption>
-              <thead><tr><th scope="col">Nome</th><th scope="col">Nome de preferência</th></tr></thead>
+              <thead><tr><th scope="col">Nome</th><th scope="col">Nome de preferência</th><th id="anamnese-coluna" scope="col">Atendimento</th></tr></thead>
               <tbody id="patients-body"></tbody>
             </table>
             <nav id="pagination" class="pagination" aria-label="Páginas de pacientes" hidden><button id="previous-page" class="button-secondary" type="button">Página anterior</button><span id="page-number"></span><button id="next-page" class="button-secondary" type="button">Próxima página</button></nav>
@@ -86,6 +108,30 @@
             <p class="small-text">O cadastro não cria conta nem concede acesso ao paciente ou a familiares.</p>
           </section>
         </div>
+        <section id="paciente-familiar-panel" class="anamnese-panel" aria-labelledby="paciente-familiar-title" hidden>
+          <div class="section-heading"><h2 id="paciente-familiar-title" tabindex="-1">Paciente</h2><button id="fechar-paciente-familiar" class="button-secondary" type="button">Fechar paciente</button></div>
+          <p id="paciente-familiar-status" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
+          <div id="paciente-familiar-dados" hidden><p><strong>Nome:</strong> <span id="paciente-familiar-nome"></span></p><p><strong>Nome de preferência:</strong> <span id="paciente-familiar-preferencia"></span></p></div>
+          <button id="paciente-familiar-tentar" class="button-secondary" type="button" hidden>Tentar novamente</button>
+        </section>
+        <section id="plano-panel" class="anamnese-panel" aria-labelledby="plano-title" hidden>
+          <div class="section-heading"><h2 id="plano-title" tabindex="-1">Plano de cuidado: <span id="plano-paciente"></span></h2><button id="fechar-plano" class="button-secondary" type="button">Fechar plano</button></div>
+          <p>Para abrir outro paciente, feche este plano. Ao fechar, alterações não salvas serão descartadas; um salvamento sem confirmação não poderá ser confirmado nesta tela.</p>
+          <div id="plano-raiz"></div>
+        </section>
+        <section id="tarefas-panel" class="anamnese-panel" aria-labelledby="tarefas-title" hidden>
+          <div class="section-heading"><h2 id="tarefas-title" tabindex="-1">Tarefas: <span id="tarefas-paciente"></span></h2><button id="fechar-tarefas" class="button-secondary" type="button">Fechar tarefas</button></div>
+          <div id="tarefas-raiz"></div>
+        </section>
+        <section id="edicao-panel" class="anamnese-panel" aria-labelledby="edicao-title" hidden>
+          <div class="section-heading"><h2 id="edicao-title" tabindex="-1">Editar cadastro</h2><button id="fechar-edicao" class="button-secondary" type="button">Fechar edição</button></div>
+          <div id="edicao-raiz"></div>
+        </section>
+        <section id="anamnese-panel" class="anamnese-panel" aria-labelledby="anamnese-title" hidden>
+          <div class="section-heading"><h2 id="anamnese-title" tabindex="-1">Anamnese: <span id="anamnese-paciente"></span></h2><button id="fechar-anamnese" class="button-secondary" type="button">Fechar anamnese</button></div>
+          <p>Para abrir outro paciente, feche esta anamnese. Ao fechar, alterações não salvas serão descartadas; um salvamento sem confirmação não poderá ser confirmado nesta tela.</p>
+          <div id="anamnese-raiz"></div>
+        </section>
       </section>
 
       <section id="logout-view" class="logout-panel" aria-labelledby="logout-title" hidden>

@@ -1,0 +1,27 @@
+-- PostgreSQL descartável; Auth e Vault são fixtures fictícias, sem serviço remoto.
+\ir cadeia_migrations_local.sql
+\ir ../migrations/20261106220000_anamnese_versoes_privadas.sql
+\ir ../migrations/20261106230000_anamnese_operacoes_privadas.sql
+\ir ../migrations/20261107000000_anamnese_idempotencia_privada.sql
+\ir ../migrations/20261107100000_restringir_rls_carteira.sql
+\ir ../migrations/20261107110000_isolar_owner_anamnese.sql
+\ir ../migrations/20261107120000_plano_cuidado_versoes_privadas.sql
+\ir ../migrations/20261107130000_plano_cuidado_operacoes_privadas.sql
+\ir ../migrations/20261107140000_plano_cuidado_idempotencia_privada.sql
+\ir ../migrations/20261107150000_plano_cuidado_historico_privado.sql
+\ir ../migrations/20261107160000_plano_cuidado_reserva_privada.sql
+\ir ../migrations/20261107170000_plano_composicao_privada.sql
+\ir ../migrations/20261108120000_diario_rascunho_privado.sql
+\ir ../migrations/20261108130000_plano_cuidado_paginacao_privada.sql
+\ir ../migrations/20261109100000_editar_paciente_privado.sql
+\ir ../migrations/20261109110000_barreira_edicao_paciente_privada.sql
+\ir ../migrations/20261109120000_preparar_proveniencia_teste.sql
+\ir ../migrations/20261109130000_edicao_paciente_composicao.sql
+\ir ../migrations/20261110120000_admissao_tecnica_nativa.sql
+\ir ../migrations/20261110130000_carteira_tecnica_nativa.sql
+\ir ../migrations/20261110140000_cadastro_conta_tecnica.sql
+\ir ../migrations/20261110150000_cadastro_rpc_nativa.sql
+\ir ../migrations/20261110160000_rpc_carteira_autenticada.sql
+\ir ../migrations/20261110170000_operador_tecnico.sql
+\ir ../migrations/20261110180000_bootstrap_tecnico.sql
+\ir ../migrations/20261110190000_bootstrap_hmac_vault.sql

@@ -1,8 +1,19 @@
 # Roteiro de especificações - FFCMApp
 
-**16/10/2026 | Estado: preparação; primeiro pacote técnico de backend para revisão, sem implementação iniciada.**
+**Base histórica: 16/10/2026. Diretriz de retomada atualizada em 01/11/2026.** O estado histórico das fatias abaixo não comprova o estado atual da implementação; consultar as tarefas e evidências da mudança ativa.
 
 O projeto já tem 54 requisitos funcionais de referência: 45 iniciais e 9 evoluções. Este roteiro organiza a transformação da referência em mudanças implementáveis. Não é uma nova lista de features, não diminui a primeira entrega e não fixa prazo. A ordem abaixo é uma proposta de dependências, sujeita à revisão do solicitante.
+
+## Retomada: entrega conectada antes de expansão técnica
+
+- **Prioridade:** primeira fatia demonstrável com equipe autorizada entrando, perfil/concessão checados no servidor, listagem e cadastro mínimo de paciente fictício, com autorização no banco. Não confundir essa fatia com a entrega de todo o núcleo funcional.
+- **Primeiro passo:** executar a revisão D-14 aprovada em 01/11/2026: usar Auth/SDK Supabase nativos sem custo adicional no plano vigente; manter a API first-party e autorização atual no banco. Conferir tarefas/evidências atuais; preservar cifra de campos, auditoria e os experimentos existentes, sem ampliar o protocolo de sessão dispensado.
+- **Limite de trabalho:** avançar somente no necessário à jornada e seus controles aplicáveis. Não ampliar mecanismos experimentais, novas abstrações ou baterias simuladas sem bloqueador concreto da fatia. Preservar trabalho existente; separar endurecimento adiável somente após demonstrar que não compromete os requisitos de segurança da entrega.
+- **Aceite observável:** persistência real, estados honestos de carregamento/erro/vazio/sucesso e roteiro “Como testar” no PR. Provar acessos permitidos e negados, incluindo outro perfil/paciente, ausência de concessão, revogação e acesso direto no servidor/banco conforme a matriz aplicável. Mocks e testes pulados não comprovam integração.
+- **Ritmo:** seguir exclusivamente a política de verificação em [AGENTS.md](../../AGENTS.md#execução-enxuta), sem copiar gates para este roteiro. Uma revisão por fatia; atualizar apenas decisões, bloqueadores e evidências que mudaram. Não abrir outra rodada de planejamento para detalhes técnicos já resolvidos.
+- **Ambiente:** notebook sem Docker; testes conectados somente no ambiente Supabase aprovado, com dados fictícios. Esta atualização documental não autoriza deploy, migração remota, concessões, limpeza ou uso de segredos. Registrar qualquer operação externa necessária antes de executá-la, respeitando as autorizações específicas vigentes.
+
+As tarefas e checkpoints da change `fundar-identidade-e-seguranca-backend` permanecem preservados. Esta seção define a prioridade operacional; não marca tarefas como concluídas nem substitui a revisão de um recorte técnico material.
 
 ## Fontes e precedência
 

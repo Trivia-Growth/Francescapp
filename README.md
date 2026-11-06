@@ -20,6 +20,18 @@ O processo ativo é **OpenSpec**, desde 14/10/2026, com diretrizes em [AGENTS.md
 
 ## Fluxo
 
+## Prévia local para feedback
+
+Para abrir a prévia neste computador, execute na raiz do projeto:
+
+```sh
+node scripts/local-feedback-start.mjs
+```
+
+Informe uma senha local de pelo menos 12 caracteres quando o terminal pedir e abra `http://localhost:5173/demonstracao.html`. Mantenha o terminal aberto durante o uso. O acesso funciona apenas neste computador; cadastros, anamneses, tarefas e objetivos fictícios ficam salvos em `~/Library/Application Support/FFCMApp Feedback`.
+
+Use somente dados fictícios. Essa prévia não conecta o Supabase e não é um ambiente para informações reais ou clínicas. O login local não substitui as permissões do aplicativo final. Na lista de pacientes, use “Abrir plano” para cadastrar e consultar objetivos fictícios; revisões e histórico ainda não estão disponíveis. Se outra aba alterar a prévia, a lista é atualizada e o rascunho permanece no formulário para conferência antes de tentar novamente.
+
 ## Base local de desenvolvimento
 
 Pré-requisitos desta preparação: Node 22.12 ou superior na série 22 e pnpm 9.15.9. Na raiz do repositório, instale somente o que está congelado no lockfile e execute a verificação desta base:
@@ -50,8 +62,8 @@ O workspace reserva `apps/*` e `packages/*` para as próximas fatias, mas não c
 Codex usa skills; Claude usa os comandos `opsx` equivalentes. São seis fluxos: explore, propose, update, apply, sync e archive. Não é necessário escolher ou trocar um modelo automaticamente. Novas skills ficam disponíveis no próximo turno; se a interface não atualizar, reabra a sessão.
 
 ```sh
-openspec list --json
-openspec validate --all --strict --no-interactive
+pnpm exec openspec list --json
+pnpm exec openspec validate --all --strict --no-interactive
 ```
 
 Validação do OpenSpec verifica artefatos, não comprova que o produto existe ou que seus testes passaram.

@@ -17,6 +17,8 @@ describe('preparo de contato de paciente', () => {
   it('assina dados cifrados e preserva o digest lógico em repetições', async () => {
     const solicitacao = {
       pacienteId: 'a0000000-0000-4000-8000-000000000001',
+      reservaId: 'c0000000-0000-4000-8000-000000000001',
+      geracaoReserva: 1,
       corpo: { tipo: 'email', valor: 'pessoa@example.test' },
       cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
       contexto: {
@@ -65,6 +67,8 @@ describe('preparo de contato de paciente', () => {
       outroPaciente.p_entrada.entrada.digest_idempotencia,
     );
     expect(primeiro.p_entrada.entrada.paciente_id).toBe(solicitacao.pacienteId);
+    expect(primeiro.p_entrada.entrada.reserva_id).toBe(solicitacao.reservaId);
+    expect(primeiro.p_entrada.entrada.geracao_reserva).toBe(solicitacao.geracaoReserva);
     expect(JSON.parse(primeiro.p_entrada.entrada_canonica).aad).toEqual(
       primeiro.p_entrada.entrada.aad,
     );

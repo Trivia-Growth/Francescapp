@@ -31,6 +31,15 @@ export const campoCifradoSchema = z
     tag: base64UrlSchema,
   })
   .strict();
+export const reservaReenvioFamiliarSchema = z
+  .object({
+    ok: z.literal(true),
+    repeticao: z.boolean(),
+    convite_id: uuidSchema,
+    tentativa_id: uuidSchema,
+    email_cifrado: campoCifradoSchema,
+  })
+  .strict();
 const metadadosAadCamposSchema = z
   .object({
     tabela: z.enum([
@@ -38,11 +47,29 @@ const metadadosAadCamposSchema = z
       'cadastro.contato_paciente',
       'cadastro.pessoa_relacionada',
       'cadastro.relacao_paciente',
-      'identidade.concessao_equipe',
       'auditoria.evento',
     ]),
     registro_id: uuidSchema,
     campo: z.string().min(1).max(80),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+/** A exceção técnica do bootstrap reutiliza o envelope de motivo da concessão. */
+export const metadadosAadConcessaoSchema = z
+  .object({
+    tabela: z.enum(['identidade.concessao_equipe', 'identidade.convite_familiar']),
+    registro_id: uuidSchema,
+    campo: z.enum(['email', 'motivo']),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+const metadadosAadAcessoPacienteSchema = z
+  .object({
+    tabela: z.literal('cadastro.acesso_paciente'),
+    registro_id: uuidSchema,
+    campo: z.enum(['motivo_concessao', 'motivo_revogacao']),
     formato: formatoCifraSchema,
   })
   .strict();
@@ -57,7 +84,63 @@ const metadadosAadSessaoSchema = z
   })
   .strict();
 
-export const metadadosAadSchema = z.union([metadadosAadCamposSchema, metadadosAadSessaoSchema]);
+const metadadosAadAnamneseSchema = z
+  .object({
+    tabela: z.literal('cadastro.anamnese_versao'),
+    paciente_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+const metadadosAadPlanoSchema = z
+  .object({
+    tabela: z.literal('cadastro.objetivo_cuidado_versao'),
+    paciente_id: uuidSchema,
+    objetivo_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+const metadadosAadTarefaSchema = z
+  .object({
+    tabela: z.literal('cadastro.tarefa_cuidado_versao'),
+    paciente_id: uuidSchema,
+    tarefa_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+const metadadosAadDiarioSchema = z
+  .object({
+    tabela: z.literal('cadastro.diario_rascunho_textual'),
+    paciente_id: uuidSchema,
+    autor_usuario_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+export const metadadosAadSchema = z.union([
+  metadadosAadCamposSchema,
+  metadadosAadConcessaoSchema,
+  metadadosAadAcessoPacienteSchema,
+  metadadosAadSessaoSchema,
+  metadadosAadAnamneseSchema,
+  metadadosAadPlanoSchema,
+  metadadosAadTarefaSchema,
+  metadadosAadDiarioSchema,
+]);
 
 export const dadosAtestadoSchema = z
   .object({
@@ -293,6 +376,27 @@ export const resultadoRpcSchema = <T extends z.ZodType>(dados: T) =>
     z.object({ ok: z.literal(false), erro: erroRpcSchema, request_id: uuidSchema }).strict(),
   ]);
 
+/** Contrato da função privada local; não representa uma rota pública. */
+export const respostaEdicaoPacientePrivadaSchema = z.discriminatedUnion('ok', [
+  z
+    .object({
+      ok: z.literal(true),
+      dados: z.object({ paciente_id: uuidSchema, versao: versaoSchema }).strict(),
+      request_id: uuidSchema,
+      repeticao: z.boolean(),
+    })
+    .strict(),
+  z
+    .object({
+      ok: z.literal(false),
+      erro: z
+        .object({ codigo: z.enum(['sem_permissao', 'conflito', 'conflito_idempotencia']) })
+        .strict(),
+      request_id: uuidSchema,
+    })
+    .strict(),
+]);
+
 export type ExecutorOperacao = 'jwt-do-solicitante' | 'somente-servidor';
 export type TransacaoOperacao =
   | 'leitura-auditada'
@@ -410,7 +514,7 @@ export const assinaturasRpc = {
     contextoRpcUsuarioSchema
       .extend({ ...paginacao, estado: estadoConcessaoSchema.optional() })
       .strict(),
-    paginaInterna(concessaoSaidaSchema),
+    paginaInterna(concessaoSaidaSchema.extend({ ativo: z.boolean().nullable() })),
   ),
   criarConcessao: assinatura(
     'api.criar_concessao_equipe',
@@ -500,6 +604,8 @@ export const assinaturasRpc = {
       .extend({
         paciente_id: uuidSchema,
         contato_id: uuidSchema,
+        reserva_id: uuidSchema,
+        geracao_reserva: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
         tipo: z.enum(['email', 'telefone']),
         valor: campoCifradoSchema,
         aad: z
