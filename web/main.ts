@@ -777,12 +777,13 @@ function linhaPaciente(
         acaoPacienteAnterior = tarefas;
         elemento('tarefas-paciente').textContent = paciente.nome;
         tarefasPanel.hidden = false;
+        const { consultarTarefas } = criarServicoTarefasHttp(() =>
+          sessao ? { usuario_id: sessao.usuario.id, session_id: sessao.session_id } : null,
+        );
         desmontarTarefas = montarTarefasCuidado(
           elemento('tarefas-raiz'),
           paciente.id,
-          criarServicoTarefasHttp(() =>
-            sessao ? { usuario_id: sessao.usuario.id, session_id: sessao.session_id } : null,
-          ),
+          { consultarTarefas },
           acessoPerdido,
           (pendente) => {
             tarefaPendente = pendente;

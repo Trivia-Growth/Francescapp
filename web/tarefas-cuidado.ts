@@ -82,6 +82,8 @@ export function montarTarefasCuidado(
         if (!ativa) return;
         const secao = elemento('section');
         secao.append(elemento('h2', 'Tarefas da equipe'));
+        if (!servico.criarTarefa && !servico.atualizarTarefa)
+          secao.append(elemento('p', 'Consulta disponível. Criação e edição ainda indisponíveis.'));
         if (servico.criarTarefa) secao.append(criarFormulario(servico.criarTarefa));
         if (!registros.length)
           secao.append(elemento('p', 'Nenhuma tarefa encontrada para este paciente.'));
