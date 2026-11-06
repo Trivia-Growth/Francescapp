@@ -223,3 +223,121 @@ it('resposta tardia não apaga motivo editado depois do envio', async () => {
   expect(motivo.value).toBe('Motivo revisado');
   expect(pendente).toHaveBeenLastCalledWith(true);
 });
+
+it('atualiza vínculos após concessão sem apagar rascunho mais recente', async () => {
+  const raiz = document.createElement('div');
+  const id = 'a0000000-0000-4000-8000-000000000001';
+  let epoca = 1;
+  const listar = vi.fn().mockResolvedValue({ itens: [], proximo_cursor: null });
+  const api = {
+    identidadeAtual: () => ({ usuario_id: id, session_id: id }),
+    consultarBarreiraAcesso: async () => ({ epoca, reserva: null, resultado_pendente: null }),
+    encerrarBarreiraAcesso: async () => {
+      epoca++;
+      return { estado: 'vazia' };
+    },
+    reservarBarreiraAcesso: async () => ({ estado: 'aberta' }),
+    criarAcessoPaciente: async (_paciente: string, entrada: { acesso_id: string }) => ({
+      id: entrada.acesso_id,
+      versao: 1,
+    }),
+    listarProfissionais: async () => ({
+      itens: [
+        {
+          perfil: 'profissional',
+          estado: 'vinculada',
+          ativo: true,
+          usuario_id: id,
+          email: 'pessoa@example.test',
+        },
+      ],
+      proximo_cursor: null,
+    }),
+    listarVinculosProfissionais: listar,
+  } as unknown as ClienteFFCM;
+  montarSelecaoProfissional(raiz, id, api, () => false);
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Operações anteriores verificadas.'));
+  const anteriores = listar.mock.calls.length;
+  listar.mockResolvedValue({
+    itens: [{ id, usuario_id: id, revogado: false, versao: 1 }],
+    proximo_cursor: null,
+  });
+  const selecao = raiz.querySelector('select') as HTMLSelectElement;
+  selecao.value = id;
+  selecao.dispatchEvent(new Event('change'));
+  (raiz.querySelector('textarea') as HTMLTextAreaElement).value = 'Motivo fictício';
+  [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Conceder acesso')?.click();
+  await vi.waitFor(() => expect(listar.mock.calls.length).toBeGreaterThan(anteriores));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('pessoa@example.test · Ativo'));
+});
+
+it('aguarda atualização concorrente e repete reinício após falha sem usar cursor antigo', async () => {
+  const raiz = document.createElement('div');
+  const id = 'a0000000-0000-4000-8000-000000000001';
+  let resolverPrimeira!: (v: { itens: never[]; proximo_cursor: string | null }) => void;
+  let resolverReinicio!: (v: { itens: never[]; proximo_cursor: string | null }) => void;
+  const primeira = new Promise<{ itens: never[]; proximo_cursor: string | null }>((r) => {
+    resolverPrimeira = r;
+  });
+  const reinicio = new Promise<{ itens: never[]; proximo_cursor: string | null }>((r) => {
+    resolverReinicio = r;
+  });
+  const listar = vi
+    .fn()
+    .mockReturnValueOnce(primeira)
+    .mockReturnValueOnce(reinicio)
+    .mockResolvedValueOnce({ itens: [], proximo_cursor: 'cursor-antigo' })
+    .mockRejectedValueOnce(new Error('falha'))
+    .mockResolvedValueOnce({ itens: [], proximo_cursor: null });
+  let epoca = 1;
+  const api = {
+    identidadeAtual: () => ({ usuario_id: id, session_id: id }),
+    consultarBarreiraAcesso: async () => ({ epoca, reserva: null, resultado_pendente: null }),
+    encerrarBarreiraAcesso: async () => {
+      epoca++;
+      return { estado: 'vazia' };
+    },
+    reservarBarreiraAcesso: async () => ({ estado: 'aberta' }),
+    criarAcessoPaciente: async (_paciente: string, entrada: { acesso_id: string }) => ({
+      id: entrada.acesso_id,
+      versao: 1,
+    }),
+    listarProfissionais: async () => ({
+      itens: [
+        {
+          perfil: 'profissional',
+          estado: 'vinculada',
+          ativo: true,
+          usuario_id: id,
+          email: 'pessoa@example.test',
+        },
+      ],
+      proximo_cursor: null,
+    }),
+    listarVinculosProfissionais: listar,
+  } as unknown as ClienteFFCM;
+  montarSelecaoProfissional(raiz, id, api, () => false);
+  resolverPrimeira({ itens: [], proximo_cursor: null });
+  await vi.waitFor(() => expect(listar).toHaveBeenCalledTimes(2));
+  expect(raiz.textContent).not.toContain('Operações anteriores verificadas.');
+  resolverReinicio({ itens: [], proximo_cursor: 'cursor-inicial' });
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Operações anteriores verificadas.'));
+  [...raiz.querySelectorAll('button')]
+    .find((b) => b.textContent === 'Carregar mais vínculos')
+    ?.click();
+  await vi.waitFor(() => expect(listar).toHaveBeenCalledTimes(3));
+  const selecao = raiz.querySelector('select') as HTMLSelectElement;
+  selecao.value = id;
+  selecao.dispatchEvent(new Event('change'));
+  (raiz.querySelector('textarea') as HTMLTextAreaElement).value = 'Motivo fictício';
+  [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Conceder acesso')?.click();
+  await vi.waitFor(() => expect(listar).toHaveBeenCalledTimes(4));
+  expect(listar.mock.calls[3]).toEqual([id, undefined]);
+  const tentar = [...raiz.querySelectorAll('button')].find(
+    (b) => b.textContent === 'Tentar consultar vínculos novamente',
+  ) as HTMLButtonElement;
+  await vi.waitFor(() => expect(tentar.hidden).toBe(false));
+  tentar.click();
+  await vi.waitFor(() => expect(listar).toHaveBeenCalledTimes(5));
+  expect(listar.mock.calls[4]).toEqual([id, undefined]);
+});

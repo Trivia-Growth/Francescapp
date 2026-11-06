@@ -129,6 +129,8 @@ export function montarSelecaoProfissional(
         await ciclo.consultar();
         if (!ativa) return;
       }
+      await atualizarVinculos();
+      if (!ativa) return;
       ciclo.liberar();
       if (!ativa) return;
       liberado = true;
@@ -162,6 +164,7 @@ export function montarSelecaoProfissional(
           alteracaoPendente(false);
         }
         explicacao.textContent = 'Concessão enviada. Verifique o resultado antes de continuar.';
+        void atualizarVinculos().catch(() => {});
       })
       .catch((erro) => {
         if (ativa && !acessoPerdido(erro))
@@ -205,40 +208,68 @@ export function montarSelecaoProfissional(
     }
   };
   let cursorVinculos: string | undefined;
-  let consultandoVinculos = false;
-  async function carregarVinculos(): Promise<void> {
-    if (consultandoVinculos) return;
-    consultandoVinculos = true;
-    maisVinculos.disabled = tentarVinculos.disabled = true;
-    estadoVinculos.textContent = 'Consultando vínculos…';
-    try {
-      const paginaAtual = await api.listarVinculosProfissionais(pacienteId, cursorVinculos);
-      if (!ativa) return;
-      for (const item of paginaAtual.itens) {
-        const linha = document.createElement('li');
-        vinculosExibidos.push({
-          linha,
-          usuarioId: item.usuario_id,
-          revogado: item.revogado,
-          versao: item.versao,
-        });
-        listaVinculos.append(linha);
+  let consultaVinculos: Promise<boolean> | undefined;
+  let atualizacaoPendente = false;
+  let geracaoAtualizacao = 0;
+  async function atualizarVinculos(): Promise<void> {
+    atualizacaoPendente = true;
+    geracaoAtualizacao++;
+    if (consultaVinculos) await consultaVinculos;
+    if (!ativa) return;
+    if (!(await carregarVinculos())) throw new Error('Consulta de vínculos indisponível');
+  }
+  function carregarVinculos(): Promise<boolean> {
+    if (consultaVinculos) return consultaVinculos;
+    const executar = async (): Promise<boolean> => {
+      maisVinculos.disabled = tentarVinculos.disabled = true;
+      estadoVinculos.textContent = 'Consultando vínculos…';
+      const reiniciar = atualizacaoPendente;
+      const geracao = geracaoAtualizacao;
+      try {
+        const paginaAtual = await api.listarVinculosProfissionais(
+          pacienteId,
+          reiniciar ? undefined : cursorVinculos,
+        );
+        if (!ativa) return false;
+        if (reiniciar) {
+          if (geracao === geracaoAtualizacao) atualizacaoPendente = false;
+          listaVinculos.replaceChildren();
+          vinculosExibidos.length = 0;
+        }
+        for (const item of paginaAtual.itens) {
+          const linha = document.createElement('li');
+          vinculosExibidos.push({
+            linha,
+            usuarioId: item.usuario_id,
+            revogado: item.revogado,
+            versao: item.versao,
+          });
+          listaVinculos.append(linha);
+        }
+        atualizarIdentificacoes();
+        cursorVinculos = paginaAtual.proximo_cursor ?? undefined;
+        maisVinculos.hidden = !cursorVinculos;
+        tentarVinculos.hidden = true;
+        estadoVinculos.textContent = listaVinculos.children.length
+          ? 'Vínculos consultados.'
+          : 'Nenhum vínculo profissional encontrado.';
+        return true;
+      } catch (erro) {
+        if (ativa && !acessoPerdido(erro)) {
+          estadoVinculos.textContent = mensagemFalha(erro);
+          tentarVinculos.hidden = false;
+        }
+        return false;
+      } finally {
+        maisVinculos.disabled = tentarVinculos.disabled = false;
       }
-      atualizarIdentificacoes();
-      cursorVinculos = paginaAtual.proximo_cursor ?? undefined;
-      maisVinculos.hidden = !cursorVinculos;
-      tentarVinculos.hidden = true;
-      estadoVinculos.textContent = listaVinculos.children.length
-        ? 'Vínculos consultados.'
-        : 'Nenhum vínculo profissional encontrado.';
-    } catch (erro) {
-      if (!ativa || acessoPerdido(erro)) return;
-      estadoVinculos.textContent = mensagemFalha(erro);
-      tentarVinculos.hidden = false;
-    } finally {
-      consultandoVinculos = false;
-      maisVinculos.disabled = tentarVinculos.disabled = false;
-    }
+    };
+    const pendente = executar();
+    consultaVinculos = pendente;
+    void pendente.finally(() => {
+      if (consultaVinculos === pendente) consultaVinculos = undefined;
+    });
+    return pendente;
   }
   maisVinculos.addEventListener('click', () => void carregarVinculos());
   tentarVinculos.addEventListener('click', () => void carregarVinculos());
