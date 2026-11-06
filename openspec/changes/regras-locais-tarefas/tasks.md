@@ -27,3 +27,5 @@ Edição de descrição, responsável, prazo e prioridade adicionada ao formulá
 A leitura do corpo HTTP foi limitada por cancelamento e prazo; teste de regressão passou. Fixture SQL adicional gravou três versões por profissional vinculado com dados fictícios; não comprova semântica completa nem integração Auth/Vault real.
 
 Preparação de leitura conectada: wrapper SQL separado aceita somente ação assinada de leitura; escrita permanece na RPC anterior sem grant. Cliente seleciona wrapper de leitura; teste local com fixtures cobriu profissional vinculado, outro paciente, vínculo revogado e escrita negada. Revisão independente não encontrou defeito concreto; Auth/Vault e autorização reais, grant e publicação seguem pendentes.
+
+Atualização de 06/11/2026: migrations `20261112270000` e `20261112280000` aplicadas ao Supabase de teste para auditar Auth sem perfil e criar wrapper de leitura de tarefas. Wrapper permanece sem grant; cliente preparado localmente, prova real e ativação ainda pendentes. Escrita segue fechada.
