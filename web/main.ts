@@ -381,6 +381,7 @@ function apagarPacientes(): void {
   fecharPacienteFamiliar();
   tableBody.replaceChildren();
   table.hidden = true;
+  elemento('patient-list-hint').hidden = true;
   listEmpty.hidden = true;
   pagination.hidden = true;
   listLoading.hidden = true;
@@ -940,6 +941,7 @@ async function carregarPacientes(): Promise<boolean> {
   const atual = () => versao === revisao && numeroConsulta === consulta && sessao !== null;
   tableBody.replaceChildren();
   table.hidden = true;
+  elemento('patient-list-hint').hidden = true;
   listEmpty.hidden = true;
   listLoading.hidden = false;
   reloadButton.setAttribute('aria-disabled', 'true');
@@ -953,6 +955,7 @@ async function carregarPacientes(): Promise<boolean> {
     tableBody.replaceChildren(...resultado.itens.map(linhaPaciente));
     proximoCursor = resultado.proximo_cursor;
     table.hidden = resultado.itens.length === 0;
+    elemento('patient-list-hint').hidden = resultado.itens.length === 0;
     listEmpty.hidden = resultado.itens.length !== 0;
     elemento('empty-description').textContent =
       pagina > 0 && resultado.proximo_cursor

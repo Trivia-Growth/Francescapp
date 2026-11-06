@@ -378,8 +378,18 @@ td {
 td:first-child {
   font-weight: 600;
 }
+th:last-child {
+  width: 50%;
+}
 td:last-child {
   color: var(--muted);
+}
+#patients-body td:last-child button {
+  margin: 0 8px 8px 0;
+}
+.patient-list-hint {
+  color: var(--muted);
+  font-size: .9375rem;
 }
 .empty-state {
   padding: 44px 0;
