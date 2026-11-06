@@ -48,15 +48,24 @@ export function criarEntradaTarefaCuidadoNativa(dependencias: Dependencias) {
         const leitor = request.body.getReader();
         const partes: Uint8Array[] = [];
         let tamanho = 0;
-        while (true) {
-          const parte = await leitor.read();
-          if (parte.done) break;
-          tamanho += parte.value.byteLength;
-          if (tamanho > 32_768) {
-            void leitor.cancel();
-            return erro('entrada_invalida');
+        const controle = AbortSignal.any([request.signal, AbortSignal.timeout(15_000)]);
+        const interrupcao = new Promise<never>((_, rejeitar) => {
+          if (controle.aborted) rejeitar(new Error());
+          else controle.addEventListener('abort', () => rejeitar(new Error()), { once: true });
+        });
+        try {
+          while (true) {
+            const parte = await Promise.race([leitor.read(), interrupcao]);
+            if (parte.done) break;
+            tamanho += parte.value.byteLength;
+            if (tamanho > 32_768) throw new Error();
+            partes.push(parte.value);
           }
-          partes.push(parte.value);
+        } catch {
+          void leitor.cancel().catch(() => {});
+          return erro('entrada_invalida');
+        } finally {
+          leitor.releaseLock();
         }
         const bytes = new Uint8Array(tamanho);
         let posicao = 0;
