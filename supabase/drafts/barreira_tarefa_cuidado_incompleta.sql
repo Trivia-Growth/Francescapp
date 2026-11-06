@@ -117,7 +117,7 @@ begin
   end if;
   resultado:=jsonb_build_object('epoca',b.epoca,
    'reserva',case when b.reserva_atual is null then null else jsonb_build_object('id',r.id,'estado',r.estado) end,
-   'resultado_pendente',case when b.resultado_pendente is null then null else jsonb_build_object('recibo_id',c.id,'reserva_id',r.id,'resultado',c.resultado,'paciente_id',r.paciente_reservado_id,'tarefa_id',r.tarefa_resultado_id) end);
+   'resultado_pendente',case when b.resultado_pendente is null then null else jsonb_build_object('recibo_id',c.id,'reserva_id',r.id,'resultado',c.resultado,'paciente_id',r.paciente_reservado_id,'tarefa_id',r.tarefa_reservada_id,'versao_esperada',r.versao_esperada) end);
  end if;
  insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
  values(gen_random_uuid(),ator,'api.consultar_barreira_tarefa_cuidado','requisicao',null,'permitido',p_request);
@@ -291,7 +291,7 @@ begin
    on conflict (ator_usuario_id,operacao,chave_idempotencia) do nothing returning * into anterior;
   novo:=found;
   if not novo then
-   select * into anterior from operacao.requisicao r where r.ator_usuario_id=ator and r.operacao=acao and reserva_atual.chave_idempotencia=e->>'chave_idempotencia';
+   select * into anterior from operacao.requisicao r where r.ator_usuario_id=ator and r.operacao=acao and r.chave_idempotencia=e->>'chave_idempotencia';
    if anterior.digest_entrada is distinct from e->>'digest_idempotencia' or anterior.estado <> 'concluida'
     or anterior.resultado_versao is distinct from esperada+1
     or not exists(select 1 from cadastro.tarefa_cuidado_versao v join cadastro.tarefa_cuidado t on t.id=v.tarefa_id
@@ -337,3 +337,129 @@ begin
  end if;
  return jsonb_build_object('ok',true,'dados',resultado,'request_id',req);
 end $$;
+
+-- Composição ainda sem owner e sem grants; requer revisão e testes.
+create function operacao.tarefa_barreira_composicao_privada(p_transporte jsonb) returns jsonb
+language plpgsql security invoker set search_path='' as $$
+declare
+ e jsonb:=p_transporte->'entrada'; a jsonb:=e->'atestado'; ator uuid:=auth_privado.uid();
+ sessao uuid; req uuid; reserva uuid; comando uuid; paciente uuid; tarefa uuid; versao integer; epoca bigint;
+ inicio timestamptz; fim timestamptz; dominio text; sujeito text; concessao uuid;
+ google record; acao text; resposta text; dados jsonb; autorizado boolean:=false;
+begin
+ if jsonb_typeof(p_transporte) is distinct from 'object'
+  or p_transporte - array['entrada','entrada_canonica','dados_canonicos'] <> '{}'::jsonb
+  or jsonb_typeof(e) is distinct from 'object' or jsonb_typeof(a) is distinct from 'object'
+  or e - array['request_id','operacao','epoca','reserva_id','comando_id','paciente_id','tarefa_id','versao_esperada','atestado'] <> '{}'::jsonb then
+  raise exception using errcode='42501',message='SEM_PERMISSAO';
+ end if;
+ begin
+  sessao:=(auth_privado.jwt()->>'session_id')::uuid; req:=(e->>'request_id')::uuid;
+  epoca:=(e->>'epoca')::bigint; reserva:=(e->>'reserva_id')::uuid; comando:=(e->>'comando_id')::uuid; paciente:=(e->>'paciente_id')::uuid; tarefa:=(e->>'tarefa_id')::uuid; versao:=(e->>'versao_esperada')::integer;
+  inicio:=(a->>'emitido_em')::timestamptz; fim:=(a->>'expira_em')::timestamptz;
+ exception when invalid_text_representation or invalid_datetime_format or datetime_field_overflow or numeric_value_out_of_range then
+  raise exception using errcode='42501',message='SEM_PERMISSAO';
+ end;
+ acao:=e->>'operacao';
+ if ator is null or sessao is null or req is null or inicio is null or fim is null
+  or acao not in ('api.reservar_tarefa_cuidado','api.encerrar_tarefa_cuidado','api.consultar_barreira_tarefa_cuidado','api.reconhecer_barreira_tarefa_cuidado')
+  or acao is null or a->>'usuario_id' is distinct from ator::text or a->>'session_id' is distinct from sessao::text
+  or a->>'request_id' is distinct from req::text or a->>'operacao' is distinct from acao
+  or inicio>clock_timestamp() or fim<=clock_timestamp() or fim<=inicio or fim-inicio>interval '30 seconds'
+  or identidade.verificar_assinatura_atestado(p_transporte->>'entrada_canonica',p_transporte->>'dados_canonicos',e-'atestado',a-'mac',a->>'mac') is distinct from true then
+  raise exception using errcode='42501',message='SEM_PERMISSAO';
+ end if;
+ if (acao='api.reservar_tarefa_cuidado' and (epoca is null or epoca<1 or reserva is null or comando is not null or paciente is null or tarefa is null or versao is null or versao<0))
+  or (acao='api.encerrar_tarefa_cuidado' and (epoca is null or epoca<1 or comando is null or paciente is not null))
+  or (acao='api.consultar_barreira_tarefa_cuidado' and (epoca is not null or reserva is not null or comando is not null or paciente is not null))
+  or (acao='api.reconhecer_barreira_tarefa_cuidado' and (epoca is not null or reserva is not null or comando is null or paciente is not null)) then
+  raise exception using errcode='22023',message='ENTRADA_INVALIDA';
+ end if;
+ if bloqueios_auth.travar(ator,sessao) is true then
+ select dominio_workspace into dominio from identidade.configuracao_auth_nativo where google_unico_oauth_confirmado for share;
+ if found and exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth_privado.jwt()->'amr')='array' then auth_privado.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='oauth') then
+  select i.provider_id,i.identity_data into google from auth_privado.identidades() i where i.user_id=ator and i.provider='google'
+   and bloqueios_auth.travar(ator,sessao)
+   and exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp()))
+   and (select count(*) from auth_privado.identidades() j where j.user_id=ator and j.provider='google')=1;
+  if google.identity_data->>'sub'=google.provider_id and google.identity_data->>'email_verified'='true' and google.identity_data#>>'{custom_claims,hd}'=dominio then
+   select c.id,c.subject_google into concessao,sujeito from identidade.concessao_equipe c
+    where c.usuario_id=ator and c.estado='vinculada' and c.metodo='google_workspace' and c.perfil='profissional' for share;
+   if found and sujeito=google.provider_id then
+    perform 1 from public.usuario u where u.id=ator and u.ativo and u.perfil='profissional' for share;
+    if found then
+     perform 1 from identidade.sessao s where s.session_id=sessao and s.usuario_id=ator and s.concessao_id=concessao
+      and s.metodo='google_workspace' and s.revogada_em is null and s.encerrada_em is null for share;
+     if found then
+      perform 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp());
+      autorizado:=found;
+     end if;
+    end if;
+   end if;
+  end if;
+ end if;
+ end if;
+ if not autorizado or fim<=clock_timestamp() then
+  if exists(select 1 from public.usuario where id=ator) then
+   insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+    values(gen_random_uuid(),ator,acao,'requisicao',null,'negado',req);
+   if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
+  end if;
+  return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','sem_permissao'),'request_id',req);
+ end if;
+ -- Reserva bloqueia paciente antes da barreira, como a criação de contato.
+ if acao='api.reservar_tarefa_cuidado' then
+  perform 1 from cadastro.acesso_paciente ap where ap.paciente_id=paciente and ap.usuario_id=ator and ap.revogada_em is null for share;
+  if not found then
+   insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+    values(gen_random_uuid(),ator,acao,'requisicao',null,'negado',req);
+   if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
+   return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','sem_permissao'),'request_id',req);
+  end if;
+  perform 1 from cadastro.paciente where id=paciente for key share;
+ end if;
+ -- A espera pelo bloqueio não pode estender a validade do atestado.
+ insert into operacao.barreira_tarefa_cuidado(ator_usuario_id) values(ator) on conflict do nothing;
+ perform 1 from operacao.barreira_tarefa_cuidado where ator_usuario_id=ator for update;
+ if fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
+  raise exception using errcode='PZ001',message='EXPIRACAO_INTERNA';
+ end if;
+ if acao='api.consultar_barreira_tarefa_cuidado' then
+  -- Bloqueio da barreira já adquirido; negar antes da auditoria de leitura.
+  if exists(select 1 from operacao.barreira_tarefa_cuidado b
+   join operacao.recibo_barreira_tarefa_cuidado c on c.id=b.resultado_pendente
+   join operacao.reserva_tarefa_cuidado r on r.id=c.reserva_id
+   where b.ator_usuario_id=ator and not exists(select 1 from cadastro.acesso_paciente ap
+    where ap.paciente_id=r.paciente_reservado_id and ap.usuario_id=ator and ap.revogada_em is null)) then
+   insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+    values(gen_random_uuid(),ator,acao,'requisicao',null,'negado',req);
+   if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
+   return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','sem_permissao'),'request_id',req);
+  end if;
+  dados:=operacao.consultar_barreira_tarefa_cuidado_privado(req);
+ elsif acao='api.reconhecer_barreira_tarefa_cuidado' then
+  resposta:=operacao.reconhecer_barreira_tarefa_cuidado_privado(comando,req);
+ elsif acao='api.reservar_tarefa_cuidado' then
+  resposta:=operacao.reservar_tarefa_cuidado_privado(ator,epoca,reserva,paciente,tarefa,versao);
+ else
+  resposta:=operacao.encerrar_tarefa_cuidado_privado(ator,epoca,reserva,comando);
+ end if;
+ if acao in ('api.reservar_tarefa_cuidado','api.encerrar_tarefa_cuidado') then
+  insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+   values(gen_random_uuid(),ator,acao,'requisicao',null,case when resposta in ('aberta','confirmada','cancelada','vazia') then 'permitido' else 'negado' end,req);
+  if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
+ end if;
+ if fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
+  raise exception using errcode='PZ001',message='EXPIRACAO_INTERNA';
+ end if;
+ return jsonb_build_object('ok',true,'dados',coalesce(dados,jsonb_build_object('estado',resposta)),'request_id',req);
+end $$;
+revoke all on function operacao.tarefa_barreira_composicao_privada(jsonb) from public,anon,authenticated,service_role;
+
+-- Wrapper invoker permanece inacessível até revisão de privilégios e provas reais.
+create function api.tarefa_barreira_composicao(p_transporte jsonb) returns jsonb
+language sql security invoker set search_path='' set row_security=on as $$
+ select operacao.tarefa_barreira_composicao_privada(p_transporte)
+$$;
+revoke all on function api.tarefa_barreira_composicao(jsonb) from public,anon,authenticated,service_role;
+

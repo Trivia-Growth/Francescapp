@@ -21,6 +21,8 @@ begin
   perform set_config('fixture.tarefa_suprimir','nao',true);
   resposta:=api.tarefa_cuidado_privado(public.assinar_anamnese_fixture(entrada,'api.gravar_tarefa_cuidado',ator,sessao));
   if resposta->>'ok'<>'true' or (resposta#>>'{dados,versao}')::integer<>v+1 then raise exception 'ESCRITA_FALHOU'; end if;
+  resposta:=api.tarefa_cuidado_privado(public.assinar_anamnese_fixture(entrada,'api.gravar_tarefa_cuidado',ator,sessao));
+  if resposta->>'ok'<>'true' or (resposta#>>'{dados,versao}')::integer<>v+1 then raise exception 'REPLAY_FALHOU'; end if;
   if operacao.encerrar_tarefa_cuidado_privado(ator,v+1,reserva,gen_random_uuid())<>'confirmada' then raise exception 'ENCERRAMENTO_FALHOU'; end if;
   begin
    perform api.tarefa_cuidado_privado(public.assinar_anamnese_fixture(entrada,'api.gravar_tarefa_cuidado',ator,sessao));
