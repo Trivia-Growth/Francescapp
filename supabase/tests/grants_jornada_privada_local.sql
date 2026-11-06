@@ -28,6 +28,7 @@ grant ffcmapp_edicao_paciente_owner, ffcmapp_contato_barreira_owner, ffcmapp_con
  ffcmapp_conceder_acesso_owner, ffcmapp_revogar_acesso_owner to ffcm_grants_migrador_fixture with inherit false, set true;
 grant ffcm_grants_migrador_fixture to current_user with inherit false, set true;
 set role ffcm_grants_migrador_fixture;
+\ir ../drafts/20261112123000_grants_edicao_contato.sql
 \ir ../drafts/20261112130000_grants_jornada_privada.sql
 reset role;
 -- As entradas são assinadas com chave exclusivamente fictícia e adulteradas após a assinatura.
@@ -188,4 +189,17 @@ do $$ begin
   or has_table_privilege('authenticated','cadastro.contato_paciente','select') then
   raise exception 'ACESSO_TABELA_INDEVIDO';
  end if;
+end $$;
+
+set role ffcm_grants_migrador_fixture;
+\ir ../drafts/rollback_grants_edicao_contato.sql
+reset role;
+do $$ begin
+ if exists(select 1 from grants_antes a join pg_proc p on p.oid=a.oid
+  where p.proname in ('consultar_paciente_edicao_privado','edicao_paciente_composicao_privada','editar_paciente_privado','contato_barreira_composicao','criar_contato_paciente')
+   and (p.proowner is distinct from a.proowner or p.proacl is distinct from a.proacl or has_function_privilege('authenticated',p.oid,'execute'))) then
+  raise exception 'ROLLBACK_NAO_RESTAURA_ACL';
+ end if;
+ if not has_function_privilege('authenticated','api.conceder_acesso_paciente_privado(jsonb)','execute')
+  or not has_function_privilege('authenticated','api.revogar_acesso_paciente_privado(jsonb)','execute') then raise exception 'ROLLBACK_AFETOU_ACESSO'; end if;
 end $$;

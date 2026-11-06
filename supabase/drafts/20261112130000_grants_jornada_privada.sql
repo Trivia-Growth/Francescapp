@@ -1,6 +1,5 @@
--- Preparação para ativação revisada; não ativa rotas. JWT, atestado e RLS continuam obrigatórios.
--- Rollback: desligar flags e, como respectivos owners, REVOKE EXECUTE das sete funções
--- abaixo FROM authenticated; conferir ACL efetiva e reconciliar mutações em voo.
+-- RASCUNHO separado para gestão de acesso; não aplicar sem revisão e provas reais.
+-- Rollback exige conferir ACL anterior, desligar flags e revogar somente grants concedidos por este draft.
 do $$
 declare
  migrador text := current_user;
@@ -8,18 +7,19 @@ declare
  tinha_set boolean;
 begin
  for item in select * from (values
-  ('ffcmapp_edicao_paciente_owner','api.consultar_paciente_edicao_privado(jsonb)'),
-  ('ffcmapp_edicao_paciente_owner','api.edicao_paciente_composicao_privada(jsonb)'),
-  ('ffcmapp_edicao_paciente_owner','api.editar_paciente_privado(jsonb)'),
-  ('ffcmapp_contato_barreira_owner','api.contato_barreira_composicao(jsonb)'),
-  ('ffcmapp_contato_owner','api.criar_contato_paciente(jsonb)'),
   ('ffcmapp_conceder_acesso_owner','api.conceder_acesso_paciente_privado(jsonb)'),
   ('ffcmapp_revogar_acesso_owner','api.revogar_acesso_paciente_privado(jsonb)')
  ) as alvos(owner_nome, assinatura) loop
   if not exists(select 1 from pg_proc p join pg_roles r on r.oid=p.proowner
     where p.oid=to_regprocedure(item.assinatura) and r.rolname=item.owner_nome
+      and not r.rolcanlogin and not r.rolsuper and not r.rolbypassrls
       and p.prosecdef and 'row_security=on'=any(p.proconfig) and 'search_path=""'=any(p.proconfig)) then
    raise exception 'WRAPPER_INESPERADO: %', item.assinatura;
+  end if;
+  if has_function_privilege('authenticated',to_regprocedure(item.assinatura),'execute')
+   or has_function_privilege('anon',to_regprocedure(item.assinatura),'execute')
+   or has_function_privilege('service_role',to_regprocedure(item.assinatura),'execute') then
+   raise exception 'ACL_INICIAL_INESPERADA: %', item.assinatura;
   end if;
   tinha_set := pg_has_role(migrador,item.owner_nome,'SET');
   if not tinha_set then

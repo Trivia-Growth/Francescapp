@@ -1,5 +1,7 @@
 # Tasks
 
+Preparação local de grants: edição e contatos têm draft separado (`20261112123000`), e o draft `20261112130000` ficou restrito à gestão de acesso. Rollback de edição/contatos revoga apenas grants dos owners. Teste PostgreSQL descartável passou para grant, ACL e rollback, preservando grants de gestão; Auth/Vault são fictícios e o migrador tinha SET prévio. Falta prova com SET ausente, concorrência de alteração de ACL, revisão S-02 e integração real. Flags não impedem chamada direta à Data API após grant. Os drafts não foram aplicados remotamente.
+
 Retomada: consulta somente de leitura ao histórico de migrações pela API de gestão retornou HTTP 401 com a credencial local disponível. A CLI também excedeu o prazo de conexão. O histórico remoto atual permanece não confirmado; renovar a autenticação sem registrar ou compartilhar o token antes de tentar novamente. Nenhuma alteração remota foi feita.
 
 Preparação local: edição privada de paciente e interface isolada foram esboçadas e testadas com fixtures; não há integração liberada. SQL atual admite apenas Google, embora a exceção técnica individual permaneça prevista; nome da operação e resposta também precisam de alinhamento. Repetição após recarga, autorização, auditoria, Auth real e S-02 seguem pendentes. O entrypoint Auth do Netlify fica desativado por padrão; a saída continua disponível para sessões existentes e mantém as validações nativas. Desativar a entrada não revoga sessões automaticamente; Auth real e revisão independente permanecem pendentes.
