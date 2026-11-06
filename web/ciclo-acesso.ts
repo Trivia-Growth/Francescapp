@@ -1,6 +1,7 @@
 import { consultaBarreiraAcessoSchema } from '../packages/contracts/src/barreira-acesso.ts';
 import {
   criarAcessoPacienteSchema,
+  revogarAcessoPacienteSchema,
   contratosRotas,
   estadoEncerramentoCadastroSchema,
   estadoReconhecimentoCadastroSchema,
@@ -14,13 +15,33 @@ type Portas = {
   identidadeAtual(): Identidade | null;
   consultar(identidade: Identidade): Promise<unknown>;
   reservar(
-    entrada: { epoca: number; reserva_id: string; paciente_id: string },
+    entrada:
+      | { epoca: number; reserva_id: string; paciente_id: string; acao: 'conceder' }
+      | {
+          epoca: number;
+          reserva_id: string;
+          paciente_id: string;
+          acao: 'revogar';
+          acesso_id: string;
+          versao_esperada: number;
+        },
     identidade: Identidade,
   ): Promise<unknown>;
   criar(
     entrada: {
       entrada: ReturnType<typeof criarAcessoPacienteSchema.parse> & { acesso_id: string };
       paciente_id: string;
+      chave: string;
+      reserva_id: string;
+      geracao_reserva: number;
+    },
+    identidade: Identidade,
+  ): Promise<unknown>;
+  revogar(
+    entrada: {
+      paciente_id: string;
+      acesso_id: string;
+      entrada: ReturnType<typeof revogarAcessoPacienteSchema.parse>;
       chave: string;
       reserva_id: string;
       geracao_reserva: number;
@@ -140,7 +161,9 @@ export function criarCicloAcesso(portas: Portas, novoId: () => string = () => cr
         cercado = false;
         consulta = null;
         const estado = estadoReservaCadastroSchema.parse(
-          await chamar(() => portas.reservar({ epoca, reserva_id, paciente_id }, identidade)),
+          await chamar(() =>
+            portas.reservar({ epoca, reserva_id, paciente_id, acao: 'conceder' }, identidade),
+          ),
         );
         verificarIdentidade();
         if (estado !== 'aberta') throw new Error('Reserva não confirmada');
@@ -162,6 +185,65 @@ export function criarCicloAcesso(portas: Portas, novoId: () => string = () => cr
         if (acesso.id.toLowerCase() !== acesso_id.toLowerCase())
           throw new Error('Resultado divergente');
         return acesso;
+      }),
+    revogar: (
+      pacienteId: string,
+      acessoId: string,
+      dados: ReturnType<typeof revogarAcessoPacienteSchema.parse>,
+    ) =>
+      executar(async () => {
+        const paciente_id = uuidSchema.parse(pacienteId);
+        const acesso_id = uuidSchema.parse(acessoId);
+        const entrada = revogarAcessoPacienteSchema.parse(dados);
+        if (
+          !consulta ||
+          consulta.reserva ||
+          consulta.resultado_pendente ||
+          inseguro ||
+          encerramento ||
+          reconhecimento
+        )
+          throw new Error('Acesso bloqueado');
+        const epoca = consulta.epoca;
+        const reserva_id = id();
+        const chave = id();
+        inseguro = true;
+        cercado = false;
+        consulta = null;
+        const estado = estadoReservaCadastroSchema.parse(
+          await chamar(() =>
+            portas.reservar(
+              {
+                acao: 'revogar',
+                epoca,
+                reserva_id,
+                paciente_id,
+                acesso_id,
+                versao_esperada: entrada.versao_esperada,
+              },
+              identidade,
+            ),
+          ),
+        );
+        if (estado !== 'aberta') throw new Error('Reserva não confirmada');
+        const resultado = contratosRotas.revogarAcessoPaciente.saida.parse(
+          await chamar(() =>
+            portas.revogar(
+              {
+                paciente_id,
+                acesso_id,
+                entrada,
+                chave,
+                reserva_id,
+                geracao_reserva: epoca,
+              },
+              identidade,
+            ),
+          ),
+        );
+        if (resultado.id.toLowerCase() !== acesso_id.toLowerCase())
+          throw new Error('Resultado divergente');
+        return resultado;
       }),
     encerrar: () =>
       executar(async () => {

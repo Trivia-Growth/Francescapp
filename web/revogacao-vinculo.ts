@@ -1,16 +1,17 @@
-import type { ClienteFFCM } from './api.js';
-
 /** A autorização permanece no servidor. Reconsulta informa somente o estado observado. */
 export function montarRevogacaoVinculo(
   raiz: HTMLElement,
-  pacienteId: string,
-  api: ClienteFFCM,
+  revogar: (
+    acessoId: string,
+    dados: { versao_esperada: number; motivo: string },
+  ) => Promise<unknown>,
   atualizarVinculos: () => Promise<void>,
   acessoPerdido: (erro: unknown) => boolean,
   alteracaoPendente: (pendente: boolean) => void,
 ): {
   selecionar: (acesso: { id: string; versao: number; nome: string }) => void;
   invalidarSelecao: () => void;
+  reconciliar: () => void;
   destruir: () => void;
 } {
   let ativa = true;
@@ -44,17 +45,11 @@ export function montarRevogacaoVinculo(
     enviando = true;
     botao.disabled = true;
     status.textContent = 'Enviando revogação…';
-    const chave = crypto.randomUUID();
     let perdeuAcesso = false;
     let concluida = false;
     void (async () => {
       try {
-        await api.revogarAcessoPaciente(
-          pacienteId,
-          atual.id,
-          { versao_esperada: atual.versao, motivo: razao },
-          chave,
-        );
+        await revogar(atual.id, { versao_esperada: atual.versao, motivo: razao });
         if (!ativa) return;
         if (motivo.value === razao) {
           motivo.value = '';
@@ -108,6 +103,13 @@ export function montarRevogacaoVinculo(
       status.textContent = '';
       raiz.hidden = false;
       motivo.focus();
+    },
+    reconciliar() {
+      incerto = false;
+      selecaoValida = false;
+      botao.disabled = true;
+      status.textContent =
+        'Operação anterior verificada. Selecione o vínculo para uma nova alteração.';
     },
     invalidarSelecao() {
       selecaoValida = false;

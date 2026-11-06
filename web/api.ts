@@ -6,6 +6,7 @@ import {
 import { criarContatoReservadoHttpSchema } from '../packages/contracts/src/barreira-contato-servidor.js';
 import {
   criarAcessoReservadoHttpSchema,
+  revogarAcessoReservadoHttpSchema,
   contratosBarreiraAcessoHttp,
 } from '../packages/contracts/src/barreira-acesso-servidor.js';
 import {
@@ -88,7 +89,10 @@ const rotas = {
     ...contratosRotas.criarAcessoPaciente,
     entrada: criarAcessoReservadoHttpSchema,
   },
-  revogarAcessoPaciente: contratosRotas.revogarAcessoPaciente,
+  revogarAcessoPaciente: {
+    ...contratosRotas.revogarAcessoPaciente,
+    entrada: revogarAcessoReservadoHttpSchema,
+  },
   consultarBarreiraAcesso: {
     ...contratosBarreiraAcessoHttp.consultar,
     saida: contratosBarreiraAcessoHttp.consultar.saida.shape.dados,
@@ -602,18 +606,34 @@ export class ClienteFFCM {
     acessoId: string,
     entrada: { versao_esperada: number; motivo: string },
     chave: string,
+    reserva: { reserva_id: string; geracao_reserva: number },
   ) {
-    return this.#enviar('revogarAcessoPaciente', entrada, {
-      protegido: true,
-      pacienteId,
-      acessoId,
-      chave,
-    });
+    return this.#enviar(
+      'revogarAcessoPaciente',
+      { entrada, ...reserva },
+      {
+        protegido: true,
+        pacienteId,
+        acessoId,
+        chave,
+      },
+    );
   }
   consultarBarreiraAcesso() {
     return this.#enviar('consultarBarreiraAcesso', {}, { protegido: true });
   }
-  reservarBarreiraAcesso(entrada: { epoca: number; reserva_id: string; paciente_id: string }) {
+  reservarBarreiraAcesso(
+    entrada:
+      | { epoca: number; reserva_id: string; paciente_id: string; acao: 'conceder' }
+      | {
+          epoca: number;
+          reserva_id: string;
+          paciente_id: string;
+          acao: 'revogar';
+          acesso_id: string;
+          versao_esperada: number;
+        },
+  ) {
     return this.#enviar('reservarBarreiraAcesso', entrada, { protegido: true });
   }
   encerrarBarreiraAcesso(entrada: {

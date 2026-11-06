@@ -451,7 +451,10 @@ it('revoga vínculo selecionado com motivo e atualiza estado observado', async (
     return { id, versao: 2 };
   });
   const api = {
-    ...barreiraIndisponivel,
+    identidadeAtual: () => ({ usuario_id: id, session_id: id }),
+    consultarBarreiraAcesso: async () => ({ epoca: 1, reserva: null, resultado_pendente: null }),
+    encerrarBarreiraAcesso: async () => ({ estado: 'vazia' }),
+    reservarBarreiraAcesso: async () => ({ estado: 'aberta' }),
     listarProfissionais: async () => ({
       itens: [
         {
@@ -472,6 +475,7 @@ it('revoga vínculo selecionado com motivo e atualiza estado observado', async (
   } as unknown as ClienteFFCM;
   montarSelecaoProfissional(raiz, id, api, () => false);
   await vi.waitFor(() => expect(raiz.textContent).toContain('pessoa@example.test · Ativo'));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Operações anteriores verificadas.'));
   [...raiz.querySelectorAll('button')]
     .find((b) => b.textContent === 'Selecionar para revogação')
     ?.click();
@@ -484,6 +488,7 @@ it('revoga vínculo selecionado com motivo e atualiza estado observado', async (
     id,
     { versao_esperada: 1, motivo: 'Motivo fictício' },
     expect.any(String),
+    { reserva_id: expect.any(String), geracao_reserva: 1 },
   );
   confirmar.mockRestore();
 });

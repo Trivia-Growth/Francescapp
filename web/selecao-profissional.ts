@@ -77,6 +77,11 @@ export function montarSelecaoProfissional(
     reservar: async (entrada) => (await api.reservarBarreiraAcesso(entrada)).estado,
     criar: ({ entrada, paciente_id, chave, reserva_id, geracao_reserva }) =>
       api.criarAcessoPaciente(paciente_id, entrada, chave, { reserva_id, geracao_reserva }),
+    revogar: ({ paciente_id, acesso_id, entrada, chave, reserva_id, geracao_reserva }) =>
+      api.revogarAcessoPaciente(paciente_id, acesso_id, entrada, chave, {
+        reserva_id,
+        geracao_reserva,
+      }),
     encerrar: async (entrada) => (await api.encerrarBarreiraAcesso(entrada)).estado,
     reconhecer: async (entrada) => (await api.reconhecerBarreiraAcesso(entrada)).estado,
   });
@@ -128,7 +133,7 @@ export function montarSelecaoProfissional(
             !encontrado ||
             !nome ||
             !window.confirm(
-              `Concessão anterior para ${nome}: ${encontrado.revogado ? 'revogada' : 'ativa'}. Confirmar verificação?`,
+              `${pendente.acao === 'revogar' ? 'Revogação' : 'Concessão'} anterior para ${nome}: ${encontrado.revogado ? 'revogada' : 'ativa'}. Confirmar verificação?`,
             )
           )
             throw new Error('Confirmação necessária');
@@ -143,6 +148,7 @@ export function montarSelecaoProfissional(
       ciclo.liberar();
       if (!ativa) return;
       liberado = true;
+      revogacao.reconciliar();
       explicacao.textContent = 'Operações anteriores verificadas.';
       conceder.disabled = !selecao.value;
     } catch (erro) {
@@ -203,8 +209,7 @@ export function montarSelecaoProfissional(
   vinculos.append(tituloVinculos, estadoVinculos, listaVinculos, maisVinculos, tentarVinculos);
   const areaRevogacao = document.createElement('section');
   const avisoRevogacao = document.createElement('p');
-  avisoRevogacao.textContent =
-    'Após recarregar, pedidos de revogação anteriores podem ainda ser concluídos; consulte o estado atual.';
+  avisoRevogacao.textContent = 'Verifique operações anteriores antes de alterar vínculos.';
   vinculos.append(avisoRevogacao);
   raiz.prepend(vinculos);
   raiz.append(areaRevogacao);
@@ -288,8 +293,12 @@ export function montarSelecaoProfissional(
   }
   const revogacao = montarRevogacaoVinculo(
     areaRevogacao,
-    pacienteId,
-    api,
+    async (acessoId, dados) => {
+      if (!liberado) throw new Error('Acesso bloqueado');
+      liberado = false;
+      conceder.disabled = true;
+      return ciclo.revogar(pacienteId, acessoId, dados);
+    },
     atualizarVinculos,
     acessoPerdido,
     (pendente) => {
@@ -326,7 +335,8 @@ export function montarSelecaoProfissional(
             botao.disabled = true;
             botao.addEventListener('click', () => {
               const nome = nomesProfissionais.get(item.usuario_id.toLowerCase());
-              if (nome) revogacao.selecionar({ id: item.id, versao: item.versao, nome });
+              if (nome && liberado)
+                revogacao.selecionar({ id: item.id, versao: item.versao, nome });
             });
             linha.append(botao);
           }

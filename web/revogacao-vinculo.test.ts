@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import type { ClienteFFCM } from './api.ts';
 import { montarRevogacaoVinculo } from './revogacao-vinculo.ts';
 
 it('exige confirmação, envia versão e reconsulta após resposta incerta sem repetir', async () => {
@@ -12,8 +11,7 @@ it('exige confirmação, envia versão e reconsulta após resposta incerta sem r
   const revogar = vi.fn().mockRejectedValue(new Error('resposta perdida'));
   const atualizar = vi.fn().mockResolvedValue(undefined);
   const pendente = vi.fn();
-  const api = { revogarAcessoPaciente: revogar } as unknown as ClienteFFCM;
-  const tela = montarRevogacaoVinculo(raiz, 'paciente', api, atualizar, () => false, pendente);
+  const tela = montarRevogacaoVinculo(raiz, revogar, atualizar, () => false, pendente);
   tela.selecionar({ id: 'acesso', versao: 3, nome: 'Pessoa fictícia' });
   const motivo = raiz.querySelector('textarea') as HTMLTextAreaElement;
   motivo.value = 'Motivo fictício';
@@ -24,12 +22,7 @@ it('exige confirmação, envia versão e reconsulta após resposta incerta sem r
   botao.click();
   await vi.waitFor(() => expect(atualizar).toHaveBeenCalledOnce());
   expect(revogar).toHaveBeenCalledOnce();
-  expect(revogar).toHaveBeenCalledWith(
-    'paciente',
-    'acesso',
-    { versao_esperada: 3, motivo: 'Motivo fictício' },
-    expect.any(String),
-  );
+  expect(revogar).toHaveBeenCalledWith('acesso', { versao_esperada: 3, motivo: 'Motivo fictício' });
   expect(raiz.textContent).toContain('O pedido ainda pode ser concluído');
   expect(motivo.value).toBe('Motivo fictício');
   expect(pendente).toHaveBeenLastCalledWith(true);
@@ -47,8 +40,7 @@ it('exige nova seleção após atualização para usar versão atual', async () 
   const revogar = vi.fn().mockResolvedValue({ id: 'acesso', versao: 3 });
   const tela = montarRevogacaoVinculo(
     raiz,
-    'paciente',
-    { revogarAcessoPaciente: revogar } as unknown as ClienteFFCM,
+    revogar,
     async () => {},
     () => false,
     () => {},
@@ -64,11 +56,6 @@ it('exige nova seleção após atualização para usar versão atual', async () 
   tela.selecionar({ id: 'acesso', versao: 2, nome: 'Pessoa' });
   botao.click();
   await vi.waitFor(() => expect(revogar).toHaveBeenCalledOnce());
-  expect(revogar).toHaveBeenCalledWith(
-    'paciente',
-    'acesso',
-    { versao_esperada: 2, motivo: 'Motivo fictício' },
-    expect.any(String),
-  );
+  expect(revogar).toHaveBeenCalledWith('acesso', { versao_esperada: 2, motivo: 'Motivo fictício' });
   confirmar.mockRestore();
 });
