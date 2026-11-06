@@ -621,3 +621,118 @@ td:last-child {
   padding: .8rem 0;
   border-bottom: 1px solid #dfe5d4;
 }
+
+/* Área de trabalho: navegação discreta e conteúdo em superfície clara. */
+body:has(#patients-view:not([hidden])) {
+  background: #fafbf8;
+}
+body:has(#patients-view:not([hidden])) .topbar {
+  min-height: 92px;
+  margin-left: 240px;
+  padding: 18px 4%;
+}
+body:has(#patients-view:not([hidden])) .topbar .brand-organization {
+  display: none;
+}
+.patients-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  padding: 34px 22px 24px;
+  background: var(--white);
+  border-right: 1px solid var(--line);
+}
+.sidebar-brand {
+  color: var(--primary);
+  font: 600 28px / 1 Georgia, serif;
+}
+.sidebar-brand small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font: 600 .625rem / 1.2 Arial, sans-serif;
+  letter-spacing: .12em;
+}
+.sidebar-label {
+  margin: 44px 12px 12px;
+  color: var(--muted);
+  font-size: .75rem;
+}
+.sidebar-current {
+  display: block;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #edf2e6;
+  color: var(--primary);
+  font-size: .9375rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.sidebar-note {
+  margin-top: auto;
+  padding: 18px 10px 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: .8125rem;
+}
+body:has(#patients-view:not([hidden])) main,
+body:has(#patients-view:not([hidden])) .footer {
+  margin-left: 240px;
+}
+.patients-layout {
+  max-width: 1580px;
+  padding: 48px 4% 72px;
+}
+.patient-register {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+}
+.patient-register .section-heading {
+  padding-bottom: 18px;
+}
+body:has(#patients-view:not([hidden])) .footer {
+  margin-right: 4%;
+  padding-left: 4%;
+}
+@media (max-width: 760px) {
+  body:has(#patients-view:not([hidden])) .topbar,
+  body:has(#patients-view:not([hidden])) main,
+  body:has(#patients-view:not([hidden])) .footer {
+    margin-left: 0;
+  }
+  body:has(#patients-view:not([hidden])) .topbar {
+    min-height: 78px;
+    padding: 16px 22px;
+  }
+  .patients-sidebar {
+    position: static;
+    width: auto;
+    padding: 0;
+    margin-bottom: 28px;
+    background: transparent;
+    border: 0;
+  }
+  .sidebar-brand,
+  .sidebar-label,
+  .sidebar-note {
+    display: none;
+  }
+  .sidebar-current {
+    align-self: flex-start;
+  }
+  .patients-layout {
+    padding: 28px 22px 48px;
+  }
+  .patient-register {
+    padding: 20px 16px;
+  }
+  body:has(#patients-view:not([hidden])) .footer {
+    margin: 0 22px;
+    padding-left: 0;
+  }
+}
