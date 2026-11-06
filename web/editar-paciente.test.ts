@@ -169,7 +169,8 @@ it('impede reconhecimento de resultado de outro paciente', async () => {
     vi.fn(),
   );
   raiz.querySelector('button')?.click();
-  await vi.waitFor(() => expect(raiz.textContent).toContain(outro));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('outro paciente'));
+  expect(raiz.textContent).not.toContain(outro);
   expect(ciclo.reconhecer).not.toHaveBeenCalled();
   expect(raiz.querySelector('button')?.hidden).toBe(true);
 });
@@ -208,4 +209,29 @@ it('não permite reconhecer quando consulta autorizada para conferência falha',
   );
   expect(ciclo.reconhecer).not.toHaveBeenCalled();
   expect(raiz.textContent).not.toContain('Reconhecer resultado e liberar edição');
+});
+
+it('não encerra reserva de edição em outra aba sem confirmação', async () => {
+  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const ciclo = {
+    consultar: vi
+      .fn()
+      .mockResolvedValue({ epoca: 1, reserva: { id, estado: 'aberta' }, resultado_pendente: null }),
+    encerrar: vi.fn(),
+    reconhecer: vi.fn(),
+    liberar: vi.fn(),
+    editar: vi.fn(),
+  };
+  const raiz = document.createElement('div');
+  montarEdicaoPaciente(
+    raiz,
+    id,
+    { ciclo, consultarPaciente: vi.fn() } as unknown as ServicoEdicaoPaciente,
+    vi.fn(),
+  );
+  raiz.querySelector('button')?.click();
+  await vi.waitFor(() => expect(confirmar).toHaveBeenCalledOnce());
+  expect(ciclo.encerrar).not.toHaveBeenCalled();
+  expect(raiz.querySelector('form')).toBeNull();
+  confirmar.mockRestore();
 });
