@@ -823,7 +823,7 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
         acaoPacienteAnterior = selecionar;
         selecaoTitulo.textContent = `Profissional para ${paciente.nome}`;
         selecaoPanel.hidden = false;
-        desmontarSelecao = montarSelecaoProfissional(selecaoRaiz, api, acessoPerdido);
+        desmontarSelecao = montarSelecaoProfissional(selecaoRaiz, paciente.id, api, acessoPerdido);
         selecaoTitulo.focus();
       });
       acao.append(selecionar);

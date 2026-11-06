@@ -1,3 +1,7 @@
+import {
+  consultaVinculosProfissionaisSchema,
+  paginaVinculosProfissionaisSchema,
+} from '../packages/contracts/src/vinculos-profissionais.js';
 import { criarContatoReservadoHttpSchema } from '../packages/contracts/src/barreira-contato-servidor.js';
 import {
   contratosRotas,
@@ -51,6 +55,12 @@ const rotas = {
   sairFamiliar: { ...contratosRotas.sairSessao, caminho: '/api/familiar/sessao/sair' },
   listarPacientes: contratosRotas.listarPacientes,
   listarConcessoes: contratosRotas.listarConcessoes,
+  listarVinculosProfissionais: {
+    metodo: 'GET',
+    caminho: '/api/pacientes/:paciente_id/vinculos-profissionais',
+    entrada: consultaVinculosProfissionaisSchema,
+    saida: paginaVinculosProfissionaisSchema,
+  },
   listarPacientesFamiliar: {
     ...contratosRotas.listarPacientes,
     caminho: '/api/familiar/pacientes',
@@ -214,6 +224,7 @@ export class ClienteFFCM {
     };
     let caminho: string = contrato.caminho;
     if (
+      rota === 'listarVinculosProfissionais' ||
       rota === 'consultarAnamnese' ||
       rota === 'salvarAnamnese' ||
       rota === 'consultarPaciente' ||
@@ -469,10 +480,17 @@ export class ClienteFFCM {
     );
   }
 
+  listarVinculosProfissionais(pacienteId: string, cursor?: string) {
+    return this.#enviar('listarVinculosProfissionais', cursor ? { cursor } : {}, {
+      protegido: true,
+      pacienteId,
+    });
+  }
+
   listarProfissionais(cursor?: string): Promise<Dados<'listarConcessoes'>> {
     return this.#enviar(
       'listarConcessoes',
-      { estado: 'vinculada', limite: 25, ...(cursor ? { cursor } : {}) },
+      { limite: 25, ...(cursor ? { cursor } : {}) },
       { protegido: true },
     );
   }

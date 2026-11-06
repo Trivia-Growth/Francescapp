@@ -3,6 +3,7 @@ import { type ClienteFFCM, mensagemFalha } from './api.js';
 /** Consulta somente; a concessão permanece indisponível até haver reconciliação segura. */
 export function montarSelecaoProfissional(
   raiz: HTMLElement,
+  pacienteId: string,
   api: ClienteFFCM,
   acessoPerdido: (erro: unknown) => boolean,
 ): () => void {
@@ -42,6 +43,79 @@ export function montarSelecaoProfissional(
   conceder.disabled = true;
   raiz.replaceChildren(status, rotulo, selecao, anterior, seguinte, tentar, explicacao, conceder);
 
+  const vinculos = document.createElement('section');
+  const tituloVinculos = document.createElement('h3');
+  tituloVinculos.textContent = 'Vínculos profissionais';
+  const estadoVinculos = document.createElement('p');
+  estadoVinculos.setAttribute('role', 'status');
+  const listaVinculos = document.createElement('ul');
+  const maisVinculos = document.createElement('button');
+  maisVinculos.type = 'button';
+  maisVinculos.className = 'button-secondary';
+  maisVinculos.textContent = 'Carregar mais vínculos';
+  maisVinculos.hidden = true;
+  const tentarVinculos = document.createElement('button');
+  tentarVinculos.type = 'button';
+  tentarVinculos.className = 'button-secondary';
+  tentarVinculos.textContent = 'Tentar consultar vínculos novamente';
+  tentarVinculos.hidden = true;
+  vinculos.append(tituloVinculos, estadoVinculos, listaVinculos, maisVinculos, tentarVinculos);
+  raiz.prepend(vinculos);
+  const nomesProfissionais = new Map<string, string>();
+  const vinculosExibidos: {
+    linha: HTMLLIElement;
+    usuarioId: string;
+    revogado: boolean;
+    versao: number;
+  }[] = [];
+  const atualizarIdentificacoes = () => {
+    for (const item of vinculosExibidos) {
+      const nome =
+        nomesProfissionais.get(item.usuarioId.toLowerCase()) ??
+        'Identificação indisponível nesta página';
+      item.linha.textContent = `${nome} · ${item.revogado ? 'Revogado' : 'Ativo'} · versão ${item.versao}`;
+    }
+  };
+  let cursorVinculos: string | undefined;
+  let consultandoVinculos = false;
+  async function carregarVinculos(): Promise<void> {
+    if (consultandoVinculos) return;
+    consultandoVinculos = true;
+    maisVinculos.disabled = tentarVinculos.disabled = true;
+    estadoVinculos.textContent = 'Consultando vínculos…';
+    try {
+      const paginaAtual = await api.listarVinculosProfissionais(pacienteId, cursorVinculos);
+      if (!ativa) return;
+      for (const item of paginaAtual.itens) {
+        const linha = document.createElement('li');
+        vinculosExibidos.push({
+          linha,
+          usuarioId: item.usuario_id,
+          revogado: item.revogado,
+          versao: item.versao,
+        });
+        listaVinculos.append(linha);
+      }
+      atualizarIdentificacoes();
+      cursorVinculos = paginaAtual.proximo_cursor ?? undefined;
+      maisVinculos.hidden = !cursorVinculos;
+      tentarVinculos.hidden = true;
+      estadoVinculos.textContent = listaVinculos.children.length
+        ? 'Vínculos consultados.'
+        : 'Nenhum vínculo profissional encontrado.';
+    } catch (erro) {
+      if (!ativa || acessoPerdido(erro)) return;
+      estadoVinculos.textContent = mensagemFalha(erro);
+      tentarVinculos.hidden = false;
+    } finally {
+      consultandoVinculos = false;
+      maisVinculos.disabled = tentarVinculos.disabled = false;
+    }
+  }
+  maisVinculos.addEventListener('click', () => void carregarVinculos());
+  tentarVinculos.addEventListener('click', () => void carregarVinculos());
+  void carregarVinculos();
+
   async function carregar(): Promise<void> {
     const atual = ++consulta;
     status.textContent = 'Consultando equipe…';
@@ -59,6 +133,11 @@ export function montarSelecaoProfissional(
           item.ativo === true &&
           item.usuario_id !== null,
       );
+      for (const profissional of resultado.itens) {
+        if (profissional.perfil === 'profissional' && profissional.usuario_id)
+          nomesProfissionais.set(profissional.usuario_id.toLowerCase(), profissional.email);
+      }
+      atualizarIdentificacoes();
       const vazio = document.createElement('option');
       vazio.value = '';
       vazio.textContent = profissionais.length
