@@ -25,3 +25,5 @@ Atualização de estados preparada na interface e no servidor, com versão esper
 Edição de descrição, responsável, prazo e prioridade adicionada ao formulário existente. A interface permanece dependente do serviço e das permissões protegidas ainda desativados.
 
 A leitura do corpo HTTP foi limitada por cancelamento e prazo; teste de regressão passou. Fixture SQL adicional gravou três versões por profissional vinculado com dados fictícios; não comprova semântica completa nem integração Auth/Vault real.
+
+Preparação de leitura conectada: wrapper SQL separado aceita somente ação assinada de leitura; escrita permanece na RPC anterior sem grant. Cliente seleciona wrapper de leitura; teste local com fixtures cobriu profissional vinculado, outro paciente, vínculo revogado e escrita negada. Revisão independente não encontrou defeito concreto; Auth/Vault e autorização reais, grant e publicação seguem pendentes.
