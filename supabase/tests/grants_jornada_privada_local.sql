@@ -88,12 +88,72 @@ do $$ declare r jsonb; begin
  if r#>>'{erro,codigo}' is distinct from 'sem_permissao' or r ? 'dados' then raise exception 'PROFISSIONAL_ACEITO'; end if;
 end $$;
 reset role;
+update identidade.sessao set encerrada_em=clock_timestamp() where session_id='20000000-0000-4000-8000-000000000001';
+-- Atestados válidos em cada identidade: profissional e administrador com sessão encerrada.
+create temp table negativas_jornada as
+select nome, identidade, entrada->>'request_id' request_id,
+ public.assinar_anamnese_fixture(entrada,operacao,ator,sessao) transporte
+from (
+ select p.nome, (p.transporte->'entrada')-'atestado'::text entrada,
+  p.transporte#>>'{entrada,atestado,operacao}' operacao,
+  i.identidade,i.ator,i.sessao
+ from pedidos_grants p cross join (values
+  ('profissional','10000000-0000-4000-8000-000000000002'::uuid,'20000000-0000-4000-8000-000000000002'::uuid),
+  ('encerrada','10000000-0000-4000-8000-000000000001'::uuid,'20000000-0000-4000-8000-000000000001'::uuid)
+ ) i(identidade,ator,sessao)
+ where p.nome in ('consultar_paciente_edicao_privado','edicao_paciente_composicao_privada','editar_paciente_privado','contato_barreira_composicao','criar_contato_paciente')
+) q;
+grant select on negativas_jornada to authenticated;
+set role authenticated;
+do $$
+declare pedido record; resposta jsonb; ator uuid; sessao uuid;
+begin
+ for pedido in select * from negativas_jornada loop
+  if pedido.identidade='profissional' then ator:='10000000-0000-4000-8000-000000000002'; sessao:='20000000-0000-4000-8000-000000000002';
+  else ator:='10000000-0000-4000-8000-000000000001'; sessao:='20000000-0000-4000-8000-000000000001'; end if;
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',ator,'session_id',sessao,'amr',jsonb_build_array(jsonb_build_object('method','oauth')))::text,true);
+  execute format('select api.%I($1)',pedido.nome) into resposta using pedido.transporte;
+  if resposta#>>'{erro,codigo}' is distinct from 'sem_permissao' or resposta ? 'dados' then raise exception 'NEGATIVA_FALHOU: % %',pedido.nome,pedido.identidade; end if;
+ end loop;
+end $$;
+reset role;
+do $$ begin
+ if exists(select 1 from negativas_jornada n where not exists(select 1 from auditoria.evento a
+  where a.request_id=n.request_id::uuid and a.resultado='negado'
+   and a.ator_usuario_id=(case when n.identidade='profissional' then '10000000-0000-4000-8000-000000000002' else '10000000-0000-4000-8000-000000000001' end)::uuid
+   and a.acao=n.transporte#>>'{entrada,atestado,operacao}')) then raise exception 'AUDITORIA_NEGATIVA_AUSENTE'; end if;
+end $$;
+update identidade.sessao set encerrada_em=null where session_id='20000000-0000-4000-8000-000000000001';
+update identidade.concessao_equipe set estado='revogada',revogada_em=clock_timestamp(),
+ revogada_por_usuario_id='10000000-0000-4000-8000-000000000001',motivo_revogacao_cifrado=motivo_cifrado
+ where usuario_id='10000000-0000-4000-8000-000000000001';
+create temp table concessao_revogada as
+select nome, entrada->>'request_id' request_id,
+ public.assinar_anamnese_fixture(entrada,operacao,'10000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001') transporte
+from (select nome, jsonb_set((transporte->'entrada')-'atestado'::text,'{request_id}',to_jsonb(gen_random_uuid())) entrada,
+ transporte#>>'{entrada,atestado,operacao}' operacao from pedidos_grants
+ where nome in ('consultar_paciente_edicao_privado','edicao_paciente_composicao_privada','editar_paciente_privado','contato_barreira_composicao','criar_contato_paciente')) q;
+grant select on concessao_revogada to authenticated;
+set role authenticated;
+do $$ declare pedido record; resposta jsonb; begin
+ perform set_config('request.jwt.claims',jsonb_build_object('sub','10000000-0000-4000-8000-000000000001','session_id','20000000-0000-4000-8000-000000000001','amr',jsonb_build_array(jsonb_build_object('method','oauth')))::text,true);
+ for pedido in select * from concessao_revogada loop
+  execute format('select api.%I($1)',pedido.nome) into resposta using pedido.transporte;
+  if resposta#>>'{erro,codigo}' is distinct from 'sem_permissao' or resposta ? 'dados' then raise exception 'CONCESSAO_REVOGADA_ACEITA: %',pedido.nome; end if;
+ end loop;
+end $$;
+reset role;
+do $$ begin
+ if exists(select 1 from concessao_revogada n where not exists(select 1 from auditoria.evento a where a.request_id=n.request_id::uuid and a.resultado='negado' and a.ator_usuario_id='10000000-0000-4000-8000-000000000001' and a.acao=n.transporte#>>'{entrada,atestado,operacao}')) then raise exception 'AUDITORIA_REVOGACAO_AUSENTE'; end if;
+end $$;
 do $$ begin
  if not exists(select 1 from cadastro.acesso_paciente a, prova_vinculo p where a.id=(p.entrada->>'acesso_id')::uuid and a.revogada_em is null)
   or not exists(select 1 from auditoria.evento a, prova_vinculo p where a.id=(p.entrada->>'auditoria_id')::uuid and a.resultado='permitido') then
   raise exception 'VINCULO_OU_AUDITORIA_AUSENTE';
  end if;
 end $$;
+update identidade.concessao_equipe set estado='vinculada',revogada_em=null,revogada_por_usuario_id=null,motivo_revogacao_cifrado=null
+ where usuario_id='10000000-0000-4000-8000-000000000001';
 update identidade.sessao set encerrada_em=clock_timestamp() where session_id='20000000-0000-4000-8000-000000000001';
 set role authenticated;
 do $$ declare r jsonb; begin
