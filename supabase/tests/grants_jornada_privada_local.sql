@@ -68,6 +68,40 @@ begin
  end;
 end $$;
 reset role;
+-- Concessão real sob authenticated, com Auth e chave de atestado fictícios.
+create temp table prova_vinculo as
+select entrada,
+ public.assinar_anamnese_fixture(entrada,'api.conceder_acesso_paciente','10000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001') admin,
+ public.assinar_anamnese_fixture(entrada,'api.conceder_acesso_paciente','10000000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000002') profissional
+from (select jsonb_build_object('request_id',gen_random_uuid(),'paciente_id','40000000-0000-4000-8000-000000000001',
+ 'acesso_id',gen_random_uuid(),'usuario_id','10000000-0000-4000-8000-000000000002','auditoria_id',gen_random_uuid(),
+ 'chave_idempotencia','vinculo-pos-grant','digest_idempotencia',repeat('a',43),
+ 'motivo',jsonb_build_object('formato',1,'key_id','teste','nonce',repeat('a',16),'ciphertext','YQ','tag',repeat('a',22))) entrada) e;
+grant select on prova_vinculo to authenticated;
+set role authenticated;
+do $$ declare r jsonb; begin
+ perform set_config('request.jwt.claims',jsonb_build_object('sub','10000000-0000-4000-8000-000000000001','session_id','20000000-0000-4000-8000-000000000001','amr',jsonb_build_array(jsonb_build_object('method','oauth')))::text,true);
+ select api.conceder_acesso_paciente_privado(admin) into r from prova_vinculo;
+ if r->>'ok' is distinct from 'true' then raise exception 'ADMIN_NEGADO: %',r; end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub','10000000-0000-4000-8000-000000000002','session_id','20000000-0000-4000-8000-000000000002','amr',jsonb_build_array(jsonb_build_object('method','oauth')))::text,true);
+ select api.conceder_acesso_paciente_privado(profissional) into r from prova_vinculo;
+ if r#>>'{erro,codigo}' is distinct from 'sem_permissao' or r ? 'dados' then raise exception 'PROFISSIONAL_ACEITO'; end if;
+end $$;
+reset role;
+do $$ begin
+ if not exists(select 1 from cadastro.acesso_paciente a, prova_vinculo p where a.id=(p.entrada->>'acesso_id')::uuid and a.revogada_em is null)
+  or not exists(select 1 from auditoria.evento a, prova_vinculo p where a.id=(p.entrada->>'auditoria_id')::uuid and a.resultado='permitido') then
+  raise exception 'VINCULO_OU_AUDITORIA_AUSENTE';
+ end if;
+end $$;
+update identidade.sessao set encerrada_em=clock_timestamp() where session_id='20000000-0000-4000-8000-000000000001';
+set role authenticated;
+do $$ declare r jsonb; begin
+ perform set_config('request.jwt.claims',jsonb_build_object('sub','10000000-0000-4000-8000-000000000001','session_id','20000000-0000-4000-8000-000000000001','amr',jsonb_build_array(jsonb_build_object('method','oauth')))::text,true);
+ select api.conceder_acesso_paciente_privado(admin) into r from prova_vinculo;
+ if r#>>'{erro,codigo}' is distinct from 'sem_permissao' or r ? 'dados' then raise exception 'SESSAO_ENCERRADA_ACEITA'; end if;
+end $$;
+reset role;
 do $$ begin
  if not pg_has_role('ffcm_grants_migrador_fixture','ffcmapp_edicao_paciente_owner','SET')
   or not pg_has_role('ffcm_grants_migrador_fixture','ffcmapp_contato_owner','SET')
