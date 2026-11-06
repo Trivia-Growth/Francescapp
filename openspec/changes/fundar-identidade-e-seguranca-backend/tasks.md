@@ -20,6 +20,8 @@ Cadastro e carteira receberam migrations locais posteriores à admissão técnic
 
 RPCs locais de cadastro, barreira e carteira receberam grants restritos a `authenticated`. Testes SQL descartáveis exercitaram criação e lista com papel autenticado, rejeição de envelope adulterado, revogação e negativa a papéis indevidos. Auth, Vault e assinaturas dos testes são fictícios; PostgREST, JWT real, assinador da aplicação e isolamento de profissionais ainda precisam de prova. Rotas e Supabase remoto permanecem inalterados.
 
+Retomada de integração: o login Google com administrador de teste foi comprovado. A identidade existente de acesso ao Vault recebeu a permissão do atestado, sua credencial foi renovada e sincronizada no Supabase e no Netlify; as referências já existentes de cifra, HMAC e atestado foram confirmadas por conexão TLS. As RPCs reais de lista e criação negaram acesso anônimo; a lista respondeu para a sessão administradora simulada no contexto SQL e negou sessão inexistente. Isso não comprova a jornada HTTP completa, outros perfis, revogação ou criação; a flag de pacientes segue desativada e só dados fictícios são permitidos.
+
 Revisão de preparação corrigiu as migrations de admissão e carteira para preservar permissões preexistentes do migrador. Teste SQL descartável dos trechos de concessão e limpeza passou; não executou as migrations completas nem comprovou integração remota.
 
 Consulta somente de leitura pelo canal Management API confirmou conexão como `postgres`. Esse canal compartilhado não comprova identidade individual do operador e não deve ser usado como prova de autoria. O bootstrap segue pendente de identificação operacional verificável e revisão; não houve alteração remota.
