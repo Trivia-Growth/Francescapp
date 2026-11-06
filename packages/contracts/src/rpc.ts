@@ -697,6 +697,8 @@ export const assinaturasRpc = {
         paciente_id: uuidSchema,
         acesso_id: uuidSchema,
         motivo_auditoria: campoCifradoSchema,
+        reserva_id: uuidSchema,
+        geracao_reserva: z.number().int().positive().safe(),
       })
       .strict(),
     operacaoConcluidaSchema,

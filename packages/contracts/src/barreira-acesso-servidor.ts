@@ -1,8 +1,10 @@
-import { criarAcessoPacienteSchema } from './cadastro.ts';
+import { criarAcessoPacienteSchema, revogarAcessoPacienteSchema } from './cadastro.ts';
 import { z } from 'zod';
 import {
   consultaBarreiraAcessoSchema,
   reservarAcessoSchema,
+  reservaConcessaoAcessoSchema,
+  reservaRevogacaoAcessoSchema,
   encerrarAcessoSchema,
   reconhecerAcessoSchema,
   estadoReservaCadastroSchema,
@@ -15,8 +17,12 @@ const vazio = z.object({}).strict();
 const sessao = z.object({ 'x-sessao': uuidSchema }).strict();
 const mutacao = sessao.extend({ origin: z.string().url().max(2048) }).strict();
 const contexto = { request_id: uuidSchema, atestado: atestadoOperacaoSchema };
-export const entradaBarreiraAcessoSchema = z.discriminatedUnion('operacao', [
-  reservarAcessoSchema.extend({
+export const entradaBarreiraAcessoSchema = z.union([
+  reservaConcessaoAcessoSchema.extend({
+    ...contexto,
+    operacao: z.literal('api.reservar_concessao_acesso_profissional'),
+  }),
+  reservaRevogacaoAcessoSchema.extend({
     ...contexto,
     operacao: z.literal('api.reservar_concessao_acesso_profissional'),
   }),
@@ -107,6 +113,14 @@ export const respostaBarreiraAcessoSchema = z.discriminatedUnion('ok', [
 export const criarAcessoReservadoHttpSchema = z
   .object({
     entrada: criarAcessoPacienteSchema.extend({ acesso_id: uuidSchema }),
+    reserva_id: uuidSchema,
+    geracao_reserva: z.number().int().positive().safe(),
+  })
+  .strict();
+
+export const revogarAcessoReservadoHttpSchema = z
+  .object({
+    entrada: revogarAcessoPacienteSchema,
     reserva_id: uuidSchema,
     geracao_reserva: z.number().int().positive().safe(),
   })

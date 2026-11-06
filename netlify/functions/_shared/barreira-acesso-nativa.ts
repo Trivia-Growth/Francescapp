@@ -13,6 +13,7 @@ const entradasSemAtestado = [
   entradaBarreiraAcessoSchema.options[1].omit({ atestado: true }),
   entradaBarreiraAcessoSchema.options[2].omit({ atestado: true }),
   entradaBarreiraAcessoSchema.options[3].omit({ atestado: true }),
+  entradaBarreiraAcessoSchema.options[4].omit({ atestado: true }),
 ] as const;
 
 function validarEntrada(entrada: unknown) {

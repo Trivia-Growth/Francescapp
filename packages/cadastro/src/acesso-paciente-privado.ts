@@ -96,14 +96,10 @@ export async function prepararAcessoPacientePrivado(
       digest_idempotencia,
       auditoria_id,
       ...preparado,
-      ...(acao === 'conceder'
-        ? {
-            reserva_id: uuidSchema.parse(solicitacao.reservaId).toLowerCase(),
-            geracao_reserva: assinaturasRpc.criarAcessoPaciente.entrada.shape.geracao_reserva.parse(
-              solicitacao.geracaoReserva,
-            ),
-          }
-        : {}),
+      reserva_id: uuidSchema.parse(solicitacao.reservaId).toLowerCase(),
+      geracao_reserva: assinaturasRpc.criarAcessoPaciente.entrada.shape.geracao_reserva.parse(
+        solicitacao.geracaoReserva,
+      ),
       ...motivoAuditoria,
     };
     const prova = resultadoAtestacaoSchema.parse(

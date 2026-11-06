@@ -8,7 +8,14 @@ it('assina reserva de acesso e preserva paciente e época no transporte', async 
   const request = new Request('https://example.test/api/acessos/barreira/reservar', {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: 'https://example.test', 'x-sessao': id },
-    body: JSON.stringify({ epoca: 1, reserva_id: id, paciente_id: id }),
+    body: JSON.stringify({
+      acao: 'revogar',
+      epoca: 1,
+      reserva_id: id,
+      paciente_id: id,
+      acesso_id: id,
+      versao_esperada: 2,
+    }),
   });
   const atestador = criarAtestadorOperacao({ keyId: 'teste', chave: new Uint8Array(32).fill(4) });
   const resultado = await processarBarreiraAcessoNativa(request, 'reservar', {
@@ -26,6 +33,9 @@ it('assina reserva de acesso e preserva paciente e época no transporte', async 
       const e = transporte.p_transporte.entrada;
       expect(e).toMatchObject({
         operacao: 'api.reservar_concessao_acesso_profissional',
+        acao: 'revogar',
+        acesso_id: id,
+        versao_esperada: 2,
         paciente_id: id,
         reserva_id: id,
         epoca: 1,

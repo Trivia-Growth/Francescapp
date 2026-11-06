@@ -5,7 +5,10 @@ import {
   type CodigoErro,
 } from '../../packages/contracts/src/erros.ts';
 import { contratosRotas } from '../../packages/contracts/src/rotas.ts';
-import { criarAcessoReservadoHttpSchema } from '../../packages/contracts/src/barreira-acesso-servidor.ts';
+import {
+  criarAcessoReservadoHttpSchema,
+  revogarAcessoReservadoHttpSchema,
+} from '../../packages/contracts/src/barreira-acesso-servidor.ts';
 import { comporAcessoPacienteNativo } from './_shared/compor-acesso-paciente-nativo.ts';
 import { configurarDependenciasNativas } from './_shared/configurar-dependencias-nativas.ts';
 
@@ -30,8 +33,7 @@ export default async function acessoPaciente(request: Request): Promise<Response
   const concessao = /^\/api\/pacientes\/([^/]+)\/acessos$/.exec(url.pathname);
   const revogacao = /^\/api\/pacientes\/([^/]+)\/acessos\/([^/]+)\/revogar$/.exec(url.pathname);
   if ((!concessao && !revogacao) || request.method !== 'POST') return erro('nao_encontrado');
-  if (concessao && process.env.FFCM_BARREIRA_ACESSO_ATIVADA !== 'true')
-    return erro('servico_indisponivel');
+  if (process.env.FFCM_BARREIRA_ACESSO_ATIVADA !== 'true') return erro('servico_indisponivel');
   const pacienteId = (concessao ?? revogacao)?.[1];
   if (
     url.search ||
@@ -79,7 +81,7 @@ export default async function acessoPaciente(request: Request): Promise<Response
   }
   const entrada = concessao
     ? criarAcessoReservadoHttpSchema.safeParse(corpo)
-    : contratosRotas.revogarAcessoPaciente.entrada.safeParse(corpo);
+    : revogarAcessoReservadoHttpSchema.safeParse(corpo);
   if (!entrada.success) return erro('entrada_invalida');
   let acessoId: string;
   let dados: unknown;
@@ -95,7 +97,11 @@ export default async function acessoPaciente(request: Request): Promise<Response
     geracaoReserva = concessaoValidada.data.geracao_reserva;
   } else {
     acessoId = revogacao?.[2] as string;
-    dados = entrada.data;
+    const revogacaoValidada = revogarAcessoReservadoHttpSchema.safeParse(corpo);
+    if (!revogacaoValidada.success) return erro('entrada_invalida');
+    dados = revogacaoValidada.data.entrada;
+    reservaId = revogacaoValidada.data.reserva_id;
+    geracaoReserva = revogacaoValidada.data.geracao_reserva;
   }
   let dependencias: ReturnType<typeof configurarDependenciasNativas>;
   try {

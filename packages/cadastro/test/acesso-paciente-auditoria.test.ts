@@ -16,6 +16,8 @@ it('vincula motivos cifrados aos registros distintos de acesso e auditoria', asy
       acao: 'revogar',
       pacienteId: id,
       acessoId: id,
+      reservaId: id,
+      geracaoReserva: 2,
       corpo: { versao_esperada: 1, motivo: 'Motivo fictício' },
       cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
       contexto: {
@@ -37,6 +39,11 @@ it('vincula motivos cifrados aos registros distintos de acesso e auditoria', asy
       },
     },
   );
+  expect(JSON.parse(resultado.p_entrada.entrada_canonica)).toMatchObject({
+    reserva_id: id,
+    geracao_reserva: 2,
+    versao_esperada: 1,
+  });
   const entrada = resultado.p_entrada.entrada;
   if (!('motivo_auditoria' in entrada)) throw new Error('Motivo de auditoria ausente');
   await expect(
