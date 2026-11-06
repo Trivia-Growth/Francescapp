@@ -54,3 +54,5 @@ Teste integrado local ampliado: sessão encerrada impede leitura e replay de gra
 Prova no Supabase de teste: uma resposta fictícia foi gravada na anamnese do paciente do lote e recuperada após decifragem, com versão e auditoria confirmadas. Handler, cifra, atestado, Vault e PostgreSQL reais; identidade/autorização e JWT simulados no contexto SQL. Grants e memberships temporários foram removidos dentro das transações e conferidos ausentes. Não comprova jornada HTTP nem negativas reais por perfil; rota segue fechada.
 
 A interface agora impede salvar enquanto há seção ou campo digitado ainda não adicionado, preservando rascunho; teste web focado passou. Rota permanece desativada.
+
+Atualização de 06/11/2026: migration `20261112121000` aplicada ao Supabase de teste para exigir registro de auditoria; conferidos os privilégios do migrador antes da aplicação. Testes SQL locais cobriram inclusão suprimida e rollback. A aplicação não concede acesso às RPCs e não comprova a jornada HTTP nem encerra S-02.

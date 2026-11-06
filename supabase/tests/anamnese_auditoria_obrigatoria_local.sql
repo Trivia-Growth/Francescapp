@@ -13,6 +13,25 @@ do $$ begin
  if not pg_has_role('ffcm_migrador_auditoria_anamnese_fixture','ffcmapp_anamnese_owner','SET')
   or not exists(select 1 from pg_namespace n cross join lateral aclexplode(coalesce(n.nspacl,acldefault('n',n.nspowner))) a where n.nspname='api' and a.grantee='ffcmapp_anamnese_owner'::regrole and a.privilege_type='CREATE') then raise exception 'PRIVILEGIO_PREEXISTENTE_PERDIDO'; end if;
 end $$;
+-- ADMIN sem SET simula o migrador real; a associação temporária deve desaparecer.
+create role ffcm_anamnese_sem_set_fixture nologin nosuperuser nocreaterole;
+grant usage,create on schema api to ffcm_anamnese_sem_set_fixture with grant option;
+grant ffcmapp_anamnese_owner to ffcm_anamnese_sem_set_fixture with admin true, inherit false, set false;
+grant ffcm_anamnese_sem_set_fixture to current_user with inherit false, set true;
+create temp table anamnese_membership_antes as
+ select roleid,member,grantor,admin_option,inherit_option,set_option from pg_auth_members
+ where member='ffcm_anamnese_sem_set_fixture'::regrole and roleid='ffcmapp_anamnese_owner'::regrole;
+create temp table anamnese_schema_antes as select nspacl from pg_namespace where nspname='api';
+do $$ begin if pg_has_role('ffcm_anamnese_sem_set_fixture','ffcmapp_anamnese_owner','SET') then raise exception 'FIXTURE_SET_INESPERADO'; end if; end $$;
+set role ffcm_anamnese_sem_set_fixture;
+\ir ../migrations/20261112121000_anamnese_auditoria_obrigatoria.sql
+reset role;
+do $$ begin
+ if pg_has_role('ffcm_anamnese_sem_set_fixture','ffcmapp_anamnese_owner','SET')
+  or exists((select roleid,member,grantor,admin_option,inherit_option,set_option from pg_auth_members where member='ffcm_anamnese_sem_set_fixture'::regrole and roleid='ffcmapp_anamnese_owner'::regrole except select * from anamnese_membership_antes)
+   union all (select * from anamnese_membership_antes except select roleid,member,grantor,admin_option,inherit_option,set_option from pg_auth_members where member='ffcm_anamnese_sem_set_fixture'::regrole and roleid='ffcmapp_anamnese_owner'::regrole))
+  or exists(select 1 from pg_namespace n cross join anamnese_schema_antes a where n.nspname='api' and n.nspacl is distinct from a.nspacl) then raise exception 'PRIVILEGIO_SEM_SET_ALTERADO'; end if;
+end $$;
 do $$ begin if exists(select 1 from pg_proc p cross join auditoria_owner_acl_antes a where p.oid='api.anamnese_operacao_privada(jsonb)'::regprocedure and (p.proowner is distinct from a.proowner or p.proacl is distinct from a.proacl)) then raise exception 'OWNER_OU_ACL_ALTERADOS'; end if; end $$;
 create function public.suprimir_auditoria_obrigatoria_fixture() returns trigger language plpgsql as $$
 begin if current_setting('fixture.suprimir_auditoria',true)='sim' then return null; end if; return new; end $$;

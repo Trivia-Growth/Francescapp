@@ -13,6 +13,25 @@ do $$ begin
  if not pg_has_role('ffcm_migrador_auditoria_plano_fixture','ffcmapp_plano_owner','SET')
   or exists(select 1 from pg_namespace n cross join lateral aclexplode(coalesce(n.nspacl,acldefault('n',n.nspowner))) a where n.nspname='api' and a.grantee='ffcmapp_plano_owner'::regrole and a.privilege_type='CREATE') then raise exception 'PRIVILEGIO_ALTERADO'; end if;
 end $$;
+-- A associação ADMIN preexistente não fornece SET ao migrador da fixture.
+create role ffcm_plano_sem_set_fixture nologin nosuperuser nocreaterole;
+grant usage,create on schema api to ffcm_plano_sem_set_fixture with grant option;
+grant ffcmapp_plano_owner to ffcm_plano_sem_set_fixture with admin true, inherit false, set false;
+grant ffcm_plano_sem_set_fixture to current_user with inherit false, set true;
+create temp table plano_membership_antes as
+ select roleid,member,grantor,admin_option,inherit_option,set_option from pg_auth_members
+ where member='ffcm_plano_sem_set_fixture'::regrole and roleid='ffcmapp_plano_owner'::regrole;
+create temp table plano_schema_antes as select nspacl from pg_namespace where nspname='api';
+do $$ begin if pg_has_role('ffcm_plano_sem_set_fixture','ffcmapp_plano_owner','SET') then raise exception 'FIXTURE_SET_INESPERADO'; end if; end $$;
+set role ffcm_plano_sem_set_fixture;
+\ir ../migrations/20261112122000_plano_auditoria_obrigatoria.sql
+reset role;
+do $$ begin
+ if pg_has_role('ffcm_plano_sem_set_fixture','ffcmapp_plano_owner','SET')
+  or exists((select roleid,member,grantor,admin_option,inherit_option,set_option from pg_auth_members where member='ffcm_plano_sem_set_fixture'::regrole and roleid='ffcmapp_plano_owner'::regrole except select * from plano_membership_antes)
+   union all (select * from plano_membership_antes except select roleid,member,grantor,admin_option,inherit_option,set_option from pg_auth_members where member='ffcm_plano_sem_set_fixture'::regrole and roleid='ffcmapp_plano_owner'::regrole))
+  or exists(select 1 from pg_namespace n cross join plano_schema_antes a where n.nspname='api' and n.nspacl is distinct from a.nspacl) then raise exception 'PRIVILEGIO_SEM_SET_ALTERADO'; end if;
+end $$;
 do $$ begin if exists(select 1 from pg_proc p cross join auditoria_owner_acl_antes a where p.oid='api.plano_cuidado_operacao_privada(jsonb)'::regprocedure and (p.proowner is distinct from a.proowner or p.proacl is distinct from a.proacl)) then raise exception 'OWNER_OU_ACL_ALTERADOS'; end if; end $$;
 update identidade.sessao set encerrada_em=null where session_id='20000000-0000-4000-8000-000000000002';
 create function public.suprimir_auditoria_plano_fixture() returns trigger language plpgsql as $$

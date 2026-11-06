@@ -67,3 +67,5 @@ Verificação adicional da composição privada: `sh scripts/testar-plano-compos
 Prova no Supabase de teste: um objetivo fictício foi reservado, criado e recuperado no paciente do lote; conteúdo decifrado, versão e auditoria confirmados. Handler, cifra, atestado, Vault e PostgreSQL reais; JWT e autorização simulados no contexto SQL. Grants e memberships temporários foram removidos e conferidos ausentes. Jornada HTTP, Auth real e negativas por perfil continuam pendentes; rota permanece fechada.
 
 A tela do plano pede confirmação antes de descartar alterações ao cancelar; teste web focado passou. Integração HTTP real e ativação permanecem pendentes.
+
+Atualização de 06/11/2026: migration `20261112122000` aplicada ao Supabase de teste para exigir registro de auditoria; conferidos os privilégios do migrador antes da aplicação. Testes SQL locais cobriram inclusão suprimida e rollback. A aplicação não concede acesso às RPCs e não comprova a jornada HTTP nem encerra S-02.
