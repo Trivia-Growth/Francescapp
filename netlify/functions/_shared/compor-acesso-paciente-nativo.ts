@@ -8,6 +8,7 @@ import { carregarCofreNativo } from './cofre-nativo.ts';
 import { metadadosAtestadoNativo } from './compor-pacientes-nativo.ts';
 import type { configurarDependenciasNativas } from './configurar-dependencias-nativas.ts';
 import { criarIdempotenciaNativa } from './idempotencia-nativa.ts';
+import { executarRpcAcessoPaciente } from './acesso-paciente-rpc.ts';
 
 /** Preparação server-only: sem rota, grant ou ativação das RPCs futuras. */
 export async function comporAcessoPacienteNativo(
@@ -122,11 +123,7 @@ export async function comporAcessoPacienteNativo(
       executarAcessoPacientePrivado(transporte, async (rota, entrada) => {
         verificarCancelamento();
         mutacaoIniciada = true;
-        const rpc =
-          rota === 'criarAcessoPaciente' ? 'conceder_acesso_paciente' : 'revogar_acesso_paciente';
-        const resposta = await contexto.cliente.schema('api').rpc(rpc, { p_entrada: entrada });
-        if (resposta.error) throw new Error('Operação indisponível.');
-        return resposta.data;
+        return executarRpcAcessoPaciente(contexto.cliente.schema('api'), rota, entrada);
       }),
     );
     const atual = await noPrazo(autorizar);
