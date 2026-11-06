@@ -1,6 +1,6 @@
 # Tasks
 
-Revalidação de edição e contatos: servidor agora exige perfil administrador e capacidade de cadastro em cada verificação. Teste focado cobre perda de perfil durante projeção e após envio de criação (pendência externa), além de capacidade ausente; usa dependências fictícias e não prova revogação no Supabase. Lint e typecheck passaram. Revisão independente e integração real seguem pendentes; nenhuma rota foi ativada nesta correção.
+Revalidação de edição, contatos e barreira de contato: servidor agora exige perfil administrador e capacidade de cadastro em cada verificação. Teste focado cobre perda de perfil durante projeção e após envio de criação ou reserva (pendência externa), além de capacidade ausente; usa dependências fictícias e não prova revogação no Supabase. Lint e typecheck passaram. Revisão independente e integração real seguem pendentes; nenhuma rota foi ativada nesta correção.
 
 Preparação local de grants: edição e contatos têm draft separado (`20261112123000`), e o draft `20261112130000` ficou restrito à gestão de acesso. Rollback de edição/contatos revoga apenas grants dos owners. Teste PostgreSQL descartável passou para grant, ACL e rollback, preservando grants de gestão; Auth/Vault são fictícios e o migrador tinha SET prévio. Falta prova com SET ausente, concorrência de alteração de ACL, revisão S-02 e integração real. Flags não impedem chamada direta à Data API após grant. Os drafts não foram aplicados remotamente.
 

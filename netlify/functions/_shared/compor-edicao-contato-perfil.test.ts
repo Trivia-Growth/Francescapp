@@ -20,6 +20,7 @@ vi.mock('../../../packages/cadastro/src/executor-contato-privado.ts', () => ({
 }));
 import { comporEdicaoPacienteNativa } from './compor-edicao-paciente-nativa.ts';
 import { comporContatoNativo } from './compor-contato-nativo.ts';
+import { comporBarreiraContatoNativa } from './compor-barreira-contato-nativa.ts';
 
 const id = 'a0000000-0000-4000-8000-000000000001';
 const dependencias = {
@@ -34,9 +35,11 @@ const dependencias = {
 };
 let perfil: 'administrador' | 'profissional';
 let capacidade = true;
+let rebaixarNaBarreira = false;
 beforeEach(() => {
   perfil = 'administrador';
   capacidade = true;
+  rebaixarNaBarreira = false;
   mocks.cofre.mockReset();
   mocks.projetar.mockReset();
   mocks.contato.mockReset();
@@ -52,8 +55,19 @@ beforeEach(() => {
         rpc: async (
           nome: string,
           parametros: { p_transporte?: { entrada: { request_id: string } } },
-        ) =>
-          nome === 'consultar_sessao_nativa'
+        ) => {
+          if (nome === 'contato_barreira_composicao' && rebaixarNaBarreira) {
+            perfil = 'profissional';
+            return {
+              data: {
+                ok: true,
+                dados: { estado: 'aberta' },
+                request_id: parametros.p_transporte?.entrada.request_id,
+              },
+              error: null,
+            };
+          }
+          return nome === 'consultar_sessao_nativa'
             ? {
                 data: {
                   session_id: id,
@@ -70,10 +84,22 @@ beforeEach(() => {
                   request_id: parametros.p_transporte?.entrada.request_id,
                 },
                 error: null,
-              },
+              };
+        },
       }),
     },
   });
+});
+
+it('trata rebaixamento durante reserva de contato como resultado incerto', async () => {
+  rebaixarNaBarreira = true;
+  const request = new Request('https://example.test/api/contatos/barreira/reservar', {
+    method: 'POST',
+    headers: { 'x-sessao': id, origin: 'https://example.test', 'content-type': 'application/json' },
+    body: JSON.stringify({ epoca: 1, reserva_id: id, paciente_id: id }),
+  });
+  const resposta = await comporBarreiraContatoNativa(request, 'reservar', dependencias);
+  expect((await resposta.json()).erro.codigo).toBe('pendencia_externa');
 });
 
 it('não retorna cadastro quando perfil perde autoridade durante projeção', async () => {
