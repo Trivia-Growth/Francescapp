@@ -851,6 +851,7 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
         )
           return;
         elemento('edicao-title').textContent = 'Editar cadastro';
+        elemento('fechar-edicao').textContent = 'Fechar edição';
         edicaoPanel.hidden = false;
         desmontarEdicao = montarEdicaoPaciente(
           edicaoRaiz,
@@ -886,6 +887,7 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
           return;
         acaoPacienteAnterior = contato;
         elemento('edicao-title').textContent = `Adicionar contato: ${paciente.nome}`;
+        elemento('fechar-edicao').textContent = 'Fechar contatos';
         edicaoPanel.hidden = false;
         desmontarEdicao = montarContatoPaciente(
           edicaoRaiz,
