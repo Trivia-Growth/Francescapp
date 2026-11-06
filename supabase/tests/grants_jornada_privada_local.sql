@@ -22,8 +22,60 @@ create temp table grants_antes as
 do $$ begin
  if (select count(*) from grants_antes) <> 7 or exists(select 1 from grants_antes where autenticado or anon or servico) then raise exception 'PRECONDICAO_GRANTS'; end if;
 end $$;
+create role ffcm_grants_migrador_fixture nologin nosuperuser nocreaterole;
+grant usage on schema api to ffcm_grants_migrador_fixture;
+grant ffcmapp_edicao_paciente_owner, ffcmapp_contato_barreira_owner, ffcmapp_contato_owner,
+ ffcmapp_conceder_acesso_owner, ffcmapp_revogar_acesso_owner to ffcm_grants_migrador_fixture with inherit false, set true;
+grant ffcm_grants_migrador_fixture to current_user with inherit false, set true;
+set role ffcm_grants_migrador_fixture;
 \ir ../drafts/20261112130000_grants_jornada_privada.sql
+reset role;
+-- As entradas são assinadas com chave exclusivamente fictícia e adulteradas após a assinatura.
+create temp table pedidos_grants as
+select nome, public.assinar_anamnese_fixture(entrada,operacao,
+ '10000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001') transporte
+from (values
+ ('consultar_paciente_edicao_privado','api.consultar_paciente_edicao',jsonb_build_object('request_id',gen_random_uuid(),'paciente_id','40000000-0000-4000-8000-000000000001')),
+ ('edicao_paciente_composicao_privada','api.consultar_barreira_edicao_paciente',jsonb_build_object('request_id',gen_random_uuid(),'operacao','api.consultar_barreira_edicao_paciente')),
+ ('editar_paciente_privado','api.editar_paciente',jsonb_build_object('request_id',gen_random_uuid(),'paciente_id','40000000-0000-4000-8000-000000000001','versao_esperada',1,'reserva_id',gen_random_uuid(),'geracao_reserva',1,'auditoria_id',gen_random_uuid())),
+ ('contato_barreira_composicao','api.consultar_barreira_criacao_contato',jsonb_build_object('request_id',gen_random_uuid(),'operacao','api.consultar_barreira_criacao_contato')),
+ ('criar_contato_paciente','api.criar_contato_paciente',jsonb_build_object('request_id',gen_random_uuid(),'paciente_id','40000000-0000-4000-8000-000000000001','contato_id',gen_random_uuid(),'reserva_id',gen_random_uuid(),'geracao_reserva',1,'auditoria_id',gen_random_uuid())),
+ ('conceder_acesso_paciente_privado','api.conceder_acesso_paciente',jsonb_build_object('request_id',gen_random_uuid(),'paciente_id','40000000-0000-4000-8000-000000000001','acesso_id',gen_random_uuid(),'usuario_id','10000000-0000-4000-8000-000000000002','auditoria_id',gen_random_uuid())),
+ ('revogar_acesso_paciente_privado','api.revogar_acesso_paciente',jsonb_build_object('request_id',gen_random_uuid(),'paciente_id','40000000-0000-4000-8000-000000000001','acesso_id',gen_random_uuid(),'versao_esperada',1,'auditoria_id',gen_random_uuid()))
+) p(nome,operacao,entrada);
+grant select on pedidos_grants to authenticated;
+set role authenticated;
+do $$
+declare pedido record; transporte jsonb; tentativa integer;
+begin
+ perform set_config('request.jwt.claims',jsonb_build_object('sub','10000000-0000-4000-8000-000000000001','session_id','20000000-0000-4000-8000-000000000001','amr',jsonb_build_array(jsonb_build_object('method','oauth')))::text,true);
+ for pedido in select * from pedidos_grants loop
+  for tentativa in 1..2 loop
+   transporte := case when tentativa=1 then pedido.transporte #- '{entrada,atestado}'
+    else jsonb_set(pedido.transporte,'{entrada,atestado,mac}',to_jsonb(repeat('A',43))) end;
+   begin
+    execute format('select api.%I($1)',pedido.nome) using transporte;
+    raise exception 'ATESTADO_INVALIDO_ACEITO: %',pedido.nome;
+   exception when insufficient_privilege then
+    if sqlerrm <> 'SEM_PERMISSAO' then raise; end if;
+   end;
+  end loop;
+ end loop;
+ begin
+  perform 1 from cadastro.acesso_paciente limit 1;
+  raise exception 'TABELA_DIRETA_ACEITA';
+ exception when insufficient_privilege then null;
+ end;
+end $$;
+reset role;
 do $$ begin
+ if not pg_has_role('ffcm_grants_migrador_fixture','ffcmapp_edicao_paciente_owner','SET')
+  or not pg_has_role('ffcm_grants_migrador_fixture','ffcmapp_contato_owner','SET')
+  or not pg_has_role('ffcm_grants_migrador_fixture','ffcmapp_contato_barreira_owner','SET')
+  or not pg_has_role('ffcm_grants_migrador_fixture','ffcmapp_conceder_acesso_owner','SET')
+  or not pg_has_role('ffcm_grants_migrador_fixture','ffcmapp_revogar_acesso_owner','SET') then
+  raise exception 'MEMBERSHIP_ANTERIOR_PERDIDO';
+ end if;
  if exists(select 1 from grants_antes a join pg_proc p on p.oid=a.oid
   where p.proowner<>a.proowner or not has_function_privilege('authenticated',p.oid,'execute')
    or has_function_privilege('anon',p.oid,'execute') is distinct from a.anon
