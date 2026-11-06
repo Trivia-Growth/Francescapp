@@ -20,6 +20,11 @@ create table operacao.reserva_concessao_acesso_profissional (
   paciente_id uuid references cadastro.paciente(id),
   acesso_resultado_id uuid references cadastro.acesso_paciente(id),
   paciente_reservado_id uuid not null references cadastro.paciente(id),
+  acao text not null check (acao in ('conceder','revogar')),
+  acesso_reservado_id uuid references cadastro.acesso_paciente(id),
+  versao_esperada integer,
+  check ((acao='conceder' and acesso_reservado_id is null and versao_esperada is null)
+    or (acao='revogar' and acesso_reservado_id is not null and versao_esperada > 0)),
   check ((estado = 'confirmada') = (acesso_resultado_id is not null)),
   check ((estado = 'confirmada' and chave_idempotencia is not null and digest_idempotencia is not null)
     or (estado <> 'confirmada' and chave_idempotencia is null and digest_idempotencia is null))
@@ -38,11 +43,13 @@ revoke all on operacao.barreira_concessao_acesso_profissional, operacao.reserva_
 
 -- Primitivas SECURITY INVOKER, sem privilégios para aplicação. O ator deve vir
 -- de auth_privado.uid() e ser autorizado pelo chamador, nunca de entrada do navegador.
-create function operacao.reservar_concessao_acesso_profissional_privado(p_ator uuid,p_epoca bigint,p_reserva uuid,p_paciente uuid)
+create function operacao.reservar_concessao_acesso_profissional_privado(p_ator uuid,p_epoca bigint,p_reserva uuid,p_paciente uuid,p_acao text default 'conceder',p_acesso uuid default null,p_versao integer default null)
 returns text language plpgsql security invoker set search_path='' as $$
 declare b operacao.barreira_concessao_acesso_profissional; r operacao.reserva_concessao_acesso_profissional;
 begin
- if p_ator is null or p_epoca is null or p_epoca < 1 or p_reserva is null or p_paciente is null or p_ator is distinct from auth_privado.uid() then return 'negada'; end if;
+ if p_ator is null or p_epoca is null or p_epoca < 1 or p_reserva is null or p_paciente is null or p_ator is distinct from auth_privado.uid() or p_acao not in ('conceder','revogar') or p_acao is null
+  or (p_acao='conceder' and (p_acesso is not null or p_versao is not null))
+  or (p_acao='revogar' and (p_acesso is null or p_versao is null or p_versao<1)) then return 'negada'; end if;
  -- Mesma ordem da gravação: paciente antes da barreira. A FK posterior não pode inverter locks.
  perform 1 from cadastro.paciente where id=p_paciente for key share;
  if not found then return 'negada'; end if;
@@ -50,12 +57,12 @@ begin
  select * into b from operacao.barreira_concessao_acesso_profissional where ator_usuario_id=p_ator for update;
  select * into r from operacao.reserva_concessao_acesso_profissional where id=p_reserva;
  if found then
-  if r.ator_usuario_id=p_ator and r.epoca=p_epoca and r.paciente_reservado_id=p_paciente then return r.estado; end if;
+  if r.ator_usuario_id=p_ator and r.epoca=p_epoca and r.paciente_reservado_id=p_paciente and r.acao=p_acao and r.acesso_reservado_id is not distinct from p_acesso and r.versao_esperada is not distinct from p_versao then return r.estado; end if;
   return 'id_reutilizado';
  end if;
  if b.epoca<>p_epoca then return 'epoca_antiga'; end if;
  if b.reserva_atual is not null or b.resultado_pendente is not null then return 'bloqueada'; end if;
- insert into operacao.reserva_concessao_acesso_profissional(id,ator_usuario_id,epoca,estado,paciente_reservado_id) values(p_reserva,p_ator,p_epoca,'aberta',p_paciente) on conflict do nothing;
+ insert into operacao.reserva_concessao_acesso_profissional(id,ator_usuario_id,epoca,estado,paciente_reservado_id,acao,acesso_reservado_id,versao_esperada) values(p_reserva,p_ator,p_epoca,'aberta',p_paciente,p_acao,p_acesso,p_versao) on conflict do nothing;
  if not found then return 'id_reutilizado'; end if;
  update operacao.barreira_concessao_acesso_profissional set reserva_atual=p_reserva where ator_usuario_id=p_ator;
  return 'aberta';
@@ -89,7 +96,7 @@ begin
    resultado_pendente=case when p_reserva is null then null else p_comando end where ator_usuario_id=p_ator;
  return resultado;
 end $$;
-revoke all on function operacao.reservar_concessao_acesso_profissional_privado(uuid,bigint,uuid,uuid), operacao.encerrar_concessao_acesso_profissional_privado(uuid,bigint,uuid,uuid) from public, anon, authenticated, service_role;
+revoke all on function operacao.reservar_concessao_acesso_profissional_privado(uuid,bigint,uuid,uuid,text,uuid,integer), operacao.encerrar_concessao_acesso_profissional_privado(uuid,bigint,uuid,uuid) from public, anon, authenticated, service_role;
 
 -- Primitivas privadas: o chamador deve validar sessão e autorização vigentes
 -- na mesma transação. auth_privado.uid() identifica o ator, mas não autoriza acesso.
@@ -114,7 +121,7 @@ begin
   end if;
   resultado:=jsonb_build_object('epoca',b.epoca,
    'reserva',case when b.reserva_atual is null then null else jsonb_build_object('id',r.id,'estado',r.estado) end,
-   'resultado_pendente',case when b.resultado_pendente is null then null else jsonb_build_object('recibo_id',c.id,'reserva_id',r.id,'resultado',c.resultado,'paciente_id',r.paciente_reservado_id,'acesso_id',r.acesso_resultado_id) end);
+   'resultado_pendente',case when b.resultado_pendente is null then null else jsonb_build_object('recibo_id',c.id,'reserva_id',r.id,'resultado',c.resultado,'paciente_id',r.paciente_reservado_id,'acao',r.acao,'acesso_id',case when r.acao='revogar' then r.acesso_reservado_id else r.acesso_resultado_id end,'versao_esperada',r.versao_esperada) end);
  end if;
  insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
  values(gen_random_uuid(),ator,'api.consultar_barreira_concessao_acesso_profissional','requisicao',null,'permitido',p_request);
@@ -261,7 +268,7 @@ begin
  select * into b from operacao.barreira_concessao_acesso_profissional where ator_usuario_id=ator for update;
  select * into reserva_atual from operacao.reserva_concessao_acesso_profissional re where re.id=reserva and re.ator_usuario_id=ator and re.epoca=geracao and re.paciente_reservado_id=paciente for update;
  if not found or b.epoca is distinct from geracao or b.reserva_atual is distinct from reserva
-  or b.resultado_pendente is not null or reserva_atual.estado not in ('aberta','confirmada') then
+  or b.resultado_pendente is not null or reserva_atual.acao<>'conceder' or reserva_atual.estado not in ('aberta','confirmada') then
   insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
    values(gen_random_uuid(),ator,'api.conceder_acesso_paciente','acesso_paciente',acesso,'negado',req);
   if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
@@ -327,23 +334,199 @@ create policy concessao_acesso_reserva_update on operacao.reserva_concessao_aces
 
 -- Composição autorizada e owner privado; nenhum grant à aplicação.
 -- Composição interna: S-02 e prova da concorrência Auth precedem ativação.
+-- Revogação reservada: acesso privado e mesmas garantias de concessão.
+grant select, update (epoca) on operacao.barreira_concessao_acesso_profissional to ffcmapp_revogar_acesso_owner;
+grant select, update (estado,chave_idempotencia,digest_idempotencia,paciente_id,acesso_resultado_id) on operacao.reserva_concessao_acesso_profissional to ffcmapp_revogar_acesso_owner;
+create policy revogar_acesso_barreira_select on operacao.barreira_concessao_acesso_profissional for select to ffcmapp_revogar_acesso_owner using (ator_usuario_id=(select auth_privado.uid()));
+create policy revogar_acesso_barreira_lock on operacao.barreira_concessao_acesso_profissional for update to ffcmapp_revogar_acesso_owner using (ator_usuario_id=(select auth_privado.uid())) with check (false);
+create policy revogar_acesso_reserva_select on operacao.reserva_concessao_acesso_profissional for select to ffcmapp_revogar_acesso_owner using (ator_usuario_id=(select auth_privado.uid()));
+create policy revogar_acesso_reserva_update on operacao.reserva_concessao_acesso_profissional for update to ffcmapp_revogar_acesso_owner using (ator_usuario_id=(select auth_privado.uid())) with check (ator_usuario_id=(select auth_privado.uid()));
+create or replace function operacao.revogar_acesso_paciente_privado(p_transporte jsonb) returns jsonb
+language plpgsql security invoker set search_path='' as $$
+#variable_conflict use_variable
+declare
+ e jsonb:=p_transporte->'entrada'; a jsonb:=e->'atestado';
+ ator uuid; sessao uuid; req uuid; paciente uuid; acesso uuid; auditoria_id uuid;
+ inicio timestamptz; fim timestamptz; concessao uuid; dominio text; sujeito text;
+ google record; autorizado boolean:=false; repeticao boolean:=false;
+ anterior operacao.requisicao; atual cadastro.acesso_paciente; versao integer; reserva uuid; geracao bigint;
+ b operacao.barreira_concessao_acesso_profissional; reserva_atual operacao.reserva_concessao_acesso_profissional;
+begin
+ if jsonb_typeof(p_transporte) is distinct from 'object'
+  or p_transporte - array['entrada','entrada_canonica','dados_canonicos'] <> '{}'::jsonb
+  or jsonb_typeof(e) is distinct from 'object'
+  or e - array['request_id','paciente_id','acesso_id','auditoria_id','chave_idempotencia','digest_idempotencia','versao_esperada','reserva_id','geracao_reserva','motivo','motivo_auditoria','atestado'] <> '{}'::jsonb
+  or jsonb_typeof(a) is distinct from 'object' then
+  raise exception using errcode='42501',message='SEM_PERMISSAO';
+ end if;
+ begin
+  ator:=auth_privado.uid(); sessao:=(auth_privado.jwt()->>'session_id')::uuid;
+  req:=(e->>'request_id')::uuid; paciente:=(e->>'paciente_id')::uuid;
+  acesso:=(e->>'acesso_id')::uuid; auditoria_id:=(e->>'auditoria_id')::uuid;
+  versao:=(e->>'versao_esperada')::integer; reserva:=(e->>'reserva_id')::uuid; geracao:=(e->>'geracao_reserva')::bigint;
+  inicio:=(a->>'emitido_em')::timestamptz; fim:=(a->>'expira_em')::timestamptz;
+ exception when invalid_text_representation or invalid_datetime_format or datetime_field_overflow or numeric_value_out_of_range then
+  raise exception using errcode='42501',message='SEM_PERMISSAO';
+ end;
+ if ator is null or sessao is null or req is null or paciente is null or acesso is null or auditoria_id is null
+  or reserva is null or geracao is null or geracao<1 or inicio is null or fim is null or a->>'usuario_id' is distinct from ator::text
+  or a->>'session_id' is distinct from sessao::text or a->>'request_id' is distinct from req::text
+  or a->>'operacao' is distinct from 'api.revogar_acesso_paciente'
+  or inicio>clock_timestamp() or fim<=clock_timestamp() or fim<=inicio or fim-inicio>interval '30 seconds'
+  or identidade.verificar_assinatura_atestado(p_transporte->>'entrada_canonica',p_transporte->>'dados_canonicos',e-'atestado',a-'mac',a->>'mac') is distinct from true then
+  raise exception using errcode='42501',message='SEM_PERMISSAO';
+ end if;
+ if bloqueios_auth.travar(ator,sessao) is true then
+ select dominio_workspace into dominio from identidade.configuracao_auth_nativo where google_unico_oauth_confirmado for share;
+ if found and exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth_privado.jwt()->'amr')='array' then auth_privado.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='oauth') then
+  select i.provider_id,i.identity_data into google from auth_privado.identidades() i where i.user_id=ator and i.provider='google'
+   and bloqueios_auth.travar(ator,sessao)
+   and exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp()))
+   and (select count(*) from auth_privado.identidades() j where j.user_id=ator and j.provider='google')=1;
+  if google.identity_data->>'sub'=google.provider_id and google.identity_data->>'email_verified'='true' and google.identity_data#>>'{custom_claims,hd}'=dominio then
+   select c.id,c.subject_google into concessao,sujeito from identidade.concessao_equipe c
+    where c.usuario_id=ator and c.estado='vinculada' and c.metodo='google_workspace' and c.perfil='administrador' for share;
+   if found and sujeito=google.provider_id then
+    perform 1 from public.usuario u where u.id=ator and u.ativo and u.perfil='administrador' for share;
+    if found then
+     perform 1 from identidade.sessao s where s.session_id=sessao and s.usuario_id=ator and s.concessao_id=concessao
+      and s.metodo='google_workspace' and s.revogada_em is null and s.encerrada_em is null for share;
+     if found then
+      perform 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp());
+      autorizado:=found;
+     end if;
+    end if;
+   end if;
+  end if;
+ end if;
+ -- Exceção individual: mesma ordem de bloqueios das demais operações privadas.
+ if not autorizado and exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth_privado.jwt()->'amr')='array' then auth_privado.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='password') then
+  select c.id into concessao from identidade.concessao_equipe c
+   where c.usuario_id=ator and c.estado='vinculada' and c.metodo='tecnica' and c.perfil='administrador' for share;
+  if found then
+   perform 1 from public.usuario u where u.id=ator and u.ativo and u.perfil='administrador' for share;
+   if found then
+    perform 1 from identidade.excecao_tecnica x where x.usuario_id=ator and x.concessao_id=concessao for share;
+    if found then
+     perform 1 from identidade.sessao s where s.session_id=sessao and s.usuario_id=ator and s.concessao_id=concessao
+      and s.metodo='tecnica' and s.revogada_em is null and s.encerrada_em is null for share;
+     if found then
+      perform 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp());
+      autorizado:=found;
+     end if;
+    end if;
+   end if;
+  end if;
+ end if;
+ end if;
+ if not autorizado or fim<=clock_timestamp() then
+  if exists(select 1 from public.usuario where id=ator) then
+   insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+    values(gen_random_uuid(),ator,'api.revogar_acesso_paciente','acesso_paciente',acesso,'negado',req);
+   if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
+  end if;
+  return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','sem_permissao'),'request_id',req);
+ end if;
+ if jsonb_typeof(e->'versao_esperada') is distinct from 'number' or coalesce(e->>'versao_esperada','') !~ '^[1-9][0-9]*$' or versao is null or versao<1 or versao>=2147483647
+  or jsonb_typeof(e->'motivo') is distinct from 'object' or (e->'motivo')-array['formato','key_id','nonce','ciphertext','tag'] <> '{}'::jsonb
+  or e->'motivo'->'formato' is distinct from '1'::jsonb
+  or jsonb_typeof(e->'motivo'->'key_id') is distinct from 'string' or coalesce(length(e->'motivo'->>'key_id') between 1 and 128,false) is not true
+  or jsonb_typeof(e->'motivo'->'nonce') is distinct from 'string' or coalesce(e->'motivo'->>'nonce','') !~ '^[A-Za-z0-9_-]{16}$'
+  or jsonb_typeof(e->'motivo'->'tag') is distinct from 'string' or coalesce(e->'motivo'->>'tag','') !~ '^[A-Za-z0-9_-]{22}$'
+  or jsonb_typeof(e->'motivo'->'ciphertext') is distinct from 'string' or coalesce(length(e->'motivo'->>'ciphertext') between 1 and 32768 and e->'motivo'->>'ciphertext' ~ '^[A-Za-z0-9_-]+$',false) is not true
+  or jsonb_typeof(e->'motivo_auditoria') is distinct from 'object' or (e->'motivo_auditoria')-array['formato','key_id','nonce','ciphertext','tag'] <> '{}'::jsonb
+  or e->'motivo_auditoria'->'formato' is distinct from '1'::jsonb
+  or jsonb_typeof(e->'motivo_auditoria'->'key_id') is distinct from 'string' or coalesce(length(e->'motivo_auditoria'->>'key_id') between 1 and 128,false) is not true
+  or jsonb_typeof(e->'motivo_auditoria'->'nonce') is distinct from 'string' or coalesce(e->'motivo_auditoria'->>'nonce','') !~ '^[A-Za-z0-9_-]{16}$'
+  or jsonb_typeof(e->'motivo_auditoria'->'tag') is distinct from 'string' or coalesce(e->'motivo_auditoria'->>'tag','') !~ '^[A-Za-z0-9_-]{22}$'
+  or jsonb_typeof(e->'motivo_auditoria'->'ciphertext') is distinct from 'string' or coalesce(length(e->'motivo_auditoria'->>'ciphertext') between 1 and 32768 and e->'motivo_auditoria'->>'ciphertext' ~ '^[A-Za-z0-9_-]+$',false) is not true
+  or jsonb_typeof(e->'chave_idempotencia') is distinct from 'string' or coalesce(length(btrim(e->>'chave_idempotencia')) between 1 and 256,false) is not true
+  or jsonb_typeof(e->'digest_idempotencia') is distinct from 'string' or coalesce(e->>'digest_idempotencia','') !~ '^[A-Za-z0-9_-]{43}$' then
+  raise exception using errcode='22023',message='ENTRADA_INVALIDA';
+ end if;
+ perform 1 from cadastro.paciente where id=paciente for update;
+ select * into b from operacao.barreira_concessao_acesso_profissional where ator_usuario_id=ator for update;
+ select * into reserva_atual from operacao.reserva_concessao_acesso_profissional where id=reserva and ator_usuario_id=ator and epoca=geracao and paciente_reservado_id=paciente for update;
+ if not found or b.epoca is distinct from geracao or b.reserva_atual is distinct from reserva or b.resultado_pendente is not null
+   or reserva_atual.acao<>'revogar' or reserva_atual.acesso_reservado_id is distinct from acesso or reserva_atual.versao_esperada is distinct from versao or reserva_atual.estado not in ('aberta','confirmada') then
+  insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+   values(gen_random_uuid(),ator,'api.revogar_acesso_paciente','acesso_paciente',acesso,'negado',req);
+  if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
+  return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','conflito'),'request_id',req);
+ end if;
+ select * into atual from cadastro.acesso_paciente where id=acesso and paciente_id=paciente for update;
+ if not found then
+  insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+   values(gen_random_uuid(),ator,'api.revogar_acesso_paciente','acesso_paciente',acesso,'negado',req);
+  return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','nao_encontrado'),'request_id',req);
+ end if;
+ if fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
+  raise exception using errcode='PZ001',message='EXPIRACAO_INTERNA';
+ end if;
+ if reserva_atual.estado='confirmada' and (reserva_atual.chave_idempotencia is distinct from e->>'chave_idempotencia' or reserva_atual.digest_idempotencia is distinct from e->>'digest_idempotencia' or reserva_atual.acesso_resultado_id is distinct from acesso) then
+  return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','conflito_idempotencia'),'request_id',req);
+ end if;
+ if (atual.revogada_em is not null or atual.versao<>versao) and not exists(
+  select 1 from operacao.requisicao r where r.ator_usuario_id=ator and r.operacao='api.revogar_acesso_paciente' and r.chave_idempotencia=e->>'chave_idempotencia'
+ ) then
+  insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+   values(gen_random_uuid(),ator,'api.revogar_acesso_paciente','acesso_paciente',acesso,'negado',req);
+  return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','conflito'),'request_id',req);
+ end if;
+ insert into operacao.requisicao(id,ator_usuario_id,operacao,chave_idempotencia,digest_entrada,estado,resultado_id,resultado_versao)
+  values(gen_random_uuid(),ator,'api.revogar_acesso_paciente',e->>'chave_idempotencia',e->>'digest_idempotencia','registrada',acesso,versao+1)
+  on conflict (ator_usuario_id,operacao,chave_idempotencia) do nothing returning * into anterior;
+ if not found then
+  select * into anterior from operacao.requisicao where ator_usuario_id=ator and operacao='api.revogar_acesso_paciente' and chave_idempotencia=e->>'chave_idempotencia';
+  if anterior.digest_entrada is distinct from e->>'digest_idempotencia' or anterior.estado is distinct from 'concluida'
+   or anterior.resultado_id is distinct from acesso or anterior.resultado_versao is distinct from versao+1 then
+   insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+    values(gen_random_uuid(),ator,'api.revogar_acesso_paciente','acesso_paciente',acesso,'negado',req);
+   return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','conflito_idempotencia'),'request_id',req);
+  end if;
+  repeticao:=true;
+ else
+  if atual.revogada_em is not null or atual.versao<>versao then
+   raise exception using errcode='P0002',message='ESTADO_INCONSISTENTE';
+  end if;
+  update cadastro.acesso_paciente set revogada_em=clock_timestamp(),revogado_por_usuario_id=ator,
+   motivo_revogacao_cifrado=e->'motivo',versao=versao+1 where id=acesso and paciente_id=paciente and revogada_em is null and cadastro.acesso_paciente.versao=versao;
+  if not found then raise exception using errcode='P0002',message='ACESSO_NAO_ATUALIZADO'; end if;
+  update operacao.requisicao set estado='concluida' where id=anterior.id and estado='registrada';
+  if not found then raise exception using errcode='P0002',message='LEDGER_NAO_FINALIZADO'; end if;
+ end if;
+ if reserva_atual.estado='aberta' then
+  if repeticao then raise exception using errcode='P0002',message='RESERVA_INCONSISTENTE'; end if;
+  update operacao.reserva_concessao_acesso_profissional set estado='confirmada',chave_idempotencia=e->>'chave_idempotencia',digest_idempotencia=e->>'digest_idempotencia',paciente_id=paciente,acesso_resultado_id=acesso where id=reserva;
+  if not found then raise exception using errcode='P0002',message='RESERVA_NAO_CONFIRMADA'; end if;
+ end if;
+ insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id,motivo_cifrado)
+  values(case when repeticao then gen_random_uuid() else auditoria_id end,ator,'api.revogar_acesso_paciente','acesso_paciente',acesso,'permitido',req,case when repeticao then null else e->'motivo_auditoria' end);
+ if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
+ if fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
+  raise exception using errcode='PZ001',message='EXPIRACAO_INTERNA';
+ end if;
+ return jsonb_build_object('ok',true,'dados',jsonb_build_object('id',acesso,'versao',versao+1),'request_id',req);
+end $$;
+
 create function operacao.acesso_barreira_composicao_privada(p_transporte jsonb) returns jsonb
 language plpgsql security invoker set search_path='' as $$
+#variable_conflict use_variable
 declare
  e jsonb:=p_transporte->'entrada'; a jsonb:=e->'atestado'; ator uuid:=auth_privado.uid();
- sessao uuid; req uuid; reserva uuid; comando uuid; paciente uuid; epoca bigint;
+ sessao uuid; req uuid; reserva uuid; comando uuid; paciente uuid; epoca bigint; acao_alvo text; acesso_alvo uuid; versao_alvo integer;
  inicio timestamptz; fim timestamptz; dominio text; sujeito text; concessao uuid;
  google record; acao text; resposta text; dados jsonb; autorizado boolean:=false;
 begin
  if jsonb_typeof(p_transporte) is distinct from 'object'
   or p_transporte - array['entrada','entrada_canonica','dados_canonicos'] <> '{}'::jsonb
   or jsonb_typeof(e) is distinct from 'object' or jsonb_typeof(a) is distinct from 'object'
-  or e - array['request_id','operacao','epoca','reserva_id','comando_id','paciente_id','atestado'] <> '{}'::jsonb then
+  or e - array['request_id','operacao','epoca','reserva_id','comando_id','paciente_id','acao','acesso_id','versao_esperada','atestado'] <> '{}'::jsonb then
   raise exception using errcode='42501',message='SEM_PERMISSAO';
  end if;
  begin
   sessao:=(auth_privado.jwt()->>'session_id')::uuid; req:=(e->>'request_id')::uuid;
-  epoca:=(e->>'epoca')::bigint; reserva:=(e->>'reserva_id')::uuid; comando:=(e->>'comando_id')::uuid; paciente:=(e->>'paciente_id')::uuid;
+  epoca:=(e->>'epoca')::bigint; reserva:=(e->>'reserva_id')::uuid; comando:=(e->>'comando_id')::uuid; paciente:=(e->>'paciente_id')::uuid; acao_alvo:=e->>'acao'; acesso_alvo:=(e->>'acesso_id')::uuid; versao_alvo:=(e->>'versao_esperada')::integer;
   inicio:=(a->>'emitido_em')::timestamptz; fim:=(a->>'expira_em')::timestamptz;
  exception when invalid_text_representation or invalid_datetime_format or datetime_field_overflow or numeric_value_out_of_range then
   raise exception using errcode='42501',message='SEM_PERMISSAO';
@@ -357,7 +540,8 @@ begin
   or identidade.verificar_assinatura_atestado(p_transporte->>'entrada_canonica',p_transporte->>'dados_canonicos',e-'atestado',a-'mac',a->>'mac') is distinct from true then
   raise exception using errcode='42501',message='SEM_PERMISSAO';
  end if;
- if (acao='api.reservar_concessao_acesso_profissional' and (epoca is null or epoca<1 or reserva is null or comando is not null or paciente is null))
+ if (acao<>'api.reservar_concessao_acesso_profissional' and (acao_alvo is not null or acesso_alvo is not null or versao_alvo is not null))
+  or (acao='api.reservar_concessao_acesso_profissional' and (epoca is null or epoca<1 or reserva is null or comando is not null or paciente is null or acao_alvo not in ('conceder','revogar') or acao_alvo is null or (acao_alvo='conceder' and (acesso_alvo is not null or versao_alvo is not null)) or (acao_alvo='revogar' and (acesso_alvo is null or versao_alvo is null or versao_alvo<1))))
   or (acao='api.encerrar_concessao_acesso_profissional' and (epoca is null or epoca<1 or comando is null or paciente is not null))
   or (acao='api.consultar_barreira_concessao_acesso_profissional' and (epoca is not null or reserva is not null or comando is not null or paciente is not null))
   or (acao='api.reconhecer_barreira_concessao_acesso_profissional' and (epoca is not null or reserva is not null or comando is null or paciente is not null)) then
@@ -429,7 +613,7 @@ begin
  elsif acao='api.reconhecer_barreira_concessao_acesso_profissional' then
   resposta:=operacao.reconhecer_barreira_concessao_acesso_profissional_privado(comando,req);
  elsif acao='api.reservar_concessao_acesso_profissional' then
-  resposta:=operacao.reservar_concessao_acesso_profissional_privado(ator,epoca,reserva,paciente);
+  resposta:=operacao.reservar_concessao_acesso_profissional_privado(ator,epoca,reserva,paciente,acao_alvo,acesso_alvo,versao_alvo);
  else
   resposta:=operacao.encerrar_concessao_acesso_profissional_privado(ator,epoca,reserva,comando);
  end if;
@@ -504,7 +688,7 @@ create policy acesso_barreira_paciente_lock on cadastro.paciente for update to f
 
 grant select, insert (ator_usuario_id), update (epoca,reserva_atual,resultado_pendente)
  on operacao.barreira_concessao_acesso_profissional to ffcmapp_acesso_barreira_owner;
-grant select, insert (id,ator_usuario_id,epoca,estado,paciente_reservado_id), update (estado)
+grant select, insert (id,ator_usuario_id,epoca,estado,paciente_reservado_id,acao,acesso_reservado_id,versao_esperada), update (estado)
  on operacao.reserva_concessao_acesso_profissional to ffcmapp_acesso_barreira_owner;
 grant select, insert (id,ator_usuario_id,epoca,reserva_id,resultado)
  on operacao.recibo_barreira_concessao_acesso_profissional to ffcmapp_acesso_barreira_owner;
@@ -518,7 +702,7 @@ create policy acesso_composicao_recibo_select on operacao.recibo_barreira_conces
 create policy acesso_composicao_recibo_insert on operacao.recibo_barreira_concessao_acesso_profissional for insert to ffcmapp_acesso_barreira_owner with check (ator_usuario_id=(select auth_privado.uid()));
 
 grant execute on function operacao.acesso_barreira_composicao_privada(jsonb),
- operacao.reservar_concessao_acesso_profissional_privado(uuid,bigint,uuid,uuid),
+ operacao.reservar_concessao_acesso_profissional_privado(uuid,bigint,uuid,uuid,text,uuid,integer),
  operacao.encerrar_concessao_acesso_profissional_privado(uuid,bigint,uuid,uuid),
  operacao.consultar_barreira_concessao_acesso_profissional_privado(uuid),
  operacao.reconhecer_barreira_concessao_acesso_profissional_privado(uuid,uuid) to ffcmapp_acesso_barreira_owner;
