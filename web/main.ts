@@ -688,7 +688,10 @@ function atendimentoJaAberto(): boolean {
   return true;
 }
 
-function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
+function linhaPaciente(
+  paciente: PacienteBasico,
+  edicaoPacienteDisponivel: boolean,
+): HTMLTableRowElement {
   const linha = document.createElement('tr');
   const nome = document.createElement('td');
   nome.textContent = paciente.nome;
@@ -848,7 +851,6 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
       acao.append(selecionar);
     }
     // A interface fica preparada, mas não deve anunciar rotas ainda inexistentes.
-    const edicaoPacienteDisponivel = false;
     if (
       edicaoPacienteDisponivel &&
       sessao.usuario.perfil === 'administrador' &&
@@ -969,9 +971,17 @@ async function carregarPacientes(): Promise<boolean> {
   table.setAttribute('aria-busy', 'true');
   aviso('list-status', 'Consultando pacientes…');
   try {
-    const resultado = await api.listarPacientes(cursores[pagina]);
+    const [resultado, disponibilidade] = await Promise.all([
+      api.listarPacientes(cursores[pagina]),
+      sessao.usuario.perfil === 'administrador' &&
+      sessao.capacidades.includes('administrar_cadastro')
+        ? api.disponibilidadeEdicao().catch(() => ({ disponivel: false }))
+        : Promise.resolve({ disponivel: false }),
+    ]);
     if (!atual()) return false;
-    tableBody.replaceChildren(...resultado.itens.map(linhaPaciente));
+    tableBody.replaceChildren(
+      ...resultado.itens.map((paciente) => linhaPaciente(paciente, disponibilidade.disponivel)),
+    );
     proximoCursor = resultado.proximo_cursor;
     table.hidden = resultado.itens.length === 0;
     elemento('patient-list-hint').hidden = resultado.itens.length === 0;

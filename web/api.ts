@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   consultaVinculosProfissionaisSchema,
   paginaVinculosProfissionaisSchema,
@@ -59,6 +60,12 @@ const rotas = {
   sairFamiliar: { ...contratosRotas.sairSessao, caminho: '/api/familiar/sessao/sair' },
   listarPacientes: contratosRotas.listarPacientes,
   listarConcessoes: contratosRotas.listarConcessoes,
+  disponibilidadeEdicao: {
+    metodo: 'GET',
+    caminho: '/api/pacientes/edicao/disponibilidade',
+    entrada: z.object({}).strict(),
+    saida: z.object({ disponivel: z.boolean() }).strict(),
+  },
   listarVinculosProfissionais: {
     metodo: 'GET',
     caminho: '/api/pacientes/:paciente_id/vinculos-profissionais',
@@ -510,6 +517,10 @@ export class ClienteFFCM {
       protegido: true,
       pacienteId,
     });
+  }
+
+  disponibilidadeEdicao() {
+    return this.#enviar('disponibilidadeEdicao', {}, { protegido: true });
   }
 
   listarProfissionais(cursor?: string): Promise<Dados<'listarConcessoes'>> {
