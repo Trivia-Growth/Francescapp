@@ -56,3 +56,5 @@ Prova no Supabase de teste: uma resposta fictícia foi gravada na anamnese do pa
 A interface agora impede salvar enquanto há seção ou campo digitado ainda não adicionado, preservando rascunho; teste web focado passou. Rota permanece desativada.
 
 Atualização de 06/11/2026: migration `20261112121000` aplicada ao Supabase de teste para exigir registro de auditoria; conferidos os privilégios do migrador antes da aplicação. Testes SQL locais cobriram inclusão suprimida e rollback. A aplicação não concede acesso às RPCs e não comprova a jornada HTTP nem encerra S-02.
+
+Atualização de 06/11/2026: migration `20261112190000` passou a auditar Auth sem perfil e foi aplicada ao Supabase de teste; `20261112210000` habilitou o wrapper para authenticated, mantendo anon negado. Com JWT Auth e atestado Vault reais, conta fictícia sem perfil `07dfa0cf-60d6-4457-a943-a1306b8902fd` recebeu negativas de leitura e gravação e gerou dois eventos auditados. Flag ativada somente na branch privada, deploy `6aee2767d7a7c113b7f6ffac`, Node 22. A prova positiva por HTTP/interface, recarga, outros perfis e revogação continuam pendentes; apenas dados fictícios.
