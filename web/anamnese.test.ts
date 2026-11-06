@@ -167,3 +167,33 @@ it('preserva rascunho após conflito de versão e impede novo envio obsoleto', a
   raiz.querySelector('form')?.requestSubmit();
   expect(salvarAnamnese).toHaveBeenCalledTimes(1);
 });
+
+it('não descarta seção e campo digitados ao salvar antes de adicioná-los', async () => {
+  const raiz = document.createElement('div');
+  const salvarAnamnese = vi.fn().mockResolvedValue({ versao: 1, secoes: [] });
+  montarAnamnese(
+    raiz,
+    'paciente',
+    { consultarAnamnese: vi.fn().mockResolvedValue(null), salvarAnamnese },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.querySelector('form')).not.toBeNull());
+  const [secao, campo] = raiz.querySelectorAll('input');
+  if (!secao || !campo) throw new Error('Campos ausentes');
+  secao.value = 'História';
+  campo.value = 'Rotina';
+  raiz.querySelector('form')?.requestSubmit();
+  expect(salvarAnamnese).not.toHaveBeenCalled();
+  expect(raiz.textContent).toContain('Adicione o campo preenchido');
+  expect(secao.value).toBe('História');
+  expect(campo.value).toBe('Rotina');
+  [...raiz.querySelectorAll('button')]
+    .find((botao) => botao.textContent === 'Adicionar campo')
+    ?.click();
+  raiz.querySelector('form')?.requestSubmit();
+  await vi.waitFor(() => expect(salvarAnamnese).toHaveBeenCalledOnce());
+  expect(salvarAnamnese.mock.calls[0]?.[1].secoes[0]).toMatchObject({
+    id: 'História',
+    camposEsperados: ['Rotina'],
+  });
+});

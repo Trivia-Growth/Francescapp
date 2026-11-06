@@ -57,9 +57,11 @@ export function montarAnamnese(
     form.append(
       elemento(
         'p',
-        pendencias.length
-          ? `Seções com pendências: ${pendencias.map((p) => p.secao).join(', ')}.`
-          : 'Nenhuma pendência identificada nos campos informados.',
+        !secoes.length
+          ? 'Adicione uma seção e um campo para começar.'
+          : pendencias.length
+            ? `Seções com pendências: ${pendencias.map((p) => p.secao).join(', ')}.`
+            : 'Nenhuma pendência identificada nos campos informados.',
       ),
     );
     if (!secoes.length) form.append(elemento('p', 'Nenhuma seção registrada.'));
@@ -194,6 +196,11 @@ export function montarAnamnese(
     form.addEventListener('submit', (evento) => {
       evento.preventDefault();
       if (pendente || conflitoVersao) return;
+      if (novaSecao.value.trim() || novoCampo.value.trim()) {
+        aviso.textContent = 'Adicione o campo preenchido ou limpe seção e campo antes de salvar.';
+        (novaSecao.value.trim() ? novoCampo : novaSecao).focus();
+        return;
+      }
       const agrupadas = new Map<
         string,
         { id: string; camposEsperados: string[]; respostas: unknown[] }
