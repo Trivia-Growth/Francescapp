@@ -736,3 +736,120 @@ body:has(#patients-view:not([hidden])) .footer {
     padding-left: 0;
   }
 }
+
+/* Painéis de atendimento usam a mesma hierarquia da área de trabalho. */
+#plano-panel,
+#tarefas-panel,
+#edicao-panel,
+#anamnese-panel {
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+}
+#plano-panel > .section-heading,
+#tarefas-panel > .section-heading,
+#edicao-panel > .section-heading,
+#anamnese-panel > .section-heading {
+  margin-bottom: 24px;
+}
+#plano-raiz,
+#tarefas-raiz,
+#edicao-raiz,
+#anamnese-raiz {
+  min-width: 0;
+}
+#plano-raiz h2,
+#tarefas-raiz h2,
+#edicao-raiz h2,
+#anamnese-raiz h2 {
+  margin: 0 0 18px;
+  font-size: 1.625rem;
+}
+#plano-raiz h3,
+#tarefas-raiz h3,
+#edicao-raiz h3 {
+  margin-bottom: 10px;
+}
+#plano-raiz form,
+#tarefas-raiz form,
+#edicao-raiz form {
+  max-width: 70ch;
+  margin: 20px 0;
+  padding: 22px;
+  border-radius: 12px;
+  background: var(--panel);
+}
+#plano-raiz fieldset,
+#tarefas-raiz fieldset,
+#edicao-raiz fieldset {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+#plano-raiz legend,
+#tarefas-raiz legend,
+#edicao-raiz legend {
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+#plano-raiz label,
+#tarefas-raiz label,
+#edicao-raiz label {
+  display: grid;
+  gap: 7px;
+}
+#plano-raiz article,
+#tarefas-raiz article {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+#plano-raiz article p,
+#tarefas-raiz article p {
+  margin: 5px 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+#plano-raiz button:not(.button-primary),
+#tarefas-raiz button:not(.button-primary),
+#edicao-raiz button:not(.button-primary) {
+  margin: 8px 8px 0 0;
+  border-color: var(--field-line);
+  background: var(--white);
+  color: var(--primary);
+}
+#plano-raiz button:not(.button-primary):hover:not(:disabled),
+#tarefas-raiz button:not(.button-primary):hover:not(:disabled),
+#edicao-raiz button:not(.button-primary):hover:not(:disabled) {
+  background: var(--panel);
+}
+#anamnese-raiz form {
+  max-width: 70ch;
+  padding: 22px;
+  border-radius: 12px;
+  background: var(--panel);
+}
+#anamnese-raiz fieldset {
+  border-color: #d4ddc8;
+}
+@media (max-width: 760px) {
+  #plano-panel,
+  #tarefas-panel,
+  #edicao-panel,
+  #anamnese-panel {
+    margin-top: 32px;
+    padding: 20px 16px;
+  }
+  #plano-panel > .section-heading,
+  #tarefas-panel > .section-heading,
+  #edicao-panel > .section-heading,
+  #anamnese-panel > .section-heading {
+    align-items: flex-start;
+  }
+  #plano-raiz form,
+  #tarefas-raiz form,
+  #edicao-raiz form,
+  #anamnese-raiz form {
+    padding: 18px 16px;
+  }
+}
