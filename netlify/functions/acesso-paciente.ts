@@ -5,6 +5,7 @@ import {
   type CodigoErro,
 } from '../../packages/contracts/src/erros.ts';
 import { contratosRotas } from '../../packages/contracts/src/rotas.ts';
+import { criarAcessoReservadoHttpSchema } from '../../packages/contracts/src/barreira-acesso-servidor.ts';
 import { comporAcessoPacienteNativo } from './_shared/compor-acesso-paciente-nativo.ts';
 import { configurarDependenciasNativas } from './_shared/configurar-dependencias-nativas.ts';
 
@@ -29,6 +30,8 @@ export default async function acessoPaciente(request: Request): Promise<Response
   const concessao = /^\/api\/pacientes\/([^/]+)\/acessos$/.exec(url.pathname);
   const revogacao = /^\/api\/pacientes\/([^/]+)\/acessos\/([^/]+)\/revogar$/.exec(url.pathname);
   if ((!concessao && !revogacao) || request.method !== 'POST') return erro('nao_encontrado');
+  if (concessao && process.env.FFCM_BARREIRA_ACESSO_ATIVADA !== 'true')
+    return erro('servico_indisponivel');
   const pacienteId = (concessao ?? revogacao)?.[1];
   if (
     url.search ||
@@ -75,17 +78,21 @@ export default async function acessoPaciente(request: Request): Promise<Response
     leitor.releaseLock();
   }
   const entrada = concessao
-    ? contratosRotas.criarAcessoPaciente.entrada.safeParse(corpo)
+    ? criarAcessoReservadoHttpSchema.safeParse(corpo)
     : contratosRotas.revogarAcessoPaciente.entrada.safeParse(corpo);
   if (!entrada.success) return erro('entrada_invalida');
   let acessoId: string;
   let dados: unknown;
+  let reservaId: string | undefined;
+  let geracaoReserva: number | undefined;
   if (concessao) {
-    const concessaoValidada = contratosRotas.criarAcessoPaciente.entrada.safeParse(corpo);
+    const concessaoValidada = criarAcessoReservadoHttpSchema.safeParse(corpo);
     if (!concessaoValidada.success) return erro('entrada_invalida');
-    const { acesso_id, ...restante } = concessaoValidada.data;
+    const { acesso_id, ...restante } = concessaoValidada.data.entrada;
     acessoId = acesso_id;
     dados = restante;
+    reservaId = concessaoValidada.data.reserva_id;
+    geracaoReserva = concessaoValidada.data.geracao_reserva;
   } else {
     acessoId = revogacao?.[2] as string;
     dados = entrada.data;
@@ -103,6 +110,8 @@ export default async function acessoPaciente(request: Request): Promise<Response
         acao: concessao ? 'conceder' : 'revogar',
         pacienteId,
         acessoId,
+        reservaId,
+        geracaoReserva,
         corpo: dados,
         cabecalhos: { 'x-chave-idempotencia': request.headers.get('x-chave-idempotencia') },
       },

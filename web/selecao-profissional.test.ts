@@ -3,9 +3,20 @@ import { expect, it, vi } from 'vitest';
 import { montarSelecaoProfissional } from './selecao-profissional.ts';
 import type { ClienteFFCM } from './api.ts';
 
+const barreiraIndisponivel = {
+  identidadeAtual: () => ({
+    usuario_id: 'a0000000-0000-4000-8000-000000000001',
+    session_id: 'a0000000-0000-4000-8000-000000000001',
+  }),
+  consultarBarreiraAcesso: async () => {
+    throw new Error('indisponível');
+  },
+};
+
 it('mostra vínculos retornados e mantém concessão bloqueada', async () => {
   const raiz = document.createElement('div');
   const api = {
+    ...barreiraIndisponivel,
     listarProfissionais: vi.fn().mockResolvedValue({
       itens: [
         {
@@ -35,6 +46,7 @@ it('mostra vínculos retornados e mantém concessão bloqueada', async () => {
 it('não expõe identificador quando profissional não consta na página consultada', async () => {
   const raiz = document.createElement('div');
   const api = {
+    ...barreiraIndisponivel,
     listarProfissionais: vi.fn().mockResolvedValue({ itens: [], proximo_cursor: null }),
     listarVinculosProfissionais: vi.fn().mockResolvedValue({
       itens: [
@@ -58,6 +70,7 @@ it('não expõe identificador quando profissional não consta na página consult
 it('identifica profissional de concessão revogada sem oferecê-lo para concessão', async () => {
   const raiz = document.createElement('div');
   const api = {
+    ...barreiraIndisponivel,
     listarProfissionais: vi.fn().mockResolvedValue({
       itens: [
         {
@@ -80,4 +93,133 @@ it('identifica profissional de concessão revogada sem oferecê-lo para concess�
   expect(
     [...raiz.querySelectorAll('option')].some((opcao) => opcao.value === 'profissional-revogado'),
   ).toBe(false);
+});
+
+it('bloqueia nova tentativa quando envio perde resposta', async () => {
+  const raiz = document.createElement('div');
+  const id = 'a0000000-0000-4000-8000-000000000001';
+  let epoca = 1;
+  const api = {
+    identidadeAtual: () => ({ usuario_id: id, session_id: id }),
+    consultarBarreiraAcesso: async () => ({ epoca, reserva: null, resultado_pendente: null }),
+    encerrarBarreiraAcesso: async () => {
+      epoca++;
+      return { estado: 'vazia' };
+    },
+    reservarBarreiraAcesso: async () => ({ estado: 'aberta' }),
+    criarAcessoPaciente: async () => {
+      throw new Error('resposta perdida');
+    },
+    listarProfissionais: async () => ({
+      itens: [
+        {
+          perfil: 'profissional',
+          estado: 'vinculada',
+          ativo: true,
+          usuario_id: id,
+          email: 'pessoa@example.test',
+        },
+      ],
+      proximo_cursor: null,
+    }),
+    listarVinculosProfissionais: async () => ({ itens: [], proximo_cursor: null }),
+  } as unknown as ClienteFFCM;
+  montarSelecaoProfissional(raiz, id, api, () => false);
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Operações anteriores verificadas.'));
+  const selecao = raiz.querySelector('select') as HTMLSelectElement;
+  selecao.value = id;
+  selecao.dispatchEvent(new Event('change'));
+  (raiz.querySelector('textarea') as HTMLTextAreaElement).value = 'Motivo fictício';
+  const botao = [...raiz.querySelectorAll('button')].find(
+    (b) => b.textContent === 'Conceder acesso',
+  ) as HTMLButtonElement;
+  botao.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Resultado incerto'));
+  expect(botao.disabled).toBe(true);
+});
+
+it('não encerra reserva existente sem confirmação e informa rascunho digitado', async () => {
+  const raiz = document.createElement('div');
+  const id = 'a0000000-0000-4000-8000-000000000001';
+  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const encerrar = vi.fn();
+  const pendente = vi.fn();
+  const api = {
+    identidadeAtual: () => ({ usuario_id: id, session_id: id }),
+    consultarBarreiraAcesso: async () => ({
+      epoca: 1,
+      reserva: { id, estado: 'aberta' },
+      resultado_pendente: null,
+    }),
+    encerrarBarreiraAcesso: encerrar,
+    listarProfissionais: async () => ({ itens: [], proximo_cursor: null }),
+    listarVinculosProfissionais: async () => ({ itens: [], proximo_cursor: null }),
+  } as unknown as ClienteFFCM;
+  montarSelecaoProfissional(raiz, id, api, () => false, pendente);
+  await vi.waitFor(() => expect(confirmar).toHaveBeenCalled());
+  expect(encerrar).not.toHaveBeenCalled();
+  const motivo = raiz.querySelector('textarea') as HTMLTextAreaElement;
+  motivo.value = 'Motivo fictício';
+  motivo.dispatchEvent(new Event('input'));
+  expect(pendente).toHaveBeenLastCalledWith(true);
+  expect(
+    [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Conceder acesso')?.disabled,
+  ).toBe(true);
+  confirmar.mockRestore();
+});
+
+it('resposta tardia não apaga motivo editado depois do envio', async () => {
+  const raiz = document.createElement('div');
+  const id = 'a0000000-0000-4000-8000-000000000001';
+  let resolver!: (valor: { id: string; versao: number }) => void;
+  const resposta = new Promise<{ id: string; versao: number }>((resolve) => {
+    resolver = resolve;
+  });
+  const pendente = vi.fn();
+  let epoca = 1;
+  const api = {
+    identidadeAtual: () => ({ usuario_id: id, session_id: id }),
+    consultarBarreiraAcesso: async () => ({ epoca, reserva: null, resultado_pendente: null }),
+    encerrarBarreiraAcesso: async () => {
+      epoca++;
+      return { estado: 'vazia' };
+    },
+    reservarBarreiraAcesso: async () => ({ estado: 'aberta' }),
+    criarAcessoPaciente: async (_paciente: string, entrada: { acesso_id: string }) => {
+      const valor = await resposta;
+      return { ...valor, id: entrada.acesso_id };
+    },
+    listarProfissionais: async () => ({
+      itens: [
+        {
+          perfil: 'profissional',
+          estado: 'vinculada',
+          ativo: true,
+          usuario_id: id,
+          email: 'pessoa@example.test',
+        },
+      ],
+      proximo_cursor: null,
+    }),
+    listarVinculosProfissionais: async () => ({ itens: [], proximo_cursor: null }),
+  } as unknown as ClienteFFCM;
+  montarSelecaoProfissional(raiz, id, api, () => false, pendente);
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Operações anteriores verificadas.'));
+  const selecao = raiz.querySelector('select') as HTMLSelectElement;
+  selecao.value = id;
+  selecao.dispatchEvent(new Event('change'));
+  const motivo = raiz.querySelector('textarea') as HTMLTextAreaElement;
+  motivo.value = 'Motivo inicial';
+  motivo.dispatchEvent(new Event('input'));
+  const botao = [...raiz.querySelectorAll('button')].find(
+    (b) => b.textContent === 'Conceder acesso',
+  ) as HTMLButtonElement;
+  botao.click();
+  await vi.waitFor(() => expect(botao.disabled).toBe(true));
+  motivo.value = 'Motivo revisado';
+  motivo.dispatchEvent(new Event('input'));
+  resolver({ id, versao: 1 });
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Concessão enviada.'));
+  expect(motivo.value).toBe('Motivo revisado');
+  expect(pendente).toHaveBeenLastCalledWith(true);
 });

@@ -4,6 +4,10 @@ import {
 } from '../packages/contracts/src/vinculos-profissionais.js';
 import { criarContatoReservadoHttpSchema } from '../packages/contracts/src/barreira-contato-servidor.js';
 import {
+  criarAcessoReservadoHttpSchema,
+  contratosBarreiraAcessoHttp,
+} from '../packages/contracts/src/barreira-acesso-servidor.js';
+import {
   contratosRotas,
   contratosBarreiraHttp,
   contratosBarreiraContatoHttp,
@@ -73,6 +77,26 @@ const rotas = {
   },
   atualizarPaciente: contratosRotas.atualizarPaciente,
   criarContato: { ...contratosRotas.criarContato, entrada: criarContatoReservadoHttpSchema },
+  criarAcessoPaciente: {
+    ...contratosRotas.criarAcessoPaciente,
+    entrada: criarAcessoReservadoHttpSchema,
+  },
+  consultarBarreiraAcesso: {
+    ...contratosBarreiraAcessoHttp.consultar,
+    saida: contratosBarreiraAcessoHttp.consultar.saida.shape.dados,
+  },
+  reservarBarreiraAcesso: {
+    ...contratosBarreiraAcessoHttp.reservar,
+    saida: contratosBarreiraAcessoHttp.reservar.saida.shape.dados,
+  },
+  encerrarBarreiraAcesso: {
+    ...contratosBarreiraAcessoHttp.encerrar,
+    saida: contratosBarreiraAcessoHttp.encerrar.saida.shape.dados,
+  },
+  reconhecerBarreiraAcesso: {
+    ...contratosBarreiraAcessoHttp.reconhecer,
+    saida: contratosBarreiraAcessoHttp.reconhecer.saida.shape.dados,
+  },
   consultarAnamnese: contratosRotas.consultarAnamnese,
   salvarAnamnese: contratosRotas.salvarAnamnese,
   criarPaciente: contratosRotas.criarPaciente,
@@ -230,7 +254,8 @@ export class ClienteFFCM {
       rota === 'consultarPaciente' ||
       rota === 'consultarPacienteFamiliar' ||
       rota === 'atualizarPaciente' ||
-      rota === 'criarContato'
+      rota === 'criarContato' ||
+      rota === 'criarAcessoPaciente'
     ) {
       const parametros = contratosRotas.consultarAnamnese.parametros.safeParse({
         paciente_id: opcoes.pacienteId,
@@ -536,6 +561,35 @@ export class ClienteFFCM {
       { entrada, ...reserva },
       { protegido: true, pacienteId, chave },
     );
+  }
+
+  criarAcessoPaciente(
+    pacienteId: string,
+    entrada: { acesso_id: string; usuario_id: string; motivo: string },
+    chave: string,
+    reserva: { reserva_id: string; geracao_reserva: number },
+  ) {
+    return this.#enviar(
+      'criarAcessoPaciente',
+      { entrada, ...reserva },
+      { protegido: true, pacienteId, chave },
+    );
+  }
+  consultarBarreiraAcesso() {
+    return this.#enviar('consultarBarreiraAcesso', {}, { protegido: true });
+  }
+  reservarBarreiraAcesso(entrada: { epoca: number; reserva_id: string; paciente_id: string }) {
+    return this.#enviar('reservarBarreiraAcesso', entrada, { protegido: true });
+  }
+  encerrarBarreiraAcesso(entrada: {
+    epoca: number;
+    reserva_id: string | null;
+    comando_id: string;
+  }) {
+    return this.#enviar('encerrarBarreiraAcesso', entrada, { protegido: true });
+  }
+  reconhecerBarreiraAcesso(entrada: { comando_id: string }) {
+    return this.#enviar('reconhecerBarreiraAcesso', entrada, { protegido: true });
   }
 
   consultarAnamnese(pacienteId: string): Promise<Dados<'consultarAnamnese'>> {

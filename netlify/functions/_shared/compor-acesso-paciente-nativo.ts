@@ -17,6 +17,8 @@ export async function comporAcessoPacienteNativo(
     acao: 'conceder' | 'revogar';
     pacienteId: unknown;
     acessoId: unknown;
+    reservaId?: unknown;
+    geracaoReserva?: unknown;
     corpo: unknown;
     cabecalhos: unknown;
   },

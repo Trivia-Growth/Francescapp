@@ -64,3 +64,47 @@ it('vincula motivos cifrados aos registros distintos de acesso e auditoria', asy
     }),
   ).rejects.toThrow();
 });
+
+it('assina reserva e época junto à concessão e rejeita ausência de reserva', async () => {
+  const id = 'a0000000-0000-4000-8000-000000000001';
+  const cifra = criarCifraAutenticada({
+    keyIdAtiva: 'v1',
+    chavesDeCifra: { v1: new Uint8Array(32).fill(1) },
+    chaveHmac: new Uint8Array(32).fill(2),
+  });
+  const dependencias = {
+    cifra,
+    atestador: criarAtestadorOperacao({ keyId: 'atestado', chave: new Uint8Array(32).fill(3) }),
+    idempotencia: {
+      async calcularDigestIdempotencia(valor: string) {
+        return createHmac('sha256', Buffer.alloc(32, 4)).update(valor).digest('base64url');
+      },
+    },
+  };
+  const solicitacao = {
+    acao: 'conceder' as const,
+    pacienteId: id,
+    acessoId: id,
+    reservaId: id,
+    geracaoReserva: 2,
+    corpo: { usuario_id: id, motivo: 'Motivo fictício' },
+    cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
+    contexto: {
+      key_id: 'atestado',
+      usuario_id: id,
+      session_id: id,
+      request_id: id,
+      emitido_em: '2026-10-29T12:00:00Z',
+      expira_em: '2026-10-29T12:00:30Z',
+    },
+  };
+  const resultado = await prepararAcessoPacientePrivado(solicitacao, dependencias);
+  expect(JSON.parse(resultado.p_entrada.entrada_canonica)).toMatchObject({
+    reserva_id: id,
+    geracao_reserva: 2,
+  });
+  expect(JSON.stringify(resultado)).not.toContain('Motivo fictício');
+  await expect(
+    prepararAcessoPacientePrivado({ ...solicitacao, reservaId: undefined }, dependencias),
+  ).rejects.toThrow();
+});

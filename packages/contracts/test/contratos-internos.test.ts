@@ -164,6 +164,8 @@ const entradas: Record<Rota, Record<string, unknown>> = {
     paciente_id: uuid,
     acesso_id: uuid,
     usuario_id: uuid,
+    reserva_id: uuid,
+    geracao_reserva: 1,
     motivo: cifra,
   },
   revogarAcessoPaciente: {

@@ -1,11 +1,12 @@
 import { type ClienteFFCM, mensagemFalha } from './api.js';
+import { criarCicloAcesso } from './ciclo-acesso.js';
 
-/** Consulta somente; a concessão permanece indisponível até haver reconciliação segura. */
 export function montarSelecaoProfissional(
   raiz: HTMLElement,
   pacienteId: string,
   api: ClienteFFCM,
   acessoPerdido: (erro: unknown) => boolean,
+  alteracaoPendente: (pendente: boolean) => void = () => {},
 ): () => void {
   let ativa = true;
   let consulta = 0;
@@ -34,14 +35,141 @@ export function montarSelecaoProfissional(
   tentar.className = 'button-secondary';
   tentar.textContent = 'Tentar novamente';
   const explicacao = document.createElement('p');
-  explicacao.textContent =
-    'A concessão de acesso ainda não está disponível. Selecionar um profissional não cria vínculo nem concede acesso.';
+  explicacao.textContent = 'Verifique operações anteriores antes de conceder acesso.';
+  const rotuloMotivo = document.createElement('label');
+  rotuloMotivo.textContent = 'Motivo da concessão';
+  const motivo = document.createElement('textarea');
+  motivo.required = true;
+  motivo.maxLength = 4000;
+  motivo.addEventListener('input', () => alteracaoPendente(motivo.value.trim().length > 0));
+  rotuloMotivo.append(motivo);
+  const recuperar = document.createElement('button');
+  recuperar.type = 'button';
+  recuperar.textContent = 'Verificar operação pendente';
   const conceder = document.createElement('button');
   conceder.type = 'button';
   conceder.className = 'button-primary';
   conceder.textContent = 'Conceder acesso';
   conceder.disabled = true;
-  raiz.replaceChildren(status, rotulo, selecao, anterior, seguinte, tentar, explicacao, conceder);
+  raiz.replaceChildren(
+    status,
+    rotulo,
+    selecao,
+    anterior,
+    seguinte,
+    tentar,
+    rotuloMotivo,
+    explicacao,
+    conceder,
+    recuperar,
+  );
+
+  const ciclo = criarCicloAcesso({
+    identidadeAtual: () => api.identidadeAtual(),
+    consultar: () => api.consultarBarreiraAcesso(),
+    reservar: async (entrada) => (await api.reservarBarreiraAcesso(entrada)).estado,
+    criar: ({ entrada, paciente_id, chave, reserva_id, geracao_reserva }) =>
+      api.criarAcessoPaciente(paciente_id, entrada, chave, { reserva_id, geracao_reserva }),
+    encerrar: async (entrada) => (await api.encerrarBarreiraAcesso(entrada)).estado,
+    reconhecer: async (entrada) => (await api.reconhecerBarreiraAcesso(entrada)).estado,
+  });
+  let liberado = false;
+  let verificando = false;
+  const verificarPendente = async () => {
+    if (verificando) return;
+    verificando = true;
+    liberado = false;
+    conceder.disabled = recuperar.disabled = true;
+    try {
+      let estado = await ciclo.consultar();
+      if (!ativa) return;
+      if (!estado.resultado_pendente) {
+        if (
+          estado.reserva &&
+          !window.confirm(
+            'Há uma tentativa em andamento que pode estar em outra aba. Encerrá-la afetará todas as abas. Deseja continuar?',
+          )
+        )
+          throw new Error('Encerramento não confirmado');
+        await ciclo.encerrar();
+        if (!ativa) return;
+        estado = await ciclo.consultar();
+        if (!ativa) return;
+      }
+      if (estado.resultado_pendente) {
+        const pendente = estado.resultado_pendente;
+        if (pendente.resultado === 'confirmada') {
+          if (pendente.paciente_id.toLowerCase() !== pacienteId.toLowerCase())
+            throw new Error('Outro paciente');
+          let cursor: string | undefined;
+          let encontrado: { usuario_id: string; revogado: boolean } | undefined;
+          const vistos = new Set<string>();
+          do {
+            const pagina = await api.listarVinculosProfissionais(pacienteId, cursor);
+            if (!ativa) return;
+            encontrado ??= pagina.itens.find(
+              (item) => item.id.toLowerCase() === pendente.acesso_id.toLowerCase(),
+            );
+            cursor = pagina.proximo_cursor ?? undefined;
+            if (cursor && vistos.has(cursor)) throw new Error('Cursor repetido');
+            if (cursor) vistos.add(cursor);
+          } while (!encontrado && cursor);
+          const nome = encontrado && nomesProfissionais.get(encontrado.usuario_id.toLowerCase());
+          if (
+            !encontrado ||
+            !nome ||
+            !window.confirm(
+              `Concessão anterior para ${nome}: ${encontrado.revogado ? 'revogada' : 'ativa'}. Confirmar verificação?`,
+            )
+          )
+            throw new Error('Confirmação necessária');
+        }
+        await ciclo.reconhecer();
+        if (!ativa) return;
+        await ciclo.consultar();
+        if (!ativa) return;
+      }
+      ciclo.liberar();
+      if (!ativa) return;
+      liberado = true;
+      explicacao.textContent = 'Operações anteriores verificadas.';
+      conceder.disabled = !selecao.value;
+    } catch (erro) {
+      if (!ativa || acessoPerdido(erro)) return;
+      explicacao.textContent =
+        'Não foi possível confirmar a operação anterior. Consulte o paciente correspondente e tente novamente.';
+    } finally {
+      verificando = false;
+      if (ativa) recuperar.disabled = false;
+    }
+  };
+  recuperar.addEventListener('click', () => void verificarPendente());
+  selecao.addEventListener('change', () => {
+    conceder.disabled = !liberado || !selecao.value;
+  });
+  conceder.addEventListener('click', () => {
+    if (!liberado || !selecao.value || !motivo.value.trim()) return;
+    liberado = false;
+    conceder.disabled = true;
+    const usuario = selecao.value;
+    const razao = motivo.value;
+    void ciclo
+      .criar(pacienteId, { usuario_id: usuario, motivo: razao })
+      .then(() => {
+        if (!ativa) return;
+        if (motivo.value === razao) {
+          motivo.value = '';
+          alteracaoPendente(false);
+        }
+        explicacao.textContent = 'Concessão enviada. Verifique o resultado antes de continuar.';
+      })
+      .catch((erro) => {
+        if (ativa && !acessoPerdido(erro))
+          explicacao.textContent =
+            'Resultado incerto. Verifique a operação antes de tentar novamente.';
+      });
+  });
+  void verificarPendente();
 
   const vinculos = document.createElement('section');
   const tituloVinculos = document.createElement('h3');

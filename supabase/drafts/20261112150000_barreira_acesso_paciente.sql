@@ -1,4 +1,4 @@
--- RASCUNHO: primitivas privadas sem composição, autorização de perfil, integração da escrita ou grants. Não aplicar nem ativar.
+-- RASCUNHO: composição e escrita privadas sem grants de aplicação. Não aplicar nem ativar antes de revisão e provas integradas.
 -- Preparação privada: contratos, autorização e provas integradas ainda pendentes. Não ativar.
 -- Contrato privado: chamador deve autorizar e auditar reserva/reconciliação na mesma transação. Sem grants de aplicação.
 -- Núcleo privado da barreira de concessão de acesso. Não é endpoint nem autorização:
@@ -252,6 +252,7 @@ begin
  if not found then
   insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
    values(gen_random_uuid(),ator,'api.conceder_acesso_paciente','acesso_paciente',acesso,'negado',req);
+  if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
   return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','nao_encontrado'),'request_id',req);
  end if;
  if fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
@@ -263,6 +264,7 @@ begin
   or b.resultado_pendente is not null or reserva_atual.estado not in ('aberta','confirmada') then
   insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
    values(gen_random_uuid(),ator,'api.conceder_acesso_paciente','acesso_paciente',acesso,'negado',req);
+  if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
   return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','conflito'),'request_id',req);
  end if;
  select * into anterior from operacao.requisicao r where r.ator_usuario_id=ator and r.operacao='api.conceder_acesso_paciente' and r.chave_idempotencia=e->>'chave_idempotencia';
@@ -271,6 +273,7 @@ begin
   (not repeticao or reserva_atual.chave_idempotencia is distinct from e->>'chave_idempotencia' or reserva_atual.digest_idempotencia is distinct from e->>'digest_idempotencia' or reserva_atual.acesso_resultado_id is distinct from anterior.resultado_id)) then
   insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
    values(gen_random_uuid(),ator,'api.conceder_acesso_paciente','acesso_paciente',acesso,'negado',req);
+  if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
   return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','conflito_idempotencia'),'request_id',req);
  end if;
  insert into operacao.requisicao(id,ator_usuario_id,operacao,chave_idempotencia,digest_entrada,estado,resultado_id,resultado_versao)
@@ -283,6 +286,7 @@ begin
    or not exists(select 1 from cadastro.acesso_paciente x where x.id=acesso and x.paciente_id=paciente and x.usuario_id=destinatario and x.concedido_por_usuario_id=ator and x.revogada_em is null) then
    insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
     values(gen_random_uuid(),ator,'api.conceder_acesso_paciente','acesso_paciente',acesso,'negado',req);
+  if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
    return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','conflito_idempotencia'),'request_id',req);
   end if;
   repeticao:=true;
@@ -291,6 +295,7 @@ begin
    delete from operacao.requisicao where id=anterior.id;
    insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
     values(gen_random_uuid(),ator,'api.conceder_acesso_paciente','acesso_paciente',acesso,'negado',req);
+  if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
    return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','conflito'),'request_id',req);
   end if;
   insert into cadastro.acesso_paciente(id,paciente_id,usuario_id,concedido_por_usuario_id,motivo_concessao_cifrado)
@@ -302,6 +307,7 @@ begin
  end if;
  insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
   values(case when repeticao then gen_random_uuid() else auditoria_id end,ator,'api.conceder_acesso_paciente','acesso_paciente',acesso,'permitido',req);
+  if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
  if fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
   raise exception using errcode='PZ001',message='EXPIRACAO_INTERNA';
  end if;
@@ -309,3 +315,219 @@ begin
 end $$;
 revoke all on function operacao.conceder_acesso_paciente_privado(jsonb) from public,anon,authenticated,service_role;
 -- Sem wrapper, owner ou grants de execução. Revisão S-02 e provas reais pendentes.
+
+-- A escrita bloqueia a barreira e confirma apenas sua própria reserva.
+grant select, update (epoca) on operacao.barreira_concessao_acesso_profissional to ffcmapp_conceder_acesso_owner;
+grant select, update (estado,chave_idempotencia,digest_idempotencia,paciente_id,acesso_resultado_id)
+ on operacao.reserva_concessao_acesso_profissional to ffcmapp_conceder_acesso_owner;
+create policy concessao_acesso_barreira_select on operacao.barreira_concessao_acesso_profissional for select to ffcmapp_conceder_acesso_owner using (ator_usuario_id=(select auth_privado.uid()));
+create policy concessao_acesso_barreira_lock on operacao.barreira_concessao_acesso_profissional for update to ffcmapp_conceder_acesso_owner using (ator_usuario_id=(select auth_privado.uid())) with check (false);
+create policy concessao_acesso_reserva_select on operacao.reserva_concessao_acesso_profissional for select to ffcmapp_conceder_acesso_owner using (ator_usuario_id=(select auth_privado.uid()));
+create policy concessao_acesso_reserva_update on operacao.reserva_concessao_acesso_profissional for update to ffcmapp_conceder_acesso_owner using (ator_usuario_id=(select auth_privado.uid())) with check (ator_usuario_id=(select auth_privado.uid()));
+
+-- Composição autorizada e owner privado; nenhum grant à aplicação.
+-- Composição interna: S-02 e prova da concorrência Auth precedem ativação.
+create function operacao.acesso_barreira_composicao_privada(p_transporte jsonb) returns jsonb
+language plpgsql security invoker set search_path='' as $$
+declare
+ e jsonb:=p_transporte->'entrada'; a jsonb:=e->'atestado'; ator uuid:=auth_privado.uid();
+ sessao uuid; req uuid; reserva uuid; comando uuid; paciente uuid; epoca bigint;
+ inicio timestamptz; fim timestamptz; dominio text; sujeito text; concessao uuid;
+ google record; acao text; resposta text; dados jsonb; autorizado boolean:=false;
+begin
+ if jsonb_typeof(p_transporte) is distinct from 'object'
+  or p_transporte - array['entrada','entrada_canonica','dados_canonicos'] <> '{}'::jsonb
+  or jsonb_typeof(e) is distinct from 'object' or jsonb_typeof(a) is distinct from 'object'
+  or e - array['request_id','operacao','epoca','reserva_id','comando_id','paciente_id','atestado'] <> '{}'::jsonb then
+  raise exception using errcode='42501',message='SEM_PERMISSAO';
+ end if;
+ begin
+  sessao:=(auth_privado.jwt()->>'session_id')::uuid; req:=(e->>'request_id')::uuid;
+  epoca:=(e->>'epoca')::bigint; reserva:=(e->>'reserva_id')::uuid; comando:=(e->>'comando_id')::uuid; paciente:=(e->>'paciente_id')::uuid;
+  inicio:=(a->>'emitido_em')::timestamptz; fim:=(a->>'expira_em')::timestamptz;
+ exception when invalid_text_representation or invalid_datetime_format or datetime_field_overflow or numeric_value_out_of_range then
+  raise exception using errcode='42501',message='SEM_PERMISSAO';
+ end;
+ acao:=e->>'operacao';
+ if ator is null or sessao is null or req is null or inicio is null or fim is null
+  or acao not in ('api.reservar_concessao_acesso_profissional','api.encerrar_concessao_acesso_profissional','api.consultar_barreira_concessao_acesso_profissional','api.reconhecer_barreira_concessao_acesso_profissional')
+  or acao is null or a->>'usuario_id' is distinct from ator::text or a->>'session_id' is distinct from sessao::text
+  or a->>'request_id' is distinct from req::text or a->>'operacao' is distinct from acao
+  or inicio>clock_timestamp() or fim<=clock_timestamp() or fim<=inicio or fim-inicio>interval '30 seconds'
+  or identidade.verificar_assinatura_atestado(p_transporte->>'entrada_canonica',p_transporte->>'dados_canonicos',e-'atestado',a-'mac',a->>'mac') is distinct from true then
+  raise exception using errcode='42501',message='SEM_PERMISSAO';
+ end if;
+ if (acao='api.reservar_concessao_acesso_profissional' and (epoca is null or epoca<1 or reserva is null or comando is not null or paciente is null))
+  or (acao='api.encerrar_concessao_acesso_profissional' and (epoca is null or epoca<1 or comando is null or paciente is not null))
+  or (acao='api.consultar_barreira_concessao_acesso_profissional' and (epoca is not null or reserva is not null or comando is not null or paciente is not null))
+  or (acao='api.reconhecer_barreira_concessao_acesso_profissional' and (epoca is not null or reserva is not null or comando is null or paciente is not null)) then
+  raise exception using errcode='22023',message='ENTRADA_INVALIDA';
+ end if;
+ if bloqueios_auth.travar(ator,sessao) is true then
+ select dominio_workspace into dominio from identidade.configuracao_auth_nativo where google_unico_oauth_confirmado for share;
+ if found and exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth_privado.jwt()->'amr')='array' then auth_privado.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='oauth') then
+  select i.provider_id,i.identity_data into google from auth_privado.identidades() i where i.user_id=ator and i.provider='google'
+   and bloqueios_auth.travar(ator,sessao)
+   and exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp()))
+   and (select count(*) from auth_privado.identidades() j where j.user_id=ator and j.provider='google')=1;
+  if google.identity_data->>'sub'=google.provider_id and google.identity_data->>'email_verified'='true' and google.identity_data#>>'{custom_claims,hd}'=dominio then
+   select c.id,c.subject_google into concessao,sujeito from identidade.concessao_equipe c
+    where c.usuario_id=ator and c.estado='vinculada' and c.metodo='google_workspace' and c.perfil='administrador' for share;
+   if found and sujeito=google.provider_id then
+    perform 1 from public.usuario u where u.id=ator and u.ativo and u.perfil='administrador' for share;
+    if found then
+     perform 1 from identidade.sessao s where s.session_id=sessao and s.usuario_id=ator and s.concessao_id=concessao
+      and s.metodo='google_workspace' and s.revogada_em is null and s.encerrada_em is null for share;
+     if found then
+      perform 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp());
+      autorizado:=found;
+     end if;
+    end if;
+   end if;
+  end if;
+ end if;
+ -- Exceção individual: mesma ordem de bloqueios das demais operações privadas.
+ if not autorizado and exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth_privado.jwt()->'amr')='array' then auth_privado.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='password') then
+  select c.id into concessao from identidade.concessao_equipe c
+   where c.usuario_id=ator and c.estado='vinculada' and c.metodo='tecnica' and c.perfil='administrador' for share;
+  if found then
+   perform 1 from public.usuario u where u.id=ator and u.ativo and u.perfil='administrador' for share;
+   if found then
+    perform 1 from identidade.excecao_tecnica x where x.usuario_id=ator and x.concessao_id=concessao for share;
+    if found then
+     perform 1 from identidade.sessao s where s.session_id=sessao and s.usuario_id=ator and s.concessao_id=concessao
+      and s.metodo='tecnica' and s.revogada_em is null and s.encerrada_em is null for share;
+     if found then
+      perform 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp());
+      autorizado:=found;
+     end if;
+    end if;
+   end if;
+  end if;
+ end if;
+ end if;
+ if not autorizado or fim<=clock_timestamp() then
+  if exists(select 1 from public.usuario where id=ator) then
+   insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+    values(gen_random_uuid(),ator,acao,'requisicao',null,'negado',req);
+   if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
+  end if;
+  return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','sem_permissao'),'request_id',req);
+ end if;
+ -- Reserva bloqueia paciente antes da barreira, como a criação de contato.
+ if acao='api.reservar_concessao_acesso_profissional' then
+  perform 1 from cadastro.paciente where id=paciente for key share;
+ end if;
+ -- A espera pelo bloqueio não pode estender a validade do atestado.
+ insert into operacao.barreira_concessao_acesso_profissional(ator_usuario_id) values(ator) on conflict do nothing;
+ perform 1 from operacao.barreira_concessao_acesso_profissional where ator_usuario_id=ator for update;
+ if fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
+  raise exception using errcode='PZ001',message='EXPIRACAO_INTERNA';
+ end if;
+ if acao='api.consultar_barreira_concessao_acesso_profissional' then
+  dados:=operacao.consultar_barreira_concessao_acesso_profissional_privado(req);
+ elsif acao='api.reconhecer_barreira_concessao_acesso_profissional' then
+  resposta:=operacao.reconhecer_barreira_concessao_acesso_profissional_privado(comando,req);
+ elsif acao='api.reservar_concessao_acesso_profissional' then
+  resposta:=operacao.reservar_concessao_acesso_profissional_privado(ator,epoca,reserva,paciente);
+ else
+  resposta:=operacao.encerrar_concessao_acesso_profissional_privado(ator,epoca,reserva,comando);
+ end if;
+ if acao in ('api.reservar_concessao_acesso_profissional','api.encerrar_concessao_acesso_profissional') then
+  insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+   values(gen_random_uuid(),ator,acao,'requisicao',null,case when resposta in ('aberta','confirmada','cancelada','vazia') then 'permitido' else 'negado' end,req);
+  if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
+ end if;
+ if fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
+  raise exception using errcode='PZ001',message='EXPIRACAO_INTERNA';
+ end if;
+ return jsonb_build_object('ok',true,'dados',coalesce(dados,jsonb_build_object('estado',resposta)),'request_id',req);
+end $$;
+revoke all on function operacao.acesso_barreira_composicao_privada(jsonb) from public,anon,authenticated,service_role;
+
+-- Wrapper invoker permanece inacessível até revisão de privilégios e provas reais.
+create function api.acesso_barreira_composicao(p_transporte jsonb) returns jsonb
+language sql security invoker set search_path='' set row_security=on as $$
+ select operacao.acesso_barreira_composicao_privada(p_transporte)
+$$;
+revoke all on function api.acesso_barreira_composicao(jsonb) from public,anon,authenticated,service_role;
+
+-- Preparação local: wrapper permanece inacessível à aplicação até S-02 e provas reais.
+create role ffcmapp_acesso_barreira_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
+grant ffcmapp_acesso_barreira_owner to current_user with inherit false, set true;
+grant usage, create on schema api to ffcmapp_acesso_barreira_owner;
+grant usage on schema public, identidade, cadastro, operacao, auditoria, auth_privado, bloqueios_auth to ffcmapp_acesso_barreira_owner;
+grant execute on function auth_privado.uid(), auth_privado.jwt(), auth_privado.identidades(), auth_privado.sessoes(), bloqueios_auth.travar(uuid,uuid) to ffcmapp_acesso_barreira_owner;
+select set_config('ffcmapp.acesso_barreira_migrador',current_user,false);
+select set_config('ffcmapp.acesso_barreira_tinha_verificador',pg_has_role(current_user,'ffcmapp_atestado_verificador_owner','SET')::text,false);
+do $$ begin
+ if current_setting('ffcmapp.acesso_barreira_tinha_verificador')='false' then
+  if exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member join pg_roles g on g.oid=m.grantor
+   where r.rolname='ffcmapp_atestado_verificador_owner' and u.rolname=current_user and g.rolname=current_user) then
+   raise exception 'MEMBERSHIP_VERIFICADOR_CONCEDENTE_EXISTENTE_SEM_SET';
+  end if;
+  execute format('grant ffcmapp_atestado_verificador_owner to %I with inherit false, set true granted by %I',current_user,current_user);
+ end if;
+end $$;
+set role ffcmapp_atestado_verificador_owner;
+grant execute on function identidade.verificar_assinatura_atestado(text,text,jsonb,jsonb,text) to ffcmapp_acesso_barreira_owner;
+reset role;
+select set_config('role',current_setting('ffcmapp.acesso_barreira_migrador'),false);
+do $$ begin
+ if current_setting('ffcmapp.acesso_barreira_tinha_verificador')='false' then
+  execute format('revoke ffcmapp_atestado_verificador_owner from %I granted by %I',current_user,current_user);
+ end if;
+end $$;
+grant select (dominio_workspace,google_unico_oauth_confirmado), update (dominio_workspace) on identidade.configuracao_auth_nativo to ffcmapp_acesso_barreira_owner;
+grant select (id,perfil,ativo), update (versao) on public.usuario to ffcmapp_acesso_barreira_owner;
+grant select (id,usuario_id,perfil,estado,subject_google,metodo), update (versao) on identidade.concessao_equipe to ffcmapp_acesso_barreira_owner;
+grant select (session_id,usuario_id,concessao_id,metodo,revogada_em,encerrada_em), update (revogada_em) on identidade.sessao to ffcmapp_acesso_barreira_owner;
+grant select (usuario_id,concessao_id), update (concessao_id) on identidade.excecao_tecnica to ffcmapp_acesso_barreira_owner;
+grant insert (id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id,motivo_cifrado) on auditoria.evento to ffcmapp_acesso_barreira_owner;
+
+create policy acesso_barreira_config on identidade.configuracao_auth_nativo for select to ffcmapp_acesso_barreira_owner using (true);
+create policy acesso_barreira_config_lock on identidade.configuracao_auth_nativo for update to ffcmapp_acesso_barreira_owner using (true) with check (false);
+create policy acesso_barreira_usuario on public.usuario for select to ffcmapp_acesso_barreira_owner using (id=(select auth_privado.uid()));
+create policy acesso_barreira_usuario_lock on public.usuario for update to ffcmapp_acesso_barreira_owner using (id=(select auth_privado.uid())) with check (false);
+create policy acesso_barreira_concessao on identidade.concessao_equipe for select to ffcmapp_acesso_barreira_owner using (usuario_id=(select auth_privado.uid()));
+create policy acesso_barreira_concessao_lock on identidade.concessao_equipe for update to ffcmapp_acesso_barreira_owner using (usuario_id=(select auth_privado.uid())) with check (false);
+create policy acesso_barreira_sessao on identidade.sessao for select to ffcmapp_acesso_barreira_owner using (usuario_id=(select auth_privado.uid()));
+create policy acesso_barreira_sessao_lock on identidade.sessao for update to ffcmapp_acesso_barreira_owner using (usuario_id=(select auth_privado.uid())) with check (false);
+create policy acesso_barreira_excecao on identidade.excecao_tecnica for select to ffcmapp_acesso_barreira_owner using (usuario_id=(select auth_privado.uid()));
+create policy acesso_barreira_excecao_lock on identidade.excecao_tecnica for update to ffcmapp_acesso_barreira_owner using (usuario_id=(select auth_privado.uid())) with check (false);
+create policy acesso_barreira_auditoria on auditoria.evento for insert to ffcmapp_acesso_barreira_owner with check (ator_usuario_id=(select auth_privado.uid()));
+
+-- SELECT FOR KEY SHARE exige UPDATE; WITH CHECK impede alteração do paciente.
+grant select (id), update (id) on cadastro.paciente to ffcmapp_acesso_barreira_owner;
+create policy acesso_barreira_paciente_select on cadastro.paciente for select to ffcmapp_acesso_barreira_owner using (true);
+create policy acesso_barreira_paciente_lock on cadastro.paciente for update to ffcmapp_acesso_barreira_owner using (true) with check (false);
+
+grant select, insert (ator_usuario_id), update (epoca,reserva_atual,resultado_pendente)
+ on operacao.barreira_concessao_acesso_profissional to ffcmapp_acesso_barreira_owner;
+grant select, insert (id,ator_usuario_id,epoca,estado,paciente_reservado_id), update (estado)
+ on operacao.reserva_concessao_acesso_profissional to ffcmapp_acesso_barreira_owner;
+grant select, insert (id,ator_usuario_id,epoca,reserva_id,resultado)
+ on operacao.recibo_barreira_concessao_acesso_profissional to ffcmapp_acesso_barreira_owner;
+create policy acesso_composicao_barreira_select on operacao.barreira_concessao_acesso_profissional for select to ffcmapp_acesso_barreira_owner using (ator_usuario_id=(select auth_privado.uid()));
+create policy acesso_composicao_barreira_insert on operacao.barreira_concessao_acesso_profissional for insert to ffcmapp_acesso_barreira_owner with check (ator_usuario_id=(select auth_privado.uid()));
+create policy acesso_composicao_barreira_update on operacao.barreira_concessao_acesso_profissional for update to ffcmapp_acesso_barreira_owner using (ator_usuario_id=(select auth_privado.uid())) with check (ator_usuario_id=(select auth_privado.uid()));
+create policy acesso_composicao_reserva_select on operacao.reserva_concessao_acesso_profissional for select to ffcmapp_acesso_barreira_owner using (ator_usuario_id=(select auth_privado.uid()));
+create policy acesso_composicao_reserva_insert on operacao.reserva_concessao_acesso_profissional for insert to ffcmapp_acesso_barreira_owner with check (ator_usuario_id=(select auth_privado.uid()));
+create policy acesso_composicao_reserva_update on operacao.reserva_concessao_acesso_profissional for update to ffcmapp_acesso_barreira_owner using (ator_usuario_id=(select auth_privado.uid())) with check (ator_usuario_id=(select auth_privado.uid()));
+create policy acesso_composicao_recibo_select on operacao.recibo_barreira_concessao_acesso_profissional for select to ffcmapp_acesso_barreira_owner using (ator_usuario_id=(select auth_privado.uid()));
+create policy acesso_composicao_recibo_insert on operacao.recibo_barreira_concessao_acesso_profissional for insert to ffcmapp_acesso_barreira_owner with check (ator_usuario_id=(select auth_privado.uid()));
+
+grant execute on function operacao.acesso_barreira_composicao_privada(jsonb),
+ operacao.reservar_concessao_acesso_profissional_privado(uuid,bigint,uuid,uuid),
+ operacao.encerrar_concessao_acesso_profissional_privado(uuid,bigint,uuid,uuid),
+ operacao.consultar_barreira_concessao_acesso_profissional_privado(uuid),
+ operacao.reconhecer_barreira_concessao_acesso_profissional_privado(uuid,uuid) to ffcmapp_acesso_barreira_owner;
+
+alter function api.acesso_barreira_composicao(jsonb) owner to ffcmapp_acesso_barreira_owner;
+set role ffcmapp_acesso_barreira_owner;
+alter function api.acesso_barreira_composicao(jsonb) security definer;
+revoke all on function api.acesso_barreira_composicao(jsonb) from public,anon,authenticated,service_role;
+reset role;
+select set_config('role',current_setting('ffcmapp.acesso_barreira_migrador'),false);
+revoke create on schema api from ffcmapp_acesso_barreira_owner;
+revoke ffcmapp_acesso_barreira_owner from current_user;

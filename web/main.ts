@@ -150,13 +150,24 @@ const selecaoRaiz = document.createElement('div');
 selecaoPanel.append(selecaoTitulo, selecaoFechar, selecaoRaiz);
 patientsView.append(selecaoPanel);
 let desmontarSelecao: (() => void) | null = null;
+let selecaoPendente = false;
+function confirmarDescarteSelecao(): boolean {
+  return (
+    !selecaoPendente ||
+    window.confirm(
+      'Há um motivo de concessão não confirmado. Ao sair, ele será descartado. Deseja continuar?',
+    )
+  );
+}
 function fecharSelecao(): void {
   desmontarSelecao?.();
   desmontarSelecao = null;
+  selecaoPendente = false;
   selecaoPanel.hidden = true;
   selecaoTitulo.textContent = '';
 }
 selecaoFechar.addEventListener('click', () => {
+  if (!confirmarDescarteSelecao()) return;
   fecharSelecao();
   acaoPacienteAnterior?.focus();
 });
@@ -823,7 +834,15 @@ function linhaPaciente(paciente: PacienteBasico): HTMLTableRowElement {
         acaoPacienteAnterior = selecionar;
         selecaoTitulo.textContent = `Profissional para ${paciente.nome}`;
         selecaoPanel.hidden = false;
-        desmontarSelecao = montarSelecaoProfissional(selecaoRaiz, paciente.id, api, acessoPerdido);
+        desmontarSelecao = montarSelecaoProfissional(
+          selecaoRaiz,
+          paciente.id,
+          api,
+          acessoPerdido,
+          (pendente) => {
+            selecaoPendente = pendente;
+          },
+        );
         selecaoTitulo.focus();
       });
       acao.append(selecionar);
@@ -1142,7 +1161,8 @@ async function sair(): Promise<void> {
     !confirmarDescarteTarefa() ||
     !confirmarDescarteAnamnese() ||
     !confirmarDescartePlano() ||
-    !confirmarDescarteEdicao()
+    !confirmarDescarteEdicao() ||
+    !confirmarDescarteSelecao()
   )
     return;
   logoutOcupado = true;
@@ -1367,7 +1387,8 @@ window.addEventListener('beforeunload', (evento) => {
     !anamnesePendente &&
     !tarefaPendente &&
     !planoPendente &&
-    !edicaoPendente
+    !edicaoPendente &&
+    !selecaoPendente
   )
     return;
   // Aviso é apenas mitigação: o navegador pode ignorá-lo e não há recuperação
