@@ -298,6 +298,8 @@ export function montarTarefasCuidado(
         .catch((erro: unknown) => {
           if (!ativa) return;
           if (exigeNovoAcesso(erro)) {
+            ativa = false;
+            raiz.replaceChildren();
             acessoPerdido(erro);
             return;
           }
@@ -398,6 +400,8 @@ export function montarTarefasCuidado(
         .catch((erro: unknown) => {
           if (!ativa) return;
           if (exigeNovoAcesso(erro)) {
+            ativa = false;
+            raiz.replaceChildren();
             acessoPerdido(erro);
             return;
           }
