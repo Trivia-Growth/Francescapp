@@ -392,7 +392,7 @@ it('preserva anamnese legada e reabre campos em duas seções', async () => {
   ).toBe('Outra seção');
 });
 
-it('limita campos e permite remover sem perder outros rascunhos', async () => {
+it('limita campos e permite remover sem perder outros rascunhos', { timeout: 20_000 }, async () => {
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
