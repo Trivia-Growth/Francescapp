@@ -690,7 +690,13 @@ export const assinaturasRpc = {
     'jwt-do-solicitante',
     'mutacao-auditada',
     'administrador',
-    alteracaoSchema.extend({ paciente_id: uuidSchema, acesso_id: uuidSchema }).strict(),
+    alteracaoSchema
+      .extend({
+        paciente_id: uuidSchema,
+        acesso_id: uuidSchema,
+        motivo_auditoria: campoCifradoSchema,
+      })
+      .strict(),
     operacaoConcluidaSchema,
   ),
   consultarAuditoria: assinatura(

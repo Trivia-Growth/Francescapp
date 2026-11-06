@@ -1,5 +1,6 @@
 import {
   assinaturasRpc,
+  campoCifradoSchema,
   cabecalhosMutacaoSchema,
   criarAcessoPacienteSchema,
   criarTransporteRpcAtestadaSchema,
@@ -73,12 +74,27 @@ export async function prepararAcessoPacientePrivado(
       acao === 'conceder'
         ? await prepararConcessaoAcessoPaciente(snapshot, dependencias.cifra)
         : await prepararRevogacaoAcessoPaciente(snapshot, dependencias.cifra);
+    const auditoria_id = crypto.randomUUID();
+    const motivoAuditoria =
+      acao === 'revogar'
+        ? {
+            motivo_auditoria: campoCifradoSchema.parse(
+              await dependencias.cifra.cifrar(corpo.motivo, {
+                tabela: 'auditoria.evento',
+                registro_id: auditoria_id,
+                campo: 'motivo',
+                formato: 1,
+              }),
+            ),
+          }
+        : {};
     const entrada = {
       request_id: contexto.request_id,
       chave_idempotencia: cabecalhos['x-chave-idempotencia'],
       digest_idempotencia,
-      auditoria_id: crypto.randomUUID(),
+      auditoria_id,
       ...preparado,
+      ...motivoAuditoria,
     };
     const prova = resultadoAtestacaoSchema.parse(
       await dependencias.atestador.atestarEntrada({ ...contexto, operacao }, entrada),
