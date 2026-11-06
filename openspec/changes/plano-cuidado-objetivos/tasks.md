@@ -71,3 +71,7 @@ A tela do plano pede confirmação antes de descartar alterações ao cancelar; 
 Atualização de 06/11/2026: migration `20261112122000` aplicada ao Supabase de teste para exigir registro de auditoria; conferidos os privilégios do migrador antes da aplicação. Testes SQL locais cobriram inclusão suprimida e rollback. A aplicação não concede acesso às RPCs e não comprova a jornada HTTP nem encerra S-02.
 
 Atualização de 06/11/2026: migration `20261112200000` aplicada ao Supabase de teste para registrar negativas de Auth sem perfil. Teste SQL local usou fixtures; integração real, grant e rota do plano permanecem pendentes.
+
+Atualização de 06/11/2026: com JWT Auth e atestados Vault reais, conta fictícia `c1f34cd1-d7f2-48b1-a505-5695b7fe4382` sem perfil recebeu negativas de leitura, histórico e gravação; três eventos foram auditados. Grants temporários foram revogados; após revisão e teste local, migration `20261112240000` habilitou dois wrappers no Supabase de teste. Flag somente na branch privada, deploy `6aee2f5dfac4f0515dc67a0a`. Prova positiva por interface, recarga, revogação e perfis seguem pendentes; usar somente dados fictícios.
+
+Prévia privada atualizada para deploy `6aee309e547179236da2ab09`; flag do plano mantida apenas na branch de teste. Prova positiva pela tela e persistência após recarga seguem pendentes.
