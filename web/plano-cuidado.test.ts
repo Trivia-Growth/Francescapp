@@ -376,3 +376,35 @@ it('preserva rascunho de revisão e impede abertura durante reconciliação', as
   concluir({ epoca: 1, reserva: null, resultado_pendente: null });
   await vi.waitFor(() => expect(botao('Adicionar objetivo')?.disabled).toBe(false));
 });
+
+it('confirma antes de descartar alterações ao cancelar revisão', async () => {
+  const raiz = document.createElement('div');
+  montarPlanoCuidado(
+    raiz,
+    'paciente',
+    {
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi.fn().mockResolvedValue({ itens: [atual], proximo_cursor: null }),
+      criarObjetivo: vi.fn(),
+      revisarObjetivo: vi.fn(),
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Revisar objetivo'));
+  [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Revisar objetivo')?.click();
+  const campo = raiz.querySelector('form textarea');
+  if (!campo) throw new Error('Campo ausente');
+  campo.value = 'Rascunho fictício';
+  campo.dispatchEvent(new Event('input', { bubbles: true }));
+  const confirmar = vi
+    .spyOn(window, 'confirm')
+    .mockReturnValueOnce(false)
+    .mockReturnValueOnce(true);
+  const cancelar = [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Cancelar');
+  cancelar?.click();
+  expect(campo.value).toBe('Rascunho fictício');
+  expect(raiz.querySelector('form')).not.toBeNull();
+  cancelar?.click();
+  expect(raiz.querySelector('form')).toBeNull();
+  confirmar.mockRestore();
+});

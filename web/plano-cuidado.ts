@@ -266,13 +266,20 @@ export function montarPlanoCuidado(
           });
       };
       consultarAtual.addEventListener('click', () => carregarAtual());
+      let rascunhoAlterado = false;
       cancelar.addEventListener('click', () => {
+        if (rascunhoAlterado && !window.confirm('Descartar alterações não salvas deste objetivo?'))
+          return;
         formulario.replaceChildren();
         if (botaoRecuperacao) botaoRecuperacao.disabled = false;
         alteracaoPendente(false);
       });
-      form.addEventListener('input', () => alteracaoPendente(true));
-      form.addEventListener('change', () => alteracaoPendente(true));
+      const marcarAlterado = () => {
+        rascunhoAlterado = true;
+        alteracaoPendente(true);
+      };
+      form.addEventListener('input', marcarAlterado);
+      form.addEventListener('change', marcarAlterado);
       form.addEventListener('submit', (evento) => {
         evento.preventDefault();
         if (gravando || bloqueada) return;
