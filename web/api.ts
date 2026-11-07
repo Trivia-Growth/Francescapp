@@ -1,6 +1,10 @@
 import { contratosBarreiraTarefaHttp } from '../packages/contracts/src/barreira-tarefa-cuidado-servidor.ts';
 import { z } from 'zod';
 import {
+  consultarHistoricoAnamneseSchema,
+  anamneseSchema,
+} from '../packages/contracts/src/anamnese.js';
+import {
   consultaVinculosProfissionaisSchema,
   paginaVinculosProfissionaisSchema,
 } from '../packages/contracts/src/vinculos-profissionais.js';
@@ -27,6 +31,7 @@ import {
   type novoContatoSchema,
   type AtualizarPaciente,
   type CriarPaciente,
+  type CriarConcessaoEquipe,
   type SalvarAnamnese,
 } from '../packages/contracts/src/index.js';
 
@@ -62,6 +67,7 @@ const rotas = {
   sairFamiliar: { ...contratosRotas.sairSessao, caminho: '/api/familiar/sessao/sair' },
   listarPacientes: contratosRotas.listarPacientes,
   listarConcessoes: contratosRotas.listarConcessoes,
+  criarConcessao: contratosRotas.criarConcessao,
   disponibilidadeEdicao: {
     metodo: 'GET',
     caminho: '/api/pacientes/edicao/disponibilidade',
@@ -127,6 +133,12 @@ const rotas = {
     saida: contratosBarreiraAcessoHttp.reconhecer.saida.shape.dados,
   },
   consultarAnamnese: contratosRotas.consultarAnamnese,
+  consultarHistoricoAnamnese: {
+    metodo: 'GET',
+    caminho: '/api/pacientes/:paciente_id/anamnese/historico',
+    entrada: consultarHistoricoAnamneseSchema,
+    saida: anamneseSchema.nullable(),
+  },
   salvarAnamnese: contratosRotas.salvarAnamnese,
   criarPaciente: contratosRotas.criarPaciente,
   sairSessao: contratosRotas.sairSessao,
@@ -563,6 +575,12 @@ export class ClienteFFCM {
     );
   }
 
+  criarConcessaoEquipe(entrada: CriarConcessaoEquipe, chave: string) {
+    if (!chaveIdempotenciaSchema.safeParse(chave).success)
+      return Promise.reject(new FalhaApi('entrada_invalida', 422));
+    return this.#enviar('criarConcessao', entrada, { protegido: true, chave });
+  }
+
   consultarPacienteFamiliar(pacienteId: string): Promise<Dados<'consultarPacienteFamiliar'>> {
     return this.#enviar('consultarPacienteFamiliar', {}, { protegido: true, pacienteId });
   }
@@ -688,6 +706,14 @@ export class ClienteFFCM {
 
   consultarAnamnese(pacienteId: string): Promise<Dados<'consultarAnamnese'>> {
     return this.#enviar('consultarAnamnese', {}, { protegido: true, pacienteId });
+  }
+
+  consultarHistoricoAnamnese(pacienteId: string, antesVersao?: number) {
+    return this.#enviar(
+      'consultarHistoricoAnamnese',
+      antesVersao === undefined ? {} : { antes_versao: antesVersao },
+      { protegido: true, pacienteId },
+    );
   }
 
   salvarAnamnese(
