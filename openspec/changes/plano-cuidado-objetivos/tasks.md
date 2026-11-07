@@ -77,3 +77,5 @@ Atualização de 06/11/2026: com JWT Auth e atestados Vault reais, conta fictíc
 Prévia privada atualizada para deploy `6aee309e547179236da2ab09`; flag do plano mantida apenas na branch de teste. Prova positiva pela tela e persistência após recarga seguem pendentes.
 
 Preparação web: resumo para profissional consulta objetivos paginados e tarefas em aberto pelos serviços existentes, descartando conteúdo ao fechar, ocultar a aba ou trocar sessão/perfil. Testes focados cobrem paginação, resposta tardia e troca de profissional; revisão e prova visual/HTTP real permanecem pendentes. FR-006 não está concluído: faltam situação, mudanças recentes, atenção sinalizada, agenda, revisão responsável e indicação de informação não incorporada, além da comprovação de autorização e audiência.
+
+Prévia privada: deploy `6aee6dfebddb343a03dbb57c` do commit `9db7ca0`, estado ready, 16 funções Node 22; produção preservada e builds automáticos parados. Resumo parcial para profissional publicado; acesso visual, dados persistidos e autorização real ainda sem prova nesta versão.
