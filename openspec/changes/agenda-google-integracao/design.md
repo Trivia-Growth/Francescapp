@@ -26,6 +26,8 @@ A fundação distingue sessão e concessões de aplicação do consentimento Cal
 
 Decisões aprovadas: fuso de São Paulo; início pela agenda individual e por compromissos individuais, com operações adicionais em séries posteriores; conflitos são avisados para decisão da equipe; eventos existentes são vinculados manualmente; sem acesso clínico, título genérico sem paciente. O profissional autoriza a conexão Google. Consultar e confirmar alterações diretamente no Google Calendar; em resposta incerta, informar a necessidade de conferir antes de repetir. A jornada existente exige preservar demais ocorrências em remarcação individual. Credenciais Google ficam no Vault no servidor; condições reais de prova permanecem pendentes.
 
+Se uma operação incerta pertencer a conta Google anterior e não for possível restabelecer acesso a ela, a operação permanece bloqueada até comprovação do resultado na origem. Ausência de acesso ou de registro local não autoriza desbloqueio administrativo presumido. A desconexão local não comprova revogação do consentimento Google; a revogação externa continua desativada até prova do isolamento e tratamento de concorrência.
+
 ## Migration Plan
 
-Nenhum deploy ou migração autorizado. Após decisões, planejar ativação com dados fictícios, provas reais positivas e negativas e limpeza seletiva previamente autorizada. Rollback e reconciliação dependem do desenho aprovado.
+A meta autoriza operações e migrações no projeto de teste e publicação manual. A ativação exige provas positivas e negativas e revisão independente; dados reais e limpeza não estão autorizados. Rollback e reconciliação dependem do desenho aprovado.
