@@ -223,8 +223,13 @@ begin
  end if;
  end if;
  if not autorizado or fim<=clock_timestamp() then
-  insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
-   values(gen_random_uuid(),ator,acao,'paciente',paciente,'negado',req);
+  if exists(select 1 from public.usuario where id=ator) then
+   insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+    values(gen_random_uuid(),ator,acao,'paciente',paciente,'negado',req);
+  else
+   insert into auditoria.evento(id,ator_auth_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+    values(gen_random_uuid(),ator,acao,'paciente',paciente,'negado',req);
+  end if;
   if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
   return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','sem_permissao'),'request_id',req);
  end if;
@@ -403,8 +408,11 @@ begin
   if exists(select 1 from public.usuario where id=ator) then
    insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
     values(gen_random_uuid(),ator,acao,'requisicao',null,'negado',req);
-   if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
+  else
+   insert into auditoria.evento(id,ator_auth_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+    values(gen_random_uuid(),ator,acao,'requisicao',null,'negado',req);
   end if;
+  if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
   return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','sem_permissao'),'request_id',req);
  end if;
  -- Reserva bloqueia paciente antes da barreira, como a criação de contato.
