@@ -1,3 +1,4 @@
+import { contratosBarreiraTarefaHttp } from '../packages/contracts/src/barreira-tarefa-cuidado-servidor.ts';
 import { z } from 'zod';
 import {
   consultaVinculosProfissionaisSchema,
@@ -92,6 +93,22 @@ const rotas = {
   revogarAcessoPaciente: {
     ...contratosRotas.revogarAcessoPaciente,
     entrada: revogarAcessoReservadoHttpSchema,
+  },
+  consultarBarreiraTarefa: {
+    ...contratosBarreiraTarefaHttp.consultar,
+    saida: contratosBarreiraTarefaHttp.consultar.saida.shape.dados,
+  },
+  reservarBarreiraTarefa: {
+    ...contratosBarreiraTarefaHttp.reservar,
+    saida: contratosBarreiraTarefaHttp.reservar.saida.shape.dados,
+  },
+  encerrarBarreiraTarefa: {
+    ...contratosBarreiraTarefaHttp.encerrar,
+    saida: contratosBarreiraTarefaHttp.encerrar.saida.shape.dados,
+  },
+  reconhecerBarreiraTarefa: {
+    ...contratosBarreiraTarefaHttp.reconhecer,
+    saida: contratosBarreiraTarefaHttp.reconhecer.saida.shape.dados,
   },
   consultarBarreiraAcesso: {
     ...contratosBarreiraAcessoHttp.consultar,
@@ -618,6 +635,28 @@ export class ClienteFFCM {
         chave,
       },
     );
+  }
+  consultarBarreiraTarefa() {
+    return this.#enviar('consultarBarreiraTarefa', {}, { protegido: true });
+  }
+  reservarBarreiraTarefa(entrada: {
+    epoca: number;
+    reserva_id: string;
+    paciente_id: string;
+    tarefa_id: string;
+    versao_esperada: number;
+  }) {
+    return this.#enviar('reservarBarreiraTarefa', entrada, { protegido: true });
+  }
+  encerrarBarreiraTarefa(entrada: {
+    epoca: number;
+    reserva_id: string | null;
+    comando_id: string;
+  }) {
+    return this.#enviar('encerrarBarreiraTarefa', entrada, { protegido: true });
+  }
+  reconhecerBarreiraTarefa(entrada: { comando_id: string }) {
+    return this.#enviar('reconhecerBarreiraTarefa', entrada, { protegido: true });
   }
   consultarBarreiraAcesso() {
     return this.#enviar('consultarBarreiraAcesso', {}, { protegido: true });

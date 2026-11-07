@@ -1,3 +1,4 @@
+import { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.js';
 import { montarResumoConectado } from './resumo-conectado.js';
 import { montarAgendaIndividual } from './agenda-individual.js';
 import { montarContatoPaciente } from './contatos-paciente.js';
@@ -816,13 +817,59 @@ function linhaPaciente(
         acaoPacienteAnterior = tarefas;
         elemento('tarefas-paciente').textContent = paciente.nome;
         tarefasPanel.hidden = false;
-        const { consultarTarefas } = criarServicoTarefasHttp(() =>
-          sessao ? { usuario_id: sessao.usuario.id, session_id: sessao.session_id } : null,
-        );
+        const identidade = () =>
+          sessao ? { usuario_id: sessao.usuario.id, session_id: sessao.session_id } : null;
+        const servicoTarefas = criarServicoTarefasHttp(identidade);
+        // Escrita permanece indisponível até existir capability validada no servidor.
+        const escritaDisponivel = false;
+        const cicloTarefas = escritaDisponivel
+          ? criarCicloTarefaCuidado({
+              identidadeAtual: identidade,
+              consultar: () => api.consultarBarreiraTarefa(),
+              reservar: async (entrada) => (await api.reservarBarreiraTarefa(entrada)).estado,
+              encerrar: async (entrada) => (await api.encerrarBarreiraTarefa(entrada)).estado,
+              reconhecer: async (entrada) => (await api.reconhecerBarreiraTarefa(entrada)).estado,
+              gravar: async ({
+                paciente_id,
+                tarefa_id,
+                versao_esperada,
+                tarefa,
+                chave,
+                reserva_id,
+                epoca,
+              }) => {
+                const reserva = { reserva_id, geracao_reserva: epoca };
+                if (versao_esperada === 0)
+                  await servicoTarefas.criarTarefa(paciente_id, tarefa_id, chave, tarefa, reserva);
+                else
+                  await servicoTarefas.atualizarTarefa(
+                    paciente_id,
+                    tarefa_id,
+                    versao_esperada,
+                    chave,
+                    tarefa,
+                    reserva,
+                  );
+              },
+            })
+          : null;
         desmontarTarefas = montarTarefasCuidado(
           elemento('tarefas-raiz'),
           paciente.id,
-          { consultarTarefas },
+          {
+            consultarTarefas: servicoTarefas.consultarTarefas,
+            ...(cicloTarefas
+              ? {
+                  ciclo: cicloTarefas,
+                  criarTarefa: async (paciente, tarefa, _chave, dados) => {
+                    await cicloTarefas.gravar(paciente, tarefa, 0, dados);
+                  },
+                  atualizarTarefa: async (paciente, tarefa, versao, _chave, dados) => {
+                    await cicloTarefas.gravar(paciente, tarefa, versao, dados);
+                  },
+                }
+              : {}),
+          },
           acessoPerdido,
           (pendente) => {
             tarefaPendente = pendente;

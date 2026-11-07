@@ -2,11 +2,13 @@ import type {
   RegistroTarefaCuidado,
   TarefaCuidado,
 } from '../packages/contracts/src/tarefa-cuidado.ts';
+import type { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
 
 type RegistroTarefa = RegistroTarefaCuidado;
 export type ServicoTarefasCuidado = {
   consultarTarefas(pacienteId: string): Promise<RegistroTarefa[]>;
+  ciclo?: ReturnType<typeof criarCicloTarefaCuidado>;
   atualizarTarefa?(
     pacienteId: string,
     tarefaId: string,
@@ -32,6 +34,7 @@ export function montarTarefasCuidado(
 ): () => void {
   let ativa = true;
   let recuperacao = false;
+  let bloqueada = !!servico.ciclo;
   let filtroEstado = '';
   let filtroPrioridade = '';
   let controlesFiltro: HTMLSelectElement[] = [];
@@ -84,7 +87,68 @@ export function montarTarefasCuidado(
         secao.append(elemento('h2', 'Tarefas da equipe'));
         if (!servico.criarTarefa && !servico.atualizarTarefa)
           secao.append(elemento('p', 'Consulta disponível. Criação e edição ainda indisponíveis.'));
-        if (servico.criarTarefa) secao.append(criarFormulario(servico.criarTarefa));
+        const ciclo = servico.ciclo;
+        if (ciclo && bloqueada) {
+          const aviso = elemento('p', 'Confirme a situação de escrita antes de alterar tarefas.');
+          aviso.setAttribute('role', 'status');
+          const confirmar = elemento('button', 'Confirmar situação de escrita');
+          confirmar.type = 'button';
+          let cercado = false;
+          const falhou = (erro: unknown) => {
+            if (!ativa) return;
+            if (exigeNovoAcesso(erro)) {
+              ativa = false;
+              raiz.replaceChildren();
+              acessoPerdido(erro);
+              return;
+            }
+            aviso.textContent = 'Não foi possível confirmar a situação. Tente novamente.';
+            confirmar.disabled = false;
+          };
+          const verificar = async () => {
+            let situacao = await ciclo.consultar();
+            if (!situacao.resultado_pendente && (!cercado || situacao.reserva)) {
+              await ciclo.encerrar();
+              cercado = true;
+              situacao = await ciclo.consultar();
+            }
+            if (!ativa) return;
+            if (situacao.resultado_pendente) {
+              const pendente = situacao.resultado_pendente;
+              aviso.textContent = `Operação anterior ${pendente.resultado === 'confirmada' ? 'confirmada' : 'cancelada'}. Paciente: ${pendente.paciente_id}; tarefa: ${pendente.tarefa_id}; versão esperada: ${pendente.versao_esperada}. Confira a tarefa antes de reconhecer.`;
+              confirmar.textContent = 'Reconhecer resultado e liberar escrita';
+              confirmar.onclick = () => {
+                confirmar.disabled = true;
+                void (async () => {
+                  await ciclo.reconhecer();
+                  cercado = true;
+                  confirmar.onclick = iniciar;
+                  await verificar();
+                })().catch(falhou);
+              };
+              confirmar.disabled = false;
+              return;
+            }
+            if (situacao.reserva) {
+              aviso.textContent =
+                'Uma nova operação está em andamento. Confirme a situação novamente.';
+              confirmar.textContent = 'Confirmar situação de escrita';
+              confirmar.onclick = iniciar;
+              confirmar.disabled = false;
+              return;
+            }
+            ciclo.liberar();
+            bloqueada = false;
+            consultar();
+          };
+          const iniciar = () => {
+            confirmar.disabled = true;
+            void verificar().catch(falhou);
+          };
+          confirmar.onclick = iniciar;
+          secao.append(aviso, confirmar);
+        }
+        if (servico.criarTarefa && !bloqueada) secao.append(criarFormulario(servico.criarTarefa));
         if (!registros.length)
           secao.append(elemento('p', 'Nenhuma tarefa encontrada para este paciente.'));
         const itens: { registro: RegistroTarefa; elemento: HTMLElement }[] = [];
@@ -141,7 +205,7 @@ export function montarTarefasCuidado(
               ...(tarefa.justificativa ? [['Justificativa', tarefa.justificativa]] : []),
             ])
               item.append(elemento('p', `${rotulo}: ${valor}`));
-            if (servico.atualizarTarefa)
+            if (servico.atualizarTarefa && !bloqueada)
               item.append(criarAtualizacao(registro, servico.atualizarTarefa));
             secao.append(item);
             itens.push({ registro, elemento: item });
@@ -192,6 +256,7 @@ export function montarTarefasCuidado(
       formulariosAlterados.clear();
       alteracaoPendente(false);
       recuperacao = false;
+      bloqueada = !!servico.ciclo;
       consultar();
     });
     form.append(recarregar);
@@ -295,6 +360,7 @@ export function montarTarefasCuidado(
           if (!ativa) return;
           formulariosAlterados.clear();
           alteracaoPendente(false);
+          bloqueada = !!servico.ciclo;
           consultar();
         })
         .catch((erro: unknown) => {
@@ -306,6 +372,7 @@ export function montarTarefasCuidado(
             return;
           }
           if (
+            !!servico.ciclo ||
             resultadoIncerto(erro) ||
             (erro instanceof FalhaApi &&
               ['conflito_versao', 'conflito_idempotencia'].includes(erro.codigo))
@@ -397,6 +464,7 @@ export function montarTarefasCuidado(
           if (!ativa) return;
           formulariosAlterados.clear();
           alteracaoPendente(false);
+          bloqueada = !!servico.ciclo;
           consultar();
         })
         .catch((erro: unknown) => {
@@ -408,6 +476,7 @@ export function montarTarefasCuidado(
             return;
           }
           if (
+            !!servico.ciclo ||
             resultadoIncerto(erro) ||
             (erro instanceof FalhaApi &&
               ['conflito_versao', 'conflito_idempotencia'].includes(erro.codigo))

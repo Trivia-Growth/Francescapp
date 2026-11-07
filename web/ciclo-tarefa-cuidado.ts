@@ -1,3 +1,4 @@
+import type { TarefaCuidado } from '../packages/contracts/src/tarefa-cuidado.ts';
 import {
   consultaBarreiraTarefaSchema,
   reservarTarefaSchema,
@@ -16,7 +17,10 @@ type Portas = {
   identidadeAtual(): Identidade | null;
   consultar(identidade: Identidade): Promise<unknown>;
   reservar(entrada: Reserva, identidade: Identidade): Promise<unknown>;
-  gravar(entrada: Reserva & { chave: string }, identidade: Identidade): Promise<unknown>;
+  gravar(
+    entrada: Reserva & { chave: string; tarefa: TarefaCuidado },
+    identidade: Identidade,
+  ): Promise<unknown>;
   encerrar(
     entrada: { epoca: number; reserva_id: string | null; comando_id: string },
     identidade: Identidade,
@@ -87,7 +91,12 @@ export function criarCicloTarefaCuidado(portas: Portas, novoId = () => crypto.ra
           throw erro;
         }
       }),
-    gravar: (paciente_id: string, tarefa_id: string, versao_esperada: number) =>
+    gravar: (
+      paciente_id: string,
+      tarefa_id: string,
+      versao_esperada: number,
+      tarefa: TarefaCuidado,
+    ) =>
       executar(async () => {
         if (
           !consulta ||
@@ -113,7 +122,7 @@ export function criarCicloTarefaCuidado(portas: Portas, novoId = () => crypto.ra
           await chamar(() => portas.reservar(entrada, identidade)),
         );
         if (estado !== 'aberta') throw new Error('Reserva não confirmada');
-        return chamar(() => portas.gravar({ ...entrada, chave }, identidade));
+        return chamar(() => portas.gravar({ ...entrada, chave, tarefa }, identidade));
       }),
     encerrar: () =>
       executar(async () => {

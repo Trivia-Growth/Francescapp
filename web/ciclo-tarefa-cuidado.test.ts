@@ -6,6 +6,13 @@ it('após resposta perdida e recarga exige cerca, reconhecimento e consulta ante
   const paciente = '20000000-0000-4000-8000-000000000001';
   const tarefa = '30000000-0000-4000-8000-000000000001';
   const recibo = '40000000-0000-4000-8000-000000000001';
+  const dados = {
+    descricao: 'Revisar',
+    responsavel: 'Equipe',
+    prazo: '2026-12-01',
+    prioridade: 'alta' as const,
+    estado: 'pendente' as const,
+  };
   let epoca = 1;
   let reserva: { id: string; estado: 'aberta' | 'confirmada' } | null = null;
   let resultado: {
@@ -52,13 +59,13 @@ it('após resposta perdida e recarga exige cerca, reconhecimento e consulta ante
   await primeiro.encerrar();
   await primeiro.consultar();
   primeiro.liberar();
-  await expect(primeiro.gravar(paciente, tarefa, 0)).rejects.toThrow();
+  await expect(primeiro.gravar(paciente, tarefa, 0, dados)).rejects.toThrow();
   const recarregado = criarCicloTarefaCuidado(portas);
   await recarregado.consultar();
-  await expect(recarregado.gravar(paciente, tarefa, 0)).rejects.toThrow('bloqueada');
+  await expect(recarregado.gravar(paciente, tarefa, 0, dados)).rejects.toThrow('bloqueada');
   await recarregado.encerrar();
   expect((await recarregado.consultar()).resultado_pendente?.tarefa_id).toBe(tarefa);
-  await expect(recarregado.gravar(paciente, tarefa, 0)).rejects.toThrow('bloqueada');
+  await expect(recarregado.gravar(paciente, tarefa, 0, dados)).rejects.toThrow('bloqueada');
   await recarregado.reconhecer();
   await recarregado.consultar();
   recarregado.liberar();

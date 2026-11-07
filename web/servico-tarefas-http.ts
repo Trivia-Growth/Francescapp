@@ -18,7 +18,14 @@ type Identidade = { usuario_id: string; session_id: string };
 export function criarServicoTarefasHttp(identidadeAtual: () => Identidade | null) {
   async function solicitar(
     pacienteId: string,
-    criacao?: { tarefa_id: string; tarefa: TarefaCuidado; chave: string; versao_esperada?: number },
+    criacao?: {
+      tarefa_id: string;
+      tarefa: TarefaCuidado;
+      chave: string;
+      reserva_id: string;
+      geracao_reserva: number;
+      versao_esperada?: number;
+    },
   ) {
     const paciente = uuidSchema.safeParse(pacienteId);
     if (!paciente.success) throw new FalhaApi('entrada_invalida', 422);
@@ -30,6 +37,8 @@ export function criarServicoTarefasHttp(identidadeAtual: () => Identidade | null
       ).safeParse({
         tarefa_id: criacao.tarefa_id,
         tarefa: criacao.tarefa,
+        reserva_id: criacao.reserva_id,
+        geracao_reserva: criacao.geracao_reserva,
         ...(criacao.versao_esperada === undefined
           ? {}
           : { versao_esperada: criacao.versao_esperada }),
@@ -147,11 +156,24 @@ export function criarServicoTarefasHttp(identidadeAtual: () => Identidade | null
       versao: number,
       chave: string,
       tarefa: TarefaCuidado,
+      reserva: { reserva_id: string; geracao_reserva: number },
     ) {
-      await solicitar(pacienteId, { tarefa_id: tarefaId, versao_esperada: versao, tarefa, chave });
+      await solicitar(pacienteId, {
+        tarefa_id: tarefaId,
+        versao_esperada: versao,
+        tarefa,
+        chave,
+        ...reserva,
+      });
     },
-    async criarTarefa(pacienteId: string, tarefaId: string, chave: string, tarefa: TarefaCuidado) {
-      await solicitar(pacienteId, { tarefa_id: tarefaId, tarefa, chave });
+    async criarTarefa(
+      pacienteId: string,
+      tarefaId: string,
+      chave: string,
+      tarefa: TarefaCuidado,
+      reserva: { reserva_id: string; geracao_reserva: number },
+    ) {
+      await solicitar(pacienteId, { tarefa_id: tarefaId, tarefa, chave, ...reserva });
     },
   };
 }

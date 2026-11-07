@@ -94,6 +94,8 @@ export function criarEntradaTarefaCuidadoNativa(dependencias: Dependencias) {
             operacao: 'gravar',
             paciente_id: paciente.data,
             tarefa_id: dados.tarefa_id,
+            reserva_id: dados.reserva_id,
+            geracao_reserva: dados.geracao_reserva,
             versao_esperada: atualizacao.success ? atualizacao.data.versao_esperada : 0,
             tarefa: dados.tarefa,
           },
