@@ -1,10 +1,26 @@
 \set ON_ERROR_STOP on
 \ir cadeia_migrations_local.sql
 -- Apenas superfície Vault de teste; este teste não comprova Vault real.
-create table vault.secrets (id uuid primary key);
+create table vault.secrets (id uuid primary key, secret text);
+create or replace view vault.decrypted_secrets as select null::text as name, secret as decrypted_secret, id from vault.secrets;
 create function vault.create_secret(text,text,text,uuid) returns uuid language sql as $$ select gen_random_uuid() $$;
 create function vault.update_secret(uuid,text,text,text,uuid) returns void language sql as $$ select $$;
+revoke execute on function vault.update_secret(uuid,text,text,text,uuid) from public;
+-- Membership anterior deve sobreviver com opções e concedente intactos.
+grant ffcmapp_atestado_verificador_owner to postgres with inherit false, set true;
+create temporary table agenda_membership_antes as
+ select m.* from pg_auth_members m join pg_roles r on r.oid=m.roleid
+ join pg_roles u on u.oid=m.member where r.rolname='ffcmapp_atestado_verificador_owner' and u.rolname='postgres';
 \ir ../drafts/20261115100000_agenda_google_conexao.sql
+do $$ begin
+ if exists ((select * from agenda_membership_antes except select m.* from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member where r.rolname='ffcmapp_atestado_verificador_owner' and u.rolname='postgres')
+ union all (select m.* from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member where r.rolname='ffcmapp_atestado_verificador_owner' and u.rolname='postgres' except select * from agenda_membership_antes)) then
+  raise exception 'MEMBERSHIP_VERIFICADOR_ALTERADA';
+ end if;
+ if has_function_privilege('ffcmapp_agenda_google_owner','vault.update_secret(uuid,text,text,text,uuid)','EXECUTE') then
+  raise exception 'UPDATE_SECRET_NAO_NECESSARIO';
+ end if;
+end $$;
 do $$
 declare
  papel text; tabela text; permissao text; coluna record; funcao record;

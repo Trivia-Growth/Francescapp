@@ -2,18 +2,33 @@
 -- privilégios Vault, canal sem logs de parâmetros e concorrência/revogação reais.
 select set_config('ffcmapp.migrador_agenda', current_user, false);
 create role ffcmapp_agenda_google_executor nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
+create role ffcmapp_agenda_vault_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
+grant ffcmapp_agenda_vault_owner to current_user with inherit false, set true;
 create role ffcmapp_agenda_google_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
 grant ffcmapp_agenda_google_owner to current_user with inherit false, set true;
 grant usage, create on schema identidade to ffcmapp_agenda_google_owner;
 grant usage on schema identidade to ffcmapp_agenda_google_executor;
 grant usage on schema auth_privado, vault, extensions, cadastro, auditoria to ffcmapp_agenda_google_owner;
 grant execute on function extensions.digest(bytea,text) to ffcmapp_agenda_google_owner;
-grant ffcmapp_atestado_verificador_owner to current_user with inherit false, set true;
+select set_config('ffcmapp.agenda_tinha_verificador',pg_has_role(current_user,'ffcmapp_atestado_verificador_owner','SET')::text,false);
+do $$ begin
+ if current_setting('ffcmapp.agenda_tinha_verificador')='false' then
+  if exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member join pg_roles g on g.oid=m.grantor
+   where r.rolname='ffcmapp_atestado_verificador_owner' and u.rolname=current_user and g.rolname=current_user) then
+   raise exception 'MEMBERSHIP_VERIFICADOR_CONCEDENTE_EXISTENTE_SEM_SET';
+  end if;
+  execute format('grant ffcmapp_atestado_verificador_owner to %I with inherit false, set true granted by %I',current_user,current_user);
+ end if;
+end $$;
 set role ffcmapp_atestado_verificador_owner;
 grant execute on function identidade.verificar_assinatura_atestado(text,text,jsonb,jsonb,text) to ffcmapp_agenda_google_owner;
 reset role;
 select set_config('role',current_setting('ffcmapp.migrador_agenda'),false);
-revoke ffcmapp_atestado_verificador_owner from current_user;
+do $$ begin
+ if current_setting('ffcmapp.agenda_tinha_verificador')='false' then
+  execute format('revoke ffcmapp_atestado_verificador_owner from %I granted by %I',current_user,current_user);
+ end if;
+end $$;
 grant execute on function auth_privado.sessoes(), auth_privado.identidades() to ffcmapp_agenda_google_owner;
 grant select (id, ativo, perfil), update (versao) on public.usuario to ffcmapp_agenda_google_owner;
 grant select (id, usuario_id, perfil, estado, metodo, subject_google), update (versao) on identidade.concessao_equipe to ffcmapp_agenda_google_owner;
@@ -45,12 +60,12 @@ create policy agenda_google_sessao_lock on identidade.sessao for update to ffcma
   using (usuario_id=nullif(current_setting('ffcmapp.agenda_usuario',true),'')::uuid
     and session_id=nullif(current_setting('ffcmapp.agenda_sessao',true),'')::uuid) with check (false);
 create policy agenda_google_config on identidade.configuracao_auth_nativo for select to ffcmapp_agenda_google_owner using (true);
-grant execute on function vault.create_secret(text,text,text,uuid), vault.update_secret(uuid,text,text,text,uuid)
-  to ffcmapp_agenda_google_owner;
-grant select on vault.decrypted_secrets to ffcmapp_agenda_google_owner;
-grant delete on vault.secrets to ffcmapp_agenda_google_owner;
+grant execute on function vault.create_secret(text,text,text,uuid) to ffcmapp_agenda_google_owner;
+grant usage on schema identidade, vault to ffcmapp_agenda_vault_owner;
+grant select on vault.decrypted_secrets to ffcmapp_agenda_vault_owner;
+grant select (id), delete on vault.secrets to ffcmapp_agenda_vault_owner;
 grant execute on function vault._crypto_aead_det_decrypt(bytea,bytea,bigint,bytea,bytea)
-  to ffcmapp_agenda_google_owner;
+  to ffcmapp_agenda_vault_owner;
 set role ffcmapp_agenda_google_owner;
 alter default privileges revoke execute on functions from public;
 
@@ -107,6 +122,35 @@ create table identidade.agenda_google_credencial (
 );
 revoke all on identidade.agenda_google_state, identidade.agenda_google_credencial, identidade.agenda_google_geracao, identidade.agenda_google_requisicao, identidade.agenda_google_escrita, identidade.agenda_google_vinculo_paciente, identidade.agenda_google_desconexao_recibo from public, anon, authenticated, service_role;
 
+-- Owner do Vault é isolado e só recebe chamada vinculada ao usuário em contexto.
+grant select (usuario_id, segredo_id) on identidade.agenda_google_credencial to ffcmapp_agenda_vault_owner;
+reset role;
+select set_config('role',current_setting('ffcmapp.migrador_agenda'),false);
+grant create on schema identidade to ffcmapp_agenda_vault_owner;
+set role ffcmapp_agenda_vault_owner;
+create function identidade.agenda_google_vault(p_segredo uuid, p_excluir boolean)
+returns text language plpgsql security definer set search_path = '' as $$
+declare v_usuario uuid := nullif(current_setting('ffcmapp.agenda_usuario',true),'')::uuid; v_valor text;
+begin
+ if v_usuario is null or p_segredo is null or p_excluir is null or not exists
+   (select 1 from identidade.agenda_google_credencial c where c.usuario_id=v_usuario and c.segredo_id=p_segredo) then
+  raise exception using errcode='42501',message='SEM_PERMISSAO';
+ end if;
+ if p_excluir then
+  delete from vault.secrets where id=p_segredo;
+  return null;
+ end if;
+ select d.decrypted_secret into v_valor from vault.decrypted_secrets d where d.id=p_segredo;
+ return v_valor;
+end $$;
+revoke all on function identidade.agenda_google_vault(uuid,boolean) from public, anon, authenticated, service_role;
+grant execute on function identidade.agenda_google_vault(uuid,boolean) to ffcmapp_agenda_google_owner;
+reset role;
+select set_config('role',current_setting('ffcmapp.migrador_agenda'),false);
+revoke create on schema identidade from ffcmapp_agenda_vault_owner;
+set role ffcmapp_agenda_google_owner;
+
+
 -- Contexto interno somente após verificação do atestado pelo wrapper privado.
 -- Funções auxiliares não têm grants para executor ou papéis públicos.
 create function identidade.agenda_google_contexto()
@@ -158,9 +202,9 @@ begin
   update identidade.agenda_google_geracao set geracao=geracao+1 where usuario_id=v_usuario returning geracao into v_geracao;
   select segredo_id into v_antigo from identidade.agenda_google_credencial where usuario_id=v_usuario for update;
   v_novo := vault.create_secret(p_refresh, null, null, null);
+  if v_antigo is not null then perform identidade.agenda_google_vault(v_antigo,true); end if;
   insert into identidade.agenda_google_credencial(usuario_id,subject_google,geracao,segredo_id) values(v_usuario,p_subject,v_geracao,v_novo)
     on conflict(usuario_id) do update set subject_google=excluded.subject_google,geracao=excluded.geracao,segredo_id=excluded.segredo_id;
-  if v_antigo is not null then delete from vault.secrets where id=v_antigo; end if;
   return true;
 end $$;
 create function identidade.agenda_google_ler_credencial()
@@ -178,8 +222,7 @@ begin
     perform identidade.agenda_google_revogar_credencial();
     return null;
   end if;
-  select d.decrypted_secret,c.geracao into v_refresh,v_geracao from identidade.agenda_google_credencial c
-    join vault.decrypted_secrets d on d.id=c.segredo_id
+  select identidade.agenda_google_vault(c.segredo_id,false),c.geracao into v_refresh,v_geracao from identidade.agenda_google_credencial c
     join identidade.sessao s on s.usuario_id=c.usuario_id and s.session_id=v_sessao
     join identidade.concessao_equipe con on con.id=s.concessao_id and con.subject_google=c.subject_google
     join auth_privado.identidades() i on i.user_id=c.usuario_id and i.provider='google' and i.provider_id=c.subject_google
@@ -196,8 +239,9 @@ begin
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_usuario::text, 0));
   insert into identidade.agenda_google_geracao(usuario_id,geracao) values(v_usuario,1)
     on conflict(usuario_id) do update set geracao=identidade.agenda_google_geracao.geracao+1;
-  delete from identidade.agenda_google_credencial where usuario_id=v_usuario returning segredo_id into v_segredo;
-  if v_segredo is not null then delete from vault.secrets where id=v_segredo; end if;
+  select segredo_id into v_segredo from identidade.agenda_google_credencial where usuario_id=v_usuario;
+  if v_segredo is not null then perform identidade.agenda_google_vault(v_segredo,true); end if;
+  delete from identidade.agenda_google_credencial where usuario_id=v_usuario;
   delete from identidade.agenda_google_state where usuario_id=v_usuario;
   return true;
 end $$;
@@ -493,3 +537,5 @@ reset role;
 select set_config('role', current_setting('ffcmapp.migrador_agenda'), false);
 revoke create on schema identidade from ffcmapp_agenda_google_owner;
 revoke ffcmapp_agenda_google_owner from current_user;
+
+revoke ffcmapp_agenda_vault_owner from current_user;
