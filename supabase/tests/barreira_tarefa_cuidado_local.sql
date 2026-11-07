@@ -40,3 +40,44 @@ begin
  exception when insufficient_privilege then if sqlerrm<>'RESERVA_INVALIDA' then raise; end if; end;
  if exists(select 1 from cadastro.tarefa_cuidado_versao where id=registro) then raise exception 'VERSAO_TARDIA_EXISTE'; end if;
 end $$;
+
+-- Owner restrito exerce composição; aplicação continua sem EXECUTE.
+\ir ../migrations/20261112100000_auditoria_carteira_auth_nao_admitido.sql
+\ir ../drafts/owner_barreira_tarefa_cuidado.sql
+do $$
+declare ator uuid:='10000000-0000-4000-8000-000000000002'; sessao uuid:='20000000-0000-4000-8000-000000000002'; paciente uuid:='40000000-0000-4000-8000-000000000001'; entrada jsonb; resposta jsonb; reserva_teste uuid:=gen_random_uuid(); recibo_teste uuid:=gen_random_uuid();
+begin
+ if has_function_privilege('authenticated','api.tarefa_barreira_composicao(jsonb)','EXECUTE') or has_function_privilege('service_role','api.tarefa_barreira_composicao(jsonb)','EXECUTE') then raise exception 'GRANT_EXTERNO_INDEVIDO'; end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',ator,'session_id',sessao,'amr',jsonb_build_array(jsonb_build_object('method','oauth')))::text,true);
+ entrada:=jsonb_build_object('request_id',gen_random_uuid(),'operacao','api.consultar_barreira_tarefa_cuidado');
+ resposta:=api.tarefa_barreira_composicao(public.assinar_anamnese_fixture(entrada,'api.consultar_barreira_tarefa_cuidado',ator,sessao));
+ if resposta->>'ok'<>'true' then raise exception 'COMPOSICAO_FALHOU: %',resposta; end if;
+ entrada:=jsonb_build_object('request_id',gen_random_uuid(),'operacao','api.reconhecer_barreira_tarefa_cuidado','comando_id',resposta#>>'{dados,resultado_pendente,recibo_id}');
+ resposta:=api.tarefa_barreira_composicao(public.assinar_anamnese_fixture(entrada,'api.reconhecer_barreira_tarefa_cuidado',ator,sessao));
+ if resposta#>>'{dados,estado}'<>'reconhecido' then raise exception 'RECONHECIMENTO_FALHOU: %',resposta; end if;
+ entrada:=jsonb_build_object('request_id',gen_random_uuid(),'operacao','api.reservar_tarefa_cuidado','epoca',4,'reserva_id',reserva_teste,'paciente_id',paciente,'tarefa_id',gen_random_uuid(),'versao_esperada',0);
+ resposta:=api.tarefa_barreira_composicao(public.assinar_anamnese_fixture(entrada,'api.reservar_tarefa_cuidado',ator,sessao));
+ if resposta#>>'{dados,estado}'<>'aberta' then raise exception 'RESERVA_COMPOSICAO_FALHOU: %',resposta; end if;
+ entrada:=entrada || jsonb_build_object('request_id',gen_random_uuid(),'paciente_id',gen_random_uuid());
+ resposta:=api.tarefa_barreira_composicao(public.assinar_anamnese_fixture(entrada,'api.reservar_tarefa_cuidado',ator,sessao));
+ if resposta#>>'{erro,codigo}'<>'sem_permissao' then raise exception 'PACIENTE_SEM_VINCULO_ACEITO: %',resposta; end if;
+ entrada:=jsonb_build_object('request_id',gen_random_uuid(),'operacao','api.encerrar_tarefa_cuidado','epoca',4,'reserva_id',reserva_teste,'comando_id',recibo_teste);
+ update cadastro.acesso_paciente set revogada_em=clock_timestamp(),revogado_por_usuario_id='10000000-0000-4000-8000-000000000001',motivo_revogacao_cifrado=motivo_concessao_cifrado where paciente_id=paciente and usuario_id=ator;
+ resposta:=api.tarefa_barreira_composicao(public.assinar_anamnese_fixture(jsonb_build_object('request_id',gen_random_uuid(),'operacao','api.consultar_barreira_tarefa_cuidado'),'api.consultar_barreira_tarefa_cuidado',ator,sessao));
+ if resposta#>>'{erro,codigo}'<>'sem_permissao' or resposta ? 'dados' then raise exception 'CONSULTA_RESERVA_REVOGADA_ACEITA: %',resposta; end if;
+ resposta:=api.tarefa_barreira_composicao(public.assinar_anamnese_fixture(entrada,'api.encerrar_tarefa_cuidado',ator,sessao));
+ if resposta#>>'{erro,codigo}'<>'sem_permissao' or (select estado from operacao.reserva_tarefa_cuidado where id=reserva_teste)<>'aberta' then raise exception 'ENCERRAMENTO_APOS_REVOGACAO_ACEITO: %',resposta; end if;
+ update cadastro.acesso_paciente set revogada_em=null,revogado_por_usuario_id=null,motivo_revogacao_cifrado=null where paciente_id=paciente and usuario_id=ator;
+ resposta:=api.tarefa_barreira_composicao(public.assinar_anamnese_fixture(entrada,'api.encerrar_tarefa_cuidado',ator,sessao));
+ if resposta#>>'{dados,estado}'<>'cancelada' then raise exception 'ENCERRAMENTO_FALHOU: %',resposta; end if;
+ update cadastro.acesso_paciente set revogada_em=clock_timestamp(),revogado_por_usuario_id='10000000-0000-4000-8000-000000000001',motivo_revogacao_cifrado=motivo_concessao_cifrado where paciente_id=paciente and usuario_id=ator;
+ resposta:=api.tarefa_barreira_composicao(public.assinar_anamnese_fixture(entrada,'api.encerrar_tarefa_cuidado',ator,sessao));
+ if resposta#>>'{erro,codigo}'<>'sem_permissao' then raise exception 'REPLAY_APOS_REVOGACAO_ACEITO: %',resposta; end if;
+ entrada:=jsonb_build_object('request_id',gen_random_uuid(),'operacao','api.consultar_barreira_tarefa_cuidado');
+ resposta:=api.tarefa_barreira_composicao(public.assinar_anamnese_fixture(entrada,'api.consultar_barreira_tarefa_cuidado',ator,sessao));
+ if resposta#>>'{erro,codigo}'<>'sem_permissao' or resposta ? 'dados' then raise exception 'CONSULTA_APOS_REVOGACAO_ACEITA: %',resposta; end if;
+ entrada:=jsonb_build_object('request_id',gen_random_uuid(),'operacao','api.reconhecer_barreira_tarefa_cuidado','comando_id',recibo_teste);
+ resposta:=api.tarefa_barreira_composicao(public.assinar_anamnese_fixture(entrada,'api.reconhecer_barreira_tarefa_cuidado',ator,sessao));
+ if resposta#>>'{erro,codigo}'<>'sem_permissao' then raise exception 'RECONHECIMENTO_APOS_REVOGACAO_ACEITO: %',resposta; end if;
+ if (select resultado_pendente from operacao.barreira_tarefa_cuidado where ator_usuario_id=ator) is distinct from recibo_teste then raise exception 'REVOGACAO_ALTEROU_BARREIRA'; end if;
+end $$;

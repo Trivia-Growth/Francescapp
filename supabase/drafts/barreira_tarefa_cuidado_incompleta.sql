@@ -350,7 +350,7 @@ declare
  e jsonb:=p_transporte->'entrada'; a jsonb:=e->'atestado'; ator uuid:=auth_privado.uid();
  sessao uuid; req uuid; reserva uuid; comando uuid; paciente uuid; tarefa uuid; versao integer; epoca bigint;
  inicio timestamptz; fim timestamptz; dominio text; sujeito text; concessao uuid;
- google record; acao text; resposta text; dados jsonb; autorizado boolean:=false;
+ google record; acao text; resposta text; dados jsonb; pacientes_antes uuid[]; pacientes_depois uuid[]; paciente_alvo uuid; autorizado boolean:=false;
 begin
  if jsonb_typeof(p_transporte) is distinct from 'object'
   or p_transporte - array['entrada','entrada_canonica','dados_canonicos'] <> '{}'::jsonb
@@ -424,7 +424,31 @@ begin
    if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
    return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','sem_permissao'),'request_id',req);
   end if;
-  perform 1 from cadastro.paciente where id=paciente for key share;
+  perform 1 from cadastro.paciente p where p.id=paciente for key share;
+ end if;
+ -- Descobre vínculos sem lock da barreira; trava vínculos em ordem estável
+ -- antes da barreira e revalida a lista após o lock, sem inverter a ordem.
+ if acao<>'api.reservar_tarefa_cuidado' then
+  select coalesce(array_agg(distinct r.paciente_reservado_id order by r.paciente_reservado_id),'{}'::uuid[])
+   from operacao.reserva_tarefa_cuidado r
+   where r.ator_usuario_id=ator and (
+    (acao='api.encerrar_tarefa_cuidado' and r.id=reserva)
+    or (acao in ('api.encerrar_tarefa_cuidado','api.reconhecer_barreira_tarefa_cuidado') and r.id in
+     (select c.reserva_id from operacao.recibo_barreira_tarefa_cuidado c where c.id=comando and c.ator_usuario_id=ator))
+    or (acao='api.consultar_barreira_tarefa_cuidado' and r.id in
+     (select b.reserva_atual from operacao.barreira_tarefa_cuidado b where b.ator_usuario_id=ator
+      union all
+      select c.reserva_id from operacao.barreira_tarefa_cuidado b join operacao.recibo_barreira_tarefa_cuidado c on c.id=b.resultado_pendente where b.ator_usuario_id=ator))
+   ) into pacientes_antes;
+  foreach paciente_alvo in array pacientes_antes loop
+   perform 1 from cadastro.acesso_paciente ap where ap.paciente_id=paciente_alvo and ap.usuario_id=ator and ap.revogada_em is null for share;
+   if not found then
+    insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
+     values(gen_random_uuid(),ator,acao,'requisicao',null,'negado',req);
+    if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
+    return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','sem_permissao'),'request_id',req);
+   end if;
+  end loop;
  end if;
  -- A espera pelo bloqueio não pode estender a validade do atestado.
  insert into operacao.barreira_tarefa_cuidado(ator_usuario_id) values(ator) on conflict do nothing;
@@ -432,18 +456,26 @@ begin
  if fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() s where s.id=sessao and s.user_id=ator and (s.not_after is null or s.not_after>clock_timestamp())) then
   raise exception using errcode='PZ001',message='EXPIRACAO_INTERNA';
  end if;
- if acao='api.consultar_barreira_tarefa_cuidado' then
-  -- Bloqueio da barreira já adquirido; negar antes da auditoria de leitura.
-  if exists(select 1 from operacao.barreira_tarefa_cuidado b
-   join operacao.recibo_barreira_tarefa_cuidado c on c.id=b.resultado_pendente
-   join operacao.reserva_tarefa_cuidado r on r.id=c.reserva_id
-   where b.ator_usuario_id=ator and not exists(select 1 from cadastro.acesso_paciente ap
-    where ap.paciente_id=r.paciente_reservado_id and ap.usuario_id=ator and ap.revogada_em is null)) then
+ if acao<>'api.reservar_tarefa_cuidado' then
+  select coalesce(array_agg(distinct r.paciente_reservado_id order by r.paciente_reservado_id),'{}'::uuid[])
+   from operacao.reserva_tarefa_cuidado r
+   where r.ator_usuario_id=ator and (
+    (acao='api.encerrar_tarefa_cuidado' and r.id=reserva)
+    or (acao in ('api.encerrar_tarefa_cuidado','api.reconhecer_barreira_tarefa_cuidado') and r.id in
+     (select c.reserva_id from operacao.recibo_barreira_tarefa_cuidado c where c.id=comando and c.ator_usuario_id=ator))
+    or (acao='api.consultar_barreira_tarefa_cuidado' and r.id in
+     (select b.reserva_atual from operacao.barreira_tarefa_cuidado b where b.ator_usuario_id=ator
+      union all
+      select c.reserva_id from operacao.barreira_tarefa_cuidado b join operacao.recibo_barreira_tarefa_cuidado c on c.id=b.resultado_pendente where b.ator_usuario_id=ator))
+   ) into pacientes_depois;
+  if pacientes_depois is distinct from pacientes_antes then
    insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
     values(gen_random_uuid(),ator,acao,'requisicao',null,'negado',req);
    if not found then raise exception using errcode='P0002',message='AUDITORIA_NAO_INSERIDA'; end if;
    return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','sem_permissao'),'request_id',req);
   end if;
+ end if;
+ if acao='api.consultar_barreira_tarefa_cuidado' then
   dados:=operacao.consultar_barreira_tarefa_cuidado_privado(req);
  elsif acao='api.reconhecer_barreira_tarefa_cuidado' then
   resposta:=operacao.reconhecer_barreira_tarefa_cuidado_privado(comando,req);
