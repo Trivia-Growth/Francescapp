@@ -1,3 +1,4 @@
+import { montarResumoConectado } from './resumo-conectado.js';
 import { montarAgendaIndividual } from './agenda-individual.js';
 import { montarContatoPaciente } from './contatos-paciente.js';
 import { montarSelecaoProfissional } from './selecao-profissional.js';
@@ -185,6 +186,15 @@ function fecharPacienteFamiliar(): void {
   elemento('paciente-familiar-nome').textContent = '';
   elemento('paciente-familiar-preferencia').textContent = '';
   aviso('paciente-familiar-status', '');
+}
+
+const resumoPanel = elemento('resumo-panel');
+let desmontarResumo: (() => void) | null = null;
+function fecharResumo(): void {
+  desmontarResumo?.();
+  desmontarResumo = null;
+  resumoPanel.hidden = true;
+  elemento('resumo-paciente').textContent = '';
 }
 
 const anamnesePanel = elemento('anamnese-panel');
@@ -384,6 +394,7 @@ function fecharAgenda(): void {
 
 function apagarPacientes(): void {
   fecharAgenda();
+  fecharResumo();
   fecharSelecao();
   fecharTarefas();
   fecharAnamnese();
@@ -484,6 +495,7 @@ function aplicarSessao(atual: Sessao): void {
       atual.usuario.perfil === 'familia')
   ) {
     fecharSelecao();
+    fecharResumo();
     fecharTarefas();
     fecharAnamnese();
     fecharPlano();
@@ -500,7 +512,10 @@ function aplicarSessao(atual: Sessao): void {
     !atual.capacidades.includes('administrar_concessoes')
   )
     fecharSelecao();
-  if (atual.usuario.perfil !== 'profissional') fecharTarefas();
+  if (atual.usuario.perfil !== 'profissional') {
+    fecharTarefas();
+    fecharResumo();
+  }
   sessao = atual;
   let acessoGoogle = false;
   try {
@@ -673,15 +688,17 @@ function atendimentoJaAberto(): boolean {
     ? 'selecao-profissional-title'
     : !pacienteFamiliarPanel.hidden
       ? 'paciente-familiar-title'
-      : !anamnesePanel.hidden
-        ? 'anamnese-title'
-        : !planoPanel.hidden
-          ? 'plano-title'
-          : !tarefasPanel.hidden
-            ? 'tarefas-title'
-            : !edicaoPanel.hidden
-              ? 'edicao-title'
-              : null;
+      : !resumoPanel.hidden
+        ? 'resumo-title'
+        : !anamnesePanel.hidden
+          ? 'anamnese-title'
+          : !planoPanel.hidden
+            ? 'plano-title'
+            : !tarefasPanel.hidden
+              ? 'tarefas-title'
+              : !edicaoPanel.hidden
+                ? 'edicao-title'
+                : null;
   if (!titulo) return false;
   aviso('workspace-feedback', 'Feche o atendimento aberto antes de selecionar outro.');
   elemento(titulo).focus();
@@ -767,6 +784,28 @@ function linhaPaciente(
     });
     acao.append(abrir, abrirPlano);
     if (sessao.usuario.perfil === 'profissional') {
+      const resumo = document.createElement('button');
+      resumo.type = 'button';
+      resumo.className = 'button-secondary';
+      resumo.textContent = 'Abrir resumo';
+      resumo.setAttribute('aria-label', `Abrir resumo de ${paciente.nome}`);
+      resumo.addEventListener('click', () => {
+        if (!sessao || sessao.usuario.perfil !== 'profissional' || atendimentoJaAberto()) return;
+        acaoPacienteAnterior = resumo;
+        elemento('resumo-paciente').textContent = paciente.nome;
+        resumoPanel.hidden = false;
+        const identidade = () =>
+          sessao ? { usuario_id: sessao.usuario.id, session_id: sessao.session_id } : null;
+        desmontarResumo = montarResumoConectado(
+          elemento('resumo-raiz'),
+          paciente.id,
+          criarServicoPlanoHttp(identidade),
+          criarServicoTarefasHttp(identidade),
+          acessoPerdido,
+        );
+        elemento('resumo-title').focus();
+      });
+      acao.append(resumo);
       const tarefas = document.createElement('button');
       tarefas.type = 'button';
       tarefas.className = 'button-secondary';
@@ -1351,6 +1390,12 @@ fecharPlanoBotao.addEventListener('click', () => {
   else elemento('patients-title').focus();
   acaoPacienteAnterior = null;
 });
+elemento<HTMLButtonElement>('fechar-resumo').addEventListener('click', () => {
+  fecharResumo();
+  if (acaoPacienteAnterior?.isConnected && !table.hidden) acaoPacienteAnterior.focus();
+  else elemento('patients-title').focus();
+  acaoPacienteAnterior = null;
+});
 elemento<HTMLButtonElement>('fechar-tarefas').addEventListener('click', () => {
   if (!confirmarDescarteTarefa()) return;
   fecharTarefas();
@@ -1383,6 +1428,7 @@ for (const campo of [
   });
 }
 document.addEventListener('visibilitychange', () => {
+  if (document.hidden && !resumoPanel.hidden) fecharResumo();
   if (sessao) {
     if (pacienteFamiliarPanel.contains(document.activeElement)) focoAposLoginOculto = true;
     patientsView.hidden = true;
