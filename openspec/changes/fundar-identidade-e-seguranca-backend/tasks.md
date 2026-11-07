@@ -407,3 +407,5 @@ Preparação local de consulta familiar individual: `supabase/preparacao/consult
 Gate de ativação executado no estado anterior: falhou em duas fixtures de contrato desatualizadas, antes das demais etapas. Fixtures foram alinhadas aos campos obrigatórios e o arquivo afetado passou; gate completo precisa ser executado novamente no diff final, com provas reais e revisão S-02 ainda pendentes.
 
 Gate de ativação repetido após corrigir fixtures: exit 0, porém 22 testes condicionais foram pulados (cadastro, funções e proxy). Resultado não comprova provas obrigatórias de autorização/RLS, Auth/Vault ou roteiro no ambiente aprovado; S-02 e demonstração integrada seguem pendentes. PR permanece draft.
+
+Prova adicional no Supabase de teste: acesso direto a cadastro.paciente foi negado para anon e authenticated. Em transação descartável, com USAGE/SELECT temporários, RLS retornou zero linhas para ambos sem JWT, apesar de haver paciente; ROLLBACK e catálogo confirmaram remoção dos privilégios temporários. A prova não cobre JWT válido, perfil autorizado, vínculo ou revogação.
