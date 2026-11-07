@@ -62,3 +62,7 @@ Retirada de vínculo manual preparada com UUID por associação, exclusão lógi
 Marcador local de resultado incerto foi isolado por usuário; marcador antigo sem autoria permanece bloqueado para recuperação. Teste focado passou. A agenda continua desativada e sem prova Google real.
 
 Teste local de privilégios aplicou o rascunho de Agenda em PostgreSQL descartável: verificou SELECT, INSERT, UPDATE e DELETE em nível de tabela para anon, authenticated, service_role e executor; execução do wrapper nesses papéis e do helper de leitura de credencial pelo executor. Não cobre todos os privilégios ou concessões por coluna. Interface Vault foi simulada para instalar o SQL; isso não comprova Vault, autorização funcional, RLS, concorrência ou integração reais. Não foi concedido papel ao login nem alterado o gate.
+
+Teste local de privilégios ampliado para cada privilégio de tabela, concessões por coluna e todas as funções `identidade.agenda_google_*` existentes, incluindo executor e papéis de API; somente o wrapper é executável pelo executor. Script passou em PostgreSQL descartável com Vault simulado. A prova continua restrita ao catálogo local e não substitui testes funcionais, de concorrência ou Vault real.
+
+Após revisão, teste exige presença da assinatura exata `identidade.agenda_google_operacao_privada(jsonb,text)` e EXECUTE positivo do executor; comparação por OID rejeita overloads. Script focal passou novamente em PostgreSQL descartável com Vault simulado.
