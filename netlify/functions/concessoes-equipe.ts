@@ -1,3 +1,4 @@
+import { criarConcessaoEquipeReservadaSchema } from '../../packages/contracts/src/identidade.ts';
 import { prepararConcessaoEquipe } from '../../packages/cadastro/src/preparar-concessao-equipe.ts';
 import { calcularCandidatosConcessao } from './_shared/idempotencia-concessao-equipe.ts';
 import { configurarIdempotenciaConcessao } from './_shared/configurar-idempotencia-concessao.ts';
@@ -36,6 +37,8 @@ export default async function concessoesEquipe(request: Request): Promise<Respon
     });
   const criando = request.method === 'POST';
   if (process.env[criando ? 'FFCM_CRIACAO_EQUIPE_ATIVA' : 'FFCM_CONSULTA_EQUIPE_ATIVA'] !== 'true')
+    return erro('servico_indisponivel');
+  if (criando && process.env.FFCM_BARREIRA_EQUIPE_ATIVADA !== 'true')
     return erro('servico_indisponivel');
   const controle = new AbortController();
   const cancelar = () => controle.abort();
@@ -275,7 +278,7 @@ async function criarConcessao(
     } catch {
       return erro('entrada_invalida');
     }
-    const validada = contratosRotas.criarConcessao.entrada.safeParse(corpo);
+    const validada = criarConcessaoEquipeReservadaSchema.safeParse(corpo);
     if (!validada.success) return erro('entrada_invalida');
     dependencias ??= configurarDependenciasNativas(process.env);
     const pedido = new Request(request.url, {
@@ -331,7 +334,7 @@ async function criarConcessao(
     const logico = cofre.atestador.canonicalizar({
       operacao: 'api.criar_concessao_equipe',
       usuario_id: inicial.usuarioId,
-      corpo: validada.data,
+      corpo: validada.data.entrada,
     });
     const candidatos = await calcularCandidatosConcessao(
       cofre.chavesIdempotencia,
@@ -344,11 +347,13 @@ async function criarConcessao(
     const concessaoId = ativo.concessao_id;
     const digest = ativo.digest_idempotencia;
     const campos = await prepararConcessaoEquipe(
-      { concessaoId, corpo: validada.data },
+      { concessaoId, corpo: validada.data.entrada },
       cofre.cifra,
     );
     const entrada = {
       ...campos,
+      reserva_id: validada.data.reserva_id,
+      geracao_reserva: validada.data.geracao_reserva,
       request_id: requestId,
       auditoria_id: crypto.randomUUID(),
       chave_idempotencia: chave,

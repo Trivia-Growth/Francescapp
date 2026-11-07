@@ -523,6 +523,8 @@ export const assinaturasRpc = {
     'administrador',
     mutacaoSchema
       .extend({
+        reserva_id: uuidSchema,
+        geracao_reserva: z.number().int().positive().safe(),
         concessao_id: uuidSchema,
         versao_idempotencia: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/),
         candidatos_idempotencia: z

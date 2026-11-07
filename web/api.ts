@@ -1,3 +1,4 @@
+import { contratosBarreiraEquipeHttp } from '../packages/contracts/src/barreira-equipe-servidor.ts';
 import { contratosBarreiraTarefaHttp } from '../packages/contracts/src/barreira-tarefa-cuidado-servidor.ts';
 import { z } from 'zod';
 import {
@@ -67,7 +68,32 @@ const rotas = {
   sairFamiliar: { ...contratosRotas.sairSessao, caminho: '/api/familiar/sessao/sair' },
   listarPacientes: contratosRotas.listarPacientes,
   listarConcessoes: contratosRotas.listarConcessoes,
-  criarConcessao: contratosRotas.criarConcessao,
+  criarConcessao: {
+    ...contratosRotas.criarConcessao,
+    entrada: z
+      .object({
+        entrada: contratosRotas.criarConcessao.entrada,
+        reserva_id: z.string().uuid(),
+        geracao_reserva: z.number().int().positive().safe(),
+      })
+      .strict(),
+  },
+  consultarBarreiraEquipe: {
+    ...contratosBarreiraEquipeHttp.consultar,
+    saida: contratosBarreiraEquipeHttp.consultar.saida.shape.dados,
+  },
+  reservarBarreiraEquipe: {
+    ...contratosBarreiraEquipeHttp.reservar,
+    saida: contratosBarreiraEquipeHttp.reservar.saida.shape.dados,
+  },
+  encerrarBarreiraEquipe: {
+    ...contratosBarreiraEquipeHttp.encerrar,
+    saida: contratosBarreiraEquipeHttp.encerrar.saida.shape.dados,
+  },
+  reconhecerBarreiraEquipe: {
+    ...contratosBarreiraEquipeHttp.reconhecer,
+    saida: contratosBarreiraEquipeHttp.reconhecer.saida.shape.dados,
+  },
   disponibilidadeEdicao: {
     metodo: 'GET',
     caminho: '/api/pacientes/edicao/disponibilidade',
@@ -575,10 +601,31 @@ export class ClienteFFCM {
     );
   }
 
-  criarConcessaoEquipe(entrada: CriarConcessaoEquipe, chave: string) {
+  criarConcessaoEquipe(
+    entrada: CriarConcessaoEquipe,
+    chave: string,
+    reserva: { reserva_id: string; geracao_reserva: number },
+  ) {
     if (!chaveIdempotenciaSchema.safeParse(chave).success)
       return Promise.reject(new FalhaApi('entrada_invalida', 422));
-    return this.#enviar('criarConcessao', entrada, { protegido: true, chave });
+    return this.#enviar('criarConcessao', { entrada, ...reserva }, { protegido: true, chave });
+  }
+
+  consultarBarreiraEquipe() {
+    return this.#enviar('consultarBarreiraEquipe', {}, { protegido: true });
+  }
+  reservarBarreiraEquipe(entrada: { epoca: number; reserva_id: string }) {
+    return this.#enviar('reservarBarreiraEquipe', entrada, { protegido: true });
+  }
+  encerrarBarreiraEquipe(entrada: {
+    epoca: number;
+    reserva_id: string | null;
+    comando_id: string;
+  }) {
+    return this.#enviar('encerrarBarreiraEquipe', entrada, { protegido: true });
+  }
+  reconhecerBarreiraEquipe(entrada: { comando_id: string }) {
+    return this.#enviar('reconhecerBarreiraEquipe', entrada, { protegido: true });
   }
 
   consultarPacienteFamiliar(pacienteId: string): Promise<Dados<'consultarPacienteFamiliar'>> {

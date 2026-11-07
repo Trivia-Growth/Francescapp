@@ -1,25 +1,21 @@
-import {
-  criarConcessaoEquipeSchema,
-  type CriarConcessaoEquipe,
-} from '../packages/contracts/src/index.js';
-import { FalhaApi, type ClienteFFCM } from './api.js';
+import { criarConcessaoEquipeSchema } from '../packages/contracts/src/index.js';
+import type { ClienteFFCM } from './api.js';
+import { criarCicloConcessaoEquipe } from './ciclo-concessao-equipe.js';
 
 // Preparação isolada: não montar até existir capacidade e recuperação entre sessões comprovadas.
-export function montarConcessaoEquipe(
-  raiz: HTMLElement,
-  api: Pick<ClienteFFCM, 'criarConcessaoEquipe' | 'identidadeAtual'>,
-): () => void {
+export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () => void {
   let ativa = true;
-  let enviando = false;
-  let resultadoIncerto = false;
-  let bloqueado = false;
-  let pendente:
-    | {
-        entrada: CriarConcessaoEquipe;
-        chave: string;
-        identidade: { usuario_id: string; session_id: string };
-      }
-    | undefined;
+  let ocupada = false;
+  let liberada = false;
+  const ciclo = criarCicloConcessaoEquipe({
+    identidadeAtual: () => api.identidadeAtual(),
+    consultar: () => api.consultarBarreiraEquipe(),
+    reservar: async (entrada) => (await api.reservarBarreiraEquipe(entrada)).estado,
+    criar: ({ entrada, chave, reserva_id, geracao_reserva }) =>
+      api.criarConcessaoEquipe(entrada, chave, { reserva_id, geracao_reserva }),
+    encerrar: async (entrada) => (await api.encerrarBarreiraEquipe(entrada)).estado,
+    reconhecer: async (entrada) => (await api.reconhecerBarreiraEquipe(entrada)).estado,
+  });
   const formulario = document.createElement('form');
   const campos = document.createElement('fieldset');
   const email = document.createElement('input');
@@ -55,95 +51,113 @@ export function montarConcessaoEquipe(
   const enviar = document.createElement('button');
   enviar.type = 'submit';
   enviar.textContent = 'Pré-conceder acesso';
-  formulario.append(campos, enviar, status);
+  const verificar = document.createElement('button');
+  verificar.type = 'button';
+  verificar.textContent = 'Verificar operação anterior';
+  campos.disabled = enviar.disabled = true;
+  formulario.append(campos, enviar, verificar, status);
   raiz.replaceChildren(formulario);
+  const recuperar = async () => {
+    if (ocupada) return;
+    ocupada = true;
+    liberada = false;
+    campos.disabled = enviar.disabled = verificar.disabled = true;
+    status.textContent = 'Verificando operação anterior…';
+    try {
+      let estado = await ciclo.consultar();
+      if (!ativa) return;
+      if (!estado.resultado_pendente) {
+        if (
+          estado.reserva &&
+          !window.confirm(
+            'Há uma operação em andamento, possivelmente em outra aba. Encerrá-la afetará todas as abas. Continuar?',
+          )
+        )
+          throw new Error();
+        await ciclo.encerrar();
+        estado = await ciclo.consultar();
+        if (!ativa) return;
+      }
+      if (estado.resultado_pendente) {
+        const resultado = estado.resultado_pendente;
+        if (resultado.resultado === 'confirmada') {
+          let cursor: string | undefined;
+          const vistos = new Set<string>();
+          let encontrada:
+            | Awaited<ReturnType<ClienteFFCM['listarProfissionais']>>['itens'][number]
+            | undefined;
+          do {
+            const pagina = await api.listarProfissionais(cursor);
+            if (!ativa) return;
+            encontrada = pagina.itens.find(
+              (item) => item.id.toLowerCase() === resultado.concessao_id?.toLowerCase(),
+            );
+            cursor = pagina.proximo_cursor ?? undefined;
+            if (cursor && vistos.has(cursor)) throw new Error();
+            if (cursor) vistos.add(cursor);
+          } while (!encontrada && cursor);
+          if (
+            !encontrada ||
+            !window.confirm(
+              `Operação anterior para ${encontrada.email}: ${encontrada.estado}, perfil ${encontrada.perfil}, versão ${encontrada.versao}. Confirma a verificação?`,
+            )
+          )
+            throw new Error();
+        }
+        await ciclo.reconhecer();
+        estado = await ciclo.consultar();
+        if (!ativa) return;
+      }
+      ciclo.liberar();
+      liberada = true;
+      campos.disabled = enviar.disabled = false;
+      status.textContent = 'Operações anteriores verificadas.';
+    } catch {
+      if (ativa)
+        status.textContent =
+          'Não foi possível confirmar a operação anterior. Verifique novamente antes de continuar.';
+    } finally {
+      ocupada = false;
+      if (ativa) verificar.disabled = false;
+    }
+  };
+  verificar.addEventListener('click', () => void recuperar());
   formulario.addEventListener('submit', (evento) => {
     evento.preventDefault();
-    if (enviando || bloqueado) return;
-    const identidade = api.identidadeAtual();
-    if (
-      !identidade ||
-      (pendente &&
-        (identidade.usuario_id !== pendente.identidade.usuario_id ||
-          identidade.session_id !== pendente.identidade.session_id))
-    ) {
-      bloqueado = true;
-      campos.disabled = enviar.disabled = true;
-      status.textContent =
-        'Sessão alterada. Confirme a operação com a administração antes de continuar.';
+    if (!liberada || ocupada) return;
+    const validacao = criarConcessaoEquipeSchema.safeParse({
+      email: email.value,
+      perfil: perfil.value,
+      metodo: 'google_workspace',
+      motivo: motivo.value,
+    });
+    if (!validacao.success) {
+      status.textContent = 'Confira e-mail, perfil e motivo.';
       return;
     }
-    if (!pendente) {
-      const validacao = criarConcessaoEquipeSchema.safeParse({
-        email: email.value,
-        perfil: perfil.value,
-        metodo: 'google_workspace',
-        motivo: motivo.value,
-      });
-      if (!validacao.success) {
-        status.textContent = 'Confira e-mail, perfil e motivo.';
-        return;
-      }
-      pendente = {
-        entrada: validacao.data,
-        chave: crypto.randomUUID(),
-        identidade: { ...identidade },
-      };
-    }
-    enviando = true;
-    campos.disabled = enviar.disabled = true;
+    ocupada = true;
+    liberada = false;
+    campos.disabled = enviar.disabled = verificar.disabled = true;
     status.textContent = 'Enviando…';
-    void api
-      .criarConcessaoEquipe(pendente.entrada, pendente.chave)
+    void ciclo
+      .criar(validacao.data)
       .then((resultado) => {
         if (!ativa) return;
-        pendente = undefined;
-        resultadoIncerto = false;
         formulario.reset();
-        campos.disabled = false;
-        enviar.textContent = 'Pré-conceder acesso';
         const estados = { pendente: 'Pendente', vinculada: 'Vinculada', revogada: 'Revogada' };
         const perfis = { profissional: 'Profissional', administrador: 'Administrador' };
-        status.textContent = `Estado atual: ${estados[resultado.estado]}. Perfil: ${perfis[resultado.perfil]}. Versão: ${resultado.versao}.`;
+        status.textContent = `Estado atual: ${estados[resultado.estado]}. Perfil: ${perfis[resultado.perfil]}. Versão: ${resultado.versao}. Verifique a operação antes de continuar.`;
       })
-      .catch((erro: unknown) => {
-        if (!ativa) return;
-        if (
-          erro instanceof FalhaApi &&
-          erro.status === 409 &&
-          erro.codigo === 'conflito_idempotencia'
-        ) {
-          bloqueado = true;
-          status.textContent =
-            'Identificação da operação já utilizada. Confirme a situação com a administração antes de continuar.';
-          return;
-        }
-        const semEscrita =
-          erro instanceof FalhaApi &&
-          ((erro.status === 401 && erro.codigo === 'nao_autenticado') ||
-            (erro.status === 403 && erro.codigo === 'sem_permissao') ||
-            (erro.status === 422 && erro.codigo === 'entrada_invalida') ||
-            (erro.status === 409 && erro.codigo === 'conflito'));
-        if (semEscrita && !resultadoIncerto) {
-          pendente = undefined;
-          campos.disabled = false;
-          enviar.textContent = 'Pré-conceder acesso';
-          status.textContent =
-            erro.status === 401 || erro.status === 403
-              ? 'Acesso não autorizado. Valide sua sessão antes de continuar.'
-              : 'Solicitação não registrada. Confira os dados ou consulte a administração.';
-          return;
-        }
-        resultadoIncerto = true;
-        enviar.textContent = 'Repetir mesma solicitação';
-        status.textContent =
-          'Resultado não confirmado. Repita esta solicitação ou confirme com a administração antes de fechar a tela.';
+      .catch(() => {
+        if (ativa)
+          status.textContent = 'Resultado não confirmado. Verifique a operação antes de continuar.';
       })
       .finally(() => {
-        enviando = false;
-        if (ativa && !bloqueado) enviar.disabled = false;
+        ocupada = false;
+        if (ativa) verificar.disabled = false;
       });
   });
+  void recuperar();
   return () => {
     ativa = false;
     raiz.replaceChildren();

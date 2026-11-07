@@ -56,6 +56,7 @@ vi.mock('./auth-nativo/cliente.ts', () => ({
 }));
 
 beforeEach(() => {
+  vi.stubEnv('FFCM_BARREIRA_EQUIPE_ATIVADA', 'true');
   vi.stubEnv('FFCM_VAULT_IDEMPOTENCIA_EQUIPE_ATIVA', 'v1');
   vi.stubEnv('FFCM_VAULT_IDEMPOTENCIA_EQUIPE_REFERENCIAS', 'v1=ffcmapp.cifra.idempotencia-v1');
 });
@@ -101,10 +102,14 @@ describe('rota de criação de concessão', () => {
           'x-sessao': '11111111-1111-4111-8111-111111111111',
         },
         body: JSON.stringify({
-          email: 'pessoa@example.test',
-          perfil: 'profissional',
-          metodo: 'google_workspace',
-          motivo: 'Motivo de teste válido',
+          entrada: {
+            email: 'pessoa@example.test',
+            perfil: 'profissional',
+            metodo: 'google_workspace',
+            motivo: 'Motivo de teste válido',
+          },
+          reserva_id: '33333333-3333-4333-8333-333333333333',
+          geracao_reserva: 1,
         }),
       }),
     );
@@ -147,10 +152,14 @@ describe('rota de criação de concessão', () => {
           'x-sessao': '11111111-1111-4111-8111-111111111111',
         },
         body: JSON.stringify({
-          email: 'pessoa@example.test',
-          perfil: 'profissional',
-          metodo: 'google_workspace',
-          motivo: 'Motivo de teste válido',
+          entrada: {
+            email: 'pessoa@example.test',
+            perfil: 'profissional',
+            metodo: 'google_workspace',
+            motivo: 'Motivo de teste válido',
+          },
+          reserva_id: '33333333-3333-4333-8333-333333333333',
+          geracao_reserva: 1,
         }),
       }),
     );
@@ -185,10 +194,14 @@ describe('rota de criação de concessão', () => {
           'x-sessao': '11111111-1111-4111-8111-111111111111',
         },
         body: JSON.stringify({
-          email: 'pessoa@example.test',
-          perfil: 'profissional',
-          metodo: 'google_workspace',
-          motivo: 'Motivo de teste válido',
+          entrada: {
+            email: 'pessoa@example.test',
+            perfil: 'profissional',
+            metodo: 'google_workspace',
+            motivo: 'Motivo de teste válido',
+          },
+          reserva_id: '33333333-3333-4333-8333-333333333333',
+          geracao_reserva: 1,
         }),
       }),
     );
