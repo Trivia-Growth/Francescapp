@@ -391,3 +391,7 @@ Preparação da pré-concessão: teste local da migration `20261112310000` cobri
 Replay versionado de concessão: migration `20261112320000` revisada, testada localmente e aplicada no Supabase de teste após confirmar zero recibos legados, nenhuma chamada ativa e wrapper sem EXECUTE externo. Catálogo confirmou migration e ausência de EXECUTE para anon, authenticated e service_role. Configuração e prova reais das chaves Vault e da rota ainda pendentes; flag continua desligada.
 
 Configuração de teste: chave dedicada v1 de idempotência criada no Vault, sem substituir segredos; formato e unicidade conferidos. Referências configuradas exclusivamente no contexto da prévia privada do Netlify, sem habilitar flag de criação. Leitura pelo executor e integração HTTP/Auth/Vault reais seguem pendentes; produção inalterada.
+
+A leitura da chave dedicada de idempotência foi comprovada no projeto de teste com o login runtime do Netlify assumindo ffcmapp_vault_executor, conexão TLS verificada e operação somente leitura; o resultado confirmou 32 bytes sem expor o valor. A criação de equipe permanece desativada.
+
+Auditoria de concessão: migration `20261112330000` aplicada após revisão e teste SQL local; conta fictícia sem perfil, JWT/Auth e atestado reais recebeu sem_permissao com um evento negado associado. Grant temporário removido e ACL fechada confirmada. Prova usou chaves lidas por postgres e não passou pela validação dos campos protegidos; não comprova criação, replay, perfil autorizado ou HTTP. Nenhuma conta nova criada nessa prova.
