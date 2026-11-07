@@ -94,6 +94,12 @@ const rotas = {
     ...contratosBarreiraEquipeHttp.reconhecer,
     saida: contratosBarreiraEquipeHttp.reconhecer.saida.shape.dados,
   },
+  disponibilidadeHistoricoAnamnese: {
+    metodo: 'GET',
+    caminho: '/api/anamnese/historico/disponibilidade',
+    entrada: z.object({}).strict(),
+    saida: z.object({ disponivel: z.boolean() }).strict(),
+  },
   disponibilidadeEdicao: {
     metodo: 'GET',
     caminho: '/api/pacientes/edicao/disponibilidade',
@@ -749,6 +755,10 @@ export class ClienteFFCM {
   }
   reconhecerBarreiraAcesso(entrada: { comando_id: string }) {
     return this.#enviar('reconhecerBarreiraAcesso', entrada, { protegido: true });
+  }
+
+  disponibilidadeHistoricoAnamnese() {
+    return this.#enviar('disponibilidadeHistoricoAnamnese', {}, { protegido: true });
   }
 
   consultarAnamnese(pacienteId: string): Promise<Dados<'consultarAnamnese'>> {

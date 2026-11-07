@@ -299,3 +299,79 @@ it('não oferece histórico enquanto integração não está habilitada', async 
   await vi.waitFor(() => expect(raiz.textContent).toContain('Nenhuma seção registrada.'));
   expect(raiz.textContent).not.toContain('Consultar histórico');
 });
+
+it('abre formulário durante consulta de disponibilidade e preserva rascunho ao habilitar histórico', async () => {
+  const raiz = document.createElement('div');
+  let resolver!: (valor: boolean) => void;
+  const disponibilidade = new Promise<boolean>((resolve) => {
+    resolver = resolve;
+  });
+  montarAnamnese(
+    raiz,
+    'paciente',
+    {
+      consultarAnamnese: vi.fn().mockResolvedValue(null),
+      salvarAnamnese: vi.fn(),
+      consultarHistoricoAnamnese: vi.fn(),
+    },
+    vi.fn(),
+    () => {},
+    disponibilidade,
+  );
+  await vi.waitFor(() => expect(raiz.querySelector('form')).not.toBeNull());
+  const campo = raiz.querySelector<HTMLInputElement>('input');
+  if (!campo) throw new Error('Campo ausente');
+  campo.value = 'rascunho';
+  resolver(true);
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Consultar histórico'));
+  expect(campo.value).toBe('rascunho');
+  expect(raiz.contains(campo)).toBe(true);
+});
+
+it('mantém formulário disponível quando consulta de disponibilidade falha', async () => {
+  const raiz = document.createElement('div');
+  montarAnamnese(
+    raiz,
+    'paciente',
+    {
+      consultarAnamnese: vi.fn().mockResolvedValue(null),
+      salvarAnamnese: vi.fn(),
+      consultarHistoricoAnamnese: vi.fn(),
+    },
+    vi.fn(),
+    () => {},
+    Promise.reject(new Error('indisponível')),
+  );
+  await vi.waitFor(() => expect(raiz.querySelector('form')).not.toBeNull());
+  expect(raiz.textContent).not.toContain('Consultar histórico');
+});
+
+it('ignora disponibilidade tardia após desmontar e trocar paciente', async () => {
+  const raiz = document.createElement('div');
+  let resolver!: (valor: boolean) => void;
+  const disponibilidade = new Promise<boolean>((resolve) => {
+    resolver = resolve;
+  });
+  const servico = {
+    consultarAnamnese: vi.fn().mockResolvedValue(null),
+    salvarAnamnese: vi.fn(),
+    consultarHistoricoAnamnese: vi.fn(),
+  };
+  const desmontar = montarAnamnese(
+    raiz,
+    'paciente-antigo',
+    servico,
+    vi.fn(),
+    () => {},
+    disponibilidade,
+  );
+  await vi.waitFor(() => expect(raiz.querySelector('form')).not.toBeNull());
+  desmontar();
+  montarAnamnese(raiz, 'paciente-novo', servico, vi.fn());
+  await vi.waitFor(() => expect(raiz.querySelector('form')).not.toBeNull());
+  resolver(true);
+  await disponibilidade;
+  await Promise.resolve();
+  expect(raiz.textContent).not.toContain('Consultar histórico');
+  expect(servico.consultarHistoricoAnamnese).not.toHaveBeenCalled();
+});

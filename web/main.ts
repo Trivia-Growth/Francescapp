@@ -754,6 +754,10 @@ function linhaPaciente(
         (pendente) => {
           anamnesePendente = pendente;
         },
+        api
+          .disponibilidadeHistoricoAnamnese()
+          .then((resultado) => resultado.disponivel)
+          .catch(() => false),
       );
       elemento('anamnese-title').focus();
     });

@@ -3,12 +3,37 @@ import { configurarDependenciasNativas } from './_shared/configurar-dependencias
 import { criarEntradaAnamneseNativa } from './_shared/entrada-anamnese-nativa.ts';
 
 export const config = {
-  path: ['/api/pacientes/:paciente_id/anamnese', '/api/pacientes/:paciente_id/anamnese/historico'],
+  path: [
+    '/api/pacientes/:paciente_id/anamnese',
+    '/api/pacientes/:paciente_id/anamnese/historico',
+    '/api/anamnese/historico/disponibilidade',
+  ],
 };
 
 let entrada: ReturnType<typeof criarEntradaAnamneseNativa> | undefined;
 
 export default async function anamnese(request: Request): Promise<Response> {
+  const url = new URL(request.url);
+  if (url.pathname === '/api/anamnese/historico/disponibilidade') {
+    if (request.method !== 'GET' || url.search || url.hash) return falha('servico_indisponivel');
+    return Response.json(
+      {
+        dados: {
+          disponivel:
+            process.env.FFCM_ANAMNESE_ATIVADA === 'true' &&
+            process.env.FFCM_HISTORICO_ANAMNESE_ATIVADO === 'true',
+        },
+        request_id: crypto.randomUUID(),
+      },
+      {
+        headers: {
+          'Cache-Control': 'private, no-store',
+          'X-Content-Type-Options': 'nosniff',
+          'Referrer-Policy': 'no-referrer',
+        },
+      },
+    );
+  }
   // Ativação exige S-02 e provas integradas de autorização e sessão.
   if (process.env.FFCM_ANAMNESE_ATIVADA !== 'true') return falha('servico_indisponivel');
   if (

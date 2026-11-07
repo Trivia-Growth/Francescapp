@@ -18,7 +18,7 @@ export function montarAnamnese(
   servico: Servico,
   acessoPerdido: (erro: unknown) => void,
   alteracaoPendente: (pendente: boolean) => void = () => {},
-  historicoHabilitado = false,
+  historicoHabilitado: boolean | Promise<boolean> = false,
 ): () => void {
   let ativa = true;
   let versao = 0;
@@ -40,6 +40,8 @@ export function montarAnamnese(
   const status = elemento('p', 'Carregando anamnese…');
   status.setAttribute('role', 'status');
   raiz.replaceChildren(status);
+  let historicoDisponivel = false;
+  let mostrarHistorico: (() => void) | undefined;
   const desenhar = (resultado: Anamnese | null) => {
     if (!ativa) return;
     versao = resultado?.versao ?? 0;
@@ -190,8 +192,16 @@ export function montarAnamnese(
       aviso.textContent = '';
     });
     form.append(adicionarBotao, salvar, retry, aviso);
-    if (historicoHabilitado && servico.consultarHistoricoAnamnese) {
+    mostrarHistorico = () => {
+      if (
+        !ativa ||
+        !historicoDisponivel ||
+        !servico.consultarHistoricoAnamnese ||
+        form.querySelector('[data-historico]')
+      )
+        return;
       const historico = elemento('section');
+      historico.dataset.historico = '';
       historico.append(elemento('h3', 'Histórico de versões'));
       const conteudo = elemento('div');
       const historicoStatus = elemento('p');
@@ -233,7 +243,8 @@ export function montarAnamnese(
       });
       historico.append(anterior, historicoStatus, conteudo);
       form.append(historico);
-    }
+    };
+    mostrarHistorico();
     const enviar = async () => {
       if (!pendente) return;
       salvar.disabled = retry.disabled = adicionarBotao.disabled = true;
@@ -328,6 +339,13 @@ export function montarAnamnese(
         raiz.append(tentarNovamente);
       });
   };
+  void Promise.resolve(historicoHabilitado)
+    .then((disponivel) => {
+      if (!ativa) return;
+      historicoDisponivel = disponivel;
+      mostrarHistorico?.();
+    })
+    .catch(() => {});
   consultar();
   return () => {
     ativa = false;

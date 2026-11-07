@@ -15,3 +15,18 @@ it('mantém histórico fechado por flag própria mesmo com anamnese ativa', asyn
   expect(resposta.status).toBe(503);
   expect(resposta.headers.get('cache-control')).toContain('no-store');
 });
+
+it.each([
+  [undefined, undefined, false],
+  ['true', undefined, false],
+  [undefined, 'true', false],
+  ['true', 'true', true],
+])('disponibilidade exige ambas as flags', async (anamneseAtiva, historicoAtivo, esperado) => {
+  vi.stubEnv('FFCM_ANAMNESE_ATIVADA', anamneseAtiva);
+  vi.stubEnv('FFCM_HISTORICO_ANAMNESE_ATIVADO', historicoAtivo);
+  const resposta = await anamnese(
+    new Request('https://example.test/api/anamnese/historico/disponibilidade'),
+  );
+  expect((await resposta.json()).dados.disponivel).toBe(esperado);
+  expect(resposta.headers.get('cache-control')).toContain('no-store');
+});
