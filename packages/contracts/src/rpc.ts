@@ -524,6 +524,13 @@ export const assinaturasRpc = {
     mutacaoSchema
       .extend({
         concessao_id: uuidSchema,
+        versao_idempotencia: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/),
+        candidatos_idempotencia: z
+          .record(
+            z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/),
+            z.object({ concessao_id: uuidSchema, digest_idempotencia: base64UrlSchema }).strict(),
+          )
+          .refine((valor) => Object.keys(valor).length >= 1 && Object.keys(valor).length <= 16),
         email: campoCifradoSchema,
         email_hmac: base64UrlSchema,
         perfil: perfilSchema.exclude(['familia']),

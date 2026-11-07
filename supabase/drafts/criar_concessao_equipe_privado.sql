@@ -6,12 +6,12 @@ declare
  e jsonb:=p_transporte->'entrada'; a jsonb:=e->'atestado';
  ator uuid; sessao uuid; req uuid; paciente uuid; acesso uuid; destinatario uuid; auditoria_id uuid;
  inicio timestamptz; fim timestamptz; concessao uuid; dominio text; sujeito text;
- google record; autorizado boolean:=false; repeticao boolean:=false; anterior operacao.requisicao; resultado jsonb;
+ google record; autorizado boolean:=false; repeticao boolean:=false; anterior operacao.requisicao; resultado jsonb; versao text; candidato jsonb;
 begin
  if jsonb_typeof(p_transporte) is distinct from 'object'
   or p_transporte - array['entrada','entrada_canonica','dados_canonicos'] <> '{}'::jsonb
   or jsonb_typeof(e) is distinct from 'object'
-  or e - array['request_id','concessao_id','email','email_hmac','perfil','metodo','auditoria_id','chave_idempotencia','digest_idempotencia','motivo','atestado'] <> '{}'::jsonb
+  or e - array['request_id','concessao_id','email','email_hmac','perfil','metodo','auditoria_id','chave_idempotencia','digest_idempotencia','motivo','atestado','versao_idempotencia','candidatos_idempotencia'] <> '{}'::jsonb
   or jsonb_typeof(a) is distinct from 'object' then
   raise exception using errcode='42501',message='SEM_PERMISSAO';
  end if;
@@ -87,6 +87,25 @@ begin
   or coalesce(e->>'digest_idempotencia','') !~ '^[A-Za-z0-9_-]{43}$' then
   raise exception using errcode='22023',message='ENTRADA_INVALIDA';
  end if;
+ -- Cada versão identifica material dedicado no Vault; a ativa corresponde ao envelope.
+ if coalesce(e->>'versao_idempotencia','') !~ '^[a-z0-9][a-z0-9_-]{0,63}$'
+  or jsonb_typeof(e->'candidatos_idempotencia') is distinct from 'object'
+  or (select count(*) from jsonb_object_keys(e->'candidatos_idempotencia')) not between 1 and 16 then
+  raise exception using errcode='22023',message='ENTRADA_INVALIDA';
+ end if;
+ for versao,candidato in select key,value from jsonb_each(e->'candidatos_idempotencia') loop
+  if versao !~ '^[a-z0-9][a-z0-9_-]{0,63}$' or jsonb_typeof(candidato) is distinct from 'object'
+   or candidato - array['concessao_id','digest_idempotencia'] <> '{}'::jsonb
+   or coalesce(candidato->>'concessao_id','') !~ '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+   or coalesce(candidato->>'digest_idempotencia','') !~ '^[A-Za-z0-9_-]{43}$' then
+   raise exception using errcode='22023',message='ENTRADA_INVALIDA';
+  end if;
+ end loop;
+ candidato:=e->'candidatos_idempotencia'->(e->>'versao_idempotencia');
+ if candidato->>'concessao_id' is distinct from acesso::text
+  or candidato->>'digest_idempotencia' is distinct from e->>'digest_idempotencia' then
+  raise exception using errcode='22023',message='ENTRADA_INVALIDA';
+ end if;
  -- Validação estrita dos envelopes antes da persistência.
  for resultado in select value from jsonb_array_elements(jsonb_build_array(e->'email',e->'motivo')) loop
   if jsonb_typeof(resultado) is distinct from 'object' or resultado - array['formato','key_id','nonce','ciphertext','tag'] <> '{}'::jsonb
@@ -99,17 +118,23 @@ begin
   end if;
  end loop;
  insert into operacao.requisicao(id,ator_usuario_id,operacao,chave_idempotencia,digest_entrada,estado,resultado_id,resultado_versao)
-  values(gen_random_uuid(),ator,'api.criar_concessao_equipe',e->>'chave_idempotencia',e->>'digest_idempotencia','concluida',acesso,1)
+  values(gen_random_uuid(),ator,'api.criar_concessao_equipe',e->>'chave_idempotencia',(e->>'versao_idempotencia')||':'||(e->>'digest_idempotencia'),'concluida',acesso,1)
   on conflict (ator_usuario_id,operacao,chave_idempotencia) do nothing returning * into anterior;
  if not found then
   select * into anterior from operacao.requisicao r where r.ator_usuario_id=ator and r.operacao='api.criar_concessao_equipe' and r.chave_idempotencia=e->>'chave_idempotencia';
-  if anterior.digest_entrada is distinct from e->>'digest_idempotencia' or anterior.estado is distinct from 'concluida'
-   or anterior.resultado_id is distinct from acesso or anterior.resultado_versao is distinct from 1
-   or not exists(select 1 from identidade.concessao_equipe c where c.id=acesso and c.criado_por_usuario_id=ator) then
+  versao:=split_part(anterior.digest_entrada,':',1);
+  candidato:=e->'candidatos_idempotencia'->versao;
+  if candidato is null then
+   raise exception using errcode='PZ001',message='VERSAO_IDEMPOTENCIA_INDISPONIVEL';
+  end if;
+  if anterior.digest_entrada is distinct from versao||':'||(candidato->>'digest_idempotencia') or anterior.estado is distinct from 'concluida'
+   or anterior.resultado_id::text is distinct from candidato->>'concessao_id' or anterior.resultado_versao is distinct from 1
+   or not exists(select 1 from identidade.concessao_equipe c where c.id=anterior.resultado_id and c.criado_por_usuario_id=ator) then
    insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
     values(gen_random_uuid(),ator,'api.criar_concessao_equipe','concessao_equipe',acesso,'negado',req);
    return jsonb_build_object('ok',false,'erro',jsonb_build_object('codigo','conflito_idempotencia'),'request_id',req);
   end if;
+  acesso:=anterior.resultado_id;
   -- Serializa a projeção vigente com alteração ou revogação da concessão.
   perform 1 from identidade.concessao_equipe c where c.id=acesso and c.criado_por_usuario_id=ator for share;
   if not found then raise exception using errcode='PZ001',message='RESULTADO_INDISPONIVEL'; end if;

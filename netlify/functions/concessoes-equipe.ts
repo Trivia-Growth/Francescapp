@@ -1,5 +1,6 @@
 import { prepararConcessaoEquipe } from '../../packages/cadastro/src/preparar-concessao-equipe.ts';
-import { criarIdempotenciaNativa } from './_shared/idempotencia-nativa.ts';
+import { calcularCandidatosConcessao } from './_shared/idempotencia-concessao-equipe.ts';
+import { configurarIdempotenciaConcessao } from './_shared/configurar-idempotencia-concessao.ts';
 import {
   cabecalhosMutacaoSchema,
   assinaturasRpc,
@@ -318,30 +319,30 @@ async function criarConcessao(
     };
     const inicial = await autorizar();
     if (inicial.estado !== 'autorizado') return erro(inicial.estado);
+    const idempotencia = configurarIdempotenciaConcessao(process.env);
     const cofre = await carregarCofreNativo(
       dependencias.pool,
       dependencias.referencias,
       dependencias.keyIdAtestado,
       signal,
+      idempotencia.referencias,
     );
     const chave = cabecalhos.data['x-chave-idempotencia'];
-    const identificador = await cofre.cifra.calcularHmac(
-      `ffcmapp:concessao-equipe:id:v1:${inicial.usuarioId}:${chave}`,
-    );
-    const idBytes = Uint8Array.from(
-      atob(identificador.replace(/-/g, '+').replace(/_/g, '/')),
-      (c) => c.charCodeAt(0),
-    ).slice(0, 16);
-    idBytes[6] = ((idBytes[6] ?? 0) & 15) | 64;
-    idBytes[8] = ((idBytes[8] ?? 0) & 63) | 128;
-    const hex = Array.from(idBytes, (b) => b.toString(16).padStart(2, '0')).join('');
-    const concessaoId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
     const logico = cofre.atestador.canonicalizar({
       operacao: 'api.criar_concessao_equipe',
       usuario_id: inicial.usuarioId,
       corpo: validada.data,
     });
-    const digest = await criarIdempotenciaNativa(cofre.cifra).calcularDigestIdempotencia(logico);
+    const candidatos = await calcularCandidatosConcessao(
+      cofre.chavesIdempotencia,
+      inicial.usuarioId,
+      chave,
+      logico,
+    );
+    const ativo = candidatos[idempotencia.ativa];
+    if (!ativo) throw new Error();
+    const concessaoId = ativo.concessao_id;
+    const digest = ativo.digest_idempotencia;
     const campos = await prepararConcessaoEquipe(
       { concessaoId, corpo: validada.data },
       cofre.cifra,
@@ -352,6 +353,8 @@ async function criarConcessao(
       auditoria_id: crypto.randomUUID(),
       chave_idempotencia: chave,
       digest_idempotencia: digest,
+      versao_idempotencia: idempotencia.ativa,
+      candidatos_idempotencia: candidatos,
     };
     const metadados = {
       ...metadadosAtestadoNativo(dependencias.keyIdAtestado, requestId, Date.now()),

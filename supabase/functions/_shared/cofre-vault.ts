@@ -53,7 +53,10 @@ function decodificarChave(valor: unknown): Uint8Array {
   }
 }
 
-async function lerChave(executor: ExecutorCofreInterno, referencia: unknown): Promise<Uint8Array> {
+export async function lerChaveCofre(
+  executor: ExecutorCofreInterno,
+  referencia: unknown,
+): Promise<Uint8Array> {
   if (!referenciaValida(referencia)) {
     throw new ErroCofreIndisponivel();
   }
@@ -91,13 +94,16 @@ export async function carregarMaterialCriptograficoDoCofre(
 
   const chavesDeCifra = Object.fromEntries(
     await Promise.all(
-      entradas.map(async ([keyId, referencia]) => [keyId, await lerChave(executor, referencia)]),
+      entradas.map(async ([keyId, referencia]) => [
+        keyId,
+        await lerChaveCofre(executor, referencia),
+      ]),
     ),
   );
 
   return Object.freeze({
     keyIdAtiva: referencias.keyIdAtiva,
     chavesDeCifra: Object.freeze(chavesDeCifra),
-    chaveHmac: await lerChave(executor, referencias.referenciaHmac),
+    chaveHmac: await lerChaveCofre(executor, referencias.referenciaHmac),
   });
 }

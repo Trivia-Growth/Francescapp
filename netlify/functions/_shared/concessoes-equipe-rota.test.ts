@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import concessoesEquipe from '../concessoes-equipe.ts';
 import { criarCifraAutenticada } from '../../../supabase/functions/_shared/cifra-autenticada.ts';
 import { criarAtestadorOperacao } from '../../../supabase/functions/_shared/atestado-operacao.ts';
@@ -54,6 +54,11 @@ vi.mock('./auth-nativo/cliente.ts', () => ({
   }),
   credencialAuthRejeitada: () => false,
 }));
+
+beforeEach(() => {
+  vi.stubEnv('FFCM_VAULT_IDEMPOTENCIA_EQUIPE_ATIVA', 'v1');
+  vi.stubEnv('FFCM_VAULT_IDEMPOTENCIA_EQUIPE_REFERENCIAS', 'v1=ffcmapp.cifra.idempotencia-v1');
+});
 
 afterEach(() => {
   auth.falha = true;
@@ -162,6 +167,7 @@ describe('rota de criação de concessão', () => {
         chaveHmac: new Uint8Array(32).fill(2),
       }),
       atestador: criarAtestadorOperacao({ keyId: 'v1', chave: new Uint8Array(32).fill(3) }),
+      chavesIdempotencia: { v1: new Uint8Array(32).fill(4) },
     };
     vi.stubEnv('FFCM_CRIACAO_EQUIPE_ATIVA', 'true');
     const controle = new AbortController();
