@@ -29,3 +29,9 @@ A integração deve seguir os wrappers privados `api` e atestados existentes: va
 Gravar versões imutáveis por paciente com controle de versão esperado para evitar sobrescrita concorrente; rejeitar conflitos. Guardar conteúdo e proveniência em envelope cifrado autenticado com AAD que vincule paciente, registro, versão e campo; o banco valida formato e não recebe texto clínico. Cada leitura e gravação deve gerar auditoria transacional sem conteúdo clínico. Nenhum grant direto às tabelas ou aos papéis de aplicação até existir wrapper isolado e prova de acesso direto, privilégios, revogação concorrente e recuperação. A implementação e a escolha do contrato exato de cifra devem reutilizar a fundação, sem simular segurança nem alegar persistência conectada.
 
 Ameaças: acesso por familiar ou concessão revogada, troca de paciente/envelope e perda de edição concorrente. Mitigações propostas: conferir autoridade sob lock, AAD autenticado, versão esperada e auditoria atômica. Controles ainda não implementados para anamnese; S-02 e integração de cifra permanecem pré-requisitos.
+
+## Consulta histórica preparada
+
+Consultar uma versão por página, em ordem decrescente, com cursor exclusivo de versão; ausência de cursor inicia pela versão mais recente. Cada página exige a mesma sessão e concessão da leitura atual, atestado vinculando paciente e cursor, auditoria transacional e decifragem autenticada com o AAD original. Resultado vazio encerra a navegação. O acesso deve permanecer fechado até revisão S-02 e provas reais de autorização, revogação e auditoria. Não são criados critérios clínicos, retenção ou acesso familiar.
+
+Ameaças específicas: cursor ou paciente adulterado, leitura após revogação, troca de envelope e consulta sem auditoria. Mitigações propostas: atestar entrada completa, autorização e locks do banco, validar AAD e falhar fechando em falha de auditoria. Testes locais não comprovam Auth ou Vault reais.

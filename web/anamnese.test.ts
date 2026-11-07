@@ -232,3 +232,70 @@ it('não descarta seção e campo digitados ao salvar antes de adicioná-los', a
     camposEsperados: ['Rotina'],
   });
 });
+
+it('navega histórico sem substituir rascunho nem interpretar conteúdo como HTML', async () => {
+  const raiz = document.createElement('div');
+  const consultarHistoricoAnamnese = vi
+    .fn()
+    .mockResolvedValueOnce({
+      versao: 2,
+      criado_em: '2026-11-04T12:00:00Z',
+      criado_por_usuario_id: 'autor',
+      secoes: [
+        {
+          id: 'História',
+          camposEsperados: ['Relato'],
+          respostas: [
+            {
+              campo: 'Relato',
+              estado: 'informado',
+              valor: '<img src=x>',
+              fonte: 'Família',
+              data: '2026-01-01',
+            },
+          ],
+        },
+      ],
+    })
+    .mockResolvedValueOnce(null);
+  montarAnamnese(
+    raiz,
+    'paciente',
+    {
+      consultarAnamnese: vi.fn().mockResolvedValue({ versao: 2, secoes: [] }),
+      salvarAnamnese: vi.fn(),
+      consultarHistoricoAnamnese,
+    },
+    vi.fn(),
+    () => {},
+    true,
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Consultar histórico'));
+  const botao = [...raiz.querySelectorAll('button')].find(
+    (b) => b.textContent === 'Consultar histórico',
+  );
+  if (!botao) throw new Error('Histórico ausente');
+  botao.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('<img src=x>'));
+  expect(raiz.querySelector('img')).toBeNull();
+  expect(raiz.querySelector('form')).not.toBeNull();
+  botao.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Não há outras versões.'));
+  expect(consultarHistoricoAnamnese).toHaveBeenLastCalledWith('paciente', 2);
+});
+
+it('não oferece histórico enquanto integração não está habilitada', async () => {
+  const raiz = document.createElement('div');
+  montarAnamnese(
+    raiz,
+    'paciente',
+    {
+      consultarAnamnese: vi.fn().mockResolvedValue(null),
+      salvarAnamnese: vi.fn(),
+      consultarHistoricoAnamnese: vi.fn(),
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Nenhuma seção registrada.'));
+  expect(raiz.textContent).not.toContain('Consultar histórico');
+});

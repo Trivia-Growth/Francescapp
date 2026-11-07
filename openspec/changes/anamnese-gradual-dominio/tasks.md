@@ -58,3 +58,13 @@ A interface agora impede salvar enquanto há seção ou campo digitado ainda nã
 Atualização de 06/11/2026: migration `20261112121000` aplicada ao Supabase de teste para exigir registro de auditoria; conferidos os privilégios do migrador antes da aplicação. Testes SQL locais cobriram inclusão suprimida e rollback. A aplicação não concede acesso às RPCs e não comprova a jornada HTTP nem encerra S-02.
 
 Atualização de 06/11/2026: migration `20261112190000` passou a auditar Auth sem perfil e foi aplicada ao Supabase de teste; `20261112210000` habilitou o wrapper para authenticated, mantendo anon negado. Com JWT Auth e atestado Vault reais, conta fictícia sem perfil `07dfa0cf-60d6-4457-a943-a1306b8902fd` recebeu negativas de leitura e gravação e gerou dois eventos auditados. Flag ativada somente na branch privada, deploy `6aee2767d7a7c113b7f6ffac`, Node 22. A prova positiva por HTTP/interface, recarga, outros perfis e revogação continuam pendentes; apenas dados fictícios.
+
+## Consulta histórica paginada
+
+- [ ] Implementar operação privada com cursor atestado, autorização sob lock, auditoria e envelopes cifrados, sem novos grants.
+- [ ] Integrar contrato e decifragem com AAD; provar paginação, isolamento, negativa, revogação e falha de auditoria em testes locais.
+- [ ] Revisar diff e executar provas reais e S-02 antes de ativação. Nenhuma operação remota está autorizada por este planejamento.
+
+Preparação local: operação privada separada, sem grants, consulta uma versão por cursor atestado e devolve envelope e proveniência. Handler interno decifra com AAD e cliente apresenta histórico em leitura. Testes focados cobriram paginação, adulteração, família, sessão encerrada, falha de auditoria e grants negados; Auth/Vault SQL são fixtures. Testes de handler e interface passaram com dependências simuladas. Path preparado com flag própria desativada por padrão; botão oculto na montagem atual até habilitação explícita após as provas; falta revisão independente, prova integrada real e grants autorizados; não há evidência de jornada HTTP real nem ativação. A migração não foi aplicada remotamente.
+
+A migration `20261112340000_historico_anamnese_privado` foi revisada e aplicada no Supabase de teste; catálogo confirmou ausência de EXECUTE para anon, authenticated e service_role. UI e flag continuam fechadas. Prova real Auth/Vault, auditoria, decifragem HTTP e permissões positiva/negativa seguem pendentes.

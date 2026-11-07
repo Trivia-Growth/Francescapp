@@ -5,6 +5,7 @@ import {
   statusErroHttp,
   type CodigoErro,
 } from '../../../packages/contracts/src/erros.ts';
+import { consultarHistoricoAnamneseSchema } from '../../../packages/contracts/src/anamnese.ts';
 import { comporAnamneseNativa } from './compor-anamnese-nativa.ts';
 
 const headers = {
@@ -24,18 +25,36 @@ export function criarEntradaAnamneseNativa(dependencias: Dependencias) {
           headers,
         });
       const url = new URL(request.url);
-      const caminho = /^\/api\/pacientes\/([^/]+)\/anamnese$/.exec(url.pathname);
-      if (!caminho || (request.method !== 'GET' && request.method !== 'PATCH'))
+      const caminho = /^\/api\/pacientes\/([^/]+)\/anamnese(\/historico)?$/.exec(url.pathname);
+      const historico = Boolean(caminho?.[2]);
+      if (
+        !caminho ||
+        (request.method !== 'GET' && request.method !== 'PATCH') ||
+        (historico && request.method !== 'GET')
+      )
         return erro('nao_encontrado');
       const paciente = contratosRotas.consultarAnamnese.parametros.safeParse({
         paciente_id: caminho[1],
       });
-      if (!paciente.success || url.search || url.hash) return erro('entrada_invalida');
+      if (!paciente.success || url.hash || (!historico && url.search))
+        return erro('entrada_invalida');
+      const valores = [...url.searchParams.entries()];
+      if (
+        historico &&
+        (valores.length > 1 ||
+          valores.some(([nome, valor]) => nome !== 'antes_versao' || !/^[1-9][0-9]*$/.test(valor)))
+      )
+        return erro('entrada_invalida');
+      const cursor = consultarHistoricoAnamneseSchema.safeParse(
+        valores.length ? { antes_versao: Number(valores[0]?.[1]) } : {},
+      );
+      if (!cursor.success) return erro('entrada_invalida');
       if (!uuidSchema.safeParse(request.headers.get('x-sessao')).success)
         return erro('nao_autenticado');
       let comando: Parameters<typeof comporAnamneseNativa>[1] = {
-        operacao: 'ler',
+        operacao: historico ? 'historico' : 'ler',
         paciente_id: paciente.data.paciente_id,
+        ...(historico ? cursor.data : {}),
       };
       if (request.method === 'PATCH') {
         if (

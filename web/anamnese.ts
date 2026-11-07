@@ -7,6 +7,7 @@ import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './ap
 
 type Servico = {
   consultarAnamnese(pacienteId: string): Promise<Anamnese | null>;
+  consultarHistoricoAnamnese?(pacienteId: string, antesVersao?: number): Promise<Anamnese | null>;
   salvarAnamnese(pacienteId: string, entrada: SalvarAnamnese, chave: string): Promise<Anamnese>;
 };
 
@@ -17,6 +18,7 @@ export function montarAnamnese(
   servico: Servico,
   acessoPerdido: (erro: unknown) => void,
   alteracaoPendente: (pendente: boolean) => void = () => {},
+  historicoHabilitado = false,
 ): () => void {
   let ativa = true;
   let versao = 0;
@@ -188,6 +190,50 @@ export function montarAnamnese(
       aviso.textContent = '';
     });
     form.append(adicionarBotao, salvar, retry, aviso);
+    if (historicoHabilitado && servico.consultarHistoricoAnamnese) {
+      const historico = elemento('section');
+      historico.append(elemento('h3', 'Histórico de versões'));
+      const conteudo = elemento('div');
+      const historicoStatus = elemento('p');
+      historicoStatus.setAttribute('role', 'status');
+      const anterior = elemento('button', 'Consultar histórico');
+      anterior.type = 'button';
+      let cursor: number | undefined;
+      anterior.addEventListener('click', async () => {
+        if (!servico.consultarHistoricoAnamnese) return;
+        anterior.disabled = true;
+        historicoStatus.textContent = 'Carregando histórico…';
+        try {
+          const pagina = await servico.consultarHistoricoAnamnese(pacienteId, cursor);
+          if (!ativa) return;
+          conteudo.replaceChildren();
+          if (!pagina) {
+            historicoStatus.textContent = 'Não há outras versões.';
+            return;
+          }
+          cursor = pagina.versao;
+          historicoStatus.textContent = `Versão ${pagina.versao} — ${pagina.criado_em ?? ''} — autor ${pagina.criado_por_usuario_id ?? ''}`;
+          for (const secao of pagina.secoes) {
+            conteudo.append(elemento('h4', secao.id));
+            for (const resposta of secao.respostas) {
+              const detalhe =
+                resposta.estado === 'pendente'
+                  ? 'Pendente'
+                  : `${resposta.estado}${resposta.estado === 'informado' ? `: ${resposta.valor}` : ''} — ${resposta.fonte} — ${resposta.data}`;
+              conteudo.append(elemento('p', `${resposta.campo}: ${detalhe}`));
+            }
+          }
+          anterior.textContent = 'Versão anterior';
+          anterior.disabled = false;
+        } catch (erro) {
+          if (!ativa || descartarAcesso(erro)) return;
+          historicoStatus.textContent = mensagemFalha(erro);
+          anterior.disabled = false;
+        }
+      });
+      historico.append(anterior, historicoStatus, conteudo);
+      form.append(historico);
+    }
     const enviar = async () => {
       if (!pendente) return;
       salvar.disabled = retry.disabled = adicionarBotao.disabled = true;

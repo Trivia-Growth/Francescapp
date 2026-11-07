@@ -88,6 +88,11 @@ export const secoesAnamneseSchema = z.unknown().transform((entrada, ctx) => {
 
 const versaoAnamneseSchema = z.number().int().min(0).max(2_147_483_647);
 
+/** Cursor exclusivo; ausência inicia pela versão mais recente. */
+export const consultarHistoricoAnamneseSchema = z
+  .object({ antes_versao: versaoAnamneseSchema.min(1).optional() })
+  .strict();
+
 export const salvarAnamneseSchema = z
   .object({
     versao_esperada: versaoAnamneseSchema.max(2_147_483_646),
@@ -99,6 +104,8 @@ export const anamneseSchema = z
   .object({
     versao: versaoAnamneseSchema,
     secoes: secoesAnamneseSchema,
+    criado_por_usuario_id: uuidSchema.optional(),
+    criado_em: z.iso.datetime({ offset: true }).optional(),
   })
   .strict();
 
@@ -117,6 +124,8 @@ export const respostaAnamnesePrivadaSchema = z.discriminatedUnion('ok', [
           paciente_id: uuidSchema,
           versao: versaoAnamneseSchema.min(1),
           conteudo: campoCifradoSchema,
+          criado_por_usuario_id: uuidSchema.optional(),
+          criado_em: z.iso.datetime({ offset: true }).optional(),
         })
         .strict()
         .nullable(),
