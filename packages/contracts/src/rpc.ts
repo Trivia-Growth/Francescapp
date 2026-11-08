@@ -256,6 +256,22 @@ export const pacienteAdministrativoRpcSaidaSchema = pacienteBasicoRpcSaidaSchema
     contatos: z.array(contatoCifradoSchema),
   })
   .strict();
+const acompanhamentoCasoRpcSchema = z
+  .object({
+    versao: versaoSchema,
+    situacao: z.enum(['entrada', 'ativo', 'pausado', 'encerrado', 'transferido']).nullable(),
+    responsavel_id: uuidSchema.nullable(),
+    responsavel_ativo: z.boolean().nullable(),
+    ator_id: uuidSchema,
+    criado_em: instanteSchema,
+    auditoria_id: uuidSchema,
+    motivo: campoCifradoSchema,
+  })
+  .strict();
+/** Saída da consulta de edição (somente Administrador): cadastro e histórico do caso, motivo cifrado. */
+export const pacienteEdicaoRpcSaidaSchema = pacienteAdministrativoRpcSaidaSchema
+  .extend({ acompanhamento: z.array(acompanhamentoCasoRpcSchema) })
+  .strict();
 export const leituraProtegidaSaidaSchema = pacienteBasicoRpcSaidaSchema;
 const concessaoSaidaSchema = z
   .object({
@@ -390,7 +406,14 @@ export const respostaEdicaoPacientePrivadaSchema = z.discriminatedUnion('ok', [
     .object({
       ok: z.literal(false),
       erro: z
-        .object({ codigo: z.enum(['sem_permissao', 'conflito', 'conflito_idempotencia']) })
+        .object({
+          codigo: z.enum([
+            'sem_permissao',
+            'conflito',
+            'conflito_idempotencia',
+            'responsavel_invalido',
+          ]),
+        })
         .strict(),
       request_id: uuidSchema,
     })

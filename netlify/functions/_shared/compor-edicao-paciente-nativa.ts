@@ -3,7 +3,7 @@ import {
   dadosAtestadoSchema,
   resultadoAtestacaoSchema,
 } from '../../../packages/contracts/src/index.ts';
-import { projetarPacienteAdministrativoExperimental } from '../../../packages/cadastro/src/projetar-paciente-experimental.ts';
+import { projetarPacienteEdicaoExperimental } from '../../../packages/cadastro/src/projetar-paciente-experimental.ts';
 import type { Pool } from 'pg';
 import { sessaoNativaSchema } from '../../../packages/contracts/src/identidade.ts';
 import type { FonteDeConfiguracao } from '../../../supabase/functions/_shared/configuracao.ts';
@@ -25,7 +25,7 @@ type Comando =
 type Resultado =
   | {
       ok: true;
-      dados: Awaited<ReturnType<typeof projetarPacienteAdministrativoExperimental>>;
+      dados: Awaited<ReturnType<typeof projetarPacienteEdicaoExperimental>>;
       request_id: string;
     }
   | Awaited<ReturnType<typeof operarEdicaoPaciente>>
@@ -187,10 +187,7 @@ export async function comporEdicaoPacienteNativa(
           };
         }
         if (envelope.ok !== true || !('dados' in envelope)) throw new Error();
-        const projetado = await projetarPacienteAdministrativoExperimental(
-          envelope.dados,
-          cofre.cifra,
-        );
+        const projetado = await projetarPacienteEdicaoExperimental(envelope.dados, cofre.cifra);
         if (projetado.id.toLowerCase() !== pacienteId) throw new Error();
         const atual = await autorizar();
         if (

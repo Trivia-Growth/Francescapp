@@ -15,3 +15,4 @@ iniciado=1
 createdb -h "$temporario" -p 5432 -U cadeia_fixture ffcm_cadeia_local
 psql -X -h "$temporario" -p 5432 -U cadeia_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/tests/acompanhamento_caso_local.sql"
 cd "$projeto"
+FFCM_ACOMPANHAMENTO_SOCKET="$temporario" pnpm exec vitest run packages/cadastro/test/acompanhamento-caso-integracao-local.test.ts --reporter=minimal --silent=passed-only

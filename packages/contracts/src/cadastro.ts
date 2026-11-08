@@ -8,6 +8,13 @@ const motivoSchema = z.string().trim().min(1).max(500);
 export const nomePacienteSchema = z.string().trim().min(1).max(200);
 export const nomePreferenciaSchema = z.string().trim().min(1).max(200);
 export const dataNascimentoSchema = z.iso.date();
+export const situacaoCasoSchema = z.enum([
+  'entrada',
+  'ativo',
+  'pausado',
+  'encerrado',
+  'transferido',
+]);
 
 export const criarPacienteSchema = z
   .object({
@@ -22,13 +29,25 @@ export const atualizarPacienteSchema = z
     nome: nomePacienteSchema.optional(),
     nome_preferencia: nomePreferenciaSchema.nullable().optional(),
     data_nascimento: dataNascimentoSchema.nullable().optional(),
+    situacao: situacaoCasoSchema.optional(),
+    responsavel_id: uuidSchema.optional(),
     versao_esperada: versaoSchema,
     motivo: motivoSchema,
   })
   .strict()
   .refine(
-    ({ nome, nome_preferencia: nomePreferencia, data_nascimento: dataNascimento }) =>
-      nome !== undefined || nomePreferencia !== undefined || dataNascimento !== undefined,
+    ({
+      nome,
+      nome_preferencia: nomePreferencia,
+      data_nascimento: dataNascimento,
+      situacao,
+      responsavel_id: responsavelId,
+    }) =>
+      nome !== undefined ||
+      nomePreferencia !== undefined ||
+      dataNascimento !== undefined ||
+      situacao !== undefined ||
+      responsavelId !== undefined,
     'Informe pelo menos um campo do paciente para alterar.',
   );
 
@@ -104,6 +123,24 @@ export const pacienteAdministrativoSchema = pacienteBasicoSchema
   })
   .strict();
 
+/** Uma mudança do caso: retrato completo do estado após a gravação, do mais novo ao mais antigo. */
+export const acompanhamentoCasoSchema = z
+  .object({
+    versao: versaoSchema,
+    situacao: situacaoCasoSchema.nullable(),
+    responsavel_id: uuidSchema.nullable(),
+    responsavel_ativo: z.boolean().nullable(),
+    ator_id: uuidSchema,
+    criado_em: z.string().datetime({ offset: true }),
+    motivo: motivoSchema,
+  })
+  .strict();
+
+/** Leitura da edição: só do Administrador. Situação e responsável não vão a outros perfis. */
+export const pacienteEdicaoSchema = pacienteAdministrativoSchema
+  .extend({ acompanhamento: z.array(acompanhamentoCasoSchema) })
+  .strict();
+
 export const criarRelacaoSchema = z
   .object({
     pessoa: z
@@ -149,3 +186,6 @@ export type CriarPaciente = z.infer<typeof criarPacienteSchema>;
 export type AtualizarPaciente = z.infer<typeof atualizarPacienteSchema>;
 export type PacienteBasico = z.infer<typeof pacienteBasicoSchema>;
 export type PacienteAdministrativo = z.infer<typeof pacienteAdministrativoSchema>;
+export type SituacaoCaso = z.infer<typeof situacaoCasoSchema>;
+export type AcompanhamentoCaso = z.infer<typeof acompanhamentoCasoSchema>;
+export type PacienteEdicao = z.infer<typeof pacienteEdicaoSchema>;

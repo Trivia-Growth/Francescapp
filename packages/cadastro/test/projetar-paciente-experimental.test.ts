@@ -4,6 +4,7 @@ import { criarCifraAutenticada } from '../../../supabase/functions/_shared/cifra
 import {
   projetarPacienteAdministrativoExperimental,
   projetarPacienteBasicoExperimental,
+  projetarPacienteEdicaoExperimental,
 } from '../src/projetar-paciente-experimental.ts';
 
 const pacienteId = 'd3bc7baf-8868-44ca-97a2-a5dfe73e567a';
@@ -192,5 +193,93 @@ describe('projeção experimental de paciente autorizado', () => {
         cifra,
       ),
     ).rejects.toThrow('Não foi possível processar o cadastro.');
+  });
+});
+
+describe('projeção da leitura de edição com o histórico do caso', () => {
+  const auditoriaId = '7f2c1c0e-3b0e-4d6e-9d3e-2c6a1f4b8a10';
+  const base = async () => {
+    const aad = (campo: string) => ({
+      tabela: 'cadastro.paciente' as const,
+      registro_id: pacienteId,
+      campo,
+      formato: 1 as const,
+    });
+    return {
+      paciente_id: pacienteId,
+      nome: await cifra.cifrar('Paciente Fictício', aad('nome')),
+      nome_preferencia: null,
+      data_nascimento: null,
+      contatos: [],
+      versao: 3,
+    };
+  };
+  const mudanca = async (registroId = auditoriaId) => ({
+    versao: 3,
+    situacao: 'ativo',
+    responsavel_id: '10000000-0000-4000-8000-000000000002',
+    responsavel_ativo: true,
+    ator_id: '10000000-0000-4000-8000-000000000001',
+    criado_em: '2026-11-08T22:15:31.123456+00:00',
+    auditoria_id: auditoriaId,
+    motivo: await cifra.cifrar('Início do acompanhamento fictício', {
+      tabela: 'auditoria.evento',
+      registro_id: registroId,
+      campo: 'motivo',
+      formato: 1,
+    }),
+  });
+
+  it('decifra o motivo com o AAD do evento e devolve o histórico sem identificadores internos', async () => {
+    const projetado = await projetarPacienteEdicaoExperimental(
+      { ...(await base()), acompanhamento: [await mudanca()] },
+      cifra,
+    );
+    expect(projetado.acompanhamento).toEqual([
+      {
+        versao: 3,
+        situacao: 'ativo',
+        responsavel_id: '10000000-0000-4000-8000-000000000002',
+        responsavel_ativo: true,
+        ator_id: '10000000-0000-4000-8000-000000000001',
+        criado_em: '2026-11-08T22:15:31.123456+00:00',
+        motivo: 'Início do acompanhamento fictício',
+      },
+    ]);
+    expect(JSON.stringify(projetado)).not.toContain(auditoriaId);
+    expect(projetado.nome).toBe('Paciente Fictício');
+  });
+
+  it('aceita caso sem nenhuma mudança registrada', async () => {
+    const projetado = await projetarPacienteEdicaoExperimental(
+      { ...(await base()), acompanhamento: [] },
+      cifra,
+    );
+    expect(projetado.acompanhamento).toEqual([]);
+  });
+
+  it('recusa motivo trocado de outro evento, campo extra e situação fora do conjunto', async () => {
+    const outroEvento = await mudanca('9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d');
+    await expect(
+      projetarPacienteEdicaoExperimental(
+        { ...(await base()), acompanhamento: [outroEvento] },
+        cifra,
+      ),
+    ).rejects.toThrow('Não foi possível processar o cadastro.');
+    await expect(
+      projetarPacienteEdicaoExperimental(
+        { ...(await base()), acompanhamento: [{ ...(await mudanca()), nota: 'x' }] },
+        cifra,
+      ),
+    ).rejects.toThrow('Não foi possível processar o cadastro.');
+    await expect(
+      projetarPacienteEdicaoExperimental(
+        { ...(await base()), acompanhamento: [{ ...(await mudanca()), situacao: 'qualquer' }] },
+        cifra,
+      ),
+    ).rejects.toThrow('Não foi possível processar o cadastro.');
+    await expect(projetarPacienteEdicaoExperimental(await base(), cifra)).rejects.toThrow(
+      'Não foi possível processar o cadastro.',
+    );
   });
 });
