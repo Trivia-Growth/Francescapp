@@ -243,6 +243,8 @@ export function montarVisaoCaso(
   const indisponiveis = blocoBase('indisponivel', 'Ainda sem fonte nesta versão');
   indisponiveis.corpo.append(
     lista([
+      'Situação do caso e responsável: indisponíveis nesta versão',
+      'Mudanças recentes: indisponíveis nesta versão',
       'Atenção sinalizada por profissional: indisponível nesta versão',
       'Agenda: indisponível nesta versão',
       'Próxima revisão: indisponível nesta versão',

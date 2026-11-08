@@ -106,6 +106,8 @@ it('indica atenção, agenda e próxima revisão como indisponíveis, sem valor 
   montarVisaoCaso(raiz, paciente, fontes(), () => false);
   await vi.waitFor(() => expect(bloco('objetivos').textContent).toContain('Caminhar'));
   const texto = bloco('indisponivel').textContent ?? '';
+  expect(texto).toContain('Situação do caso e responsável: indisponíveis nesta versão');
+  expect(texto).toContain('Mudanças recentes: indisponíveis nesta versão');
   expect(texto).toContain('Atenção sinalizada por profissional: indisponível nesta versão');
   expect(texto).toContain('Agenda: indisponível nesta versão');
   expect(texto).toContain('Próxima revisão: indisponível nesta versão');
