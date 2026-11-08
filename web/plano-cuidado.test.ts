@@ -197,6 +197,50 @@ it('mantém criação bloqueada após consulta quando salvamento pode concluir d
   expect(criarObjetivo).toHaveBeenCalledTimes(1);
 });
 
+it('impede reconhecimento de resultado de criação de outro paciente', async () => {
+  const id = '00000000-0000-4000-8000-000000000001';
+  const outro = '00000000-0000-4000-8000-000000000002';
+  const ciclo = {
+    consultar: vi.fn().mockResolvedValue({
+      epoca: 1,
+      reserva: null,
+      resultado_pendente: {
+        recibo_id: id,
+        reserva_id: id,
+        resultado: 'confirmada',
+        paciente_id: outro,
+        objetivo_id: id,
+      },
+    }),
+    encerrar: vi.fn(),
+    reconhecer: vi.fn(),
+    liberar: vi.fn(),
+    criar: vi.fn(),
+  };
+  const raiz = document.createElement('div');
+  montar(
+    raiz,
+    id,
+    {
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi.fn().mockResolvedValue({ itens: [], proximo_cursor: null }),
+      revisarObjetivo: vi.fn(),
+      ciclo,
+    } as unknown as ServicoPlanoCuidado,
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Confirmar situação de criação'));
+  const recuperar = [...raiz.querySelectorAll('button')].find(
+    (b) => b.textContent === 'Confirmar situação de criação',
+  );
+  recuperar?.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('outro paciente'));
+  expect(raiz.textContent).not.toContain(outro);
+  expect(ciclo.reconhecer).not.toHaveBeenCalled();
+  expect(ciclo.liberar).not.toHaveBeenCalled();
+  expect(recuperar?.hidden).toBe(true);
+});
+
 it('consulta histórico sob demanda e limpa dados ao perder acesso', async () => {
   const raiz = document.createElement('div');
   const acessoPerdido = vi.fn();

@@ -106,6 +106,14 @@ export function montarPlanoCuidado(
           }
           if (!ativa) return;
           if (situacao.resultado_pendente) {
+            if (
+              situacao.resultado_pendente.paciente_id.toLowerCase() !== pacienteId.toLowerCase()
+            ) {
+              aviso.textContent =
+                'Resultado pendente pertence a outro paciente. Abra o plano correspondente para conferi-lo e reconhecê-lo.';
+              recuperar.hidden = true;
+              return;
+            }
             aviso.textContent =
               situacao.resultado_pendente.resultado === 'confirmada'
                 ? 'Uma criação anterior foi confirmada. Confira o plano correspondente.'
