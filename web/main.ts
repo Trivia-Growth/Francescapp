@@ -1,5 +1,4 @@
 import { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.js';
-import { montarResumoConectado } from './resumo-conectado.js';
 import { montarAgendaIndividual } from './agenda-individual.js';
 import { montarContatoPaciente } from './contatos-paciente.js';
 import { montarSelecaoProfissional } from './selecao-profissional.js';
@@ -18,6 +17,18 @@ import { criarServicoPlanoHttp } from './servico-plano-http.js';
 import { criarServicoEdicaoPacienteHttp } from './servico-edicao-paciente-http.js';
 import { montarTarefasCuidado } from './tarefas-cuidado.js';
 import { criarServicoTarefasHttp } from './servico-tarefas-http.js';
+import { correspondeBuscaPacienteLocal } from './busca-pacientes-local.js';
+import {
+  criarAvatar,
+  hashFicha,
+  lerRotaFicha,
+  montarFicha,
+  type Ficha,
+  type PacienteFicha,
+  type SecaoFicha,
+} from './ficha-paciente.js';
+import { montarDadosFamiliar } from './secao-dados-familiar.js';
+import { montarVisaoCaso } from './visao-caso.js';
 
 function elemento<T extends HTMLElement>(id: string): T {
   const encontrado = document.getElementById(id);
@@ -112,154 +123,313 @@ const birthInput = elemento<HTMLInputElement>('birth-date');
 const reloadButton = elemento<HTMLButtonElement>('reload-patients');
 const previousButton = elemento<HTMLButtonElement>('previous-page');
 const nextButton = elemento<HTMLButtonElement>('next-page');
-const table = elemento<HTMLTableElement>('patients-table');
-const tableBody = elemento<HTMLTableSectionElement>('patients-body');
+const listaPacientes = elemento<HTMLUListElement>('patients-body');
 const listLoading = elemento('list-loading');
 const listEmpty = elemento('list-empty');
 const pagination = elemento('pagination');
 const registration = elemento('cadastro');
 const newPatientLink = elemento<HTMLAnchorElement>('new-patient-link');
-const edicaoPanel = elemento('edicao-panel');
-const edicaoRaiz = elemento('edicao-raiz');
-let desmontarEdicao: (() => void) | null = null;
-let edicaoPendente = false;
-function confirmarDescarteEdicao(): boolean {
-  return (
-    !edicaoPendente ||
-    window.confirm(
-      'Há alterações de cadastro não confirmadas. Ao sair, elas serão descartadas e um salvamento incerto não poderá ser confirmado nesta tela. Deseja continuar?',
-    )
-  );
-}
-function fecharEdicao(): void {
-  desmontarEdicao?.();
-  desmontarEdicao = null;
-  edicaoPendente = false;
-  edicaoPanel.hidden = true;
-}
-const selecaoPanel = document.createElement('section');
-selecaoPanel.className = 'anamnese-panel';
-selecaoPanel.hidden = true;
-selecaoPanel.setAttribute('aria-labelledby', 'selecao-profissional-title');
-const selecaoTitulo = document.createElement('h2');
-selecaoTitulo.id = 'selecao-profissional-title';
-selecaoTitulo.tabIndex = -1;
-const selecaoFechar = document.createElement('button');
-selecaoFechar.type = 'button';
-selecaoFechar.className = 'button-secondary';
-selecaoFechar.textContent = 'Fechar seleção';
-const selecaoRaiz = document.createElement('div');
-selecaoPanel.append(selecaoTitulo, selecaoFechar, selecaoRaiz);
-patientsView.append(selecaoPanel);
-let desmontarSelecao: (() => void) | null = null;
-let selecaoPendente = false;
-function confirmarDescarteSelecao(): boolean {
-  return (
-    !selecaoPendente ||
-    window.confirm(
-      'Há um motivo de concessão não confirmado. Ao sair, ele será descartado. Deseja continuar?',
-    )
-  );
-}
-function fecharSelecao(): void {
-  desmontarSelecao?.();
-  desmontarSelecao = null;
-  selecaoPendente = false;
-  selecaoPanel.hidden = true;
-  selecaoTitulo.textContent = '';
-}
-selecaoFechar.addEventListener('click', () => {
-  if (!confirmarDescarteSelecao()) return;
-  fecharSelecao();
-  acaoPacienteAnterior?.focus();
-});
-const pacienteFamiliarPanel = elemento('paciente-familiar-panel');
-const pacienteFamiliarDados = elemento('paciente-familiar-dados');
-const pacienteFamiliarTentar = elemento<HTMLButtonElement>('paciente-familiar-tentar');
-let pacienteFamiliarId: string | null = null;
-let consultaFamiliar = 0;
-function fecharPacienteFamiliar(): void {
-  consultaFamiliar += 1;
-  pacienteFamiliarId = null;
-  pacienteFamiliarPanel.hidden = true;
-  pacienteFamiliarDados.hidden = true;
-  pacienteFamiliarTentar.hidden = true;
-  elemento('paciente-familiar-nome').textContent = '';
-  elemento('paciente-familiar-preferencia').textContent = '';
-  aviso('paciente-familiar-status', '');
-}
+const listaView = elemento('lista-view');
+const fichaView = elemento('ficha-view');
+const crumbPaciente = elemento('crumb-paciente');
+const buscaCampo = elemento<HTMLInputElement>('busca-pacientes');
+const buscaVazia = elemento('busca-vazia');
 
-const resumoPanel = elemento('resumo-panel');
-let desmontarResumo: (() => void) | null = null;
-function fecharResumo(): void {
-  desmontarResumo?.();
-  desmontarResumo = null;
-  resumoPanel.hidden = true;
-  elemento('resumo-paciente').textContent = '';
-}
+const descarteCadastro =
+  'Há alterações de cadastro não confirmadas. Ao sair, elas serão descartadas e um salvamento incerto não poderá ser confirmado nesta tela. Deseja continuar?';
+const descartePlano =
+  'Há alterações do plano não confirmadas. Ao sair, elas serão descartadas e um salvamento incerto não poderá ser confirmado nesta tela. Deseja continuar?';
+const descarteAnamnese =
+  'Há alterações de anamnese não confirmadas. Ao sair, elas serão descartadas e um salvamento incerto não poderá ser confirmado nesta tela. Deseja continuar?';
+const descarteTarefa = 'Há dados de tarefa não confirmados. Deseja sair?';
+const descarteEquipe =
+  'Há um motivo de concessão não confirmado. Ao sair, ele será descartado. Deseja continuar?';
 
-const anamnesePanel = elemento('anamnese-panel');
-const anamneseRaiz = elemento('anamnese-raiz');
-const anamneseTitulo = elemento('anamnese-paciente');
-const fecharAnamneseBotao = elemento<HTMLButtonElement>('fechar-anamnese');
-let desmontarAnamnese: (() => void) | null = null;
-let anamnesePendente = false;
-const planoPanel = elemento('plano-panel');
-const tarefasPanel = elemento('tarefas-panel');
-let desmontarTarefas: (() => void) | null = null;
-let tarefaPendente = false;
-function confirmarDescarteTarefa(): boolean {
-  return !tarefaPendente || window.confirm('Há dados de tarefa não confirmados. Deseja sair?');
-}
-function fecharTarefas(): void {
-  desmontarTarefas?.();
-  desmontarTarefas = null;
-  tarefaPendente = false;
-  tarefasPanel.hidden = true;
-  elemento('tarefas-paciente').textContent = '';
-}
-const planoRaiz = elemento('plano-raiz');
-const planoTitulo = elemento('plano-paciente');
-const fecharPlanoBotao = elemento<HTMLButtonElement>('fechar-plano');
-let desmontarPlano: (() => void) | null = null;
-let planoPendente = false;
-let acaoPacienteAnterior: HTMLButtonElement | null = null;
+let ficha: Ficha | null = null;
+let fichaPaciente: PacienteFicha | null = null;
+let fichaAssinatura = '';
+let consultaFicha = 0;
 let planoAberto: { pacienteId: string; servico: ReturnType<typeof criarServicoPlanoHttp> } | null =
   null;
+let edicaoDisponivel = false;
+let pacientesDaPagina: PacienteBasico[] = [];
+let buscaTexto = '';
 
-function confirmarDescartePlano(): boolean {
-  return (
-    !planoPendente ||
-    window.confirm(
-      'Há alterações do plano não confirmadas. Ao sair, elas serão descartadas e um salvamento incerto não poderá ser confirmado nesta tela. Deseja continuar?',
-    )
+function identidadeAtual(): { usuario_id: string; session_id: string } | null {
+  return sessao ? { usuario_id: sessao.usuario.id, session_id: sessao.session_id } : null;
+}
+
+function pendenciaFicha(): { secao: string; mensagem: string } | null {
+  return ficha?.pendencia() ?? null;
+}
+
+function assinaturaSessao(atual: Sessao): string {
+  return [
+    atual.usuario.perfil,
+    atual.capacidades.includes('administrar_cadastro'),
+    atual.capacidades.includes('administrar_concessoes'),
+  ].join('|');
+}
+
+function registrarRota(id: string, secao: string, empilhar: boolean): void {
+  const endereco = `${window.location.pathname}${window.location.search}${hashFicha(id, secao)}`;
+  if (empilhar) window.history.pushState(window.history.state, '', endereco);
+  else window.history.replaceState(window.history.state, '', endereco);
+}
+
+function limparRota(): void {
+  if (!window.location.hash) return;
+  window.history.replaceState(
+    window.history.state,
+    '',
+    `${window.location.pathname}${window.location.search}`,
   );
 }
 
-function fecharPlano(): void {
-  desmontarPlano?.();
-  desmontarPlano = null;
+function fecharFicha(): void {
+  consultaFicha += 1;
+  ficha?.desmontar();
+  ficha = null;
+  fichaPaciente = null;
   planoAberto = null;
-  planoPendente = false;
-  planoPanel.hidden = true;
-  planoTitulo.textContent = '';
+  fichaView.hidden = true;
+  listaView.hidden = false;
+  crumbPaciente.hidden = true;
+  crumbPaciente.textContent = '';
 }
 
-function confirmarDescarteAnamnese(): boolean {
-  return (
-    !anamnesePendente ||
-    window.confirm(
-      'Há alterações de anamnese não confirmadas. Ao sair, elas serão descartadas e um salvamento incerto não poderá ser confirmado nesta tela. Deseja continuar?',
-    )
+function voltarParaLista(): void {
+  const id = fichaPaciente?.id;
+  fecharFicha();
+  limparRota();
+  aviso('workspace-feedback', '');
+  const linha = id ? listaPacientes.querySelector<HTMLElement>(`[data-paciente-id="${id}"]`) : null;
+  (linha ?? elemento('patients-title')).focus();
+}
+
+function montarSecaoTarefas(
+  raiz: HTMLElement,
+  pacienteId: string,
+  pendente: (valor: boolean) => void,
+): () => void {
+  const servicoTarefas = criarServicoTarefasHttp(identidadeAtual);
+  // Escrita permanece indisponível até existir capability validada no servidor.
+  const escritaDisponivel = false;
+  const cicloTarefas = escritaDisponivel
+    ? criarCicloTarefaCuidado({
+        identidadeAtual,
+        consultar: () => api.consultarBarreiraTarefa(),
+        reservar: async (entrada) => (await api.reservarBarreiraTarefa(entrada)).estado,
+        encerrar: async (entrada) => (await api.encerrarBarreiraTarefa(entrada)).estado,
+        reconhecer: async (entrada) => (await api.reconhecerBarreiraTarefa(entrada)).estado,
+        gravar: async ({
+          paciente_id,
+          tarefa_id,
+          versao_esperada,
+          tarefa,
+          chave,
+          reserva_id,
+          epoca,
+        }) => {
+          const reserva = { reserva_id, geracao_reserva: epoca };
+          if (versao_esperada === 0)
+            await servicoTarefas.criarTarefa(paciente_id, tarefa_id, chave, tarefa, reserva);
+          else
+            await servicoTarefas.atualizarTarefa(
+              paciente_id,
+              tarefa_id,
+              versao_esperada,
+              chave,
+              tarefa,
+              reserva,
+            );
+        },
+      })
+    : null;
+  return montarTarefasCuidado(
+    raiz,
+    pacienteId,
+    {
+      consultarTarefas: servicoTarefas.consultarTarefas,
+      ...(cicloTarefas
+        ? {
+            ciclo: cicloTarefas,
+            criarTarefa: async (paciente, tarefa, _chave, dados) => {
+              await cicloTarefas.gravar(paciente, tarefa, 0, dados);
+            },
+            atualizarTarefa: async (paciente, tarefa, versao, _chave, dados) => {
+              await cicloTarefas.gravar(paciente, tarefa, versao, dados);
+            },
+          }
+        : {}),
+    },
+    acessoPerdido,
+    pendente,
   );
 }
 
-function fecharAnamnese(): void {
-  desmontarAnamnese?.();
-  desmontarAnamnese = null;
-  anamnesePendente = false;
-  anamnesePanel.hidden = true;
-  anamneseTitulo.textContent = '';
+function montarSecaoCadastro(
+  raiz: HTMLElement,
+  pacienteId: string,
+  pendente: (valor: boolean) => void,
+): () => void {
+  const estado = { edicao: false, contato: false };
+  const sincronizar = () => pendente(estado.edicao || estado.contato);
+  const edicaoRaiz = document.createElement('div');
+  const contatoRaiz = document.createElement('div');
+  contatoRaiz.className = 'ficha-subsecao';
+  raiz.replaceChildren(edicaoRaiz, contatoRaiz);
+  let desmontarEdicao: (() => void) | null = null;
+  if (edicaoDisponivel) {
+    desmontarEdicao = montarEdicaoPaciente(
+      edicaoRaiz,
+      pacienteId,
+      criarServicoEdicaoPacienteHttp(identidadeAtual),
+      acessoPerdido,
+      (valor) => {
+        estado.edicao = valor;
+        sincronizar();
+      },
+    );
+  } else {
+    const aviso = document.createElement('p');
+    aviso.textContent = 'A edição do cadastro ainda não está disponível neste ambiente.';
+    edicaoRaiz.append(aviso);
+  }
+  const desmontarContato = montarContatoPaciente(
+    contatoRaiz,
+    pacienteId,
+    api,
+    acessoPerdido,
+    (valor) => {
+      estado.contato = valor;
+      sincronizar();
+    },
+  );
+  return () => {
+    desmontarEdicao?.();
+    desmontarContato();
+  };
+}
+
+function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
+  if (atual.usuario.perfil === 'familia')
+    return [
+      {
+        id: 'dados',
+        rotulo: 'Dados do paciente',
+        montar: (raiz) => montarDadosFamiliar(raiz, paciente.id, api, acessoPerdido),
+      },
+    ];
+  const administraCadastro =
+    atual.usuario.perfil === 'administrador' && atual.capacidades.includes('administrar_cadastro');
+  const administraConcessoes =
+    atual.usuario.perfil === 'administrador' &&
+    atual.capacidades.includes('administrar_concessoes');
+  const secoes: SecaoFicha[] = [
+    {
+      id: 'visao',
+      rotulo: 'Visão do caso',
+      montar: (raiz) =>
+        montarVisaoCaso(
+          raiz,
+          paciente,
+          {
+            objetivos: criarServicoPlanoHttp(identidadeAtual),
+            anamnese: api,
+            ...(atual.usuario.perfil === 'profissional'
+              ? { tarefas: criarServicoTarefasHttp(identidadeAtual) }
+              : {}),
+          },
+          acessoPerdido,
+        ),
+    },
+    {
+      id: 'anamnese',
+      rotulo: 'Anamnese',
+      descarte: descarteAnamnese,
+      montar: (raiz, pendente) =>
+        montarAnamnese(
+          raiz,
+          paciente.id,
+          api,
+          acessoPerdido,
+          pendente,
+          api
+            .disponibilidadeHistoricoAnamnese()
+            .then((resultado) => resultado.disponivel)
+            .catch(() => false),
+        ),
+    },
+    {
+      id: 'plano',
+      rotulo: 'Plano de cuidado',
+      descarte: descartePlano,
+      montar: (raiz, pendente) => {
+        const servico = criarServicoPlanoHttp(identidadeAtual);
+        planoAberto = { pacienteId: paciente.id, servico };
+        const desmontar = montarPlanoCuidado(raiz, paciente.id, servico, acessoPerdido, pendente);
+        return () => {
+          desmontar();
+          planoAberto = null;
+        };
+      },
+    },
+  ];
+  if (atual.usuario.perfil === 'profissional')
+    secoes.push({
+      id: 'tarefas',
+      rotulo: 'Tarefas',
+      descarte: descarteTarefa,
+      montar: (raiz, pendente) => montarSecaoTarefas(raiz, paciente.id, pendente),
+    });
+  if (administraCadastro)
+    secoes.push({
+      id: 'cadastro',
+      rotulo: 'Cadastro',
+      descarte: descarteCadastro,
+      montar: (raiz, pendente) => montarSecaoCadastro(raiz, paciente.id, pendente),
+    });
+  if (administraConcessoes)
+    secoes.push({
+      id: 'equipe',
+      rotulo: 'Equipe com acesso',
+      descarte: descarteEquipe,
+      montar: (raiz, pendente) =>
+        montarSelecaoProfissional(raiz, paciente.id, api, acessoPerdido, pendente),
+    });
+  secoes.push(
+    { id: 'diario', rotulo: 'Diário', montar: null },
+    { id: 'rede', rotulo: 'Rede de cuidado', montar: null },
+  );
+  return secoes;
+}
+
+function abrirFicha(paciente: PacienteFicha, secao: string | undefined, empilhar: boolean): void {
+  const atual = sessao;
+  if (!atual) return;
+  fecharFicha();
+  fichaPaciente = paciente;
+  fichaAssinatura = assinaturaSessao(atual);
+  aviso('workspace-feedback', '');
+  listaView.hidden = true;
+  fichaView.hidden = false;
+  crumbPaciente.textContent = paciente.nome;
+  crumbPaciente.hidden = false;
+  let primeira = empilhar;
+  ficha = montarFicha({
+    raiz: fichaView,
+    paciente,
+    secoes: secoesDaFicha(paciente, atual),
+    ...(secao ? { secaoInicial: secao } : {}),
+    confirmar: (mensagem) => window.confirm(mensagem),
+    aoSelecionar: (escolhida) => {
+      registrarRota(paciente.id, escolhida, primeira);
+      primeira = false;
+    },
+    aoVoltar: voltarParaLista,
+  });
+  ficha.focarTitulo();
 }
 
 type Sessao = ReturnType<typeof sessaoNativaSchema.parse>;
@@ -395,16 +565,14 @@ function fecharAgenda(): void {
 
 function apagarPacientes(): void {
   fecharAgenda();
-  fecharResumo();
-  fecharSelecao();
-  fecharTarefas();
-  fecharAnamnese();
-  fecharPlano();
-  fecharEdicao();
-  fecharPacienteFamiliar();
-  tableBody.replaceChildren();
-  table.hidden = true;
-  elemento('patient-list-hint').hidden = true;
+  fecharFicha();
+  listaPacientes.replaceChildren();
+  listaPacientes.hidden = true;
+  pacientesDaPagina = [];
+  buscaTexto = '';
+  buscaCampo.value = '';
+  elemento('busca').hidden = true;
+  buscaVazia.hidden = true;
   listEmpty.hidden = true;
   pagination.hidden = true;
   listLoading.hidden = true;
@@ -427,7 +595,7 @@ function apagarPacientes(): void {
   aviso('create-feedback', '');
   aviso('workspace-feedback', '');
   aviso('list-status', '');
-  table.removeAttribute('aria-busy');
+  listaPacientes.removeAttribute('aria-busy');
   reloadButton.removeAttribute('aria-disabled');
   previousButton.removeAttribute('aria-disabled');
   nextButton.removeAttribute('aria-disabled');
@@ -464,15 +632,18 @@ function mostrarAcesso(mensagem = '', tom: 'error' | 'success' | 'neutral' = 'ne
 
 function acessoPerdido(erro: unknown): boolean {
   if (!exigeNovoAcesso(erro)) return false;
+  const secaoPendente = pendenciaFicha()?.secao;
   const alertaCadastro = cadastroPendente
     ? ' Um cadastro ficou sem confirmação. Confirme a situação por canal autorizado antes de cadastrá-lo novamente.'
     : '';
-  const alertaPlano = planoPendente
-    ? ' O rascunho do plano foi descartado. Confirme a situação antes de repetir um salvamento.'
-    : '';
-  const alertaTarefa = tarefaPendente
-    ? ' Uma tarefa ficou sem confirmação. Confira a situação antes de tentar criá-la novamente.'
-    : '';
+  const alertaPlano =
+    secaoPendente === 'plano'
+      ? ' O rascunho do plano foi descartado. Confirme a situação antes de repetir um salvamento.'
+      : '';
+  const alertaTarefa =
+    secaoPendente === 'tarefas'
+      ? ' Uma tarefa ficou sem confirmação. Confira a situação antes de tentar criá-la novamente.'
+      : '';
   mostrarAcesso(
     `Seu acesso precisa ser validado novamente. Entre com uma conta autorizada.${alertaCadastro}${alertaPlano}${alertaTarefa}`,
     'error',
@@ -494,28 +665,11 @@ function aplicarSessao(atual: Sessao): void {
       sessao.usuario.id !== atual.usuario.id ||
       sessao.usuario.perfil !== atual.usuario.perfil ||
       atual.usuario.perfil === 'familia')
-  ) {
-    fecharSelecao();
-    fecharResumo();
-    fecharTarefas();
-    fecharAnamnese();
-    fecharPlano();
-    fecharEdicao();
-    fecharPacienteFamiliar();
-  }
-  if (
-    atual.usuario.perfil !== 'administrador' ||
-    !atual.capacidades.includes('administrar_cadastro')
   )
-    fecharEdicao();
-  if (
-    atual.usuario.perfil !== 'administrador' ||
-    !atual.capacidades.includes('administrar_concessoes')
-  )
-    fecharSelecao();
-  if (atual.usuario.perfil !== 'profissional') {
-    fecharTarefas();
-    fecharResumo();
+    fecharFicha();
+  else if (ficha && fichaAssinatura !== assinaturaSessao(atual)) {
+    fecharFicha();
+    aviso('workspace-feedback', 'Seu acesso foi atualizado. Abra a ficha novamente.');
   }
   sessao = atual;
   let acessoGoogle = false;
@@ -537,8 +691,6 @@ function aplicarSessao(atual: Sessao): void {
       );
     }
   } else fecharAgenda();
-  elemento('anamnese-coluna').textContent =
-    atual.usuario.perfil === 'familia' ? 'Paciente' : 'Atendimento';
   const podeCadastrar =
     atual.usuario.perfil === 'administrador' && atual.capacidades.includes('administrar_cadastro');
   if (podeCadastrar && !ciclo) {
@@ -613,7 +765,7 @@ async function entrar(evento: SubmitEvent): Promise<void> {
     document.title = 'FFCMApp | Pacientes';
     aviso('login-feedback', '');
     elemento('patients-title').focus();
-    await carregarPacientes();
+    if (await carregarPacientes()) await abrirFichaPelaRota();
   } catch (erro) {
     if (versao !== revisao) return;
     api.limpar();
@@ -665,7 +817,7 @@ async function entrarFamiliar(evento: SubmitEvent): Promise<void> {
     document.title = 'FFCMApp | Pacientes';
     aviso('familiar-feedback', '');
     elemento('patients-title').focus();
-    await carregarPacientes();
+    if (await carregarPacientes()) await abrirFichaPelaRota();
   } catch (erro) {
     if (versao !== revisao) return;
     api.limpar();
@@ -684,365 +836,103 @@ async function entrarFamiliar(evento: SubmitEvent): Promise<void> {
   }
 }
 
-function atendimentoJaAberto(): boolean {
-  const titulo = !selecaoPanel.hidden
-    ? 'selecao-profissional-title'
-    : !pacienteFamiliarPanel.hidden
-      ? 'paciente-familiar-title'
-      : !resumoPanel.hidden
-        ? 'resumo-title'
-        : !anamnesePanel.hidden
-          ? 'anamnese-title'
-          : !planoPanel.hidden
-            ? 'plano-title'
-            : !tarefasPanel.hidden
-              ? 'tarefas-title'
-              : !edicaoPanel.hidden
-                ? 'edicao-title'
-                : null;
-  if (!titulo) return false;
-  aviso('workspace-feedback', 'Feche o atendimento aberto antes de selecionar outro.');
-  elemento(titulo).focus();
-  return true;
-}
-
-function linhaPaciente(
-  paciente: PacienteBasico,
-  edicaoPacienteDisponivel: boolean,
-): HTMLTableRowElement {
-  const linha = document.createElement('tr');
-  const nome = document.createElement('td');
+function linhaPaciente(paciente: PacienteBasico): HTMLLIElement {
+  const item = document.createElement('li');
+  const abrir = document.createElement('button');
+  abrir.type = 'button';
+  abrir.className = 'pessoa';
+  abrir.dataset.pacienteId = paciente.id;
+  abrir.setAttribute('aria-label', `Abrir ficha de ${paciente.nome}`);
+  const texto = document.createElement('span');
+  texto.className = 'pessoa-texto';
+  const nome = document.createElement('span');
+  nome.className = 'pessoa-nome';
   nome.textContent = paciente.nome;
-  const preferencia = document.createElement('td');
-  preferencia.textContent = paciente.nome_preferencia ?? 'Não informado';
-  linha.append(nome, preferencia);
-  if (sessao?.usuario.perfil === 'familia') {
-    const acao = document.createElement('td');
-    const abrir = document.createElement('button');
-    abrir.type = 'button';
-    abrir.className = 'button-secondary';
-    abrir.textContent = 'Abrir paciente';
-    abrir.setAttribute('aria-label', `Abrir paciente ${paciente.nome}`);
-    abrir.addEventListener('click', () => {
-      if (!sessao || sessao.usuario.perfil !== 'familia' || atendimentoJaAberto()) return;
-      acaoPacienteAnterior = abrir;
-      pacienteFamiliarId = paciente.id;
-      pacienteFamiliarPanel.hidden = false;
-      elemento('paciente-familiar-title').focus();
-      void consultarPacienteFamiliar();
-    });
-    acao.append(abrir);
-    linha.append(acao);
-  } else if (sessao) {
-    const acao = document.createElement('td');
-    const abrir = document.createElement('button');
-    abrir.type = 'button';
-    abrir.className = 'button-secondary';
-    abrir.textContent = 'Abrir anamnese';
-    abrir.setAttribute('aria-label', `Abrir anamnese de ${paciente.nome}`);
-    abrir.addEventListener('click', () => {
-      if (!sessao || sessao.usuario.perfil === 'familia' || atendimentoJaAberto()) return;
-      aviso('workspace-feedback', '');
-      acaoPacienteAnterior = abrir;
-      anamneseTitulo.textContent = paciente.nome;
-      anamnesePanel.hidden = false;
-      desmontarAnamnese = montarAnamnese(
-        anamneseRaiz,
-        paciente.id,
-        api,
-        acessoPerdido,
-        (pendente) => {
-          anamnesePendente = pendente;
-        },
-        api
-          .disponibilidadeHistoricoAnamnese()
-          .then((resultado) => resultado.disponivel)
-          .catch(() => false),
-      );
-      elemento('anamnese-title').focus();
-    });
-    const abrirPlano = document.createElement('button');
-    abrirPlano.type = 'button';
-    abrirPlano.className = 'button-secondary';
-    abrirPlano.textContent = 'Abrir plano de cuidado';
-    abrirPlano.setAttribute('aria-label', `Abrir plano de cuidado de ${paciente.nome}`);
-    abrirPlano.addEventListener('click', () => {
-      if (!sessao || sessao.usuario.perfil === 'familia' || atendimentoJaAberto()) return;
-      aviso('workspace-feedback', '');
-      acaoPacienteAnterior = abrirPlano;
-      planoTitulo.textContent = paciente.nome;
-      planoPanel.hidden = false;
-      const servico = criarServicoPlanoHttp(() =>
-        sessao ? { usuario_id: sessao.usuario.id, session_id: sessao.session_id } : null,
-      );
-      planoAberto = { pacienteId: paciente.id, servico };
-      desmontarPlano = montarPlanoCuidado(
-        planoRaiz,
-        paciente.id,
-        servico,
-        acessoPerdido,
-        (pendente) => {
-          planoPendente = pendente;
-        },
-      );
-      elemento('plano-title').focus();
-    });
-    acao.append(abrir, abrirPlano);
-    if (sessao.usuario.perfil === 'profissional') {
-      const resumo = document.createElement('button');
-      resumo.type = 'button';
-      resumo.className = 'button-secondary';
-      resumo.textContent = 'Abrir resumo';
-      resumo.setAttribute('aria-label', `Abrir resumo de ${paciente.nome}`);
-      resumo.addEventListener('click', () => {
-        if (!sessao || sessao.usuario.perfil !== 'profissional' || atendimentoJaAberto()) return;
-        acaoPacienteAnterior = resumo;
-        elemento('resumo-paciente').textContent = paciente.nome;
-        resumoPanel.hidden = false;
-        const identidade = () =>
-          sessao ? { usuario_id: sessao.usuario.id, session_id: sessao.session_id } : null;
-        desmontarResumo = montarResumoConectado(
-          elemento('resumo-raiz'),
-          paciente.id,
-          criarServicoPlanoHttp(identidade),
-          criarServicoTarefasHttp(identidade),
-          acessoPerdido,
-        );
-        elemento('resumo-title').focus();
-      });
-      acao.append(resumo);
-      const tarefas = document.createElement('button');
-      tarefas.type = 'button';
-      tarefas.className = 'button-secondary';
-      tarefas.textContent = 'Tarefas';
-      tarefas.setAttribute('aria-label', `Tarefas de ${paciente.nome}`);
-      tarefas.addEventListener('click', () => {
-        if (!sessao || sessao.usuario.perfil !== 'profissional' || atendimentoJaAberto()) return;
-        acaoPacienteAnterior = tarefas;
-        elemento('tarefas-paciente').textContent = paciente.nome;
-        tarefasPanel.hidden = false;
-        const identidade = () =>
-          sessao ? { usuario_id: sessao.usuario.id, session_id: sessao.session_id } : null;
-        const servicoTarefas = criarServicoTarefasHttp(identidade);
-        // Escrita permanece indisponível até existir capability validada no servidor.
-        const escritaDisponivel = false;
-        const cicloTarefas = escritaDisponivel
-          ? criarCicloTarefaCuidado({
-              identidadeAtual: identidade,
-              consultar: () => api.consultarBarreiraTarefa(),
-              reservar: async (entrada) => (await api.reservarBarreiraTarefa(entrada)).estado,
-              encerrar: async (entrada) => (await api.encerrarBarreiraTarefa(entrada)).estado,
-              reconhecer: async (entrada) => (await api.reconhecerBarreiraTarefa(entrada)).estado,
-              gravar: async ({
-                paciente_id,
-                tarefa_id,
-                versao_esperada,
-                tarefa,
-                chave,
-                reserva_id,
-                epoca,
-              }) => {
-                const reserva = { reserva_id, geracao_reserva: epoca };
-                if (versao_esperada === 0)
-                  await servicoTarefas.criarTarefa(paciente_id, tarefa_id, chave, tarefa, reserva);
-                else
-                  await servicoTarefas.atualizarTarefa(
-                    paciente_id,
-                    tarefa_id,
-                    versao_esperada,
-                    chave,
-                    tarefa,
-                    reserva,
-                  );
-              },
-            })
-          : null;
-        desmontarTarefas = montarTarefasCuidado(
-          elemento('tarefas-raiz'),
-          paciente.id,
-          {
-            consultarTarefas: servicoTarefas.consultarTarefas,
-            ...(cicloTarefas
-              ? {
-                  ciclo: cicloTarefas,
-                  criarTarefa: async (paciente, tarefa, _chave, dados) => {
-                    await cicloTarefas.gravar(paciente, tarefa, 0, dados);
-                  },
-                  atualizarTarefa: async (paciente, tarefa, versao, _chave, dados) => {
-                    await cicloTarefas.gravar(paciente, tarefa, versao, dados);
-                  },
-                }
-              : {}),
-          },
-          acessoPerdido,
-          (pendente) => {
-            tarefaPendente = pendente;
-          },
-        );
-        elemento('tarefas-title').focus();
-      });
-      acao.append(tarefas);
-    }
-    if (
-      sessao.usuario.perfil === 'administrador' &&
-      sessao.capacidades.includes('administrar_concessoes')
-    ) {
-      // Só disponibilizar após validação integrada das rotas e do convite.
-      const conviteFamiliarDisponivel = false;
-      if (conviteFamiliarDisponivel) {
-        const convidar = document.createElement('button');
-        convidar.type = 'button';
-        convidar.className = 'button-secondary';
-        convidar.textContent = 'Convidar familiar';
-        convidar.setAttribute('aria-label', `Convidar familiar de ${paciente.nome}`);
-        convidar.addEventListener('click', () => {
-          if (
-            !sessao ||
-            sessao.usuario.perfil !== 'administrador' ||
-            !sessao.capacidades.includes('administrar_concessoes') ||
-            atendimentoJaAberto()
-          )
-            return;
-          try {
-            sessionStorage.setItem(`convite-paciente:${sessao.session_id}`, paciente.id);
-            window.location.assign('/consulta-convite/');
-          } catch {
-            aviso('workspace-feedback', 'Não foi possível abrir o convite nesta aba.');
-          }
-        });
-        acao.append(convidar);
-      }
-      const selecionar = document.createElement('button');
-      selecionar.type = 'button';
-      selecionar.className = 'button-secondary';
-      selecionar.textContent = 'Selecionar profissional';
-      selecionar.setAttribute('aria-label', `Selecionar profissional para ${paciente.nome}`);
-      selecionar.addEventListener('click', () => {
-        if (
-          !sessao ||
-          sessao.usuario.perfil !== 'administrador' ||
-          !sessao.capacidades.includes('administrar_concessoes') ||
-          atendimentoJaAberto()
-        )
-          return;
-        acaoPacienteAnterior = selecionar;
-        selecaoTitulo.textContent = `Profissional para ${paciente.nome}`;
-        selecaoPanel.hidden = false;
-        desmontarSelecao = montarSelecaoProfissional(
-          selecaoRaiz,
-          paciente.id,
-          api,
-          acessoPerdido,
-          (pendente) => {
-            selecaoPendente = pendente;
-          },
-        );
-        selecaoTitulo.focus();
-      });
-      acao.append(selecionar);
-    }
-    // A interface fica preparada, mas não deve anunciar rotas ainda inexistentes.
-    if (
-      edicaoPacienteDisponivel &&
-      sessao.usuario.perfil === 'administrador' &&
-      sessao.capacidades.includes('administrar_cadastro')
-    ) {
-      const editar = document.createElement('button');
-      editar.type = 'button';
-      editar.className = 'button-secondary';
-      editar.textContent = 'Editar cadastro';
-      editar.setAttribute('aria-label', `Editar cadastro de ${paciente.nome}`);
-      editar.addEventListener('click', () => {
-        if (
-          !sessao ||
-          sessao.usuario.perfil !== 'administrador' ||
-          !sessao.capacidades.includes('administrar_cadastro') ||
-          !edicaoPanel.hidden ||
-          !anamnesePanel.hidden ||
-          !planoPanel.hidden ||
-          !tarefasPanel.hidden
-        )
-          return;
-        elemento('edicao-title').textContent = 'Editar cadastro';
-        elemento('fechar-edicao').textContent = 'Fechar edição';
-        edicaoPanel.hidden = false;
-        desmontarEdicao = montarEdicaoPaciente(
-          edicaoRaiz,
-          paciente.id,
-          criarServicoEdicaoPacienteHttp(() =>
-            sessao ? { usuario_id: sessao.usuario.id, session_id: sessao.session_id } : null,
-          ),
-          acessoPerdido,
-          (pendente) => {
-            edicaoPendente = pendente;
-          },
-        );
-        elemento('edicao-title').focus();
-      });
-      acao.append(editar);
-    }
-    if (
-      sessao.usuario.perfil === 'administrador' &&
-      sessao.capacidades.includes('administrar_cadastro')
-    ) {
-      const contato = document.createElement('button');
-      contato.type = 'button';
-      contato.className = 'button-secondary';
-      contato.textContent = 'Adicionar contato';
-      contato.setAttribute('aria-label', `Adicionar contato de ${paciente.nome}`);
-      contato.addEventListener('click', () => {
-        if (
-          !sessao ||
-          sessao.usuario.perfil !== 'administrador' ||
-          !sessao.capacidades.includes('administrar_cadastro') ||
-          atendimentoJaAberto()
-        )
-          return;
-        acaoPacienteAnterior = contato;
-        elemento('edicao-title').textContent = `Adicionar contato: ${paciente.nome}`;
-        elemento('fechar-edicao').textContent = 'Fechar contatos';
-        edicaoPanel.hidden = false;
-        desmontarEdicao = montarContatoPaciente(
-          edicaoRaiz,
-          paciente.id,
-          api,
-          acessoPerdido,
-          (pendente) => {
-            edicaoPendente = pendente;
-          },
-        );
-        elemento('edicao-title').focus();
-      });
-      acao.append(contato);
-    }
-    linha.append(acao);
-  }
-  return linha;
+  const preferencia = document.createElement('span');
+  preferencia.className = 'pessoa-preferencia';
+  preferencia.textContent = paciente.nome_preferencia
+    ? `Preferência: ${paciente.nome_preferencia}`
+    : 'Preferência não informada';
+  texto.append(nome, preferencia);
+  const seta = document.createElement('span');
+  seta.className = 'pessoa-seta';
+  seta.setAttribute('aria-hidden', 'true');
+  abrir.append(criarAvatar(paciente.nome), texto, seta);
+  abrir.addEventListener('click', () => {
+    if (!sessao) return;
+    abrirFicha(
+      { id: paciente.id, nome: paciente.nome, nome_preferencia: paciente.nome_preferencia },
+      undefined,
+      true,
+    );
+  });
+  item.append(abrir);
+  return item;
 }
 
-async function consultarPacienteFamiliar(): Promise<void> {
-  const id = pacienteFamiliarId;
-  if (!id || !sessao || sessao.usuario.perfil !== 'familia') return;
+function pacientesFiltrados(): PacienteBasico[] {
+  if (!buscaTexto.trim()) return pacientesDaPagina;
+  return pacientesDaPagina.filter((paciente) =>
+    correspondeBuscaPacienteLocal(
+      {
+        name: paciente.nome,
+        ...(paciente.nome_preferencia ? { preferredName: paciente.nome_preferencia } : {}),
+      },
+      buscaTexto,
+    ),
+  );
+}
+
+function renderizarLista(): void {
+  const itens = pacientesFiltrados();
+  listaPacientes.replaceChildren(...itens.map(linhaPaciente));
+  listaPacientes.hidden = itens.length === 0;
+  elemento('busca').hidden = pacientesDaPagina.length === 0;
+  buscaVazia.hidden = !(pacientesDaPagina.length > 0 && itens.length === 0);
+}
+
+async function abrirFichaPelaRota(): Promise<void> {
+  const rota = lerRotaFicha(window.location.hash);
+  const atualSessao = sessao;
+  if (!rota || !atualSessao || ficha) return;
   const versao = revisao;
-  const numero = ++consultaFamiliar;
-  const atual = () =>
-    versao === revisao && numero === consultaFamiliar && pacienteFamiliarId === id;
-  pacienteFamiliarDados.hidden = true;
-  pacienteFamiliarTentar.hidden = true;
-  aviso('paciente-familiar-status', 'Consultando paciente…');
+  const numero = ++consultaFicha;
+  const atual = () => versao === revisao && numero === consultaFicha && !ficha && sessao !== null;
   try {
-    const paciente = await api.consultarPacienteFamiliar(id);
+    // Só o Administrador e a Família têm rota para consultar um paciente fora da página
+    // carregada; negar a Profissional não pode ser confundido com perda de acesso.
+    const perfil = atualSessao.usuario.perfil;
+    const paciente =
+      pacientesDaPagina.find((item) => item.id === rota.id) ??
+      (perfil === 'familia'
+        ? await api.consultarPacienteFamiliar(rota.id)
+        : perfil === 'administrador'
+          ? await api.consultarPaciente(rota.id)
+          : null);
     if (!atual()) return;
-    if (paciente.id !== id) throw new Error('Paciente retornado não corresponde à consulta.');
-    elemento('paciente-familiar-nome').textContent = paciente.nome;
-    elemento('paciente-familiar-preferencia').textContent =
-      paciente.nome_preferencia ?? 'Não informado';
-    pacienteFamiliarDados.hidden = false;
-    aviso('paciente-familiar-status', '');
+    if (!paciente) {
+      limparRota();
+      aviso(
+        'workspace-feedback',
+        'Não foi possível reabrir a ficha. Escolha o paciente na lista.',
+        'error',
+      );
+      return;
+    }
+    if (paciente.id !== rota.id) throw new Error('Paciente retornado não corresponde à consulta.');
+    abrirFicha(
+      { id: paciente.id, nome: paciente.nome, nome_preferencia: paciente.nome_preferencia },
+      rota.secao,
+      false,
+    );
   } catch (erro) {
     if (!atual() || acessoPerdido(erro)) return;
-    aviso('paciente-familiar-status', `${mensagemFalha(erro)} Tente novamente.`, 'error');
-    pacienteFamiliarTentar.hidden = false;
+    limparRota();
+    aviso(
+      'workspace-feedback',
+      `${mensagemFalha(erro)} Escolha o paciente na lista para abrir a ficha.`,
+      'error',
+    );
   }
 }
 
@@ -1051,15 +941,14 @@ async function carregarPacientes(): Promise<boolean> {
   const versao = revisao;
   const numeroConsulta = ++consulta;
   const atual = () => versao === revisao && numeroConsulta === consulta && sessao !== null;
-  tableBody.replaceChildren();
-  table.hidden = true;
-  elemento('patient-list-hint').hidden = true;
+  listaPacientes.hidden = true;
+  buscaVazia.hidden = true;
   listEmpty.hidden = true;
   listLoading.hidden = false;
   reloadButton.setAttribute('aria-disabled', 'true');
   previousButton.setAttribute('aria-disabled', 'true');
   nextButton.setAttribute('aria-disabled', 'true');
-  table.setAttribute('aria-busy', 'true');
+  listaPacientes.setAttribute('aria-busy', 'true');
   aviso('list-status', 'Consultando pacientes…');
   try {
     const [resultado, disponibilidade] = await Promise.all([
@@ -1070,12 +959,10 @@ async function carregarPacientes(): Promise<boolean> {
         : Promise.resolve({ disponivel: false }),
     ]);
     if (!atual()) return false;
-    tableBody.replaceChildren(
-      ...resultado.itens.map((paciente) => linhaPaciente(paciente, disponibilidade.disponivel)),
-    );
+    edicaoDisponivel = disponibilidade.disponivel;
+    pacientesDaPagina = resultado.itens;
+    renderizarLista();
     proximoCursor = resultado.proximo_cursor;
-    table.hidden = resultado.itens.length === 0;
-    elemento('patient-list-hint').hidden = resultado.itens.length === 0;
     listEmpty.hidden = resultado.itens.length !== 0;
     elemento('empty-description').textContent =
       pagina > 0 && resultado.proximo_cursor
@@ -1151,7 +1038,7 @@ async function carregarPacientes(): Promise<boolean> {
       reloadButton.removeAttribute('aria-disabled');
       previousButton.removeAttribute('aria-disabled');
       nextButton.removeAttribute('aria-disabled');
-      table.removeAttribute('aria-busy');
+      listaPacientes.removeAttribute('aria-busy');
     }
   }
 }
@@ -1257,15 +1144,9 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
 }
 
 async function sair(): Promise<void> {
-  if (
-    logoutOcupado ||
-    !confirmarDescarteTarefa() ||
-    !confirmarDescarteAnamnese() ||
-    !confirmarDescartePlano() ||
-    !confirmarDescarteEdicao() ||
-    !confirmarDescarteSelecao()
-  )
-    return;
+  const pendencia = pendenciaFicha();
+  if (logoutOcupado || (pendencia && !window.confirm(pendencia.mensagem))) return;
+  limparRota();
   logoutOcupado = true;
   ciclo = null;
   cadastroLiberado = false;
@@ -1334,8 +1215,8 @@ async function revalidarAcesso(): Promise<void> {
         if (versao !== revisao) return;
         if (acessoPerdido(erro)) return;
         if (planoAberto === plano) {
-          const rascunhoDescartado = planoPendente;
-          fecharPlano();
+          const rascunhoDescartado = pendenciaFicha()?.secao === 'plano';
+          ficha?.selecionar('visao', { confirmar: false });
           aviso(
             'workspace-feedback',
             rascunhoDescartado
@@ -1352,10 +1233,11 @@ async function revalidarAcesso(): Promise<void> {
       revalidacaoStatus.hidden = true;
       patientsView.hidden = false;
       sessionActions.hidden = false;
+      ficha?.remontarSecao();
       if (focoAposLoginOculto) {
         focoAposLoginOculto = false;
         document.title = 'FFCMApp | Pacientes';
-        elemento('patients-title').focus();
+        elemento(ficha ? 'ficha-title' : 'patients-title').focus();
       }
     }
   } catch (erro) {
@@ -1411,49 +1293,34 @@ previousButton.addEventListener('click', () => {
   pagina -= 1;
   void carregarPacientes();
 });
-elemento<HTMLButtonElement>('fechar-edicao').addEventListener('click', () => {
-  if (!confirmarDescarteEdicao()) return;
-  fecharEdicao();
-  void carregarPacientes();
-  elemento('patients-title').focus();
+buscaCampo.addEventListener('input', () => {
+  buscaTexto = buscaCampo.value;
+  renderizarLista();
+  if (buscaTexto.trim())
+    aviso(
+      'list-status',
+      `${pacientesFiltrados().length} de ${pacientesDaPagina.length} pacientes desta página correspondem à busca.`,
+    );
+  else
+    aviso(
+      'list-status',
+      `${pacientesDaPagina.length} ${pacientesDaPagina.length === 1 ? 'paciente nesta página' : 'pacientes nesta página'}.`,
+    );
 });
-pacienteFamiliarTentar.addEventListener('click', () => void consultarPacienteFamiliar());
-elemento<HTMLButtonElement>('fechar-paciente-familiar').addEventListener('click', () => {
-  fecharPacienteFamiliar();
-  aviso('workspace-feedback', '');
-  if (acaoPacienteAnterior?.isConnected && !table.hidden) acaoPacienteAnterior.focus();
-  else elemento('patients-title').focus();
-  acaoPacienteAnterior = null;
-});
-fecharAnamneseBotao.addEventListener('click', () => {
-  if (!confirmarDescarteAnamnese()) return;
-  fecharAnamnese();
-  aviso('workspace-feedback', '');
-  if (acaoPacienteAnterior?.isConnected && !table.hidden) acaoPacienteAnterior.focus();
-  else elemento('patients-title').focus();
-  acaoPacienteAnterior = null;
-});
-fecharPlanoBotao.addEventListener('click', () => {
-  if (!confirmarDescartePlano()) return;
-  fecharPlano();
-  aviso('workspace-feedback', '');
-  if (acaoPacienteAnterior?.isConnected && !table.hidden) acaoPacienteAnterior.focus();
-  else elemento('patients-title').focus();
-  acaoPacienteAnterior = null;
-});
-elemento<HTMLButtonElement>('fechar-resumo').addEventListener('click', () => {
-  fecharResumo();
-  if (acaoPacienteAnterior?.isConnected && !table.hidden) acaoPacienteAnterior.focus();
-  else elemento('patients-title').focus();
-  acaoPacienteAnterior = null;
-});
-elemento<HTMLButtonElement>('fechar-tarefas').addEventListener('click', () => {
-  if (!confirmarDescarteTarefa()) return;
-  fecharTarefas();
-  aviso('workspace-feedback', '');
-  if (acaoPacienteAnterior?.isConnected && !table.hidden) acaoPacienteAnterior.focus();
-  else elemento('patients-title').focus();
-  acaoPacienteAnterior = null;
+window.addEventListener('popstate', () => {
+  if (!sessao) return;
+  const rota = lerRotaFicha(window.location.hash);
+  if (rota) {
+    if (!ficha) void abrirFichaPelaRota();
+    return;
+  }
+  if (!ficha || !fichaPaciente) return;
+  const pendencia = pendenciaFicha();
+  if (pendencia && !window.confirm(pendencia.mensagem)) {
+    registrarRota(fichaPaciente.id, ficha.secaoAtual(), true);
+    return;
+  }
+  voltarParaLista();
 });
 newPatientLink.addEventListener('click', (evento) => {
   evento.preventDefault();
@@ -1479,9 +1346,10 @@ for (const campo of [
   });
 }
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && !resumoPanel.hidden) fecharResumo();
+  // A visão do caso reúne dados de vários serviços: não fica no DOM com a aba oculta.
+  if (document.hidden && ficha?.secaoAtual() === 'visao') ficha.limparSecao();
   if (sessao) {
-    if (pacienteFamiliarPanel.contains(document.activeElement)) focoAposLoginOculto = true;
+    if (fichaView.contains(document.activeElement)) focoAposLoginOculto = true;
     patientsView.hidden = true;
     sessionActions.hidden = true;
     revalidacaoStatus.hidden = false;
@@ -1489,16 +1357,7 @@ document.addEventListener('visibilitychange', () => {
   void revalidarAcesso();
 });
 window.addEventListener('beforeunload', (evento) => {
-  if (
-    !cadastroPendente &&
-    !cadastroEmRevalidacao &&
-    !anamnesePendente &&
-    !tarefaPendente &&
-    !planoPendente &&
-    !edicaoPendente &&
-    !selecaoPendente
-  )
-    return;
+  if (!cadastroPendente && !cadastroEmRevalidacao && !pendenciaFicha()) return;
   // Aviso é apenas mitigação: o navegador pode ignorá-lo e não há recuperação
   // após fechamento sem reconciliação autorizada no servidor.
   evento.preventDefault();
@@ -1541,7 +1400,7 @@ async function restaurarSessao(): Promise<void> {
     patientsView.hidden = false;
     sessionActions.hidden = false;
     document.title = 'FFCMApp | Pacientes';
-    await carregarPacientes();
+    if (await carregarPacientes()) await abrirFichaPelaRota();
   } catch (erro) {
     if (versao !== revisao) return;
     mostrarAcesso(

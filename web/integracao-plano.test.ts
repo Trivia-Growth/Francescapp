@@ -38,22 +38,25 @@ it('abre plano do paciente pela rota HTTP e trata dispatcher inativo sem simular
   await import('./main.js');
   await vi.waitFor(() =>
     expect(
-      document.querySelector('[aria-label="Abrir plano de cuidado de Paciente fictício"]'),
+      document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
     ).not.toBeNull(),
   );
   document
-    .querySelector<HTMLButtonElement>('[aria-label="Abrir plano de cuidado de Paciente fictício"]')
+    .querySelector<HTMLButtonElement>('[aria-label="Abrir ficha de Paciente fictício"]')
     ?.click();
+  document.getElementById('ficha-aba-plano')?.click();
   await vi.waitFor(() =>
-    expect(document.querySelector('#plano-raiz button')?.textContent).toBe('Tentar novamente'),
+    expect(document.querySelector('[data-secao="plano"] button')?.textContent).toBe(
+      'Tentar novamente',
+    ),
   );
   expect(caminhos).toContain(`/api/pacientes/${id}/plano`);
-  expect(document.querySelector('#plano-raiz form')).toBeNull();
-  expect(document.activeElement?.id).toBe('plano-title');
-  document.getElementById('fechar-plano')?.click();
-  expect(document.getElementById('plano-raiz')?.textContent).toBe('');
+  expect(document.querySelector('[data-secao="plano"] form')).toBeNull();
+  expect(document.activeElement?.id).toBe('ficha-title');
+  document.getElementById('ficha-voltar')?.click();
+  expect(document.getElementById('ficha-view')?.textContent).toBe('');
   expect(document.activeElement).toBe(
-    document.querySelector('[aria-label="Abrir plano de cuidado de Paciente fictício"]'),
+    document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
   );
 });
 
@@ -79,7 +82,8 @@ it('encerra acesso e limpa plano quando permissão é revogada após retorno à 
       });
     if (caminho === `/api/pacientes/${id}/plano`) {
       consultasPlano++;
-      if (consultasPlano === 1) return envelope({ itens: [], proximo_cursor: null });
+      // Visão do caso e Plano consultam uma vez cada; a terceira é a revalidação.
+      if (consultasPlano <= 2) return envelope({ itens: [], proximo_cursor: null });
       return new Promise<Response>((resolve) => {
         responder = resolve;
       });
@@ -89,14 +93,17 @@ it('encerra acesso e limpa plano quando permissão é revogada após retorno à 
   await import('./main.js');
   await vi.waitFor(() =>
     expect(
-      document.querySelector('[aria-label="Abrir plano de cuidado de Paciente fictício"]'),
+      document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
     ).not.toBeNull(),
   );
   document
-    .querySelector<HTMLButtonElement>('[aria-label="Abrir plano de cuidado de Paciente fictício"]')
+    .querySelector<HTMLButtonElement>('[aria-label="Abrir ficha de Paciente fictício"]')
     ?.click();
+  document.getElementById('ficha-aba-plano')?.click();
   await vi.waitFor(() =>
-    expect(document.getElementById('plano-raiz')?.textContent).toContain('Nenhum objetivo'),
+    expect(document.querySelector('[data-secao="plano"]')?.textContent).toContain(
+      'Nenhum objetivo',
+    ),
   );
   Object.defineProperty(document, 'hidden', { configurable: true, value: true });
   document.dispatchEvent(new Event('visibilitychange'));
@@ -113,8 +120,8 @@ it('encerra acesso e limpa plano quando permissão é revogada após retorno à 
   );
   await vi.waitFor(() => expect(document.getElementById('login-view')?.hidden).toBe(false));
   expect(document.getElementById('patients-view')?.hidden).toBe(true);
-  expect(document.getElementById('plano-panel')?.hidden).toBe(true);
-  expect(document.getElementById('plano-raiz')?.textContent).toBe('');
+  expect(document.getElementById('ficha-view')?.hidden).toBe(true);
+  expect(document.getElementById('ficha-view')?.textContent).toBe('');
   expect(document.getElementById('login-feedback')?.textContent).toContain(
     'Seu acesso precisa ser validado novamente',
   );

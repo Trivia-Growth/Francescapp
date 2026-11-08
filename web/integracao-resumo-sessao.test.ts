@@ -14,7 +14,7 @@ afterEach(() => {
   vi.resetModules();
 });
 
-it('descarta resumo ao trocar profissional durante revalidação', async () => {
+it('descarta a visão do caso ao trocar profissional durante revalidação', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   sessionStorage.setItem('modo-acesso', 'tecnica');
   sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
@@ -64,14 +64,14 @@ it('descarta resumo ao trocar profissional durante revalidação', async () => {
   await import('./main.js');
   await vi.waitFor(() =>
     expect(
-      document.querySelector('[aria-label="Abrir resumo de Paciente fictício"]'),
+      document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
     ).not.toBeNull(),
   );
   document
-    .querySelector<HTMLButtonElement>('[aria-label="Abrir resumo de Paciente fictício"]')
+    .querySelector<HTMLButtonElement>('[aria-label="Abrir ficha de Paciente fictício"]')
     ?.click();
   await vi.waitFor(() =>
-    expect(document.getElementById('resumo-raiz')?.textContent).toContain(
+    expect(document.getElementById('ficha-painel')?.textContent).toContain(
       'Dado da sessão anterior',
     ),
   );
@@ -79,9 +79,9 @@ it('descarta resumo ao trocar profissional durante revalidação', async () => {
   document.dispatchEvent(new Event('visibilitychange'));
   await vi.waitFor(() => expect(consultasB).toBeGreaterThan(0));
   await vi.waitFor(() => expect(document.getElementById('login-view')?.hidden).toBe(false));
-  expect(document.getElementById('resumo-panel')?.hidden).toBe(true);
-  expect(document.getElementById('resumo-raiz')?.textContent).toBe('');
+  expect(document.getElementById('ficha-view')?.hidden).toBe(true);
+  expect(document.getElementById('ficha-view')?.textContent).toBe('');
   resolverPlano(envelope({ itens: [], proximo_cursor: null }));
   await new Promise((resolve) => setTimeout(resolve, 0));
-  expect(document.getElementById('resumo-raiz')?.textContent).toBe('');
+  expect(document.getElementById('ficha-view')?.textContent).toBe('');
 });
