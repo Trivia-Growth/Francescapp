@@ -278,6 +278,8 @@ textarea {
   display: block;
   width: 100%;
   min-height: 48px;
+  /* 16px evita o zoom automático do iOS ao focar; o rótulo pai tem 15px e o campo herdava. */
+  font-size: 1rem;
   border: 1px solid var(--field-line);
   border-radius: 7px;
   padding: 10px 12px;
@@ -930,6 +932,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .ficha-secao label {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 7px;
 }
 .ficha-secao textarea {

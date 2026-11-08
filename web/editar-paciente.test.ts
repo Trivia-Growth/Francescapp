@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
+import { FalhaApi } from './api.js';
 import { montarEdicaoPaciente, type ServicoEdicaoPaciente } from './editar-paciente.js';
 
 const id = '00000000-0000-4000-8000-000000000001';
@@ -10,6 +11,7 @@ const paciente = {
   data_nascimento: null,
   versao: 2,
   contatos: [],
+  acompanhamento: [],
 };
 const vazio = { epoca: 1, reserva: null, resultado_pendente: null };
 
@@ -234,4 +236,178 @@ it('não encerra reserva de edição em outra aba sem confirmação', async () =
   expect(ciclo.encerrar).not.toHaveBeenCalled();
   expect(raiz.querySelector('form')).toBeNull();
   confirmar.mockRestore();
+});
+
+const ana = '30000000-0000-4000-8000-000000000003';
+const bia = '30000000-0000-4000-8000-000000000004';
+const equipe = [
+  { usuario_id: ana, rotulo: 'ana@exemplo.test (Profissional)', ativo: true },
+  { usuario_id: bia, rotulo: 'bia@exemplo.test (Profissional)', ativo: false },
+];
+const mudanca = (parcial: Record<string, unknown> = {}) => ({
+  versao: 3,
+  situacao: 'ativo',
+  responsavel_id: ana,
+  responsavel_ativo: true,
+  ator_id: id,
+  criado_em: '2026-11-05T15:00:00.000000+00:00',
+  motivo: 'Início fictício',
+  ...parcial,
+});
+
+async function abrirComCaso(
+  acompanhamento: unknown[],
+  extra: Record<string, unknown> = {},
+  editar = vi.fn().mockResolvedValue(undefined),
+) {
+  const ciclo = {
+    consultar: vi.fn().mockResolvedValue(vazio),
+    encerrar: vi.fn().mockResolvedValue('vazia'),
+    reconhecer: vi.fn(),
+    liberar: vi.fn(),
+    editar,
+  };
+  const raiz = document.createElement('div');
+  montarEdicaoPaciente(
+    raiz,
+    id,
+    {
+      ciclo,
+      consultarPaciente: vi.fn().mockResolvedValue({ ...paciente, acompanhamento }),
+      ...extra,
+    } as unknown as ServicoEdicaoPaciente,
+    vi.fn(),
+  );
+  raiz.querySelector('button')?.click();
+  await vi.waitFor(() => expect(raiz.querySelector('form')).not.toBeNull());
+  const [situacao, responsavel] = [...raiz.querySelectorAll('select')];
+  const motivo = raiz.querySelector('textarea');
+  if (!situacao || !responsavel || !motivo) throw new Error('Campos ausentes');
+  return { raiz, ciclo, situacao, responsavel, motivo };
+}
+const resumoDe = (raiz: HTMLElement) => raiz.querySelector('.caso-resumo')?.textContent ?? '';
+
+it('mostra situação, responsável e histórico, oferece só equipe ativa e envia apenas o que mudou', async () => {
+  const antigo = mudanca({
+    versao: 2,
+    situacao: 'entrada',
+    responsavel_id: null,
+    responsavel_ativo: null,
+    motivo: 'Cadastro fictício',
+  });
+  const { raiz, ciclo, situacao, responsavel, motivo } = await abrirComCaso([mudanca(), antigo], {
+    listarResponsaveis: vi.fn().mockResolvedValue(equipe),
+  });
+  await vi.waitFor(() => expect(resumoDe(raiz)).toContain('ana@exemplo.test'));
+  const resumo = resumoDe(raiz);
+  expect(resumo).toContain('Situação: Ativo');
+  expect(resumo).toContain('Responsável: ana@exemplo.test (Profissional)');
+  expect(resumo).toContain('Desde 05/11/2026. Motivo: Início fictício');
+  expect(resumo).toContain('Histórico de mudanças (2)');
+  expect(resumo).toContain(
+    'Situação: Entrada · Responsável: a completar · Motivo: Cadastro fictício',
+  );
+  expect([...responsavel.options].map((opcao) => opcao.textContent)).toEqual([
+    'Selecione…',
+    'ana@exemplo.test (Profissional)',
+  ]);
+  expect(situacao.value).toBe('ativo');
+  expect(responsavel.value).toBe(ana);
+  situacao.value = 'pausado';
+  motivo.value = 'Pausa fictícia';
+  raiz.querySelector('form')?.requestSubmit();
+  await vi.waitFor(() => expect(ciclo.editar).toHaveBeenCalled());
+  expect(ciclo.editar).toHaveBeenCalledWith(id, {
+    situacao: 'pausado',
+    versao_esperada: paciente.versao,
+    motivo: 'Pausa fictícia',
+  });
+});
+
+it('indica o que falta completar em caso anterior e não envia situação nem responsável sem escolha', async () => {
+  const { raiz, ciclo, situacao, responsavel, motivo } = await abrirComCaso([], {
+    listarResponsaveis: vi.fn().mockResolvedValue(equipe),
+  });
+  await vi.waitFor(() => expect(responsavel.disabled).toBe(false));
+  const resumo = resumoDe(raiz);
+  expect(resumo).toContain('Situação: a completar');
+  expect(resumo).toContain('Responsável: a completar');
+  expect(resumo).toContain(
+    'A completar: nome de preferência, data de nascimento, contato, situação do caso, responsável.',
+  );
+  expect(situacao.value).toBe('');
+  expect(responsavel.value).toBe('');
+  motivo.value = 'Sem escolha';
+  raiz.querySelector('form')?.requestSubmit();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Altere ao menos um campo'));
+  expect(ciclo.editar).not.toHaveBeenCalled();
+});
+
+it('sinaliza responsável inativo, não o oferece e envia a nova indicação', async () => {
+  const { raiz, ciclo, responsavel, motivo } = await abrirComCaso(
+    [mudanca({ responsavel_id: bia, responsavel_ativo: false })],
+    { listarResponsaveis: vi.fn().mockResolvedValue(equipe) },
+  );
+  await vi.waitFor(() => expect(resumoDe(raiz)).toContain('bia@exemplo.test'));
+  expect(resumoDe(raiz)).toContain(
+    'Responsável: bia@exemplo.test (Profissional) (inativo: indique um novo responsável)',
+  );
+  expect([...responsavel.options].some((opcao) => opcao.value === bia)).toBe(false);
+  expect(responsavel.value).toBe('');
+  responsavel.value = ana;
+  motivo.value = 'Nova indicação';
+  raiz.querySelector('form')?.requestSubmit();
+  await vi.waitFor(() => expect(ciclo.editar).toHaveBeenCalled());
+  expect(ciclo.editar).toHaveBeenCalledWith(id, {
+    responsavel_id: ana,
+    versao_esperada: paciente.versao,
+    motivo: 'Nova indicação',
+  });
+});
+
+it('trata responsável recusado como recusa definitiva, mantendo o rascunho e a confirmação da barreira', async () => {
+  const { raiz, ciclo, responsavel, motivo } = await abrirComCaso(
+    [mudanca({ responsavel_id: null, responsavel_ativo: null })],
+    { listarResponsaveis: vi.fn().mockResolvedValue(equipe) },
+    vi.fn().mockRejectedValue(new FalhaApi('responsavel_invalido', 422)),
+  );
+  await vi.waitFor(() => expect(responsavel.disabled).toBe(false));
+  responsavel.value = ana;
+  motivo.value = 'Troca fictícia';
+  raiz.querySelector('form')?.requestSubmit();
+  await vi.waitFor(() => expect(ciclo.editar).toHaveBeenCalled());
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Nada foi alterado'));
+  expect(raiz.textContent).toContain('O responsável indicado não está disponível.');
+  expect(raiz.textContent).not.toContain('Não foi possível confirmar o salvamento');
+  expect(motivo.value).toBe('Troca fictícia');
+  expect(
+    [...raiz.querySelectorAll('button')].some(
+      (botao) => botao.textContent === 'Confirmar situação da edição' && !botao.hidden,
+    ),
+  ).toBe(true);
+});
+
+it('mantém a situação editável quando a equipe não pode ser listada', async () => {
+  const semLista = await abrirComCaso([mudanca()]);
+  expect(semLista.responsavel.disabled).toBe(true);
+  expect(semLista.responsavel.options[0]?.textContent).toBe(
+    'Listagem da equipe indisponível para este perfil',
+  );
+  semLista.situacao.value = 'encerrado';
+  semLista.motivo.value = 'Alta fictícia';
+  semLista.raiz.querySelector('form')?.requestSubmit();
+  await vi.waitFor(() => expect(semLista.ciclo.editar).toHaveBeenCalled());
+  expect(semLista.ciclo.editar).toHaveBeenCalledWith(id, {
+    situacao: 'encerrado',
+    versao_esperada: paciente.versao,
+    motivo: 'Alta fictícia',
+  });
+  const falha = await abrirComCaso([mudanca()], {
+    listarResponsaveis: vi.fn().mockRejectedValue(new Error()),
+  });
+  await vi.waitFor(() =>
+    expect(falha.responsavel.options[0]?.textContent).toContain('Não foi possível listar a equipe'),
+  );
+  expect(falha.responsavel.disabled).toBe(true);
+  expect(resumoDe(falha.raiz)).toContain('Responsável: Responsável indicado');
 });

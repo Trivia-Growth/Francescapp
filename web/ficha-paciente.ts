@@ -153,6 +153,8 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
       const selecionada = id === atual;
       aba.setAttribute('aria-selected', String(selecionada));
       aba.tabIndex = selecionada ? 0 : -1;
+      // Na faixa rolável do celular, a aba atual precisa estar à vista, também depois de recarregar.
+      if (selecionada) aba.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     }
     painel.setAttribute('aria-labelledby', `ficha-aba-${atual}`);
   }

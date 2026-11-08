@@ -147,6 +147,7 @@ it('administrador reabre paciente fora da página pelo endpoint de consulta', as
           versao: 1,
           data_nascimento: null,
           contatos: [],
+          acompanhamento: [],
         })
       : caminho === `/api/pacientes/${C}/plano`
         ? envelope({ itens: [], proximo_cursor: null })
@@ -251,4 +252,51 @@ it('remove a visão do caso do DOM com a aba oculta e a recarrega ao voltar', as
   await vi.waitFor(() => expect(painel()).toContain('Tarefa de Helena'));
   expect(el('patients-view').hidden).toBe(false);
   Reflect.deleteProperty(document, 'hidden');
+});
+
+it('mostra situação e responsável na visão só ao Administrador com edição disponível', async () => {
+  const caminhos = preparar('administrador', ['administrar_cadastro'], (caminho) =>
+    caminho === '/api/pacientes/edicao/disponibilidade'
+      ? envelope({ disponivel: true })
+      : caminho === `/api/pacientes/${A}`
+        ? envelope({
+            id: A,
+            nome: 'Helena Souza',
+            nome_preferencia: 'Lena',
+            data_nascimento: null,
+            contatos: [],
+            versao: 3,
+            acompanhamento: [
+              {
+                versao: 3,
+                situacao: 'pausado',
+                responsavel_id: usuarioId,
+                responsavel_ativo: true,
+                ator_id: usuarioId,
+                criado_em: '2026-11-06T15:00:00.000000+00:00',
+                motivo: 'Pausa fictícia',
+              },
+            ],
+          })
+        : undefined,
+  );
+  await import('./main.js');
+  await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
+  document.querySelector<HTMLButtonElement>(linha(A))?.click();
+  await vi.waitFor(() => expect(painel()).toContain('Situação: Pausado'));
+  expect(painel()).toContain('Responsável: Responsável indicado');
+  expect(painel()).not.toContain('Pausa fictícia');
+  expect(painel()).not.toContain('Situação do caso e responsável: indisponíveis');
+  expect(caminhos).not.toContain('/api/admin/concessoes-equipe');
+});
+
+it('não consulta nem mostra situação e responsável para o Profissional', async () => {
+  const caminhos = preparar('profissional', []);
+  await import('./main.js');
+  await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
+  document.querySelector<HTMLButtonElement>(linha(A))?.click();
+  await vi.waitFor(() => expect(painel()).toContain('Tarefa de Helena'));
+  expect(document.querySelector('[data-bloco="situacao"]')).toBeNull();
+  expect(painel()).toContain('Situação do caso e responsável: indisponíveis nesta versão');
+  expect(caminhos).not.toContain(`/api/pacientes/${A}`);
 });

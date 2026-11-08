@@ -227,3 +227,120 @@ it('invalida respostas pendentes ao desmontar', async () => {
   await aguardar();
   expect(raiz.textContent).toBe('');
 });
+
+const ana = '30000000-0000-4000-8000-000000000003';
+const equipe = [{ usuario_id: ana, rotulo: 'ana@exemplo.test (Profissional)', ativo: true }];
+const edicao = (acompanhamento: unknown[]) => ({
+  id,
+  nome: 'Helena Fictícia',
+  nome_preferencia: 'Lena',
+  data_nascimento: null,
+  contatos: [],
+  versao: 3,
+  acompanhamento,
+});
+const mudanca = (parcial: Record<string, unknown> = {}) => ({
+  versao: 3,
+  situacao: 'pausado',
+  responsavel_id: ana,
+  responsavel_ativo: true,
+  ator_id: id,
+  criado_em: '2026-11-06T15:00:00.000000+00:00',
+  motivo: 'Pausa fictícia',
+  ...parcial,
+});
+
+it('Administrador vê situação e responsável persistidos com a data e sem a linha de indisponível', async () => {
+  montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      situacao: {
+        consultarPaciente: async () => edicao([mudanca()]),
+        listarResponsaveis: async () => equipe,
+      },
+    }),
+    () => false,
+  );
+  await vi.waitFor(() => expect(bloco('situacao').textContent).toContain('Atualizado em'));
+  const texto = bloco('situacao').textContent ?? '';
+  expect(texto).toContain('Situação: Pausado');
+  expect(texto).toContain('Responsável: ana@exemplo.test (Profissional)');
+  expect(texto).toContain('Atualizado em 06/11/2026.');
+  expect(texto).not.toContain('Pausa fictícia');
+  const indisponivel = bloco('indisponivel').textContent ?? '';
+  expect(indisponivel).not.toContain('Situação do caso e responsável');
+  expect(indisponivel).toContain('Mudanças recentes: indisponíveis nesta versão');
+});
+
+it('indica a completar sem acompanhamento e sinaliza responsável inativo, sem inventar valor', async () => {
+  montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({ situacao: { consultarPaciente: async () => edicao([]) } }),
+    () => false,
+  );
+  await vi.waitFor(() =>
+    expect(bloco('situacao').textContent).toContain('A completar: situação do caso e responsável'),
+  );
+  expect(bloco('situacao').textContent).toContain('Data da última atualização indisponível.');
+  raiz.replaceChildren();
+  montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      situacao: {
+        consultarPaciente: async () => edicao([mudanca({ responsavel_ativo: false })]),
+        listarResponsaveis: async () => {
+          throw new FalhaApi('servico_indisponivel', 503);
+        },
+      },
+    }),
+    () => false,
+  );
+  await vi.waitFor(() => expect(bloco('situacao').textContent).toContain('Situação: Pausado'));
+  expect(bloco('situacao').textContent).toContain(
+    'Responsável: Responsável indicado (inativo: indique um novo responsável)',
+  );
+});
+
+it('falha da leitura de situação aparece só nesse bloco, com nova tentativa', async () => {
+  let tentativa = 0;
+  montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      situacao: {
+        consultarPaciente: async () => {
+          tentativa += 1;
+          if (tentativa === 1) throw new FalhaApi('servico_indisponivel', 503);
+          return edicao([mudanca()]);
+        },
+      },
+    }),
+    () => false,
+  );
+  await vi.waitFor(() => expect(bloco('situacao').textContent).toContain('Tentar novamente'));
+  expect(bloco('situacao').textContent).not.toContain('A completar');
+  await vi.waitFor(() => expect(bloco('objetivos').textContent).toContain('Caminhar'));
+  bloco('situacao').querySelector('button')?.click();
+  await vi.waitFor(() => expect(bloco('situacao').textContent).toContain('Situação: Pausado'));
+});
+
+it('leitura negada da situação leva à nova entrada e limpa o conteúdo', async () => {
+  const acessoPerdido = vi.fn(() => true);
+  montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      situacao: {
+        consultarPaciente: async () => {
+          throw new FalhaApi('sem_permissao', 403);
+        },
+      },
+    }),
+    acessoPerdido,
+  );
+  await vi.waitFor(() => expect(acessoPerdido).toHaveBeenCalledTimes(1));
+  expect(raiz.textContent).toBe('');
+});

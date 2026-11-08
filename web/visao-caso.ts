@@ -1,5 +1,11 @@
-import type { Anamnese } from '../packages/contracts/src/index.js';
+import type { Anamnese, PacienteEdicao } from '../packages/contracts/src/index.js';
+import {
+  descreverResponsavel,
+  rotulosSituacao,
+  type ResponsavelOpcao,
+} from './acompanhamento-caso.js';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
+import { dataDeInstante } from './datas.js';
 import type { PacienteFicha } from './ficha-paciente.js';
 import type { ObjetivoAtual, Pagina, ServicoPlanoCuidado } from './plano-cuidado.js';
 import type { RegistroTarefaCuidado as RegistroTarefa } from '../packages/contracts/src/tarefa-cuidado.js';
@@ -10,21 +16,15 @@ export type FontesVisaoCaso = {
   objetivos?: Pick<ServicoPlanoCuidado, 'consultarObjetivos'>;
   tarefas?: Pick<ServicoTarefasCuidado, 'consultarTarefas'>;
   anamnese?: { consultarAnamnese(pacienteId: string): Promise<Anamnese | null> };
+  /** Só o Administrador: situação e responsável vêm da leitura de edição, que o servidor nega aos demais. */
+  situacao?: {
+    consultarPaciente(pacienteId: string): Promise<PacienteEdicao>;
+    listarResponsaveis?: () => Promise<ResponsavelOpcao[]>;
+  };
 };
 
 const LIMITE_TAREFAS = 8;
 const OBJETIVOS_ENCERRADOS = new Set(['atingido', 'encerrado']);
-const formatadorData = new Intl.DateTimeFormat('pt-BR', {
-  dateStyle: 'short',
-  timeZone: 'America/Sao_Paulo',
-});
-
-function dataDeInstante(iso: string | undefined): string | null {
-  if (!iso) return null;
-  const instante = new Date(iso);
-  return Number.isNaN(instante.getTime()) ? null : formatadorData.format(instante);
-}
-
 function dataCivil(valor: string): string {
   const [ano, mes, dia] = valor.split('-');
   return ano && mes && dia ? `${dia}/${mes}/${ano}` : valor;
@@ -141,7 +141,43 @@ export function montarVisaoCaso(
   );
   blocos.push(identificacao.secao);
 
-  const { objetivos, tarefas, anamnese } = fontes;
+  const { objetivos, tarefas, anamnese, situacao } = fontes;
+  if (situacao)
+    blocos.push(
+      bloco<{ edicao: PacienteEdicao; opcoes: ResponsavelOpcao[] }>(
+        'situacao',
+        'Situação e responsável',
+        async () => {
+          const edicao = await situacao.consultarPaciente(paciente.id);
+          if (edicao.id.toLowerCase() !== paciente.id.toLowerCase()) throw new Error();
+          let opcoes: ResponsavelOpcao[] = [];
+          if (situacao.listarResponsaveis)
+            try {
+              opcoes = await situacao.listarResponsaveis();
+            } catch (erro) {
+              // Sem a lista da equipe o responsável aparece sem identificação, mas a situação não se perde.
+              if (exigeNovoAcesso(erro)) throw erro;
+            }
+          return { edicao, opcoes };
+        },
+        ({ edicao, opcoes }, corpo) => {
+          const atual = edicao.acompanhamento[0];
+          if (!atual) {
+            corpo.append(
+              elemento('p', 'A completar: situação do caso e responsável ainda não indicados.'),
+            );
+            return {};
+          }
+          corpo.append(
+            lista([
+              `Situação: ${atual.situacao ? rotulosSituacao[atual.situacao] : 'a completar'}`,
+              `Responsável: ${descreverResponsavel(atual, opcoes)}`,
+            ]),
+          );
+          return { atualizadoEm: atual.criado_em };
+        },
+      ),
+    );
   if (objetivos)
     blocos.push(
       bloco<Pagina<ObjetivoAtual & { data?: string }>>(
@@ -243,7 +279,7 @@ export function montarVisaoCaso(
   const indisponiveis = blocoBase('indisponivel', 'Ainda sem fonte nesta versão');
   indisponiveis.corpo.append(
     lista([
-      'Situação do caso e responsável: indisponíveis nesta versão',
+      ...(situacao ? [] : ['Situação do caso e responsável: indisponíveis nesta versão']),
       'Mudanças recentes: indisponíveis nesta versão',
       'Atenção sinalizada por profissional: indisponível nesta versão',
       'Agenda: indisponível nesta versão',

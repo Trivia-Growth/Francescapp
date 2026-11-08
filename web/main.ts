@@ -29,6 +29,7 @@ import {
 } from './ficha-paciente.js';
 import { montarDadosFamiliar } from './secao-dados-familiar.js';
 import { montarVisaoCaso } from './visao-caso.js';
+import { criarCatalogoResponsaveis, type ResponsavelOpcao } from './acompanhamento-caso.js';
 
 function elemento<T extends HTMLElement>(id: string): T {
   const encontrado = document.getElementById(id);
@@ -272,6 +273,7 @@ function montarSecaoCadastro(
   raiz: HTMLElement,
   pacienteId: string,
   pendente: (valor: boolean) => void,
+  listarResponsaveis?: () => Promise<ResponsavelOpcao[]>,
 ): () => void {
   const estado = { edicao: false, contato: false };
   const sincronizar = () => pendente(estado.edicao || estado.contato);
@@ -284,7 +286,10 @@ function montarSecaoCadastro(
     desmontarEdicao = montarEdicaoPaciente(
       edicaoRaiz,
       pacienteId,
-      criarServicoEdicaoPacienteHttp(identidadeAtual),
+      {
+        ...criarServicoEdicaoPacienteHttp(identidadeAtual),
+        ...(listarResponsaveis ? { listarResponsaveis } : {}),
+      },
       acessoPerdido,
       (valor) => {
         estado.edicao = valor;
@@ -337,6 +342,20 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
           {
             objetivos: criarServicoPlanoHttp(identidadeAtual),
             anamnese: api,
+            ...(administraCadastro && edicaoDisponivel
+              ? {
+                  situacao: {
+                    consultarPaciente: (id: string) => api.consultarPaciente(id),
+                    ...(administraConcessoes
+                      ? {
+                          listarResponsaveis: criarCatalogoResponsaveis((cursor) =>
+                            api.listarProfissionais(cursor),
+                          ),
+                        }
+                      : {}),
+                  },
+                }
+              : {}),
             ...(atual.usuario.perfil === 'profissional'
               ? { tarefas: criarServicoTarefasHttp(identidadeAtual) }
               : {}),
@@ -388,7 +407,15 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'cadastro',
       rotulo: 'Cadastro',
       descarte: descarteCadastro,
-      montar: (raiz, pendente) => montarSecaoCadastro(raiz, paciente.id, pendente),
+      montar: (raiz, pendente) =>
+        montarSecaoCadastro(
+          raiz,
+          paciente.id,
+          pendente,
+          administraConcessoes
+            ? criarCatalogoResponsaveis((cursor) => api.listarProfissionais(cursor))
+            : undefined,
+        ),
     });
   if (administraConcessoes)
     secoes.push({

@@ -27,7 +27,7 @@ import {
   entrarTecnicoSchema,
   entrarFamiliarSchema,
   chaveIdempotenciaSchema,
-  pacienteAdministrativoSchema,
+  pacienteEdicaoSchema,
   pacienteBasicoSchema,
   type novoContatoSchema,
   type AtualizarPaciente,
@@ -116,7 +116,7 @@ const rotas = {
     ...contratosRotas.listarPacientes,
     caminho: '/api/familiar/pacientes',
   },
-  consultarPaciente: { ...contratosRotas.consultarPaciente, saida: pacienteAdministrativoSchema },
+  consultarPaciente: { ...contratosRotas.consultarPaciente, saida: pacienteEdicaoSchema },
   consultarPacienteFamiliar: {
     ...contratosRotas.consultarPaciente,
     caminho: '/api/familiar/pacientes/:paciente_id',
