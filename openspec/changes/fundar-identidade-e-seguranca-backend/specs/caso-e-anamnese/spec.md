@@ -18,6 +18,10 @@ O sistema SHALL permitir cadastro do paciente com nome obrigatório; nome de pre
 - **WHEN** o cadastro for consultado sem nascimento ou contato informado
 - **THEN** apresenta ausência de informação, sem inventar data, idade ou meio de contato.
 
+#### Scenario: Vigência após a decisão de 08/11/2026
+- **WHEN** um Administrador cadastrar caso novo depois da ativação da entrega 2 da change `ficha-do-paciente`
+- **THEN** o cadastro exige também preferência, nascimento, ao menos um contato, situação e case manager, sem exigir CPF, familiar nem anamnese, e o cadastro mínimo acima segue valendo até lá e para os casos já existentes.
+
 ### Requirement: Relação pessoal não é concessão de acesso
 
 Familiares e responsáveis SHALL ser vinculados separadamente ao paciente. Registrar relação, responsabilidade ou contato MUST NOT criar conta, perfil ou acesso ao caso. O acesso de Profissional ou Família SHALL depender de concessão e vínculo de acesso vigentes, distintos dessas relações. Fase Inicial; complementa FR-002/035/037/051 e SC-007/011.

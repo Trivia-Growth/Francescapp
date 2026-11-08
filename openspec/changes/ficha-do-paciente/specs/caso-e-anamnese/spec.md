@@ -37,6 +37,14 @@ Cadastrar caso com identificação necessária, nome de preferência, contatos, 
 - **WHEN** o usuário indicado como case manager perde o acesso ativo
 - **THEN** a ficha informa que o responsável está inativo e pede nova indicação, sem apagar o histórico de indicações
 
+#### Scenario: Indicar responsável não concede acesso
+- **WHEN** o Administrador indica como case manager um Profissional que não tem acesso ao paciente
+- **THEN** nenhum acesso ao paciente é criado e o Profissional continua sem ler o caso
+
+#### Scenario: Situação, responsável e motivo só para quem administra
+- **WHEN** Profissional ou Família consulta o caso, inclusive por acesso direto, enquanto a leitura por esses perfis não estiver especificada e provada
+- **THEN** a resposta não contém situação, responsável nem motivo da mudança
+
 #### Scenario: Somente o Administrador altera
 - **WHEN** um Profissional com acesso ao caso tenta alterar a situação ou o case manager
 - **THEN** a alteração é recusada pelo servidor e pelo banco e o caso permanece inalterado
