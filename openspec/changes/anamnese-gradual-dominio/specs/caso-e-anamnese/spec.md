@@ -34,3 +34,17 @@ Até definição da FFCM, o sistema SHALL permitir consulta e edição da anamne
 
 - **WHEN** familiar, usuário inativo, sessão encerrada ou concessão revogada tenta consultar ou editar
 - **THEN** a operação é negada também no acesso direto ao banco.
+
+### Requirement: Consulta do histórico de anamnese
+
+O sistema SHALL permitir a colaborador autorizado consultar versões anteriores da anamnese de um paciente, preservando a proveniência e os controles de acesso e auditoria da leitura atual.
+
+#### Scenario: Navegação entre versões
+
+- **WHEN** colaborador autorizado solicita histórico
+- **THEN** recebe versões em ordem decrescente, uma por página, sem sobrescrever a versão atual.
+
+#### Scenario: Acesso revogado
+
+- **WHEN** sessão ou concessão é revogada antes de uma página
+- **THEN** a consulta é negada e nenhuma versão é retornada.

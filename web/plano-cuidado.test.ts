@@ -197,6 +197,50 @@ it('mantém criação bloqueada após consulta quando salvamento pode concluir d
   expect(criarObjetivo).toHaveBeenCalledTimes(1);
 });
 
+it('impede reconhecimento de resultado de criação de outro paciente', async () => {
+  const id = '00000000-0000-4000-8000-000000000001';
+  const outro = '00000000-0000-4000-8000-000000000002';
+  const ciclo = {
+    consultar: vi.fn().mockResolvedValue({
+      epoca: 1,
+      reserva: null,
+      resultado_pendente: {
+        recibo_id: id,
+        reserva_id: id,
+        resultado: 'confirmada',
+        paciente_id: outro,
+        objetivo_id: id,
+      },
+    }),
+    encerrar: vi.fn(),
+    reconhecer: vi.fn(),
+    liberar: vi.fn(),
+    criar: vi.fn(),
+  };
+  const raiz = document.createElement('div');
+  montar(
+    raiz,
+    id,
+    {
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi.fn().mockResolvedValue({ itens: [], proximo_cursor: null }),
+      revisarObjetivo: vi.fn(),
+      ciclo,
+    } as unknown as ServicoPlanoCuidado,
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Confirmar situação de criação'));
+  const recuperar = [...raiz.querySelectorAll('button')].find(
+    (b) => b.textContent === 'Confirmar situação de criação',
+  );
+  recuperar?.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('outro paciente'));
+  expect(raiz.textContent).not.toContain(outro);
+  expect(ciclo.reconhecer).not.toHaveBeenCalled();
+  expect(ciclo.liberar).not.toHaveBeenCalled();
+  expect(recuperar?.hidden).toBe(true);
+});
+
 it('consulta histórico sob demanda e limpa dados ao perder acesso', async () => {
   const raiz = document.createElement('div');
   const acessoPerdido = vi.fn();
@@ -375,4 +419,36 @@ it('preserva rascunho de revisão e impede abertura durante reconciliação', as
   expect(raiz.querySelector('form')).toBeNull();
   concluir({ epoca: 1, reserva: null, resultado_pendente: null });
   await vi.waitFor(() => expect(botao('Adicionar objetivo')?.disabled).toBe(false));
+});
+
+it('confirma antes de descartar alterações ao cancelar revisão', async () => {
+  const raiz = document.createElement('div');
+  montarPlanoCuidado(
+    raiz,
+    'paciente',
+    {
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi.fn().mockResolvedValue({ itens: [atual], proximo_cursor: null }),
+      criarObjetivo: vi.fn(),
+      revisarObjetivo: vi.fn(),
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Revisar objetivo'));
+  [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Revisar objetivo')?.click();
+  const campo = raiz.querySelector('form textarea');
+  if (!campo) throw new Error('Campo ausente');
+  campo.value = 'Rascunho fictício';
+  campo.dispatchEvent(new Event('input', { bubbles: true }));
+  const confirmar = vi
+    .spyOn(window, 'confirm')
+    .mockReturnValueOnce(false)
+    .mockReturnValueOnce(true);
+  const cancelar = [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Cancelar');
+  cancelar?.click();
+  expect(campo.value).toBe('Rascunho fictício');
+  expect(raiz.querySelector('form')).not.toBeNull();
+  cancelar?.click();
+  expect(raiz.querySelector('form')).toBeNull();
+  confirmar.mockRestore();
 });

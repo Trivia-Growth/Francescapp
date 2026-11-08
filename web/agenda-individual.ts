@@ -90,7 +90,12 @@ export function montarAgendaIndividual(
   }
   const operacoesRaiz = document.createElement('div');
   raiz.append(operacoesRaiz);
-  const operacoes = montarOperacoesAgenda(operacoesRaiz, cabecalhos, () => void carregar());
+  const operacoes = montarOperacoesAgenda(
+    operacoesRaiz,
+    cabecalhos,
+    () => void carregar(),
+    usuarioId,
+  );
   const vinculos = montarVinculoAgenda(
     operacoesRaiz,
     cabecalhos,

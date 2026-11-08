@@ -3,11 +3,11 @@ import {
   type Anamnese,
   type SalvarAnamnese,
 } from '../packages/contracts/src/index.js';
-import { localizarPendencias } from '../packages/cadastro/src/anamnese.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 
 type Servico = {
   consultarAnamnese(pacienteId: string): Promise<Anamnese | null>;
+  consultarHistoricoAnamnese?(pacienteId: string, antesVersao?: number): Promise<Anamnese | null>;
   salvarAnamnese(pacienteId: string, entrada: SalvarAnamnese, chave: string): Promise<Anamnese>;
 };
 
@@ -18,6 +18,7 @@ export function montarAnamnese(
   servico: Servico,
   acessoPerdido: (erro: unknown) => void,
   alteracaoPendente: (pendente: boolean) => void = () => {},
+  historicoHabilitado: boolean | Promise<boolean> = false,
 ): () => void {
   let ativa = true;
   let versao = 0;
@@ -39,6 +40,8 @@ export function montarAnamnese(
   const status = elemento('p', 'Carregando anamnese…');
   status.setAttribute('role', 'status');
   raiz.replaceChildren(status);
+  let historicoDisponivel = false;
+  let mostrarHistorico: (() => void) | undefined;
   const desenhar = (resultado: Anamnese | null) => {
     if (!ativa) return;
     versao = resultado?.versao ?? 0;
@@ -53,15 +56,8 @@ export function montarAnamnese(
     retry.hidden = true;
     form.append(elemento('h2', 'Anamnese de coordenação'));
     const secoes = resultado?.secoes ?? [];
-    const pendencias = localizarPendencias(secoes);
-    form.append(
-      elemento(
-        'p',
-        pendencias.length
-          ? `Seções com pendências: ${pendencias.map((p) => p.secao).join(', ')}.`
-          : 'Nenhuma pendência identificada nos campos informados.',
-      ),
-    );
+    const resumoPendencias = elemento('p');
+    form.append(resumoPendencias);
     if (!secoes.length) form.append(elemento('p', 'Nenhuma seção registrada.'));
     type Campo = {
       secao: string;
@@ -73,6 +69,41 @@ export function montarAnamnese(
       data: HTMLInputElement;
     };
     const entradas: Campo[] = [];
+    const respostaDe = (e: Campo) =>
+      e.estado.value === 'pendente'
+        ? { campo: e.campo, estado: 'pendente' }
+        : {
+            campo: e.campo,
+            estado: e.estado.value,
+            fonte: e.fonte.value,
+            data: e.data.value,
+            ...(e.estado.value === 'informado' ? { valor: e.valor.value } : {}),
+          };
+    const atualizarPendencias = () => {
+      const secoesPendentes = [
+        ...new Set(
+          entradas
+            .filter(
+              (e) =>
+                e.esperado &&
+                (e.estado.value === 'pendente' ||
+                  !salvarAnamneseSchema.safeParse({
+                    versao_esperada: versao,
+                    secoes: [
+                      { id: e.secao, camposEsperados: [e.campo], respostas: [respostaDe(e)] },
+                    ],
+                  }).success),
+            )
+            .map((e) => e.secao),
+        ),
+      ];
+      resumoPendencias.textContent =
+        !entradas.length && !secoes.length
+          ? 'Adicione uma seção e um campo para começar.'
+          : secoesPendentes.length
+            ? `Seções com pendências: ${secoesPendentes.join(', ')}.`
+            : 'Nenhuma pendência identificada nos campos informados.';
+    };
     const adicionar = (
       secao: string,
       campo: string,
@@ -115,10 +146,14 @@ export function montarAnamnese(
         valor.disabled = estado.value !== 'informado';
         fonte.disabled = data.disabled = estado.value === 'pendente';
       };
-      estado.addEventListener('change', atualizar);
+      estado.addEventListener('change', () => {
+        atualizar();
+        atualizarPendencias();
+      });
       atualizar();
       entradas.push({ secao, campo, esperado, estado, valor, fonte, data });
       campos.append(grupo);
+      atualizarPendencias();
     };
     for (const secao of secoes) {
       const nomes = new Set([...secao.camposEsperados, ...secao.respostas.map((r) => r.campo)]);
@@ -130,6 +165,7 @@ export function montarAnamnese(
           secao.respostas.find((r) => r.campo === campo),
         );
     }
+    atualizarPendencias();
     const novaSecao = elemento('input');
     const novoCampo = elemento('input');
     const rotularNovo = (texto: string, controle: HTMLElement) => {
@@ -156,6 +192,59 @@ export function montarAnamnese(
       aviso.textContent = '';
     });
     form.append(adicionarBotao, salvar, retry, aviso);
+    mostrarHistorico = () => {
+      if (
+        !ativa ||
+        !historicoDisponivel ||
+        !servico.consultarHistoricoAnamnese ||
+        form.querySelector('[data-historico]')
+      )
+        return;
+      const historico = elemento('section');
+      historico.dataset.historico = '';
+      historico.append(elemento('h3', 'Histórico de versões'));
+      const conteudo = elemento('div');
+      const historicoStatus = elemento('p');
+      historicoStatus.setAttribute('role', 'status');
+      const anterior = elemento('button', 'Consultar histórico');
+      anterior.type = 'button';
+      let cursor: number | undefined;
+      anterior.addEventListener('click', async () => {
+        if (!servico.consultarHistoricoAnamnese) return;
+        anterior.disabled = true;
+        historicoStatus.textContent = 'Carregando histórico…';
+        try {
+          const pagina = await servico.consultarHistoricoAnamnese(pacienteId, cursor);
+          if (!ativa) return;
+          conteudo.replaceChildren();
+          if (!pagina) {
+            historicoStatus.textContent = 'Não há outras versões.';
+            return;
+          }
+          cursor = pagina.versao;
+          historicoStatus.textContent = `Versão ${pagina.versao} — ${pagina.criado_em ?? ''} — autor ${pagina.criado_por_usuario_id ?? ''}`;
+          for (const secao of pagina.secoes) {
+            conteudo.append(elemento('h4', secao.id));
+            for (const resposta of secao.respostas) {
+              const detalhe =
+                resposta.estado === 'pendente'
+                  ? 'Pendente'
+                  : `${resposta.estado}${resposta.estado === 'informado' ? `: ${resposta.valor}` : ''} — ${resposta.fonte} — ${resposta.data}`;
+              conteudo.append(elemento('p', `${resposta.campo}: ${detalhe}`));
+            }
+          }
+          anterior.textContent = 'Versão anterior';
+          anterior.disabled = false;
+        } catch (erro) {
+          if (!ativa || descartarAcesso(erro)) return;
+          historicoStatus.textContent = mensagemFalha(erro);
+          anterior.disabled = false;
+        }
+      });
+      historico.append(anterior, historicoStatus, conteudo);
+      form.append(historico);
+    };
+    mostrarHistorico();
     const enviar = async () => {
       if (!pendente) return;
       salvar.disabled = retry.disabled = adicionarBotao.disabled = true;
@@ -189,11 +278,19 @@ export function montarAnamnese(
         }
       }
     };
-    form.addEventListener('input', () => alteracaoPendente(true));
+    form.addEventListener('input', () => {
+      alteracaoPendente(true);
+      atualizarPendencias();
+    });
     form.addEventListener('change', () => alteracaoPendente(true));
     form.addEventListener('submit', (evento) => {
       evento.preventDefault();
       if (pendente || conflitoVersao) return;
+      if (novaSecao.value.trim() || novoCampo.value.trim()) {
+        aviso.textContent = 'Adicione o campo preenchido ou limpe seção e campo antes de salvar.';
+        (novaSecao.value.trim() ? novoCampo : novaSecao).focus();
+        return;
+      }
       const agrupadas = new Map<
         string,
         { id: string; camposEsperados: string[]; respostas: unknown[] }
@@ -204,17 +301,7 @@ export function montarAnamnese(
       for (const e of entradas) {
         const secao = agrupadas.get(e.secao) ?? { id: e.secao, camposEsperados: [], respostas: [] };
         if (e.esperado) secao.camposEsperados.push(e.campo);
-        const resposta =
-          e.estado.value === 'pendente'
-            ? { campo: e.campo, estado: 'pendente' }
-            : {
-                campo: e.campo,
-                estado: e.estado.value,
-                fonte: e.fonte.value,
-                data: e.data.value,
-                ...(e.estado.value === 'informado' ? { valor: e.valor.value } : {}),
-              };
-        secao.respostas.push(resposta);
+        secao.respostas.push(respostaDe(e));
         agrupadas.set(e.secao, secao);
       }
       const validada = salvarAnamneseSchema.safeParse({
@@ -252,6 +339,13 @@ export function montarAnamnese(
         raiz.append(tentarNovamente);
       });
   };
+  void Promise.resolve(historicoHabilitado)
+    .then((disponivel) => {
+      if (!ativa) return;
+      historicoDisponivel = disponivel;
+      mostrarHistorico?.();
+    })
+    .catch(() => {});
   consultar();
   return () => {
     ativa = false;

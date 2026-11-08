@@ -104,3 +104,33 @@ it('protege edição não salva ao fechar, sair ou recarregar', async () => {
   expect(window.dispatchEvent(new Event('beforeunload', { cancelable: true }))).toBe(true);
   confirmar.mockRestore();
 });
+
+it.each([true, false])('exibe histórico apenas quando disponibilidade é %s', async (disponivel) => {
+  document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
+  sessionStorage.setItem('modo-acesso', 'tecnica');
+  sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
+  sessionStorage.setItem('sessao-tecnica', sessionId);
+  vi.stubGlobal('fetch', async (url: URL) => {
+    if (url.pathname === '/api/sessao')
+      return envelope({
+        session_id: sessionId,
+        usuario: { id, perfil: 'profissional', ativo: true, versao: 1 },
+        capacidades: [],
+      });
+    if (url.pathname === '/api/pacientes')
+      return envelope({
+        itens: [{ id, nome: 'Paciente fictício', nome_preferencia: null, versao: 1 }],
+        proximo_cursor: null,
+      });
+    if (url.pathname === '/api/anamnese/historico/disponibilidade') return envelope({ disponivel });
+    if (url.pathname === `/api/pacientes/${id}/anamnese`) return envelope(null);
+    throw new Error('Rota inesperada');
+  });
+  await import('./main.js');
+  await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
+  document.querySelector<HTMLButtonElement>('#patients-body button')?.click();
+  await vi.waitFor(() => expect(document.querySelector('#anamnese-raiz form')).not.toBeNull());
+  expect(
+    document.getElementById('anamnese-raiz')?.textContent?.includes('Consultar histórico'),
+  ).toBe(disponivel);
+});

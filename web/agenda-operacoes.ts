@@ -47,12 +47,17 @@ export function montarOperacoesAgenda(
   raiz: HTMLElement,
   cabecalhos: () => Headers,
   atualizar: () => void,
+  usuarioId: string,
 ) {
   let ativa = true;
-  const marcador = 'ffcm-agenda-operacao-incerta';
+  const marcador = `ffcm-agenda-operacao-incerta:${usuarioId}`;
+  const marcadorLegado = 'ffcm-agenda-operacao-incerta';
+  let envioLegado = false;
   let envioSemResposta = false;
   try {
-    envioSemResposta = localStorage.getItem(marcador) === '1';
+    // Marcador antigo não identifica usuário; nenhuma conta pode apagá-lo por inferência.
+    envioLegado = localStorage.getItem(marcadorLegado) !== null;
+    envioSemResposta = envioLegado || localStorage.getItem(marcador) !== null;
   } catch {
     envioSemResposta = true;
   }
@@ -184,7 +189,7 @@ export function montarOperacoesAgenda(
       if (!dados || typeof dados !== 'object' || !('estado' in dados)) throw new Error();
       if (dados.estado === 'confirmado') {
         localStorage.removeItem(marcador);
-        envioSemResposta = false;
+        envioSemResposta = envioLegado;
         await verificarPendencia();
         if (!incerto) {
           resultado.textContent = 'Operação confirmada no Google Calendar.';
@@ -276,7 +281,7 @@ export function montarOperacoesAgenda(
         )
       ) {
         localStorage.removeItem(marcador);
-        envioSemResposta = false;
+        envioSemResposta = envioLegado;
       }
       if (corpo.estado === 'confirmado') {
         formulario.hidden = true;

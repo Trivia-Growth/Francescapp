@@ -523,7 +523,16 @@ export const assinaturasRpc = {
     'administrador',
     mutacaoSchema
       .extend({
+        reserva_id: uuidSchema,
+        geracao_reserva: z.number().int().positive().safe(),
         concessao_id: uuidSchema,
+        versao_idempotencia: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/),
+        candidatos_idempotencia: z
+          .record(
+            z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/),
+            z.object({ concessao_id: uuidSchema, digest_idempotencia: base64UrlSchema }).strict(),
+          )
+          .refine((valor) => Object.keys(valor).length >= 1 && Object.keys(valor).length <= 16),
         email: campoCifradoSchema,
         email_hmac: base64UrlSchema,
         perfil: perfilSchema.exclude(['familia']),
@@ -680,6 +689,8 @@ export const assinaturasRpc = {
         paciente_id: uuidSchema,
         acesso_id: uuidSchema,
         usuario_id: uuidSchema,
+        reserva_id: uuidSchema,
+        geracao_reserva: z.number().int().positive().safe(),
         motivo: campoCifradoSchema,
       })
       .strict(),
@@ -690,7 +701,15 @@ export const assinaturasRpc = {
     'jwt-do-solicitante',
     'mutacao-auditada',
     'administrador',
-    alteracaoSchema.extend({ paciente_id: uuidSchema, acesso_id: uuidSchema }).strict(),
+    alteracaoSchema
+      .extend({
+        paciente_id: uuidSchema,
+        acesso_id: uuidSchema,
+        motivo_auditoria: campoCifradoSchema,
+        reserva_id: uuidSchema,
+        geracao_reserva: z.number().int().positive().safe(),
+      })
+      .strict(),
     operacaoConcluidaSchema,
   ),
   consultarAuditoria: assinatura(

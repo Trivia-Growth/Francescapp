@@ -24,6 +24,8 @@ export type ComandoTarefa =
       paciente_id: string;
       tarefa_id: string;
       versao_esperada: number;
+      reserva_id: string;
+      geracao_reserva: number;
       tarefa: unknown;
     };
 
@@ -89,10 +91,14 @@ export async function operarTarefaCuidadoNativo(
       const chave = chaveIdempotenciaSchema.safeParse(request.headers.get('x-chave-idempotencia'));
       const tarefa = tarefaCuidadoSchema.safeParse(comando.tarefa);
       const id = uuidSchema.safeParse(comando.tarefa_id);
+      const reserva = uuidSchema.safeParse(comando.reserva_id);
       if (
         !chave.success ||
         !tarefa.success ||
         !id.success ||
+        !reserva.success ||
+        !Number.isSafeInteger(comando.geracao_reserva) ||
+        comando.geracao_reserva < 1 ||
         !Number.isInteger(comando.versao_esperada) ||
         comando.versao_esperada < 0 ||
         comando.versao_esperada >= 2147483647
@@ -125,6 +131,8 @@ export async function operarTarefaCuidadoNativo(
       );
       if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) throw new Error();
       Object.assign(entrada, {
+        reserva_id: reserva.data.toLowerCase(),
+        geracao_reserva: comando.geracao_reserva,
         chave_idempotencia: chave.data,
         digest_idempotencia: digest,
         tarefa_id: aad.tarefa_id,

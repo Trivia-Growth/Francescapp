@@ -124,7 +124,9 @@ export function montarRelatoTextual(
           revisao.replaceChildren();
           aviso.textContent = 'Relato fictício guardado neste computador.';
         } catch (erro) {
-          salvamentoIncerto = !(erro instanceof Error && ['401', '409'].includes(erro.message));
+          salvamentoIncerto = !(
+            erro instanceof Error && ['400', '401', '403', '404', '409'].includes(erro.message)
+          );
           aviso.textContent = salvamentoIncerto
             ? 'Não foi possível confirmar o salvamento. Copie seu rascunho, volte e abra os relatos novamente para consultar o servidor.'
             : 'Não foi possível guardar. Confira a sessão ou a lista atualizada; seu rascunho permanece aqui.';

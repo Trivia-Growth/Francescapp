@@ -46,6 +46,39 @@ describe('cofre nativo', () => {
     expect(release).toHaveBeenCalledWith(false);
   });
 
+  it('carrega versões dedicadas e falha fechada para chave repetida ou ausente', async () => {
+    const { pool, query } = criarPool();
+    query.mockImplementation(async (sql, args) => {
+      if (sql.includes('ler_chave_cifra_vault')) {
+        const byte = args?.[0]?.endsWith('hmac')
+          ? 2
+          : args?.[0]?.endsWith('idem-v1')
+            ? 4
+            : args?.[0]?.endsWith('idem-v2')
+              ? 5
+              : 1;
+        return { rows: [{ chave: btoa(String.fromCharCode(...new Uint8Array(32).fill(byte))) }] };
+      }
+      if (sql.includes('ler_chave_atestado_vault'))
+        return { rows: [{ chave: new Uint8Array(32).fill(3) }] };
+      return { rows: [] };
+    });
+    const versoes = { v1: 'ffcmapp.cifra.idem-v1', v2: 'ffcmapp.cifra.idem-v2' };
+    const cofre = await carregarCofreNativo(pool, referencias, 'v1', undefined, versoes);
+    expect(cofre.chavesIdempotencia.v1).toEqual(new Uint8Array(32).fill(4));
+    expect(cofre.chavesIdempotencia.v2).toEqual(new Uint8Array(32).fill(5));
+    await expect(
+      carregarCofreNativo(pool, referencias, 'v1', undefined, { v1: 'ffcmapp.cifra.hmac' }),
+    ).rejects.toThrow('Chave criptográfica indisponível.');
+    query.mockImplementation(async (sql) => {
+      if (sql.includes('ler_chave_cifra_vault')) throw new Error();
+      return { rows: [] };
+    });
+    await expect(carregarCofreNativo(pool, referencias, 'v1', undefined, versoes)).rejects.toThrow(
+      'Chave criptográfica indisponível.',
+    );
+  });
+
   it('recusa configuração ausente ou identificador inválido antes de consultar', async () => {
     const { pool, query } = criarPool();
     await expect(carregarCofreNativo(pool, referencias, '../v1')).rejects.toThrow(

@@ -25,3 +25,5 @@ Nenhuma.
 ## Impact
 
 Domínio TypeScript e testes locais em `packages/cadastro`; a persistência local requer integração segura ainda pendente. Antes de dados reais, definir regras de preenchimento, audiência, proteção e recuperação de dados, além de comprovar autorização no servidor e banco e integração real. Não há autorização para operação remota.
+
+A preparação inclui consulta paginada das versões existentes, com dados fictícios e acesso fechado até os gates de segurança e integração.

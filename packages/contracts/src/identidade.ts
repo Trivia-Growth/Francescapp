@@ -56,6 +56,15 @@ export const criarConcessaoEquipeSchema = z
   })
   .strict();
 
+/** Envelope da rota reservada; o contrato público de dados permanece independente. */
+export const criarConcessaoEquipeReservadaSchema = z
+  .object({
+    entrada: criarConcessaoEquipeSchema,
+    reserva_id: uuidSchema,
+    geracao_reserva: z.number().int().positive().safe(),
+  })
+  .strict();
+
 export const revogarConcessaoEquipeSchema = z
   .object({
     versao_esperada: versaoSchema,

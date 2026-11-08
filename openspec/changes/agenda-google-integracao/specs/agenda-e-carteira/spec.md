@@ -28,6 +28,10 @@ O sistema SHALL identificar origem e autoria e informar sucesso de criação, al
 - **WHEN** uma escrita não recebe confirmação
 - **THEN** o sistema informa falha ou pendência e não afirma que a operação ocorreu; nova tentativa exige conferir estado externo e permissão vigente.
 
+#### Scenario: Conta anterior inacessível
+- **WHEN** uma escrita incerta pertence a uma conta Google anterior cujo acesso não pode ser restabelecido
+- **THEN** a operação permanece bloqueada até comprovação do resultado na origem, sem desbloqueio presumido pela ausência de acesso ou de registro local.
+
 ### Requirement: Agenda individual e exposição mínima
 O início SHALL usar a agenda individual e o fuso de São Paulo; o profissional autoriza sua conexão Google. Eventos existentes SHALL ser vinculados manualmente ao paciente. Ao detectar conflito, o sistema SHALL avisar e deixar a decisão à equipe. Consulta sem acesso clínico SHALL exibir título genérico sem identificar paciente. Fase Inicial; complementa FR-023/025/049/050.
 

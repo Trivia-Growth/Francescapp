@@ -29,7 +29,8 @@ declare ator uuid:='10000000-0000-4000-8000-000000000001'; sessao uuid:='2000000
 begin
  update auth.sessions set not_after=clock_timestamp()+interval '3 seconds' where id=sessao;
  transporte:=pg_temp.assinar(p_entrada,p_acao,ator,sessao);
- perform 1 from auth.users where id=ator for update;
+ -- bloqueios_auth.travar não trava Auth; a espera vem da primeira trava compartilhada das funções, antes de qualquer leitura de not_after.
+ perform 1 from identidade.configuracao_auth_nativo where google_unico_oauth_confirmado for update;
  perform dblink_send_query('expiracao_real',format('select %s(%L::jsonb)',p_funcao,transporte::text));
  limite:=clock_timestamp()+interval '2 seconds';
  loop

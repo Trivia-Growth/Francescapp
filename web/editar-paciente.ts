@@ -162,6 +162,13 @@ export function montarEdicaoPaciente(
       } else {
         let situacao = await servico.ciclo.consultar();
         if (!situacao.resultado_pendente) {
+          if (
+            situacao.reserva &&
+            !window.confirm(
+              'Há uma tentativa em andamento que pode estar em outra aba. Encerrá-la afetará todas as abas. Deseja continuar?',
+            )
+          )
+            throw new Error('Encerramento não confirmado');
           await servico.ciclo.encerrar();
           situacao = await servico.ciclo.consultar();
         }
@@ -169,7 +176,8 @@ export function montarEdicaoPaciente(
         if (situacao.resultado_pendente) {
           const resultado = situacao.resultado_pendente;
           if (resultado.paciente_id.toLowerCase() !== pacienteId.toLowerCase()) {
-            status.textContent = `Resultado pendente pertence ao paciente ${resultado.paciente_id}. Abra esse cadastro para conferi-lo e reconhecê-lo.`;
+            status.textContent =
+              'Resultado pendente pertence a outro paciente. Abra o cadastro correspondente para conferi-lo e reconhecê-lo.';
             recuperar.hidden = true;
             return;
           }
@@ -185,8 +193,8 @@ export function montarEdicaoPaciente(
           raiz.append(conferencia);
           status.textContent =
             resultado.resultado === 'confirmada'
-              ? `Uma edição anterior do paciente ${resultado.paciente_id} foi confirmada na versão ${resultado.versao}. ${atual.versao !== resultado.versao ? 'O cadastro atual está em outra versão; alterações posteriores podem ter ocorrido.' : 'Confira o cadastro correspondente.'}`
-              : `Uma edição anterior do paciente ${resultado.paciente_id} foi cancelada.`;
+              ? `Uma edição anterior foi confirmada na versão ${resultado.versao}. ${atual.versao !== resultado.versao ? 'O cadastro atual está em outra versão; alterações posteriores podem ter ocorrido.' : 'Confira o cadastro correspondente.'}`
+              : 'Uma edição anterior foi cancelada.';
           recuperar.textContent = 'Reconhecer resultado e liberar edição';
           recuperar.onclick = () => {
             if (recuperando) return;

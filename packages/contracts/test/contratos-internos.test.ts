@@ -69,6 +69,10 @@ const entradas: Record<Rota, Record<string, unknown>> = {
   criarConcessao: {
     ...mutacao,
     concessao_id: uuid,
+    reserva_id: uuid,
+    geracao_reserva: 1,
+    versao_idempotencia: 'v1',
+    candidatos_idempotencia: { v1: { concessao_id: uuid, digest_idempotencia: 'aG1hYy1sb2dpY28' } },
     email: cifra,
     email_hmac: 'aGFzaA',
     perfil: 'profissional',
@@ -164,9 +168,18 @@ const entradas: Record<Rota, Record<string, unknown>> = {
     paciente_id: uuid,
     acesso_id: uuid,
     usuario_id: uuid,
+    reserva_id: uuid,
+    geracao_reserva: 1,
     motivo: cifra,
   },
-  revogarAcessoPaciente: { ...alteracao, paciente_id: uuid, acesso_id: uuid },
+  revogarAcessoPaciente: {
+    ...alteracao,
+    paciente_id: uuid,
+    acesso_id: uuid,
+    reserva_id: uuid,
+    geracao_reserva: 1,
+    motivo_auditoria: cifra,
+  },
   consultarAuditoria: { limite: 25 },
 };
 const saidas: Record<Rota, unknown> = {

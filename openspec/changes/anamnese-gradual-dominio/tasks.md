@@ -50,3 +50,23 @@ Interface real montada localmente na lista para colaboradores; erro de acesso li
 Revisão incremental S-02 do recorte de anamnese `9a7f728^..a5bd692`: revisores independentes de banco e servidor não identificaram novos achados concretos por leitura. Não houve prova real de Auth, PostgREST, Vault, grants/RLS ou revogação concorrente; esta revisão não libera rotas nem encerra S-02. A limpeza seletiva das versões imutáveis continua sem mecanismo comprovado.
 
 Teste integrado local ampliado: sessão encerrada impede leitura e replay de gravação mesmo com autorização simulada obsoleta; passou em PostgreSQL descartável com cifra e atestado reais. Lint e typecheck passaram. Auth e PostgREST permanecem fixtures; isso não comprova revogação no ambiente real nem libera a rota.
+
+Prova no Supabase de teste: uma resposta fictícia foi gravada na anamnese do paciente do lote e recuperada após decifragem, com versão e auditoria confirmadas. Handler, cifra, atestado, Vault e PostgreSQL reais; identidade/autorização e JWT simulados no contexto SQL. Grants e memberships temporários foram removidos dentro das transações e conferidos ausentes. Não comprova jornada HTTP nem negativas reais por perfil; rota segue fechada.
+
+A interface agora impede salvar enquanto há seção ou campo digitado ainda não adicionado, preservando rascunho; teste web focado passou. Rota permanece desativada.
+
+Atualização de 06/11/2026: migration `20261112121000` aplicada ao Supabase de teste para exigir registro de auditoria; conferidos os privilégios do migrador antes da aplicação. Testes SQL locais cobriram inclusão suprimida e rollback. A aplicação não concede acesso às RPCs e não comprova a jornada HTTP nem encerra S-02.
+
+Atualização de 06/11/2026: migration `20261112190000` passou a auditar Auth sem perfil e foi aplicada ao Supabase de teste; `20261112210000` habilitou o wrapper para authenticated, mantendo anon negado. Com JWT Auth e atestado Vault reais, conta fictícia sem perfil `07dfa0cf-60d6-4457-a943-a1306b8902fd` recebeu negativas de leitura e gravação e gerou dois eventos auditados. Flag ativada somente na branch privada, deploy `6aee2767d7a7c113b7f6ffac`, Node 22. A prova positiva por HTTP/interface, recarga, outros perfis e revogação continuam pendentes; apenas dados fictícios.
+
+## Consulta histórica paginada
+
+- [ ] Implementar operação privada com cursor atestado, autorização sob lock, auditoria e envelopes cifrados, sem novos grants.
+- [ ] Integrar contrato e decifragem com AAD; provar paginação, isolamento, negativa, revogação e falha de auditoria em testes locais.
+- [ ] Revisar diff e executar provas reais e S-02 antes de ativação. Nenhuma operação remota está autorizada por este planejamento.
+
+Preparação local: operação privada separada, sem grants, consulta uma versão por cursor atestado e devolve envelope e proveniência. Handler interno decifra com AAD e cliente apresenta histórico em leitura. Testes focados cobriram paginação, adulteração, família, sessão encerrada, falha de auditoria e grants negados; Auth/Vault SQL são fixtures. Testes de handler e interface passaram com dependências simuladas. Path preparado com flag própria desativada por padrão; botão oculto na montagem atual até habilitação explícita após as provas; falta revisão independente, prova integrada real e grants autorizados; não há evidência de jornada HTTP real nem ativação. A migração não foi aplicada remotamente.
+
+A migration `20261112340000_historico_anamnese_privado` foi revisada e aplicada no Supabase de teste; catálogo confirmou ausência de EXECUTE para anon, authenticated e service_role. UI e flag continuam fechadas. Prova real Auth/Vault, auditoria, decifragem HTTP e permissões positiva/negativa seguem pendentes.
+
+Prova real negativa do histórico: conta fictícia sem perfil, JWT/Auth e atestado Vault reais com cursor assinado recebeu sem_permissao e gerou evento negado correspondente. Grant temporário revogado; anon/authenticated continuam sem EXECUTE. Chave foi lida como postgres; acesso positivo, paginação, decifragem HTTP e autorização por outros perfis seguem pendentes.

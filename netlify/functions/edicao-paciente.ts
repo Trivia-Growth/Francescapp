@@ -5,6 +5,7 @@ import { criarEntradaEdicaoPacienteNativa } from './_shared/entrada-edicao-pacie
 export const config = {
   path: [
     '/api/pacientes/:paciente_id',
+    '/api/pacientes/edicao/disponibilidade',
     '/api/pacientes/edicao/reserva/consultar',
     '/api/pacientes/edicao/reserva',
     '/api/pacientes/edicao/reserva/encerrar',
@@ -13,6 +14,29 @@ export const config = {
 };
 let entrada: ReturnType<typeof criarEntradaEdicaoPacienteNativa> | undefined;
 export default async function edicaoPaciente(request: Request): Promise<Response> {
+  const url = new URL(request.url);
+  if (url.pathname === '/api/pacientes/edicao/disponibilidade') {
+    if (request.method !== 'GET' || url.search || url.hash) return falha('servico_indisponivel');
+    let disponivel = false;
+    if (process.env.FFCM_EDICAO_PACIENTE_ATIVADA === 'true') {
+      try {
+        entrada ??= criarEntradaEdicaoPacienteNativa(configurarDependenciasNativas(process.env));
+        disponivel = true;
+      } catch {
+        /* falha fechada */
+      }
+    }
+    return Response.json(
+      { dados: { disponivel }, request_id: crypto.randomUUID() },
+      {
+        headers: {
+          'Cache-Control': 'private, no-store',
+          'X-Content-Type-Options': 'nosniff',
+          'Referrer-Policy': 'no-referrer',
+        },
+      },
+    );
+  }
   if (process.env.FFCM_EDICAO_PACIENTE_ATIVADA !== 'true') return falha('servico_indisponivel');
   try {
     entrada ??= criarEntradaEdicaoPacienteNativa(configurarDependenciasNativas(process.env));

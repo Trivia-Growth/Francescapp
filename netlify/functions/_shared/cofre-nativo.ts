@@ -6,6 +6,7 @@ import { criarExecutorCofrePostgres } from '../../../supabase/functions/_shared/
 import {
   carregarMaterialCriptograficoDoCofre,
   ErroCofreIndisponivel,
+  lerChaveCofre,
   type ReferenciasCifraCofre,
 } from '../../../supabase/functions/_shared/cofre-vault.ts';
 
@@ -15,6 +16,7 @@ export async function carregarCofreNativo(
   referencias: ReferenciasCifraCofre,
   keyIdAtestado: string,
   signal?: AbortSignal,
+  referenciasIdempotencia?: Readonly<Record<string, string>>,
 ) {
   let cliente: PoolClient | undefined;
   let destruir = true;
@@ -56,6 +58,19 @@ export async function carregarCofreNativo(
     const executor = criarExecutorCofrePostgres(poolCancelavel);
     const material = await carregarMaterialCriptograficoDoCofre(executor, referencias);
     verificarCancelamento();
+    const entradas = Object.entries(referenciasIdempotencia ?? {});
+    if (entradas.length > 16) throw new Error();
+    const chavesIdempotencia: Record<string, Uint8Array> = Object.create(null);
+    const usados = [material.chaveHmac, ...Object.values(material.chavesDeCifra)];
+    for (const [id, referencia] of entradas) {
+      if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(id)) throw new Error();
+      const anterior = await lerChaveCofre(executor, referencia);
+      if (usados.some((existente) => existente.every((byte, indice) => byte === anterior[indice])))
+        throw new Error();
+      usados.push(anterior);
+      chavesIdempotencia[id] = anterior;
+    }
+    verificarCancelamento();
     cliente = await poolCancelavel.connect();
     await cliente.query('BEGIN');
     await cliente.query("SET LOCAL statement_timeout = '10s'");
@@ -67,6 +82,11 @@ export async function carregarCofreNativo(
     const chave = resultado.rows[0]?.chave;
     if (resultado.rows.length !== 1 || !(chave instanceof Uint8Array) || chave.length !== 32)
       throw new Error();
+    if (
+      entradas.length > 0 &&
+      usados.some((existente) => existente.every((byte, indice) => byte === chave[indice]))
+    )
+      throw new Error();
     const cifra = criarCifraAutenticada(material);
     const atestador = criarAtestadorOperacao({ keyId: keyIdAtestado, chave });
     // HKDF separa o domínio da carteira da chave HMAC já mantida no Vault.
@@ -74,7 +94,12 @@ export async function carregarCofreNativo(
     const cursor = await criarCursorCarteira(material.chaveHmac);
     await cliente.query('COMMIT');
     destruir = false;
-    return Object.freeze({ cifra, atestador, cursor });
+    return Object.freeze({
+      cifra,
+      atestador,
+      cursor,
+      chavesIdempotencia: Object.freeze(chavesIdempotencia),
+    });
   } catch {
     throw new ErroCofreIndisponivel();
   } finally {

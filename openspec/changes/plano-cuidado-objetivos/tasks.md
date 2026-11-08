@@ -63,3 +63,19 @@ Preparação posterior: handler e executor da barreira foram conectados localmen
 Preparação posterior: controlador web isolado inicia criação bloqueada até consultar e reconhecer a reserva; servidor encaminha reserva e geração na criação. Testes integrados locais de reserva e gravação passaram com fixtures. Revisão corrigiu perda de rascunho durante reconciliação e sucesso indevido de replay usando outra reserva. Rotas, Auth/Vault reais e provas de integração externa continuam pendentes.
 
 Verificação adicional da composição privada: `sh scripts/testar-plano-composicao-integrada-local.sh` passou em PostgreSQL descartável, incluindo negação para usuário inativo, perfil familiar e concessão revogada após reserva. Auth/Vault e transporte seguem simulados; o teste não prova revogação concorrente ou integração remota.
+
+Prova no Supabase de teste: um objetivo fictício foi reservado, criado e recuperado no paciente do lote; conteúdo decifrado, versão e auditoria confirmados. Handler, cifra, atestado, Vault e PostgreSQL reais; JWT e autorização simulados no contexto SQL. Grants e memberships temporários foram removidos e conferidos ausentes. Jornada HTTP, Auth real e negativas por perfil continuam pendentes; rota permanece fechada.
+
+A tela do plano pede confirmação antes de descartar alterações ao cancelar; teste web focado passou. Integração HTTP real e ativação permanecem pendentes.
+
+Atualização de 06/11/2026: migration `20261112122000` aplicada ao Supabase de teste para exigir registro de auditoria; conferidos os privilégios do migrador antes da aplicação. Testes SQL locais cobriram inclusão suprimida e rollback. A aplicação não concede acesso às RPCs e não comprova a jornada HTTP nem encerra S-02.
+
+Atualização de 06/11/2026: migration `20261112200000` aplicada ao Supabase de teste para registrar negativas de Auth sem perfil. Teste SQL local usou fixtures; integração real, grant e rota do plano permanecem pendentes.
+
+Atualização de 06/11/2026: com JWT Auth e atestados Vault reais, conta fictícia `c1f34cd1-d7f2-48b1-a505-5695b7fe4382` sem perfil recebeu negativas de leitura, histórico e gravação; três eventos foram auditados. Grants temporários foram revogados; após revisão e teste local, migration `20261112240000` habilitou dois wrappers no Supabase de teste. Flag somente na branch privada, deploy `6aee2f5dfac4f0515dc67a0a`. Prova positiva por interface, recarga, revogação e perfis seguem pendentes; usar somente dados fictícios.
+
+Prévia privada atualizada para deploy `6aee309e547179236da2ab09`; flag do plano mantida apenas na branch de teste. Prova positiva pela tela e persistência após recarga seguem pendentes.
+
+Preparação web: resumo para profissional consulta objetivos paginados e tarefas em aberto pelos serviços existentes, descartando conteúdo ao fechar, ocultar a aba ou trocar sessão/perfil. Testes focados cobrem paginação, resposta tardia e troca de profissional; revisão e prova visual/HTTP real permanecem pendentes. FR-006 não está concluído: faltam situação, mudanças recentes, atenção sinalizada, agenda, revisão responsável e indicação de informação não incorporada, além da comprovação de autorização e audiência.
+
+Prévia privada: deploy `6aee6dfebddb343a03dbb57c` do commit `9db7ca0`, estado ready, 16 funções Node 22; produção preservada e builds automáticos parados. Resumo parcial para profissional publicado; acesso visual, dados persistidos e autorização real ainda sem prova nesta versão.

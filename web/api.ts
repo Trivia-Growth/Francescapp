@@ -1,4 +1,20 @@
+import { contratosBarreiraEquipeHttp } from '../packages/contracts/src/barreira-equipe-servidor.ts';
+import { contratosBarreiraTarefaHttp } from '../packages/contracts/src/barreira-tarefa-cuidado-servidor.ts';
+import { z } from 'zod';
+import {
+  consultarHistoricoAnamneseSchema,
+  anamneseSchema,
+} from '../packages/contracts/src/anamnese.js';
+import {
+  consultaVinculosProfissionaisSchema,
+  paginaVinculosProfissionaisSchema,
+} from '../packages/contracts/src/vinculos-profissionais.js';
 import { criarContatoReservadoHttpSchema } from '../packages/contracts/src/barreira-contato-servidor.js';
+import {
+  criarAcessoReservadoHttpSchema,
+  revogarAcessoReservadoHttpSchema,
+  contratosBarreiraAcessoHttp,
+} from '../packages/contracts/src/barreira-acesso-servidor.js';
 import {
   contratosRotas,
   contratosBarreiraHttp,
@@ -16,6 +32,7 @@ import {
   type novoContatoSchema,
   type AtualizarPaciente,
   type CriarPaciente,
+  type CriarConcessaoEquipe,
   type SalvarAnamnese,
 } from '../packages/contracts/src/index.js';
 
@@ -51,6 +68,50 @@ const rotas = {
   sairFamiliar: { ...contratosRotas.sairSessao, caminho: '/api/familiar/sessao/sair' },
   listarPacientes: contratosRotas.listarPacientes,
   listarConcessoes: contratosRotas.listarConcessoes,
+  criarConcessao: {
+    ...contratosRotas.criarConcessao,
+    entrada: z
+      .object({
+        entrada: contratosRotas.criarConcessao.entrada,
+        reserva_id: z.string().uuid(),
+        geracao_reserva: z.number().int().positive().safe(),
+      })
+      .strict(),
+  },
+  consultarBarreiraEquipe: {
+    ...contratosBarreiraEquipeHttp.consultar,
+    saida: contratosBarreiraEquipeHttp.consultar.saida.shape.dados,
+  },
+  reservarBarreiraEquipe: {
+    ...contratosBarreiraEquipeHttp.reservar,
+    saida: contratosBarreiraEquipeHttp.reservar.saida.shape.dados,
+  },
+  encerrarBarreiraEquipe: {
+    ...contratosBarreiraEquipeHttp.encerrar,
+    saida: contratosBarreiraEquipeHttp.encerrar.saida.shape.dados,
+  },
+  reconhecerBarreiraEquipe: {
+    ...contratosBarreiraEquipeHttp.reconhecer,
+    saida: contratosBarreiraEquipeHttp.reconhecer.saida.shape.dados,
+  },
+  disponibilidadeHistoricoAnamnese: {
+    metodo: 'GET',
+    caminho: '/api/anamnese/historico/disponibilidade',
+    entrada: z.object({}).strict(),
+    saida: z.object({ disponivel: z.boolean() }).strict(),
+  },
+  disponibilidadeEdicao: {
+    metodo: 'GET',
+    caminho: '/api/pacientes/edicao/disponibilidade',
+    entrada: z.object({}).strict(),
+    saida: z.object({ disponivel: z.boolean() }).strict(),
+  },
+  listarVinculosProfissionais: {
+    metodo: 'GET',
+    caminho: '/api/pacientes/:paciente_id/vinculos-profissionais',
+    entrada: consultaVinculosProfissionaisSchema,
+    saida: paginaVinculosProfissionaisSchema,
+  },
   listarPacientesFamiliar: {
     ...contratosRotas.listarPacientes,
     caminho: '/api/familiar/pacientes',
@@ -63,7 +124,53 @@ const rotas = {
   },
   atualizarPaciente: contratosRotas.atualizarPaciente,
   criarContato: { ...contratosRotas.criarContato, entrada: criarContatoReservadoHttpSchema },
+  criarAcessoPaciente: {
+    ...contratosRotas.criarAcessoPaciente,
+    entrada: criarAcessoReservadoHttpSchema,
+  },
+  revogarAcessoPaciente: {
+    ...contratosRotas.revogarAcessoPaciente,
+    entrada: revogarAcessoReservadoHttpSchema,
+  },
+  consultarBarreiraTarefa: {
+    ...contratosBarreiraTarefaHttp.consultar,
+    saida: contratosBarreiraTarefaHttp.consultar.saida.shape.dados,
+  },
+  reservarBarreiraTarefa: {
+    ...contratosBarreiraTarefaHttp.reservar,
+    saida: contratosBarreiraTarefaHttp.reservar.saida.shape.dados,
+  },
+  encerrarBarreiraTarefa: {
+    ...contratosBarreiraTarefaHttp.encerrar,
+    saida: contratosBarreiraTarefaHttp.encerrar.saida.shape.dados,
+  },
+  reconhecerBarreiraTarefa: {
+    ...contratosBarreiraTarefaHttp.reconhecer,
+    saida: contratosBarreiraTarefaHttp.reconhecer.saida.shape.dados,
+  },
+  consultarBarreiraAcesso: {
+    ...contratosBarreiraAcessoHttp.consultar,
+    saida: contratosBarreiraAcessoHttp.consultar.saida.shape.dados,
+  },
+  reservarBarreiraAcesso: {
+    ...contratosBarreiraAcessoHttp.reservar,
+    saida: contratosBarreiraAcessoHttp.reservar.saida.shape.dados,
+  },
+  encerrarBarreiraAcesso: {
+    ...contratosBarreiraAcessoHttp.encerrar,
+    saida: contratosBarreiraAcessoHttp.encerrar.saida.shape.dados,
+  },
+  reconhecerBarreiraAcesso: {
+    ...contratosBarreiraAcessoHttp.reconhecer,
+    saida: contratosBarreiraAcessoHttp.reconhecer.saida.shape.dados,
+  },
   consultarAnamnese: contratosRotas.consultarAnamnese,
+  consultarHistoricoAnamnese: {
+    metodo: 'GET',
+    caminho: '/api/pacientes/:paciente_id/anamnese/historico',
+    entrada: consultarHistoricoAnamneseSchema,
+    saida: anamneseSchema.nullable(),
+  },
   salvarAnamnese: contratosRotas.salvarAnamnese,
   criarPaciente: contratosRotas.criarPaciente,
   sairSessao: contratosRotas.sairSessao,
@@ -192,6 +299,7 @@ export class ClienteFFCM {
       protegido?: boolean;
       encerramento?: boolean;
       pacienteId?: string;
+      acessoId?: string;
       fluxoEntrada?: string;
     } = {},
   ): Promise<Dados<R>> {
@@ -214,18 +322,29 @@ export class ClienteFFCM {
     };
     let caminho: string = contrato.caminho;
     if (
+      rota === 'listarVinculosProfissionais' ||
       rota === 'consultarAnamnese' ||
       rota === 'salvarAnamnese' ||
       rota === 'consultarPaciente' ||
       rota === 'consultarPacienteFamiliar' ||
       rota === 'atualizarPaciente' ||
-      rota === 'criarContato'
+      rota === 'criarContato' ||
+      rota === 'criarAcessoPaciente' ||
+      rota === 'revogarAcessoPaciente'
     ) {
       const parametros = contratosRotas.consultarAnamnese.parametros.safeParse({
         paciente_id: opcoes.pacienteId,
       });
       if (!parametros.success) throw new FalhaApi('entrada_invalida', 422);
       caminho = caminho.replace(':paciente_id', encodeURIComponent(parametros.data.paciente_id));
+    }
+    if (rota === 'revogarAcessoPaciente') {
+      const parametros = contratosRotas.revogarAcessoPaciente.parametros.safeParse({
+        paciente_id: opcoes.pacienteId,
+        acesso_id: opcoes.acessoId,
+      });
+      if (!parametros.success) throw new FalhaApi('entrada_invalida', 422);
+      caminho = caminho.replace(':acesso_id', encodeURIComponent(parametros.data.acesso_id));
     }
     const url = new URL(caminho, window.location.origin);
     const headers = new Headers({ Accept: 'application/json' });
@@ -469,12 +588,50 @@ export class ClienteFFCM {
     );
   }
 
+  listarVinculosProfissionais(pacienteId: string, cursor?: string) {
+    return this.#enviar('listarVinculosProfissionais', cursor ? { cursor } : {}, {
+      protegido: true,
+      pacienteId,
+    });
+  }
+
+  disponibilidadeEdicao() {
+    return this.#enviar('disponibilidadeEdicao', {}, { protegido: true });
+  }
+
   listarProfissionais(cursor?: string): Promise<Dados<'listarConcessoes'>> {
     return this.#enviar(
       'listarConcessoes',
-      { estado: 'vinculada', limite: 25, ...(cursor ? { cursor } : {}) },
+      { limite: 25, ...(cursor ? { cursor } : {}) },
       { protegido: true },
     );
+  }
+
+  criarConcessaoEquipe(
+    entrada: CriarConcessaoEquipe,
+    chave: string,
+    reserva: { reserva_id: string; geracao_reserva: number },
+  ) {
+    if (!chaveIdempotenciaSchema.safeParse(chave).success)
+      return Promise.reject(new FalhaApi('entrada_invalida', 422));
+    return this.#enviar('criarConcessao', { entrada, ...reserva }, { protegido: true, chave });
+  }
+
+  consultarBarreiraEquipe() {
+    return this.#enviar('consultarBarreiraEquipe', {}, { protegido: true });
+  }
+  reservarBarreiraEquipe(entrada: { epoca: number; reserva_id: string }) {
+    return this.#enviar('reservarBarreiraEquipe', entrada, { protegido: true });
+  }
+  encerrarBarreiraEquipe(entrada: {
+    epoca: number;
+    reserva_id: string | null;
+    comando_id: string;
+  }) {
+    return this.#enviar('encerrarBarreiraEquipe', entrada, { protegido: true });
+  }
+  reconhecerBarreiraEquipe(entrada: { comando_id: string }) {
+    return this.#enviar('reconhecerBarreiraEquipe', entrada, { protegido: true });
   }
 
   consultarPacienteFamiliar(pacienteId: string): Promise<Dados<'consultarPacienteFamiliar'>> {
@@ -520,8 +677,100 @@ export class ClienteFFCM {
     );
   }
 
+  criarAcessoPaciente(
+    pacienteId: string,
+    entrada: { acesso_id: string; usuario_id: string; motivo: string },
+    chave: string,
+    reserva: { reserva_id: string; geracao_reserva: number },
+  ) {
+    return this.#enviar(
+      'criarAcessoPaciente',
+      { entrada, ...reserva },
+      { protegido: true, pacienteId, chave },
+    );
+  }
+  revogarAcessoPaciente(
+    pacienteId: string,
+    acessoId: string,
+    entrada: { versao_esperada: number; motivo: string },
+    chave: string,
+    reserva: { reserva_id: string; geracao_reserva: number },
+  ) {
+    return this.#enviar(
+      'revogarAcessoPaciente',
+      { entrada, ...reserva },
+      {
+        protegido: true,
+        pacienteId,
+        acessoId,
+        chave,
+      },
+    );
+  }
+  consultarBarreiraTarefa() {
+    return this.#enviar('consultarBarreiraTarefa', {}, { protegido: true });
+  }
+  reservarBarreiraTarefa(entrada: {
+    epoca: number;
+    reserva_id: string;
+    paciente_id: string;
+    tarefa_id: string;
+    versao_esperada: number;
+  }) {
+    return this.#enviar('reservarBarreiraTarefa', entrada, { protegido: true });
+  }
+  encerrarBarreiraTarefa(entrada: {
+    epoca: number;
+    reserva_id: string | null;
+    comando_id: string;
+  }) {
+    return this.#enviar('encerrarBarreiraTarefa', entrada, { protegido: true });
+  }
+  reconhecerBarreiraTarefa(entrada: { comando_id: string }) {
+    return this.#enviar('reconhecerBarreiraTarefa', entrada, { protegido: true });
+  }
+  consultarBarreiraAcesso() {
+    return this.#enviar('consultarBarreiraAcesso', {}, { protegido: true });
+  }
+  reservarBarreiraAcesso(
+    entrada:
+      | { epoca: number; reserva_id: string; paciente_id: string; acao: 'conceder' }
+      | {
+          epoca: number;
+          reserva_id: string;
+          paciente_id: string;
+          acao: 'revogar';
+          acesso_id: string;
+          versao_esperada: number;
+        },
+  ) {
+    return this.#enviar('reservarBarreiraAcesso', entrada, { protegido: true });
+  }
+  encerrarBarreiraAcesso(entrada: {
+    epoca: number;
+    reserva_id: string | null;
+    comando_id: string;
+  }) {
+    return this.#enviar('encerrarBarreiraAcesso', entrada, { protegido: true });
+  }
+  reconhecerBarreiraAcesso(entrada: { comando_id: string }) {
+    return this.#enviar('reconhecerBarreiraAcesso', entrada, { protegido: true });
+  }
+
+  disponibilidadeHistoricoAnamnese() {
+    return this.#enviar('disponibilidadeHistoricoAnamnese', {}, { protegido: true });
+  }
+
   consultarAnamnese(pacienteId: string): Promise<Dados<'consultarAnamnese'>> {
     return this.#enviar('consultarAnamnese', {}, { protegido: true, pacienteId });
+  }
+
+  consultarHistoricoAnamnese(pacienteId: string, antesVersao?: number) {
+    return this.#enviar(
+      'consultarHistoricoAnamnese',
+      antesVersao === undefined ? {} : { antes_versao: antesVersao },
+      { protegido: true, pacienteId },
+    );
   }
 
   salvarAnamnese(
