@@ -52,11 +52,11 @@ A construir (cada uma com prova exigida):
 - **Leitura só do Administrador nesta fatia**: situação, responsável e motivo saem apenas da consulta de edição, que já é restrita ao Administrador. Lista, Visão do caso e rotas de Profissional e Família não recebem esses campos até a fatia de leitura por perfil. Prova: contratos de resposta de Profissional e Família sem os campos, e teste de acesso direto (T7).
 - **Motivo**: continua cifrado com AAD amarrado ao evento de auditoria, que a linha de acompanhamento referencia; nunca em log nem em campo aberto (T8, T9).
 
-## Hipóteses que movem a prioridade (aguardam confirmação do solicitante)
+## Hipóteses que movem a prioridade
 
-- H1. Situação e identificador do responsável ficam em colunas abertas, sem cifra, para filtro e junção; o motivo fica cifrado. Se for inaceitável, T4 e T7 mudam e o filtro de FR-026 passa a exigir decifrar.
-- H2. Nesta fatia só o Administrador lê situação, responsável e motivo; Profissional (com acesso ao caso) passa a ler em fatia própria, com a prova de S-02. Família não lê nunca nesta mudança.
-- H3. O ambiente segue com dados fictícios e sem ativação real antes de S-02; nenhuma operação remota é feita aqui.
+- H1 (confirmada pelo solicitante em 08/11/2026). Situação e identificador do responsável ficam em colunas abertas, sem cifra, para filtro e junção; o motivo fica cifrado. Se isso mudar, T4 e T7 mudam e o filtro de FR-026 passa a exigir decifrar.
+- H2 (confirmada em 08/11/2026). Nesta fatia só o Administrador lê situação, responsável e motivo; Profissional (com acesso ao caso) passa a ler em fatia própria, com a prova de S-02. Família não lê nesta mudança.
+- H3 (premissa do projeto, não perguntada). O ambiente segue com dados fictícios e sem ativação real antes de S-02; nenhuma operação remota é feita aqui.
 
 ## Provas exigidas e limitações
 
