@@ -37,6 +37,76 @@ describe('carteira experimental autorizada', () => {
       },
     });
   });
+  describe('situação do caso na lista', () => {
+    const pagina = async (situacao: unknown) => ({
+      ok: true,
+      request_id: requestId,
+      dados: {
+        itens: [
+          {
+            paciente_id: pacienteId,
+            nome: await cifra.cifrar('Paciente fictício', {
+              tabela: 'cadastro.paciente',
+              registro_id: pacienteId,
+              campo: 'nome',
+              formato: 1,
+            }),
+            nome_preferencia: null,
+            versao: 1,
+            ...(situacao === undefined ? {} : { situacao }),
+          },
+        ],
+        proximo_cursor: null,
+      },
+    });
+    const contexto = (situacaoPermitida?: boolean) => ({
+      requestId,
+      limite: 1,
+      ...(situacaoPermitida === undefined ? {} : { situacaoPermitida }),
+    });
+
+    it('entrega a situação, inclusive nula, quando o chamador a permite', async () => {
+      const ativo = await processarCarteiraExperimental(
+        await pagina('ativo'),
+        contexto(true),
+        cifra,
+      );
+      expect(ativo.ok && ativo.dados.itens[0]).toMatchObject({ id: pacienteId, situacao: 'ativo' });
+      const completar = await processarCarteiraExperimental(
+        await pagina(null),
+        contexto(true),
+        cifra,
+      );
+      expect(completar.ok && completar.dados.itens[0]).toHaveProperty('situacao', null);
+    });
+    it('não inventa a chave quando a resposta não a traz', async () => {
+      const resultado = await processarCarteiraExperimental(
+        await pagina(undefined),
+        contexto(true),
+        cifra,
+      );
+      expect(resultado.ok && Object.keys(resultado.dados.itens[0] ?? {})).toEqual([
+        'id',
+        'nome',
+        'nome_preferencia',
+        'versao',
+      ]);
+    });
+    it('falha fechado quando a resposta traz situação que o chamador não permitiu', async () => {
+      for (const situacao of ['ativo', null]) {
+        for (const permissao of [undefined, false]) {
+          await expect(
+            processarCarteiraExperimental(await pagina(situacao), contexto(permissao), cifra),
+          ).rejects.toThrow('Não foi possível consultar a carteira.');
+        }
+      }
+    });
+    it('recusa situação fora do conjunto', async () => {
+      await expect(
+        processarCarteiraExperimental(await pagina('invalida'), contexto(true), cifra),
+      ).rejects.toThrow('Não foi possível consultar a carteira.');
+    });
+  });
   it('não decifra uma negativa autorizada', async () => {
     const decifrar = vi.fn();
     const resposta = { ok: false, request_id: requestId, erro: { codigo: 'sem_permissao' } };

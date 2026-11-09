@@ -250,6 +250,15 @@ export const pacienteBasicoRpcSaidaSchema = z
     versao: versaoSchema,
   })
   .strict();
+/** Item da lista; `situacao` só vem no ramo do Administrador da função de carteira. */
+export const pacienteListaRpcSaidaSchema = pacienteBasicoRpcSaidaSchema
+  .extend({
+    situacao: z
+      .enum(['entrada', 'ativo', 'pausado', 'encerrado', 'transferido'])
+      .nullable()
+      .optional(),
+  })
+  .strict();
 export const pacienteAdministrativoRpcSaidaSchema = pacienteBasicoRpcSaidaSchema
   .extend({
     data_nascimento: campoCifradoSchema.nullable(),
@@ -601,7 +610,7 @@ export const assinaturasRpc = {
     'leitura-auditada',
     'sessao-admitida',
     contextoRpcUsuarioSchema.extend(paginacao).strict(),
-    paginaInterna(pacienteBasicoRpcSaidaSchema),
+    paginaInterna(pacienteListaRpcSaidaSchema),
   ),
   criarPaciente: assinatura(
     'api.criar_paciente',

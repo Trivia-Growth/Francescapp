@@ -109,7 +109,12 @@ async function executarCarteiraNativa(
     verificarCancelamento();
     const pagina = await processarCarteiraExperimental(
       resposta,
-      { requestId, limite: entrada.p_entrada.entrada.limite, signal: request.signal },
+      {
+        requestId,
+        limite: entrada.p_entrada.entrada.limite,
+        signal: request.signal,
+        situacaoPermitida: true,
+      },
       portas.cifra,
     );
     verificarCancelamento();

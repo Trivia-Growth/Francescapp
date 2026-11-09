@@ -28,6 +28,7 @@ import {
   novoContatoSchema,
   pacienteAdministrativoSchema,
   pacienteBasicoSchema,
+  pacienteListaSchema,
   revogarAcessoPacienteSchema,
 } from './cadastro.ts';
 import {
@@ -341,7 +342,7 @@ export const contratosRotas = {
   listarPacientes: consulta(
     '/api/pacientes',
     consultaPacientesSchema,
-    paginaSchema(pacienteBasicoSchema),
+    paginaSchema(pacienteListaSchema),
   ),
   // Contrato planejado, sem handler ou RPC; exposição exige S-02 e autorização.
   consultarOperacoesCadastro: consulta(

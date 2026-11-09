@@ -67,6 +67,11 @@ export const pacienteBasicoSchema = z
   })
   .strict();
 
+/** Item da lista de pessoas. A situação só existe na lista do Administrador; `null` significa "a completar". */
+export const pacienteListaSchema = pacienteBasicoSchema
+  .extend({ situacao: situacaoCasoSchema.nullable().optional() })
+  .strict();
+
 export const tipoContatoSchema = z.enum(['email', 'telefone']);
 
 export const contatoEmailSchema = z
@@ -185,6 +190,7 @@ export const revogarAcessoPacienteSchema = z
 export type CriarPaciente = z.infer<typeof criarPacienteSchema>;
 export type AtualizarPaciente = z.infer<typeof atualizarPacienteSchema>;
 export type PacienteBasico = z.infer<typeof pacienteBasicoSchema>;
+export type PacienteLista = z.infer<typeof pacienteListaSchema>;
 export type PacienteAdministrativo = z.infer<typeof pacienteAdministrativoSchema>;
 export type SituacaoCaso = z.infer<typeof situacaoCasoSchema>;
 export type AcompanhamentoCaso = z.infer<typeof acompanhamentoCasoSchema>;
