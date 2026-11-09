@@ -231,3 +231,54 @@ begin
  end if;
  if not (select relrowsecurity from pg_class where oid='cadastro.acompanhamento_caso'::regclass) then raise exception 'RLS_DESLIGADA'; end if;
 end $$;
+
+-- Privilégios acrescentados ao dono da edição (revisão independente): ele enxerga só usuário elegível e só o
+-- motivo cifrado dos eventos referenciados, e a trava de elegibilidade não altera o usuário. Também prova que
+-- nenhuma regra de acesso lê o responsável (designar não concede leitura) e que a consulta de edição nega Família.
+do $$
+#variable_conflict use_variable
+declare
+ admin uuid:='10000000-0000-4000-8000-000000000001'; prof uuid:='10000000-0000-4000-8000-000000000002';
+ s_prof uuid:='20000000-0000-4000-8000-000000000002';
+ prof_ativo uuid:='10000000-0000-4000-8000-000000000003'; prof_inativo uuid:='10000000-0000-4000-8000-000000000004';
+ familia uuid:='10000000-0000-4000-8000-000000000005'; paciente uuid:='40000000-0000-4000-8000-000000000001';
+ n integer; r jsonb;
+begin
+ execute 'set local role ffcmapp_edicao_paciente_owner';
+ select count(*) into n from public.usuario where id in (prof_inativo, familia);
+ if n<>0 then raise exception 'DONO_VE_USUARIO_INELEGIVEL: %',n; end if;
+ select count(*) into n from public.usuario where id in (admin, prof_ativo);
+ if n<>2 then raise exception 'DONO_NAO_VE_USUARIO_ELEGIVEL: %',n; end if;
+ select count(*) into n from auditoria.evento ev
+  where not exists (select 1 from cadastro.acompanhamento_caso a where a.auditoria_id=ev.id);
+ if n<>0 then raise exception 'DONO_LE_EVENTO_NAO_REFERENCIADO: %',n; end if;
+ begin
+  update public.usuario set ativo=false where id=admin;
+  raise exception 'DONO_ALTEROU_USUARIO';
+ exception when insufficient_privilege then null;
+ end;
+ execute 'reset role';
+ if not (select ativo from public.usuario where id=admin) then raise exception 'USUARIO_ALTERADO_PELA_TRAVA'; end if;
+
+ -- Designar responsável não concede leitura: só as duas funções de edição citam a coluna, e nenhuma política a usa.
+ if exists(select 1 from pg_proc p join pg_namespace s on s.oid=p.pronamespace
+   where p.prosrc like '%responsavel_usuario_id%' and p.proname not in ('editar_paciente_privado','consultar_paciente_edicao_privado')) then
+  raise exception 'REGRA_LE_RESPONSAVEL';
+ end if;
+ if exists(select 1 from pg_policies where qual like '%responsavel_usuario_id%' or with_check like '%responsavel_usuario_id%') then
+  raise exception 'POLITICA_LE_RESPONSAVEL';
+ end if;
+
+ -- Anônimo não executa as RPCs de edição; Família é negada na consulta, sem dados.
+ if to_regprocedure('api.editar_paciente_privado(jsonb)') is null or to_regprocedure('api.consultar_paciente_edicao_privado(jsonb)') is null then
+  raise exception 'RPC_DE_EDICAO_AUSENTE';
+ end if;
+ if has_function_privilege('anon','api.editar_paciente_privado(jsonb)','execute')
+  or has_function_privilege('anon','api.consultar_paciente_edicao_privado(jsonb)','execute') then
+  raise exception 'ANON_EXECUTA_RPC_DE_EDICAO';
+ end if;
+ update public.usuario set perfil='familia' where id=prof;
+ r:=public.consultar_edicao_fixture(prof,s_prof,paciente);
+ update public.usuario set perfil='profissional' where id=prof;
+ if r#>>'{erro,codigo}' is distinct from 'sem_permissao' or r ? 'dados' then raise exception 'FAMILIA_CONSULTA_EDICAO_ACEITA: %',r; end if;
+end $$;
