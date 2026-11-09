@@ -45,6 +45,10 @@ Cadastrar caso com identificação necessária, nome de preferência, contatos, 
 - **WHEN** Profissional ou Família consulta o caso, inclusive por acesso direto, enquanto a leitura por esses perfis não estiver especificada e provada
 - **THEN** a resposta não contém situação, responsável nem motivo da mudança
 
+#### Scenario: Situação na lista de pessoas só para o Administrador
+- **WHEN** o Administrador consulta a lista de pessoas
+- **THEN** cada item traz a situação vigente do caso ou indica que falta completá-la, e a mesma lista consultada por Profissional ou Família não traz a situação
+
 #### Scenario: Somente o Administrador altera
 - **WHEN** um Profissional com acesso ao caso tenta alterar a situação ou o case manager
 - **THEN** a alteração é recusada pelo servidor e pelo banco e o caso permanece inalterado
