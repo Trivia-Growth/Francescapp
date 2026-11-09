@@ -37,6 +37,7 @@ function preparar(
   perfil: 'administrador' | 'profissional',
   capacidades: string[],
   rotas: (caminho: string) => Response | undefined = () => undefined,
+  lista: unknown[] = pacientes,
 ) {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   sessionStorage.setItem('modo-acesso', 'tecnica');
@@ -52,7 +53,7 @@ function preparar(
         usuario: { id: usuarioId, perfil, ativo: true, versao: 1 },
         capacidades,
       });
-    if (caminho === '/api/pacientes') return envelope({ itens: pacientes, proximo_cursor: null });
+    if (caminho === '/api/pacientes') return envelope({ itens: lista, proximo_cursor: null });
     const resposta = rotas(caminho as string);
     if (resposta) return resposta;
     if (caminho === `/api/pacientes/${A}/plano`)
@@ -299,4 +300,37 @@ it('não consulta nem mostra situação e responsável para o Profissional', asy
   expect(document.querySelector('[data-bloco="situacao"]')).toBeNull();
   expect(painel()).toContain('Situação do caso e responsável: indisponíveis nesta versão');
   expect(caminhos).not.toContain(`/api/pacientes/${A}`);
+});
+
+it('mostra a situação de cada pessoa na lista do Administrador, inclusive "a completar"', async () => {
+  preparar('administrador', ['administrar_cadastro'], () => undefined, [
+    { ...pacientes[0], situacao: 'ativo' },
+    { ...pacientes[1], situacao: null },
+  ]);
+  await import('./main.js');
+  await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
+  const comSituacao = document.querySelector<HTMLElement>(linha(A));
+  expect(comSituacao?.querySelector('.pessoa-situacao')?.textContent).toBe('Situação: Ativo');
+  expect(comSituacao?.getAttribute('aria-label')).toBe(
+    'Abrir ficha de Helena Souza. Situação: Ativo.',
+  );
+  const aCompletar = document.querySelector<HTMLElement>(linha(B));
+  expect(aCompletar?.querySelector('.pessoa-situacao')?.textContent).toBe('Situação a completar');
+  expect(aCompletar?.querySelector<HTMLElement>('.pessoa-situacao')?.dataset.situacao).toBe(
+    'completar',
+  );
+  expect(aCompletar?.getAttribute('aria-label')).toBe(
+    'Abrir ficha de Bruno Costa. Situação a completar.',
+  );
+});
+
+it('não mostra situação na lista quando o servidor não devolve o campo', async () => {
+  preparar('profissional', []);
+  await import('./main.js');
+  await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
+  expect(document.querySelector('.pessoa-situacao')).toBeNull();
+  expect(document.querySelector(linha(A))?.getAttribute('aria-label')).toBe(
+    'Abrir ficha de Helena Souza',
+  );
+  expect(document.getElementById('lista-view')?.textContent).not.toContain('Situação');
 });

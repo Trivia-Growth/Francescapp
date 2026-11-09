@@ -807,6 +807,22 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   font-size: .875rem;
   overflow-wrap: anywhere;
 }
+.pessoa-situacao {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 2px 10px;
+  border-radius: 20px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: .8125rem;
+  font-weight: 600;
+}
+.pessoa-situacao[data-situacao="completar"] {
+  border: 1px dashed var(--field-line);
+  background: transparent;
+  color: var(--muted);
+  font-weight: 400;
+}
 .pessoa-seta {
   flex: none;
   width: 10px;

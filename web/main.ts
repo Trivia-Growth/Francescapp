@@ -6,7 +6,7 @@ import { montarEdicaoPaciente } from './editar-paciente.js';
 import type {
   sessaoNativaSchema,
   CriarPaciente,
-  PacienteBasico,
+  PacienteLista,
 } from '../packages/contracts/src/index.js';
 import { ClienteFFCM, exigeNovoAcesso, FalhaApi, mensagemFalha } from './api.js';
 import { lerCadastro } from './cadastro.js';
@@ -29,7 +29,11 @@ import {
 } from './ficha-paciente.js';
 import { montarDadosFamiliar } from './secao-dados-familiar.js';
 import { montarVisaoCaso } from './visao-caso.js';
-import { criarCatalogoResponsaveis, type ResponsavelOpcao } from './acompanhamento-caso.js';
+import {
+  criarCatalogoResponsaveis,
+  rotulosSituacao,
+  type ResponsavelOpcao,
+} from './acompanhamento-caso.js';
 
 function elemento<T extends HTMLElement>(id: string): T {
   const encontrado = document.getElementById(id);
@@ -153,7 +157,7 @@ let consultaFicha = 0;
 let planoAberto: { pacienteId: string; servico: ReturnType<typeof criarServicoPlanoHttp> } | null =
   null;
 let edicaoDisponivel = false;
-let pacientesDaPagina: PacienteBasico[] = [];
+let pacientesDaPagina: PacienteLista[] = [];
 let buscaTexto = '';
 
 function identidadeAtual(): { usuario_id: string; session_id: string } | null {
@@ -863,13 +867,25 @@ async function entrarFamiliar(evento: SubmitEvent): Promise<void> {
   }
 }
 
-function linhaPaciente(paciente: PacienteBasico): HTMLLIElement {
+function linhaPaciente(paciente: PacienteLista): HTMLLIElement {
   const item = document.createElement('li');
   const abrir = document.createElement('button');
   abrir.type = 'button';
   abrir.className = 'pessoa';
   abrir.dataset.pacienteId = paciente.id;
-  abrir.setAttribute('aria-label', `Abrir ficha de ${paciente.nome}`);
+  // Só o Administrador recebe a situação; sem o campo, a linha não indica nada.
+  const rotuloSituacao =
+    paciente.situacao === undefined
+      ? null
+      : paciente.situacao === null
+        ? 'Situação a completar'
+        : `Situação: ${rotulosSituacao[paciente.situacao]}`;
+  abrir.setAttribute(
+    'aria-label',
+    rotuloSituacao
+      ? `Abrir ficha de ${paciente.nome}. ${rotuloSituacao}.`
+      : `Abrir ficha de ${paciente.nome}`,
+  );
   const texto = document.createElement('span');
   texto.className = 'pessoa-texto';
   const nome = document.createElement('span');
@@ -881,6 +897,13 @@ function linhaPaciente(paciente: PacienteBasico): HTMLLIElement {
     ? `Preferência: ${paciente.nome_preferencia}`
     : 'Preferência não informada';
   texto.append(nome, preferencia);
+  if (rotuloSituacao) {
+    const situacao = document.createElement('span');
+    situacao.className = 'pessoa-situacao';
+    situacao.dataset.situacao = paciente.situacao ?? 'completar';
+    situacao.textContent = rotuloSituacao;
+    texto.append(situacao);
+  }
   const seta = document.createElement('span');
   seta.className = 'pessoa-seta';
   seta.setAttribute('aria-hidden', 'true');
@@ -897,7 +920,7 @@ function linhaPaciente(paciente: PacienteBasico): HTMLLIElement {
   return item;
 }
 
-function pacientesFiltrados(): PacienteBasico[] {
+function pacientesFiltrados(): PacienteLista[] {
   if (!buscaTexto.trim()) return pacientesDaPagina;
   return pacientesDaPagina.filter((paciente) =>
     correspondeBuscaPacienteLocal(
