@@ -38,6 +38,7 @@ Rascunho de 08/11/2026 (tarefa 2.2), com a skill `security-threat-model`. Escopo
 | T8 | Troca de envelope cifrado do motivo entre registros | 3 | baixa | médio | baixa |
 | T9 | Falha de auditoria deixa a mudança sem rastro ou o motivo vaza em log | 2, 3 | baixa | médio | baixa |
 | T10 | Regressão na redefinição da RPC de edição (migration refaz a função inteira) | 1 | média | alto | alta |
+| T14 | Ampliação de privilégio do papel dono da edição (lê usuário elegível, o motivo cifrado dos eventos referenciados e trava o usuário) | 1, 3 | baixa | médio | média |
 
 ## Mitigações
 
@@ -50,6 +51,7 @@ A construir (cada uma com prova exigida):
 - **Elegibilidade validada dentro da transação**: o responsável precisa existir em `public.usuario`, estar ativo e ter perfil Administrador ou Profissional, com a linha travada `for share` até o fim da gravação para impedir desativação concorrente. Prova: casos de inexistente, Família, inativo e desativado concorrente (T2).
 - **Responsável não concede acesso**: nenhuma regra de acesso, leitura ou concessão consulta essa coluna; designar um Profissional não cria `acesso_paciente`. Prova: Profissional designado, sem acesso, continua negado na leitura do caso (T3).
 - **Leitura só do Administrador nesta fatia**: situação, responsável e motivo saem apenas da consulta de edição, que já é restrita ao Administrador. Lista, Visão do caso e rotas de Profissional e Família não recebem esses campos até a fatia de leitura por perfil. Prova: contratos de resposta de Profissional e Família sem os campos, e teste de acesso direto (T7).
+- **Privilégios do dono da edição (T14, acrescentada na revisão de 09/11/2026)**: leitura de `public.usuario` só de ativo com perfil Administrador ou Profissional, trava `for share` com `with check (false)`, e leitura apenas de `id` e `motivo_cifrado` de `auditoria.evento`, só dos eventos que o acompanhamento referencia. Prova: negativos no papel dono (Família e inativo invisíveis, evento não referenciado invisível, usuário não alterável).
 - **Motivo**: continua cifrado com AAD amarrado ao evento de auditoria, que a linha de acompanhamento referencia; nunca em log nem em campo aberto (T8, T9).
 
 ## Hipóteses que movem a prioridade
