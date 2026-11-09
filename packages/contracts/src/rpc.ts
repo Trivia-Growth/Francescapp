@@ -250,14 +250,10 @@ export const pacienteBasicoRpcSaidaSchema = z
     versao: versaoSchema,
   })
   .strict();
+const situacaoCasoRpcSchema = z.enum(['entrada', 'ativo', 'pausado', 'encerrado', 'transferido']);
 /** Item da lista; `situacao` só vem no ramo do Administrador da função de carteira. */
 export const pacienteListaRpcSaidaSchema = pacienteBasicoRpcSaidaSchema
-  .extend({
-    situacao: z
-      .enum(['entrada', 'ativo', 'pausado', 'encerrado', 'transferido'])
-      .nullable()
-      .optional(),
-  })
+  .extend({ situacao: situacaoCasoRpcSchema.nullable().optional() })
   .strict();
 export const pacienteAdministrativoRpcSaidaSchema = pacienteBasicoRpcSaidaSchema
   .extend({
@@ -268,7 +264,7 @@ export const pacienteAdministrativoRpcSaidaSchema = pacienteBasicoRpcSaidaSchema
 const acompanhamentoCasoRpcSchema = z
   .object({
     versao: versaoSchema,
-    situacao: z.enum(['entrada', 'ativo', 'pausado', 'encerrado', 'transferido']).nullable(),
+    situacao: situacaoCasoRpcSchema.nullable(),
     responsavel_id: uuidSchema.nullable(),
     responsavel_ativo: z.boolean().nullable(),
     ator_id: uuidSchema,

@@ -335,6 +335,10 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
   const administraConcessoes =
     atual.usuario.perfil === 'administrador' &&
     atual.capacidades.includes('administrar_concessoes');
+  // Um catálogo por ficha: a Visão e o Cadastro compartilham a equipe já consultada.
+  const catalogoResponsaveis = administraConcessoes
+    ? criarCatalogoResponsaveis((cursor) => api.listarProfissionais(cursor))
+    : undefined;
   const secoes: SecaoFicha[] = [
     {
       id: 'visao',
@@ -350,13 +354,7 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
               ? {
                   situacao: {
                     consultarPaciente: (id: string) => api.consultarPaciente(id),
-                    ...(administraConcessoes
-                      ? {
-                          listarResponsaveis: criarCatalogoResponsaveis((cursor) =>
-                            api.listarProfissionais(cursor),
-                          ),
-                        }
-                      : {}),
+                    ...(catalogoResponsaveis ? { listarResponsaveis: catalogoResponsaveis } : {}),
                   },
                 }
               : {}),
@@ -412,14 +410,7 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       rotulo: 'Cadastro',
       descarte: descarteCadastro,
       montar: (raiz, pendente) =>
-        montarSecaoCadastro(
-          raiz,
-          paciente.id,
-          pendente,
-          administraConcessoes
-            ? criarCatalogoResponsaveis((cursor) => api.listarProfissionais(cursor))
-            : undefined,
-        ),
+        montarSecaoCadastro(raiz, paciente.id, pendente, catalogoResponsaveis),
     });
   if (administraConcessoes)
     secoes.push({
