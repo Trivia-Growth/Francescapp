@@ -37,6 +37,7 @@ function preparar(
   perfil: 'administrador' | 'profissional',
   capacidades: string[],
   rotas: (caminho: string) => Response | undefined = () => undefined,
+  lista: unknown[] = pacientes,
 ) {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   sessionStorage.setItem('modo-acesso', 'tecnica');
@@ -52,7 +53,7 @@ function preparar(
         usuario: { id: usuarioId, perfil, ativo: true, versao: 1 },
         capacidades,
       });
-    if (caminho === '/api/pacientes') return envelope({ itens: pacientes, proximo_cursor: null });
+    if (caminho === '/api/pacientes') return envelope({ itens: lista, proximo_cursor: null });
     const resposta = rotas(caminho as string);
     if (resposta) return resposta;
     if (caminho === `/api/pacientes/${A}/plano`)
@@ -147,6 +148,7 @@ it('administrador reabre paciente fora da página pelo endpoint de consulta', as
           versao: 1,
           data_nascimento: null,
           contatos: [],
+          acompanhamento: [],
         })
       : caminho === `/api/pacientes/${C}/plano`
         ? envelope({ itens: [], proximo_cursor: null })
@@ -251,4 +253,85 @@ it('remove a visão do caso do DOM com a aba oculta e a recarrega ao voltar', as
   await vi.waitFor(() => expect(painel()).toContain('Tarefa de Helena'));
   expect(el('patients-view').hidden).toBe(false);
   Reflect.deleteProperty(document, 'hidden');
+});
+
+it('mostra situação e responsável na visão só ao Administrador com edição disponível', async () => {
+  const caminhos = preparar('administrador', ['administrar_cadastro'], (caminho) =>
+    caminho === '/api/pacientes/edicao/disponibilidade'
+      ? envelope({ disponivel: true })
+      : caminho === `/api/pacientes/${A}`
+        ? envelope({
+            id: A,
+            nome: 'Helena Souza',
+            nome_preferencia: 'Lena',
+            data_nascimento: null,
+            contatos: [],
+            versao: 3,
+            acompanhamento: [
+              {
+                versao: 3,
+                situacao: 'pausado',
+                responsavel_id: usuarioId,
+                responsavel_ativo: true,
+                ator_id: usuarioId,
+                criado_em: '2026-11-06T15:00:00.000000+00:00',
+                motivo: 'Pausa fictícia',
+              },
+            ],
+          })
+        : undefined,
+  );
+  await import('./main.js');
+  await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
+  document.querySelector<HTMLButtonElement>(linha(A))?.click();
+  await vi.waitFor(() => expect(painel()).toContain('Situação: Pausado'));
+  expect(painel()).toContain('Responsável: Responsável indicado');
+  expect(painel()).not.toContain('Pausa fictícia');
+  expect(painel()).not.toContain('Situação do caso e responsável: indisponíveis');
+  expect(caminhos).not.toContain('/api/admin/concessoes-equipe');
+});
+
+it('não consulta nem mostra situação e responsável para o Profissional', async () => {
+  const caminhos = preparar('profissional', []);
+  await import('./main.js');
+  await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
+  document.querySelector<HTMLButtonElement>(linha(A))?.click();
+  await vi.waitFor(() => expect(painel()).toContain('Tarefa de Helena'));
+  expect(document.querySelector('[data-bloco="situacao"]')).toBeNull();
+  expect(painel()).toContain('Situação do caso e responsável: indisponíveis nesta versão');
+  expect(caminhos).not.toContain(`/api/pacientes/${A}`);
+});
+
+it('mostra a situação de cada pessoa na lista do Administrador, inclusive "a completar"', async () => {
+  preparar('administrador', ['administrar_cadastro'], () => undefined, [
+    { ...pacientes[0], situacao: 'ativo' },
+    { ...pacientes[1], situacao: null },
+  ]);
+  await import('./main.js');
+  await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
+  const comSituacao = document.querySelector<HTMLElement>(linha(A));
+  expect(comSituacao?.querySelector('.pessoa-situacao')?.textContent).toBe('Situação: Ativo');
+  expect(comSituacao?.getAttribute('aria-label')).toBe(
+    'Abrir ficha de Helena Souza. Situação: Ativo.',
+  );
+  const aCompletar = document.querySelector<HTMLElement>(linha(B));
+  expect(aCompletar?.querySelector('.pessoa-situacao')?.textContent).toBe('Situação a completar');
+  expect(aCompletar?.querySelector<HTMLElement>('.pessoa-situacao')?.dataset.situacao).toBe(
+    'completar',
+  );
+  expect(aCompletar?.getAttribute('aria-label')).toBe(
+    'Abrir ficha de Bruno Costa. Situação a completar.',
+  );
+});
+
+it('não mostra situação na lista quando o servidor não devolve o campo', async () => {
+  preparar('profissional', []);
+  await import('./main.js');
+  await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
+  expect(document.querySelector('.pessoa-situacao')).toBeNull();
+  expect(document.querySelector(linha(A))?.getAttribute('aria-label')).toBe(
+    'Abrir ficha de Helena Souza',
+  );
+  // O rótulo "Situação" do formulário de cadastro novo não conta: só a lista de pacientes.
+  expect(document.getElementById('patients-body')?.textContent).not.toContain('Situação');
 });

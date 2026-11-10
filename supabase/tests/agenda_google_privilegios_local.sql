@@ -2,8 +2,12 @@
 \ir cadeia_migrations_local.sql
 -- Apenas superfície Vault de teste; este teste não comprova Vault real.
 create table vault.secrets (id uuid primary key, secret text);
-create or replace view vault.decrypted_secrets as select null::text as name, secret as decrypted_secret, id from vault.secrets;
-create function vault.create_secret(text,text,text,uuid) returns uuid language sql as $$ select gen_random_uuid() $$;
+create or replace view vault.decrypted_secrets as
+ select name, decrypted_secret, null::uuid as id from vault.segredos_fixture
+ union all select null::text, secret, id from vault.secrets;
+create function vault.create_secret(text,text,text,uuid) returns uuid language sql security definer set search_path = '' as $$
+ insert into vault.secrets values (gen_random_uuid(),$1) returning id
+$$;
 create function vault.update_secret(uuid,text,text,text,uuid) returns void language sql as $$ select $$;
 revoke execute on function vault.update_secret(uuid,text,text,text,uuid) from public;
 -- Membership anterior deve sobreviver com opções e concedente intactos.

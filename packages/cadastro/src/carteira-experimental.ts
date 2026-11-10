@@ -8,10 +8,17 @@ import { projetarPacienteBasicoExperimental } from './projetar-paciente-experime
 
 /** Somente servidor, após RPC autorizada e auditada. Não verifica identidade,
  * autorização nem auditoria; o cursor retornado é interno e deve ser selado
- * por identidade antes de qualquer resposta HTTP. Não conectar antes da S-02. */
+ * por identidade antes de qualquer resposta HTTP. Não conectar antes da S-02.
+ * A situação do caso só atravessa quando o chamador a permite (lista do
+ * Administrador); fora disso uma resposta que a traga é recusada. */
 export async function processarCarteiraExperimental(
   respostaAutorizada: unknown,
-  contexto: { requestId: string; limite: number; signal?: AbortSignal },
+  contexto: {
+    requestId: string;
+    limite: number;
+    signal?: AbortSignal;
+    situacaoPermitida?: boolean;
+  },
   cifra: Pick<AdaptadorCifra, 'decifrar'>,
 ) {
   try {
@@ -28,9 +35,11 @@ export async function processarCarteiraExperimental(
       },
     };
     const itens = [];
-    for (const paciente of resposta.dados.itens) {
+    for (const { situacao, ...paciente } of resposta.dados.itens) {
       if (contexto.signal?.aborted) throw new Error();
-      itens.push(await projetarPacienteBasicoExperimental(paciente, cifraNoPrazo));
+      if (situacao !== undefined && contexto.situacaoPermitida !== true) throw new Error();
+      const basico = await projetarPacienteBasicoExperimental(paciente, cifraNoPrazo);
+      itens.push(situacao === undefined ? basico : { ...basico, situacao });
     }
     return {
       ok: true as const,

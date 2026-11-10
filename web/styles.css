@@ -278,6 +278,8 @@ textarea {
   display: block;
   width: 100%;
   min-height: 48px;
+  /* 16px evita o zoom automático do iOS ao focar; o rótulo pai tem 15px e o campo herdava. */
+  font-size: 1rem;
   border: 1px solid var(--field-line);
   border-radius: 7px;
   padding: 10px 12px;
@@ -805,6 +807,22 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   font-size: .875rem;
   overflow-wrap: anywhere;
 }
+.pessoa-situacao {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 2px 10px;
+  border-radius: 20px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: .8125rem;
+  font-weight: 600;
+}
+.pessoa-situacao[data-situacao="completar"] {
+  border: 1px dashed var(--field-line);
+  background: transparent;
+  color: var(--muted);
+  font-weight: 400;
+}
 .pessoa-seta {
   flex: none;
   width: 10px;
@@ -930,6 +948,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .ficha-secao label {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 7px;
 }
 .ficha-secao textarea {
@@ -1075,4 +1094,31 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   .ficha-secao form {
     padding: 18px 16px;
   }
+}
+
+.field-group {
+  border: 0;
+  margin: 0 0 var(--space-4, 16px);
+  padding: 0;
+  min-inline-size: 0;
+}
+.field-group legend {
+  font-weight: 600;
+  padding: 0;
+  margin-bottom: 6px;
+}
+.contact-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 8rem) minmax(0, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.contact-row select,
+.contact-row input {
+  font-size: 16px;
+  min-inline-size: 0;
+}
+.contact-row .contact-remove {
+  grid-column: 1 / -1;
+  justify-self: start;
 }

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { uuidSchema } from './comum.ts';
-import { atualizarPacienteSchema, pacienteAdministrativoSchema } from './cadastro.ts';
+import { atualizarPacienteSchema, pacienteEdicaoSchema } from './cadastro.ts';
 import {
   consultaBarreiraEdicaoPacienteResultadoSchema,
   estadoReservaEdicaoPacienteSchema,
@@ -16,7 +16,7 @@ export const edicaoPacienteHttp = {
     metodo: 'GET',
     caminho: '/api/pacientes/:paciente_id',
     entrada: vazio,
-    saida: pacienteAdministrativoSchema,
+    saida: pacienteEdicaoSchema,
   },
   editar: {
     metodo: 'PATCH',

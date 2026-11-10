@@ -8,7 +8,7 @@ context: |
   Fontes: openspec/specs, docs/projeto, PRODUCT.md e AGENTS.md.
   Infraestrutura confirmada: Supabase, Netlify, OpenRouter, Google Drive e Google Calendar.
   Histórico contínuo por paciente, preservado em pausas e retomadas; não criar episódios independentes por inferência.
-  Cadastro mínimo confirmado: nome obrigatório; preferência, nascimento e contatos opcionais; familiares/responsáveis separados, sem CPF obrigatório.
+  Cadastro mínimo confirmado em 16/10/2026: nome obrigatório; preferência, nascimento e contatos opcionais; familiares/responsáveis separados, sem CPF obrigatório. Decisão de 08/11/2026: casos novos, a partir da entrega 2 da change ficha-do-paciente, exigem também preferência, nascimento, ao menos um contato, situação e case manager; o mínimo vale até lá e para casos existentes.
   Anexos no Google Drive compartilhado institucional; família somente pelo app. Raiz e organização ainda serão definidas.
   Mesmo ambiente remoto para testes e futura produção; somente dados fictícios até a liberação.
   Transição exige limpeza seletiva conferida dos itens identificados de teste, preservando configurações, acessos administrativos válidos e conteúdo institucional preexistente. Não executar exclusões por esta decisão de planejamento.

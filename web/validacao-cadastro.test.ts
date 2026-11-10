@@ -14,7 +14,7 @@ afterEach(() => {
   vi.resetModules();
 });
 
-it('identifica e limpa erros nos campos opcionais sem enviar cadastro', async () => {
+it('identifica e limpa erros nos campos de preferência e nascimento sem enviar cadastro', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   const id = '10000000-0000-4000-8000-000000000001';
   const sessao = {

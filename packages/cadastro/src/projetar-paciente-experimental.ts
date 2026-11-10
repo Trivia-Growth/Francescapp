@@ -3,6 +3,8 @@ import {
   pacienteAdministrativoSchema,
   pacienteBasicoRpcSaidaSchema,
   pacienteBasicoSchema,
+  pacienteEdicaoRpcSaidaSchema,
+  pacienteEdicaoSchema,
   type AdaptadorCifra,
   type CampoCifrado,
 } from '@ffcmapp/contratos';
@@ -81,6 +83,42 @@ export async function projetarPacienteAdministrativoExperimental(
       contatos,
       versao: paciente.versao,
     });
+  } catch {
+    throw new Error('Não foi possível processar o cadastro.');
+  }
+}
+
+/** Somente servidor, após a consulta de edição (Administrador) autorizada e auditada pela RPC.
+ * Decifra o motivo de cada mudança com o AAD do evento de auditoria que o guarda. */
+export async function projetarPacienteEdicaoExperimental(
+  respostaAutorizada: unknown,
+  cifra: Pick<AdaptadorCifra, 'decifrar'>,
+) {
+  try {
+    const { acompanhamento, ...cadastro } = pacienteEdicaoRpcSaidaSchema.parse(respostaAutorizada);
+    const paciente = await projetarPacienteAdministrativoExperimental(cadastro, cifra);
+    const historico = [];
+    for (const mudanca of acompanhamento) {
+      historico.push({
+        versao: mudanca.versao,
+        situacao: mudanca.situacao,
+        responsavel_id: mudanca.responsavel_id,
+        responsavel_ativo: mudanca.responsavel_ativo,
+        ator_id: mudanca.ator_id,
+        criado_em: mudanca.criado_em,
+        // Só o primeiro retrato, gravado com o cadastro do caso, não tem motivo.
+        motivo:
+          mudanca.motivo === null
+            ? null
+            : await cifra.decifrar(mudanca.motivo, {
+                tabela: 'auditoria.evento',
+                registro_id: mudanca.auditoria_id,
+                campo: 'motivo',
+                formato: mudanca.motivo.formato,
+              }),
+      });
+    }
+    return pacienteEdicaoSchema.parse({ ...paciente, acompanhamento: historico });
   } catch {
     throw new Error('Não foi possível processar o cadastro.');
   }

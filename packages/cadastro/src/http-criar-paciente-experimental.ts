@@ -131,7 +131,8 @@ export function criarHandlerCriarPacienteExperimental(portas: {
         if (
           codigo === 'entrada_invalida' ||
           codigo === 'sem_permissao' ||
-          codigo === 'conflito_idempotencia'
+          codigo === 'conflito_idempotencia' ||
+          codigo === 'responsavel_invalido'
         )
           return falha(codigo);
         return falha('pendencia_externa');

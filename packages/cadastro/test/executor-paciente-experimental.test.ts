@@ -27,13 +27,43 @@ const contexto = {
   expira_em: '2026-10-29T12:01:00Z',
 };
 
+/** Caso novo completo e fictício: todos os campos do contrato são obrigatórios. */
+const casoNovo = {
+  nome: 'Pessoa fictícia',
+  nome_preferencia: 'Nome fictício',
+  data_nascimento: '2000-01-01',
+  contatos: [
+    { tipo: 'email', valor: 'pessoa.ficticia@exemplo.test' },
+    { tipo: 'telefone', valor: '+55 11 90000-0000' },
+  ],
+  situacao: 'entrada',
+  responsavel_id: 'e0000000-0000-4000-8000-000000000001',
+};
+type Entrada = Parameters<
+  Parameters<typeof executarCriacaoPacienteExperimental>[2]['rpc']['executar']
+>[0]['p_entrada']['entrada'];
+/** Resposta de sucesso do banco: devolve o que foi gravado, com versão 1 nos contatos. */
+const gravado = (entrada: Entrada) => ({
+  paciente_id: entrada.paciente_id,
+  nome: entrada.nome,
+  nome_preferencia: entrada.nome_preferencia,
+  data_nascimento: entrada.data_nascimento,
+  contatos: entrada.contatos.map(({ contato_id, tipo, valor }) => ({
+    contato_id,
+    tipo,
+    valor,
+    versao: 1,
+  })),
+  versao: 1,
+});
+
 describe('executor experimental de criação', () => {
   it('não chama RPC quando não recebe reserva interna', async () => {
     let chamadas = 0;
     await expect(
       executarCriacaoPacienteExperimental(
         {
-          corpo: { nome: 'Pessoa fictícia' },
+          corpo: casoNovo,
           cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
         },
         contexto,
@@ -53,14 +83,14 @@ describe('executor experimental de criação', () => {
     ).rejects.toThrow('Não foi possível processar o cadastro.');
     expect(chamadas).toBe(0);
   });
-  it.each(['entrada_invalida', 'sem_permissao', 'conflito_idempotencia'])(
+  it.each(['entrada_invalida', 'sem_permissao', 'conflito_idempotencia', 'responsavel_invalido'])(
     'preserva negativa prevista da criação: %s',
     async (codigo) => {
       const negado = { ok: false, request_id: contexto.request_id, erro: { codigo } };
       await expect(
         executarCriacaoPacienteExperimental(
           {
-            corpo: { nome: 'Pessoa fictícia' },
+            corpo: casoNovo,
             cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
           },
           contexto,
@@ -91,7 +121,7 @@ describe('executor experimental de criação', () => {
     await expect(
       executarCriacaoPacienteExperimental(
         {
-          corpo: { nome: 'Pessoa fictícia' },
+          corpo: casoNovo,
           cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
         },
         contexto,
@@ -113,7 +143,7 @@ describe('executor experimental de criação', () => {
     let chamadas = 0;
     const erro = await executarCriacaoPacienteExperimental(
       {
-        corpo: { nome: 'Pessoa fictícia' },
+        corpo: casoNovo,
         cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
       },
       contexto,
@@ -142,7 +172,7 @@ describe('executor experimental de criação', () => {
   });
   it('distingue falha após chamada da RPC de falha anterior, sem repetir', async () => {
     const solicitacao = {
-      corpo: { nome: 'Pessoa fictícia' },
+      corpo: casoNovo,
       cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
     };
     let chamadas = 0;
@@ -165,7 +195,7 @@ describe('executor experimental de criação', () => {
     });
     expect(chamadas).toBe(1);
     const antesEnvio = await executarCriacaoPacienteExperimental(
-      { ...solicitacao, corpo: { nome: '' } },
+      { ...solicitacao, corpo: { ...casoNovo, nome: '' } },
       contexto,
       { cifra, atestador, idempotencia, reserva, rpc },
     ).catch((erro: unknown) => erro);
@@ -178,7 +208,7 @@ describe('executor experimental de criação', () => {
   it('projeta a resposta autorizada fictícia em DTO administrativo legível', async () => {
     const retorno = await executarCriacaoPacienteExperimental(
       {
-        corpo: { nome: 'Pessoa fictícia' },
+        corpo: casoNovo,
         cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
       },
       contexto,
@@ -189,18 +219,10 @@ describe('executor experimental de criação', () => {
         reserva,
         rpc: {
           async executar(entrada) {
-            const paciente = entrada.p_entrada.entrada;
             return {
               ok: true,
               request_id: contexto.request_id,
-              dados: {
-                paciente_id: paciente.paciente_id,
-                nome: paciente.nome,
-                nome_preferencia: null,
-                data_nascimento: null,
-                contatos: [],
-                versao: 1,
-              },
+              dados: gravado(entrada.p_entrada.entrada),
             };
           },
         },
@@ -211,17 +233,58 @@ describe('executor experimental de criação', () => {
       request_id: contexto.request_id,
       dados: {
         nome: 'Pessoa fictícia',
-        nome_preferencia: null,
-        data_nascimento: null,
-        contatos: [],
+        nome_preferencia: 'Nome fictício',
+        data_nascimento: '2000-01-01',
+        contatos: [
+          { tipo: 'email', valor: 'pessoa.ficticia@exemplo.test', versao: 1 },
+          { tipo: 'telefone', valor: '+55 11 90000-0000', versao: 1 },
+        ],
         versao: 1,
       },
     });
   });
 
+  it('entrega à RPC todos os campos do caso novo, assinados e sem texto claro', async () => {
+    let enviado: Entrada | undefined;
+    let canonica = '';
+    await executarCriacaoPacienteExperimental(
+      { corpo: casoNovo, cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' } },
+      contexto,
+      {
+        cifra,
+        atestador,
+        idempotencia,
+        reserva,
+        rpc: {
+          async executar(entrada) {
+            enviado = entrada.p_entrada.entrada;
+            canonica = entrada.p_entrada.entrada_canonica;
+            return {
+              ok: false,
+              request_id: contexto.request_id,
+              erro: { codigo: 'sem_permissao' },
+            };
+          },
+        },
+      },
+    );
+    if (!enviado) throw new Error('A RPC deveria ter sido chamada.');
+    expect(enviado.situacao).toBe('entrada');
+    expect(enviado.responsavel_id).toBe(casoNovo.responsavel_id);
+    expect(enviado.contatos.map((contato) => contato.tipo)).toEqual(['email', 'telefone']);
+    // Contatos, situação e responsável estão no snapshot que o atestado cobre.
+    const assinado = JSON.parse(canonica) as Entrada;
+    expect(assinado.contatos).toEqual(enviado.contatos);
+    expect(assinado.situacao).toBe(enviado.situacao);
+    expect(assinado.responsavel_id).toBe(enviado.responsavel_id);
+    const serializado = JSON.stringify(enviado) + canonica;
+    for (const claro of ['pessoa.ficticia@exemplo.test', '90000-0000', 'Nome fictício'])
+      expect(serializado).not.toContain(claro);
+  });
+
   it('preserva negativa auditável e rejeita resposta incompatível ou exceção bruta', async () => {
     const solicitacao = {
-      corpo: { nome: 'Pessoa fictícia' },
+      corpo: casoNovo,
       cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
     };
     const negado = {
@@ -268,7 +331,7 @@ describe('executor experimental de criação', () => {
     await expect(
       executarCriacaoPacienteExperimental(
         {
-          corpo: { nome: 'Pessoa fictícia' },
+          corpo: casoNovo,
           cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
         },
         contexto,
@@ -284,12 +347,8 @@ describe('executor experimental de criação', () => {
                 ok: true,
                 request_id: contexto.request_id,
                 dados: {
+                  ...gravado(entrada.p_entrada.entrada),
                   paciente_id: '10000000-0000-4000-8000-000000000004',
-                  nome: entrada.p_entrada.entrada.nome,
-                  nome_preferencia: null,
-                  data_nascimento: null,
-                  contatos: [],
-                  versao: 1,
                 },
               };
             },
@@ -312,7 +371,7 @@ describe('executor experimental de criação', () => {
       },
     };
     const solicitacao = {
-      corpo: { nome: 'Pessoa fictícia' },
+      corpo: casoNovo,
       cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
       usuario_id: contexto.usuario_id,
     };
@@ -330,7 +389,7 @@ describe('executor experimental de criação', () => {
 
   it('não aceita correlação alterada pelo executor durante a chamada', async () => {
     const solicitacao = {
-      corpo: { nome: 'Pessoa fictícia' },
+      corpo: casoNovo,
       cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
     };
     const rpc = {

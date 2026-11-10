@@ -1,17 +1,29 @@
 import {
   atualizarPacienteSchema,
   type AtualizarPaciente,
-  type PacienteAdministrativo,
+  type PacienteEdicao,
 } from '../packages/contracts/src/index.js';
-import { exigeNovoAcesso, mensagemFalha } from './api.js';
+import {
+  descreverResponsavel,
+  rotulosSituacao,
+  type ResponsavelOpcao,
+} from './acompanhamento-caso.js';
+import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 import type { criarCicloEdicaoPaciente } from './ciclo-edicao-paciente.js';
+import { dataDeInstante } from './datas.js';
 
 export type ServicoEdicaoPaciente = {
-  consultarPaciente(pacienteId: string): Promise<PacienteAdministrativo>;
+  consultarPaciente(pacienteId: string): Promise<PacienteEdicao>;
+  /** Ausente quando o perfil não pode listar a equipe: a situação segue editável, o responsável não. */
+  listarResponsaveis?: () => Promise<ResponsavelOpcao[]>;
   ciclo: ReturnType<typeof criarCicloEdicaoPaciente>;
 };
 
 /** Interface preparada para integração segura; não ativa rota nem autoriza acesso. */
+/** O primeiro retrato, gravado com o cadastro do caso, não tem motivo. */
+const textoMotivo = (motivo: string | null) =>
+  motivo === null ? 'Registrado no cadastro do caso.' : `Motivo: ${motivo}`;
+
 export function montarEdicaoPaciente(
   raiz: HTMLElement,
   pacienteId: string,
@@ -36,8 +48,62 @@ export function montarEdicaoPaciente(
   };
   const status = elemento('p', 'Carregando cadastro…');
   status.setAttribute('role', 'status');
-  const desenhar = (paciente: PacienteAdministrativo) => {
+  let equipe: ResponsavelOpcao[] = [];
+  const textoSituacao = (mudanca: PacienteEdicao['acompanhamento'][number] | undefined) =>
+    mudanca?.situacao ? rotulosSituacao[mudanca.situacao] : 'a completar';
+  const desenhar = (paciente: PacienteEdicao) => {
     if (!ativa) return;
+    const vigente = paciente.acompanhamento[0];
+    const resumo = elemento('section');
+    resumo.className = 'caso-resumo';
+    const desenharResumo = () => {
+      const lista = elemento('ul');
+      lista.className = 'visao-lista';
+      lista.append(
+        elemento('li', `Situação: ${textoSituacao(vigente)}`),
+        elemento(
+          'li',
+          `Responsável: ${vigente ? descreverResponsavel(vigente, equipe) : 'a completar'}`,
+        ),
+      );
+      if (vigente)
+        lista.append(
+          elemento(
+            'li',
+            `Desde ${dataDeInstante(vigente.criado_em) ?? 'data indisponível'}. ${textoMotivo(vigente.motivo)}`,
+          ),
+        );
+      const faltantes = [
+        ...(paciente.nome_preferencia ? [] : ['nome de preferência']),
+        ...(paciente.data_nascimento ? [] : ['data de nascimento']),
+        ...(paciente.contatos.length ? [] : ['contato']),
+        ...(vigente?.situacao ? [] : ['situação do caso']),
+        ...(vigente?.responsavel_id ? [] : ['responsável']),
+      ];
+      const partes: HTMLElement[] = [elemento('h3', 'Situação e responsável do caso'), lista];
+      if (faltantes.length) {
+        const aviso = elemento('p', `A completar: ${faltantes.join(', ')}.`);
+        aviso.className = 'visao-aviso';
+        partes.push(aviso);
+      }
+      if (paciente.acompanhamento.length > 1) {
+        const historico = elemento('details');
+        historico.append(
+          elemento('summary', `Histórico de mudanças (${paciente.acompanhamento.length})`),
+        );
+        const itens = elemento('ol');
+        for (const mudanca of paciente.acompanhamento)
+          itens.append(
+            elemento(
+              'li',
+              `${dataDeInstante(mudanca.criado_em) ?? 'Data indisponível'} · Situação: ${textoSituacao(mudanca)} · Responsável: ${descreverResponsavel(mudanca, equipe)} · ${textoMotivo(mudanca.motivo)}`,
+            ),
+          );
+        historico.append(itens);
+        partes.push(historico);
+      }
+      resumo.replaceChildren(...partes);
+    };
     const form = elemento('form');
     const campos = elemento('fieldset');
     campos.append(elemento('legend', 'Editar paciente'));
@@ -62,6 +128,41 @@ export function montarEdicaoPaciente(
     rotular('Nome', nome);
     rotular('Nome de preferência', preferencia);
     rotular('Data de nascimento', nascimento);
+    const situacao = elemento('select');
+    situacao.append(new Option('Selecione…', ''));
+    for (const [valor, rotulo] of Object.entries(rotulosSituacao))
+      situacao.append(new Option(rotulo, valor));
+    situacao.value = vigente?.situacao ?? '';
+    const responsavel = elemento('select');
+    responsavel.append(new Option('Carregando equipe…', ''));
+    responsavel.disabled = true;
+    rotular('Situação do caso', situacao);
+    rotular('Responsável (case manager)', responsavel);
+    const indicarEquipe = (textoVazio: string, opcoes: ResponsavelOpcao[] = []) => {
+      const ativos = opcoes.filter((opcao) => opcao.ativo);
+      responsavel.replaceChildren(
+        new Option(ativos.length || !textoVazio ? 'Selecione…' : textoVazio, ''),
+        ...ativos.map((opcao) => new Option(opcao.rotulo, opcao.usuario_id)),
+      );
+      responsavel.disabled = ativos.length === 0;
+      responsavel.value = ativos.some((opcao) => opcao.usuario_id === vigente?.responsavel_id)
+        ? (vigente?.responsavel_id ?? '')
+        : '';
+    };
+    if (servico.listarResponsaveis)
+      void servico
+        .listarResponsaveis()
+        .then((opcoes) => {
+          if (!ativa) return;
+          equipe = opcoes;
+          indicarEquipe('Nenhuma pessoa ativa na equipe', opcoes);
+          desenharResumo();
+        })
+        .catch((erro: unknown) => {
+          if (!ativa || descartarAcesso(erro)) return;
+          indicarEquipe('Não foi possível listar a equipe; recarregue o cadastro');
+        });
+    else indicarEquipe('Listagem da equipe indisponível para este perfil');
     rotular('Motivo da alteração', motivo);
     const salvar = elemento('button', 'Salvar alterações');
     salvar.type = 'submit';
@@ -78,7 +179,9 @@ export function montarEdicaoPaciente(
       } catch (erro) {
         if (!ativa || descartarAcesso(erro)) return;
         aviso.textContent =
-          'Não foi possível confirmar o salvamento. Confira o resultado antes de editar novamente; o rascunho permanece nesta tela.';
+          erro instanceof FalhaApi && !resultadoIncerto(erro)
+            ? `${mensagemFalha(erro)} Nada foi alterado; confirme a situação da edição e tente de novo. O rascunho permanece nesta tela.`
+            : 'Não foi possível confirmar o salvamento. Confira o resultado antes de editar novamente; o rascunho permanece nesta tela.';
       }
       bloqueada = true;
       recuperar.textContent = 'Confirmar situação da edição';
@@ -97,6 +200,12 @@ export function montarEdicaoPaciente(
         ...(nascimento.value !== (paciente.data_nascimento ?? '')
           ? { data_nascimento: nascimento.value || null }
           : {}),
+        ...(situacao.value && situacao.value !== (vigente?.situacao ?? '')
+          ? { situacao: situacao.value }
+          : {}),
+        ...(responsavel.value && responsavel.value !== (vigente?.responsavel_id ?? '')
+          ? { responsavel_id: responsavel.value }
+          : {}),
         versao_esperada: paciente.versao,
         motivo: motivo.value,
       };
@@ -109,7 +218,9 @@ export function montarEdicaoPaciente(
       alteracaoPendente(true);
       void enviar(validado.data);
     });
-    raiz.replaceChildren(form, recuperar, status);
+    desenharResumo();
+    status.textContent = '';
+    raiz.replaceChildren(resumo, form, recuperar, status);
   };
   const consultar = () => {
     status.textContent = 'Carregando cadastro…';
@@ -187,7 +298,7 @@ export function montarEdicaoPaciente(
           if (atual.id.toLowerCase() !== pacienteId.toLowerCase())
             throw new Error('Cadastro divergente');
           const conferencia = elemento('p');
-          conferencia.textContent = `Cadastro atual: ${atual.nome}; nome de preferência: ${atual.nome_preferencia ?? 'não informado'}; nascimento: ${atual.data_nascimento ?? 'não informado'}; versão: ${atual.versao}.`;
+          conferencia.textContent = `Cadastro atual: ${atual.nome}; nome de preferência: ${atual.nome_preferencia ?? 'não informado'}; nascimento: ${atual.data_nascimento ?? 'não informado'}; situação: ${textoSituacao(atual.acompanhamento[0])}; responsável: ${atual.acompanhamento[0] ? descreverResponsavel(atual.acompanhamento[0], equipe) : 'a completar'}; versão: ${atual.versao}.`;
           raiz.querySelector('[data-conferencia-edicao]')?.remove();
           conferencia.dataset.conferenciaEdicao = '';
           raiz.append(conferencia);

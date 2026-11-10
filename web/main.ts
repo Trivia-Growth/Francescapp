@@ -6,10 +6,11 @@ import { montarEdicaoPaciente } from './editar-paciente.js';
 import type {
   sessaoNativaSchema,
   CriarPaciente,
-  PacienteBasico,
+  PacienteLista,
 } from '../packages/contracts/src/index.js';
 import { ClienteFFCM, exigeNovoAcesso, FalhaApi, mensagemFalha } from './api.js';
 import { lerCadastro } from './cadastro.js';
+import { montarCamposCasoNovo } from './campos-caso-novo.js';
 import { montarAnamnese } from './anamnese.js';
 import { criarCicloCadastro } from './ciclo-cadastro.js';
 import { montarPlanoCuidado } from './plano-cuidado.js';
@@ -29,6 +30,11 @@ import {
 } from './ficha-paciente.js';
 import { montarDadosFamiliar } from './secao-dados-familiar.js';
 import { montarVisaoCaso } from './visao-caso.js';
+import {
+  criarCatalogoResponsaveis,
+  rotulosSituacao,
+  type ResponsavelOpcao,
+} from './acompanhamento-caso.js';
 
 function elemento<T extends HTMLElement>(id: string): T {
   const encontrado = document.getElementById(id);
@@ -120,6 +126,36 @@ const createButton = elemento<HTMLButtonElement>('create-submit');
 const nameInput = elemento<HTMLInputElement>('patient-name');
 const preferredInput = elemento<HTMLInputElement>('preferred-name');
 const birthInput = elemento<HTMLInputElement>('birth-date');
+birthInput.max = new Date().toISOString().slice(0, 10);
+// Um catálogo de equipe por sessão de Administrador; falha de consulta não fica guardada.
+let catalogoCasoNovo: (() => Promise<ResponsavelOpcao[]>) | null = null;
+let equipeCasoNovoPara: string | null = null;
+const casoNovo = montarCamposCasoNovo(
+  {
+    contatos: elemento('contacts-list'),
+    adicionar: elemento<HTMLButtonElement>('add-contact'),
+    erroContatos: elemento('contacts-error'),
+    situacao: elemento<HTMLSelectElement>('case-status'),
+    responsavel: elemento<HTMLSelectElement>('case-manager'),
+    estadoResponsavel: elemento('manager-state'),
+    tentarNovamente: elemento<HTMLButtonElement>('manager-retry'),
+  },
+  () => (catalogoCasoNovo ? catalogoCasoNovo() : Promise.reject(new Error('Sem sessão'))),
+);
+function lerFormularioCadastro() {
+  return lerCadastro({
+    nome: nameInput.value,
+    nomePreferencia: preferredInput.value,
+    nascimento: birthInput.value,
+    contatos: casoNovo.contatos(),
+    situacao: casoNovo.situacao(),
+    responsavelId: casoNovo.responsavelId(),
+  });
+}
+function reiniciarFormularioCadastro(): void {
+  createForm.reset();
+  casoNovo.reiniciar();
+}
 const reloadButton = elemento<HTMLButtonElement>('reload-patients');
 const previousButton = elemento<HTMLButtonElement>('previous-page');
 const nextButton = elemento<HTMLButtonElement>('next-page');
@@ -152,7 +188,7 @@ let consultaFicha = 0;
 let planoAberto: { pacienteId: string; servico: ReturnType<typeof criarServicoPlanoHttp> } | null =
   null;
 let edicaoDisponivel = false;
-let pacientesDaPagina: PacienteBasico[] = [];
+let pacientesDaPagina: PacienteLista[] = [];
 let buscaTexto = '';
 
 function identidadeAtual(): { usuario_id: string; session_id: string } | null {
@@ -272,6 +308,7 @@ function montarSecaoCadastro(
   raiz: HTMLElement,
   pacienteId: string,
   pendente: (valor: boolean) => void,
+  listarResponsaveis?: () => Promise<ResponsavelOpcao[]>,
 ): () => void {
   const estado = { edicao: false, contato: false };
   const sincronizar = () => pendente(estado.edicao || estado.contato);
@@ -284,7 +321,10 @@ function montarSecaoCadastro(
     desmontarEdicao = montarEdicaoPaciente(
       edicaoRaiz,
       pacienteId,
-      criarServicoEdicaoPacienteHttp(identidadeAtual),
+      {
+        ...criarServicoEdicaoPacienteHttp(identidadeAtual),
+        ...(listarResponsaveis ? { listarResponsaveis } : {}),
+      },
       acessoPerdido,
       (valor) => {
         estado.edicao = valor;
@@ -326,6 +366,10 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
   const administraConcessoes =
     atual.usuario.perfil === 'administrador' &&
     atual.capacidades.includes('administrar_concessoes');
+  // Um catálogo por ficha: a Visão e o Cadastro compartilham a equipe já consultada.
+  const catalogoResponsaveis = administraConcessoes
+    ? criarCatalogoResponsaveis((cursor) => api.listarProfissionais(cursor))
+    : undefined;
   const secoes: SecaoFicha[] = [
     {
       id: 'visao',
@@ -337,6 +381,14 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
           {
             objetivos: criarServicoPlanoHttp(identidadeAtual),
             anamnese: api,
+            ...(administraCadastro && edicaoDisponivel
+              ? {
+                  situacao: {
+                    consultarPaciente: (id: string) => api.consultarPaciente(id),
+                    ...(catalogoResponsaveis ? { listarResponsaveis: catalogoResponsaveis } : {}),
+                  },
+                }
+              : {}),
             ...(atual.usuario.perfil === 'profissional'
               ? { tarefas: criarServicoTarefasHttp(identidadeAtual) }
               : {}),
@@ -388,7 +440,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'cadastro',
       rotulo: 'Cadastro',
       descarte: descarteCadastro,
-      montar: (raiz, pendente) => montarSecaoCadastro(raiz, paciente.id, pendente),
+      montar: (raiz, pendente) =>
+        montarSecaoCadastro(raiz, paciente.id, pendente, catalogoResponsaveis),
     });
   if (administraConcessoes)
     secoes.push({
@@ -580,7 +633,10 @@ function apagarPacientes(): void {
   pagina = 0;
   proximoCursor = null;
   consulta += 1;
-  createForm.reset();
+  reiniciarFormularioCadastro();
+  equipeCasoNovoPara = null;
+  catalogoCasoNovo = null;
+  casoNovo.cancelarCarga();
   createFields.disabled = false;
   createButton.disabled = false;
   createButton.textContent = 'Cadastrar paciente';
@@ -716,9 +772,25 @@ function aplicarSessao(atual: Sessao): void {
   }
   if (!podeCadastrar) {
     if (cadastroPendente) usuariosComCadastroIncerto.add(atual.usuario.id);
-    createForm.reset();
+    reiniciarFormularioCadastro();
     cadastroPendente = null;
     aviso('create-feedback', '');
+  }
+  if (podeCadastrar) {
+    if (equipeCasoNovoPara !== atual.usuario.id) {
+      equipeCasoNovoPara = atual.usuario.id;
+      catalogoCasoNovo = criarCatalogoResponsaveis((cursor) => api.listarProfissionais(cursor));
+      if (atual.capacidades.includes('administrar_concessoes'))
+        void casoNovo.carregarResponsaveis();
+      else
+        casoNovo.equipeIndisponivel(
+          'Seu acesso não permite listar a equipe, então o responsável não pode ser indicado e o cadastro não pode ser enviado.',
+        );
+    }
+  } else {
+    equipeCasoNovoPara = null;
+    catalogoCasoNovo = null;
+    casoNovo.cancelarCarga();
   }
   registration.hidden = !podeCadastrar;
   newPatientLink.hidden = !podeCadastrar;
@@ -730,7 +802,7 @@ function aplicarSessao(atual: Sessao): void {
     ? 'Consulte os pacientes e mantenha o cadastro organizado.'
     : 'Pacientes disponíveis conforme seus vínculos de acesso.';
   elemento('empty-description').textContent = podeCadastrar
-    ? 'Cadastre o primeiro paciente com o nome. Os demais campos são opcionais.'
+    ? 'Cadastre o primeiro paciente informando todos os campos exigidos.'
     : 'Nenhum paciente foi disponibilizado para seu acesso nesta consulta.';
 }
 
@@ -836,13 +908,25 @@ async function entrarFamiliar(evento: SubmitEvent): Promise<void> {
   }
 }
 
-function linhaPaciente(paciente: PacienteBasico): HTMLLIElement {
+function linhaPaciente(paciente: PacienteLista): HTMLLIElement {
   const item = document.createElement('li');
   const abrir = document.createElement('button');
   abrir.type = 'button';
   abrir.className = 'pessoa';
   abrir.dataset.pacienteId = paciente.id;
-  abrir.setAttribute('aria-label', `Abrir ficha de ${paciente.nome}`);
+  // Só o Administrador recebe a situação; sem o campo, a linha não indica nada.
+  const rotuloSituacao =
+    paciente.situacao === undefined
+      ? null
+      : paciente.situacao === null
+        ? 'Situação a completar'
+        : `Situação: ${rotulosSituacao[paciente.situacao]}`;
+  abrir.setAttribute(
+    'aria-label',
+    rotuloSituacao
+      ? `Abrir ficha de ${paciente.nome}. ${rotuloSituacao}.`
+      : `Abrir ficha de ${paciente.nome}`,
+  );
   const texto = document.createElement('span');
   texto.className = 'pessoa-texto';
   const nome = document.createElement('span');
@@ -854,6 +938,13 @@ function linhaPaciente(paciente: PacienteBasico): HTMLLIElement {
     ? `Preferência: ${paciente.nome_preferencia}`
     : 'Preferência não informada';
   texto.append(nome, preferencia);
+  if (rotuloSituacao) {
+    const situacao = document.createElement('span');
+    situacao.className = 'pessoa-situacao';
+    situacao.dataset.situacao = paciente.situacao ?? 'completar';
+    situacao.textContent = rotuloSituacao;
+    texto.append(situacao);
+  }
   const seta = document.createElement('span');
   seta.className = 'pessoa-seta';
   seta.setAttribute('aria-hidden', 'true');
@@ -870,7 +961,7 @@ function linhaPaciente(paciente: PacienteBasico): HTMLLIElement {
   return item;
 }
 
-function pacientesFiltrados(): PacienteBasico[] {
+function pacientesFiltrados(): PacienteLista[] {
   if (!buscaTexto.trim()) return pacientesDaPagina;
   return pacientesDaPagina.filter((paciente) =>
     correspondeBuscaPacienteLocal(
@@ -972,7 +1063,7 @@ async function carregarPacientes(): Promise<boolean> {
           : resultado.proximo_cursor
             ? 'Nenhum paciente nesta página. Avance para continuar a consulta.'
             : !registration.hidden
-              ? 'Cadastre o primeiro paciente com o nome. Os demais campos são opcionais.'
+              ? 'Cadastre o primeiro paciente informando todos os campos exigidos.'
               : 'Nenhum paciente foi disponibilizado para seu acesso nesta consulta.';
     aviso(
       'list-status',
@@ -1047,13 +1138,14 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
   evento.preventDefault();
   if (cadastroOcupado || !sessao || registration.hidden || !cadastroLiberado || !ciclo) return;
   if (!cadastroPendente) {
-    const cadastro = lerCadastro({
-      nome: nameInput.value,
-      nomePreferencia: preferredInput.value,
-      nascimento: birthInput.value,
-    });
+    const cadastro = lerFormularioCadastro();
     if (!cadastro.success) {
-      const campos = [
+      const campos: {
+        chave: string;
+        input: HTMLInputElement | HTMLSelectElement;
+        erro: string;
+        mensagem: string;
+      }[] = [
         {
           chave: 'nome',
           input: nameInput,
@@ -1070,10 +1162,22 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
           chave: 'data_nascimento',
           input: birthInput,
           erro: 'birth-error',
-          mensagem: 'Informe uma data de nascimento válida.',
+          mensagem: 'Informe uma data de nascimento válida, que não seja futura.',
+        },
+        {
+          chave: 'situacao',
+          input: elemento<HTMLSelectElement>('case-status'),
+          erro: 'status-error',
+          mensagem: 'Escolha a situação do caso.',
+        },
+        {
+          chave: 'responsavel_id',
+          input: elemento<HTMLSelectElement>('case-manager'),
+          erro: 'manager-error',
+          mensagem: 'Escolha quem acompanha o caso.',
         },
       ];
-      let primeiro: HTMLInputElement | undefined;
+      let primeiro: HTMLElement | undefined;
       for (const campo of campos) {
         const invalido = cadastro.error.issues.some((item) => item.path[0] === campo.chave);
         if (invalido) {
@@ -1085,8 +1189,21 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
           elemento(campo.erro).textContent = '';
         }
       }
+      const contato = casoNovo.marcarContatos(
+        cadastro.error.issues.some((item) => item.path[0] === 'contatos'),
+      );
+      primeiro ??= contato;
       primeiro?.focus();
       aviso('create-feedback', 'Confira os campos informados antes de cadastrar.', 'error');
+      return;
+    }
+    casoNovo.marcarContatos(false);
+    if (!casoNovo.equipeDisponivel()) {
+      aviso(
+        'create-feedback',
+        'A equipe ainda não está disponível para indicar o responsável. O cadastro não foi enviado.',
+        'error',
+      );
       return;
     }
     cadastroPendente = { entrada: cadastro.data, chave: crypto.randomUUID() };
@@ -1106,7 +1223,7 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
     if (versao !== revisao) return;
     if (sessao) usuariosCadastroSemConfirmacao.delete(sessao.usuario.id);
     cadastroPendente = null;
-    createForm.reset();
+    reiniciarFormularioCadastro();
     cursores = [undefined];
     pagina = 0;
     aviso('create-feedback', 'Paciente cadastrado.', 'success');
@@ -1327,24 +1444,40 @@ newPatientLink.addEventListener('click', (evento) => {
   elemento('create-title').focus();
   registration.scrollIntoView({ block: 'start' });
 });
-for (const campo of [
+const camposComErro: {
+  input: HTMLInputElement | HTMLSelectElement;
+  chave: string;
+  erro: string;
+}[] = [
   { input: nameInput, chave: 'nome', erro: 'name-error' },
   { input: preferredInput, chave: 'nome_preferencia', erro: 'preferred-error' },
   { input: birthInput, chave: 'data_nascimento', erro: 'birth-error' },
-]) {
+  { input: elemento<HTMLSelectElement>('case-status'), chave: 'situacao', erro: 'status-error' },
+  {
+    input: elemento<HTMLSelectElement>('case-manager'),
+    chave: 'responsavel_id',
+    erro: 'manager-error',
+  },
+];
+for (const campo of camposComErro) {
   campo.input.addEventListener('input', () => {
     if (!campo.input.hasAttribute('aria-invalid')) return;
-    const cadastro = lerCadastro({
-      nome: nameInput.value,
-      nomePreferencia: preferredInput.value,
-      nascimento: birthInput.value,
-    });
+    const cadastro = lerFormularioCadastro();
     if (!cadastro.success && cadastro.error.issues.some((item) => item.path[0] === campo.chave))
       return;
     campo.input.removeAttribute('aria-invalid');
     elemento(campo.erro).textContent = '';
   });
 }
+// Os contatos são linhas dinâmicas: corrigir uma delas limpa a marca de erro sem esperar novo envio.
+for (const evento of ['input', 'change'])
+  elemento('contacts-list').addEventListener(evento, () => {
+    if (!elemento('contacts-error').textContent) return;
+    const cadastro = lerFormularioCadastro();
+    casoNovo.marcarContatos(
+      !cadastro.success && cadastro.error.issues.some((item) => item.path[0] === 'contatos'),
+    );
+  });
 document.addEventListener('visibilitychange', () => {
   // A visão do caso reúne dados de vários serviços: não fica no DOM com a aba oculta.
   if (document.hidden && ficha?.secaoAtual() === 'visao') ficha.limparSecao();

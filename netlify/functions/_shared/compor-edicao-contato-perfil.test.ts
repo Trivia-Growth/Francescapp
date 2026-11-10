@@ -13,7 +13,7 @@ vi.mock('./auth-nativo/cliente.ts', () => ({
 }));
 vi.mock('./cofre-nativo.ts', () => ({ carregarCofreNativo: mocks.cofre }));
 vi.mock('../../../packages/cadastro/src/projetar-paciente-experimental.ts', () => ({
-  projetarPacienteAdministrativoExperimental: mocks.projetar,
+  projetarPacienteEdicaoExperimental: mocks.projetar,
 }));
 vi.mock('../../../packages/cadastro/src/executor-contato-privado.ts', () => ({
   executarCriacaoContatoPrivado: mocks.contato,

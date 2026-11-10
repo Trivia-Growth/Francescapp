@@ -9,7 +9,7 @@ type CanalAgenda = Readonly<{
 export function criarRepositorioAgenda(canal: CanalAgenda): RepositorioStateAgenda & {
   salvarCredencial(refresh: string, geracao: string, subject: string): Promise<void>;
   lerCredencial(): Promise<Readonly<{ refresh: string; geracao: string }> | null>;
-  revogarCredencial(): Promise<void>;
+  revogarCredencial(subject: string, geracao: string): Promise<void>;
   consultarDesconexao(
     subject: string,
     operacaoId: string,
@@ -342,8 +342,13 @@ export function criarRepositorioAgenda(canal: CanalAgenda): RepositorioStateAgen
         versao_atual: resultado.versao_atual,
       };
     },
-    async revogarCredencial() {
-      if ((await canal.chamar('agenda_google_revogar_credencial', {})) !== true)
+    async revogarCredencial(subject, geracao) {
+      if (
+        (await canal.chamar('agenda_google_revogar_credencial', {
+          p_subject: subject,
+          p_geracao: geracao,
+        })) !== true
+      )
         throw new Error('Conexão indisponível.');
     },
   };

@@ -250,11 +250,32 @@ export const pacienteBasicoRpcSaidaSchema = z
     versao: versaoSchema,
   })
   .strict();
+const situacaoCasoRpcSchema = z.enum(['entrada', 'ativo', 'pausado', 'encerrado', 'transferido']);
+/** Item da lista; `situacao` só vem no ramo do Administrador da função de carteira. */
+export const pacienteListaRpcSaidaSchema = pacienteBasicoRpcSaidaSchema
+  .extend({ situacao: situacaoCasoRpcSchema.nullable().optional() })
+  .strict();
 export const pacienteAdministrativoRpcSaidaSchema = pacienteBasicoRpcSaidaSchema
   .extend({
     data_nascimento: campoCifradoSchema.nullable(),
     contatos: z.array(contatoCifradoSchema),
   })
+  .strict();
+const acompanhamentoCasoRpcSchema = z
+  .object({
+    versao: versaoSchema,
+    situacao: situacaoCasoRpcSchema.nullable(),
+    responsavel_id: uuidSchema.nullable(),
+    responsavel_ativo: z.boolean().nullable(),
+    ator_id: uuidSchema,
+    criado_em: instanteSchema,
+    auditoria_id: uuidSchema,
+    motivo: campoCifradoSchema.nullable(),
+  })
+  .strict();
+/** Saída da consulta de edição (somente Administrador): cadastro e histórico do caso, motivo cifrado. */
+export const pacienteEdicaoRpcSaidaSchema = pacienteAdministrativoRpcSaidaSchema
+  .extend({ acompanhamento: z.array(acompanhamentoCasoRpcSchema) })
   .strict();
 export const leituraProtegidaSaidaSchema = pacienteBasicoRpcSaidaSchema;
 const concessaoSaidaSchema = z
@@ -289,23 +310,48 @@ export const reservaCadastroSchema = z
 
 /** AAD e reserva obrigatórios tornam este contrato incompatível com entradas anteriores.
  * Validação estrutural não autentica ciphertext nem substitui verificação no banco. */
+const contatoCriacaoRpcSchema = z
+  .object({
+    contato_id: uuidSchema,
+    tipo: z.enum(['email', 'telefone']),
+    valor: campoCifradoSchema,
+    aad: z
+      .object({
+        tabela: z.literal('cadastro.contato_paciente'),
+        registro_id: uuidSchema,
+        campo: z.literal('valor'),
+        formato: formatoCifraSchema,
+      })
+      .strict(),
+  })
+  .strict()
+  .refine((v) => v.aad.registro_id === v.contato_id && v.aad.formato === v.valor.formato);
+/** Caso novo atômico: todos os campos, de 1 a 10 contatos com AAD próprio, situação e responsável. */
 export const criarPacienteRpcEntradaSchema = mutacaoSchema
   .extend({
     ...reservaCadastroSchema.shape,
     paciente_id: uuidSchema,
     nome: campoCifradoSchema,
-    nome_preferencia: campoCifradoSchema.optional(),
-    data_nascimento: campoCifradoSchema.optional(),
+    nome_preferencia: campoCifradoSchema,
+    data_nascimento: campoCifradoSchema,
+    contatos: z.array(contatoCriacaoRpcSchema).min(1).max(10),
+    situacao: situacaoCasoRpcSchema,
+    responsavel_id: uuidSchema,
     aad: z
       .object({
         nome: aadPaciente('nome'),
-        nome_preferencia: aadPaciente('nome_preferencia').optional(),
-        data_nascimento: aadPaciente('data_nascimento').optional(),
+        nome_preferencia: aadPaciente('nome_preferencia'),
+        data_nascimento: aadPaciente('data_nascimento'),
       })
       .strict(),
   })
   .strict()
   .superRefine((valor, ctx) => {
+    if (
+      new Set(valor.contatos.map((contato) => contato.contato_id)).size !== valor.contatos.length
+    ) {
+      ctx.addIssue({ code: 'custom', message: 'Contato repetido.', path: ['contatos'] });
+    }
     for (const campo of ['nome', 'nome_preferencia', 'data_nascimento'] as const) {
       const envelope = valor[campo];
       const aad = valor.aad[campo];
@@ -390,7 +436,14 @@ export const respostaEdicaoPacientePrivadaSchema = z.discriminatedUnion('ok', [
     .object({
       ok: z.literal(false),
       erro: z
-        .object({ codigo: z.enum(['sem_permissao', 'conflito', 'conflito_idempotencia']) })
+        .object({
+          codigo: z.enum([
+            'sem_permissao',
+            'conflito',
+            'conflito_idempotencia',
+            'responsavel_invalido',
+          ]),
+        })
         .strict(),
       request_id: uuidSchema,
     })
@@ -578,7 +631,7 @@ export const assinaturasRpc = {
     'leitura-auditada',
     'sessao-admitida',
     contextoRpcUsuarioSchema.extend(paginacao).strict(),
-    paginaInterna(pacienteBasicoRpcSaidaSchema),
+    paginaInterna(pacienteListaRpcSaidaSchema),
   ),
   criarPaciente: assinatura(
     'api.criar_paciente',

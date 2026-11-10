@@ -1,3 +1,4 @@
+import type { CriarPaciente } from '@ffcmapp/contratos';
 import { describe, expect, it } from 'vitest';
 
 import { criarModuloCadastro, type AdaptadorRpcCadastro } from '../src/index.js';
@@ -8,6 +9,20 @@ const ids = {
   request: '33333333-3333-4333-8333-333333333333',
 };
 
+const casoNovo: CriarPaciente = {
+  nome: 'Pessoa de Teste',
+  nome_preferencia: 'Pessoa',
+  data_nascimento: '2000-01-01',
+  contatos: [{ tipo: 'email', valor: 'pessoa@exemplo.test' }],
+  situacao: 'entrada',
+  responsavel_id: '44444444-4444-4444-8444-444444444444',
+};
+const cabecalhosCriacao = {
+  'x-chave-idempotencia': 'chave-idempotente-de-teste-001',
+  'x-ffcm-prova-sessao': 'A'.repeat(43),
+  'x-ffcm-geracao-sessao': '1',
+};
+
 function adaptadorQueResponde(resposta: unknown): AdaptadorRpcCadastro {
   return {
     executar: async () => resposta,
@@ -15,42 +30,56 @@ function adaptadorQueResponde(resposta: unknown): AdaptadorRpcCadastro {
 }
 
 describe('módulo de cadastro', () => {
-  it('cria paciente somente com nome sem receber perfil ou ator do chamador', async () => {
-    const modulo = criarModuloCadastro(
-      adaptadorQueResponde({
-        dados: {
-          id: ids.paciente,
-          nome: 'Pessoa de Teste',
-          nome_preferencia: null,
-          data_nascimento: null,
-          contatos: [],
-          versao: 1,
-        },
-        request_id: ids.request,
-      }),
-    );
+  it('cria o caso novo completo sem receber perfil ou ator do chamador', async () => {
+    const dados = {
+      id: ids.paciente,
+      nome: 'Pessoa de Teste',
+      nome_preferencia: 'Pessoa',
+      data_nascimento: '2000-01-01',
+      contatos: [{ id: ids.contato, tipo: 'email', valor: 'pessoa@exemplo.test', versao: 1 }],
+      versao: 1,
+    };
+    let recebida: unknown;
+    const modulo = criarModuloCadastro({
+      executar: async (chamada) => {
+        recebida = chamada;
+        return { dados, request_id: ids.request };
+      },
+    });
 
     const resposta = await modulo.executar({
       operacao: 'criarPaciente',
-      corpo: { entrada: { nome: 'Pessoa de Teste' }, reserva_id: ids.paciente, geracao_reserva: 1 },
-      cabecalhos: {
-        'x-chave-idempotencia': 'chave-idempotente-de-teste-001',
-        'x-ffcm-prova-sessao': 'A'.repeat(43),
-        'x-ffcm-geracao-sessao': '1',
+      corpo: { entrada: casoNovo, reserva_id: ids.paciente, geracao_reserva: 1 },
+      cabecalhos: cabecalhosCriacao,
+    });
+
+    expect(resposta).toEqual({ dados, request_id: ids.request });
+    expect(recebida).toMatchObject({ operacao: 'criarPaciente' });
+    expect(recebida).not.toHaveProperty('perfil');
+    expect(recebida).not.toHaveProperty('usuario_id');
+  });
+
+  it('rejeita o cadastro antigo somente com nome antes de delegar ao adapter', async () => {
+    let chamado = false;
+    const modulo = criarModuloCadastro({
+      executar: async () => {
+        chamado = true;
+        return undefined;
       },
     });
 
-    expect(resposta).toEqual({
-      dados: {
-        id: ids.paciente,
-        nome: 'Pessoa de Teste',
-        nome_preferencia: null,
-        data_nascimento: null,
-        contatos: [],
-        versao: 1,
-      },
-      request_id: ids.request,
-    });
+    await expect(
+      modulo.executar({
+        operacao: 'criarPaciente',
+        corpo: {
+          entrada: { nome: 'Pessoa de Teste' },
+          reserva_id: ids.paciente,
+          geracao_reserva: 1,
+        },
+        cabecalhos: cabecalhosCriacao,
+      } as unknown as Parameters<typeof modulo.executar>[0]),
+    ).rejects.toThrow('Solicitação de cadastro inválida.');
+    expect(chamado).toBe(false);
   });
 
   it('fixa a rota e RPC de listagem, sem aceitar escopo de paciente no comando público', async () => {
@@ -226,18 +255,25 @@ describe('módulo de cadastro', () => {
   });
 
   it('rejeita nome vazio antes de delegar e não sugere sucesso parcial', async () => {
-    const modulo = criarModuloCadastro(adaptadorQueResponde(undefined));
+    let chamado = false;
+    const modulo = criarModuloCadastro({
+      executar: async () => {
+        chamado = true;
+        return undefined;
+      },
+    });
 
     await expect(
       modulo.executar({
         operacao: 'criarPaciente',
-        corpo: { entrada: { nome: '   ' }, reserva_id: ids.paciente, geracao_reserva: 1 },
-        cabecalhos: {
-          'x-chave-idempotencia': 'chave-idempotente-de-teste-001',
-          'x-ffcm-prova-sessao': 'A'.repeat(43),
-          'x-ffcm-geracao-sessao': '1',
+        corpo: {
+          entrada: { ...casoNovo, nome: '   ' },
+          reserva_id: ids.paciente,
+          geracao_reserva: 1,
         },
+        cabecalhos: cabecalhosCriacao,
       }),
     ).rejects.toThrow('Solicitação de cadastro inválida.');
+    expect(chamado).toBe(false);
   });
 });

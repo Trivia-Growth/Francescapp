@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { CAMINHO_EQUIPE, preencherCasoNovo, respostaEquipe } from './teste-caso-novo.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
 const sessaoOriginal = {
   session_id: '20000000-0000-4000-8000-000000000001',
   usuario: { id, perfil: 'administrador', ativo: true, versao: 1 },
-  capacidades: ['administrar_cadastro'],
+  capacidades: ['administrar_cadastro', 'administrar_concessoes'],
 };
 const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
 beforeEach(() => {
@@ -35,6 +36,7 @@ async function preparar(status: number, formato: 'invalido' | 'divergente' = 'in
     }
     if (url.pathname === '/api/sessao/sair')
       return envelope({ encerrada_localmente: true, pendencia_externa: false });
+    if (url.pathname === CAMINHO_EQUIPE) return respostaEquipe();
     if (url.pathname === '/api/sessao') {
       if (!autenticada) return new Response(null, { status: 401 });
       return falharSessao ? new Response(null, { status: 503 }) : envelope(sessao);
@@ -84,8 +86,8 @@ async function preparar(status: number, formato: 'invalido' | 'divergente' = 'in
   await vi.waitFor(() => expect(document.querySelector('[data-acao="encerrar"]')).not.toBeNull());
   document.querySelector<HTMLButtonElement>('[data-acao="encerrar"]')?.click();
   await vi.waitFor(() => expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(false));
-  const enviar = () => {
-    elemento<HTMLInputElement>('patient-name').value = 'Paciente fictício';
+  const enviar = async () => {
+    await preencherCasoNovo();
     elemento('create-form').dispatchEvent(new Event('submit', { cancelable: true }));
   };
   return {
@@ -107,11 +109,11 @@ async function preparar(status: number, formato: 'invalido' | 'divergente' = 'in
 
 it('não repete pedido incerto antes de reconhecer resultado', async () => {
   const tela = await preparar(503);
-  tela.enviar();
+  await tela.enviar();
   await vi.waitFor(() =>
     expect(tela.elemento('create-feedback').textContent).toContain('Cadastro anterior confirmado'),
   );
-  tela.enviar();
+  await tela.enviar();
   expect(tela.chaves).toHaveLength(1);
   expect(tela.elemento<HTMLButtonElement>('create-submit').disabled).toBe(true);
   expect(JSON.stringify(localStorage)).not.toContain('Paciente fictício');
@@ -142,7 +144,7 @@ it.each([
   'oculta acesso após HTTP %s %s e exige consulta ao retornar',
   async (status, formato) => {
     const tela = await preparar(status, formato);
-    tela.enviar();
+    await tela.enviar();
     await vi.waitFor(() => expect(tela.elemento('login-view').hidden).toBe(false));
     expect(tela.elemento('patients-view').hidden).toBe(true);
     expect(tela.elemento<HTMLInputElement>('patient-name').value).toBe('');
@@ -152,18 +154,18 @@ it.each([
         'Cadastro anterior confirmado',
       ),
     );
-    tela.enviar();
+    await tela.enviar();
     expect(tela.chaves).toHaveLength(1);
   },
 );
 
 it.each([408, 429, 422, 202])('HTTP %s não libera repetição sem reconciliação', async (status) => {
   const tela = await preparar(status);
-  tela.enviar();
+  await tela.enviar();
   await vi.waitFor(() =>
     expect(tela.elemento('create-feedback').textContent).toContain('Cadastro anterior confirmado'),
   );
-  tela.enviar();
+  await tela.enviar();
   expect(tela.chaves).toHaveLength(1);
   expect(tela.elemento<HTMLButtonElement>('create-submit').disabled).toBe(true);
 });
@@ -172,7 +174,7 @@ it.each([true, false])(
   'revalidação indisponível não restaura dados; mesma identidade = %s',
   async (mesmaIdentidade) => {
     const tela = await preparar(503);
-    tela.enviar();
+    await tela.enviar();
     await vi.waitFor(() =>
       expect(tela.elemento('create-feedback').textContent).toContain(
         'Cadastro anterior confirmado',
@@ -190,7 +192,7 @@ it.each([true, false])(
         'Cadastro anterior confirmado',
       ),
     );
-    tela.enviar();
+    await tela.enviar();
     expect(tela.chaves).toHaveLength(1);
   },
 );

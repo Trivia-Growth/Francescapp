@@ -233,3 +233,23 @@ it('mostra erro genérico quando a seção não consegue montar', () => {
   expect(painel.textContent).toBe('Não foi possível abrir esta seção. Tente novamente.');
   expect(painel.textContent).not.toContain('detalhe interno');
 });
+
+it('traz a aba atual para a área visível da faixa de abas ao abrir e ao trocar de seção', () => {
+  const rolar = vi.fn();
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+    configurable: true,
+    value: rolar,
+  });
+  try {
+    const { ficha } = abrir([secao('visao').definicao, secao('cadastro').definicao], {
+      secaoInicial: 'cadastro',
+    });
+    expect(rolar.mock.contexts.at(-1)).toBe(document.getElementById('ficha-aba-cadastro'));
+    rolar.mockClear();
+    ficha.selecionar('visao');
+    expect(rolar.mock.contexts.at(-1)).toBe(document.getElementById('ficha-aba-visao'));
+    expect(rolar).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });
+  } finally {
+    Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+  }
+});
