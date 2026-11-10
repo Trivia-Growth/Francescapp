@@ -1,6 +1,6 @@
 # Modelagem de ameaças — recorte 2B (cadastro de caso novo atômico)
 
-Versão de 09/11/2026 (tarefa 2.14), com a skill `security-threat-model`. Escopo: criar um caso novo com todos os campos exigidos numa única operação do Administrador, e a leitura dos responsáveis elegíveis que essa criação exige. Fora: mapa de pessoas, leitura por Profissional e Família, substituição temporária (FR-037), duplicidade e representação (ainda sem regra). Todo controle marcado "existe" foi lido no código; "a construir" não existe e não pode ser tratado como existente. O solicitante respondeu Q1 a Q3 em 09/11/2026 (todas na recomendação); H5, H6 e H8 seguem como hipóteses assumidas, não perguntadas.
+Versão de 09/11/2026 (tarefa 2.14), com a skill `security-threat-model`. Escopo: criar um caso novo com todos os campos exigidos numa única operação do Administrador, e a escolha do responsável que essa criação exige. Fora: mapa de pessoas, leitura por Profissional e Família, substituição temporária (FR-037), duplicidade e representação (ainda sem regra). Todo controle marcado "existe" foi lido no código; "a construir" não existe e não pode ser tratado como existente. O solicitante respondeu Q1 a Q3 em 09/11/2026 (todas na recomendação); H5, H6 e H8 seguem como hipóteses assumidas, não perguntadas.
 
 ## Sistema e fronteiras
 
@@ -37,7 +37,7 @@ Versão de 09/11/2026 (tarefa 2.14), com a skill `security-threat-model`. Escopo
 | T22 | Regressão ao redefinir a função inteira de criação (autenticação, barreira, ledger, auditoria) | 4 | média | alto | alta |
 | T23 | Volume: mais contatos que o limite, ou corpo grande, esgota recursos ou foge do contrato | 5 | baixa | médio | baixa |
 | T24 | A linha inicial de acompanhamento (sem motivo, por Q1) quebra a leitura de edição, que hoje exige motivo | 5 | alta | médio | alta |
-| T25 | A lista de responsáveis elegíveis, aberta a `administrar_cadastro` (Q2), expõe dados da equipe além do necessário ou a quem não deve | 3 | baixa | médio | média |
+| T25 | Se as capacidades do Administrador se separarem, quem cadastra caso (`administrar_cadastro`) pode não conseguir escolher o responsável (`administrar_concessoes`), ou uma leitura nova da equipe expor dados demais | 3, 5 | baixa | médio | baixa |
 
 ## Mitigações
 
@@ -54,7 +54,7 @@ A construir (cada uma com prova exigida):
 - **Redefinição comparada (T22)**: a nova função parte da última definição e é comparada por diff; só as inclusões esperadas mudam. Prova: diff registrado e testes SQL existentes da criação continuam verdes.
 - **Limites no banco (T23)**: máximo de contatos e tamanho do envelope conferidos na função, não só no contrato TypeScript (hoje o limite de 10 existe no contrato; não encontrei trigger nem restrição na tabela de contatos que o imponha). Prova: onze contatos e envelope acima do limite são recusados.
 - **Linha inicial compatível com a leitura (T24, Q1)**: a primeira linha de `cadastro.acompanhamento_caso` nasce sem motivo (a criação do caso, com a auditoria `api.criar_paciente`, é o evento de origem; a data é a do servidor). Isso exige que o motivo possa ser ausente no evento de auditoria referenciado e que `acompanhamentoCasoRpcSchema`, a projeção e a tela de histórico aceitem motivo nulo apenas na linha inicial; mudanças posteriores seguem com motivo obrigatório. Prova: criar caso pelo novo caminho e ler pela consulta de edição e pela lista; uma mudança de situação sem motivo continua recusada; nenhuma linha posterior à inicial aceita motivo nulo.
-- **Leitura mínima de responsáveis elegíveis (T25, Q2)**: operação de leitura própria e nova, aberta ao Administrador com `administrar_cadastro` (que hoje não lista a equipe: o cliente usa `listarProfissionais`, disponível só com `administrar_concessoes`), com papel dono dedicado, que devolve só `usuario_id`, perfil e um rótulo para escolher, apenas de usuário ativo com perfil Administrador ou Profissional e concessão vinculada, com limite de página e auditoria no padrão das leituras. Não devolve e-mail além do rótulo necessário nem estado de concessão. Prova: Profissional, Família, anônimo e Administrador sem `administrar_cadastro` são recusados; inativo e Família nunca aparecem; o contrato recusa campos extras. Efeito colateral útil: a mesma leitura passa a alimentar a edição da 2A, resolvendo a limitação "Responsável indicado" do Administrador sem `administrar_concessoes`.
+- **Escolha do responsável (T25, Q2)**: correção de 09/11/2026 à primeira redação. No banco todo Administrador recebe as quatro capacidades (`20261105130000_auth_nativo_sessao.sql:292` e `20261110120000_admissao_tecnica_nativa.sql:117`), então hoje quem tem `administrar_cadastro` também tem `administrar_concessoes` e a listagem de equipe existente (`listarConcessoes`, usada por `criarCatalogoResponsaveis`) basta para escolher o responsável; a lacuna que a primeira versão descrevia não existe. Por YAGNI, não se cria leitura nova agora. A intenção da resposta Q2 (quem cadastra caso escolhe o responsável) fica atendida e deve ser provada: o formulário de caso novo usa o mesmo catálogo. Se as capacidades passarem a ser concedidas separadamente, abrir uma leitura mínima de elegíveis (só `usuario_id`, perfil e rótulo, página limitada, auditoria, papel dono dedicado) deve nascer com essa mudança, e o cadastro de caso novo deve falhar de modo explícito, sem criar nada, quando o catálogo não estiver disponível. Prova: formulário de caso novo carrega o catálogo existente; catálogo indisponível impede o envio e informa o motivo.
 
 ## Hipóteses que movem a prioridade
 
@@ -68,7 +68,7 @@ A construir (cada uma com prova exigida):
 ## Perguntas ao solicitante (respondidas em 09/11/2026)
 
 - **Q1.** A situação inicial não precisa de motivo escrito: a data é a da criação e a primeira linha do histórico fica sem motivo. FR-001 pede motivo nas mudanças de situação, não na criação. Alterou a leitura da 2A (T24).
-- **Q2.** Quem tem `administrar_cadastro` escolhe o case manager, por uma leitura mínima de responsáveis elegíveis (T25). Sem isso, um Administrador sem `administrar_concessoes` não conseguiria cadastrar caso novo.
+- **Q2.** Quem tem `administrar_cadastro` escolhe o case manager. A pergunta partiu da premissa de que um Administrador poderia ter `administrar_cadastro` sem `administrar_concessoes`; no banco atual todo Administrador tem as duas, então o catálogo existente atende e nenhuma leitura nova é criada agora (ver T25).
 - **Q3.** As cinco situações são permitidas na criação, sem valor padrão (H7).
 
 ## Provas exigidas e limitações

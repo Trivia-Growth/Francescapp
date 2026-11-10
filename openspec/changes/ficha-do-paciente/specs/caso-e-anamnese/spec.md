@@ -169,4 +169,4 @@ O produto SHALL exigir, ao cadastrar um caso novo, nome, nome de preferência, d
 
 #### Scenario: Escolha do responsável só entre elegíveis
 - **WHEN** o Administrador que cadastra casos abre a escolha do case manager
-- **THEN** vê apenas usuários ativos com perfil Administrador ou Profissional, com os dados mínimos para escolher, e a mesma consulta feita por Profissional, Família, anônimo ou Administrador sem permissão de cadastro, inclusive por acesso direto, é negada sem expor a equipe
+- **THEN** vê apenas pessoas da equipe ativas com perfil Administrador ou Profissional, e a mesma consulta feita por Profissional, Família ou anônimo, inclusive por acesso direto, é negada sem expor a equipe; se a lista da equipe estiver indisponível, o cadastro não é enviado e a interface informa o motivo
