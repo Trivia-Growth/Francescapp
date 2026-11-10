@@ -14,9 +14,18 @@
     <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
     <header class="topbar">
       <div class="brand"><span class="brand-name">FFCMApp</span><span class="brand-organization">Francescato</span></div>
-      <div id="session-actions" class="session-actions" hidden>
-        <span id="session-role"></span>
-        <button id="logout" class="button-quiet" type="button">Sair</button>
+      <nav id="breadcrumbs" class="breadcrumbs" aria-label="Você está em">
+        <ol>
+          <li>Pessoas acompanhadas</li>
+          <li id="crumb-paciente" aria-current="page" hidden></li>
+        </ol>
+      </nav>
+      <div class="topbar-end">
+        <span class="chip-ambiente">Ambiente de teste · dados fictícios</span>
+        <div id="session-actions" class="session-actions" hidden>
+          <span id="session-role"></span>
+          <button id="logout" class="button-quiet" type="button">Sair</button>
+        </div>
       </div>
     </header>
     <main id="conteudo" tabindex="-1">
@@ -72,33 +81,35 @@
         </div>
       </section>
 
-      <section id="patients-view" class="patients-layout" aria-labelledby="patients-title" hidden>
+      <section id="patients-view" class="patients-layout" aria-label="Pacientes" hidden>
         <aside class="patients-sidebar" aria-label="Área de trabalho">
           <div class="sidebar-brand"><span>FFCMApp</span><small>FRANCESCATO</small></div>
           <p class="sidebar-label">Área de trabalho</p>
-          <a class="sidebar-current" href="#patients-title" aria-current="page">Pacientes</a>
+          <a class="sidebar-current" href="#patients-title" aria-current="page">Pessoas acompanhadas</a>
           <p class="sidebar-note">Acompanhamento de pacientes</p>
         </aside>
-        <div class="page-heading">
-          <div><h1 id="patients-title" tabindex="-1">Pacientes</h1><p id="scope-description">Cadastros disponíveis para seu acesso.</p></div>
-          <a id="new-patient-link" class="button-primary" href="#cadastro" hidden>Cadastrar paciente</a>
-        </div>
-        <section id="agenda-individual" class="agenda-individual" aria-label="Minha agenda" hidden></section>
         <p id="workspace-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
-        <div id="workspace" class="workspace">
-          <section class="patient-register" aria-labelledby="list-title">
-            <div class="section-heading"><h2 id="list-title">Lista de pacientes</h2><button id="reload-patients" class="button-secondary" type="button">Atualizar lista</button></div>
-            <p id="patient-list-hint" class="patient-list-hint" hidden>Escolha uma ação na linha do paciente.</p>
-            <p id="list-status" class="list-status" role="status" aria-live="polite" aria-atomic="true"></p>
-            <div id="list-loading" class="list-loading" aria-hidden="true" hidden><span></span><span></span><span></span></div>
-            <div id="list-empty" class="empty-state" hidden><h3>Nenhum paciente nesta lista</h3><p id="empty-description">Nenhum cadastro disponível para seu acesso.</p></div>
-            <table id="patients-table" hidden>
-              <caption class="sr-only">Pacientes retornados pelo serviço para seu acesso atual</caption>
-              <thead><tr><th scope="col">Nome</th><th scope="col">Nome de preferência</th><th id="anamnese-coluna" scope="col">Atendimento</th></tr></thead>
-              <tbody id="patients-body"></tbody>
-            </table>
-            <nav id="pagination" class="pagination" aria-label="Páginas de pacientes" hidden><button id="previous-page" class="button-secondary" type="button">Página anterior</button><span id="page-number"></span><button id="next-page" class="button-secondary" type="button">Próxima página</button></nav>
-          </section>
+        <div id="lista-view">
+          <div class="page-heading">
+            <div><h1 id="patients-title" tabindex="-1">Pessoas acompanhadas</h1><p id="scope-description">Cadastros disponíveis para seu acesso.</p></div>
+            <a id="new-patient-link" class="button-primary" href="#cadastro" hidden>Cadastrar paciente</a>
+          </div>
+          <section id="agenda-individual" class="agenda-individual" aria-label="Minha agenda" hidden></section>
+          <div id="workspace" class="workspace">
+            <section class="patient-register" aria-labelledby="list-title">
+              <div class="section-heading"><h2 id="list-title">Lista de pacientes</h2><button id="reload-patients" class="button-secondary" type="button">Atualizar lista</button></div>
+              <div id="busca" class="busca" hidden>
+                <label for="busca-pacientes">Buscar por nome</label>
+                <input id="busca-pacientes" type="search" autocomplete="off" maxlength="200" aria-describedby="busca-aviso">
+                <p id="busca-aviso" class="small-text">A busca vale só para os pacientes desta página. Use as páginas para ver os demais.</p>
+              </div>
+              <p id="list-status" class="list-status" role="status" aria-live="polite" aria-atomic="true"></p>
+              <div id="list-loading" class="list-loading" aria-hidden="true" hidden><span></span><span></span><span></span></div>
+              <div id="list-empty" class="empty-state" hidden><h3>Nenhum paciente nesta lista</h3><p id="empty-description">Nenhum cadastro disponível para seu acesso.</p></div>
+              <p id="busca-vazia" class="empty-state" hidden>Nenhum paciente desta página corresponde à busca. Pacientes de outras páginas não foram pesquisados.</p>
+              <ul id="patients-body" class="people-list" aria-label="Pacientes retornados pelo serviço para seu acesso atual" hidden></ul>
+              <nav id="pagination" class="pagination" aria-label="Páginas de pacientes" hidden><button id="previous-page" class="button-secondary" type="button">Página anterior</button><span id="page-number"></span><button id="next-page" class="button-secondary" type="button">Próxima página</button></nav>
+            </section>
           <section id="cadastro" class="registration-panel" aria-labelledby="create-title" hidden>
             <h2 id="create-title" tabindex="-1">Novo paciente</h2>
             <p>Comece pelo nome. Os demais campos são opcionais.</p>
@@ -114,36 +125,9 @@
             <p id="create-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
             <p class="small-text">O cadastro não cria conta nem concede acesso ao paciente ou a familiares.</p>
           </section>
+          </div>
         </div>
-        <section id="paciente-familiar-panel" class="anamnese-panel" aria-labelledby="paciente-familiar-title" hidden>
-          <div class="section-heading"><h2 id="paciente-familiar-title" tabindex="-1">Paciente</h2><button id="fechar-paciente-familiar" class="button-secondary" type="button">Fechar paciente</button></div>
-          <p id="paciente-familiar-status" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
-          <div id="paciente-familiar-dados" hidden><p><strong>Nome:</strong> <span id="paciente-familiar-nome"></span></p><p><strong>Nome de preferência:</strong> <span id="paciente-familiar-preferencia"></span></p></div>
-          <button id="paciente-familiar-tentar" class="button-secondary" type="button" hidden>Tentar novamente</button>
-        </section>
-        <section id="resumo-panel" class="anamnese-panel" aria-labelledby="resumo-title" hidden>
-          <div class="section-heading"><h2 id="resumo-title" tabindex="-1">Resumo: <span id="resumo-paciente"></span></h2><button id="fechar-resumo" class="button-secondary" type="button">Fechar resumo</button></div>
-          <p>Objetivos e tarefas disponíveis para consulta. Outros registros não estão incluídos.</p>
-          <div id="resumo-raiz"></div>
-        </section>
-        <section id="plano-panel" class="anamnese-panel" aria-labelledby="plano-title" hidden>
-          <div class="section-heading"><h2 id="plano-title" tabindex="-1">Plano de cuidado: <span id="plano-paciente"></span></h2><button id="fechar-plano" class="button-secondary" type="button">Fechar plano</button></div>
-          <p>Para abrir outro paciente, feche este plano. Ao fechar, alterações não salvas serão descartadas; um salvamento sem confirmação não poderá ser confirmado nesta tela.</p>
-          <div id="plano-raiz"></div>
-        </section>
-        <section id="tarefas-panel" class="anamnese-panel" aria-labelledby="tarefas-title" hidden>
-          <div class="section-heading"><h2 id="tarefas-title" tabindex="-1">Tarefas: <span id="tarefas-paciente"></span></h2><button id="fechar-tarefas" class="button-secondary" type="button">Fechar tarefas</button></div>
-          <div id="tarefas-raiz"></div>
-        </section>
-        <section id="edicao-panel" class="anamnese-panel" aria-labelledby="edicao-title" hidden>
-          <div class="section-heading"><h2 id="edicao-title" tabindex="-1">Editar cadastro</h2><button id="fechar-edicao" class="button-secondary" type="button">Fechar edição</button></div>
-          <div id="edicao-raiz"></div>
-        </section>
-        <section id="anamnese-panel" class="anamnese-panel" aria-labelledby="anamnese-title" hidden>
-          <div class="section-heading"><h2 id="anamnese-title" tabindex="-1">Anamnese: <span id="anamnese-paciente"></span></h2><button id="fechar-anamnese" class="button-secondary" type="button">Fechar anamnese</button></div>
-          <p>Para abrir outro paciente, feche esta anamnese. Ao fechar, alterações não salvas serão descartadas; um salvamento sem confirmação não poderá ser confirmado nesta tela.</p>
-          <div id="anamnese-raiz"></div>
-        </section>
+        <section id="ficha-view" class="ficha" aria-label="Ficha do paciente" hidden></section>
       </section>
 
       <section id="logout-view" class="logout-panel" aria-labelledby="logout-title" hidden>

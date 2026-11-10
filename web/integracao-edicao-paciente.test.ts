@@ -34,11 +34,16 @@ it('não oferece edição enquanto as rotas de paciente não estão disponíveis
   await import('./main.js');
   await vi.waitFor(() =>
     expect(
-      document.querySelector('[aria-label="Abrir anamnese de Paciente fictício"]'),
+      document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
     ).not.toBeNull(),
   );
-  expect(document.querySelector('[aria-label="Editar cadastro de Paciente fictício"]')).toBeNull();
-  expect(document.getElementById('edicao-panel')?.hidden).toBe(true);
+  document
+    .querySelector<HTMLButtonElement>('[aria-label="Abrir ficha de Paciente fictício"]')
+    ?.click();
+  document.getElementById('ficha-aba-cadastro')?.click();
+  expect(document.getElementById('ficha-painel')?.textContent).toContain(
+    'A edição do cadastro ainda não está disponível neste ambiente.',
+  );
   expect(fetch.mock.calls.some(([url]) => url.pathname === `/api/pacientes/${id}`)).toBe(false);
 });
 
@@ -74,11 +79,18 @@ it.each([
     await import('./main.js');
     await vi.waitFor(() =>
       expect(
-        document.querySelector('[aria-label="Abrir anamnese de Paciente fictício"]'),
+        document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
       ).not.toBeNull(),
     );
-    expect(
-      Boolean(document.querySelector('[aria-label="Editar cadastro de Paciente fictício"]')),
-    ).toBe(visivel);
+    document
+      .querySelector<HTMLButtonElement>('[aria-label="Abrir ficha de Paciente fictício"]')
+      ?.click();
+    expect(Boolean(document.getElementById('ficha-aba-cadastro'))).toBe(visivel);
+    if (visivel) {
+      document.getElementById('ficha-aba-cadastro')?.click();
+      expect(document.getElementById('ficha-painel')?.textContent).not.toContain(
+        'A edição do cadastro ainda não está disponível neste ambiente.',
+      );
+    }
   },
 );

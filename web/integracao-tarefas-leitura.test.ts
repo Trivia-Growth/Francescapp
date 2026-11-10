@@ -51,15 +51,18 @@ it('abre tarefas da carteira em modo somente leitura', async () => {
   await import('./main.js');
   await vi.waitFor(() =>
     expect(
-      document.querySelector('#patients-body button[aria-label="Tarefas de Paciente fictício"]'),
+      document.querySelector(
+        '#patients-body button[aria-label="Abrir ficha de Paciente fictício"]',
+      ),
     ).not.toBeNull(),
   );
   document
     .querySelector<HTMLButtonElement>(
-      '#patients-body button[aria-label="Tarefas de Paciente fictício"]',
+      '#patients-body button[aria-label="Abrir ficha de Paciente fictício"]',
     )
     ?.click();
-  const raiz = document.getElementById('tarefas-raiz');
+  document.getElementById('ficha-aba-tarefas')?.click();
+  const raiz = document.querySelector('[data-secao="tarefas"]');
   await vi.waitFor(() => expect(raiz?.textContent).toContain('Ligar para família'));
   expect(raiz?.textContent).toContain('Criação e edição ainda indisponíveis');
   expect(raiz?.querySelector('form')).toBeNull();
