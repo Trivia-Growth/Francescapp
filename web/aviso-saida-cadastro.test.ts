@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { CAMINHO_EQUIPE, preencherCasoNovo, respostaEquipe } from './teste-caso-novo.js';
 
 beforeEach(() => {
   sessionStorage.clear();
@@ -22,7 +23,7 @@ it.each(['403', 'logout'])(
     const sessao = {
       session_id: '20000000-0000-4000-8000-000000000001',
       usuario: { id, perfil: 'administrador', ativo: true, versao: 1 },
-      capacidades: ['administrar_cadastro'],
+      capacidades: ['administrar_cadastro', 'administrar_concessoes'],
     };
     const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
     let terminarLista: ((resposta: Response) => void) | undefined;
@@ -37,6 +38,7 @@ it.each(['403', 'logout'])(
       }
 
       if (url.pathname === '/api/sessao') return envelope(sessao);
+      if (url.pathname === CAMINHO_EQUIPE) return respostaEquipe();
       if (url.pathname === '/api/cadastro/barreira')
         return envelope({ epoca: 1, reserva: null, resultado_pendente: null });
       if (url.pathname === '/api/cadastro/barreira/encerrar') return envelope({ estado: 'vazia' });
@@ -79,7 +81,7 @@ it.each(['403', 'logout'])(
     await vi.waitFor(() =>
       expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(false),
     );
-    elemento<HTMLInputElement>('patient-name').value = 'Pessoa fictícia';
+    await preencherCasoNovo('Pessoa fictícia');
     elemento('create-form').dispatchEvent(new Event('submit', { cancelable: true }));
     await vi.waitFor(() => expect(terminarLista).toBeDefined());
     const evento = new Event('beforeunload', { cancelable: true });
@@ -101,7 +103,7 @@ it('avisa antes de sair durante cadastro sem confirmação sem persistir dados p
   const sessao = {
     session_id: '20000000-0000-4000-8000-000000000001',
     usuario: { id, perfil: 'administrador', ativo: true, versao: 1 },
-    capacidades: ['administrar_cadastro'],
+    capacidades: ['administrar_cadastro', 'administrar_concessoes'],
   };
   const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
   let terminar: ((resposta: Response) => void) | undefined;
@@ -113,6 +115,7 @@ it('avisa antes de sair durante cadastro sem confirmação sem persistir dados p
       autenticada = true;
       return envelope(sessao);
     }
+    if (url.pathname === CAMINHO_EQUIPE) return respostaEquipe();
     if (url.pathname === '/api/sessao') return envelope(sessao);
     if (url.pathname === '/api/cadastro/barreira')
       return envelope({
@@ -156,7 +159,7 @@ it('avisa antes de sair durante cadastro sem confirmação sem persistir dados p
   document.querySelector<HTMLButtonElement>('[data-acao="encerrar"]')?.click();
   await vi.waitFor(() => expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(false));
   expect(sair()).toBe(false);
-  elemento<HTMLInputElement>('patient-name').value = 'Pessoa fictícia';
+  await preencherCasoNovo('Pessoa fictícia');
   elemento('create-form').dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() => expect(terminar).toBeDefined());
   expect(sair()).toBe(true);
@@ -172,7 +175,7 @@ it('avisa antes de sair durante cadastro sem confirmação sem persistir dados p
   await vi.waitFor(() => expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(false));
   expect(sair()).toBe(false);
   terminar = undefined;
-  elemento<HTMLInputElement>('patient-name').value = 'Outra pessoa fictícia';
+  await preencherCasoNovo('Outra pessoa fictícia');
   elemento('create-form').dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() => expect(terminar).toBeDefined());
   elemento('logout').click();

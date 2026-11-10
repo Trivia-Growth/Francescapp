@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ClienteFFCM } from './api.js';
+import { entradaCasoNovo } from './teste-caso-novo.js';
 
 beforeEach(() => {
   const itens = new Map<string, string>([
@@ -71,7 +72,7 @@ it.each(['text/plain', 'application/json'])(
     );
     await cliente.consultarSessao();
     await expect(
-      cliente.criarPaciente({ nome: 'Paciente fictício' }, 'chave_ficticia_123456', {
+      cliente.criarPaciente(entradaCasoNovo(), 'chave_ficticia_123456', {
         reserva_id: '10000000-0000-4000-8000-000000000001',
         geracao_reserva: 1,
       }),

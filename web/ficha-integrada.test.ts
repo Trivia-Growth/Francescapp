@@ -332,5 +332,6 @@ it('não mostra situação na lista quando o servidor não devolve o campo', asy
   expect(document.querySelector(linha(A))?.getAttribute('aria-label')).toBe(
     'Abrir ficha de Helena Souza',
   );
-  expect(document.getElementById('lista-view')?.textContent).not.toContain('Situação');
+  // O rótulo "Situação" do formulário de cadastro novo não conta: só a lista de pacientes.
+  expect(document.getElementById('patients-body')?.textContent).not.toContain('Situação');
 });

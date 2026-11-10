@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { CAMINHO_EQUIPE, preencherCasoNovo, respostaEquipe } from './teste-caso-novo.js';
 
 beforeEach(() => {
   sessionStorage.clear();
@@ -20,7 +21,7 @@ it('revalida acesso ao retornar à aba durante cadastro ainda em andamento', asy
   let sessao = {
     session_id: '20000000-0000-4000-8000-000000000001',
     usuario: { id, perfil: 'administrador', ativo: true, versao: 1 },
-    capacidades: ['administrar_cadastro'],
+    capacidades: ['administrar_cadastro', 'administrar_concessoes'],
   };
   const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
   let concluir!: (resposta: Response) => void;
@@ -35,6 +36,7 @@ it('revalida acesso ao retornar à aba durante cadastro ainda em andamento', asy
       autenticada = true;
       return envelope(sessao);
     }
+    if (url.pathname === CAMINHO_EQUIPE) return respostaEquipe();
     if (url.pathname === '/api/sessao') {
       consultasSessao++;
       return revogada ? new Response(null, { status: 401 }) : envelope(sessao);
@@ -72,7 +74,7 @@ it('revalida acesso ao retornar à aba durante cadastro ainda em andamento', asy
   await vi.waitFor(() => expect(document.querySelector('[data-acao="encerrar"]')).not.toBeNull());
   document.querySelector<HTMLButtonElement>('[data-acao="encerrar"]')?.click();
   await vi.waitFor(() => expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(false));
-  elemento<HTMLInputElement>('patient-name').value = 'Paciente fictício';
+  await preencherCasoNovo('Paciente fictício');
   elemento('create-form').dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() => expect(cadastroIniciado).toBe(true));
   consultasSessao = 0;
@@ -86,7 +88,7 @@ it('revalida acesso ao retornar à aba durante cadastro ainda em andamento', asy
   sessao = { ...sessao, capacidades: [] };
   document.dispatchEvent(new Event('visibilitychange'));
   await vi.waitFor(() => expect(elemento('cadastro').hidden).toBe(true));
-  sessao = { ...sessao, capacidades: ['administrar_cadastro'] };
+  sessao = { ...sessao, capacidades: ['administrar_cadastro', 'administrar_concessoes'] };
   document.dispatchEvent(new Event('visibilitychange'));
   await vi.waitFor(() => expect(elemento('cadastro').hidden).toBe(false));
   expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(true);
@@ -104,7 +106,7 @@ it('revalida acesso ao retornar à aba durante cadastro ainda em andamento', asy
     expect(elemento('create-feedback').textContent).toContain('Cadastro anterior confirmado'),
   );
   expect(elemento<HTMLInputElement>('patient-name').value).toBe('');
-  elemento<HTMLInputElement>('patient-name').value = 'Paciente fictício';
+  await preencherCasoNovo('Paciente fictício');
   elemento('create-form').dispatchEvent(new Event('submit', { cancelable: true }));
   expect(cadastrosEnviados).toBe(1);
 });

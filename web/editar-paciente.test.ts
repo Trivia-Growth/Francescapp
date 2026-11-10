@@ -411,3 +411,43 @@ it('mantém a situação editável quando a equipe não pode ser listada', async
   expect(falha.responsavel.disabled).toBe(true);
   expect(resumoDe(falha.raiz)).toContain('Responsável: Responsável indicado');
 });
+
+it('mostra "Registrado no cadastro do caso." no primeiro retrato, que não tem motivo', async () => {
+  const primeiro = mudanca({
+    versao: 1,
+    situacao: 'entrada',
+    motivo: null,
+    criado_em: '2026-11-01T15:00:00.000000+00:00',
+  });
+  const { raiz } = await abrirComCaso([primeiro], {
+    listarResponsaveis: vi.fn().mockResolvedValue(equipe),
+  });
+  await vi.waitFor(() => expect(resumoDe(raiz)).toContain('ana@exemplo.test'));
+  const resumo = resumoDe(raiz);
+  expect(resumo).toContain('Desde 01/11/2026. Registrado no cadastro do caso.');
+  expect(resumo).not.toContain('Motivo');
+  expect(resumo).not.toContain('null');
+});
+
+it('no histórico, só o primeiro retrato sem motivo mostra o registro do cadastro', async () => {
+  const primeiro = mudanca({
+    versao: 1,
+    situacao: 'entrada',
+    motivo: null,
+    criado_em: '2026-11-01T15:00:00.000000+00:00',
+  });
+  const pausa = mudanca({ versao: 2, situacao: 'pausado', motivo: 'Pausa fictícia' });
+  const { raiz } = await abrirComCaso([pausa, primeiro], {
+    listarResponsaveis: vi.fn().mockResolvedValue(equipe),
+  });
+  await vi.waitFor(() => expect(resumoDe(raiz)).toContain('ana@exemplo.test'));
+  const itens = [...raiz.querySelectorAll('.caso-resumo ol li')].map((item) => item.textContent);
+  expect(itens).toHaveLength(2);
+  expect(itens[0]).toContain('Situação: Pausado');
+  expect(itens[0]).toContain('Motivo: Pausa fictícia');
+  expect(itens[0]).not.toContain('Registrado no cadastro do caso.');
+  expect(itens[1]).toContain('Situação: Entrada');
+  expect(itens[1]).toContain('· Registrado no cadastro do caso.');
+  expect(itens[1]).not.toContain('Motivo');
+  expect(resumoDe(raiz)).not.toContain('null');
+});

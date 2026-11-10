@@ -1,12 +1,18 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import {
+  CAMINHO_EQUIPE,
+  entradaCasoNovo,
+  preencherCasoNovo,
+  respostaEquipe,
+} from './teste-caso-novo.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
 const sessao = {
   session_id: '20000000-0000-4000-8000-000000000001',
   usuario: { id, perfil: 'administrador', ativo: true, versao: 1 },
-  capacidades: ['administrar_cadastro'],
+  capacidades: ['administrar_cadastro', 'administrar_concessoes'],
 };
 const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
 beforeEach(() => {
@@ -31,6 +37,7 @@ it('exige confirmação para liberar e envia reserva vinculada à criação', as
       corpo: init.body ? JSON.parse(String(init.body)) : null,
     });
     if (url.pathname === '/api/sessao') return envelope(sessao);
+    if (url.pathname === CAMINHO_EQUIPE) return respostaEquipe();
     if (url.pathname === '/api/cadastro/barreira')
       return envelope({ epoca: 1, reserva: null, resultado_pendente: null });
     if (url.pathname === '/api/cadastro/barreira/encerrar') return envelope({ estado: 'vazia' });
@@ -58,7 +65,7 @@ it('exige confirmação para liberar e envia reserva vinculada à criação', as
   botao()?.click();
   await vi.waitFor(() => expect(enviar.disabled).toBe(false));
   expect(document.activeElement).toBe(enviar);
-  (document.getElementById('patient-name') as HTMLInputElement).value = 'Fictício';
+  await preencherCasoNovo('Fictício');
   document.getElementById('create-form')?.dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() => expect(chamadas.some((c) => c.caminho.endsWith('/reservar'))).toBe(true));
   await vi.waitFor(() =>
@@ -73,7 +80,7 @@ it('exige confirmação para liberar e envia reserva vinculada à criação', as
     unknown
   >;
   expect(criacao).toMatchObject({
-    entrada: { nome: 'Fictício' },
+    entrada: entradaCasoNovo('Fictício'),
     reserva_id: reserva.reserva_id,
     geracao_reserva: reserva.epoca,
   });
@@ -85,6 +92,7 @@ it('remove dados protegidos quando consulta da barreira recebe revogação', asy
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   vi.stubGlobal('fetch', async (url: URL) => {
     if (url.pathname === '/api/sessao') return envelope(sessao);
+    if (url.pathname === CAMINHO_EQUIPE) return respostaEquipe();
     if (url.pathname === '/api/cadastro/barreira') return new Response(null, { status: 401 });
     if (url.pathname === '/api/pacientes') return envelope({ itens: [], proximo_cursor: null });
     throw new Error('Rota inesperada');
@@ -101,6 +109,7 @@ it('mantém foco no controle ao tentar consulta e ao falhar encerramento', async
   let concluirConsulta: ((resposta: Response) => void) | undefined;
   vi.stubGlobal('fetch', async (url: URL) => {
     if (url.pathname === '/api/sessao') return envelope(sessao);
+    if (url.pathname === CAMINHO_EQUIPE) return respostaEquipe();
     if (url.pathname === '/api/cadastro/barreira') {
       consultas++;
       if (consultas === 1) return new Response(null, { status: 503 });

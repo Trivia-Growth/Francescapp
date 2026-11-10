@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClienteFFCM, exigeNovoAcesso, FalhaApi, mensagemFalha, resultadoIncerto } from './api.js';
+import { entradaCasoNovo } from './teste-caso-novo.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
 const sessao = {
@@ -192,7 +193,7 @@ it.each(['session_id', 'usuario', 'inativo'])(
     vi.stubGlobal('fetch', async () => envelope(outra));
     await expect(cliente.consultarSessao()).rejects.toMatchObject({ status: 401 });
     await expect(
-      cliente.criarPaciente({ nome: 'Paciente fictício' }, 'chave_ficticia_123456', {
+      cliente.criarPaciente(entradaCasoNovo(), 'chave_ficticia_123456', {
         reserva_id: '10000000-0000-4000-8000-000000000001',
         geracao_reserva: 1,
       }),
@@ -249,7 +250,7 @@ it('não repete cadastro negado automaticamente', async () => {
     expect(new Headers(init.headers).get('x-sessao')).toBe(sessao.session_id);
     expect(new Headers(init.headers).get('x-chave-idempotencia')).toBe('chave_ficticia_123456');
     expect(JSON.parse(String(init.body))).toEqual({
-      entrada: { nome: 'Paciente fictício' },
+      entrada: entradaCasoNovo(),
       reserva_id: id,
       geracao_reserva: 1,
     });
@@ -257,7 +258,7 @@ it('não repete cadastro negado automaticamente', async () => {
   });
   vi.stubGlobal('fetch', fetch);
   const falha = await cliente
-    .criarPaciente({ nome: 'Paciente fictício' }, 'chave_ficticia_123456', {
+    .criarPaciente(entradaCasoNovo(), 'chave_ficticia_123456', {
       reserva_id: '10000000-0000-4000-8000-000000000001',
       geracao_reserva: 1,
     })
@@ -364,7 +365,7 @@ it.each([200, 401, 403])(
     const cliente = new ClienteFFCM();
     await cliente.entrar('a@example.test', 'senha-ficticia');
     const erro = await cliente
-      .criarPaciente({ nome: 'Paciente fictício' }, 'chave_ficticia_123456', {
+      .criarPaciente(entradaCasoNovo(), 'chave_ficticia_123456', {
         reserva_id: '10000000-0000-4000-8000-000000000001',
         geracao_reserva: 1,
       })
@@ -402,7 +403,7 @@ it('cancela corpo 202 sem esperar cancelamento e preserva resultado incerto', as
   const cliente = new ClienteFFCM();
   await cliente.entrar('a@example.test', 'senha-ficticia');
   const erro = await cliente
-    .criarPaciente({ nome: 'Paciente fictício' }, 'chave_ficticia_123456', {
+    .criarPaciente(entradaCasoNovo(), 'chave_ficticia_123456', {
       reserva_id: '10000000-0000-4000-8000-000000000001',
       geracao_reserva: 1,
     })

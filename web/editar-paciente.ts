@@ -20,6 +20,10 @@ export type ServicoEdicaoPaciente = {
 };
 
 /** Interface preparada para integração segura; não ativa rota nem autoriza acesso. */
+/** O primeiro retrato, gravado com o cadastro do caso, não tem motivo. */
+const textoMotivo = (motivo: string | null) =>
+  motivo === null ? 'Registrado no cadastro do caso.' : `Motivo: ${motivo}`;
+
 export function montarEdicaoPaciente(
   raiz: HTMLElement,
   pacienteId: string,
@@ -66,7 +70,7 @@ export function montarEdicaoPaciente(
         lista.append(
           elemento(
             'li',
-            `Desde ${dataDeInstante(vigente.criado_em) ?? 'data indisponível'}. Motivo: ${vigente.motivo}`,
+            `Desde ${dataDeInstante(vigente.criado_em) ?? 'data indisponível'}. ${textoMotivo(vigente.motivo)}`,
           ),
         );
       const faltantes = [
@@ -92,7 +96,7 @@ export function montarEdicaoPaciente(
           itens.append(
             elemento(
               'li',
-              `${dataDeInstante(mudanca.criado_em) ?? 'Data indisponível'} · Situação: ${textoSituacao(mudanca)} · Responsável: ${descreverResponsavel(mudanca, equipe)} · Motivo: ${mudanca.motivo}`,
+              `${dataDeInstante(mudanca.criado_em) ?? 'Data indisponível'} · Situação: ${textoSituacao(mudanca)} · Responsável: ${descreverResponsavel(mudanca, equipe)} · ${textoMotivo(mudanca.motivo)}`,
             ),
           );
         historico.append(itens);
