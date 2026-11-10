@@ -94,6 +94,17 @@ Decisão de desenho (09/11/2026, dentro de H1 e H2, sem decisão nova do solicit
 
 - [ ] 2.13 Fechar a fatia junto com a 2.9 (`verificar:ativacao` uma única vez, os dois runners SQL, S-02). A revisão independente está feita; falta o restante.
 
+### Recorte 2B — cadastro de caso novo atômico
+
+Modelagem de ameaças em rascunho (09/11/2026) em `ameacas-entrega-2b.md`: T15 a T24, hipóteses H4 a H8 e perguntas Q1 a Q3 ao solicitante. As tarefas 2.15 a 2.19 só ficam executáveis depois dessas respostas; os escopos abaixo são provisórios e não marcam nada como existente. Skills: `security-threat-model`, `supabase-postgres-best-practices`, `security-best-practices`, `tdd`.
+
+- [ ] 2.14 Modelar ameaças da 2B (skill `security-threat-model`). Rascunho feito; faltam as respostas de Q1 (motivo da situação inicial), Q2 (quem lista os responsáveis elegíveis) e Q3 (situações iniciais permitidas) e a confirmação de H5 a H8. Evidência: `ameacas-entrega-2b.md` sem perguntas abertas.
+- [ ] 2.15 Delta de spec, design e tarefas detalhadas da 2B (cenários: criação exige todos os campos e recusa o formato antigo; uma única gravação sem efeito parcial; repetição com a mesma chave; responsável inelegível; caso novo legível pela edição e pela lista) e a decisão do papel dono da criação atômica. Dependência: 2.14. Evidência: `openspec validate ficha-do-paciente --strict` e cada mitigação de T15 a T24 ligada a uma prova.
+- [ ] 2.16 Banco: redefinir `operacao.criar_paciente_privado` e o wrapper para receber contatos, situação e responsável na mesma transação, com política de elegibilidade e limites no banco, comparando a nova função por diff com a de `20261110140000`. Dependência: 2.15. Evidência: prova SQL local com positivos, negativos por campo ausente, falha forçada em cada etapa sem linha restante, repetição com conteúdo diferente, AAD trocado, privilégios do papel dono, e controles quebrados de propósito.
+- [ ] 2.17 Contratos e servidor: `criarPacienteSchema` e a rota exigem todos os campos, preparo cifra contatos com AAD por contato, digest cobre o conteúdo, erro público sem dado pessoal. Dependência: 2.16. Evidência: testes de contrato e de preparo, e prova de ponta a ponta contra o banco descartável.
+- [ ] 2.18 Interface: o formulário de cadastro novo pede todos os campos, sem valor padrão, com estados honestos e sem envio incompleto. Dependência: 2.17. Evidência: testes jsdom e leitura no navegador em 375 px e desktop.
+- [ ] 2.19 Fechar a fatia: revisão independente, `verificar:ativacao` uma única vez, runners SQL explícitos e S-02.
+
 ## Limites para a entrega 3
 
 Registros (FR-008 a FR-014) e relatórios não têm tarefas executáveis aqui porque dependem de decisões materiais abertas: instruções de crise e limites de resposta (US2), modelos de síntese por área configurados com a equipe (FR-009), audiência e retificação, formato, destinatário e propósito da exportação (FR-032), conteúdo do resumo para reunião e linha do tempo (FR-007), além da concessão de equipe e da S-02. Os três relatórios pedidos (síntese e evolução profissional, exportação, resumo para reunião) devem virar mudanças OpenSpec próprias, uma por vez, depois da entrega 2.
