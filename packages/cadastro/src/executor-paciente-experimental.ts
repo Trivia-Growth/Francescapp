@@ -44,9 +44,12 @@ export async function executarCriacaoPacienteExperimental(
     if (resultado.request_id !== requestId) throw new Error('Resposta incompatível.');
     if (!resultado.ok) {
       if (
-        !['entrada_invalida', 'sem_permissao', 'conflito_idempotencia'].includes(
-          resultado.erro.codigo,
-        )
+        ![
+          'entrada_invalida',
+          'sem_permissao',
+          'conflito_idempotencia',
+          'responsavel_invalido',
+        ].includes(resultado.erro.codigo)
       )
         throw new ResultadoCadastroIncerto();
       return resultado;

@@ -56,6 +56,36 @@ const mutacao = {
   auditoria_id: uuid,
 };
 const alteracao = { ...mutacao, versao_esperada: 1, motivo: cifra };
+const responsavelId = 'a0000000-0000-4000-8000-000000000011';
+const contatoId = (n: number) => `c0000000-0000-4000-8000-00000000000${n}`;
+const aadContato = (registro_id: string) => ({
+  tabela: 'cadastro.contato_paciente',
+  registro_id,
+  campo: 'valor',
+  formato: 1,
+});
+/** Contato de caso novo: id próprio e AAD vinculado a esse mesmo id. */
+const contatoRpc = (contato_id: string, tipo = 'email') => ({
+  contato_id,
+  tipo,
+  valor: cifra,
+  aad: aadContato(contato_id),
+});
+const aadPaciente = (registro_id: string) => ({
+  nome: { tabela: 'cadastro.paciente', registro_id, campo: 'nome', formato: 1 },
+  nome_preferencia: {
+    tabela: 'cadastro.paciente',
+    registro_id,
+    campo: 'nome_preferencia',
+    formato: 1,
+  },
+  data_nascimento: {
+    tabela: 'cadastro.paciente',
+    registro_id,
+    campo: 'data_nascimento',
+    formato: 1,
+  },
+});
 
 type Rota = keyof typeof assinaturasRpc;
 const entradas: Record<Rota, Record<string, unknown>> = {
@@ -90,21 +120,10 @@ const entradas: Record<Rota, Record<string, unknown>> = {
     nome: cifra,
     nome_preferencia: cifra,
     data_nascimento: cifra,
-    aad: {
-      nome: { tabela: 'cadastro.paciente', registro_id: uuid, campo: 'nome', formato: 1 },
-      nome_preferencia: {
-        tabela: 'cadastro.paciente',
-        registro_id: uuid,
-        campo: 'nome_preferencia',
-        formato: 1,
-      },
-      data_nascimento: {
-        tabela: 'cadastro.paciente',
-        registro_id: uuid,
-        campo: 'data_nascimento',
-        formato: 1,
-      },
-    },
+    contatos: [contatoRpc(contatoId(1))],
+    situacao: 'entrada',
+    responsavel_id: responsavelId,
+    aad: aadPaciente(uuid),
   },
   consultarPaciente: { paciente_id: uuid },
   atualizarPaciente: {
@@ -306,36 +325,27 @@ describe('interfaces internas consumidas por banco, sessão e handlers', () => {
   });
   it('exige AAD pareado a cada campo cifrado de novo paciente e vinculado ao seu ID', () => {
     const valor = entrada('criarPaciente');
-    const aad = {
-      nome: { tabela: 'cadastro.paciente', registro_id: uuid, campo: 'nome', formato: 1 },
-      nome_preferencia: {
-        tabela: 'cadastro.paciente',
-        registro_id: uuid,
-        campo: 'nome_preferencia',
-        formato: 1,
-      },
-      data_nascimento: {
-        tabela: 'cadastro.paciente',
-        registro_id: uuid,
-        campo: 'data_nascimento',
-        formato: 1,
-      },
-    };
+    const aad = aadPaciente(uuid);
     const schema = assinaturasRpc.criarPaciente.entrada;
     expect(schema.safeParse({ ...valor, aad }).success).toBe(true);
     expect(schema.safeParse({ ...valor, aad: undefined }).success).toBe(false);
-    expect(
-      schema.safeParse({
-        ...valor,
-        nome_preferencia: undefined,
-        data_nascimento: undefined,
-        aad: { nome: aad.nome },
-      }).success,
-    ).toBe(true);
-    expect(
-      schema.safeParse({ ...valor, aad: { ...aad, nome: { ...aad.nome, registro_id: outroUuid } } })
-        .success,
-    ).toBe(false);
+    // Caso novo: nenhum campo cifrado nem AAD do paciente é opcional.
+    for (const campo of ['nome', 'nome_preferencia', 'data_nascimento'] as const) {
+      expect(schema.safeParse({ ...valor, [campo]: undefined }).success, `sem ${campo}`).toBe(
+        false,
+      );
+      expect(
+        schema.safeParse({ ...valor, aad: { ...aad, [campo]: undefined } }).success,
+        `sem AAD de ${campo}`,
+      ).toBe(false);
+      expect(
+        schema.safeParse({
+          ...valor,
+          aad: { ...aad, [campo]: { ...aad[campo], registro_id: outroUuid } },
+        }).success,
+        `AAD de ${campo} de outro registro`,
+      ).toBe(false);
+    }
     expect(
       schema.safeParse({
         ...valor,
@@ -345,10 +355,63 @@ describe('interfaces internas consumidas por banco, sessão e handlers', () => {
     expect(
       schema.safeParse({ ...valor, aad: { ...aad, nome: { ...aad.nome, formato: 2 } } }).success,
     ).toBe(false);
+  });
+  it('exige no caso novo todos os campos de contatos, situação e responsável', () => {
+    const valor = entrada('criarPaciente');
+    const schema = assinaturasRpc.criarPaciente.entrada;
+    for (const campo of ['contatos', 'situacao', 'responsavel_id']) {
+      expect(schema.safeParse({ ...valor, [campo]: undefined }).success, `sem ${campo}`).toBe(
+        false,
+      );
+    }
+    for (const situacao of ['entrada', 'ativo', 'pausado', 'encerrado', 'transferido']) {
+      expect(schema.safeParse({ ...valor, situacao }).success, situacao).toBe(true);
+    }
+    expect(schema.safeParse({ ...valor, situacao: 'arquivado' }).success).toBe(false);
+    expect(schema.safeParse({ ...valor, situacao: null }).success).toBe(false);
+    expect(schema.safeParse({ ...valor, responsavel_id: 'qualquer' }).success).toBe(false);
+  });
+  it('limita contatos do caso novo de 1 a 10 e recusa contato repetido', () => {
+    const valor = entrada('criarPaciente');
+    const schema = assinaturasRpc.criarPaciente.entrada;
+    const contatos = (quantidade: number) =>
+      Array.from({ length: quantidade }, (_, i) => contatoRpc(contatoId(i)));
+    expect(schema.safeParse({ ...valor, contatos: contatos(10) }).success).toBe(true);
+    expect(schema.safeParse({ ...valor, contatos: [] }).success).toBe(false);
+    expect(schema.safeParse({ ...valor, contatos: contatos(11) }).success).toBe(false);
+    // Mesmo contato_id (e AAD) repetido: o banco não pode receber duas linhas com a mesma chave.
     expect(
-      schema.safeParse({ ...valor, aad: { ...aad, nome_preferencia: undefined } }).success,
+      schema.safeParse({
+        ...valor,
+        contatos: [contatoRpc(contatoId(1)), contatoRpc(contatoId(1), 'telefone')],
+      }).success,
     ).toBe(false);
-    expect(schema.safeParse({ ...valor, nome_preferencia: undefined, aad }).success).toBe(false);
+    expect(
+      schema.safeParse({
+        ...valor,
+        contatos: [contatoRpc(contatoId(1)), contatoRpc(contatoId(2), 'telefone')],
+      }).success,
+    ).toBe(true);
+  });
+  it('vincula o AAD de cada contato do caso novo ao próprio registro e ao envelope cifrado', () => {
+    const valor = entrada('criarPaciente');
+    const schema = assinaturasRpc.criarPaciente.entrada;
+    const com = (contato: unknown) => schema.safeParse({ ...valor, contatos: [contato] }).success;
+    const contato = contatoRpc(contatoId(1));
+    expect(com(contato)).toBe(true);
+    // AAD copiado de outro contato ou do paciente permitiria trocar valores cifrados entre linhas.
+    expect(com({ ...contato, aad: aadContato(contatoId(2)) })).toBe(false);
+    expect(com({ ...contato, aad: aadContato(uuid) })).toBe(false);
+    expect(com({ ...contato, aad: { ...contato.aad, campo: 'outro' } })).toBe(false);
+    expect(com({ ...contato, aad: { ...contato.aad, tabela: 'cadastro.paciente' } })).toBe(false);
+    expect(com({ ...contato, aad: { ...contato.aad, formato: 2 } })).toBe(false);
+    expect(com({ ...contato, aad: undefined })).toBe(false);
+    expect(com({ ...contato, contato_id: undefined })).toBe(false);
+    // O formato do AAD precisa coincidir com o do envelope cifrado.
+    expect(com({ ...contato, valor: { ...cifra, formato: 2 } })).toBe(false);
+    expect(com({ ...contato, valor: 'ficticio@exemplo.test' })).toBe(false);
+    expect(com({ ...contato, tipo: 'whatsapp' })).toBe(false);
+    expect(com({ ...contato, extra: true })).toBe(false);
   });
   it('transporta entrada da RPC e os dois snapshots sem aceitar campos extras', () => {
     const schema = criarTransporteRpcAtestadaSchema('criarPaciente');
@@ -534,21 +597,8 @@ describe('interfaces internas consumidas por banco, sessão e handlers', () => {
       digest_idempotencia: primeira.digest_idempotencia,
       request_id: outroUuid,
       paciente_id: outroUuid,
-      aad: {
-        nome: { tabela: 'cadastro.paciente', registro_id: outroUuid, campo: 'nome', formato: 1 },
-        nome_preferencia: {
-          tabela: 'cadastro.paciente',
-          registro_id: outroUuid,
-          campo: 'nome_preferencia',
-          formato: 1,
-        },
-        data_nascimento: {
-          tabela: 'cadastro.paciente',
-          registro_id: outroUuid,
-          campo: 'data_nascimento',
-          formato: 1,
-        },
-      },
+      contatos: [contatoRpc(contatoId(2))],
+      aad: aadPaciente(outroUuid),
       auditoria_id: outroUuid,
       nome: { ...cifra, nonce: 'bm92by1ub25jZQ', ciphertext: 'bm92by1jaXBoZXI' },
       atestado: {

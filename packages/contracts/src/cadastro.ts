@@ -16,14 +16,6 @@ export const situacaoCasoSchema = z.enum([
   'transferido',
 ]);
 
-export const criarPacienteSchema = z
-  .object({
-    nome: nomePacienteSchema,
-    nome_preferencia: nomePreferenciaSchema.optional(),
-    data_nascimento: dataNascimentoSchema.optional(),
-  })
-  .strict();
-
 export const atualizarPacienteSchema = z
   .object({
     nome: nomePacienteSchema.optional(),
@@ -99,6 +91,23 @@ export const novoContatoSchema = z.discriminatedUnion('tipo', [
   contatoTelefoneSchema,
 ]);
 
+const hojeIso = () => new Date().toISOString().slice(0, 10);
+
+/** Caso novo: todos os campos são exigidos, sem valor padrão (decisão de 08/11/2026). */
+export const criarPacienteSchema = z
+  .object({
+    nome: nomePacienteSchema,
+    nome_preferencia: nomePreferenciaSchema,
+    data_nascimento: dataNascimentoSchema.refine(
+      (data) => data <= hojeIso(),
+      'Data de nascimento no futuro.',
+    ),
+    contatos: z.array(novoContatoSchema).min(1).max(10),
+    situacao: situacaoCasoSchema,
+    responsavel_id: uuidSchema,
+  })
+  .strict();
+
 export const atualizarContatoSchema = z.discriminatedUnion('tipo', [
   contatoEmailSchema.extend({
     versao_esperada: versaoSchema,
@@ -137,7 +146,8 @@ export const acompanhamentoCasoSchema = z
     responsavel_ativo: z.boolean().nullable(),
     ator_id: uuidSchema,
     criado_em: z.string().datetime({ offset: true }),
-    motivo: motivoSchema,
+    /** Ausente só no primeiro retrato, gravado junto do cadastro do caso. */
+    motivo: motivoSchema.nullable(),
   })
   .strict();
 

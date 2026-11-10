@@ -1,6 +1,7 @@
 /// <reference lib="dom" />
 
 import { createHmac } from 'node:crypto';
+import type { MetadadosAad } from '@ffcmapp/contratos';
 import { describe, expect, it } from 'vitest';
 
 import { criarCifraAutenticada } from '../../../supabase/functions/_shared/cifra-autenticada.js';
@@ -18,6 +19,19 @@ const idempotencia = {
   },
 };
 const reserva = { reserva_id: 'd0000000-0000-4000-8000-000000000001', geracao_reserva: 1 };
+const responsavelId = 'e0000000-0000-4000-8000-000000000001';
+/** Caso novo completo e fictício: todos os campos do contrato são obrigatórios. */
+const casoNovo = {
+  nome: 'Pessoa fictícia',
+  nome_preferencia: 'Nome fictício',
+  data_nascimento: '2000-01-01',
+  contatos: [
+    { tipo: 'email', valor: 'pessoa.ficticia@exemplo.test' },
+    { tipo: 'telefone', valor: '+55 11 90000-0000' },
+  ],
+  situacao: 'entrada',
+  responsavel_id: responsavelId,
+};
 
 describe('preparação interna de paciente', () => {
   it('usa o snapshot assinado mesmo que o objeto de entrada seja alterado após assinatura', async () => {
@@ -33,7 +47,7 @@ describe('preparação interna de paciente', () => {
     };
     const resultado = await prepararComandoCriarPaciente(
       {
-        corpo: { nome: 'Pessoa fictícia' },
+        corpo: casoNovo,
         reserva,
         cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
         contexto: {
@@ -68,7 +82,7 @@ describe('preparação interna de paciente', () => {
       expira_em: '2026-10-29T12:01:00Z',
     };
     const input = {
-      corpo: { nome: ' Pessoa fictícia ' },
+      corpo: { ...casoNovo, nome: ' Pessoa fictícia ' },
       reserva,
       cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
       contexto,
@@ -88,7 +102,25 @@ describe('preparação interna de paciente', () => {
       { cifra, atestador, idempotencia },
     );
     const outroConteudo = await prepararComandoCriarPaciente(
-      { ...input, corpo: { nome: 'Outro nome fictício' } },
+      { ...input, corpo: { ...casoNovo, nome: 'Outro nome fictício' } },
+      { cifra, atestador, idempotencia },
+    );
+    const outroContato = await prepararComandoCriarPaciente(
+      {
+        ...input,
+        corpo: {
+          ...casoNovo,
+          contatos: [casoNovo.contatos[0], { tipo: 'telefone', valor: '+55 11 90000-0001' }],
+        },
+      },
+      { cifra, atestador, idempotencia },
+    );
+    const outraSituacao = await prepararComandoCriarPaciente(
+      { ...input, corpo: { ...casoNovo, situacao: 'ativo' } },
+      { cifra, atestador, idempotencia },
+    );
+    const outroResponsavel = await prepararComandoCriarPaciente(
+      { ...input, corpo: { ...casoNovo, responsavel_id: 'e0000000-0000-4000-8000-000000000002' } },
       { cifra, atestador, idempotencia },
     );
     const outraReserva = await prepararComandoCriarPaciente(
@@ -99,7 +131,21 @@ describe('preparação interna de paciente', () => {
       { ...input, contexto: { ...contexto, usuario_id: '10000000-0000-4000-8000-000000000004' } },
       { cifra, atestador, idempotencia },
     );
-    expect(JSON.stringify(primeira)).not.toContain('Pessoa fictícia');
+    const serializada = JSON.stringify(primeira);
+    for (const claro of [
+      'Pessoa fictícia',
+      'Nome fictício',
+      '2000-01-01',
+      'pessoa.ficticia@exemplo.test',
+      '90000-0000',
+    ])
+      expect(serializada).not.toContain(claro);
+    expect(primeira.p_entrada.entrada.situacao).toBe('entrada');
+    expect(primeira.p_entrada.entrada.responsavel_id).toBe(responsavelId);
+    expect(primeira.p_entrada.entrada.contatos.map((contato) => contato.tipo)).toEqual([
+      'email',
+      'telefone',
+    ]);
     expect(primeira.p_entrada.entrada.reserva_id).toBe(reserva.reserva_id);
     expect(primeira.p_entrada.entrada.geracao_reserva).toBe(reserva.geracao_reserva);
     expect(JSON.parse(primeira.p_entrada.entrada_canonica)).toMatchObject(reserva);
@@ -114,6 +160,11 @@ describe('preparação interna de paciente', () => {
     expect(primeira.p_entrada.entrada.digest_idempotencia).not.toBe(
       outroConteudo.p_entrada.entrada.digest_idempotencia,
     );
+    // O digest cobre o corpo inteiro: contato, situação e responsável diferentes não são o mesmo comando.
+    for (const diferente of [outroContato, outraSituacao, outroResponsavel])
+      expect(primeira.p_entrada.entrada.digest_idempotencia).not.toBe(
+        diferente.p_entrada.entrada.digest_idempotencia,
+      );
     expect(primeira.p_entrada.entrada.digest_idempotencia).not.toBe(
       outraReserva.p_entrada.entrada.digest_idempotencia,
     );
@@ -130,13 +181,9 @@ describe('preparação interna de paciente', () => {
       ),
     );
   });
-  it('cifra nome e campos opcionais com AAD do registro gerado', async () => {
+  it('cifra nome, preferência e nascimento com AAD do registro gerado', async () => {
     const resultado = await prepararPacienteCifrado(
-      {
-        nome: ' Pessoa fictícia ',
-        nome_preferencia: ' Nome fictício ',
-        data_nascimento: '2000-01-01',
-      },
+      { ...casoNovo, nome: ' Pessoa fictícia ', nome_preferencia: ' Nome fictício ' },
       cifra,
     );
     expect(JSON.stringify(resultado)).not.toContain('Pessoa fictícia');
@@ -150,11 +197,11 @@ describe('preparação interna de paciente', () => {
       nome_preferencia: { ...aad, campo: 'nome_preferencia' },
       data_nascimento: { ...aad, campo: 'data_nascimento' },
     });
+    expect(resultado.situacao).toBe('entrada');
+    expect(resultado.responsavel_id).toBe(responsavelId);
     await expect(cifra.decifrar(resultado.nome, { ...aad, campo: 'nome' })).resolves.toBe(
       'Pessoa fictícia',
     );
-    if (!resultado.nome_preferencia || !resultado.data_nascimento)
-      throw new Error('Campos ausentes.');
     await expect(
       cifra.decifrar(resultado.nome_preferencia, { ...aad, campo: 'nome_preferencia' }),
     ).resolves.toBe('Nome fictício');
@@ -166,18 +213,117 @@ describe('preparação interna de paciente', () => {
     ).rejects.toThrow();
   });
 
-  it('aceita apenas nome e não inventa campos opcionais', async () => {
-    const resultado = await prepararPacienteCifrado({ nome: 'Pessoa fictícia' }, cifra);
-    expect(resultado).not.toHaveProperty('nome_preferencia');
-    expect(resultado).not.toHaveProperty('data_nascimento');
-    expect(resultado.aad).not.toHaveProperty('nome_preferencia');
-    expect(resultado.aad).not.toHaveProperty('data_nascimento');
+  it('normaliza o responsável para minúsculas sem alterar situação nem demais campos', async () => {
+    const resultado = await prepararPacienteCifrado(
+      { ...casoNovo, responsavel_id: responsavelId.toUpperCase(), situacao: 'pausado' },
+      cifra,
+    );
+    expect(resultado.responsavel_id).toBe(responsavelId);
+    expect(resultado.situacao).toBe('pausado');
     expect(Object.isFrozen(resultado.aad)).toBe(true);
     expect(Object.isFrozen(resultado.aad.nome)).toBe(true);
+    expect(Object.isFrozen(resultado.aad.nome_preferencia)).toBe(true);
+    expect(Object.isFrozen(resultado.aad.data_nascimento)).toBe(true);
+  });
+
+  it('dá a cada contato id e AAD próprios e entrega à cifra o AAD de cada um', async () => {
+    const chamadas: { valor: string; aad: MetadadosAad }[] = [];
+    const cifraEspia = {
+      async cifrar(valor: string, aad: MetadadosAad) {
+        chamadas.push({ valor, aad });
+        return cifra.cifrar(valor, aad);
+      },
+    };
+    const resultado = await prepararPacienteCifrado(
+      {
+        ...casoNovo,
+        contatos: [
+          { tipo: 'email', valor: '  pessoa.ficticia@exemplo.test  ' },
+          { tipo: 'telefone', valor: '+55 11 90000-0000' },
+          { tipo: 'email', valor: 'segundo.ficticio@exemplo.test' },
+        ],
+      },
+      cifraEspia,
+    );
+    expect(resultado.contatos).toHaveLength(3);
+    const ids = resultado.contatos.map((contato) => contato.contato_id);
+    expect(new Set([...ids, resultado.paciente_id]).size).toBe(4);
+    expect(resultado.contatos.map((contato) => contato.tipo)).toEqual([
+      'email',
+      'telefone',
+      'email',
+    ]);
+    const claros = [
+      'pessoa.ficticia@exemplo.test',
+      '+55 11 90000-0000',
+      'segundo.ficticio@exemplo.test',
+    ];
+    for (const [indice, contato] of resultado.contatos.entries()) {
+      expect(contato.aad).toEqual({
+        tabela: 'cadastro.contato_paciente',
+        registro_id: contato.contato_id,
+        campo: 'valor',
+        formato: 1,
+      });
+      expect(Object.isFrozen(contato.aad)).toBe(true);
+      // A cifra recebeu o valor com trim junto do AAD exato deste contato.
+      expect(chamadas).toContainEqual({ valor: claros[indice], aad: contato.aad });
+      await expect(cifra.decifrar(contato.valor, contato.aad)).resolves.toBe(claros[indice]);
+      // Um AAD de outro contato do mesmo caso não decifra este valor.
+      const outro = resultado.contatos[(indice + 1) % 3];
+      if (!outro) throw new Error('Contato ausente.');
+      await expect(cifra.decifrar(contato.valor, outro.aad)).rejects.toThrow();
+    }
+    expect(chamadas).toHaveLength(3 + 3);
+  });
+
+  it('rejeita o payload antigo somente com nome e qualquer campo obrigatório ausente', async () => {
+    const falha = 'Não foi possível preparar o cadastro.';
+    await expect(prepararPacienteCifrado({ nome: 'Pessoa fictícia' }, cifra)).rejects.toThrow(
+      falha,
+    );
+    for (const campo of Object.keys(casoNovo)) {
+      const semCampo = Object.fromEntries(Object.entries(casoNovo).filter(([k]) => k !== campo));
+      await expect(prepararPacienteCifrado(semCampo, cifra), `sem ${campo}`).rejects.toThrow(falha);
+    }
+    await expect(prepararPacienteCifrado({ ...casoNovo, contatos: [] }, cifra)).rejects.toThrow(
+      falha,
+    );
+  });
+
+  it('mantém o digest quando só a caixa do UUID do responsável muda', async () => {
+    const atestador = criarAtestadorOperacao({
+      keyId: 'atestado',
+      chave: new Uint8Array(32).fill(3),
+    });
+    const base = {
+      reserva,
+      cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
+      contexto: {
+        key_id: 'atestado',
+        usuario_id: 'a0000000-0000-4000-8000-000000000001',
+        session_id: 'b0000000-0000-4000-8000-000000000002',
+        request_id: 'c0000000-0000-4000-8000-000000000003',
+        emitido_em: '2026-10-29T12:00:00Z',
+        expira_em: '2026-10-29T12:01:00Z',
+      },
+    };
+    const responsavel = 'abcdef00-0000-4000-8000-0000000000ab';
+    const minuscula = await prepararComandoCriarPaciente(
+      { ...base, corpo: { ...casoNovo, responsavel_id: responsavel } },
+      { cifra, atestador, idempotencia },
+    );
+    const maiuscula = await prepararComandoCriarPaciente(
+      { ...base, corpo: { ...casoNovo, responsavel_id: responsavel.toUpperCase() } },
+      { cifra, atestador, idempotencia },
+    );
+    expect(maiuscula.p_entrada.entrada.digest_idempotencia).toBe(
+      minuscula.p_entrada.entrada.digest_idempotencia,
+    );
   });
 
   it('rejeita entrada inválida e não expõe detalhes de falha da cifra', async () => {
-    await expect(prepararPacienteCifrado({ nome: ' ' }, cifra)).rejects.toThrow(
+    await expect(prepararPacienteCifrado({ ...casoNovo, nome: ' ' }, cifra)).rejects.toThrow(
       'Não foi possível preparar o cadastro.',
     );
     const cifraIndisponivel = {
@@ -185,8 +331,21 @@ describe('preparação interna de paciente', () => {
         throw new Error('Paciente fictício e segredo fictício');
       },
     };
-    await expect(
-      prepararPacienteCifrado({ nome: 'Pessoa fictícia' }, cifraIndisponivel),
-    ).rejects.toThrow('Não foi possível preparar o cadastro.');
+    await expect(prepararPacienteCifrado(casoNovo, cifraIndisponivel)).rejects.toThrow(
+      'Não foi possível preparar o cadastro.',
+    );
+    // Falha ao cifrar só o contato também aborta o preparo, sem expor o valor.
+    let chamadas = 0;
+    const cifraFalhaNoContato = {
+      async cifrar(valor: string, aad: MetadadosAad) {
+        chamadas += 1;
+        if (aad.tabela === 'cadastro.contato_paciente') throw new Error(valor);
+        return cifra.cifrar(valor, aad);
+      },
+    };
+    await expect(prepararPacienteCifrado(casoNovo, cifraFalhaNoContato)).rejects.toThrow(
+      'Não foi possível preparar o cadastro.',
+    );
+    expect(chamadas).toBeGreaterThan(0);
   });
 });

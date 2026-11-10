@@ -106,12 +106,16 @@ export async function projetarPacienteEdicaoExperimental(
         responsavel_ativo: mudanca.responsavel_ativo,
         ator_id: mudanca.ator_id,
         criado_em: mudanca.criado_em,
-        motivo: await cifra.decifrar(mudanca.motivo, {
-          tabela: 'auditoria.evento',
-          registro_id: mudanca.auditoria_id,
-          campo: 'motivo',
-          formato: mudanca.motivo.formato,
-        }),
+        // Só o primeiro retrato, gravado com o cadastro do caso, não tem motivo.
+        motivo:
+          mudanca.motivo === null
+            ? null
+            : await cifra.decifrar(mudanca.motivo, {
+                tabela: 'auditoria.evento',
+                registro_id: mudanca.auditoria_id,
+                campo: 'motivo',
+                formato: mudanca.motivo.formato,
+              }),
       });
     }
     return pacienteEdicaoSchema.parse({ ...paciente, acompanhamento: historico });

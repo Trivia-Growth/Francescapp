@@ -270,7 +270,7 @@ const acompanhamentoCasoRpcSchema = z
     ator_id: uuidSchema,
     criado_em: instanteSchema,
     auditoria_id: uuidSchema,
-    motivo: campoCifradoSchema,
+    motivo: campoCifradoSchema.nullable(),
   })
   .strict();
 /** Saída da consulta de edição (somente Administrador): cadastro e histórico do caso, motivo cifrado. */
@@ -310,23 +310,48 @@ export const reservaCadastroSchema = z
 
 /** AAD e reserva obrigatórios tornam este contrato incompatível com entradas anteriores.
  * Validação estrutural não autentica ciphertext nem substitui verificação no banco. */
+const contatoCriacaoRpcSchema = z
+  .object({
+    contato_id: uuidSchema,
+    tipo: z.enum(['email', 'telefone']),
+    valor: campoCifradoSchema,
+    aad: z
+      .object({
+        tabela: z.literal('cadastro.contato_paciente'),
+        registro_id: uuidSchema,
+        campo: z.literal('valor'),
+        formato: formatoCifraSchema,
+      })
+      .strict(),
+  })
+  .strict()
+  .refine((v) => v.aad.registro_id === v.contato_id && v.aad.formato === v.valor.formato);
+/** Caso novo atômico: todos os campos, de 1 a 10 contatos com AAD próprio, situação e responsável. */
 export const criarPacienteRpcEntradaSchema = mutacaoSchema
   .extend({
     ...reservaCadastroSchema.shape,
     paciente_id: uuidSchema,
     nome: campoCifradoSchema,
-    nome_preferencia: campoCifradoSchema.optional(),
-    data_nascimento: campoCifradoSchema.optional(),
+    nome_preferencia: campoCifradoSchema,
+    data_nascimento: campoCifradoSchema,
+    contatos: z.array(contatoCriacaoRpcSchema).min(1).max(10),
+    situacao: situacaoCasoRpcSchema,
+    responsavel_id: uuidSchema,
     aad: z
       .object({
         nome: aadPaciente('nome'),
-        nome_preferencia: aadPaciente('nome_preferencia').optional(),
-        data_nascimento: aadPaciente('data_nascimento').optional(),
+        nome_preferencia: aadPaciente('nome_preferencia'),
+        data_nascimento: aadPaciente('data_nascimento'),
       })
       .strict(),
   })
   .strict()
   .superRefine((valor, ctx) => {
+    if (
+      new Set(valor.contatos.map((contato) => contato.contato_id)).size !== valor.contatos.length
+    ) {
+      ctx.addIssue({ code: 'custom', message: 'Contato repetido.', path: ['contatos'] });
+    }
     for (const campo of ['nome', 'nome_preferencia', 'data_nascimento'] as const) {
       const envelope = valor[campo];
       const aad = valor.aad[campo];

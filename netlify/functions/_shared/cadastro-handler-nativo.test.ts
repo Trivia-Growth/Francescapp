@@ -9,6 +9,18 @@ const identidade = {
   session_id: 'b0000000-0000-4000-8000-000000000002',
 };
 const reserva = { reserva_id: 'd0000000-0000-4000-8000-000000000001', geracao_reserva: 1 };
+/** Caso novo completo e fictício: todos os campos do contrato são obrigatórios. */
+const casoNovo = {
+  nome: 'Paciente fictício',
+  nome_preferencia: 'Nome fictício',
+  data_nascimento: '2000-01-01',
+  contatos: [
+    { tipo: 'email', valor: 'paciente.ficticio@exemplo.test' },
+    { tipo: 'telefone', valor: '+55 11 90000-0000' },
+  ],
+  situacao: 'entrada',
+  responsavel_id: 'e0000000-0000-4000-8000-000000000001',
+};
 const pedido = (nome = 'Paciente fictício') =>
   new Request('https://exemplo.test/api/pacientes', {
     method: 'POST',
@@ -17,7 +29,7 @@ const pedido = (nome = 'Paciente fictício') =>
       'x-sessao': identidade.session_id,
       'x-chave-idempotencia': 'chave_ficticia_123456',
     },
-    body: JSON.stringify({ entrada: { nome }, ...reserva }),
+    body: JSON.stringify({ entrada: { ...casoNovo, nome }, ...reserva }),
   });
 function portas() {
   const autorizado = async () => ({ estado: 'autorizado' as const, identidade });
@@ -44,20 +56,40 @@ function portas() {
       async (
         _request: Request,
         transporte: {
-          p_entrada: { entrada: { request_id: string; paciente_id: string; nome: unknown } };
+          p_entrada: {
+            entrada: {
+              request_id: string;
+              paciente_id: string;
+              nome: unknown;
+              nome_preferencia: unknown;
+              data_nascimento: unknown;
+              contatos: { contato_id: string; tipo: string; valor: unknown }[];
+              situacao: string;
+              responsavel_id: string;
+            };
+          };
         },
       ) => {
         const entrada = transporte.p_entrada.entrada;
-        expect(JSON.stringify(transporte)).not.toContain('Paciente fictício');
+        for (const claro of ['Paciente fictício', 'Nome fictício', 'ficticio@exemplo.test'])
+          expect(JSON.stringify(transporte)).not.toContain(claro);
+        expect(entrada.situacao).toBe(casoNovo.situacao);
+        expect(entrada.responsavel_id).toBe(casoNovo.responsavel_id);
+        expect(entrada.contatos).toHaveLength(casoNovo.contatos.length);
         return {
           ok: true,
           request_id: entrada.request_id,
           dados: {
             paciente_id: entrada.paciente_id,
             nome: entrada.nome,
-            nome_preferencia: null,
-            data_nascimento: null,
-            contatos: [],
+            nome_preferencia: entrada.nome_preferencia,
+            data_nascimento: entrada.data_nascimento,
+            contatos: entrada.contatos.map(({ contato_id, tipo, valor }) => ({
+              contato_id,
+              tipo,
+              valor,
+              versao: 1,
+            })),
             versao: 1,
           },
         };
@@ -170,7 +202,15 @@ describe('cadastro com sessão nativa', () => {
     const resposta = await criarPacienteNativo(pedido(), dependencias);
     expect(resposta.status).toBe(200);
     expect(dependencias.executar.mock.calls[0]?.[1].p_entrada.entrada).toMatchObject(reserva);
-    expect((await resposta.json()).dados.nome).toBe('Paciente fictício');
+    const { dados } = await resposta.json();
+    expect(dados).toMatchObject({
+      nome: 'Paciente fictício',
+      nome_preferencia: 'Nome fictício',
+      data_nascimento: '2000-01-01',
+    });
+    expect(dados.contatos.map((c: { tipo: string; valor: string }) => [c.tipo, c.valor])).toEqual(
+      casoNovo.contatos.map((c) => [c.tipo, c.valor]),
+    );
     expect(resposta.headers.get('cache-control')).toContain('no-store');
   });
   it('recusa DTO e sessão inválidos antes da mutação', async () => {
@@ -188,10 +228,14 @@ describe('cadastro com sessão nativa', () => {
   });
   it('recusa reserva ausente, inválida ou campos adicionais antes de autorizar', async () => {
     for (const corpo of [
-      { entrada: { nome: 'Paciente fictício' } },
-      { entrada: { nome: 'Paciente fictício' }, ...reserva, geracao_reserva: 0 },
-      { entrada: { nome: 'Paciente fictício' }, ...reserva, reserva_id: 'inválido' },
-      { entrada: { nome: 'Paciente fictício' }, ...reserva, extra: true },
+      { entrada: casoNovo },
+      { entrada: casoNovo, ...reserva, geracao_reserva: 0 },
+      { entrada: casoNovo, ...reserva, reserva_id: 'inválido' },
+      { entrada: casoNovo, ...reserva, extra: true },
+      // Cadastro antigo, somente com nome, e caso novo sem contatos ou sem responsável.
+      { entrada: { nome: 'Paciente fictício' }, ...reserva },
+      { entrada: { ...casoNovo, contatos: [] }, ...reserva },
+      { entrada: { ...casoNovo, responsavel_id: undefined }, ...reserva },
     ]) {
       const dependencias = portas();
       const autorizar = vi.fn(dependencias.autorizar);
@@ -200,6 +244,22 @@ describe('cadastro com sessão nativa', () => {
       expect(autorizar).not.toHaveBeenCalled();
       expect(dependencias.executar).not.toHaveBeenCalled();
     }
+  });
+  it('responde 422 responsavel_invalido quando o banco recusa o responsável, sem tratá-lo como incerto', async () => {
+    const dependencias = portas();
+    const recusa = await criarPacienteNativo(pedido(), {
+      ...dependencias,
+      executar: async (_request, transporte) => ({
+        ok: false,
+        request_id: transporte.p_entrada.entrada.request_id,
+        erro: { codigo: 'responsavel_invalido' },
+      }),
+    });
+    expect(recusa.status).toBe(422);
+    const texto = await recusa.text();
+    expect(JSON.parse(texto).erro.codigo).toBe('responsavel_invalido');
+    expect(texto).not.toContain(casoNovo.responsavel_id);
+    expect(texto).not.toContain('Paciente fictício');
   });
   it('não divulga dados após revogação e trata falha da RPC como incerta', async () => {
     const resposta = await criarPacienteNativo(pedido(), {
