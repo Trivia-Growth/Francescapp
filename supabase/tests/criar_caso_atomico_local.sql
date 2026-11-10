@@ -218,7 +218,7 @@ declare
  v_antes text; v_r jsonb; v_alvo text;
 begin
  v_antes:=public.resumo_criacao();
- foreach v_alvo in array array['cadastro.contato_paciente','cadastro.acompanhamento_caso','auditoria.evento'] loop
+ foreach v_alvo in array array['cadastro.paciente','cadastro.contato_paciente','operacao.requisicao','cadastro.acompanhamento_caso','auditoria.evento'] loop
   execute format('create trigger falha before insert on %s for each row execute function auditoria.falhar_fixture()',v_alvo);
   v_r:=public.criar_fixture(v_admin,v_s_admin,'cc-falha-'||v_alvo,gen_random_uuid(),'{}','{}',2,'entrada','10000000-0000-4000-8000-000000000003',false);
   execute format('drop trigger falha on %s',v_alvo);

@@ -123,12 +123,7 @@ begin
  foreach campo in array array['nome','nome_preferencia','data_nascimento'] loop
   if (e ? campo) is distinct from (e->'aad' ? campo) or (e ? campo and (
     e->'aad'->campo is distinct from jsonb_build_object('tabela','cadastro.paciente','registro_id',paciente::text,'campo',campo,'formato',1)
-    or jsonb_typeof(e->campo) is distinct from 'object' or (e->campo) - array['formato','key_id','nonce','ciphertext','tag'] <> '{}'::jsonb
-    or e->campo->'formato' is distinct from '1'::jsonb or jsonb_typeof(e->campo->'key_id') is distinct from 'string'
-    or coalesce(length(e->campo->>'key_id') between 1 and 128,false) is not true
-    or jsonb_typeof(e->campo->'nonce') is distinct from 'string' or coalesce(e->campo->>'nonce','') !~ '^[A-Za-z0-9_-]{16}$'
-    or jsonb_typeof(e->campo->'tag') is distinct from 'string' or coalesce(e->campo->>'tag','') !~ '^[A-Za-z0-9_-]{22}$'
-    or jsonb_typeof(e->campo->'ciphertext') is distinct from 'string' or coalesce(length(e->campo->>'ciphertext') between 1 and 32768 and e->campo->>'ciphertext' ~ '^[A-Za-z0-9_-]+$',false) is not true)) then
+    or operacao.envelope_cifrado_valido(e->campo) is not true)) then
    raise exception using errcode='22023',message='ENTRADA_INVALIDA';
   end if;
  end loop;
