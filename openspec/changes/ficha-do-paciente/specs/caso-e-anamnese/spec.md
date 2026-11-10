@@ -150,3 +150,23 @@ O produto SHALL exigir, ao cadastrar um caso novo, nome, nome de preferência, d
 #### Scenario: Cadastro sem autorização
 - **WHEN** pessoa sem perfil Administrador tenta cadastrar caso novo, inclusive por acesso direto
 - **THEN** a operação é negada e nada é criado
+
+#### Scenario: Formato incompleto por acesso direto
+- **WHEN** uma chamada direta ao servidor ou ao banco usa o formato anterior (só o nome) ou omite qualquer campo exigido
+- **THEN** a operação é recusada e nenhum paciente, contato ou situação é criado
+
+#### Scenario: Repetição da mesma gravação
+- **WHEN** o mesmo cadastro é enviado de novo com a mesma chave de idempotência
+- **THEN** existe um único caso, sem contato nem acompanhamento duplicado, e a resposta devolve o resultado original; a mesma chave com conteúdo diferente é recusada
+
+#### Scenario: Situação inicial sem motivo
+- **WHEN** o Administrador cadastra um caso novo com uma das cinco situações
+- **THEN** a ficha mostra a situação com a data do cadastro e sem pedir motivo, e as mudanças posteriores de situação continuam exigindo motivo
+
+#### Scenario: Responsável não elegível no cadastro
+- **WHEN** o cadastro de caso novo indica como case manager um usuário inexistente, inativo ou de perfil Família, ou que perde o acesso durante a gravação
+- **THEN** o cadastro é recusado e nada é criado
+
+#### Scenario: Escolha do responsável só entre elegíveis
+- **WHEN** o Administrador que cadastra casos abre a escolha do case manager
+- **THEN** vê apenas usuários ativos com perfil Administrador ou Profissional, com os dados mínimos para escolher, e a mesma consulta feita por Profissional, Família, anônimo ou Administrador sem permissão de cadastro, inclusive por acesso direto, é negada sem expor a equipe

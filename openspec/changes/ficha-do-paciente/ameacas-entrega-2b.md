@@ -1,6 +1,6 @@
 # Modelagem de ameaças — recorte 2B (cadastro de caso novo atômico)
 
-Rascunho de 09/11/2026 (tarefa 2.14), com a skill `security-threat-model`. Escopo: criar um caso novo com todos os campos exigidos numa única operação do Administrador. Fora: mapa de pessoas, leitura por Profissional e Família, substituição temporária (FR-037), duplicidade e representação (ainda sem regra). Todo controle marcado "existe" foi lido no código; "a construir" não existe e não pode ser tratado como existente. As hipóteses H4 a H8 e as perguntas Q1 a Q3 aguardam o solicitante; até lá, as mitigações que dependem delas são condicionais.
+Versão de 09/11/2026 (tarefa 2.14), com a skill `security-threat-model`. Escopo: criar um caso novo com todos os campos exigidos numa única operação do Administrador, e a leitura dos responsáveis elegíveis que essa criação exige. Fora: mapa de pessoas, leitura por Profissional e Família, substituição temporária (FR-037), duplicidade e representação (ainda sem regra). Todo controle marcado "existe" foi lido no código; "a construir" não existe e não pode ser tratado como existente. O solicitante respondeu Q1 a Q3 em 09/11/2026 (todas na recomendação); H5, H6 e H8 seguem como hipóteses assumidas, não perguntadas.
 
 ## Sistema e fronteiras
 
@@ -36,7 +36,8 @@ Rascunho de 09/11/2026 (tarefa 2.14), com a skill `security-threat-model`. Escop
 | T21 | Troca de envelope cifrado entre campos, contatos ou pacientes (AAD errado aceito) | 3 | baixa | médio | média |
 | T22 | Regressão ao redefinir a função inteira de criação (autenticação, barreira, ledger, auditoria) | 4 | média | alto | alta |
 | T23 | Volume: mais contatos que o limite, ou corpo grande, esgota recursos ou foge do contrato | 5 | baixa | médio | baixa |
-| T24 | A linha inicial de acompanhamento quebra a leitura de edição (motivo hoje obrigatório na leitura) | 5 | alta | médio | alta |
+| T24 | A linha inicial de acompanhamento (sem motivo, por Q1) quebra a leitura de edição, que hoje exige motivo | 5 | alta | médio | alta |
+| T25 | A lista de responsáveis elegíveis, aberta a `administrar_cadastro` (Q2), expõe dados da equipe além do necessário ou a quem não deve | 3 | baixa | médio | média |
 
 ## Mitigações
 
@@ -52,23 +53,24 @@ A construir (cada uma com prova exigida):
 - **Sem dado pessoal em rastro (T20, T21)**: contatos e nascimento só cifrados, com AAD que prende o registro (`contato_id` gerado no servidor) e o campo; falha pública genérica. Prova: AAD trocado entre contatos, entre campos e entre pacientes é recusado; resposta de falha e auditoria não contêm o valor.
 - **Redefinição comparada (T22)**: a nova função parte da última definição e é comparada por diff; só as inclusões esperadas mudam. Prova: diff registrado e testes SQL existentes da criação continuam verdes.
 - **Limites no banco (T23)**: máximo de contatos e tamanho do envelope conferidos na função, não só no contrato TypeScript (hoje o limite de 10 existe no contrato; não encontrei trigger nem restrição na tabela de contatos que o imponha). Prova: onze contatos e envelope acima do limite são recusados.
-- **Linha inicial compatível com a leitura (T24)**: decisão pendente em Q1; qualquer que seja, a leitura de edição e a lista devem funcionar para o caso recém-criado. Prova: criar caso pelo novo caminho e ler pela consulta de edição e pela lista.
+- **Linha inicial compatível com a leitura (T24, Q1)**: a primeira linha de `cadastro.acompanhamento_caso` nasce sem motivo (a criação do caso, com a auditoria `api.criar_paciente`, é o evento de origem; a data é a do servidor). Isso exige que o motivo possa ser ausente no evento de auditoria referenciado e que `acompanhamentoCasoRpcSchema`, a projeção e a tela de histórico aceitem motivo nulo apenas na linha inicial; mudanças posteriores seguem com motivo obrigatório. Prova: criar caso pelo novo caminho e ler pela consulta de edição e pela lista; uma mudança de situação sem motivo continua recusada; nenhuma linha posterior à inicial aceita motivo nulo.
+- **Leitura mínima de responsáveis elegíveis (T25, Q2)**: operação de leitura própria e nova, aberta ao Administrador com `administrar_cadastro` (que hoje não lista a equipe: o cliente usa `listarProfissionais`, disponível só com `administrar_concessoes`), com papel dono dedicado, que devolve só `usuario_id`, perfil e um rótulo para escolher, apenas de usuário ativo com perfil Administrador ou Profissional e concessão vinculada, com limite de página e auditoria no padrão das leituras. Não devolve e-mail além do rótulo necessário nem estado de concessão. Prova: Profissional, Família, anônimo e Administrador sem `administrar_cadastro` são recusados; inativo e Família nunca aparecem; o contrato recusa campos extras. Efeito colateral útil: a mesma leitura passa a alimentar a edição da 2A, resolvendo a limitação "Responsável indicado" do Administrador sem `administrar_concessoes`.
 
 ## Hipóteses que movem a prioridade
 
 - H4 (confirmada em `PRODUCT.md`, decisão de 08/11/2026). Exigidos: nome, preferência, nascimento, ao menos um contato, situação e case manager, sem valor padrão. O máximo de contatos segue o contrato atual (10).
-- H5. Criar caso continua exclusivo do Administrador com `administrar_cadastro` (já é assim no banco).
-- H6. A criação atômica substitui a operação atual em vez de coexistir com ela (decorre de T15).
-- H7. A situação inicial pode ser qualquer um dos cinco valores, sem valor padrão (a decisão disse apenas "sem valor padrão").
-- H8. Nascimento não pode estar no futuro; contato e nome seguem as validações já existentes.
+- H5 (assumida, não perguntada). Criar caso continua exclusivo do Administrador com `administrar_cadastro` (já é assim no banco).
+- H6 (assumida, decorre de T15). A criação atômica substitui a operação atual em vez de coexistir com ela.
+- H7 (confirmada em 09/11/2026, Q3). A situação inicial pode ser qualquer um dos cinco valores, sem valor padrão.
+- H8 (assumida, não perguntada). Nascimento não pode estar no futuro; contato e nome seguem as validações já existentes.
 - H3 (premissa do projeto). Dados fictícios e nenhuma ativação real antes da S-02; nenhuma operação remota é feita aqui.
 
-## Perguntas ao solicitante (materiais)
+## Perguntas ao solicitante (respondidas em 09/11/2026)
 
-- **Q1.** A situação inicial precisa de motivo escrito? FR-001 pede data e motivo nas mudanças de situação. Recomendação: não pedir motivo na criação (a data é a da criação do caso) e permitir que a primeira linha do histórico não tenha motivo. Isso altera a leitura da 2A, hoje com motivo obrigatório (T24).
-- **Q2.** Quem escolhe o responsável precisa listar a equipe, o que hoje exige a concessão `administrar_concessoes`. Um Administrador só com `administrar_cadastro` não conseguiria cadastrar caso novo, porque o responsável passa a ser obrigatório. Recomendação: abrir a lista de responsáveis elegíveis a quem tem `administrar_cadastro`, só com os campos necessários para escolher.
-- **Q3.** Alguma situação inicial deve ser vedada na criação (por exemplo "encerrado" ou "transferido" para um caso novo)? Recomendação: permitir as cinco, como em H7, até haver regra de negócio.
+- **Q1.** A situação inicial não precisa de motivo escrito: a data é a da criação e a primeira linha do histórico fica sem motivo. FR-001 pede motivo nas mudanças de situação, não na criação. Alterou a leitura da 2A (T24).
+- **Q2.** Quem tem `administrar_cadastro` escolhe o case manager, por uma leitura mínima de responsáveis elegíveis (T25). Sem isso, um Administrador sem `administrar_concessoes` não conseguiria cadastrar caso novo.
+- **Q3.** As cinco situações são permitidas na criação, sem valor padrão (H7).
 
 ## Provas exigidas e limitações
 
-Positivas e negativas no banco (SQL local descartável), nos contratos e na interface, a detalhar nas tarefas 2.15 a 2.18 depois da confirmação. Limitações já conhecidas: duplicidade de pessoas (mesma pessoa criada duas vezes com chaves diferentes) não é tratada, pois não há regra de negócio; a prova de perfil Profissional e revogação reais depende da S-02; a concorrência de revogação externa de Auth segue como limitação D-14.
+Positivas e negativas no banco (SQL local descartável), nos contratos e na interface, a detalhar nas tarefas 2.15 a 2.21. Limitações já conhecidas: duplicidade de pessoas (mesma pessoa criada duas vezes com chaves diferentes) não é tratada, pois não há regra de negócio; a prova de perfil Profissional e revogação reais depende da S-02; a concorrência de revogação externa de Auth segue como limitação D-14.
