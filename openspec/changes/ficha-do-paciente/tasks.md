@@ -42,6 +42,10 @@ Contraste (razão WCAG calculada sobre os tokens em uso; texto normal exige 4,5:
 
 Pendente e por que: (a) revisão independente, porque quem implementou não a aprova; (b) PR com o roteiro "Como testar", que exige push, não autorizado; (c) prova pela prévia publicada, que exige a conta Netlify `agenda-francescato`; (d) leitura em leitor de tela e com dados reais. Sem (c) a fatia não é declarada ativada.
 
+**Atualização (10/11/2026).** Com autorização explícita do solicitante: PRs #7 e #8 mesclados em `main`; deploy de produção publicado em `https://ffcmapp.netlify.app` (o site foi renomeado de `ffcmapp-francescato` para `ffcmapp` no painel, à parte); flags `FFCM_*_ATIVADO`/`ATIVA` habilitadas em produção (antes só em `branch`); `FFCM_APP_ORIGIN` e `site_url`/`uri_allow_list` do Supabase Auth corrigidos para o domínio novo (estavam apontando pro domínio antigo e para `localhost:3000`, respectivamente — sem isso o login OAuth falhava).
+
+Prova real em produção (não mais prévia) pelo navegador, como Administrador via Google Workspace (`agenda@francescato.com.br`, sessão já autenticada no Chrome do solicitante): login, lista de pacientes carregando (antes retornava 503 com as flags desligadas), abertura de ficha com Visão do caso, criação de caso novo completo (2B: nome, preferência, nascimento, contato, situação "Ativo", responsável "agenda@francescato.com.br") — persistiu, apareceu na lista com "Situação: Ativo" (2C) e na ficha com "Situação: Ativo / Responsável: agenda@francescato.com.br (Administrador) / Desde 10/11/2026. Registrado no cadastro do caso." (2A, motivo nulo exibido corretamente). Contato decifrado corretamente na aba Cadastro. Isso resolve (b) e (c) pra esse fluxo. **Segue pendente**: (a) revisão independente formal desta fatia específica (1.8), (d) leitura em leitor de tela, e a prova real de Profissional/Família (S-02) — este teste cobriu só o perfil Administrador via exceção técnica/Workspace, não substitui S-02.
+
 ## 2. Entrega 2 — cadastro completo: decisões antes do código
 
 Nada desta seção libera tarefa executável sem as decisões e a modelagem abaixo; dependem de S-02 para a prova de perfil profissional e revogação.
