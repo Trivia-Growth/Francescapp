@@ -21,7 +21,7 @@ do $$ begin
  end if;
 end $$;
 set role ffcmapp_atestado_verificador_owner;
-grant execute on function identidade.verificar_assinatura_atestado(text,text,jsonb,jsonb,text) to ffcmapp_agenda_google_owner;
+grant execute on function identidade.verificar_assinatura_atestado(text,text,jsonb,jsonb,text) to ffcmapp_agenda_google_owner, ffcmapp_agenda_vault_owner;
 reset role;
 select set_config('role',current_setting('ffcmapp.migrador_agenda'),false);
 do $$ begin
@@ -60,7 +60,21 @@ create policy agenda_google_sessao_lock on identidade.sessao for update to ffcma
   using (usuario_id=nullif(current_setting('ffcmapp.agenda_usuario',true),'')::uuid
     and session_id=nullif(current_setting('ffcmapp.agenda_sessao',true),'')::uuid) with check (false);
 create policy agenda_google_config on identidade.configuracao_auth_nativo for select to ffcmapp_agenda_google_owner using (true);
-grant execute on function vault.create_secret(text,text,text,uuid) to ffcmapp_agenda_google_owner;
+grant execute on function vault.create_secret(text,text,text,uuid) to ffcmapp_agenda_vault_owner;
+grant usage on schema auth_privado, extensions to ffcmapp_agenda_vault_owner;
+grant execute on function extensions.digest(bytea,text), auth_privado.sessoes() to ffcmapp_agenda_vault_owner;
+grant execute on function auth_privado.identidades() to ffcmapp_agenda_vault_owner;
+grant select (id,ativo,perfil), update (versao) on public.usuario to ffcmapp_agenda_vault_owner;
+grant select (id,usuario_id,perfil,estado,metodo,subject_google), update (versao) on identidade.concessao_equipe to ffcmapp_agenda_vault_owner;
+grant select (session_id,usuario_id,concessao_id,metodo,revogada_em,encerrada_em), update (revogada_em) on identidade.sessao to ffcmapp_agenda_vault_owner;
+grant select on identidade.configuracao_auth_nativo to ffcmapp_agenda_vault_owner;
+alter policy agenda_google_usuario on public.usuario to ffcmapp_agenda_google_owner, ffcmapp_agenda_vault_owner;
+alter policy agenda_google_usuario_lock on public.usuario to ffcmapp_agenda_google_owner, ffcmapp_agenda_vault_owner;
+alter policy agenda_google_concessao on identidade.concessao_equipe to ffcmapp_agenda_google_owner, ffcmapp_agenda_vault_owner;
+alter policy agenda_google_concessao_lock on identidade.concessao_equipe to ffcmapp_agenda_google_owner, ffcmapp_agenda_vault_owner;
+alter policy agenda_google_sessao on identidade.sessao to ffcmapp_agenda_google_owner, ffcmapp_agenda_vault_owner;
+alter policy agenda_google_sessao_lock on identidade.sessao to ffcmapp_agenda_google_owner, ffcmapp_agenda_vault_owner;
+alter policy agenda_google_config on identidade.configuracao_auth_nativo to ffcmapp_agenda_google_owner, ffcmapp_agenda_vault_owner;
 grant usage on schema identidade, vault to ffcmapp_agenda_vault_owner;
 grant select on vault.decrypted_secrets to ffcmapp_agenda_vault_owner;
 grant select (id), delete on vault.secrets to ffcmapp_agenda_vault_owner;
@@ -118,38 +132,121 @@ create table identidade.agenda_google_credencial (
   usuario_id uuid primary key,
   subject_google text not null check (length(subject_google) between 1 and 255),
   geracao bigint not null,
-  segredo_id uuid not null unique
+  check (geracao >= 0)
 );
 revoke all on identidade.agenda_google_state, identidade.agenda_google_credencial, identidade.agenda_google_geracao, identidade.agenda_google_requisicao, identidade.agenda_google_escrita, identidade.agenda_google_vinculo_paciente, identidade.agenda_google_desconexao_recibo from public, anon, authenticated, service_role;
 
--- Owner do Vault é isolado e só recebe chamada vinculada ao usuário em contexto.
-grant select (usuario_id, segredo_id) on identidade.agenda_google_credencial to ffcmapp_agenda_vault_owner;
+-- Vínculo e replay pertencem a autoridade independente do owner Agenda.
 reset role;
 select set_config('role',current_setting('ffcmapp.migrador_agenda'),false);
 grant create on schema identidade to ffcmapp_agenda_vault_owner;
 set role ffcmapp_agenda_vault_owner;
-create function identidade.agenda_google_vault(p_segredo uuid, p_excluir boolean)
+alter default privileges revoke execute on functions from public;
+create table identidade.agenda_google_vault_vinculo (usuario_id uuid primary key, segredo_id uuid unique, subject_google text, geracao bigint not null default 0 check (geracao >= 0), check ((segredo_id is null) = (subject_google is null)));
+create table identidade.agenda_google_vault_requisicao (request_id uuid primary key, expira_em timestamptz not null);
+create table identidade.agenda_google_vault_desconexao (usuario_id uuid not null, operacao_id uuid not null, subject_google text not null, geracao text not null, cancelada boolean not null, primary key(usuario_id,operacao_id));
+revoke all on identidade.agenda_google_vault_vinculo, identidade.agenda_google_vault_requisicao, identidade.agenda_google_vault_desconexao from public, anon, authenticated, service_role, ffcmapp_agenda_google_owner;
+create function identidade.agenda_google_vault(p_transporte jsonb, p_acao text, p_refresh text)
 returns text language plpgsql security definer set search_path = '' as $$
-declare v_usuario uuid := nullif(current_setting('ffcmapp.agenda_usuario',true),'')::uuid; v_valor text;
+declare e jsonb := p_transporte->'entrada'; a jsonb := e->'atestado';
+ v_usuario uuid; v_sessao uuid; v_req uuid; v_inicio timestamptz; v_fim timestamptz;
+ v_operacao text; v_segredo uuid; v_novo uuid; v_valor text; v_hash text; v_subject text; v_geracao bigint; v_recibo record;
 begin
- if v_usuario is null or p_segredo is null or p_excluir is null or not exists
-   (select 1 from identidade.agenda_google_credencial c where c.usuario_id=v_usuario and c.segredo_id=p_segredo) then
+ begin
+  v_usuario := (a->>'usuario_id')::uuid; v_sessao := (a->>'session_id')::uuid;
+  v_req := (e->>'request_id')::uuid; v_inicio := (a->>'emitido_em')::timestamptz;
+  v_fim := (a->>'expira_em')::timestamptz; v_operacao := a->>'operacao';
+ exception when invalid_text_representation or invalid_datetime_format or datetime_field_overflow then
+  raise exception using errcode='42501',message='SEM_PERMISSAO';
+ end;
+ if v_usuario is null or v_sessao is null or v_req is null or v_inicio is null or v_fim is null
+  or a->>'usuario_id' is distinct from v_usuario::text or a->>'session_id' is distinct from v_sessao::text
+  or a->>'request_id' is distinct from v_req::text or v_inicio>clock_timestamp() or v_fim<=clock_timestamp()
+  or v_fim<=v_inicio or v_fim-v_inicio>interval '30 seconds'
+  or not coalesce((p_acao='salvar' and v_operacao='agenda.salvar') or (p_acao='ler' and v_operacao='agenda.ler')
+   or (p_acao='cancelar' and v_operacao='agenda.cancelar_desconexao')
+   or (p_acao='excluir' and v_operacao in ('agenda.revogar','agenda.desconectar')),false)
+  or identidade.verificar_assinatura_atestado(p_transporte->>'entrada_canonica',p_transporte->>'dados_canonicos',e-'atestado',a-'mac',a->>'mac') is distinct from true then
   raise exception using errcode='42501',message='SEM_PERMISSAO';
  end if;
- if p_excluir then
-  delete from vault.secrets where id=p_segredo;
-  return null;
+ if p_acao='salvar' then
+  if p_refresh is null or octet_length(p_refresh) not between 1 and 4096 then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+  v_hash := pg_catalog.encode(extensions.digest(pg_catalog.convert_to(p_refresh,'UTF8'),'sha256'),'hex');
+  if e->>'valor_hash' is distinct from v_hash then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+ elsif p_refresh is not null or e->>'valor_hash' is not null then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+  perform set_config('ffcmapp.agenda_usuario',v_usuario::text,true);
+  perform set_config('ffcmapp.agenda_sessao',v_sessao::text,true);
+  -- Mesma ordem das operações privadas: concessão, usuário, sessão.
+  perform 1 from identidade.concessao_equipe c where c.usuario_id=v_usuario and c.estado='vinculada' for share;
+  if not found then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+  perform 1 from public.usuario u where u.id=v_usuario and u.ativo for share;
+  if not found then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+  perform 1 from identidade.sessao s where s.usuario_id=v_usuario and s.session_id=v_sessao
+    and s.revogada_em is null and s.encerrada_em is null for share;
+  if not found then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+  if not exists (
+    select 1 from identidade.sessao s
+    join public.usuario u on u.id=s.usuario_id and u.ativo
+    join identidade.concessao_equipe c on c.id=s.concessao_id and c.usuario_id=u.id
+      and c.estado='vinculada' and c.metodo='google_workspace' and c.perfil=u.perfil
+      and c.perfil in ('administrador','profissional')
+    join auth_privado.sessoes() auth_s on auth_s.id=s.session_id and auth_s.user_id=u.id
+      and (auth_s.not_after is null or auth_s.not_after>clock_timestamp())
+    join auth_privado.identidades() i on i.user_id=u.id and i.provider='google'
+      and i.provider_id=c.subject_google and i.identity_data->>'sub'=i.provider_id
+      and i.identity_data->>'email_verified'='true'
+    join identidade.configuracao_auth_nativo conf on conf.google_unico_oauth_confirmado
+      and i.identity_data#>>'{custom_claims,hd}'=conf.dominio_workspace
+    where s.usuario_id=v_usuario and s.session_id=v_sessao and s.metodo='google_workspace'
+      and s.revogada_em is null and s.encerrada_em is null
+      and (select count(*) from auth_privado.identidades() j where j.user_id=u.id and j.provider='google')=1
+  ) then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+
+ insert into identidade.agenda_google_vault_requisicao values(v_req,v_fim) on conflict do nothing;
+ if not found then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+ perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_usuario::text,0));
+ if p_acao='cancelar' or v_operacao='agenda.desconectar' then
+  if coalesce(e->>'operacao_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+   or coalesce(e->>'geracao','') !~ '^(0|[1-9][0-9]{0,17})$' or coalesce(e->>'subject','')=''
+   or not exists(select 1 from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id where s.usuario_id=v_usuario and s.session_id=v_sessao and c.subject_google=e->>'subject') then
+   raise exception using errcode='42501',message='SEM_PERMISSAO';
+  end if;
+  select * into v_recibo from identidade.agenda_google_vault_desconexao where usuario_id=v_usuario and operacao_id=(e->>'operacao_id')::uuid;
+  if found and (v_recibo.subject_google is distinct from e->>'subject' or v_recibo.geracao is distinct from e->>'geracao' or (p_acao='excluir' and v_recibo.cancelada)) then
+   raise exception using errcode='42501',message='SEM_PERMISSAO';
+  end if;
+  insert into identidade.agenda_google_vault_desconexao values(v_usuario,(e->>'operacao_id')::uuid,e->>'subject',e->>'geracao',p_acao='cancelar') on conflict do nothing;
+  if p_acao='cancelar' then return null; end if;
  end if;
- select d.decrypted_secret into v_valor from vault.decrypted_secrets d where d.id=p_segredo;
+ insert into identidade.agenda_google_vault_vinculo(usuario_id) values(v_usuario) on conflict do nothing;
+ select segredo_id,subject_google,geracao into v_segredo,v_subject,v_geracao from identidade.agenda_google_vault_vinculo where usuario_id=v_usuario for update;
+ if p_acao='salvar' then
+  if coalesce(e->>'geracao','') !~ '^(0|[1-9][0-9]{0,17})$' or coalesce(e->>'subject','')='' or v_geracao::text is distinct from e->>'geracao' then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+  if not exists(select 1 from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id where s.usuario_id=v_usuario and s.session_id=v_sessao and c.subject_google=e->>'subject') then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+  v_novo := vault.create_secret(p_refresh,null,null,null);
+  if v_segredo is not null then delete from vault.secrets where id=v_segredo; end if;
+  update identidade.agenda_google_vault_vinculo set segredo_id=v_novo,subject_google=e->>'subject',geracao=v_geracao+1 where usuario_id=v_usuario;
+ elsif p_acao='excluir' then
+  if coalesce(e->>'geracao','') !~ '^(0|[1-9][0-9]{0,17})$' or coalesce(e->>'subject','')='' or v_geracao::text is distinct from e->>'geracao' or (v_segredo is not null and v_subject is distinct from e->>'subject') or not exists(select 1 from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id where s.usuario_id=v_usuario and s.session_id=v_sessao and c.subject_google=e->>'subject') then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+  update identidade.agenda_google_vault_vinculo set segredo_id=null,subject_google=null,geracao=v_geracao+1 where usuario_id=v_usuario;
+  if v_segredo is not null then delete from vault.secrets where id=v_segredo; end if;
+ else
+  if v_segredo is not null and not exists(select 1 from identidade.sessao s
+    join identidade.concessao_equipe c on c.id=s.concessao_id
+    where s.usuario_id=v_usuario and s.session_id=v_sessao and c.subject_google=v_subject) then
+   raise exception using errcode='42501',message='SEM_PERMISSAO';
+  end if;
+  select decrypted_secret into v_valor from vault.decrypted_secrets where id=v_segredo;
+ end if;
+ if v_fim<=clock_timestamp() or not exists(select 1 from auth_privado.sessoes() t where t.id=v_sessao and t.user_id=v_usuario and (t.not_after is null or t.not_after>clock_timestamp())) then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
  return v_valor;
 end $$;
-revoke all on function identidade.agenda_google_vault(uuid,boolean) from public, anon, authenticated, service_role;
-grant execute on function identidade.agenda_google_vault(uuid,boolean) to ffcmapp_agenda_google_owner;
+revoke all on function identidade.agenda_google_vault(jsonb,text,text) from public, anon, authenticated, service_role;
+grant execute on function identidade.agenda_google_vault(jsonb,text,text) to ffcmapp_agenda_google_owner;
 reset role;
 select set_config('role',current_setting('ffcmapp.migrador_agenda'),false);
 revoke create on schema identidade from ffcmapp_agenda_vault_owner;
 set role ffcmapp_agenda_google_owner;
-
 
 -- Contexto interno somente após verificação do atestado pelo wrapper privado.
 -- Funções auxiliares não têm grants para executor ou papéis públicos.
@@ -186,7 +283,7 @@ begin
 end $$;
 
 -- O armazenamento e a substituição são transacionais; erro não remove segredo vigente.
-create function identidade.agenda_google_salvar_credencial(p_refresh text, p_geracao bigint, p_subject text)
+create function identidade.agenda_google_salvar_credencial(p_refresh text, p_geracao bigint, p_subject text, p_transporte jsonb)
 returns boolean language plpgsql security definer set search_path = '' as $$
 declare v_usuario uuid; v_sessao uuid; v_antigo uuid; v_novo uuid; v_geracao bigint;
 begin
@@ -200,14 +297,12 @@ begin
   select geracao into v_geracao from identidade.agenda_google_geracao where usuario_id=v_usuario;
   if v_geracao is null or v_geracao is distinct from p_geracao then return false; end if;
   update identidade.agenda_google_geracao set geracao=geracao+1 where usuario_id=v_usuario returning geracao into v_geracao;
-  select segredo_id into v_antigo from identidade.agenda_google_credencial where usuario_id=v_usuario for update;
-  v_novo := vault.create_secret(p_refresh, null, null, null);
-  if v_antigo is not null then perform identidade.agenda_google_vault(v_antigo,true); end if;
-  insert into identidade.agenda_google_credencial(usuario_id,subject_google,geracao,segredo_id) values(v_usuario,p_subject,v_geracao,v_novo)
-    on conflict(usuario_id) do update set subject_google=excluded.subject_google,geracao=excluded.geracao,segredo_id=excluded.segredo_id;
+  perform identidade.agenda_google_vault(p_transporte,'salvar',p_refresh);
+  insert into identidade.agenda_google_credencial(usuario_id,subject_google,geracao) values(v_usuario,p_subject,v_geracao)
+    on conflict(usuario_id) do update set subject_google=excluded.subject_google,geracao=excluded.geracao;
   return true;
 end $$;
-create function identidade.agenda_google_ler_credencial()
+create function identidade.agenda_google_ler_credencial(p_transporte jsonb)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_usuario uuid; v_sessao uuid; v_refresh text; v_atual text; v_registrado text; v_geracao bigint;
 begin
@@ -219,10 +314,9 @@ begin
     where s.usuario_id=v_usuario and s.session_id=v_sessao;
   select c.subject_google into v_registrado from identidade.agenda_google_credencial c where c.usuario_id=v_usuario;
   if v_registrado is not null and v_registrado is distinct from v_atual then
-    perform identidade.agenda_google_revogar_credencial();
     return null;
   end if;
-  select identidade.agenda_google_vault(c.segredo_id,false),c.geracao into v_refresh,v_geracao from identidade.agenda_google_credencial c
+  select identidade.agenda_google_vault(p_transporte,'ler',null),c.geracao into v_refresh,v_geracao from identidade.agenda_google_credencial c
     join identidade.sessao s on s.usuario_id=c.usuario_id and s.session_id=v_sessao
     join identidade.concessao_equipe con on con.id=s.concessao_id and con.subject_google=c.subject_google
     join auth_privado.identidades() i on i.user_id=c.usuario_id and i.provider='google' and i.provider_id=c.subject_google
@@ -230,7 +324,7 @@ begin
   if v_refresh is null then return null; end if;
   return pg_catalog.jsonb_build_object('refresh',v_refresh,'geracao',v_geracao::text);
 end $$;
-create function identidade.agenda_google_revogar_credencial()
+create function identidade.agenda_google_revogar_credencial(p_transporte jsonb)
 returns boolean language plpgsql security definer set search_path = '' as $$
 declare v_usuario uuid; v_sessao uuid; v_segredo uuid;
 begin
@@ -239,8 +333,7 @@ begin
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_usuario::text, 0));
   insert into identidade.agenda_google_geracao(usuario_id,geracao) values(v_usuario,1)
     on conflict(usuario_id) do update set geracao=identidade.agenda_google_geracao.geracao+1;
-  select segredo_id into v_segredo from identidade.agenda_google_credencial where usuario_id=v_usuario;
-  if v_segredo is not null then perform identidade.agenda_google_vault(v_segredo,true); end if;
+  perform identidade.agenda_google_vault(p_transporte,'excluir',null);
   delete from identidade.agenda_google_credencial where usuario_id=v_usuario;
   delete from identidade.agenda_google_state where usuario_id=v_usuario;
   return true;
@@ -315,9 +408,9 @@ begin
     when 'agenda.consumir' then v_resultado := identidade.agenda_google_consumir_state(e->>'hash');
     when 'agenda.salvar' then
       if coalesce(e->>'geracao','') !~ '^[0-9]{1,18}$' then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
-      v_resultado := to_jsonb(identidade.agenda_google_salvar_credencial(p_valor,(e->>'geracao')::bigint,e->>'subject'));
-    when 'agenda.ler' then v_resultado := identidade.agenda_google_ler_credencial();
-    when 'agenda.revogar' then v_resultado := to_jsonb(identidade.agenda_google_revogar_credencial());
+      v_resultado := to_jsonb(identidade.agenda_google_salvar_credencial(p_valor,(e->>'geracao')::bigint,e->>'subject',p_transporte));
+    when 'agenda.ler' then v_resultado := identidade.agenda_google_ler_credencial(p_transporte);
+    when 'agenda.revogar' then v_resultado := to_jsonb(identidade.agenda_google_revogar_credencial(p_transporte));
     when 'agenda.status_conexao' then
       declare v_geracao bigint; v_conectado boolean;
       begin
@@ -342,6 +435,7 @@ begin
         end if;
         -- Mesmo lock de desconectar: cancelamento e pedido atrasado têm ordem única.
         perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_usuario::text, 0));
+        perform identidade.agenda_google_vault(p_transporte,'cancelar',null);
         select * into v_recibo from identidade.agenda_google_desconexao_recibo r where r.usuario_id=v_usuario and r.operacao_id=(e->>'operacao_id')::uuid;
         if found then
           if v_recibo.subject_google is distinct from e->>'subject' or v_recibo.versao::text is distinct from e->>'geracao' then
@@ -402,7 +496,7 @@ begin
           if v_geracao::text is distinct from e->>'geracao' or (v_subject is not null and v_subject is distinct from e->>'subject') then
             v_desfecho := 'conflito';
           else
-            perform identidade.agenda_google_revogar_credencial();
+            perform identidade.agenda_google_revogar_credencial(p_transporte);
             insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id)
               values(gen_random_uuid(),v_usuario,'agenda.desconectar','usuario',v_usuario,'permitido',v_req);
             v_desfecho := 'desconectado';
@@ -528,8 +622,8 @@ begin
   return v_resultado;
 end $$;
 revoke all on function identidade.agenda_google_contexto(), identidade.agenda_google_registrar_state(text,text),
-  identidade.agenda_google_consumir_state(text), identidade.agenda_google_salvar_credencial(text,bigint,text),
-  identidade.agenda_google_ler_credencial(), identidade.agenda_google_revogar_credencial(),
+  identidade.agenda_google_consumir_state(text), identidade.agenda_google_salvar_credencial(text,bigint,text,jsonb),
+  identidade.agenda_google_ler_credencial(jsonb), identidade.agenda_google_revogar_credencial(jsonb),
   identidade.agenda_google_operacao_privada(jsonb,text)
   from public, anon, authenticated, service_role;
 grant execute on function identidade.agenda_google_operacao_privada(jsonb,text) to ffcmapp_agenda_google_executor;
