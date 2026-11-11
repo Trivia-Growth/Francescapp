@@ -10,7 +10,7 @@ Objetivos e revisões precisam permanecer acessíveis por caso para coordenar o 
 - Preservar estados previstos e histórico consultável de revisões, com motivo, data e responsável; manter dados vinculados ao caso e sujeitos à autorização e audiência aplicáveis.
 - Planejar jornada conectada com dados fictícios, sem afirmar que persistência ou integração já funcionam.
 - Excluir tarefas, encaminhamentos, orientações, plano de crise e evoluções FR-021/022 deste recorte. Não chamar o plano de PTS sem validação da equipe.
-- Pendentes: campos e responsáveis de validação clínica, periodicidade por caso, matriz de leitura e escrita por perfil, vínculo e audiência. Não inferir regras clínicas nem acesso familiar.
+- Decidido em 10-11/11/2026 (ver design.md "Decisões do solicitante" e tasks.md 1.1/1.2): sem periodicidade obrigatória de revisão; matriz de leitura/escrita reaproveita o modelo provisório da anamnese (colaborador com concessão vigente, sem vínculo individual; família sem acesso por inferência); campo extra do objetivo é catálogo global administrado por Administrador (texto/número/data/lista de opções), com valor por caso cifrado no mesmo envelope do objetivo; aprovação é carimbo (quem aprovou, quando) que não bloqueia leitura/escrita, concedida por Administrador sempre ou por colaborador indicado numa lista própria. Responsável pela validação clínica continua sendo o próprio autor do objetivo/revisão (mesmo padrão da anamnese), sem segunda aprovação obrigatória.
 
 ## Capabilities
 
