@@ -1294,7 +1294,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         if (formulariosAlterados.has(formularioObjetivo) && !podeDescartar()) return;
         objetivoEmRevisao = indice;
         revisaoDesatualizada = false;
-        const campos: Record<string, keyof Objetivo> = {
+        const campos: Record<string, Exclude<keyof Objetivo, 'camposExtras'>> = {
           'goal-description': 'descricao',
           'goal-area': 'area',
           'goal-responsible': 'responsavel',
