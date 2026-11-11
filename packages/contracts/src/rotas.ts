@@ -2,6 +2,11 @@ import { z } from 'zod';
 import { eventoAuditoriaSchema } from './auditoria.ts';
 import { anamneseSchema, salvarAnamneseSchema } from './anamnese.ts';
 import { reservaCadastroSchema } from './rpc.ts';
+import {
+  aprovadorPlanoSchema,
+  aprovacaoObjetivoPlanoSchema,
+  campoExtraCatalogoSchema,
+} from './plano-cuidado.ts';
 
 import {
   atualizarAcessoUsuarioSchema,
@@ -90,6 +95,29 @@ const consultaAuditoriaSchema = z
     acao: z.string().trim().min(1).max(120).optional(),
   })
   .strict();
+const versaoEsperadaSchema = z.number().int().min(0).max(2147483646);
+const gravarCampoExtraPlanoSchema = z
+  .object({
+    campo_id: uuidSchema,
+    nome: z.string().trim().min(1).max(120),
+    tipo: z.enum(['texto', 'numero', 'data', 'lista']),
+    opcoes: z.array(z.string().trim().min(1).max(120)).min(1).max(20).nullable(),
+    ativo: z.boolean(),
+    versao_esperada: versaoEsperadaSchema,
+  })
+  .strict()
+  .refine(
+    (v) => (v.tipo === 'lista') === (v.opcoes !== null),
+    'opcoes é obrigatório só para tipo lista.',
+  );
+const gravarAprovadorPlanoSchema = z
+  .object({
+    usuario_id_aprovador: uuidSchema,
+    ativo: z.boolean(),
+    versao_esperada: versaoEsperadaSchema,
+  })
+  .strict();
+const aprovarObjetivoPlanoSchema = z.object({ registro_id: uuidSchema }).strict();
 
 export type MetodoHttp = 'GET' | 'POST' | 'PATCH';
 
@@ -430,6 +458,34 @@ export const contratosRotas = {
     '/api/admin/auditoria',
     consultaAuditoriaSchema,
     paginaSchema(eventoAuditoriaSchema),
+  ),
+  listarCampoExtraPlano: consulta(
+    '/api/admin/campo-extra-plano',
+    vazioSchema,
+    z.array(campoExtraCatalogoSchema),
+  ),
+  gravarCampoExtraPlano: mutacaoIdempotente(
+    'POST',
+    '/api/admin/campo-extra-plano',
+    gravarCampoExtraPlanoSchema,
+    campoExtraCatalogoSchema,
+  ),
+  listarAprovadorPlano: consulta(
+    '/api/admin/aprovador-plano',
+    vazioSchema,
+    z.array(aprovadorPlanoSchema),
+  ),
+  gravarAprovadorPlano: mutacaoIdempotente(
+    'POST',
+    '/api/admin/aprovador-plano',
+    gravarAprovadorPlanoSchema,
+    aprovadorPlanoSchema,
+  ),
+  aprovarObjetivoPlano: mutacaoIdempotente(
+    'POST',
+    '/api/plano/aprovar-objetivo',
+    aprovarObjetivoPlanoSchema,
+    aprovacaoObjetivoPlanoSchema,
   ),
 } as const;
 

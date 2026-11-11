@@ -153,3 +153,75 @@ export const respostaPlanoPrivadaSchema = z.discriminatedUnion('ok', [
     })
     .strict(),
 ]);
+
+/** Espelha `api.campo_extra_plano_privado` (ações `listar_campo_extra_plano` e
+ * `gravar_campo_extra_plano`), migration `20261116140000`. */
+export const respostaCampoExtraPlanoPrivadaSchema = z.discriminatedUnion('ok', [
+  z
+    .object({
+      ok: z.literal(true),
+      dados: z.union([campoExtraCatalogoSchema, z.array(campoExtraCatalogoSchema)]),
+      request_id: uuidSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ok: z.literal(false),
+      erro: z
+        .object({ codigo: z.enum(['sem_permissao', 'conflito', 'conflito_idempotencia']) })
+        .strict(),
+      request_id: uuidSchema,
+    })
+    .strict(),
+]);
+
+/** Espelha `api.aprovador_plano_privado` (ações `listar_aprovador_plano` e
+ * `gravar_aprovador_plano`), migration `20261116160000`. */
+export const aprovadorPlanoSchema = z
+  .object({
+    usuario_id: uuidSchema,
+    ativo: z.boolean(),
+    versao: z.number().int().min(1).max(2147483647),
+  })
+  .strict();
+export type AprovadorPlano = z.output<typeof aprovadorPlanoSchema>;
+export const respostaAprovadorPlanoPrivadaSchema = z.discriminatedUnion('ok', [
+  z
+    .object({
+      ok: z.literal(true),
+      dados: z.union([aprovadorPlanoSchema, z.array(aprovadorPlanoSchema)]),
+      request_id: uuidSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ok: z.literal(false),
+      erro: z
+        .object({ codigo: z.enum(['sem_permissao', 'conflito', 'conflito_idempotencia']) })
+        .strict(),
+      request_id: uuidSchema,
+    })
+    .strict(),
+]);
+
+/** Espelha `api.aprovar_objetivo_plano_privado`, migration `20261116170000`.
+ * Carimbo sem portão: sem idempotência por chave, sem conteúdo cifrado. */
+export const aprovacaoObjetivoPlanoSchema = z
+  .object({
+    registro_id: uuidSchema,
+    aprovador_usuario_id: uuidSchema,
+    aprovado_em: z.iso.datetime({ offset: true }),
+  })
+  .strict();
+export const respostaAprovarObjetivoPlanoPrivadaSchema = z.discriminatedUnion('ok', [
+  z
+    .object({ ok: z.literal(true), dados: aprovacaoObjetivoPlanoSchema, request_id: uuidSchema })
+    .strict(),
+  z
+    .object({
+      ok: z.literal(false),
+      erro: z.object({ codigo: z.enum(['sem_permissao', 'conflito']) }).strict(),
+      request_id: uuidSchema,
+    })
+    .strict(),
+]);
