@@ -4,9 +4,17 @@
 
 - [x] 1.1 Revisar o módulo local e sua interface para os quatro estados, fonte/data e identificação de ausências e pendências conforme cenários do delta. Dep.: proposta, spec e design desta mudança. Evidência: teste direcionado com dados fictícios e revisão dos resultados; não alegar FR-003 integral.
 - [x] 1.2 Revisar integração de qualquer consumidor local para manter a pré-condição de uma resposta por campo e deixar explícito que não há persistência nem avaliação clínica. Dep.: 1.1 e consumidor existente. Evidência: comportamento observável e verificações afetadas, sem dados reais.
-- [ ] 1.3 Realizar revisão da fatia contra padrões e spec, registrar achados, verificações e limitações neste arquivo. Dep.: 1.1 e 1.2. Evidência: diff revisado e resultados das verificações aplicáveis.
+- [x] 1.3 Realizar revisão da fatia contra padrões e spec, registrar achados, verificações e limitações neste arquivo. Dep.: 1.1 e 1.2. Evidência: diff revisado e resultados das verificações aplicáveis.
 
 Prévia local integrada ao domínio, apenas com dados fictícios em memória. Testes direcionados passaram; lint e typecheck passaram. Revisão encontrou mensagem de salvamento desatualizada após edição; correção e teste direcionado passaram, com revisão estática da correção. A revisão formal da fatia e a integração real seguem pendentes.
+
+**Revisão independente (10/11/2026), fecha 1.3.** Dois revisores de contexto limpo, um por eixo (padrões do projeto e aderência a FR-003/ameaças), sobre toda a fatia local acumulada (migrations `20261106220000` a `20261112340000` com "anamnese" no nome, contratos, módulos de servidor e web, testes). Somente leitura, sem rodar suíte completa.
+
+Eixo padrões: sem bloqueador. Confirmados por leitura própria do código (não por texto de commit): allowlist estrita de chaves JSONB no transporte, verificação de assinatura do atestado, trava de linha do paciente serializando escrita concorrente, AAD exigindo `versao=versao_esperada+1` exato, auditoria em todo caminho permitido/negado, recheque de expiração de sessão após escrita, `search_path=''`/`security definer`/roles `NOLOGIN NOBYPASSRLS` sem privilégio herdado, migrations de grant com asserções prévias que abortam se o estado não for o esperado, limite de corpo HTTP e `safeParse` em toda fronteira, sem log de segredo. Nenhum achado real.
+
+Eixo spec/FR-003: sem bloqueador. Quatro estados com fonte/data preservados exatamente como no spec (`pendente` dispensa fonte/data), pré-condição de uma resposta por campo e duplicidade rejeitadas na validação de fronteira, decisão provisória de acesso realmente implementada no código (concessão vigente com perfil administrador/profissional, família fora por não constar na lista, sem exigir vínculo individual), restrição a `metodo='google_workspace'` confirmada como convenção consistente em todo o repositório (não é inconsistência desta fatia), AAD vinculando tabela/paciente/registro/versão/campo, auditoria em todo caminho, paginação de histórico com cursor atestado testada (página inicial, anterior, fim, cursor adulterado, falha de auditoria, família e revogação negadas — confirmado lendo o SQL do teste). Único ponto não 100% isolado: teste de histórico cobre "cursor adulterado" genericamente, sem caso isolado específico de cursor válido reaproveitado para outro paciente (provavelmente já coberto pelo mesmo atestado vinculado a paciente_id, não confirmado isoladamente) — registrado como nuance, não achado bloqueador.
+
+Nenhuma correção de código foi necessária nos dois eixos. Prova real Auth/Vault/HTTP ponta-a-ponta, revogação concorrente em ambiente real e S-02 continuam pendentes, como o próprio histórico desta fatia já registrava — não é achado novo desta revisão.
 
 ## Dependências para uso real
 
