@@ -23,6 +23,29 @@ Para preparar a integração, aplicar provisoriamente a decisão de anamnese: co
 
 O contrato local já contém descrição, área, responsável, situação inicial, observação de progresso, data de revisão e estado. Cada objetivo deve ter identificador estável e versões imutáveis vinculadas ao caso; revisão exige versão esperada e motivo, com ator e data derivados da fronteira confiável. Entrada e metadados não podem escolher identidade de auditoria. Uma transação deve autorizar, conferir versão, gravar nova versão e auditar; conflito ou falha de auditoria não pode alterar o histórico. Não inventar campos adicionais, regras clínicas, periodicidade ou responsável pela validação.
 
+## Decisões do solicitante (10/11/2026) — campos extras e aprovação
+
+Fecham parte das pendências de 1.1/1.2:
+
+- **Campos extras**: Edilaine (Administrador) pode criar campos extras do objetivo pela própria plataforma. Catálogo **global** (mesma lista em todo objetivo de todo caso, não por caso/tipo de objetivo). Quatro tipos: texto livre, número, data e lista de opções (as opções da lista também são definidas pela Edilaine, 1 a 20 por campo). Não há periodicidade obrigatória de revisão (fica livre, profissional decide quando revisar). Valor dos campos extras preenchido por caso **ainda não está integrado** ao objetivo/envelope cifrado — só o catálogo (nome/tipo/opções/ativo) está implementado nesta rodada; ver "Estado da implementação" abaixo.
+- **Aprovação**: é um carimbo (quem aprovou, quando), não um portão — qualquer colaborador com concessão vigente registra objetivo/revisão normalmente (mesmo modelo provisório da anamnese), e a aprovação não bloqueia nada. Edilaine aprova por padrão; ela pode indicar qualquer colaborador específico (não só outro Administrador) como aprovador extra. **Não implementado nesta rodada** — fica para a próxima sessão supervisionada, junto da integração dos campos extras ao objetivo.
+- **Matriz de acesso do objetivo em si** (ler/editar objetivo e revisão): confirmado reaproveitar o modelo provisório da anamnese já descrito acima — sem mudança.
+
+Nome/tipo/opções do campo extra não são conteúdo clínico do paciente (são definição de esquema, administrada por Administrador), por isso **não** entram no envelope cifrado — diferente do valor que um profissional viria a preencher por caso, que deve seguir cifrado como qualquer outro campo do objetivo quando essa integração existir.
+
+## Estado da implementação (10/11/2026, trabalho noturno não supervisionado)
+
+Implementado e testado localmente (PostgreSQL descartável, não aplicado em nenhum ambiente remoto):
+- `supabase/migrations/20261116130000_campo_extra_plano_catalogo.sql`: tabela `cadastro.campo_extra_plano_catalogo` (nome, tipo, opções, ativo, versão), RLS habilitada, zero grants a `anon`/`authenticated`/`service_role`/`public`.
+- `supabase/migrations/20261116140000_campo_extra_plano_operacoes_privadas.sql`: `operacao.campo_extra_plano_operacao_privada`/`api.campo_extra_plano_privado`, atestado HMAC obrigatório, autorização administrador-only (bloco de autorização copiado literalmente de `operacao.criar_concessao_equipe_privado`, sem alteração de lógica), idempotência via `operacao.requisicao`, auditoria em todo caminho permitido/negado, owner dedicado `ffcmapp_campo_extra_plano_owner` sem login nem bypass RLS.
+- `supabase/tests/campo_extra_plano_local.sql` + `scripts/testar-campo-extra-plano-local.sh`: positivo (administrador lista, cria campo texto, cria campo lista com opções, edita com versão esperada), negativo (profissional negado, família negada, sessão revogada negada, tipo inválido rejeitado, lista sem opções rejeitada, texto com opções rejeitada, conflito de versão não altera registro, conflito de idempotência, falha de auditoria não deixa efeito parcial). Passou (exit 0). `pnpm run verificar:rapido` limpo.
+
+**Não implementado nesta rodada, fica para próxima sessão supervisionada:**
+- Lista de aprovadores (tabela + RPC admin-only pra Edilaine indicar/remover) e o carimbo de aprovação no objetivo/revisão.
+- Integração do valor dos campos extras ao envelope cifrado do objetivo (`api.plano_cuidado_operacao_privada`) — hoje só o catálogo existe, nenhum objetivo grava valor de campo extra ainda.
+- Interface web para Edilaine gerenciar o catálogo (criar/editar/desativar campo pela tela) e para o profissional preencher os campos extras no formulário do objetivo.
+- **Revisão independente desta adição**: quem implementou (eu, nesta mesma madrugada) não pode aprovar a própria revisão — pendente antes de qualquer ativação ou aplicação remota.
+
 O servidor deve validar entrada e cifrar conteúdo clínico com envelope autenticado e AAD vinculado ao caso, objetivo, versão e campo, conforme fundação aplicável. Banco recebe envelope, não texto clínico; leitura autoriza e audita antes de decifrar. Sem grant direto às tabelas e sem acesso público a chaves; wrappers, atestado e privilégios precisam de revisão e prova, não apenas reutilização nominal da anamnese. Falhas de cifra, atestado ou auditoria devem negar a operação sem fallback em texto claro. A implementação depende dos controles efetivamente disponíveis e não libera rotas antes de S-02.
 
 ## Ameaças e evidências provisórias (FR-015/016)
