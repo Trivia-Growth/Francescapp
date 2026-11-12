@@ -167,7 +167,64 @@ function aadCanonico(aad: MetadadosAad): Uint8Array {
       }),
     );
   }
-  if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.anamnese_versao') {
+  if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.orientacao_versao') {
+    if (
+      !uuid.test(aad.paciente_id) ||
+      !uuid.test(aad.orientacao_id) ||
+      !uuid.test(aad.registro_id) ||
+      !Number.isInteger(aad.versao) ||
+      aad.versao < 1 ||
+      aad.versao > 2147483647 ||
+      aad.campo !== 'conteudo' ||
+      aad.formato !== formatoAtual
+    )
+      throw new ErroCifraAutenticada();
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        paciente_id: aad.paciente_id,
+        orientacao_id: aad.orientacao_id,
+        registro_id: aad.registro_id,
+        versao: aad.versao,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
+  if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.encaminhamento_versao') {
+    if (
+      !uuid.test(aad.paciente_id) ||
+      !uuid.test(aad.encaminhamento_id) ||
+      !uuid.test(aad.registro_id) ||
+      !Number.isInteger(aad.versao) ||
+      aad.versao < 1 ||
+      aad.versao > 2147483647 ||
+      aad.campo !== 'conteudo' ||
+      aad.formato !== formatoAtual
+    )
+      throw new ErroCifraAutenticada();
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        paciente_id: aad.paciente_id,
+        encaminhamento_id: aad.encaminhamento_id,
+        registro_id: aad.registro_id,
+        versao: aad.versao,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
+  // Documentos versionados por paciente compartilham o formato de AAD; a tabela,
+  // que entra na ligação, é o que impede trocar o envelope de um pelo do outro.
+  if (
+    typeof aad === 'object' &&
+    aad !== null &&
+    (aad.tabela === 'cadastro.anamnese_versao' ||
+      aad.tabela === 'cadastro.saude_versao' ||
+      aad.tabela === 'cadastro.contexto_cuidado_versao' ||
+      aad.tabela === 'cadastro.rede_cuidado_versao')
+  ) {
     if (
       typeof aad.paciente_id !== 'string' ||
       !uuid.test(aad.paciente_id) ||

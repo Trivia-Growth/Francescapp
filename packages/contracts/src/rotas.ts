@@ -1,6 +1,20 @@
 import { z } from 'zod';
 import { eventoAuditoriaSchema } from './auditoria.ts';
 import { anamneseSchema, salvarAnamneseSchema } from './anamnese.ts';
+import {
+  consultarEncaminhamentosSchema,
+  encaminhamentoSchema,
+  salvarEncaminhamentoSchema,
+} from './encaminhamento.ts';
+import {
+  consultarOrientacoesSchema,
+  orientacaoSchema,
+  salvarOrientacaoSchema,
+} from './orientacao.ts';
+import {
+  configuracaoSistemaSchema,
+  gravarConfiguracaoSistemaSchema,
+} from './configuracao-sistema.ts';
 import { reservaCadastroSchema } from './rpc.ts';
 import {
   aprovadorPlanoSchema,
@@ -459,6 +473,17 @@ export const contratosRotas = {
     consultaAuditoriaSchema,
     paginaSchema(eventoAuditoriaSchema),
   ),
+  listarConfiguracaoSistema: consulta(
+    '/api/admin/configuracao-sistema',
+    vazioSchema,
+    z.array(configuracaoSistemaSchema),
+  ),
+  gravarConfiguracaoSistema: mutacaoIdempotente(
+    'POST',
+    '/api/admin/configuracao-sistema',
+    gravarConfiguracaoSistemaSchema,
+    configuracaoSistemaSchema,
+  ),
   listarCampoExtraPlano: consulta(
     '/api/admin/campo-extra-plano',
     vazioSchema,
@@ -486,6 +511,32 @@ export const contratosRotas = {
     '/api/plano/aprovar-objetivo',
     aprovarObjetivoPlanoSchema,
     aprovacaoObjetivoPlanoSchema,
+  ),
+  consultarEncaminhamentos: consulta(
+    '/api/pacientes/:paciente_id/encaminhamentos',
+    consultarEncaminhamentosSchema,
+    z.array(encaminhamentoSchema),
+    pacienteParametrosSchema,
+  ),
+  salvarEncaminhamento: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/encaminhamentos',
+    salvarEncaminhamentoSchema,
+    encaminhamentoSchema,
+    pacienteParametrosSchema,
+  ),
+  consultarOrientacoes: consulta(
+    '/api/pacientes/:paciente_id/orientacoes',
+    consultarOrientacoesSchema,
+    z.array(orientacaoSchema),
+    pacienteParametrosSchema,
+  ),
+  salvarOrientacao: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/orientacoes',
+    salvarOrientacaoSchema,
+    orientacaoSchema,
+    pacienteParametrosSchema,
   ),
 } as const;
 

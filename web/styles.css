@@ -1122,3 +1122,135 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   grid-column: 1 / -1;
   justify-self: start;
 }
+
+/* FR-004: a origem e a situação de cada registro de saúde precisam ser lidas de
+   relance, para que relato de quem convive não seja confundido com diagnóstico. */
+.ficha-secao[data-secao="saude"] form {
+  display: grid;
+  gap: 16px;
+}
+.saude-lista {
+  display: grid;
+  gap: 14px;
+}
+.saude-item {
+  display: block;
+  margin: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--brand-olive);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+.saude-item legend {
+  padding: 2px 8px;
+  border-radius: var(--radius-field);
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.saude-item[data-natureza="relato_leigo"] {
+  border-left-color: var(--field-line);
+}
+.saude-item[data-situacao="hipotese"] legend {
+  color: var(--error);
+  background: #f6ece9;
+}
+.saude-item label {
+  display: block;
+  margin: 12px 0;
+}
+.saude-item textarea {
+  min-height: 72px;
+}
+
+/* Tela de administração da configuração do sistema (web/configuracao-sistema.ts). */
+.configuracao-sistema {
+  display: grid;
+  gap: 16px;
+  max-width: 68ch;
+}
+.configuracao-sistema__explicacao {
+  margin: 0;
+  color: var(--muted);
+}
+.configuracao-sistema__status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+.configuracao-sistema__vazio {
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-card);
+  color: var(--muted);
+  background: var(--soft);
+}
+.configuracao-sistema__lista {
+  display: grid;
+  gap: 14px;
+}
+.configuracao-sistema__item {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--brand-olive);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+.configuracao-sistema__rotulo {
+  font-family: var(--font-display);
+  font-size: 1.1875rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.configuracao-sistema__controle {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius-field);
+  background: var(--white);
+  color: inherit;
+}
+.configuracao-sistema__controle[type="checkbox"] {
+  width: 28px;
+  min-height: 28px;
+  height: 28px;
+  justify-self: start;
+  accent-color: var(--primary);
+}
+.configuracao-sistema__ajuda {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.configuracao-sistema__autoria {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.configuracao-sistema__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+.configuracao-sistema__aviso {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+@media (max-width: 560px) {
+  .configuracao-sistema__item {
+    padding: 14px;
+  }
+  .configuracao-sistema__acoes .button-primary {
+    width: 100%;
+  }
+}

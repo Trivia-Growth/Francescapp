@@ -167,10 +167,14 @@ it.each([
     abas: [
       'Visão do caso',
       'Anamnese',
+      'Saúde',
       'Plano de cuidado',
       'Tarefas',
+      'Encaminhamentos',
+      'Orientações',
+      'Rotina e recursos',
+      'Rede de cuidado',
       'Diário em breve',
-      'Rede de cuidado em breve',
     ],
   },
   {
@@ -179,11 +183,15 @@ it.each([
     abas: [
       'Visão do caso',
       'Anamnese',
+      'Saúde',
       'Plano de cuidado',
       'Cadastro',
       'Equipe com acesso',
+      'Encaminhamentos',
+      'Orientações',
+      'Rotina e recursos',
+      'Rede de cuidado',
       'Diário em breve',
-      'Rede de cuidado em breve',
     ],
   },
 ])(

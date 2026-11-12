@@ -30,6 +30,17 @@ import {
 } from './ficha-paciente.js';
 import { montarDadosFamiliar } from './secao-dados-familiar.js';
 import { montarVisaoCaso } from './visao-caso.js';
+import { montarSaude } from './saude.js';
+import { criarServicoSaudeHttp } from './servico-saude-http.js';
+import { montarEncaminhamentos } from './encaminhamentos.js';
+import { criarServicoEncaminhamentosHttp } from './servico-encaminhamentos-http.js';
+import { montarOrientacoes } from './orientacoes.js';
+import { criarServicoOrientacoesHttp } from './servico-orientacoes-http.js';
+import { montarRedeCuidado } from './rede-cuidado.js';
+import { montarContextoCuidado } from './contexto-cuidado.js';
+import { criarServicoDocumentoPacienteHttp } from './servico-documento-paciente-http.js';
+import { documentoRedeCuidadoSchema } from '../packages/contracts/src/rede-cuidado.js';
+import { documentoContextoCuidadoSchema } from '../packages/contracts/src/contexto-cuidado.js';
 import {
   criarCatalogoResponsaveis,
   rotulosSituacao,
@@ -180,6 +191,8 @@ const descarteAnamnese =
 const descarteTarefa = 'Há dados de tarefa não confirmados. Deseja sair?';
 const descarteEquipe =
   'Há um motivo de concessão não confirmado. Ao sair, ele será descartado. Deseja continuar?';
+const descarteSaude =
+  'Há alterações do histórico de saúde não confirmadas. Ao sair, elas serão descartadas e um salvamento incerto não poderá ser confirmado nesta tela. Deseja continuar?';
 
 let ficha: Ficha | null = null;
 let fichaPaciente: PacienteFicha | null = null;
@@ -414,6 +427,19 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         ),
     },
     {
+      id: 'saude',
+      rotulo: 'Saúde',
+      descarte: descarteSaude,
+      montar: (raiz, pendente) =>
+        montarSaude(
+          raiz,
+          paciente.id,
+          criarServicoSaudeHttp(identidadeAtual),
+          acessoPerdido,
+          pendente,
+        ),
+    },
+    {
       id: 'plano',
       rotulo: 'Plano de cuidado',
       descarte: descartePlano,
@@ -452,9 +478,66 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         montarSelecaoProfissional(raiz, paciente.id, api, acessoPerdido, pendente),
     });
   secoes.push(
-    { id: 'diario', rotulo: 'Diário', montar: null },
-    { id: 'rede', rotulo: 'Rede de cuidado', montar: null },
+    {
+      id: 'encaminhamentos',
+      rotulo: 'Encaminhamentos',
+      montar: (raiz) =>
+        montarEncaminhamentos(
+          raiz,
+          paciente.id,
+          criarServicoEncaminhamentosHttp(identidadeAtual),
+          acessoPerdido,
+        ),
+    },
+    {
+      id: 'orientacoes',
+      rotulo: 'Orientações',
+      montar: (raiz) =>
+        montarOrientacoes(
+          raiz,
+          paciente.id,
+          criarServicoOrientacoesHttp(identidadeAtual),
+          acessoPerdido,
+        ),
+    },
   );
+  secoes.push(
+    {
+      id: 'contexto',
+      rotulo: 'Rotina e recursos',
+      montar: (raiz, pendente) =>
+        montarContextoCuidado(
+          raiz,
+          paciente.id,
+          criarServicoDocumentoPacienteHttp(
+            identidadeAtual,
+            'contexto-cuidado',
+            documentoContextoCuidadoSchema,
+            'elementos',
+          ),
+          acessoPerdido,
+          pendente,
+        ),
+    },
+    {
+      id: 'rede',
+      rotulo: 'Rede de cuidado',
+      montar: (raiz, pendente) =>
+        montarRedeCuidado(
+          raiz,
+          paciente.id,
+          criarServicoDocumentoPacienteHttp(
+            identidadeAtual,
+            'rede-cuidado',
+            documentoRedeCuidadoSchema,
+            'pessoas',
+          ),
+          acessoPerdido,
+          pendente,
+        ),
+    },
+  );
+  secoes.push({ id: 'diario', rotulo: 'Diário', montar: null });
   return secoes;
 }
 

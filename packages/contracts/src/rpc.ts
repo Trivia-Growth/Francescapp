@@ -131,6 +131,63 @@ const metadadosAadDiarioSchema = z
   })
   .strict();
 
+const metadadosAadEncaminhamentoSchema = z
+  .object({
+    tabela: z.literal('cadastro.encaminhamento_versao'),
+    paciente_id: uuidSchema,
+    encaminhamento_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+const metadadosAadOrientacaoSchema = z
+  .object({
+    tabela: z.literal('cadastro.orientacao_versao'),
+    paciente_id: uuidSchema,
+    orientacao_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+const metadadosAadSaudeSchema = z
+  .object({
+    tabela: z.literal('cadastro.saude_versao'),
+    paciente_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+const metadadosAadContextoCuidadoSchema = z
+  .object({
+    tabela: z.literal('cadastro.contexto_cuidado_versao'),
+    paciente_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+const metadadosAadRedeCuidadoSchema = z
+  .object({
+    tabela: z.literal('cadastro.rede_cuidado_versao'),
+    paciente_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
 export const metadadosAadSchema = z.union([
   metadadosAadCamposSchema,
   metadadosAadConcessaoSchema,
@@ -140,6 +197,11 @@ export const metadadosAadSchema = z.union([
   metadadosAadPlanoSchema,
   metadadosAadTarefaSchema,
   metadadosAadDiarioSchema,
+  metadadosAadEncaminhamentoSchema,
+  metadadosAadOrientacaoSchema,
+  metadadosAadSaudeSchema,
+  metadadosAadContextoCuidadoSchema,
+  metadadosAadRedeCuidadoSchema,
 ]);
 
 export const dadosAtestadoSchema = z

@@ -21,3 +21,8 @@ export type { Anamnese, RespostaAnamnese, SalvarAnamnese, SecaoAnamnese } from '
 
 export * from './plano-cuidado.ts';
 export * from './relato-textual.ts';
+export * from './encaminhamento.ts';
+export * from './configuracao-sistema.ts';
+export * from './contexto-cuidado.ts';
+export * from './rede-cuidado.ts';
+export * from './documento-paciente.ts';

@@ -161,7 +161,14 @@ describe.skipIf(!socket)('pacientes: composição e PostgreSQL local', () => {
           method: 'POST',
           headers: cabecalhos(usuario, sessao),
           body: JSON.stringify({
-            entrada: { nome: 'Paciente fictício' },
+            entrada: {
+              nome: 'Paciente fictício',
+              nome_preferencia: 'Nome fictício',
+              data_nascimento: '2000-01-01',
+              contatos: [{ tipo: 'email', valor: 'paciente.ficticio@exemplo.test' }],
+              situacao: 'entrada',
+              responsavel_id: usuario,
+            },
             reserva_id: reserva,
             geracao_reserva: 1,
           }),

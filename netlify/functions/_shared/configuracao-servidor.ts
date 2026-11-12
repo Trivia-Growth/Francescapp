@@ -1,0 +1,108 @@
+import type { Pool, PoolClient } from 'pg';
+import {
+  tipoConfiguracaoSchema,
+  valorConfiguracaoSchema,
+  valorCompativel,
+  type TipoConfiguracao,
+  type ValorConfiguracao,
+} from '../../../packages/contracts/src/configuracao-sistema.ts';
+
+/** Leitura da configuração gravada no banco pelo processo do servidor.
+ *
+ * Diretriz do solicitante (11/11/2026): o que é variável vem do banco, preenchido pela tela.
+ * A variável de ambiente continua existindo como PADRÃO e como interruptor de última
+ * instância para quando o banco não responde — nunca o contrário: falha de leitura jamais
+ * LIGA um serviço, só mantém o que o ambiente já dizia.
+ *
+ * Só enxerga chaves `exposicao = 'servidor'`, por `identidade.ler_configuracao_sistema_publica()`,
+ * alcançada pela cadeia de papéis de `20261117420000_configuracao_sistema_leitor_servidor.sql`.
+ * Esta leitura NÃO é autorização: decide disponibilidade do serviço, não permissão de quem
+ * chama. A rota continua validando sessão, concessão e atestado no banco. */
+
+const JANELA_MS = 30_000;
+
+type Linha = { valor: ValorConfiguracao; tipo: TipoConfiguracao; versao: number };
+
+let cache: { em: number; valores: ReadonlyMap<string, Linha> } | undefined;
+let emVoo: Promise<ReadonlyMap<string, Linha>> | undefined;
+
+/** Só para testes: descarta a janela de cache entre casos. */
+export function esquecerConfiguracaoServidor(): void {
+  cache = undefined;
+  emVoo = undefined;
+}
+
+async function ler(pool: Pool): Promise<ReadonlyMap<string, Linha>> {
+  let cliente: PoolClient | undefined;
+  let destruir = true;
+  try {
+    cliente = await pool.connect();
+    await cliente.query('BEGIN');
+    await cliente.query("SET LOCAL statement_timeout = '3s'");
+    await cliente.query('SET LOCAL ROLE ffcmapp_configuracao_leitor_executor');
+    const resultado = await cliente.query(
+      'select identidade.ler_configuracao_sistema_publica() as configuracao',
+    );
+    await cliente.query('COMMIT');
+    destruir = false;
+    const bruto: unknown = resultado.rows[0]?.configuracao;
+    if (bruto === null || typeof bruto !== 'object' || Array.isArray(bruto)) throw new Error();
+    const valores = new Map<string, Linha>();
+    for (const [chave, item] of Object.entries(bruto as Record<string, unknown>)) {
+      if (item === null || typeof item !== 'object' || Array.isArray(item)) continue;
+      const { valor, tipo, versao } = item as Record<string, unknown>;
+      const tipoValidado = tipoConfiguracaoSchema.safeParse(tipo);
+      const valorValidado = valorConfiguracaoSchema.safeParse(valor);
+      if (!tipoValidado.success || !valorValidado.success) continue;
+      if (!valorCompativel(tipoValidado.data, valorValidado.data)) continue;
+      if (!Number.isInteger(versao)) continue;
+      valores.set(chave, {
+        valor: valorValidado.data,
+        tipo: tipoValidado.data,
+        versao: versao as number,
+      });
+    }
+    return valores;
+  } finally {
+    cliente?.release(destruir);
+  }
+}
+
+/** Carrega (com janela curta de cache) o mapa de configuração do servidor. Devolve um mapa
+ * vazio quando a leitura falha — quem chama decide o padrão. */
+export async function carregarConfiguracaoServidor(
+  pool: Pool,
+): Promise<ReadonlyMap<string, Linha>> {
+  const agora = Date.now();
+  if (cache && agora - cache.em < JANELA_MS) return cache.valores;
+  // Uma leitura em voo por processo: uma rajada de requisições não vira uma rajada de
+  // conexões ao banco.
+  emVoo ??= ler(pool)
+    .then((valores) => {
+      cache = { em: Date.now(), valores };
+      return valores;
+    })
+    .catch(() => cache?.valores ?? new Map<string, Linha>())
+    .finally(() => {
+      emVoo = undefined;
+    });
+  return emVoo;
+}
+
+/** Decide um interruptor booleano. `padraoAmbiente` é o valor que a variável de ambiente já
+ * dizia; ele vence sempre que o banco não traz a chave, não traz booleano, ou não responde. */
+export async function servicoAtivo(
+  pool: Pool,
+  chave: string,
+  padraoAmbiente: boolean,
+): Promise<boolean> {
+  try {
+    const valores = await carregarConfiguracaoServidor(pool);
+    const linha = valores.get(chave);
+    if (!linha || linha.tipo !== 'booleano' || typeof linha.valor !== 'boolean')
+      return padraoAmbiente;
+    return linha.valor;
+  } catch {
+    return padraoAmbiente;
+  }
+}
