@@ -15,6 +15,7 @@ describe('consulta administrativa de auditoria', () => {
               acao: 'bootstrap.tecnico',
               tipo_objeto: 'usuario',
               objeto_id: null,
+              paciente_id: null,
               resultado: 'permitido',
               ator_usuario_id: null,
               operador_restrito: 'texto fictício que não deve aparecer',
@@ -33,6 +34,7 @@ describe('consulta administrativa de auditoria', () => {
       acao: 'api.criar_paciente',
       tipo_objeto: 'paciente',
       objeto_id: null,
+      paciente_id: null,
       resultado: 'permitido',
       ator_usuario_id: '10000000-0000-4000-8000-000000000002',
       operador_restrito: null,
@@ -60,6 +62,7 @@ describe('consulta administrativa de auditoria', () => {
       acao: 'api.criar_paciente',
       tipo_objeto: 'paciente',
       objeto_id: null,
+      paciente_id: null,
       resultado: 'permitido',
     };
     const validar = (ator_usuario_id: string | null, operador_restrito: string | null) =>
@@ -80,6 +83,7 @@ describe('consulta administrativa de auditoria', () => {
       acao: 'api.listar_pacientes',
       tipo_objeto: 'carteira',
       objeto_id: null,
+      paciente_id: null,
       resultado: 'negado',
       ator_usuario_id: null,
       ator_auth_id: '10000000-0000-4000-8000-000000000099',

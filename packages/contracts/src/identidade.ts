@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
-import { perfilSchema, uuidSchema, versaoSchema } from './comum.ts';
-import { campoCifradoSchema } from './rpc.ts';
+import { campoCifradoSchema, perfilSchema, uuidSchema, versaoSchema } from './comum.ts';
 
 const emailSchema = z.string().trim().email().max(254);
 const motivoSchema = z.string().trim().min(1).max(500);

@@ -2,9 +2,13 @@ import { z } from 'zod';
 import { eventoAuditoriaSchema } from './auditoria.ts';
 
 import {
+  base64UrlSchema,
+  campoCifradoSchema,
   chaveIdempotenciaSchema,
   codigoErroSchema,
   cursorSchema,
+  formatoCifraSchema,
+  keyIdSchema,
   limitePaginaSchema,
   perfilSchema,
   uuidSchema,
@@ -13,25 +17,11 @@ import {
 import { estadoConcessaoSchema } from './identidade.ts';
 import { sinalCarteiraSchema } from './pendencia.ts';
 
-export const formatoCifraSchema = z.literal(1);
-export const base64UrlSchema = z
-  .string()
-  .min(1)
-  .max(32_768)
-  .regex(/^[A-Za-z0-9_-]+$/);
-const keyIdSchema = z.string().min(1).max(128);
-const instanteSchema = z.string().datetime({ offset: true });
+// Reexportados de `comum.ts`: quem já importava daqui continua importando daqui. A definição
+// mudou de lugar para quebrar o ciclo `identidade.ts` <-> `rpc.ts`.
+export { base64UrlSchema, campoCifradoSchema, formatoCifraSchema } from './comum.ts';
 
-/** Persistência e transporte interno; nunca enviado ao navegador. */
-export const campoCifradoSchema = z
-  .object({
-    formato: formatoCifraSchema,
-    key_id: keyIdSchema,
-    nonce: base64UrlSchema,
-    ciphertext: base64UrlSchema,
-    tag: base64UrlSchema,
-  })
-  .strict();
+const instanteSchema = z.string().datetime({ offset: true });
 export const reservaReenvioFamiliarSchema = z
   .object({
     ok: z.literal(true),
