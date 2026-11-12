@@ -167,6 +167,62 @@ function aadCanonico(aad: MetadadosAad): Uint8Array {
       }),
     );
   }
+  // FR-012: a versão do diário tem dois textos cifrados. `campo` faz parte da ligação, logo
+  // o envelope da justificativa não decifra no lugar do conteúdo nem o contrário.
+  if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.diario_registro_versao') {
+    if (
+      typeof aad.paciente_id !== 'string' ||
+      !uuid.test(aad.paciente_id) ||
+      typeof aad.diario_registro_id !== 'string' ||
+      !uuid.test(aad.diario_registro_id) ||
+      typeof aad.registro_id !== 'string' ||
+      !uuid.test(aad.registro_id) ||
+      !Number.isInteger(aad.versao) ||
+      aad.versao < 1 ||
+      aad.versao > 2147483647 ||
+      (aad.campo !== 'conteudo' && aad.campo !== 'justificativa') ||
+      aad.formato !== formatoAtual
+    ) {
+      throw new ErroCifraAutenticada();
+    }
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        paciente_id: aad.paciente_id,
+        diario_registro_id: aad.diario_registro_id,
+        registro_id: aad.registro_id,
+        versao: aad.versao,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
+  // FR-010. O áudio não cabe num envelope só (o teto de texto cifrado continua 32 KiB),
+  // então viaja em partes numeradas a partir de 1; `parte` entra na ligação para que uma
+  // parte não seja trocada, reordenada ou movida para outro áudio. Texto usa `parte = 0`.
+  if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.audio_transcricao') {
+    if (
+      !uuid.test(aad.paciente_id) ||
+      !uuid.test(aad.registro_id) ||
+      !Number.isInteger(aad.parte) ||
+      aad.parte < 0 ||
+      aad.parte > 64 ||
+      (aad.campo === 'audio' ? aad.parte < 1 : aad.parte !== 0) ||
+      (aad.campo !== 'audio' && aad.campo !== 'transcricao' && aad.campo !== 'texto_revisado') ||
+      aad.formato !== formatoAtual
+    )
+      throw new ErroCifraAutenticada();
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        paciente_id: aad.paciente_id,
+        registro_id: aad.registro_id,
+        parte: aad.parte,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
   if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.orientacao_versao') {
     if (
       !uuid.test(aad.paciente_id) ||
@@ -215,6 +271,35 @@ function aadCanonico(aad: MetadadosAad): Uint8Array {
       }),
     );
   }
+  // FR-040. Solicitação do titular: mesmo formato dos documentos versionados, mas com DOIS
+  // campos cifrados na mesma linha (o pedido e o fundamento da resposta). Por isso `campo` é
+  // conferido contra a lista própria em vez de ser fixo em 'conteudo' — sem isso o envelope da
+  // descrição seria aceito no lugar do da resposta.
+  if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.solicitacao_titular') {
+    if (
+      typeof aad.paciente_id !== 'string' ||
+      !uuid.test(aad.paciente_id) ||
+      typeof aad.registro_id !== 'string' ||
+      !uuid.test(aad.registro_id) ||
+      !Number.isInteger(aad.versao) ||
+      aad.versao < 1 ||
+      aad.versao > 2147483647 ||
+      (aad.campo !== 'descricao' && aad.campo !== 'resposta') ||
+      aad.formato !== formatoAtual
+    ) {
+      throw new ErroCifraAutenticada();
+    }
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        paciente_id: aad.paciente_id,
+        registro_id: aad.registro_id,
+        versao: aad.versao,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
   // Documentos versionados por paciente compartilham o formato de AAD; a tabela,
   // que entra na ligação, é o que impede trocar o envelope de um pelo do outro.
   if (
@@ -223,7 +308,9 @@ function aadCanonico(aad: MetadadosAad): Uint8Array {
     (aad.tabela === 'cadastro.anamnese_versao' ||
       aad.tabela === 'cadastro.saude_versao' ||
       aad.tabela === 'cadastro.contexto_cuidado_versao' ||
-      aad.tabela === 'cadastro.rede_cuidado_versao')
+      aad.tabela === 'cadastro.rede_cuidado_versao' ||
+      aad.tabela === 'cadastro.plano_crise_versao' ||
+      aad.tabela === 'cadastro.documento_caso_versao')
   ) {
     if (
       typeof aad.paciente_id !== 'string' ||

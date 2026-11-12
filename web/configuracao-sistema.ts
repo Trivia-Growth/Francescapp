@@ -21,9 +21,14 @@ function instanteLegivel(iso: string): string | null {
 /** Converte o que a pessoa digitou no tipo que a chave espera. Devolve `undefined` quando o
  * texto não forma um valor válido — a tela recusa antes de chamar o servidor, e o servidor
  * recusa de novo contra o tipo gravado no banco. */
+/** Uma chave de texto com catálogo de opções vira um `select` — ver migration
+ * `20261119110000`. Escolher entre valores conhecidos é o que o solicitante pediu para o
+ * modelo de transcrição; digitar um identificador de memória não é escolher. */
+type ControleConfiguracao = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+
 function lerCampo(
   tipo: ConfiguracaoSistema['tipo'],
-  controle: HTMLInputElement | HTMLTextAreaElement,
+  controle: ControleConfiguracao,
 ): ValorConfiguracao | undefined {
   if (tipo === 'booleano') return (controle as HTMLInputElement).checked;
   if (tipo === 'numero') {
@@ -44,7 +49,7 @@ function lerCampo(
 
 function escreverCampo(
   tipo: ConfiguracaoSistema['tipo'],
-  controle: HTMLInputElement | HTMLTextAreaElement,
+  controle: ControleConfiguracao,
   valor: ValorConfiguracao,
 ): void {
   if (tipo === 'booleano') (controle as HTMLInputElement).checked = valor === true;
@@ -103,7 +108,7 @@ export function montarConfiguracaoSistema(
       rotulo.className = 'configuracao-sistema__rotulo';
       rotulo.htmlFor = identificador;
       rotulo.textContent = item.rotulo;
-      let controle: HTMLInputElement | HTMLTextAreaElement;
+      let controle: ControleConfiguracao;
       if (tipo === 'booleano') {
         const caixa = document.createElement('input');
         caixa.type = 'checkbox';
@@ -113,6 +118,23 @@ export function montarConfiguracaoSistema(
         numero.type = 'number';
         numero.inputMode = 'decimal';
         controle = numero;
+      } else if (tipo === 'texto' && item.opcoes && item.opcoes.length > 0) {
+        const escolha = document.createElement('select');
+        for (const opcao of item.opcoes) {
+          const alternativa = document.createElement('option');
+          alternativa.value = opcao;
+          alternativa.textContent = opcao;
+          escolha.append(alternativa);
+        }
+        // Valor atual fora do catálogo não é descartado em silêncio: ele aparece marcado,
+        // para a pessoa ver o que está valendo antes de trocar.
+        if (typeof item.valor === 'string' && !item.opcoes.includes(item.valor)) {
+          const atual = document.createElement('option');
+          atual.value = item.valor;
+          atual.textContent = `${item.valor} (fora da lista atual)`;
+          escolha.prepend(atual);
+        }
+        controle = escolha;
       } else if (tipo === 'texto') {
         const texto = document.createElement('input');
         texto.type = 'text';
@@ -177,7 +199,8 @@ export function montarConfiguracaoSistema(
           return;
         }
         salvar.disabled = true;
-        controle.readOnly = tipo !== 'booleano' ? true : controle.readOnly;
+        if (controle instanceof HTMLSelectElement) controle.disabled = true;
+        else if (tipo !== 'booleano') controle.readOnly = true;
         aviso.textContent = 'Salvando…';
         void servico
           .gravar({
@@ -203,7 +226,8 @@ export function montarConfiguracaoSistema(
                   ? 'Sua conta não pode alterar esta configuração.'
                   : 'Não foi possível salvar. Tente de novo.';
             salvar.disabled = false;
-            controle.readOnly = false;
+            if (controle instanceof HTMLSelectElement) controle.disabled = false;
+            else controle.readOnly = false;
           });
       });
     }

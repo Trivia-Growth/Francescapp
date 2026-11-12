@@ -33,8 +33,13 @@ export const configuracaoSistemaSchema = z
     tipo: tipoConfiguracaoSchema,
     rotulo: z.string().trim().min(1).max(160),
     descricao: z.string().trim().min(1).max(600).nullable(),
-    exposicao: z.enum(['administracao', 'servidor']),
+    // 'publica' = texto institucional legível por qualquer sessão autenticada (FR-041),
+    // não "legível por anônimo". Ver `20261119320000_regras_atendimento_publicas.sql`.
+    exposicao: z.enum(['administracao', 'servidor', 'publica']),
     versao: z.number().int().min(1).max(2147483647),
+    // Valores aceitos quando a chave é escolhida numa lista (migration `20261119110000`).
+    // Vem do catálogo, não da tela: a tela escolhe entre eles. `null` = campo livre.
+    opcoes: z.array(z.string().trim().min(1).max(200)).min(1).max(50).nullable(),
     atualizado_por_usuario_id: uuidSchema.nullable(),
     atualizado_em: z.iso.datetime({ offset: true }),
   })

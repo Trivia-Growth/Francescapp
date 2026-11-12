@@ -169,12 +169,15 @@ it.each([
       'Anamnese',
       'Saúde',
       'Plano de cuidado',
+      'Plano de crise',
       'Tarefas',
+      'Pendências',
       'Encaminhamentos',
       'Orientações',
       'Rotina e recursos',
       'Rede de cuidado',
-      'Diário em breve',
+      'Documentos',
+      'Diário',
     ],
   },
   {
@@ -185,13 +188,16 @@ it.each([
       'Anamnese',
       'Saúde',
       'Plano de cuidado',
+      'Plano de crise',
       'Cadastro',
       'Equipe com acesso',
+      'Pendências',
       'Encaminhamentos',
       'Orientações',
       'Rotina e recursos',
       'Rede de cuidado',
-      'Diário em breve',
+      'Documentos',
+      'Diário',
     ],
   },
 ])(
@@ -306,7 +312,9 @@ it('não consulta nem mostra situação e responsável para o Profissional', asy
   document.querySelector<HTMLButtonElement>(linha(A))?.click();
   await vi.waitFor(() => expect(painel()).toContain('Tarefa de Helena'));
   expect(document.querySelector('[data-bloco="situacao"]')).toBeNull();
-  expect(painel()).toContain('Situação do caso e responsável: indisponíveis nesta versão');
+  // Sem fonte, a visão não mostra o bloco nem anuncia que ele falta.
+  expect(painel()).not.toContain('Situação do caso');
+  expect(painel()).not.toContain('Responsável');
   expect(caminhos).not.toContain(`/api/pacientes/${A}`);
 });
 

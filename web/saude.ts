@@ -4,6 +4,7 @@ import {
   type Saude,
 } from '../packages/contracts/src/saude.ts';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
+import { esqueletoCarregando } from './esqueleto.js';
 
 export type ServicoSaude = {
   consultar(pacienteId: string): Promise<Saude | null>;
@@ -57,7 +58,7 @@ export function montarSaude(
   };
   const status = elemento('p', 'Carregando histórico de saúde…');
   status.setAttribute('role', 'status');
-  raiz.replaceChildren(status);
+  raiz.replaceChildren(esqueletoCarregando(3, true), status);
 
   const desenhar = (resultado: Saude | null) => {
     if (!ativa) return;
@@ -273,7 +274,7 @@ export function montarSaude(
 
   const consultar = () => {
     status.textContent = 'Carregando histórico de saúde…';
-    raiz.replaceChildren(status);
+    raiz.replaceChildren(esqueletoCarregando(3, true), status);
     void servico
       .consultar(pacienteId)
       .then(desenhar)
@@ -283,7 +284,7 @@ export function montarSaude(
         const tentarNovamente = elemento('button', 'Tentar novamente');
         tentarNovamente.type = 'button';
         tentarNovamente.addEventListener('click', consultar);
-        raiz.append(tentarNovamente);
+        raiz.replaceChildren(status, tentarNovamente);
       });
   };
   consultar();

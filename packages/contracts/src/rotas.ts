@@ -12,9 +12,15 @@ import {
   salvarOrientacaoSchema,
 } from './orientacao.ts';
 import {
+  consultarDiarioSchema,
+  registroDiarioSchema,
+  salvarRegistroDiarioSchema,
+} from './diario.ts';
+import {
   configuracaoSistemaSchema,
   gravarConfiguracaoSistemaSchema,
 } from './configuracao-sistema.ts';
+import { regrasAtendimentoSchema } from './regras-atendimento.ts';
 import { reservaCadastroSchema } from './rpc.ts';
 import {
   aprovadorPlanoSchema,
@@ -100,6 +106,10 @@ const consultaConcessoesSchema = z
     estado: z.enum(['pendente', 'vinculada', 'revogada']).optional(),
   })
   .strict();
+/** Filtros de FR-039: "identidade, data e objeto". `ator_id` casa tanto `ator_usuario_id`
+ * quanto `ator_auth_id` (identidade Auth não admitida). NÃO existe filtro por caso: a trilha
+ * guarda `tipo_objeto` + `objeto_id` (a linha alvo), não o paciente — ver nota 3 em
+ * `supabase/migrations/20261119300000_consulta_auditoria_privada.sql`. */
 const consultaAuditoriaSchema = z
   .object({
     cursor: cursorSchema.optional(),
@@ -107,8 +117,16 @@ const consultaAuditoriaSchema = z
     ator_id: uuidSchema.optional(),
     objeto_id: uuidSchema.optional(),
     acao: z.string().trim().min(1).max(120).optional(),
+    resultado: z.enum(['permitido', 'negado', 'falhou']).optional(),
+    instante_de: z.iso.datetime({ offset: true }).optional(),
+    instante_ate: z.iso.datetime({ offset: true }).optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (v) =>
+      !v.instante_de || !v.instante_ate || Date.parse(v.instante_de) <= Date.parse(v.instante_ate),
+    'O início do período não pode ser depois do fim.',
+  );
 const versaoEsperadaSchema = z.number().int().min(0).max(2147483646);
 const gravarCampoExtraPlanoSchema = z
   .object({
@@ -473,6 +491,13 @@ export const contratosRotas = {
     consultaAuditoriaSchema,
     paginaSchema(eventoAuditoriaSchema),
   ),
+  // FR-041: não é rota de administração. Qualquer sessão autenticada lê — é o ponto do
+  // requisito. A edição continua em `gravarConfiguracaoSistema`, administrador-only.
+  consultarRegrasAtendimento: consulta(
+    '/api/regras-atendimento',
+    vazioSchema,
+    regrasAtendimentoSchema,
+  ),
   listarConfiguracaoSistema: consulta(
     '/api/admin/configuracao-sistema',
     vazioSchema,
@@ -536,6 +561,19 @@ export const contratosRotas = {
     '/api/pacientes/:paciente_id/orientacoes',
     salvarOrientacaoSchema,
     orientacaoSchema,
+    pacienteParametrosSchema,
+  ),
+  consultarDiario: consulta(
+    '/api/pacientes/:paciente_id/diario',
+    consultarDiarioSchema,
+    z.array(registroDiarioSchema),
+    pacienteParametrosSchema,
+  ),
+  salvarRegistroDiario: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/diario',
+    salvarRegistroDiarioSchema,
+    registroDiarioSchema,
     pacienteParametrosSchema,
   ),
 } as const;

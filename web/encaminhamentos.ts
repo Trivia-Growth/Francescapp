@@ -1,5 +1,6 @@
 import type { Encaminhamento } from '../packages/contracts/src/encaminhamento.ts';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
+import { esqueletoCarregando } from './esqueleto.js';
 import {
   montarEncaminhamentosLocais,
   type DadosEncaminhamento,
@@ -58,7 +59,7 @@ export function montarEncaminhamentos(
   const status = document.createElement('p');
   status.setAttribute('role', 'status');
   status.textContent = 'Carregando encaminhamentos…';
-  raiz.replaceChildren(status);
+  raiz.replaceChildren(esqueletoCarregando(2, true), status);
 
   const comoLocal = (registro: Encaminhamento): EncaminhamentoLocal => {
     versoes.set(registro.encaminhamento_id, registro.versao);

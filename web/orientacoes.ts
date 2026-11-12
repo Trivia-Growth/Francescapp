@@ -2,6 +2,7 @@ import type { Orientacao } from '../packages/contracts/src/orientacao.ts';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { montarOrientacoesLocais, type OrientacaoLocal } from './orientacoes-local.js';
 import type { EntradaOrientacao } from './servico-orientacoes-http.js';
+import { esqueletoCarregando } from './esqueleto.js';
 
 type Servico = {
   consultar(pacienteId: string, apenasVigentes?: boolean): Promise<Orientacao[]>;
@@ -28,7 +29,7 @@ export function montarOrientacoes(
   const status = document.createElement('p');
   status.setAttribute('role', 'status');
   status.textContent = 'Carregando orientações…';
-  raiz.replaceChildren(status);
+  raiz.replaceChildren(esqueletoCarregando(2, true), status);
 
   const comoLocal = (registro: Orientacao): OrientacaoLocal => {
     versoes.set(registro.orientacao_id, registro.versao);

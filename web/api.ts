@@ -10,6 +10,7 @@ import {
   paginaVinculosProfissionaisSchema,
 } from '../packages/contracts/src/vinculos-profissionais.js';
 import { criarContatoReservadoHttpSchema } from '../packages/contracts/src/barreira-contato-servidor.js';
+import type { FiltrosCarteira } from '../packages/contracts/src/cadastro.js';
 import {
   criarAcessoReservadoHttpSchema,
   revogarAcessoReservadoHttpSchema,
@@ -391,7 +392,17 @@ export class ClienteFFCM {
     let corpo: string | undefined;
     if (contrato.metodo === 'GET') {
       for (const [campo, valor] of Object.entries(validada.data)) {
-        if (valor !== undefined) url.searchParams.set(campo, String(valor));
+        if (valor === undefined) continue;
+        // Os filtros da carteira viajam achatados como `filtro_<nome>`, porque é assim que
+        // o servidor os lê e os assina; serializar o objeto inteiro mandaria um valor que
+        // nenhum dos dois lados entende.
+        if (campo === 'filtros' && valor !== null && typeof valor === 'object') {
+          for (const [nome, escolha] of Object.entries(valor as Record<string, unknown>)) {
+            if (escolha !== undefined) url.searchParams.set(`filtro_${nome}`, String(escolha));
+          }
+          continue;
+        }
+        url.searchParams.set(campo, String(valor));
       }
     } else {
       headers.set('Content-Type', 'application/json');
@@ -574,16 +585,17 @@ export class ClienteFFCM {
     return atual;
   }
 
-  listarPacientes(cursor?: string): Promise<Dados<'listarPacientes'>> {
+  listarPacientes(cursor?: string, filtros?: FiltrosCarteira): Promise<Dados<'listarPacientes'>> {
     let familiar: boolean;
     try {
       familiar = sessionStorage.getItem('modo-acesso') === 'familiar';
     } catch {
       throw new FalhaApi('nao_autenticado', 401);
     }
+    const recorte = filtros && Object.keys(filtros).length > 0 ? { filtros } : {};
     return this.#enviar(
       familiar ? 'listarPacientesFamiliar' : 'listarPacientes',
-      { limite: 25, ...(cursor ? { cursor } : {}) },
+      { limite: 25, ...(cursor ? { cursor } : {}), ...recorte },
       { protegido: true },
     );
   }

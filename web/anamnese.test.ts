@@ -296,7 +296,7 @@ it('não oferece histórico enquanto integração não está habilitada', async 
     },
     vi.fn(),
   );
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Nenhuma seção registrada.'));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Nenhuma pergunta registrada ainda.'));
   expect(raiz.textContent).not.toContain('Consultar histórico');
 });
 

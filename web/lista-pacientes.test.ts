@@ -81,7 +81,7 @@ it('limita a busca aos pacientes carregados e não declara que não existem outr
     }),
   );
   await vi.waitFor(() => expect(linhas()).toHaveLength(2));
-  expect(el('busca-aviso').textContent).toContain('só para os pacientes desta página');
+  expect(el('busca-aviso').textContent).toContain('os pacientes desta página');
   const campo = el('busca-pacientes') as HTMLInputElement;
   campo.value = 'angela';
   campo.dispatchEvent(new Event('input', { bubbles: true }));
@@ -95,8 +95,9 @@ it('limita a busca aos pacientes carregados e não declara que não existem outr
   campo.dispatchEvent(new Event('input', { bubbles: true }));
   expect(linhas()).toHaveLength(0);
   expect(el('busca-vazia').hidden).toBe(false);
+  // Não afirma que o paciente não existe: aponta as outras páginas.
   expect(el('busca-vazia').textContent).toContain(
-    'Pacientes de outras páginas não foram pesquisados',
+    'Avance para as próximas páginas para continuar procurando',
   );
   expect(el('list-empty').hidden).toBe(true);
   campo.value = '';

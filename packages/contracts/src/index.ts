@@ -26,3 +26,5 @@ export * from './configuracao-sistema.ts';
 export * from './contexto-cuidado.ts';
 export * from './rede-cuidado.ts';
 export * from './documento-paciente.ts';
+export * from './pendencia.ts';
+export * from './pendencia-http.ts';

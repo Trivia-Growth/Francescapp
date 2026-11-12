@@ -44,11 +44,11 @@ it('reconcilia edição após recarga antes de permitir novo envio, sem persisti
   montarEdicaoPaciente(raiz, id, servico, vi.fn());
   expect(raiz.querySelector('form')).toBeNull();
   raiz.querySelector('button')?.click();
-  await vi.waitFor(() => expect(raiz.textContent).toContain('foi confirmada'));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('foram salvas (versão'));
   expect(servico.consultarPaciente).toHaveBeenCalledOnce();
   expect(raiz.textContent).toContain(`Cadastro atual: ${paciente.nome}`);
-  expect(raiz.textContent).toContain('confirmada na versão 3');
-  expect(raiz.textContent).toContain('O cadastro atual está em outra versão');
+  expect(raiz.textContent).toContain('salvas (versão 3)');
+  expect(raiz.textContent).toContain('O cadastro já está em outra versão');
   raiz.querySelector('button')?.click();
   await vi.waitFor(() => expect(raiz.querySelector('form')).not.toBeNull());
   expect(ciclo.reconhecer).toHaveBeenCalledOnce();
@@ -98,13 +98,13 @@ it('preserva rascunho após falha incerta até recarga explícita', async () => 
   raiz.querySelector('form')?.requestSubmit();
   await vi.waitFor(() => expect(raiz.textContent).toContain('rascunho permanece'));
   [...raiz.querySelectorAll('button')]
-    .find((b) => b.textContent === 'Confirmar situação da edição')
+    .find((b) => b.textContent === 'Conferir o que foi salvo')
     ?.click();
-  await vi.waitFor(() => expect(raiz.textContent).toContain('foi cancelada'));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('não foram salvas'));
   [...raiz.querySelectorAll('button')]
-    .find((b) => b.textContent === 'Reconhecer resultado e liberar edição')
+    .find((b) => b.textContent === 'Entendi, liberar a edição')
     ?.click();
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Copie o rascunho'));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Copie seu rascunho'));
   expect(raiz.querySelector('input')?.value).toBe('Nome fictício alterado');
 });
 
@@ -136,9 +136,9 @@ it('preserva rascunho copiável quando reserva falha e barreira está vazia', as
   raiz.querySelector('form')?.requestSubmit();
   await vi.waitFor(() => expect(raiz.textContent).toContain('rascunho permanece'));
   [...raiz.querySelectorAll('button')]
-    .find((b) => b.textContent === 'Confirmar situação da edição')
+    .find((b) => b.textContent === 'Conferir o que foi salvo')
     ?.click();
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Copie o rascunho'));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Copie seu rascunho'));
   expect(nome.value).toBe('Rascunho fictício');
   expect(raiz.querySelector('fieldset')?.disabled).toBe(false);
   expect(raiz.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
@@ -210,7 +210,7 @@ it('não permite reconhecer quando consulta autorizada para conferência falha',
     expect(raiz.textContent).toContain('Não foi possível confirmar a situação'),
   );
   expect(ciclo.reconhecer).not.toHaveBeenCalled();
-  expect(raiz.textContent).not.toContain('Reconhecer resultado e liberar edição');
+  expect(raiz.textContent).not.toContain('Entendi, liberar a edição');
 });
 
 it('não encerra reserva de edição em outra aba sem confirmação', async () => {
@@ -382,7 +382,7 @@ it('trata responsável recusado como recusa definitiva, mantendo o rascunho e a 
   expect(motivo.value).toBe('Troca fictícia');
   expect(
     [...raiz.querySelectorAll('button')].some(
-      (botao) => botao.textContent === 'Confirmar situação da edição' && !botao.hidden,
+      (botao) => botao.textContent === 'Conferir o que foi salvo' && !botao.hidden,
     ),
   ).toBe(true);
 });

@@ -111,7 +111,9 @@ it('não repete pedido incerto antes de reconhecer resultado', async () => {
   const tela = await preparar(503);
   await tela.enviar();
   await vi.waitFor(() =>
-    expect(tela.elemento('create-feedback').textContent).toContain('Cadastro anterior confirmado'),
+    expect(tela.elemento('create-feedback').textContent).toContain(
+      'O cadastro enviado antes foi salvo',
+    ),
   );
   await tela.enviar();
   expect(tela.chaves).toHaveLength(1);
@@ -151,7 +153,7 @@ it.each([
     await tela.entrar();
     await vi.waitFor(() =>
       expect(tela.elemento('create-feedback').textContent).toContain(
-        'Cadastro anterior confirmado',
+        'O cadastro enviado antes foi salvo',
       ),
     );
     await tela.enviar();
@@ -163,7 +165,9 @@ it.each([408, 429, 422, 202])('HTTP %s não libera repetição sem reconciliaç�
   const tela = await preparar(status);
   await tela.enviar();
   await vi.waitFor(() =>
-    expect(tela.elemento('create-feedback').textContent).toContain('Cadastro anterior confirmado'),
+    expect(tela.elemento('create-feedback').textContent).toContain(
+      'O cadastro enviado antes foi salvo',
+    ),
   );
   await tela.enviar();
   expect(tela.chaves).toHaveLength(1);
@@ -177,7 +181,7 @@ it.each([true, false])(
     await tela.enviar();
     await vi.waitFor(() =>
       expect(tela.elemento('create-feedback').textContent).toContain(
-        'Cadastro anterior confirmado',
+        'O cadastro enviado antes foi salvo',
       ),
     );
     tela.falhar(true);
@@ -189,7 +193,7 @@ it.each([true, false])(
     expect(tela.elemento<HTMLInputElement>('patient-name').value).toBe('');
     await vi.waitFor(() =>
       expect(tela.elemento('create-feedback').textContent).toContain(
-        'Cadastro anterior confirmado',
+        'O cadastro enviado antes foi salvo',
       ),
     );
     await tela.enviar();

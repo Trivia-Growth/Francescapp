@@ -5,6 +5,7 @@ import {
 } from '../packages/contracts/src/plano-cuidado.js';
 import type { criarCicloPlano } from './ciclo-plano.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
+import { esqueletoCarregando } from './esqueleto.js';
 
 export type ObjetivoAtual = { objetivo_id: string; versao: number; objetivo: Objetivo };
 export type VersaoHistoricoObjetivo = ObjetivoAtual & {
@@ -59,7 +60,7 @@ export function montarPlanoCuidado(
     if (!cursor) cursores = [];
     const status = elemento('p', 'Carregando plano de cuidado…');
     status.setAttribute('role', 'status');
-    raiz.replaceChildren(status);
+    raiz.replaceChildren(esqueletoCarregando(3, true), status);
     void servico
       .consultarObjetivos(pacienteId, cursor)
       .then((pagina) => {
@@ -72,7 +73,7 @@ export function montarPlanoCuidado(
         const tentar = elemento('button', 'Tentar novamente');
         tentar.type = 'button';
         tentar.addEventListener('click', () => consultar(cursor));
-        raiz.append(tentar);
+        raiz.replaceChildren(status, tentar);
       });
   };
   const desenhar = (pagina: Pagina<ObjetivoAtual>, cursorAtual?: string) => {
@@ -86,10 +87,10 @@ export function montarPlanoCuidado(
     if (criacaoIncerta) {
       const aviso = elemento(
         'p',
-        'Confirme a situação de criação antes de adicionar outro objetivo.',
+        'Antes de criar um objetivo, confira se já existe algum envio aguardando resposta.',
       );
       aviso.setAttribute('role', 'status');
-      const recuperar = elemento('button', 'Confirmar situação de criação');
+      const recuperar = elemento('button', 'Conferir e liberar');
       recuperar.type = 'button';
       recuperar.dataset.recuperacaoPlano = '';
       recuperar.disabled = recuperando;
@@ -97,7 +98,7 @@ export function montarPlanoCuidado(
         if (recuperando || formulario.querySelector('form')) return;
         recuperando = true;
         recuperar.disabled = true;
-        aviso.textContent = 'Confirmando situação de criação…';
+        aviso.textContent = 'Conferindo…';
         void (async () => {
           let situacao = await servico.ciclo.consultar();
           if (!situacao.resultado_pendente) {
@@ -110,15 +111,15 @@ export function montarPlanoCuidado(
               situacao.resultado_pendente.paciente_id.toLowerCase() !== pacienteId.toLowerCase()
             ) {
               aviso.textContent =
-                'Resultado pendente pertence a outro paciente. Abra o plano correspondente para conferi-lo e reconhecê-lo.';
+                'O envio aguardando resposta é de outro paciente. Abra o plano dele para conferir antes de continuar aqui.';
               recuperar.hidden = true;
               return;
             }
             aviso.textContent =
               situacao.resultado_pendente.resultado === 'confirmada'
-                ? 'Uma criação anterior foi confirmada. Confira o plano correspondente.'
-                : 'Uma criação anterior foi cancelada.';
-            recuperar.textContent = 'Reconhecer resultado e liberar criação';
+                ? 'O objetivo enviado antes foi salvo. Confira-o na lista abaixo.'
+                : 'O objetivo enviado antes não foi salvo.';
+            recuperar.textContent = 'Entendi, liberar novo objetivo';
             let reconhecido = false;
             recuperar.onclick = () => {
               if (recuperando || formulario.querySelector('form')) return;
@@ -138,7 +139,7 @@ export function montarPlanoCuidado(
               })()
                 .catch((erro: unknown) => {
                   if (!ativa || perdeuAcesso(erro)) return;
-                  aviso.textContent = 'Não foi possível reconhecer o resultado. Tente novamente.';
+                  aviso.textContent = 'Não foi possível concluir. Tente novamente.';
                   recuperar.disabled = false;
                 })
                 .finally(() => {
@@ -155,7 +156,7 @@ export function montarPlanoCuidado(
         })()
           .catch((erro: unknown) => {
             if (!ativa || perdeuAcesso(erro)) return;
-            aviso.textContent = 'Não foi possível confirmar a situação. Tente novamente.';
+            aviso.textContent = 'Não foi possível conferir agora. Tente novamente.';
             recuperar.disabled = false;
           })
           .finally(() => {

@@ -89,6 +89,67 @@ export async function carregarConfiguracaoServidor(
   return emVoo;
 }
 
+/** Lê uma chave de texto (FR-010 usa uma para o modelo de transcrição). `aceitos`, quando
+ * informado, é a lista fechada do catálogo: valor fora dela cai no padrão em vez de ser
+ * repassado ao provedor — identificador inválido viraria falha só em produção. */
+export async function textoConfigurado(
+  pool: Pool,
+  chave: string,
+  padrao: string,
+  aceitos?: readonly string[],
+): Promise<string> {
+  try {
+    const valores = await carregarConfiguracaoServidor(pool);
+    const linha = valores.get(chave);
+    if (!linha || linha.tipo !== 'texto' || typeof linha.valor !== 'string') return padrao;
+    const valor = linha.valor.trim();
+    if (!valor) return padrao;
+    if (aceitos && !aceitos.includes(valor)) return padrao;
+    return valor;
+  } catch {
+    return padrao;
+  }
+}
+
+/** Lê uma chave numérica inteira. Fora de faixa, não inteira, ausente ou ilegível cai no
+ * padrão — nunca em "sem limite", porque este número costuma ser um teto. */
+export async function numeroConfigurado(
+  pool: Pool,
+  chave: string,
+  padrao: number,
+  minimo: number,
+  maximo: number,
+): Promise<number> {
+  try {
+    const valores = await carregarConfiguracaoServidor(pool);
+    const linha = valores.get(chave);
+    if (!linha || linha.tipo !== 'numero' || typeof linha.valor !== 'number') return padrao;
+    if (!Number.isInteger(linha.valor) || linha.valor < minimo || linha.valor > maximo)
+      return padrao;
+    return linha.valor;
+  } catch {
+    return padrao;
+  }
+}
+
+/** Lê uma chave de lista (FR-009 usa uma para as áreas da síntese). `padrao` vale sempre que
+ * o banco não traz a chave, não traz lista ou não responde — pelo mesmo motivo de
+ * `servicoAtivo`: falha de leitura não inventa configuração, mantém a que já valia. */
+export async function listaConfigurada(
+  pool: Pool,
+  chave: string,
+  padrao: readonly string[],
+): Promise<string[]> {
+  try {
+    const valores = await carregarConfiguracaoServidor(pool);
+    const linha = valores.get(chave);
+    if (!linha || linha.tipo !== 'lista' || !Array.isArray(linha.valor)) return [...padrao];
+    return [...linha.valor];
+  } catch {
+    return [...padrao];
+  }
+}
+
 /** Decide um interruptor booleano. `padraoAmbiente` é o valor que a variável de ambiente já
  * dizia; ele vence sempre que o banco não traz a chave, não traz booleano, ou não responde. */
 export async function servicoAtivo(

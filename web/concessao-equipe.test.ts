@@ -42,7 +42,7 @@ it('recupera resultado confirmado após recarga antes de permitir nova solicita�
     reconhecerBarreiraEquipe: vi.fn().mockResolvedValue({ estado: 'reconhecido' }),
   } as unknown as ClienteFFCM;
   montarConcessaoEquipe(raiz, api);
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Operações anteriores verificadas'));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Tudo conferido'));
   expect(confirmar).toHaveBeenCalledWith(expect.stringContaining('revogada'));
   expect(api.reconhecerBarreiraEquipe).toHaveBeenCalledWith({ comando_id: recibo });
   expect(raiz.querySelector('fieldset')?.disabled).toBe(false);
@@ -67,7 +67,9 @@ it('não reconhece resultado que não foi identificado', async () => {
     reconhecerBarreiraEquipe: vi.fn(),
   } as unknown as ClienteFFCM;
   montarConcessaoEquipe(raiz, api);
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Não foi possível confirmar'));
+  await vi.waitFor(() =>
+    expect(raiz.textContent).toContain('Não foi possível concluir a conferência'),
+  );
   expect(api.reconhecerBarreiraEquipe).not.toHaveBeenCalled();
   expect(raiz.querySelector('fieldset')?.disabled).toBe(true);
 });

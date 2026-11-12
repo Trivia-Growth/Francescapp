@@ -32,6 +32,9 @@ export const ativarConviteFamiliarSchema = z
 export const resultadoAtivacaoFamiliarSchema = z
   .object({ ok: z.literal(true), usuario_id: uuidSchema })
   .strict();
+// Recusa da ativação: link inválido, expirado, já usado, ou sem pré-autorização
+// vigente da equipe. O motivo não é detalhado para não revelar o que existe.
+export const recusaAtivacaoFamiliarSchema = z.object({ ok: z.literal(false) }).strict();
 
 export const entradaVinculoFamiliarPrivadoSchema = z
   .object({

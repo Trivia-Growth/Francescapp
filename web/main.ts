@@ -41,6 +41,32 @@ import { montarContextoCuidado } from './contexto-cuidado.js';
 import { criarServicoDocumentoPacienteHttp } from './servico-documento-paciente-http.js';
 import { documentoRedeCuidadoSchema } from '../packages/contracts/src/rede-cuidado.js';
 import { documentoContextoCuidadoSchema } from '../packages/contracts/src/contexto-cuidado.js';
+import { montarPlanoCrise } from './plano-crise.js';
+import { criarServicoPlanoCriseHttp } from './servico-plano-crise-http.js';
+import { montarHabilitacaoPlanoCrise } from './habilitacao-plano-crise.js';
+import { criarServicoHabilitacaoPlanoCriseHttp } from './servico-habilitacao-plano-crise-http.js';
+import { montarDiario } from './diario.js';
+import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
+import { montarDocumentosCaso } from './documentos-caso.js';
+import {
+  consultarDisponibilidadeDocumentos,
+  criarServicoDocumentosHttp,
+} from './servico-documentos-http.js';
+import { montarPendenciasCaso } from './pendencias-caso.js';
+import { criarServicoPendenciasHttp } from './servico-pendencias-http.js';
+import { montarAuditoria } from './auditoria.js';
+import { criarServicoAuditoriaHttp } from './servico-auditoria-http.js';
+import { montarRegrasAtendimento } from './regras-atendimento.js';
+import { criarServicoRegrasAtendimentoHttp } from './servico-regras-atendimento-http.js';
+import { montarSolicitacoesTitular } from './solicitacoes-titular.js';
+import { criarServicoSolicitacaoTitularHttp } from './servico-solicitacao-titular-http.js';
+import { montarConfiguracaoSistema } from './configuracao-sistema.js';
+import { criarServicoConfiguracaoSistemaHttp } from './servico-configuracao-sistema-http.js';
+import { montarConcessaoEquipe } from './concessao-equipe.js';
+import { montarFiltrosCarteira, montarSinalCarteira } from './filtros-carteira.js';
+import { montarTranscricaoAudio } from './transcricao-audio.js';
+import { criarServicoTranscricaoHttp } from './servico-transcricao-http.js';
+import type { FiltrosCarteira } from '../packages/contracts/src/cadastro.js';
 import {
   criarCatalogoResponsaveis,
   rotulosSituacao,
@@ -193,6 +219,43 @@ const descarteEquipe =
   'Há um motivo de concessão não confirmado. Ao sair, ele será descartado. Deseja continuar?';
 const descarteSaude =
   'Há alterações do histórico de saúde não confirmadas. Ao sair, elas serão descartadas e um salvamento incerto não poderá ser confirmado nesta tela. Deseja continuar?';
+const descarteCrise =
+  'Há alterações do plano de crise não confirmadas. Ao sair, elas serão descartadas e um salvamento incerto não poderá ser confirmado nesta tela. Deseja continuar?';
+const descarteDiario =
+  'Há um registro do diário não confirmado. Ao sair, ele será descartado. Deseja continuar?';
+
+// As áreas do diário vêm da configuração em banco (FR-009); enquanto a consulta não
+// responde, a tela monta sem sugestão de área em vez de esperar. A consulta só sai quando
+// alguém abre o diário: na tela de acesso não há sessão nem motivo para pedi-la.
+let areasDiario: readonly string[] = [];
+let areasDiarioPedidas = false;
+function pedirAreasDoDiario(): void {
+  if (areasDiarioPedidas) return;
+  areasDiarioPedidas = true;
+  void consultarDisponibilidadeDiario()
+    .then(({ areas }) => {
+      areasDiario = areas;
+    })
+    .catch(() => {
+      areasDiario = [];
+    });
+}
+
+// Mesmo desenho para as categorias de documento (FR-029): configuradas pela equipe, pedidas
+// só quando alguém abre a aba.
+let categoriasDocumento: readonly string[] = [];
+let categoriasDocumentoPedidas = false;
+function pedirCategoriasDeDocumento(): void {
+  if (categoriasDocumentoPedidas) return;
+  categoriasDocumentoPedidas = true;
+  void consultarDisponibilidadeDocumentos()
+    .then(({ categorias }) => {
+      categoriasDocumento = categorias;
+    })
+    .catch(() => {
+      categoriasDocumento = [];
+    });
+}
 
 let ficha: Ficha | null = null;
 let fichaPaciente: PacienteFicha | null = null;
@@ -250,6 +313,7 @@ function fecharFicha(): void {
 function voltarParaLista(): void {
   const id = fichaPaciente?.id;
   fecharFicha();
+  marcarNavegacao('carteira');
   limparRota();
   aviso('workspace-feedback', '');
   const linha = id ? listaPacientes.querySelector<HTMLElement>(`[data-paciente-id="${id}"]`) : null;
@@ -405,6 +469,7 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
             ...(atual.usuario.perfil === 'profissional'
               ? { tarefas: criarServicoTarefasHttp(identidadeAtual) }
               : {}),
+            pendencias: criarServicoPendenciasHttp(identidadeAtual),
           },
           acessoPerdido,
         ),
@@ -453,6 +518,19 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         };
       },
     },
+    {
+      id: 'crise',
+      rotulo: 'Plano de crise',
+      descarte: descarteCrise,
+      montar: (raiz, pendente) =>
+        montarPlanoCrise(
+          raiz,
+          paciente.id,
+          criarServicoPlanoCriseHttp(identidadeAtual),
+          acessoPerdido,
+          pendente,
+        ),
+    },
   ];
   if (atual.usuario.perfil === 'profissional')
     secoes.push({
@@ -478,6 +556,18 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         montarSelecaoProfissional(raiz, paciente.id, api, acessoPerdido, pendente),
     });
   secoes.push(
+    {
+      id: 'pendencias',
+      rotulo: 'Pendências',
+      montar: (raiz) =>
+        montarPendenciasCaso(
+          raiz,
+          paciente.id,
+          criarServicoPendenciasHttp(identidadeAtual),
+          acessoPerdido,
+          catalogoResponsaveis,
+        ),
+    },
     {
       id: 'encaminhamentos',
       rotulo: 'Encaminhamentos',
@@ -537,7 +627,47 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         ),
     },
   );
-  secoes.push({ id: 'diario', rotulo: 'Diário', montar: null });
+  secoes.push({
+    id: 'documentos',
+    rotulo: 'Documentos',
+    montar: (raiz, pendente) => {
+      pedirCategoriasDeDocumento();
+      return montarDocumentosCaso(
+        raiz,
+        paciente.id,
+        criarServicoDocumentosHttp(identidadeAtual),
+        () => categoriasDocumento,
+        acessoPerdido,
+        pendente,
+      );
+    },
+  });
+  secoes.push({
+    id: 'diario',
+    rotulo: 'Diário',
+    descarte: descarteDiario,
+    montar: (raiz, pendente) => {
+      pedirAreasDoDiario();
+      return montarDiario(
+        raiz,
+        paciente.id,
+        atual.usuario.id,
+        criarServicoDiarioHttp(identidadeAtual),
+        () => areasDiario,
+        acessoPerdido,
+        pendente,
+        undefined,
+        (destino, aoConfirmar) =>
+          montarTranscricaoAudio(
+            destino,
+            paciente.id,
+            criarServicoTranscricaoHttp(identidadeAtual),
+            aoConfirmar,
+            acessoPerdido,
+          ),
+      );
+    },
+  });
   return secoes;
 }
 
@@ -582,6 +712,11 @@ let saidaComCadastroIncerto = false;
 let cursores: (string | undefined)[] = [undefined];
 let pagina = 0;
 let proximoCursor: string | null = null;
+/** FR-026: recorte pedido ao servidor. Mudar o recorte invalida o cursor, porque ele
+ * aponta para uma posição da lista anterior — por isso a paginação sempre volta ao começo. */
+let filtrosCarteira: FiltrosCarteira = {};
+let filtrosMontadosPara: string | null = null;
+let desmontarFiltros: (() => void) | null = null;
 type PedidoCadastro = { entrada: CriarPaciente; chave: string };
 let cadastroPendente: PedidoCadastro | null = null;
 let cadastroEmRevalidacao: { usuarioId: string; pedido: PedidoCadastro } | null = null;
@@ -610,18 +745,18 @@ async function consultarCadastro(): Promise<void> {
       aviso(
         'create-feedback',
         confirmado
-          ? 'Cadastro anterior confirmado. Consulte a lista antes de cadastrar novamente.'
-          : 'Cadastro anterior cancelado.',
+          ? 'O cadastro enviado antes foi salvo. Confira a lista antes de cadastrar outro.'
+          : 'O cadastro enviado antes não foi salvo.',
         'neutral',
       );
-      recuperarCadastro.textContent = 'Reconhecer resultado';
+      recuperarCadastro.textContent = 'Entendi, liberar o cadastro';
       recuperarCadastro.dataset.acao = 'reconhecer';
     } else {
       aviso(
         'create-feedback',
-        'Para liberar o cadastro, confirme o encerramento de tentativas anteriores. Isso também afeta outras abas da sua conta.',
+        'Há um cadastro em andamento nesta conta. Conclua a conferência para liberar um novo; isso encerra o que estiver aberto em outras abas.',
       );
-      recuperarCadastro.textContent = 'Confirmar encerramento';
+      recuperarCadastro.textContent = 'Conferir e liberar';
       recuperarCadastro.dataset.acao = 'encerrar';
     }
     recuperarCadastro.hidden = false;
@@ -720,6 +855,20 @@ function apagarPacientes(): void {
   equipeCasoNovoPara = null;
   catalogoCasoNovo = null;
   casoNovo.cancelarCarga();
+  // Sair precisa levar junto tudo que a sessão trouxe para a tela: a barra de filtros
+  // mostra nomes da equipe e os painéis de administração mostram registros institucionais.
+  // O catálogo em memória não é limpo aqui porque é indexado pelo usuário: outra conta
+  // reconstrói o seu, e a mesma conta revalidando não repete a consulta da equipe.
+  filtrosMontadosPara = null;
+  filtrosCarteira = {};
+  desmontarFiltros?.();
+  desmontarFiltros = null;
+  elemento('filtros-carteira').replaceChildren();
+  elemento('filtros-carteira').hidden = true;
+  fecharAdministracao();
+  fecharRegras();
+  elemento('nav-administracao').hidden = true;
+  marcarNavegacao('carteira');
   createFields.disabled = false;
   createButton.disabled = false;
   createButton.textContent = 'Cadastrar paciente';
@@ -796,6 +945,289 @@ const perfis = {
   familia: 'Família',
 };
 
+let catalogoEquipePara: string | null = null;
+let catalogoEquipe: (() => Promise<ResponsavelOpcao[]>) | null = null;
+
+/** Uma consulta de equipe por usuário. O cadastro já mantém um catálogo com cache; os
+ * filtros da carteira e as telas de administração reaproveitam esse mesmo catálogo em vez
+ * de cada um pedir a sua cópia da lista. */
+function catalogoDaEquipe(atual: Sessao): (() => Promise<ResponsavelOpcao[]>) | null {
+  if (!atual.capacidades.includes('administrar_concessoes')) return null;
+  if (catalogoEquipePara !== atual.usuario.id) {
+    catalogoEquipePara = atual.usuario.id;
+    catalogoEquipe = criarCatalogoResponsaveis((cursor) => api.listarProfissionais(cursor));
+  }
+  return catalogoEquipe;
+}
+
+/** FR-026. O recorte por responsável e por situação só é oferecido a quem o servidor
+ * autoriza a lê-los; a recusa real continua no banco, esconder o controle é conveniência. */
+function montarFiltrosDaCarteira(atual: Sessao): void {
+  const raiz = elemento('filtros-carteira');
+  const administrador =
+    atual.usuario.perfil === 'administrador' &&
+    atual.capacidades.includes('administrar_concessoes');
+  const disponivel = atual.usuario.perfil !== 'familia';
+  const assinatura = `${atual.usuario.id}|${administrador}|${disponivel}`;
+  if (filtrosMontadosPara === assinatura) return;
+  filtrosMontadosPara = assinatura;
+  desmontarFiltros?.();
+  desmontarFiltros = null;
+  if (!disponivel) {
+    raiz.replaceChildren();
+    raiz.hidden = true;
+    filtrosCarteira = {};
+    return;
+  }
+  const trocar = (escolhidos: FiltrosCarteira) => {
+    filtrosCarteira = escolhidos;
+    // Cursor sempre volta ao início: ele aponta para a lista de antes do recorte.
+    cursores = [undefined];
+    pagina = 0;
+    proximoCursor = null;
+    void carregarPacientes();
+  };
+  const desenhar = (responsaveis?: readonly ResponsavelOpcao[]) => {
+    montarFiltrosCarteira(
+      raiz,
+      {
+        administrador,
+        ...(responsaveis ? { responsaveis } : {}),
+        ...(Object.keys(filtrosCarteira).length ? { inicial: filtrosCarteira } : {}),
+      },
+      trocar,
+    );
+  };
+  desenhar();
+  raiz.hidden = false;
+  // A lista da equipe só é consultada quando alguém mexe nos filtros: pintar a barra não
+  // justifica percorrer a equipe inteira, e revalidar o acesso não repete a consulta.
+  // Até lá o filtro de responsável existe com a opção "sem responsável indicado".
+  const catalogo = administrador ? catalogoDaEquipe(atual) : null;
+  const carregarResponsaveis = () => {
+    raiz.removeEventListener('focusin', carregarResponsaveis);
+    void catalogo?.()
+      .then((responsaveis) => {
+        if (filtrosMontadosPara === assinatura) desenhar(responsaveis);
+      })
+      .catch(() => {
+        /* a barra continua útil sem a lista de responsáveis */
+      });
+  };
+  if (catalogo) raiz.addEventListener('focusin', carregarResponsaveis);
+  desmontarFiltros = () => {
+    raiz.removeEventListener('focusin', carregarResponsaveis);
+    raiz.replaceChildren();
+  };
+}
+
+type AreaAdministracao = {
+  id: string;
+  rotulo: string;
+  disponivel: (atual: Sessao) => boolean;
+  montar: (raiz: HTMLElement) => () => void;
+};
+
+const nomeDoUsuarioNaEquipe = (() => {
+  let nomes = new Map<string, string>();
+  return {
+    carregar(atual: Sessao): void {
+      const catalogo = catalogoDaEquipe(atual);
+      if (!catalogo) return;
+      void catalogo()
+        .then((lista) => {
+          nomes = new Map(lista.map((item) => [item.usuario_id, item.rotulo]));
+        })
+        .catch(() => {
+          /* sem a equipe carregada, a tela mostra o identificador */
+        });
+    },
+    consultar: (usuarioId: string) => nomes.get(usuarioId),
+  };
+})();
+
+const areasAdministracao: AreaAdministracao[] = [
+  {
+    id: 'configuracao',
+    rotulo: 'Configuração',
+    disponivel: (atual) => atual.usuario.perfil === 'administrador',
+    montar: (raiz) =>
+      montarConfiguracaoSistema(raiz, criarServicoConfiguracaoSistemaHttp(identidadeAtual), {
+        nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
+      }),
+  },
+  {
+    id: 'equipe',
+    rotulo: 'Equipe',
+    disponivel: (atual) =>
+      atual.usuario.perfil === 'administrador' &&
+      atual.capacidades.includes('administrar_concessoes'),
+    montar: (raiz) => montarConcessaoEquipe(raiz, api),
+  },
+  {
+    id: 'plano-de-crise',
+    rotulo: 'Quem aprova plano de crise',
+    disponivel: (atual) =>
+      atual.usuario.perfil === 'administrador' &&
+      atual.capacidades.includes('administrar_concessoes'),
+    montar: (raiz) =>
+      montarHabilitacaoPlanoCrise(raiz, criarServicoHabilitacaoPlanoCriseHttp(identidadeAtual)),
+  },
+  {
+    id: 'auditoria',
+    rotulo: 'Auditoria',
+    disponivel: (atual) => atual.capacidades.includes('consultar_auditoria'),
+    montar: (raiz) =>
+      montarAuditoria(raiz, criarServicoAuditoriaHttp(identidadeAtual), {
+        nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
+      }),
+  },
+  {
+    id: 'solicitacoes',
+    rotulo: 'Solicitações do titular',
+    disponivel: (atual) => atual.usuario.perfil === 'administrador',
+    montar: (raiz) =>
+      montarSolicitacoesTitular(raiz, criarServicoSolicitacaoTitularHttp(identidadeAtual)),
+  },
+];
+
+function areasDisponiveis(atual: Sessao): AreaAdministracao[] {
+  return areasAdministracao.filter((area) => area.disponivel(atual));
+}
+
+function lerRotaAdministracao(hash: string): string | null {
+  return /^#administracao\/([a-z-]{1,32})$/.exec(hash)?.[1] ?? null;
+}
+
+let painelAdministracao: { area: string; desmontar: () => void } | null = null;
+let desmontarRegras: (() => void) | null = null;
+
+function fecharAdministracao(): void {
+  painelAdministracao?.desmontar();
+  painelAdministracao = null;
+  elemento('administracao-conteudo').replaceChildren();
+  elemento('administracao-view').hidden = true;
+}
+
+function fecharRegras(): void {
+  desmontarRegras?.();
+  desmontarRegras = null;
+  elemento('regras-conteudo').replaceChildren();
+  elemento('regras-view').hidden = true;
+}
+
+function marcarNavegacao(destino: 'carteira' | 'administracao' | 'regras'): void {
+  for (const [id, chave] of [
+    ['nav-carteira', 'carteira'],
+    ['nav-administracao', 'administracao'],
+    ['nav-regras', 'regras'],
+  ] as const) {
+    const link = elemento(id);
+    if (chave === destino) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  }
+}
+
+function mostrarCarteira(): void {
+  fecharAdministracao();
+  fecharRegras();
+  listaView.hidden = false;
+  marcarNavegacao('carteira');
+}
+
+function mostrarAdministracao(areaId: string): void {
+  const atual = sessao;
+  if (!atual) return;
+  const disponiveis = areasDisponiveis(atual);
+  const area = disponiveis.find((item) => item.id === areaId) ?? disponiveis[0];
+  if (!area) {
+    // Sem nenhuma área autorizada a administração não existe para esta conta.
+    irPara('#carteira');
+    return;
+  }
+  fecharFicha();
+  fecharRegras();
+  listaView.hidden = true;
+  const vista = elemento('administracao-view');
+  vista.hidden = false;
+  marcarNavegacao('administracao');
+  const abas = elemento('administracao-abas');
+  abas.replaceChildren(
+    ...disponiveis.map((item) => {
+      const link = document.createElement('a');
+      link.className = 'administracao-aba';
+      link.href = `#administracao/${item.id}`;
+      link.textContent = item.rotulo;
+      if (item.id === area.id) link.setAttribute('aria-current', 'page');
+      return link;
+    }),
+  );
+  if (painelAdministracao?.area === area.id) return;
+  // A equipe só é consultada pelas telas que trocam identificador por nome.
+  if (area.id === 'configuracao' || area.id === 'auditoria') nomeDoUsuarioNaEquipe.carregar(atual);
+  painelAdministracao?.desmontar();
+  const conteudo = elemento('administracao-conteudo');
+  conteudo.replaceChildren();
+  painelAdministracao = { area: area.id, desmontar: area.montar(conteudo) };
+  elemento('administracao-title').focus();
+}
+
+function mostrarRegras(): void {
+  if (!sessao) return;
+  fecharFicha();
+  fecharAdministracao();
+  listaView.hidden = true;
+  elemento('regras-view').hidden = false;
+  marcarNavegacao('regras');
+  if (desmontarRegras) return;
+  desmontarRegras = montarRegrasAtendimento(
+    elemento('regras-conteudo'),
+    criarServicoRegrasAtendimentoHttp(identidadeAtual),
+  );
+  elemento('regras-title').focus();
+}
+
+function irPara(hash: string): void {
+  const endereco = `${window.location.pathname}${window.location.search}${hash === '#carteira' ? '' : hash}`;
+  window.history.pushState(window.history.state, '', endereco);
+  navegarPelaRota();
+}
+
+/** Roteamento por fragmento. O fragmento nunca vai ao servidor e aqui só carrega nomes de
+ * área; nenhum dado de paciente entra nele além do identificador opaco da ficha. */
+function navegarPelaRota(): void {
+  if (!sessao) return;
+  const hash = window.location.hash;
+  if (lerRotaFicha(hash)) {
+    fecharAdministracao();
+    fecharRegras();
+    if (!ficha) void abrirFichaPelaRota();
+    return;
+  }
+  const area = lerRotaAdministracao(hash);
+  if (area) {
+    mostrarAdministracao(area);
+    return;
+  }
+  if (hash === '#regras') {
+    mostrarRegras();
+    return;
+  }
+  if (ficha && fichaPaciente) {
+    voltarParaLista();
+    return;
+  }
+  mostrarCarteira();
+}
+
+/** Sair da ficha por um link do menu precisa respeitar a mesma confirmação do botão
+ * voltar: o rascunho não confirmado se perde do mesmo jeito. */
+function sairDaFichaPermitido(): boolean {
+  const pendencia = pendenciaFicha();
+  if (!pendencia) return true;
+  return window.confirm(pendencia.mensagem);
+}
+
 function aplicarSessao(atual: Sessao): void {
   if (!atual.usuario.ativo) throw new Error('Acesso indisponível.');
   if (
@@ -862,9 +1294,8 @@ function aplicarSessao(atual: Sessao): void {
   if (podeCadastrar) {
     if (equipeCasoNovoPara !== atual.usuario.id) {
       equipeCasoNovoPara = atual.usuario.id;
-      catalogoCasoNovo = criarCatalogoResponsaveis((cursor) => api.listarProfissionais(cursor));
-      if (atual.capacidades.includes('administrar_concessoes'))
-        void casoNovo.carregarResponsaveis();
+      catalogoCasoNovo = catalogoDaEquipe(atual);
+      if (catalogoCasoNovo) void casoNovo.carregarResponsaveis();
       else
         casoNovo.equipeIndisponivel(
           'Seu acesso não permite listar a equipe, então o responsável não pode ser indicado e o cadastro não pode ser enviado.',
@@ -874,6 +1305,13 @@ function aplicarSessao(atual: Sessao): void {
     equipeCasoNovoPara = null;
     catalogoCasoNovo = null;
     casoNovo.cancelarCarga();
+  }
+  montarFiltrosDaCarteira(atual);
+  const temAdministracao = areasDisponiveis(atual).length > 0;
+  elemento('nav-administracao').hidden = !temAdministracao;
+  if (!temAdministracao && painelAdministracao) {
+    fecharAdministracao();
+    mostrarCarteira();
   }
   registration.hidden = !podeCadastrar;
   newPatientLink.hidden = !podeCadastrar;
@@ -921,6 +1359,7 @@ async function entrar(evento: SubmitEvent): Promise<void> {
     aviso('login-feedback', '');
     elemento('patients-title').focus();
     if (await carregarPacientes()) await abrirFichaPelaRota();
+    navegarPelaRota();
   } catch (erro) {
     if (versao !== revisao) return;
     api.limpar();
@@ -973,6 +1412,7 @@ async function entrarFamiliar(evento: SubmitEvent): Promise<void> {
     aviso('familiar-feedback', '');
     elemento('patients-title').focus();
     if (await carregarPacientes()) await abrirFichaPelaRota();
+    navegarPelaRota();
   } catch (erro) {
     if (versao !== revisao) return;
     api.limpar();
@@ -1028,6 +1468,8 @@ function linhaPaciente(paciente: PacienteLista): HTMLLIElement {
     situacao.textContent = rotuloSituacao;
     texto.append(situacao);
   }
+  // FR-028: sinal operacional com motivo visível, nunca uma classificação clínica.
+  if (paciente.sinal) texto.append(montarSinalCarteira(paciente.sinal));
   const seta = document.createElement('span');
   seta.className = 'pessoa-seta';
   seta.setAttribute('aria-hidden', 'true');
@@ -1035,7 +1477,12 @@ function linhaPaciente(paciente: PacienteLista): HTMLLIElement {
   abrir.addEventListener('click', () => {
     if (!sessao) return;
     abrirFicha(
-      { id: paciente.id, nome: paciente.nome, nome_preferencia: paciente.nome_preferencia },
+      {
+        id: paciente.id,
+        nome: paciente.nome,
+        nome_preferencia: paciente.nome_preferencia,
+        ...(paciente.situacao === undefined ? {} : { situacao: paciente.situacao }),
+      },
       undefined,
       true,
     );
@@ -1126,7 +1573,7 @@ async function carregarPacientes(): Promise<boolean> {
   aviso('list-status', 'Consultando pacientes…');
   try {
     const [resultado, disponibilidade] = await Promise.all([
-      api.listarPacientes(cursores[pagina]),
+      api.listarPacientes(cursores[pagina], filtrosCarteira),
       sessao.usuario.perfil === 'administrador' &&
       sessao.capacidades.includes('administrar_cadastro')
         ? api.disponibilidadeEdicao().catch(() => ({ disponivel: false }))
@@ -1510,17 +1957,30 @@ buscaCampo.addEventListener('input', () => {
 window.addEventListener('popstate', () => {
   if (!sessao) return;
   const rota = lerRotaFicha(window.location.hash);
-  if (rota) {
-    if (!ficha) void abrirFichaPelaRota();
-    return;
+  if (!rota && ficha && fichaPaciente) {
+    const pendencia = pendenciaFicha();
+    if (pendencia && !window.confirm(pendencia.mensagem)) {
+      registrarRota(fichaPaciente.id, ficha.secaoAtual(), true);
+      return;
+    }
   }
-  if (!ficha || !fichaPaciente) return;
-  const pendencia = pendenciaFicha();
-  if (pendencia && !window.confirm(pendencia.mensagem)) {
-    registrarRota(fichaPaciente.id, ficha.secaoAtual(), true);
-    return;
-  }
-  voltarParaLista();
+  navegarPelaRota();
+});
+for (const [id, destino] of [
+  ['nav-carteira', '#carteira'],
+  ['nav-administracao', '#administracao/configuracao'],
+  ['nav-regras', '#regras'],
+] as const)
+  elemento(id).addEventListener('click', (evento) => {
+    evento.preventDefault();
+    if (!sairDaFichaPermitido()) return;
+    irPara(destino);
+  });
+elemento('administracao-abas').addEventListener('click', (evento) => {
+  const alvo = (evento.target as HTMLElement | null)?.closest('a.administracao-aba');
+  if (!(alvo instanceof HTMLAnchorElement)) return;
+  evento.preventDefault();
+  irPara(new URL(alvo.href).hash);
 });
 newPatientLink.addEventListener('click', (evento) => {
   evento.preventDefault();
@@ -1617,6 +2077,7 @@ async function restaurarSessao(): Promise<void> {
     sessionActions.hidden = false;
     document.title = 'FFCMApp | Pacientes';
     if (await carregarPacientes()) await abrirFichaPelaRota();
+    navegarPelaRota();
   } catch (erro) {
     if (versao !== revisao) return;
     mostrarAcesso(

@@ -166,7 +166,7 @@ it('avisa antes de sair durante cadastro sem confirmação sem persistir dados p
   pendente = true;
   terminar?.(new Response(null, { status: 503 }));
   await vi.waitFor(() =>
-    expect(elemento('create-feedback').textContent).toContain('Cadastro anterior confirmado'),
+    expect(elemento('create-feedback').textContent).toContain('O cadastro enviado antes foi salvo'),
   );
   expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(true);
   expect(JSON.stringify(window.localStorage)).not.toContain('Pessoa fictícia');

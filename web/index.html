@@ -8,6 +8,9 @@
     <meta name="color-scheme" content="light">
     <title>FFCMApp | Acesso</title>
     <link rel="stylesheet" href="./styles.css">
+    <!-- Abre e fecha o diálogo de cadastro. Carregado antes de main.ts para que o
+         diálogo já esteja aberto quando main.ts põe o foco no título do formulário. -->
+    <script type="module" src="./painel-cadastro.ts"></script>
     <script type="module" src="./main.ts"></script>
   </head>
   <body>
@@ -84,34 +87,44 @@
       <section id="patients-view" class="patients-layout" aria-label="Pacientes" hidden>
         <aside class="patients-sidebar" aria-label="Área de trabalho">
           <div class="sidebar-brand"><span>FFCMApp</span><small>FRANCESCATO</small></div>
-          <p class="sidebar-label">Área de trabalho</p>
-          <a class="sidebar-current" href="#patients-title" aria-current="page">Pessoas acompanhadas</a>
+          <p class="sidebar-label" id="sidebar-label">Área de trabalho</p>
+          <nav class="sidebar-nav" aria-labelledby="sidebar-label">
+            <a id="nav-carteira" class="sidebar-link" href="#carteira" aria-current="page">Pessoas acompanhadas</a>
+            <a id="nav-administracao" class="sidebar-link" href="#administracao/configuracao" hidden>Administração</a>
+            <a id="nav-regras" class="sidebar-link" href="#regras">Como funciona</a>
+          </nav>
           <p class="sidebar-note">Acompanhamento de pacientes</p>
         </aside>
         <p id="workspace-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
         <div id="lista-view">
           <div class="page-heading">
             <div><h1 id="patients-title" tabindex="-1">Pessoas acompanhadas</h1><p id="scope-description">Cadastros disponíveis para seu acesso.</p></div>
-            <a id="new-patient-link" class="button-primary" href="#cadastro" hidden>Cadastrar paciente</a>
+            <a id="new-patient-link" class="button-primary" href="#cadastro" hidden>Novo paciente</a>
           </div>
           <section id="agenda-individual" class="agenda-individual" aria-label="Minha agenda" hidden></section>
           <div id="workspace" class="workspace">
             <section class="patient-register" aria-labelledby="list-title">
               <div class="section-heading"><h2 id="list-title">Lista de pacientes</h2><button id="reload-patients" class="button-secondary" type="button">Atualizar lista</button></div>
+              <div id="filtros-carteira" hidden></div>
               <div id="busca" class="busca" hidden>
                 <label for="busca-pacientes">Buscar por nome</label>
                 <input id="busca-pacientes" type="search" autocomplete="off" maxlength="200" aria-describedby="busca-aviso">
-                <p id="busca-aviso" class="small-text">A busca vale só para os pacientes desta página. Use as páginas para ver os demais.</p>
+                <p id="busca-aviso" class="small-text">Filtra os pacientes desta página enquanto você digita.</p>
               </div>
               <p id="list-status" class="list-status" role="status" aria-live="polite" aria-atomic="true"></p>
               <div id="list-loading" class="list-loading" aria-hidden="true" hidden><span></span><span></span><span></span></div>
               <div id="list-empty" class="empty-state" hidden><h3>Nenhum paciente nesta lista</h3><p id="empty-description">Nenhum cadastro disponível para seu acesso.</p></div>
-              <p id="busca-vazia" class="empty-state" hidden>Nenhum paciente desta página corresponde à busca. Pacientes de outras páginas não foram pesquisados.</p>
+              <p id="busca-vazia" class="empty-state" hidden>Nenhum paciente desta página corresponde ao que você digitou. Avance para as próximas páginas para continuar procurando.</p>
               <ul id="patients-body" class="people-list" aria-label="Pacientes retornados pelo serviço para seu acesso atual" hidden></ul>
               <nav id="pagination" class="pagination" aria-label="Páginas de pacientes" hidden><button id="previous-page" class="button-secondary" type="button">Página anterior</button><span id="page-number"></span><button id="next-page" class="button-secondary" type="button">Próxima página</button></nav>
             </section>
+          </div>
+          <dialog id="cadastro-dialogo" class="dialogo" aria-labelledby="create-title">
           <section id="cadastro" class="registration-panel" aria-labelledby="create-title" hidden>
-            <h2 id="create-title" tabindex="-1">Novo paciente</h2>
+            <div class="registration-heading">
+              <h2 id="create-title" tabindex="-1">Novo paciente</h2>
+              <button id="cadastro-fechar" class="button-quiet" type="button">Fechar</button>
+            </div>
             <p>Todos os campos são obrigatórios: identificação, ao menos um contato, a situação e quem acompanha o caso.</p>
             <form id="create-form" method="post" autocomplete="off" aria-describedby="create-feedback">
               <fieldset id="create-fields">
@@ -133,8 +146,23 @@
             <p id="create-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
             <p class="small-text">O cadastro não cria conta nem concede acesso ao paciente ou a familiares.</p>
           </section>
-          </div>
+          </dialog>
         </div>
+        <section id="administracao-view" class="administracao" aria-labelledby="administracao-title" hidden>
+          <div class="page-heading">
+            <div><h1 id="administracao-title" tabindex="-1">Administração</h1><p>Ajustes, autorizações e registros institucionais do acompanhamento.</p></div>
+          </div>
+          <nav id="administracao-abas" class="administracao-abas" aria-label="Áreas da administração"></nav>
+          <div id="administracao-conteudo" class="administracao-conteudo"></div>
+        </section>
+
+        <section id="regras-view" class="regras-view" aria-labelledby="regras-title" hidden>
+          <div class="page-heading">
+            <div><h1 id="regras-title" tabindex="-1">Como funciona o acompanhamento</h1><p>Regras combinadas, periodicidade, canais de retorno e uso do diário.</p></div>
+          </div>
+          <div id="regras-conteudo" class="regras-conteudo"></div>
+        </section>
+
         <section id="ficha-view" class="ficha" aria-label="Ficha do paciente" hidden></section>
       </section>
 
