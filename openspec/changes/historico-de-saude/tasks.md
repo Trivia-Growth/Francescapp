@@ -88,8 +88,8 @@
 
 ## 6. FR-020 — plano de crise
 
-- [ ] 6.1 Definir quem é o "profissional habilitado" que aprova o plano de crise.
-  **Bloqueio de negócio, não técnico.** Não existe conceito de habilitação no sistema e
-  `docs/projeto/roteiro-especificacoes.md:45` ainda lista o item como pendente. As
-  opções e a recomendação estão em `design.md`, seção "Bloqueio de negócio: FR-020".
-  Nada foi implementado para evitar inventar a regra.
+- [x] 6.1 Definir quem é o "profissional habilitado" que aprova o plano de crise.
+  **Decidido pelo solicitante em 11/11/2026:** opção 2 — marca de habilitação na
+  concessão de equipe, preenchida na tela de administração e guardada no banco.
+  O bloqueio de negócio está encerrado; a implementação saiu da fatia de saúde e virou
+  mudança própria: `openspec/changes/plano-de-crise/` (proposal, design e tasks).

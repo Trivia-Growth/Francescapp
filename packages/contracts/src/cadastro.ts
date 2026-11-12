@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { cursorSchema, limitePaginaSchema, uuidSchema, versaoSchema } from './comum.ts';
+import { sinalCarteiraSchema } from './pendencia.ts';
 
 const textoCurtoSchema = z.string().trim().min(1).max(200);
 const motivoSchema = z.string().trim().min(1).max(500);
@@ -43,10 +44,31 @@ export const atualizarPacienteSchema = z
     'Informe pelo menos um campo do paciente para alterar.',
   );
 
+/** FR-026: filtros da carteira, resolvidos no banco antes da paginação.
+ *
+ * `responsavel` aceita um identificador ou o literal 'nenhum' (casos sem responsável
+ * indicado); `situacao` aceita 'a_completar' pelo mesmo motivo. Os dois só existem para o
+ * Administrador — é dele a leitura de `cadastro.acompanhamento_caso` — e o servidor recusa
+ * o pedido fora desse perfil em vez de devolver uma lista que não corresponde ao filtro. */
+export const filtroResponsavelSchema = z.union([uuidSchema, z.literal('nenhum')]);
+export const filtroSituacaoSchema = z.union([situacaoCasoSchema, z.literal('a_completar')]);
+export const filtroRevisaoSchema = z.enum(['vencida', 'proxima', 'sem_data']);
+export const filtroPendenciaSchema = z.enum(['abertas', 'nenhuma']);
+
+export const filtrosCarteiraSchema = z
+  .object({
+    responsavel: filtroResponsavelSchema.optional(),
+    situacao: filtroSituacaoSchema.optional(),
+    revisao: filtroRevisaoSchema.optional(),
+    pendencia: filtroPendenciaSchema.optional(),
+  })
+  .strict();
+
 export const consultaPacientesSchema = z
   .object({
     cursor: cursorSchema.optional(),
     limite: limitePaginaSchema,
+    filtros: filtrosCarteiraSchema.optional(),
   })
   .strict();
 
@@ -59,9 +81,15 @@ export const pacienteBasicoSchema = z
   })
   .strict();
 
-/** Item da lista de pessoas. A situação só existe na lista do Administrador; `null` significa "a completar". */
+/** Item da lista de pessoas. A situação e o responsável só existem na lista do
+ * Administrador; `null` significa "a completar". O sinal operacional (FR-028) acompanha
+ * todos os perfis, sempre com motivo visível e nunca como classificação clínica. */
 export const pacienteListaSchema = pacienteBasicoSchema
-  .extend({ situacao: situacaoCasoSchema.nullable().optional() })
+  .extend({
+    situacao: situacaoCasoSchema.nullable().optional(),
+    responsavel_usuario_id: uuidSchema.nullable().optional(),
+    sinal: sinalCarteiraSchema.optional(),
+  })
   .strict();
 
 export const tipoContatoSchema = z.enum(['email', 'telefone']);
@@ -199,6 +227,7 @@ export const revogarAcessoPacienteSchema = z
 
 export type CriarPaciente = z.infer<typeof criarPacienteSchema>;
 export type AtualizarPaciente = z.infer<typeof atualizarPacienteSchema>;
+export type FiltrosCarteira = z.infer<typeof filtrosCarteiraSchema>;
 export type PacienteBasico = z.infer<typeof pacienteBasicoSchema>;
 export type PacienteLista = z.infer<typeof pacienteListaSchema>;
 export type PacienteAdministrativo = z.infer<typeof pacienteAdministrativoSchema>;
