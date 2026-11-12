@@ -191,6 +191,7 @@ it.each([
       'Plano de crise',
       'Cadastro',
       'Equipe com acesso',
+      'Acesso da família',
       'Pendências',
       'Encaminhamentos',
       'Orientações',

@@ -47,6 +47,8 @@ import { montarHabilitacaoPlanoCrise } from './habilitacao-plano-crise.js';
 import { criarServicoHabilitacaoPlanoCriseHttp } from './servico-habilitacao-plano-crise-http.js';
 import { montarDiario } from './diario.js';
 import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
+import { montarPreautorizacoesFamiliares } from './preautorizacoes-familiares.js';
+import { criarServicoPreautorizacoesHttp } from './servico-preautorizacoes-http.js';
 import { montarDocumentosCaso } from './documentos-caso.js';
 import {
   consultarDisponibilidadeDocumentos,
@@ -554,6 +556,18 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       descarte: descarteEquipe,
       montar: (raiz, pendente) =>
         montarSelecaoProfissional(raiz, paciente.id, api, acessoPerdido, pendente),
+    });
+  if (administraConcessoes)
+    secoes.push({
+      id: 'acesso-familia',
+      rotulo: 'Acesso da família',
+      montar: (raiz) =>
+        montarPreautorizacoesFamiliares(
+          raiz,
+          paciente.id,
+          criarServicoPreautorizacoesHttp(identidadeAtual),
+          acessoPerdido,
+        ),
     });
   secoes.push(
     {
