@@ -74,7 +74,7 @@ export async function entrarFamiliarNativa(request: Request, fonte: FonteDeConfi
       return erro('servico_indisponivel', 503);
     const admissao = await contexto.cliente
       .schema('api')
-      .rpc('admitir_sessao_familiar_privada', { p_request_id: requestId });
+      .rpc('admitir_sessao_familiar_nativa', { p_request_id: requestId });
     if (admissao.error) return erro('servico_indisponivel', 503);
     const sessao = sessaoNativaSchema.safeParse(admissao.data);
     if (

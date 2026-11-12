@@ -57,9 +57,13 @@ export async function encerrarSessaoFamiliarPrivada(request: Request, fonte: Fon
         ? erro('nao_autenticado', 401)
         : erro('servico_indisponivel', 503);
     if (!identidade.data.user) return erro('nao_autenticado', 401);
+    // Encerrar é a saída comum: `api.encerrar_sessao_nativa` já exige que a sessão
+    // seja a do próprio token e audita o evento, e é a única liberada à aplicação.
+    // O wrapper familiar permanece privado por checar apenas o método da sessão,
+    // o que não acrescenta autorização para quem está encerrando a própria sessão.
     const resultado = await contexto.cliente
       .schema('api')
-      .rpc('encerrar_sessao_familiar_privada', { p_session_id: alvo, p_request_id: requestId });
+      .rpc('encerrar_sessao_nativa', { p_session_id: alvo, p_request_id: requestId });
     if (resultado.error || (resultado.data !== true && resultado.data !== false))
       return erro('servico_indisponivel', 503);
     if (!resultado.data) return erro('nao_autenticado', 401);
