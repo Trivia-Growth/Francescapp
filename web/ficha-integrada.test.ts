@@ -166,6 +166,7 @@ it.each([
     capacidades: [],
     abas: [
       'Visão do caso',
+      'Linha do tempo',
       'Anamnese',
       'Saúde',
       'Plano de cuidado',
@@ -185,12 +186,14 @@ it.each([
     capacidades: ['administrar_cadastro', 'administrar_concessoes'],
     abas: [
       'Visão do caso',
+      'Linha do tempo',
       'Anamnese',
       'Saúde',
       'Plano de cuidado',
       'Plano de crise',
       'Cadastro',
       'Equipe com acesso',
+      'Exportação',
       'Acesso da família',
       'Pendências',
       'Encaminhamentos',

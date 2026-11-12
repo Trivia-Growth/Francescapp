@@ -47,6 +47,10 @@ import { montarHabilitacaoPlanoCrise } from './habilitacao-plano-crise.js';
 import { criarServicoHabilitacaoPlanoCriseHttp } from './servico-habilitacao-plano-crise-http.js';
 import { montarDiario } from './diario.js';
 import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
+import { montarLinhaTempo } from './linha-tempo.js';
+import { criarServicoLinhaTempoHttp } from './servico-linha-tempo-http.js';
+import { montarExportacao } from './exportacao.js';
+import { criarServicoExportacaoHttp } from './servico-exportacao-http.js';
 import { montarPreautorizacoesFamiliares } from './preautorizacoes-familiares.js';
 import { criarServicoPreautorizacoesHttp } from './servico-preautorizacoes-http.js';
 import { montarDocumentosCaso } from './documentos-caso.js';
@@ -477,6 +481,17 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         ),
     },
     {
+      id: 'linha-tempo',
+      rotulo: 'Linha do tempo',
+      montar: (raiz) =>
+        montarLinhaTempo(
+          raiz,
+          paciente.id,
+          criarServicoLinhaTempoHttp(identidadeAtual),
+          acessoPerdido,
+        ),
+    },
+    {
       id: 'anamnese',
       rotulo: 'Anamnese',
       descarte: descarteAnamnese,
@@ -556,6 +571,19 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       descarte: descarteEquipe,
       montar: (raiz, pendente) =>
         montarSelecaoProfissional(raiz, paciente.id, api, acessoPerdido, pendente),
+    });
+  if (administraCadastro)
+    secoes.push({
+      id: 'exportacao',
+      rotulo: 'Exportação',
+      montar: (raiz, pendente) =>
+        montarExportacao(
+          raiz,
+          paciente.id,
+          criarServicoExportacaoHttp(identidadeAtual),
+          acessoPerdido,
+          pendente,
+        ),
     });
   if (administraConcessoes)
     secoes.push({

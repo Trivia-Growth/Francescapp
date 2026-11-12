@@ -162,3 +162,110 @@
 - O custo da carteira com filtro de revisão ou pendência é avaliar o sinal de todos os
   casos visíveis. Aceitável no volume atual, documentado na migration, não medido sob
   carga.
+
+## FR-007 — Linha do tempo do caso (12/11/2026)
+
+Esta fatia tinha ficado de fora da passagem anterior por depender do diário para distinguir
+acontecimento, registro e retificação. O diário fechou (`20261118200000`–`230000`) e a
+dependência caiu.
+
+**Entregue.** `20261120300000_linha_tempo_caso.sql` cria o papel dono
+`ffcmapp_linha_tempo_owner` e `cadastro.linha_tempo_caso(...)`, que deriva a linha do tempo
+das doze fontes a cada leitura — nenhuma tabela nova, nenhum gerador, no mesmo desenho de
+`cadastro.sinal_operacional_caso`. Cada VERSÃO é um item, então "a versão anterior continua
+existindo" (FR-012) aparece sem esforço adicional. `20261120310000` expõe
+`api.linha_tempo_operacao_privada` com as duas trilhas de autorização já provadas
+(colaborador por Google Workspace, familiar por `acesso_paciente` + sessão `familia` + amr
+`password`), nenhuma relaxada, mais o recorte por `acesso_paciente` do Profissional travado
+na transação. `20261120320000` libera só o wrapper; o derivador nunca é liberado.
+
+`tipo_evento` distingue `registro`, `atualizacao`, `retificacao` e `rascunho`.
+
+**Evidência.** `sh scripts/testar-linha-tempo-local.sh` → `NOTICE: LINHA_TEMPO_OK`
+(PostgreSQL descartável, `supabase/tests/linha_tempo_caso_local.sql`). Positivos: nove itens
+para o profissional com acesso, ordem decrescente por registro, versão anterior preservada
+após retificação, filtros de fonte/autor/período, paginação por cursor sem repetir nem pular
+item, administrador sem vínculo individual alcançando o caso. Negativos: rascunho alheio
+invisível para outro profissional; família vê só diário `equipe_e_familia`
+publicado/retificado, o que ela mesma escreveu e documento `equipe_e_familia`, e **nenhuma
+outra fonte nem como metadado**; família de outro caso negada com auditoria de negativa;
+documento removido fora da lista; revogação de acesso fechando na hora; sessão encerrada;
+MAC falso; quem autentica sem perfil auditado por `ator_auth_id` sem criar usuário. O teste
+também afirma que nenhum dos dois owners tem privilégio sobre coluna cifrada de fatia
+alguma.
+
+**Limitação material, registrada e não disfarçada.** FR-007 pede busca por "período, tipo de
+registro, autor, área, objetivo e pendência". Entregues: período (de REGISTRO), tipo, autor
+e pendência. **Área e data de acontecimento só existem em claro onde a fatia de origem os
+pôs em claro** — hoje, `documento_caso_versao.categoria` e `data_documento`. No diário, a
+data do acontecimento e a categoria viajam dentro do envelope cifrado por decisão registrada
+em `20261118200000`, e o banco não as vê. Pôr essas duas em claro ampliaria o que o banco
+sabe sobre o caso e **reverteria uma decisão de outra fatia**: é decisão do solicitante, não
+deste derivador. Enquanto isso, `aconteceu_em` vem nulo e a tela diz que a data está no
+conteúdo, em vez de apresentar a data de registro como se fosse a do acontecimento. Filtro
+por objetivo só alcança a fonte `objetivo`; as demais fontes não têm vínculo com objetivo em
+claro. Os filtros de área e objetivo **não são oferecidos na interface**, para não dar a
+impressão de cobertura que não existe.
+
+**Não entregue.** Migrations não aplicadas remotamente; `FFCM_LINHA_TEMPO_ATIVA` fixa em
+`false` no código; sem revisão independente de dois eixos; sem prova em navegador;
+`web/main.ts`, `web/index.html` e `web/styles.css` não tocados (outra frente neles), então a
+tela existe e ainda não aparece — o trecho de ligação está no relatório de entrega. Faltam
+estilos para `.secao-linha-tempo` e `.linha-tempo__*`.
+
+## FR-032 / FR-033 — Exportação de caso (12/11/2026)
+
+**Modelo de ameaça antes do desenho**, porque a exportação é fronteira de confiança. O
+caminho de abuso central é concentrar a decifragem: se a exportação decifrasse conteúdo de
+todas as fatias num só componente, esse componente passaria a poder ler o caso inteiro de
+qualquer paciente — o poder que a arquitetura distribuiu de propósito. **Mitigação: esta
+fatia não decifra nada.** O servidor autoriza, deriva o MANIFESTO (que itens entram, com
+autoria e datas) e registra; o artefato é montado no navegador, onde o texto claro já existe
+para aquele leitor e só do que ele pode ver. O teste afirma a ausência de privilégio do
+owner sobre `conteudo_cifrado` das dez tabelas de versão e sobre o próprio destinatário e
+propósito que ele grava.
+
+Segundo caminho: exportação como canal lateral de audiência. "Identificar conteúdo
+indisponível" (FR-032) **não** vira "existem N itens que você não pode ver": o que a
+audiência exclui é descartado na derivação e não é contado; `indisponivel` é estado de
+documento (FR-029) ou anexo não recuperado, e o vocabulário é fechado — o teste falha se
+aparecer motivo fora da lista. Terceiro: elegibilidade divergir da leitura comum —
+eliminado por construção, porque o manifesto sai da **mesma** `cadastro.linha_tempo_caso`.
+Quarto: identificador do Drive no pacote — ele é capacidade, continua cifrado e fora daqui.
+Quinto: exportação sem rastro — destinatário e propósito são gravados ANTES de o manifesto
+ser devolvido.
+
+**Entregue.** `20261120330000_exportacao_caso.sql` (três tabelas append-only com trigger que
+recusa UPDATE/DELETE/TRUNCATE: a exportação, seus itens e os atos de entrega/conferência de
+FR-033), `20261120340000` (`api.exportacao_operacao_privada` com `registrar`, `confirmar` e
+`listar`, idempotência no ledger e auditoria nos dois caminhos) e `20261120350000` (grant).
+Destinatário, propósito e observação são cifrados **no servidor** com AAD próprio, campo a
+campo (`metadadosAadExportacaoSchema` em `rpc.ts`, ramo próprio em `cifra-autenticada.ts`),
+para que o envelope do destinatário não seja aceito no lugar do do propósito.
+
+**Evidência.** `sh scripts/testar-exportacao-local.sh` → `NOTICE: EXPORTACAO_OK`. Positivos:
+manifesto com autoria e datas preservadas, data de acontecimento onde ela existe em claro,
+conteúdo indisponível identificado com motivo, destinatário e propósito gravados cifrados,
+idempotência (replay devolve a mesma exportação), entrega e conferência registradas.
+Negativos: rascunho alheio fora do manifesto; documento removido fora; profissional
+vinculado recusado com auditoria de negativa e sem criar exportação; família recusada;
+listar outro caso não traz a exportação do primeiro; confirmar entrega de exportação de
+outro caso é entrada inválida; mesmo ato duas vezes recusado; UPDATE e DELETE na trilha
+recusados; chave de idempotência repetida com entrada diferente é conflito.
+
+**Dúvidas materiais devolvidas ao solicitante — não decididas aqui.**
+1. **Quem pode exportar.** FR-032 diz "exportação autorizada" sem fixar por quem.
+   Implementado como **administrador apenas**, a leitura mais restritiva, alinhada ao
+   precedente de FR-040. Abrir ao profissional vinculado é trocar o bloco marcado
+   `ESCOPO_PERFIL` em `20261120340000` e acrescentar a trava de `acesso_paciente`.
+2. **FR-033: "preservar dados de terceiros e conteúdo profissional que demande tratamento
+   específico".** "Preservar" pode significar excluir do pacote ou manter com proteção —
+   isso determina o que o artefato contém e não foi decidido.
+3. **Formato "consultável"** de FR-033 não está fixado na spec.
+4. **Quem confere a entrega** em FR-033 e o que conta como conferência.
+
+**Não entregue.** Migrations não aplicadas remotamente; `FFCM_EXPORTACAO_ATIVA` fixa em
+`false`; a montagem do arquivo no navegador (a tela registra e lista; gerar o artefato a
+partir do manifesto depende da decisão 3 acima); sem revisão independente; sem prova em
+navegador; sem ligação em `web/main.ts`. Faltam estilos para `.secao-exportacao` e
+`.exportacao__*`.

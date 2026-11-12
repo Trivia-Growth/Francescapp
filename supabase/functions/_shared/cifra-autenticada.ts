@@ -300,6 +300,39 @@ function aadCanonico(aad: MetadadosAad): Uint8Array {
       }),
     );
   }
+  // FR-032/FR-033. Exportação: destinatário, propósito e observação de entrega. Mesma razão
+  // da solicitação do titular — vários campos cifrados por linha, então `campo` é conferido
+  // contra a lista própria e entra na ligação, senão o envelope do destinatário seria aceito
+  // no lugar do do propósito.
+  if (
+    typeof aad === 'object' &&
+    aad !== null &&
+    (aad.tabela === 'cadastro.exportacao_caso' || aad.tabela === 'cadastro.exportacao_entrega')
+  ) {
+    if (
+      typeof aad.paciente_id !== 'string' ||
+      !uuid.test(aad.paciente_id) ||
+      typeof aad.registro_id !== 'string' ||
+      !uuid.test(aad.registro_id) ||
+      !Number.isInteger(aad.versao) ||
+      aad.versao < 1 ||
+      aad.versao > 2147483647 ||
+      (aad.campo !== 'destinatario' && aad.campo !== 'proposito' && aad.campo !== 'observacao') ||
+      aad.formato !== formatoAtual
+    ) {
+      throw new ErroCifraAutenticada();
+    }
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        paciente_id: aad.paciente_id,
+        registro_id: aad.registro_id,
+        versao: aad.versao,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
   // Documentos versionados por paciente compartilham o formato de AAD; a tabela,
   // que entra na ligação, é o que impede trocar o envelope de um pelo do outro.
   if (

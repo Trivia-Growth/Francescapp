@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { perfilSchema, uuidSchema, versaoSchema } from './comum.ts';
+import { campoCifradoSchema } from './rpc.ts';
 
 const emailSchema = z.string().trim().email().max(254);
 const motivoSchema = z.string().trim().min(1).max(500);
@@ -35,6 +36,63 @@ export const resultadoAtivacaoFamiliarSchema = z
 // Recusa da ativação: link inválido, expirado, já usado, ou sem pré-autorização
 // vigente da equipe. O motivo não é detalhado para não revelar o que existe.
 export const recusaAtivacaoFamiliarSchema = z.object({ ok: z.literal(false) }).strict();
+
+// Pré-autorizações familiares de um caso, para a tela administrativa. O e-mail viaja
+// cifrado; decifrar é do servidor, como nas demais listas administrativas.
+export const preautorizacaoFamiliarSchema = z
+  .object({
+    convite_id: uuidSchema,
+    paciente_id: uuidSchema,
+    estado: z.enum(['pendente', 'enviado', 'falha', 'ativado']),
+    email: campoCifradoSchema,
+    criado_em: z.string().min(1),
+    acesso_preautorizado_id: uuidSchema.nullable(),
+    acesso_autorizado_em: z.string().min(1).nullable(),
+    acesso_revogado_em: z.string().min(1).nullable(),
+  })
+  .strict();
+export const listaPreautorizacoesFamiliaresSchema = z
+  .object({ itens: z.array(preautorizacaoFamiliarSchema) })
+  .strict();
+// `acesso_id` é o `acesso_preautorizado_id` devolvido pela listagem: o motivo de
+// revogação é cifrado com AAD ligada a esse registro, como toda revogação de acesso.
+export const cancelarPreautorizacaoFamiliarSchema = z
+  .object({ convite_id: uuidSchema, acesso_id: uuidSchema, motivo: motivoSchema })
+  .strict();
+export const respostaListaPreautorizacoesPrivadaSchema = z.union([
+  z
+    .object({
+      ok: z.literal(true),
+      dados: listaPreautorizacoesFamiliaresSchema,
+      request_id: uuidSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ok: z.literal(false),
+      erro: z.object({ codigo: z.string().min(1) }).strict(),
+      request_id: uuidSchema,
+    })
+    .strict(),
+]);
+export const respostaCancelamentoPreautorizacaoPrivadaSchema = z.union([
+  z
+    .object({
+      ok: z.literal(true),
+      repeticao: z.boolean(),
+      convite_id: uuidSchema,
+      acessos_fechados: z.number().int().min(0).optional(),
+      request_id: uuidSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ok: z.literal(false),
+      erro: z.object({ codigo: z.string().min(1) }).strict(),
+      request_id: uuidSchema,
+    })
+    .strict(),
+]);
 
 export const entradaVinculoFamiliarPrivadoSchema = z
   .object({

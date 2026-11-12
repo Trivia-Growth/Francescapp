@@ -1783,3 +1783,129 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
     width: 100%;
   }
 }
+
+/* ── Linha do tempo (FR-007) ─────────────────────────────────────────────── */
+.secao-linha-tempo {
+  display: grid;
+  gap: 16px;
+}
+.linha-tempo__filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+.linha-tempo__lista {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.linha-tempo__item {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+.linha-tempo__cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.linha-tempo__evento {
+  margin: 0;
+  font-weight: 600;
+}
+/* Quando aconteceu e quando foi registrado são datas distintas, e o requisito
+   depende de não confundi-las: a de registro fica sempre em segundo plano. */
+.linha-tempo__acontecimento {
+  margin: 0;
+  color: var(--ink);
+  font-size: .9375rem;
+}
+.linha-tempo__registro,
+.linha-tempo__fonte,
+.linha-tempo__area {
+  margin: 0;
+  color: var(--muted);
+  font-size: .875rem;
+}
+.linha-tempo__estado,
+.linha-tempo__audiencia {
+  justify-self: start;
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--wash);
+  color: var(--muted);
+  font-size: .8125rem;
+}
+/* Conteúdo que a pessoa não pode ver não vira item fantasma: só esta linha
+   explica, sem vocabulário técnico e sem revelar o que foi omitido. */
+.linha-tempo__indisponivel {
+  margin: 0;
+  color: var(--muted);
+  font-size: .875rem;
+  font-style: italic;
+}
+
+/* ── Exportação (FR-032, FR-033) ─────────────────────────────────────────── */
+.secao-exportacao {
+  display: grid;
+  gap: 16px;
+}
+.exportacao__explicacao,
+.exportacao__estado,
+.exportacao__contagem {
+  margin: 0;
+  color: var(--muted);
+  font-size: .9375rem;
+}
+.exportacao__form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+}
+.exportacao__lista {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.exportacao__item {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+.exportacao__finalidade {
+  margin: 0;
+  font-weight: 600;
+}
+.exportacao__entrega,
+.exportacao__quando {
+  margin: 0;
+  color: var(--muted);
+  font-size: .875rem;
+}
+
+@media (max-width: 560px) {
+  .linha-tempo__filtros {
+    display: grid;
+  }
+  .linha-tempo__cabecalho {
+    display: grid;
+    gap: 4px;
+  }
+}

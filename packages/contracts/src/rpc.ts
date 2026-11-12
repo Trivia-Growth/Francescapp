@@ -258,7 +258,22 @@ const metadadosAadSolicitacaoTitularSchema = z
   })
   .strict();
 
+/** FR-032: destinatário e propósito da exportação são dados de terceiro; `observacao` é a
+ * nota de entrega/conferência de FR-033. O `campo` entra no AAD para que um envelope não
+ * possa ser remontado como se fosse outro campo da mesma exportação. */
+const metadadosAadExportacaoSchema = z
+  .object({
+    tabela: z.enum(['cadastro.exportacao_caso', 'cadastro.exportacao_entrega']),
+    paciente_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.enum(['destinatario', 'proposito', 'observacao']),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
 export const metadadosAadSchema = z.union([
+  metadadosAadExportacaoSchema,
   metadadosAadSolicitacaoTitularSchema,
   metadadosAadCamposSchema,
   metadadosAadConcessaoSchema,
