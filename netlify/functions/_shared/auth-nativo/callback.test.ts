@@ -94,6 +94,15 @@ function fornecedor(
   return rede;
 }
 
+/** Uma falha de login pode expirar o verificador PKCE da própria tentativa, mas
+ * nunca pode emitir cookie de sessão nem apagar a sessão já existente. */
+function somenteVerificadoresExpirados(resposta: Response): void {
+  for (const cookie of resposta.headers.getSetCookie()) {
+    expect(cookie.split('=')[0] ?? '').toMatch(/-code-verifier(?:\.\d+)?$/);
+    expect(cookie).toMatch(/(?:^|;\s*)Max-Age=0(?:;|$)/i);
+  }
+}
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe('callback nativo com SDK real e transporte HTTP fictício', () => {
@@ -143,7 +152,7 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
     fornecedor(opcoes);
     const resposta = await concluirGoogleNativo(pedido, fonte);
     expect(resposta.status).toBe(303);
-    expect(resposta.headers.getSetCookie()).toEqual([]);
+    somenteVerificadoresExpirados(resposta);
     expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel#');
   });
 
@@ -155,7 +164,7 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
       const rede = fornecedor({ falha });
       const resposta = await concluirGoogleNativo(pedido, fonte);
       expect(resposta.status).toBe(303);
-      expect(resposta.headers.getSetCookie()).toEqual([]);
+      somenteVerificadoresExpirados(resposta);
       expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel#');
       const corpo = await resposta.text();
       expect(corpo).not.toMatch(/refresh|google-|access_token|falha interna/);
@@ -170,7 +179,7 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
     const rede = fornecedor();
     const resposta = await concluirGoogleNativo(new Request(url, pedido), fonte);
     expect(resposta.status).toBe(303);
-    expect(resposta.headers.getSetCookie()).toEqual([]);
+    somenteVerificadoresExpirados(resposta);
     expect(rede).not.toHaveBeenCalled();
   });
 
@@ -242,5 +251,97 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
       ).status,
     ).toBe(422);
     expect(rede).not.toHaveBeenCalled();
+  });
+});
+
+describe('limpeza da tentativa encerrada', () => {
+  const outroFluxo = 'zyxwvutsrqponmlkjihgfe';
+  const sessaoAnterior = 'ffcm-auth-sessao-anterior';
+
+  type Falha = NonNullable<Parameters<typeof fornecedor>[0]>['falha'];
+
+  async function pedidoComVizinhos(falha?: Falha) {
+    const base = await callback();
+    const cookie = [
+      base.headers.get('cookie') ?? '',
+      `ffcm-auth-${outroFluxo}-code-verifier=verificador-de-outra-tentativa`,
+      `${sessaoAnterior}=base64-sessao-ficticia`,
+    ]
+      .filter(Boolean)
+      .join('; ');
+    const pedido = new Request(base.url, { headers: { cookie } });
+    fornecedor(
+      falha
+        ? { falha }
+        : { admissao: { ...autorizada, usuario: { ...autorizada.usuario, ativo: false } } },
+    );
+    return { pedido, resposta: await concluirGoogleNativo(pedido, fonte) };
+  }
+
+  function expirados(resposta: Response): string[] {
+    return resposta.headers
+      .getSetCookie()
+      .filter((cookie) => /(?:^|;\s*)Max-Age=0(?:;|$)/i.test(cookie))
+      .map((cookie) => cookie.split('=')[0] ?? '');
+  }
+
+  it('expira o verificador da própria tentativa quando a troca falha', async () => {
+    const { pedido, resposta } = await pedidoComVizinhos('troca');
+    expect(resposta.status).toBe(303);
+    expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel#');
+    const limpos = expirados(resposta);
+    expect(limpos.length).toBeGreaterThan(0);
+    expect(limpos.every((nome) => nome.startsWith('ffcm-auth-abcdefghijklmnopqrstuv'))).toBe(true);
+    // O cookie existia antes e deixa de ocupar o cabeçalho da próxima tentativa.
+    expect(pedido.headers.get('cookie')).toContain('ffcm-auth-abcdefghijklmnopqrstuv');
+  });
+
+  it('não expira cookies de outra tentativa nem da sessão anterior', async () => {
+    const { resposta } = await pedidoComVizinhos('troca');
+    const limpos = expirados(resposta);
+    expect(limpos.some((nome) => nome.startsWith(`ffcm-auth-${outroFluxo}`))).toBe(false);
+    expect(limpos.includes(sessaoAnterior)).toBe(false);
+  });
+
+  // O cookie de sessão também se chama ffcm-auth-<fluxo> e o fluxo aparece na URL
+  // de retorno: apagar por prefixo deixaria um GET forjado encerrar a sessão.
+  it('callback forjado com o fluxo de uma sessão ativa não a encerra', async () => {
+    const fluxoDaSessao = 'abcdefghijklmnopqrstuv';
+    const sessao = `ffcm-auth-${fluxoDaSessao}`;
+    const pedido = new Request(
+      `${fonte.FFCM_APP_ORIGIN}/api/auth/callback?fluxo=${fluxoDaSessao}&code=codigo-forjado`,
+      { headers: { cookie: `${sessao}=base64-sessao-ficticia; ${sessao}.0=continuacao` } },
+    );
+    fornecedor({ falha: 'troca' });
+    const resposta = await concluirGoogleNativo(pedido, fonte);
+    expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel#');
+    expect(expirados(resposta)).toEqual([]);
+  });
+
+  it('expira a própria tentativa quando o banco nega a admissão', async () => {
+    const { resposta } = await pedidoComVizinhos();
+    expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel#');
+    expect(expirados(resposta).length).toBeGreaterThan(0);
+  });
+
+  it('usa atributos que permitem ao navegador apagar o cookie', async () => {
+    const { resposta } = await pedidoComVizinhos('troca');
+    for (const cookie of resposta.headers.getSetCookie()) {
+      expect(cookie).toContain('HttpOnly');
+      expect(cookie).toContain('Secure');
+      expect(cookie).toContain('SameSite=Lax');
+      expect(cookie).toContain('Path=/');
+      expect(cookie).not.toContain('Domain=');
+    }
+  });
+
+  it('não emite limpeza quando o retorno do Google não traz tentativa válida', async () => {
+    const resposta = await concluirGoogleNativo(
+      new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/callback`, {
+        headers: { cookie: `${sessaoAnterior}=base64-sessao-ficticia` },
+      }),
+      fonte,
+    );
+    expect(resposta.headers.getSetCookie()).toHaveLength(0);
   });
 });
