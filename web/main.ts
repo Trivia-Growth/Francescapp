@@ -1080,6 +1080,13 @@ const areasAdministracao: AreaAdministracao[] = [
     montar: (raiz) =>
       montarAuditoria(raiz, criarServicoAuditoriaHttp(identidadeAtual), {
         nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
+        // Só para dar nome ao filtro por caso. A carteira já é autorizada no servidor, e a
+        // auditoria autoriza de novo: a lista aqui não concede nada.
+        listarCasos: async () =>
+          (await api.listarPacientes()).itens.map((item) => ({
+            id: item.id,
+            nome: item.nome_preferencia ?? item.nome,
+          })),
       }),
   },
   {

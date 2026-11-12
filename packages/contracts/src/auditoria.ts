@@ -15,6 +15,10 @@ export const eventoAuditoriaSchema = z
     acao: z.string().min(1).max(120),
     tipo_objeto: z.string().min(1).max(120),
     objeto_id: uuidSchema.nullable(),
+    /** Caso ao qual o evento pertence. Nulo em evento institucional (sessão, configuração,
+     * equipe, carteira) e em evento anterior a `20261120200000`, quando a coluna passou a
+     * existir. É identificador, não conteúdo: o nome do caso não trafega por aqui. */
+    paciente_id: uuidSchema.nullable(),
     resultado: z.enum(['permitido', 'negado', 'falhou']),
   })
   .strict()

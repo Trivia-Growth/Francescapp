@@ -14,6 +14,7 @@ export type ComandoConsultaAuditoria = {
   cursor?: string;
   ator_id?: string;
   objeto_id?: string;
+  paciente_id?: string;
   acao?: string;
   resultado?: 'permitido' | 'negado' | 'falhou';
   instante_de?: string;
@@ -80,6 +81,7 @@ export async function consultarAuditoriaNativa(
       'cursor',
       'ator_id',
       'objeto_id',
+      'paciente_id',
       'acao',
       'resultado',
       'instante_de',

@@ -230,6 +230,7 @@ const saidas: Record<Rota, unknown> = {
     acao: 'consultar',
     tipo_objeto: 'paciente',
     objeto_id: uuid,
+    paciente_id: uuid,
     resultado: 'permitido',
   }),
 };

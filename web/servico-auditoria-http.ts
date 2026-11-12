@@ -9,6 +9,7 @@ export type FiltrosAuditoria = {
   cursor?: string;
   ator_id?: string;
   objeto_id?: string;
+  paciente_id?: string;
   acao?: string;
   resultado?: 'permitido' | 'negado' | 'falhou';
   instante_de?: string;

@@ -17,6 +17,7 @@ const FILTROS = [
   'cursor',
   'ator_id',
   'objeto_id',
+  'paciente_id',
   'acao',
   'resultado',
   'instante_de',

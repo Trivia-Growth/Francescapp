@@ -46,7 +46,13 @@ function autorDoEvento(
 export function montarAuditoria(
   raiz: HTMLElement,
   servico: ServicoAuditoria,
-  opcoes: { nomeDoUsuario?: (usuarioId: string) => string | undefined } = {},
+  opcoes: {
+    nomeDoUsuario?: (usuarioId: string) => string | undefined;
+    /** Casos que esta pessoa já pode ver por outro caminho autorizado. Serve só para o filtro
+     * ter nomes em vez de identificadores; a autorização continua no banco. Sem a lista, o
+     * filtro por caso não aparece — não oferecemos um campo de uuid cru. */
+    listarCasos?: () => Promise<readonly { readonly id: string; readonly nome: string }[]>;
+  } = {},
 ): () => void {
   let ativa = true;
   let cursorAtual: string | undefined;
@@ -100,6 +106,30 @@ export function montarAuditoria(
   const ate = document.createElement('input');
   ate.type = 'date';
 
+  // Filtro por caso (FR-039, decisão de 12/11/2026). Só é montado quando há uma lista de casos
+  // para nomear: um campo de identificador cru não ajudaria ninguém a investigar.
+  const caso = document.createElement('select');
+  const casoVazio = document.createElement('option');
+  casoVazio.value = '';
+  casoVazio.textContent = 'Todos';
+  caso.append(casoVazio);
+  const campoCaso = opcoes.listarCasos ? campo('auditoria-caso', 'Caso', caso) : null;
+  if (opcoes.listarCasos)
+    void opcoes
+      .listarCasos()
+      .then((casos) => {
+        if (!ativa) return;
+        for (const item of casos) {
+          const opcao = document.createElement('option');
+          opcao.value = item.id;
+          opcao.textContent = item.nome;
+          caso.append(opcao);
+        }
+      })
+      .catch(() => {
+        /* sem a lista, o filtro fica só com "Todos" em vez de sumir no meio da sessão */
+      });
+
   const aplicar = document.createElement('button');
   aplicar.type = 'submit';
   aplicar.className = 'button-primary';
@@ -113,6 +143,7 @@ export function montarAuditoria(
   acoes.append(aplicar, limpar);
 
   filtros.append(
+    ...(campoCaso ? [campoCaso] : []),
     campo('auditoria-acao', 'Operação', acao),
     campo('auditoria-resultado', 'Resultado', resultado),
     campo('auditoria-de', 'A partir de', de),
@@ -156,6 +187,7 @@ export function montarAuditoria(
 
   const filtrosAtuais = (): FiltrosAuditoria => {
     const entrada: FiltrosAuditoria = { limite: 25 };
+    if (caso.value) entrada.paciente_id = caso.value;
     if (acao.value.trim()) entrada.acao = acao.value.trim();
     if (resultado.value) entrada.resultado = resultado.value as FiltrosAuditoria['resultado'];
     // O campo de data é um dia local; a trilha guarda instante com fuso. "A partir de" abre no
@@ -200,10 +232,16 @@ export function montarAuditoria(
       const pagina = await servico.consultar(filtrosAtuais());
       if (!ativa) return;
       desenhar(pagina.itens);
+      // Com filtro por caso, o resultado é incompleto por construção: registros feitos antes de
+      // o sistema passar a guardar o caso não têm como ser encontrados por aqui. Dizer isso é
+      // obrigação — quem investiga precisa saber que a lista não é a trilha inteira.
+      const ressalvaCaso = caso.value
+        ? ' Registros anteriores a esta função não guardavam o caso e não aparecem neste filtro.'
+        : '';
       status.textContent =
         pagina.itens.length === 0
-          ? 'Nenhum registro para estes filtros.'
-          : `${pagina.itens.length} ${pagina.itens.length === 1 ? 'registro' : 'registros'} nesta página.`;
+          ? `Nenhum registro para estes filtros.${ressalvaCaso}`
+          : `${pagina.itens.length} ${pagina.itens.length === 1 ? 'registro' : 'registros'} nesta página.${ressalvaCaso}`;
       avancar.disabled = pagina.proximo_cursor === null;
       avancar.dataset.cursor = pagina.proximo_cursor ?? '';
       voltar.disabled = anteriores.length === 0;
@@ -230,6 +268,7 @@ export function montarAuditoria(
     void carregar();
   });
   limpar.addEventListener('click', () => {
+    caso.value = '';
     acao.value = '';
     resultado.value = '';
     de.value = '';

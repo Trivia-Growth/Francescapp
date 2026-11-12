@@ -107,15 +107,19 @@ const consultaConcessoesSchema = z
   })
   .strict();
 /** Filtros de FR-039: "identidade, data e objeto". `ator_id` casa tanto `ator_usuario_id`
- * quanto `ator_auth_id` (identidade Auth não admitida). NÃO existe filtro por caso: a trilha
- * guarda `tipo_objeto` + `objeto_id` (a linha alvo), não o paciente — ver nota 3 em
- * `supabase/migrations/20261119300000_consulta_auditoria_privada.sql`. */
+ * quanto `ator_auth_id` (identidade Auth não admitida).
+ *
+ * `paciente_id` filtra por CASO. Veio da decisão do solicitante de 12/11/2026, que trocou a
+ * nota 3 de `20261119300000` (onde o filtro não existia): a trilha passou a gravar o caso no
+ * evento (`20261120200000`). Eventos anteriores àquela migration não têm caso e, por isso, não
+ * aparecem neste filtro — aparecem nos demais. */
 const consultaAuditoriaSchema = z
   .object({
     cursor: cursorSchema.optional(),
     limite: limitePaginaSchema,
     ator_id: uuidSchema.optional(),
     objeto_id: uuidSchema.optional(),
+    paciente_id: uuidSchema.optional(),
     acao: z.string().trim().min(1).max(120).optional(),
     resultado: z.enum(['permitido', 'negado', 'falhou']).optional(),
     instante_de: z.iso.datetime({ offset: true }).optional(),
