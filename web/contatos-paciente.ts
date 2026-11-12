@@ -1,6 +1,7 @@
 import { novoContatoSchema, type PacienteAdministrativo } from '../packages/contracts/src/index.js';
 import { exigeNovoAcesso, FalhaApi, mensagemFalha, type ClienteFFCM } from './api.js';
 import { criarCicloContato } from './ciclo-contato.js';
+import { esqueletoCarregando } from './esqueleto.js';
 import type { consultaBarreiraContatoSchema } from '../packages/contracts/src/barreira-contato.js';
 
 /** Montagem preparada para quando a rota de contatos estiver autorizada. */
@@ -29,7 +30,7 @@ export function montarContatoPaciente(
   const tituloLista = document.createElement('h3');
   tituloLista.textContent = 'Contatos cadastrados';
   const conteudoLista = document.createElement('div');
-  conteudoLista.textContent = 'Carregando contatos…';
+  conteudoLista.replaceChildren(esqueletoCarregando(2, true));
   lista.append(tituloLista, conteudoLista);
   let contatosAtualizados = false;
   let identidadeInvalidada = false;
@@ -113,7 +114,7 @@ export function montarContatoPaciente(
   status.setAttribute('aria-live', 'polite');
   const recuperar = document.createElement('button');
   recuperar.type = 'button';
-  recuperar.textContent = 'Verificar operação pendente';
+  recuperar.textContent = 'Conferir novamente';
   recuperar.hidden = true;
   campos.disabled = salvar.disabled = true;
   let etapa: 'encerrar' | 'reconhecer' | null = null;
@@ -137,7 +138,7 @@ export function montarContatoPaciente(
       if (
         !contato ||
         !window.confirm(
-          `Contato anterior: ${contato.tipo === 'email' ? 'E-mail' : 'Telefone'}: ${contato.valor}. Confirmar conferência?`,
+          `Este contato foi adicionado antes — ${contato.tipo === 'email' ? 'e-mail' : 'telefone'}: ${contato.valor}. Confere?`,
         )
       )
         throw new Error('Conferência necessária');
@@ -147,7 +148,7 @@ export function montarContatoPaciente(
   const reconciliar = async () => {
     bloqueada = true;
     campos.disabled = salvar.disabled = recuperar.disabled = true;
-    status.textContent = 'Verificando operação pendente…';
+    status.textContent = 'Conferindo os contatos…';
     try {
       if (!etapa) {
         const estado = await ciclo.consultar();
@@ -189,8 +190,8 @@ export function montarContatoPaciente(
       campos.disabled = salvar.disabled = false;
       recuperar.hidden = true;
       status.textContent = contatoConfirmado
-        ? 'Um contato anterior foi adicionado. Confira o cadastro antes de adicionar novamente.'
-        : 'Operações anteriores verificadas. Você pode adicionar um contato.';
+        ? 'O contato enviado antes foi adicionado. Confira a lista antes de adicionar outro.'
+        : 'Tudo conferido. Você já pode adicionar um contato.';
       contatoConfirmado = false;
     } catch (erro) {
       if (!ativa) return;
@@ -208,7 +209,7 @@ export function montarContatoPaciente(
         conteudoLista.textContent = 'Não foi possível carregar os contatos.';
       recuperar.hidden = false;
       status.textContent =
-        'Não foi possível verificar a operação. Se ela pertence a outro paciente, abra o cadastro correspondente antes de continuar.';
+        'Não foi possível concluir a conferência. Se o envio foi de outro paciente, abra o cadastro dele antes de continuar.';
     } finally {
       if (ativa) recuperar.disabled = false;
     }

@@ -31,7 +31,7 @@ export async function consultarSessaoFamiliarPrivada(request: Request, fonte: Fo
     if (!identidade.data.user) return erro('nao_autenticado', 401);
     const resultado = await contexto.cliente
       .schema('api')
-      .rpc('consultar_sessao_familiar_privada', { p_request_id: requestId });
+      .rpc('consultar_sessao_familiar_nativa', { p_request_id: requestId });
     if (contexto.cookiesAlterados) return erro('nao_autenticado', 401);
     if (resultado.error) return erro('servico_indisponivel', 503);
     if (resultado.data === null) return erro('nao_autenticado', 401);

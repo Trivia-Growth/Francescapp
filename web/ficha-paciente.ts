@@ -1,4 +1,21 @@
-export type PacienteFicha = { id: string; nome: string; nome_preferencia: string | null };
+import type { SituacaoCaso } from '../packages/contracts/src/index.js';
+import { rotulosSituacao } from './acompanhamento-caso.js';
+
+export type PacienteFicha = {
+  id: string;
+  nome: string;
+  nome_preferencia: string | null;
+  /** Só a lista do Administrador traz a situação; sem ela o cabeçalho não afirma nada. */
+  situacao?: SituacaoCaso | null;
+};
+
+/** Ação rápida de cada seção, no cabeçalho, para não obrigar a procurar a aba certa. */
+const ATALHOS: Readonly<Record<string, string>> = Object.freeze({
+  diario: 'Novo relato',
+  tarefas: 'Nova tarefa',
+  plano: 'Novo objetivo',
+});
+const LIMITE_ATALHOS = 2;
 
 export type SecaoFicha = {
   id: string;
@@ -105,7 +122,25 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
   const identidade = elemento('div', 'ficha-identidade');
   const textoIdentidade = elemento('div');
   textoIdentidade.append(titulo, preferencia);
+  if (paciente.situacao) {
+    const situacao = elemento('span', 'pessoa-situacao', rotulosSituacao[paciente.situacao]);
+    situacao.dataset.situacao = paciente.situacao;
+    textoIdentidade.append(situacao);
+  }
   identidade.append(criarAvatar(paciente.nome), textoIdentidade);
+  const acoes = elemento('div', 'ficha-acoes');
+  for (const secao of secoes) {
+    if (acoes.childElementCount >= LIMITE_ATALHOS) break;
+    const rotulo = ATALHOS[secao.id];
+    if (!rotulo || !secao.montar) continue;
+    const atalho = elemento('button', 'button-secondary', rotulo);
+    atalho.type = 'button';
+    atalho.addEventListener('click', () => {
+      selecionar(secao.id);
+    });
+    acoes.append(atalho);
+  }
+  if (acoes.childElementCount) identidade.append(acoes);
   const cabecalho = elemento('header', 'ficha-cabecalho');
   cabecalho.append(voltar, identidade);
 

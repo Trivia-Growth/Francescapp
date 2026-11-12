@@ -57,10 +57,10 @@ it('bloqueia escrita até reconhecer resultado pendente de outra sessão', async
     },
     vi.fn(),
   );
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Confirmar situação de escrita'));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Conferir e liberar'));
   expect(raiz.querySelector('form')).toBeNull();
   raiz.querySelector('button')?.click();
-  await vi.waitFor(() => expect(raiz.textContent).toContain(pendente.tarefa_id));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Entendi, liberar as tarefas'));
   expect(ciclo.reconhecer).not.toHaveBeenCalled();
   expect(raiz.querySelector('form')).toBeNull();
   raiz.querySelector('button')?.click();
@@ -98,9 +98,9 @@ it('retoma consulta após reconhecimento confirmado sem reconhecê-lo novamente'
   );
   await vi.waitFor(() => expect(raiz.querySelector('button')).not.toBeNull());
   raiz.querySelector('button')?.click();
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Reconhecer resultado'));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Entendi, liberar as tarefas'));
   raiz.querySelector('button')?.click();
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Não foi possível confirmar'));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Não foi possível conferir agora'));
   raiz.querySelector('button')?.click();
   await vi.waitFor(() => expect(raiz.querySelector('form')).not.toBeNull());
   expect(ciclo.reconhecer).toHaveBeenCalledOnce();
@@ -141,9 +141,12 @@ it('apresenta novo resultado surgido após reconhecer o anterior', async () => {
   );
   await vi.waitFor(() => expect(raiz.querySelector('button')).not.toBeNull());
   raiz.querySelector('button')?.click();
-  await vi.waitFor(() => expect(raiz.textContent).toContain(anterior.tarefa_id));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Entendi, liberar as tarefas'));
   raiz.querySelector('button')?.click();
-  await vi.waitFor(() => expect(raiz.textContent).toContain(novo.tarefa_id));
+  // Reconhecido o primeiro resultado, outro já esperava: a escrita continua fechada.
+  await vi.waitFor(() => expect(ciclo.consultar).toHaveBeenCalledTimes(2));
+  expect(raiz.textContent).toContain('Entendi, liberar as tarefas');
+  expect(raiz.querySelector('form')).toBeNull();
   expect(ciclo.reconhecer).toHaveBeenCalledTimes(1);
   expect(ciclo.liberar).not.toHaveBeenCalled();
   raiz.querySelector('button')?.click();

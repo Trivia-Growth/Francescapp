@@ -4,6 +4,21 @@ import {
   type SalvarAnamnese,
 } from '../packages/contracts/src/index.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
+import { esqueletoCarregando } from './esqueleto.js';
+
+/** Sugestões de partida, não formulário fixo: FR-003 não define as seções e a definição
+ *  segue pendente com o solicitante. Quem preferir outra estrutura continua criando
+ *  seção e campo livres logo abaixo. */
+const SUGESTOES: readonly { secao: string; campos: readonly string[] }[] = Object.freeze([
+  {
+    secao: 'História e motivação',
+    campos: ['O que motivou o acompanhamento?', 'Quem procurou a Fundação e quando'],
+  },
+  { secao: 'Rotina e autonomia', campos: ['Como é a rotina hoje', 'Pontos fortes e interesses'] },
+  { secao: 'Barreiras e apoios', campos: ['Barreiras percebidas', 'Apoios disponíveis'] },
+  { secao: 'Saúde e acompanhamentos', campos: ['Acompanhamentos em curso', 'Medicações em uso'] },
+  { secao: 'Combinados', campos: ['O que a família espera', 'Primeiros combinados'] },
+]);
 
 type Servico = {
   consultarAnamnese(pacienteId: string): Promise<Anamnese | null>;
@@ -39,7 +54,7 @@ export function montarAnamnese(
   };
   const status = elemento('p', 'Carregando anamnese…');
   status.setAttribute('role', 'status');
-  raiz.replaceChildren(status);
+  raiz.replaceChildren(esqueletoCarregando(3, true), status);
   let historicoDisponivel = false;
   let mostrarHistorico: (() => void) | undefined;
   const desenhar = (resultado: Anamnese | null) => {
@@ -58,7 +73,7 @@ export function montarAnamnese(
     const secoes = resultado?.secoes ?? [];
     const resumoPendencias = elemento('p');
     form.append(resumoPendencias);
-    if (!secoes.length) form.append(elemento('p', 'Nenhuma seção registrada.'));
+    if (!secoes.length) form.append(elemento('p', 'Nenhuma pergunta registrada ainda.'));
     type Campo = {
       secao: string;
       campo: string;
@@ -99,7 +114,7 @@ export function montarAnamnese(
       ];
       resumoPendencias.textContent =
         !entradas.length && !secoes.length
-          ? 'Adicione uma seção e um campo para começar.'
+          ? 'Escolha uma pergunta sugerida ou crie a sua para começar.'
           : secoesPendentes.length
             ? `Seções com pendências: ${secoesPendentes.join(', ')}.`
             : 'Nenhuma pendência identificada nos campos informados.';
@@ -174,8 +189,55 @@ export function montarAnamnese(
       form.append(label);
     };
     form.append(campos);
-    rotularNovo('Seção', novaSecao);
-    rotularNovo('Campo', novoCampo);
+
+    const sugeridas = elemento('div');
+    const existe = (secao: string, campo: string) =>
+      entradas.some((entrada) => entrada.secao === secao && entrada.campo === campo);
+    const atualizarSugeridas = () => {
+      const faltantes = SUGESTOES.flatMap(({ secao, campos: perguntas }) =>
+        perguntas.filter((campo) => !existe(secao, campo)).map((campo) => ({ secao, campo })),
+      );
+      if (!faltantes.length) {
+        sugeridas.replaceChildren();
+        return;
+      }
+      const escolha = elemento('select');
+      const vazia = elemento('option', 'Escolha uma pergunta sugerida');
+      vazia.value = '';
+      escolha.append(vazia);
+      faltantes.forEach(({ secao, campo }, indice) => {
+        const opcao = elemento('option', `${secao} — ${campo}`);
+        opcao.value = String(indice);
+        escolha.append(opcao);
+      });
+      escolha.addEventListener('change', () => {
+        const escolhida = faltantes[Number(escolha.value)];
+        if (!escolhida) return;
+        const { secao, campo } = escolhida;
+        if (existe(secao, campo)) return;
+        adicionar(secao, campo, true);
+        alteracaoPendente(true);
+        aviso.textContent = '';
+        atualizarSugeridas();
+      });
+      const rotuloEscolha = elemento('label', 'Perguntas sugeridas');
+      rotuloEscolha.append(escolha);
+      const todas = elemento('button', 'Adicionar todas as sugeridas');
+      todas.type = 'button';
+      todas.addEventListener('click', () => {
+        for (const { secao, campo } of faltantes)
+          if (!existe(secao, campo)) adicionar(secao, campo, true);
+        alteracaoPendente(true);
+        aviso.textContent = '';
+        atualizarSugeridas();
+      });
+      sugeridas.replaceChildren(rotuloEscolha, todas);
+    };
+    atualizarSugeridas();
+    form.append(sugeridas);
+
+    rotularNovo('Outra seção', novaSecao);
+    rotularNovo('Outro campo', novoCampo);
     const adicionarBotao = elemento('button', 'Adicionar campo');
     adicionarBotao.type = 'button';
     adicionarBotao.addEventListener('click', () => {
@@ -190,6 +252,7 @@ export function montarAnamnese(
       novaSecao.value = '';
       novoCampo.value = '';
       aviso.textContent = '';
+      atualizarSugeridas();
     });
     form.append(adicionarBotao, salvar, retry, aviso);
     mostrarHistorico = () => {
@@ -326,7 +389,7 @@ export function montarAnamnese(
   };
   const consultar = () => {
     status.textContent = 'Carregando anamnese…';
-    raiz.replaceChildren(status);
+    raiz.replaceChildren(esqueletoCarregando(3, true), status);
     void servico
       .consultarAnamnese(pacienteId)
       .then(desenhar)
@@ -336,7 +399,7 @@ export function montarAnamnese(
         const tentarNovamente = elemento('button', 'Tentar novamente');
         tentarNovamente.type = 'button';
         tentarNovamente.addEventListener('click', consultar);
-        raiz.append(tentarNovamente);
+        raiz.replaceChildren(status, tentarNovamente);
       });
   };
   void Promise.resolve(historicoHabilitado)

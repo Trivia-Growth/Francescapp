@@ -35,11 +35,24 @@ export async function processarCarteiraExperimental(
       },
     };
     const itens = [];
-    for (const { situacao, ...paciente } of resposta.dados.itens) {
+    for (const { situacao, responsavel_usuario_id: responsavel, sinal, ...paciente } of resposta
+      .dados.itens) {
       if (contexto.signal?.aborted) throw new Error();
-      if (situacao !== undefined && contexto.situacaoPermitida !== true) throw new Error();
+      // Situação e responsável pertencem ao ramo do Administrador. Se vierem fora dele a
+      // resposta é recusada inteira: deixar passar seria confiar no banco para um recorte
+      // que esta camada também deve saber conferir.
+      if (
+        (situacao !== undefined || responsavel !== undefined) &&
+        contexto.situacaoPermitida !== true
+      )
+        throw new Error();
       const basico = await projetarPacienteBasicoExperimental(paciente, cifraNoPrazo);
-      itens.push(situacao === undefined ? basico : { ...basico, situacao });
+      itens.push({
+        ...basico,
+        ...(situacao === undefined ? {} : { situacao }),
+        ...(responsavel === undefined ? {} : { responsavel_usuario_id: responsavel }),
+        ...(sinal === undefined ? {} : { sinal }),
+      });
     }
     return {
       ok: true as const,

@@ -4,6 +4,7 @@ import type {
 } from '../packages/contracts/src/tarefa-cuidado.ts';
 import type { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
+import { esqueletoCarregando } from './esqueleto.js';
 
 type RegistroTarefa = RegistroTarefaCuidado;
 export type ServicoTarefasCuidado = {
@@ -78,7 +79,7 @@ export function montarTarefasCuidado(
     controlesFiltro = [];
     const status = elemento('p', 'Carregando tarefas…');
     status.setAttribute('role', 'status');
-    raiz.replaceChildren(status);
+    raiz.replaceChildren(esqueletoCarregando(3, true), status);
     void servico
       .consultarTarefas(pacienteId)
       .then((registros) => {
@@ -89,9 +90,12 @@ export function montarTarefasCuidado(
           secao.append(elemento('p', 'Consulta disponível. Criação e edição ainda indisponíveis.'));
         const ciclo = servico.ciclo;
         if (ciclo && bloqueada) {
-          const aviso = elemento('p', 'Confirme a situação de escrita antes de alterar tarefas.');
+          const aviso = elemento(
+            'p',
+            'Antes de alterar tarefas, confira se já existe algum envio aguardando resposta.',
+          );
           aviso.setAttribute('role', 'status');
-          const confirmar = elemento('button', 'Confirmar situação de escrita');
+          const confirmar = elemento('button', 'Conferir e liberar');
           confirmar.type = 'button';
           let cercado = false;
           const falhou = (erro: unknown) => {
@@ -102,7 +106,7 @@ export function montarTarefasCuidado(
               acessoPerdido(erro);
               return;
             }
-            aviso.textContent = 'Não foi possível confirmar a situação. Tente novamente.';
+            aviso.textContent = 'Não foi possível conferir agora. Tente novamente.';
             confirmar.disabled = false;
           };
           const verificar = async () => {
@@ -115,8 +119,8 @@ export function montarTarefasCuidado(
             if (!ativa) return;
             if (situacao.resultado_pendente) {
               const pendente = situacao.resultado_pendente;
-              aviso.textContent = `Operação anterior ${pendente.resultado === 'confirmada' ? 'confirmada' : 'cancelada'}. Paciente: ${pendente.paciente_id}; tarefa: ${pendente.tarefa_id}; versão esperada: ${pendente.versao_esperada}. Confira a tarefa antes de reconhecer.`;
-              confirmar.textContent = 'Reconhecer resultado e liberar escrita';
+              aviso.textContent = `A alteração enviada antes ${pendente.resultado === 'confirmada' ? 'foi salva' : 'não foi salva'}. Confira a tarefa na lista antes de continuar.`;
+              confirmar.textContent = 'Entendi, liberar as tarefas';
               confirmar.onclick = () => {
                 confirmar.disabled = true;
                 void (async () => {
@@ -130,9 +134,8 @@ export function montarTarefasCuidado(
               return;
             }
             if (situacao.reserva) {
-              aviso.textContent =
-                'Uma nova operação está em andamento. Confirme a situação novamente.';
-              confirmar.textContent = 'Confirmar situação de escrita';
+              aviso.textContent = 'Outro envio começou enquanto isso. Confira novamente.';
+              confirmar.textContent = 'Conferir e liberar';
               confirmar.onclick = iniciar;
               confirmar.disabled = false;
               return;
@@ -226,7 +229,7 @@ export function montarTarefasCuidado(
         const tentar = elemento('button', 'Tentar novamente');
         tentar.type = 'button';
         tentar.addEventListener('click', consultar);
-        raiz.append(tentar);
+        raiz.replaceChildren(status, tentar);
       });
   };
   const oferecerConsulta = (form: HTMLFormElement, status: HTMLElement, mensagem: string) => {

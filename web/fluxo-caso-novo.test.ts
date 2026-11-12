@@ -414,14 +414,16 @@ describe('fim da sessão', () => {
     expect(document.documentElement.innerHTML).not.toContain('segundo@exemplo.test');
   });
 
-  it('sair remove da tela os e-mails da equipe carregados para o responsável', async () => {
+  it('sair remove da tela a equipe carregada para o responsável', async () => {
     await abrir();
     await preencherCasoNovo();
-    expect(document.documentElement.innerHTML).toContain('equipe@exemplo.test');
+    // O rótulo é derivado do e-mail da equipe; nem ele nem o endereço podem sobreviver à saída.
+    expect(document.documentElement.innerHTML).toContain('Equipe · Profissional');
 
     el('logout').click();
     await vi.waitFor(() => expect(el('login-view').hidden).toBe(false));
 
+    expect(document.documentElement.innerHTML).not.toContain('Equipe · Profissional');
     expect(document.documentElement.innerHTML).not.toContain('equipe@exemplo.test');
   });
 });

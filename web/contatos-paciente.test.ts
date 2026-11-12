@@ -71,8 +71,6 @@ it('exige conferência do contato correspondente antes de reconhecer', async () 
   await vi.waitFor(() => expect(confirmar).toHaveBeenCalledOnce());
   expect(api.reconhecerBarreiraContato).not.toHaveBeenCalled();
   confirmar.mockReturnValue(true);
-  [...raiz.querySelectorAll('button')]
-    .find((b) => b.textContent === 'Verificar operação pendente')
-    ?.click();
+  [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Conferir novamente')?.click();
   await vi.waitFor(() => expect(api.reconhecerBarreiraContato).toHaveBeenCalledOnce());
 });

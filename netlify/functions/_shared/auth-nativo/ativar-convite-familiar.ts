@@ -1,6 +1,7 @@
 import { criarErroPublicoSemCampos } from '../../../../packages/contracts/src/erros.ts';
 import {
   ativarConviteFamiliarSchema,
+  recusaAtivacaoFamiliarSchema,
   resultadoAtivacaoFamiliarSchema,
 } from '../../../../packages/contracts/src/identidade.ts';
 import {
@@ -121,6 +122,11 @@ export async function ativarConviteFamiliarNativo(request: Request, fonte: Fonte
       resultado = await contexto.cliente
         .schema('api')
         .rpc('ativar_convite_familiar_privado', transporte);
+    // Recusa é resposta normal, não indisponibilidade: link inválido, expirado, já
+    // usado ou sem pré-autorização vigente da equipe. A tela orienta pedir novo link
+    // (FR-054) sem revelar qual dos casos ocorreu.
+    if (!resultado.error && recusaAtivacaoFamiliarSchema.safeParse(resultado.data).success)
+      return erro('sem_permissao', 403);
     const ativacao = resultadoAtivacaoFamiliarSchema.safeParse(resultado.data);
     if (resultado.error || !ativacao.success || ativacao.data.usuario_id !== usuarioId)
       return erro('servico_indisponivel', 503);

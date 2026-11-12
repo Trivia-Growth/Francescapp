@@ -72,9 +72,17 @@ export async function entrarFamiliarNativa(request: Request, fonte: FonteDeConfi
     const identidade = await contexto.cliente.auth.getUser();
     if (identidade.error || !identidade.data.user || identidade.data.user.id !== login.data.user.id)
       return erro('servico_indisponivel', 503);
+    // Primeira entrada: executa a decisão que a equipe já registrou na
+    // pré-autorização, criando perfil e vínculo a partir dela. Não amplia
+    // autorização e é idempotente nas entradas seguintes; sem pré-autorização
+    // vigente nada é criado e a admissão abaixo nega normalmente.
+    const materializacao = await contexto.cliente
+      .schema('api')
+      .rpc('materializar_acesso_familiar_nativa', { p_request_id: requestId });
+    if (materializacao.error) return erro('servico_indisponivel', 503);
     const admissao = await contexto.cliente
       .schema('api')
-      .rpc('admitir_sessao_familiar_privada', { p_request_id: requestId });
+      .rpc('admitir_sessao_familiar_nativa', { p_request_id: requestId });
     if (admissao.error) return erro('servico_indisponivel', 503);
     const sessao = sessaoNativaSchema.safeParse(admissao.data);
     if (

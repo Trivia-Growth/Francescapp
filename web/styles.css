@@ -62,6 +62,14 @@ body {
   outline: 3px solid var(--primary);
   outline-offset: 4px;
 }
+/* Títulos e regiões recebem foco por programa só para reposicionar o leitor de tela.
+   Não são controles: o anel em volta deles parecia uma caixa desenhada por engano. */
+h1[tabindex="-1"]:focus,
+h2[tabindex="-1"]:focus,
+main[tabindex="-1"]:focus,
+section[tabindex="-1"]:focus {
+  outline: none;
+}
 a {
   color: var(--primary);
   text-underline-offset: .2em;
@@ -346,8 +354,30 @@ input[aria-invalid="true"] {
   gap: 48px;
   align-items: start;
 }
+/* O cadastro saiu da coluna lateral e virou diálogo; a área de trabalho é só a lista. */
 .workspace.with-registration {
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr);
+}
+.dialogo {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--panel);
+  color: var(--ink);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.dialogo::backdrop {
+  background: rgb(39 49 35 / 48%);
+}
+.registration-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 4px;
 }
 .patient-register {
   min-width: 0;
@@ -397,6 +427,16 @@ input[aria-invalid="true"] {
   border-bottom: 1px solid var(--line);
   background: var(--panel);
   margin-bottom: 12px;
+}
+/* Mesma linguagem do esqueleto da lista, em blocos menores (ficha, contatos, cadastro). */
+.list-loading[data-compacto] span {
+  height: 16px;
+  margin-bottom: 10px;
+  border: 0;
+  border-radius: var(--radius-field);
+}
+.list-loading[data-compacto] span:last-child {
+  width: 60%;
 }
 .pagination {
   display: flex;
@@ -456,10 +496,6 @@ input[aria-invalid="true"] {
 @media (max-width: 1050px) {
   .access-layout {
     gap: 56px;
-  }
-  .workspace.with-registration {
-    grid-template-columns: minmax(0, 1fr) 310px;
-    gap: 28px;
   }
   .registration-panel {
     padding: 24px;
@@ -817,11 +853,12 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   font-size: .8125rem;
   font-weight: 600;
 }
+/* Chip de situação pendente: contorno contínuo. A borda tracejada parecia defeito de
+   renderização, não uma informação sobre o caso. */
 .pessoa-situacao[data-situacao="completar"] {
-  border: 1px dashed var(--field-line);
-  background: transparent;
+  border: 1px solid var(--line);
+  background: var(--white);
   color: var(--muted);
-  font-weight: 400;
 }
 .pessoa-seta {
   flex: none;
@@ -878,6 +915,16 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   margin-top: 4px;
   color: var(--muted);
   overflow-wrap: anywhere;
+}
+.ficha-identidade .pessoa-situacao {
+  display: inline-block;
+  margin-top: 8px;
+}
+.ficha-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-left: auto;
 }
 .ficha-abas {
   display: flex;
@@ -1121,4 +1168,752 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .contact-row .contact-remove {
   grid-column: 1 / -1;
   justify-self: start;
+}
+
+/* FR-004: a origem e a situação de cada registro de saúde precisam ser lidas de
+   relance, para que relato de quem convive não seja confundido com diagnóstico. */
+.ficha-secao[data-secao="saude"] form {
+  display: grid;
+  gap: 16px;
+}
+.saude-lista {
+  display: grid;
+  gap: 14px;
+}
+.saude-item {
+  display: block;
+  margin: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--brand-olive);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+.saude-item legend {
+  padding: 2px 8px;
+  border-radius: var(--radius-field);
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.saude-item[data-natureza="relato_leigo"] {
+  border-left-color: var(--field-line);
+}
+.saude-item[data-situacao="hipotese"] legend {
+  color: var(--error);
+  background: #f6ece9;
+}
+.saude-item label {
+  display: block;
+  margin: 12px 0;
+}
+.saude-item textarea {
+  min-height: 72px;
+}
+
+/* Tela de administração da configuração do sistema (web/configuracao-sistema.ts). */
+.configuracao-sistema {
+  display: grid;
+  gap: 16px;
+  max-width: 68ch;
+}
+.configuracao-sistema__explicacao {
+  margin: 0;
+  color: var(--muted);
+}
+.configuracao-sistema__status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+.configuracao-sistema__vazio {
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  color: var(--muted);
+  background: var(--soft);
+}
+.configuracao-sistema__lista {
+  display: grid;
+  gap: 14px;
+}
+.configuracao-sistema__item {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--brand-olive);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+.configuracao-sistema__rotulo {
+  font-family: var(--font-display);
+  font-size: 1.1875rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.configuracao-sistema__controle {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius-field);
+  background: var(--white);
+  color: inherit;
+}
+.configuracao-sistema__controle[type="checkbox"] {
+  width: 28px;
+  min-height: 28px;
+  height: 28px;
+  justify-self: start;
+  accent-color: var(--primary);
+}
+.configuracao-sistema__ajuda {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.configuracao-sistema__autoria {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.configuracao-sistema__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+.configuracao-sistema__aviso {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+@media (max-width: 560px) {
+  .configuracao-sistema__item {
+    padding: 14px;
+  }
+  .configuracao-sistema__acoes .button-primary {
+    width: 100%;
+  }
+}
+
+/* ---- Navegação lateral -------------------------------------------------- */
+.sidebar-nav {
+  display: grid;
+  gap: 4px;
+}
+.sidebar-link {
+  display: block;
+  padding: 12px 14px;
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  font-size: .9375rem;
+  font-weight: 550;
+  text-decoration: none;
+}
+.sidebar-link:hover {
+  background: var(--soft);
+}
+.sidebar-link[aria-current="page"] {
+  background: #edf2e6;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* ---- Administração ------------------------------------------------------ */
+.administracao-abas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.administracao-aba {
+  padding: 9px 14px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--white);
+  color: var(--ink);
+  font-size: .875rem;
+  font-weight: 550;
+  text-decoration: none;
+}
+.administracao-aba:hover {
+  background: var(--soft);
+}
+.administracao-aba[aria-current="page"] {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--white);
+}
+.administracao-conteudo,
+.regras-conteudo {
+  display: grid;
+  gap: 20px;
+  max-width: 78ch;
+}
+.administracao-conteudo form {
+  display: grid;
+  gap: 12px;
+  max-width: 54ch;
+}
+.administracao-conteudo fieldset {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+.administracao-conteudo label {
+  display: grid;
+  gap: 6px;
+  font-size: .875rem;
+  font-weight: 550;
+}
+.administracao-conteudo textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+.administracao-conteudo input,
+.administracao-conteudo select,
+.administracao-conteudo textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius-field);
+  background: var(--white);
+  color: inherit;
+  font: inherit;
+}
+
+/* ---- Regras do atendimento (FR-041) ------------------------------------- */
+.regras-atendimento__lista {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.regras-atendimento__item {
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--brand-olive);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+.regras-atendimento__texto {
+  margin: 0;
+  white-space: pre-line;
+}
+.regras-atendimento__status,
+.regras-atendimento__atualizacao {
+  margin: 0;
+  color: var(--muted);
+  font-size: .875rem;
+}
+
+/* ---- Auditoria (FR-039) ------------------------------------------------- */
+.auditoria__explicacao,
+.auditoria__status {
+  margin: 0;
+  color: var(--muted);
+}
+.auditoria__status {
+  font-size: .9375rem;
+}
+.auditoria__filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  max-width: none;
+}
+.auditoria__campo {
+  display: grid;
+  gap: 6px;
+  min-width: 170px;
+  font-size: .8125rem;
+  font-weight: 550;
+}
+.auditoria__acoes,
+.auditoria__paginacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+/* Tabela larga em tela estreita rola na horizontal, em vez de empurrar a página. */
+.auditoria__tabela {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: .875rem;
+}
+.auditoria__tabela thead,
+.auditoria__tabela tbody {
+  display: table;
+  width: 100%;
+  min-width: 34rem;
+}
+.auditoria__tabela th,
+.auditoria__tabela td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.auditoria__tabela th {
+  color: var(--muted);
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.auditoria__tabela td:last-child {
+  white-space: nowrap;
+}
+
+/* ---- Solicitações do titular (FR-040) ----------------------------------- */
+.solicitacoes-titular__explicacao,
+.solicitacoes-titular__status,
+.solicitacoes-titular__aviso,
+.solicitacoes-titular__meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: .9375rem;
+}
+.solicitacoes-titular__lista {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.solicitacoes-titular__registro {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+.solicitacoes-titular__resposta {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--radius-field);
+  background: var(--soft);
+}
+.solicitacoes-titular__paginacao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+/* ---- Quem aprova plano de crise (FR-020) -------------------------------- */
+.habilitacao-crise__explicacao,
+.habilitacao-crise__status,
+.habilitacao-crise__ajuda,
+.habilitacao-crise__aviso {
+  margin: 0;
+  color: var(--muted);
+  font-size: .9375rem;
+}
+.habilitacao-crise__vazio {
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  color: var(--muted);
+  background: var(--soft);
+}
+.habilitacao-crise__lista {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.habilitacao-crise__item {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+.habilitacao-crise__pessoa {
+  font-weight: 600;
+}
+.habilitacao-crise__rotulo {
+  color: var(--muted);
+  font-size: .8125rem;
+}
+.habilitacao-crise__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+/* ---- Plano de crise na ficha (FR-020) ----------------------------------- */
+.secao-plano-crise {
+  display: grid;
+  gap: 16px;
+}
+.plano-crise__explicacao,
+.plano-crise__situacao,
+.plano-crise__prazo {
+  margin: 0;
+  color: var(--muted);
+  font-size: .9375rem;
+}
+.plano-crise__lista {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.plano-crise__item {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+/* O limite é o que o plano NÃO cobre: precisa ser lido antes de alguém agir por ele. */
+.plano-crise__limite {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid #d8c08a;
+  border-left: 4px solid #b4801f;
+  border-radius: var(--radius-card);
+  background: #fdf6e7;
+  color: #5c431a;
+  font-size: .9375rem;
+}
+
+/* ---- Pendências do caso (FR-027) ---------------------------------------- */
+.pendencia-lista {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pendencia-item {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+.pendencia-tipo {
+  font-weight: 600;
+}
+.pendencia-motivo {
+  margin: 0;
+}
+.pendencia-marcas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: .8125rem;
+}
+.pendencia-sinal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: var(--soft);
+  font-size: .8125rem;
+  font-weight: 600;
+}
+.pendencia-acoes,
+.pendencia-acordo,
+.pendencia-atribuir {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+}
+
+/* ---- Filtros e sinal da carteira (FR-026, FR-028) ----------------------- */
+.filtros-carteira {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--soft);
+}
+.filtros-carteira-titulo {
+  flex-basis: 100%;
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: .75rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.filtro-carteira {
+  display: grid;
+  gap: 6px;
+  min-width: 160px;
+  flex: 1 1 160px;
+  font-size: .8125rem;
+  font-weight: 550;
+}
+.filtro-carteira select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius-field);
+  background: var(--white);
+  color: inherit;
+  font: inherit;
+}
+.filtros-carteira .button-secondary {
+  flex: 0 0 auto;
+  min-height: 44px;
+}
+.sinal-carteira {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin-top: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--soft);
+  font-size: .75rem;
+  line-height: 1.5;
+}
+.sinal-carteira strong {
+  font-weight: 700;
+}
+.sinal-carteira-motivos {
+  color: var(--muted);
+}
+.sinal-carteira[data-estado="atencao_operacional"] {
+  border-color: #d8c08a;
+  background: #fdf6e7;
+  color: #5c431a;
+}
+.sinal-carteira[data-estado="atencao_operacional"] .sinal-carteira-motivos {
+  color: #6d5225;
+}
+.sinal-carteira[data-estado="informacao_insuficiente"] {
+  border-color: var(--line);
+  background: var(--white);
+}
+
+/* ---- Ditar o registro do diário (FR-010) -------------------------------- */
+.diario-entrada-audio {
+  margin: -4px 0 4px;
+}
+.transcricao-audio {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--soft);
+}
+.transcricao-comandos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+}
+.transcricao-original {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-field);
+  background: var(--white);
+  font-size: .9375rem;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 560px) {
+  .administracao-conteudo,
+  .regras-conteudo {
+    gap: 16px;
+  }
+  .auditoria__tabela {
+    font-size: .8125rem;
+  }
+  .auditoria__tabela th,
+  .auditoria__tabela td {
+    padding: 8px;
+  }
+  .filtros-carteira {
+    padding: 14px;
+  }
+  .filtro-carteira {
+    flex-basis: 100%;
+  }
+  .filtros-carteira .button-secondary {
+    width: 100%;
+  }
+  .habilitacao-crise__acoes .button-primary,
+  .pendencia-acoes .button-primary {
+    width: 100%;
+  }
+}
+
+/* ── Linha do tempo (FR-007) ─────────────────────────────────────────────── */
+.secao-linha-tempo {
+  display: grid;
+  gap: 16px;
+}
+.linha-tempo__filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+.linha-tempo__lista {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.linha-tempo__item {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+.linha-tempo__cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.linha-tempo__evento {
+  margin: 0;
+  font-weight: 600;
+}
+/* Quando aconteceu e quando foi registrado são datas distintas, e o requisito
+   depende de não confundi-las: a de registro fica sempre em segundo plano. */
+.linha-tempo__acontecimento {
+  margin: 0;
+  color: var(--ink);
+  font-size: .9375rem;
+}
+.linha-tempo__registro,
+.linha-tempo__fonte,
+.linha-tempo__area {
+  margin: 0;
+  color: var(--muted);
+  font-size: .875rem;
+}
+.linha-tempo__estado,
+.linha-tempo__audiencia {
+  justify-self: start;
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--wash);
+  color: var(--muted);
+  font-size: .8125rem;
+}
+/* Conteúdo que a pessoa não pode ver não vira item fantasma: só esta linha
+   explica, sem vocabulário técnico e sem revelar o que foi omitido. */
+.linha-tempo__indisponivel {
+  margin: 0;
+  color: var(--muted);
+  font-size: .875rem;
+  font-style: italic;
+}
+
+/* ── Exportação (FR-032, FR-033) ─────────────────────────────────────────── */
+.secao-exportacao {
+  display: grid;
+  gap: 16px;
+}
+.exportacao__explicacao,
+.exportacao__estado,
+.exportacao__contagem {
+  margin: 0;
+  color: var(--muted);
+  font-size: .9375rem;
+}
+.exportacao__form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+}
+.exportacao__lista {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.exportacao__item {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+.exportacao__finalidade {
+  margin: 0;
+  font-weight: 600;
+}
+.exportacao__entrega,
+.exportacao__quando {
+  margin: 0;
+  color: var(--muted);
+  font-size: .875rem;
+}
+/* FR-033: a declaração de que houve omissão de terceiros. Fica legível, não em nota de
+   rodapé — quem recebe o pacote precisa saber que ele foi reduzido. */
+.exportacao__terceiros {
+  margin: 0;
+  color: var(--muted);
+  font-size: .875rem;
+  font-style: italic;
+}
+
+@media (max-width: 560px) {
+  .linha-tempo__filtros {
+    display: grid;
+  }
+  .linha-tempo__cabecalho {
+    display: grid;
+    gap: 4px;
+  }
 }

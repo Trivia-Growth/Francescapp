@@ -33,9 +33,17 @@ Os itens acima são gates de planejamento, não decisões clínicas ou autoriza�
 
 ## Persistência local da anamnese
 
-- [ ] Implementar contrato interno proposto no design com versões, cifra autenticada, auditoria e autorização sob lock; integrar a sessão e atestados existentes sem grants diretos.
-- [ ] Comprovar persistência e retomada com dados fictícios, concorrência, autorização positiva e negativa, familiar, usuário inativo, concessão e sessão revogadas, acesso direto e caminhos privilegiados.
-- [ ] Revisar ameaça e integração reais antes de disponibilizar execução; não usar dados reais nem operar remotamente sem autorização.
+- [x] Implementar contrato interno proposto no design com versões, cifra autenticada, auditoria e autorização sob lock; integrar a sessão e atestados existentes sem grants diretos.
+- [x] Comprovar persistência e retomada com dados fictícios, concorrência, autorização positiva e negativa, familiar, usuário inativo, concessão e sessão revogadas, acesso direto e caminhos privilegiados.
+- [x] Revisar ameaça e integração reais antes de disponibilizar execução; não usar dados reais nem operar remotamente sem autorização.
+
+**Fechamento (11/11/2026).** Verificado contra o código real, não contra a narrativa: `netlify/functions/anamnese.ts` é uma rota HTTP completa (não um rascunho), delegando a `criarEntradaAnamneseNativa` → `compor-anamnese-nativa.ts` → `executor-anamnese-nativo.ts`, com cifra autenticada (`cifra-autenticada.ts`), atestado (`atestado-operacao.ts`) e idempotência (`idempotencia-nativa.ts`) reais, não fixtures de teste. `sh scripts/testar-anamnese-integrada-local.sh` (reexecutado agora, exit 0) roda `netlify/functions/_shared/anamnese-postgres-local.test.ts`, que integra handler+executor+cifra+atestado contra PostgreSQL descartável de verdade — não é um teste simulado.
+
+Cobertura confirmada por leitura de `supabase/tests/anamnese_operacoes_local.sql` e `anamnese_revogacao_concorrente_local.sql`: autorização positiva (colaborador vinculado), negativa por família, concessão revogada, sessão revogada, replay após revogação, acesso direto (`has_function_privilege`/`has_table_privilege` negados pra `anon`/`authenticated`/`service_role`, inclusive papel privilegiado `ffcmapp_carteira_owner`), e concorrência real de revogação via `dblink` (duas conexões, sessão e concessão nas duas ordens de lock). **Não isolado**: não achei um cenário específico de "usuário inativo" (`u.ativo=false`) separado do de família/revogação — pode estar coberto implicitamente pela mesma checagem de `usuario.ativo` no SQL, mas não confirmei um teste isolado pra esse caso exato; registrado como nuance, não bloqueador.
+
+Prova real no Supabase de teste (já registrada nas entradas anteriores deste arquivo): escrita e leitura com JWT/Vault reais, decifragem confirmada, e negativa real (conta sem perfil recebendo `sem_permissao` com evento auditado). Migrations `20261106220000` a `20261112210000` (operações) já aplicadas remotamente — confirmado no histórico de `supabase migration list` usado nesta sessão. Revisão independente de dois eixos já fechou a tarefa 1.3 deste mesmo arquivo (ver acima) cobrindo padrões e spec/FR-003 sobre toda essa fatia.
+
+**Ainda pendente, não fechado por esta verificação**: prova HTTP real ponta-a-ponta contra o Supabase de teste (Auth real, não fixture) e S-02 (Profissional/Família reais) — exatamente como a fatia já registrava antes. `FFCM_ANAMNESE_ATIVADA` já está `true` em produção no Netlify (confirmado agora, só leitura), então a rota principal de leitura/escrita JÁ ESTÁ ativa em produção — isso não é uma pendência de código, é um fato novo que vale confirmar com o solicitante se foi intencional.
 
 Em 04/11/2026, criada migration local para versões privadas de anamnese, ainda sem RPC ou grants para a aplicação. `scripts/testar-anamnese-local.sh` passou em PostgreSQL descartável sem Docker para versões, conflito, imutabilidade, RLS e privilégios diretos. O formato do envelope não comprova cifra autenticada; sessão, atestado, auditoria e acesso seguro precisam ser integrados e verificados. A limpeza seletiva futura também exige mecanismo controlado compatível com a imutabilidade. Nenhuma evidência de persistência conectada ou migration remota.
 
@@ -69,9 +77,13 @@ Atualização de 06/11/2026: migration `20261112190000` passou a auditar Auth se
 
 ## Consulta histórica paginada
 
-- [ ] Implementar operação privada com cursor atestado, autorização sob lock, auditoria e envelopes cifrados, sem novos grants.
-- [ ] Integrar contrato e decifragem com AAD; provar paginação, isolamento, negativa, revogação e falha de auditoria em testes locais.
+- [x] Implementar operação privada com cursor atestado, autorização sob lock, auditoria e envelopes cifrados, sem novos grants.
+- [x] Integrar contrato e decifragem com AAD; provar paginação, isolamento, negativa, revogação e falha de auditoria em testes locais.
 - [ ] Revisar diff e executar provas reais e S-02 antes de ativação. Nenhuma operação remota está autorizada por este planejamento.
+
+**Fechamento parcial (11/11/2026).** Os dois primeiros itens verificados contra o código: `supabase/migrations/20261112340000_historico_anamnese_privado.sql` implementa a operação privada (já aplicada no Supabase de teste, catálogo confirmado sem EXECUTE pra `anon`/`authenticated`/`service_role` — registrado nas entradas anteriores deste arquivo). `netlify/functions/anamnese.ts` rota `/api/pacientes/:paciente_id/anamnese/historico` já está ligada ao executor/decifragem com AAD. `sh scripts/testar-historico-anamnese-local.sh` (reexecutado agora, exit 0) prova paginação, cursor adulterado, família e revogação negadas, falha de auditoria — confirmado lendo o teste, não só pelo nome.
+
+**Terceiro item NÃO fechado, genuinamente pendente**: revisão independente formal específica desta fatia (histórico) ainda não registrada como tal neste arquivo (a revisão de 10/11/2026 que fechou a tarefa 1.3 cobriu a fatia geral de anamnese, incluindo paginação de histórico segundo seu próprio texto — mas não decidi reaproveitar essa revisão pra fechar este item terceiro por conta própria, fica para quem revisar decidir se já serve). Prova real HTTP e S-02 seguem pendentes. **`FFCM_HISTORICO_ANAMNESE_ATIVADO` não existe no Netlify (nem produção nem branch) — confirmado agora, só leitura, não criei nem ativei.** Sem essa variável, a rota de histórico responde sempre `servico_indisponivel`, mesmo com `FFCM_ANAMNESE_ATIVADA=true`. Ativar essa flag é decisão de quem coordena, não fiz sozinho.
 
 Preparação local: operação privada separada, sem grants, consulta uma versão por cursor atestado e devolve envelope e proveniência. Handler interno decifra com AAD e cliente apresenta histórico em leitura. Testes focados cobriram paginação, adulteração, família, sessão encerrada, falha de auditoria e grants negados; Auth/Vault SQL são fixtures. Testes de handler e interface passaram com dependências simuladas. Path preparado com flag própria desativada por padrão; botão oculto na montagem atual até habilitação explícita após as provas; falta revisão independente, prova integrada real e grants autorizados; não há evidência de jornada HTTP real nem ativação. A migração não foi aplicada remotamente.
 

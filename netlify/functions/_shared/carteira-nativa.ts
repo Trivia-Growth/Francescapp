@@ -4,6 +4,7 @@ import {
   type ResultadoAtestacao,
 } from '../../../packages/contracts/src/index.ts';
 import { prepararCarteiraExperimental } from '../../../packages/cadastro/src/preparar-carteira-experimental.ts';
+import { lerConsultaCarteira } from './consulta-carteira.ts';
 
 /** Preparação interna, sem rota ou execução de RPC. A identidade deve vir de
  * autorizarOperacaoNativa; o banco ainda deve autorizar e auditar a operação. */
@@ -26,13 +27,8 @@ export async function prepararCarteiraNativa(
       url.hash
     )
       throw new Error();
-    const consulta: Record<string, unknown> = {};
-    for (const [chave, valor] of url.searchParams) {
-      if ((chave !== 'cursor' && chave !== 'limite') || Object.hasOwn(consulta, chave))
-        throw new Error();
-      consulta[chave] = chave === 'limite' && /^\d{1,3}$/.test(valor) ? Number(valor) : valor;
-    }
-    const validada = contratosRotas.listarPacientes.entrada.parse(consulta);
+    const validada = lerConsultaCarteira(url);
+    if (!validada) throw new Error();
     const usuarioId = uuidSchema.parse(identidade.usuario_id).toLowerCase();
     const sessaoId = uuidSchema.parse(identidade.session_id).toLowerCase();
     if (request.headers.get('x-sessao')?.toLowerCase() !== sessaoId) throw new Error();
@@ -43,7 +39,11 @@ export async function prepararCarteiraNativa(
     return await prepararCarteiraExperimental(
       {
         contexto: { ...dependencias.metadados, usuario_id: usuarioId, session_id: sessaoId },
-        consulta: { limite: validada.limite, ...(cursor === undefined ? {} : { cursor }) },
+        consulta: {
+          limite: validada.limite,
+          ...(cursor === undefined ? {} : { cursor }),
+          ...(validada.filtros === undefined ? {} : { filtros: validada.filtros }),
+        },
       },
       dependencias.atestador,
     );

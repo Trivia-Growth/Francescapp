@@ -53,7 +53,7 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
   enviar.textContent = 'Pré-conceder acesso';
   const verificar = document.createElement('button');
   verificar.type = 'button';
-  verificar.textContent = 'Verificar operação anterior';
+  verificar.textContent = 'Conferir novamente';
   campos.disabled = enviar.disabled = true;
   formulario.append(campos, enviar, verificar, status);
   raiz.replaceChildren(formulario);
@@ -62,7 +62,7 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
     ocupada = true;
     liberada = false;
     campos.disabled = enviar.disabled = verificar.disabled = true;
-    status.textContent = 'Verificando operação anterior…';
+    status.textContent = 'Conferindo se há algum convite aguardando resposta…';
     try {
       let estado = await ciclo.consultar();
       if (!ativa) return;
@@ -99,7 +99,7 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
           if (
             !encontrada ||
             !window.confirm(
-              `Operação anterior para ${encontrada.email}: ${encontrada.estado}, perfil ${encontrada.perfil}, versão ${encontrada.versao}. Confirma a verificação?`,
+              `O convite enviado antes para ${encontrada.email} está ${encontrada.estado}, como ${encontrada.perfil}. Confere?`,
             )
           )
             throw new Error();
@@ -111,11 +111,11 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
       ciclo.liberar();
       liberada = true;
       campos.disabled = enviar.disabled = false;
-      status.textContent = 'Operações anteriores verificadas.';
+      status.textContent = 'Tudo conferido. Você já pode convidar alguém da equipe.';
     } catch {
       if (ativa)
         status.textContent =
-          'Não foi possível confirmar a operação anterior. Verifique novamente antes de continuar.';
+          'Não foi possível concluir a conferência. Tente de novo antes de continuar.';
     } finally {
       ocupada = false;
       if (ativa) verificar.disabled = false;
@@ -146,11 +146,12 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
         formulario.reset();
         const estados = { pendente: 'Pendente', vinculada: 'Vinculada', revogada: 'Revogada' };
         const perfis = { profissional: 'Profissional', administrador: 'Administrador' };
-        status.textContent = `Estado atual: ${estados[resultado.estado]}. Perfil: ${perfis[resultado.perfil]}. Versão: ${resultado.versao}. Verifique a operação antes de continuar.`;
+        status.textContent = `Convite ${estados[resultado.estado].toLocaleLowerCase('pt-BR')} para ${perfis[resultado.perfil].toLocaleLowerCase('pt-BR')}. Confira antes de continuar.`;
       })
       .catch(() => {
         if (ativa)
-          status.textContent = 'Resultado não confirmado. Verifique a operação antes de continuar.';
+          status.textContent =
+            'Não deu para saber se o convite foi registrado. Confira antes de continuar.';
       })
       .finally(() => {
         ocupada = false;

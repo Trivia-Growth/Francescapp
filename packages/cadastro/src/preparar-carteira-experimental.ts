@@ -40,6 +40,9 @@ export async function prepararCarteiraExperimental(
       entradaAssinada.request_id !== entrada.request_id ||
       entradaAssinada.limite !== entrada.limite ||
       entradaAssinada.cursor !== entrada.cursor ||
+      // O filtro é entrada assinada como qualquer outra: o que o banco vai aplicar precisa
+      // ser exatamente o que foi pedido, não o que sobreviveu à canonicalização.
+      JSON.stringify(entradaAssinada.filtros ?? null) !== JSON.stringify(entrada.filtros ?? null) ||
       Object.entries(metadados).some(
         ([campo, valor]) => dados[campo as keyof typeof metadados] !== valor,
       )

@@ -2,35 +2,26 @@ import { z } from 'zod';
 import { eventoAuditoriaSchema } from './auditoria.ts';
 
 import {
+  base64UrlSchema,
+  campoCifradoSchema,
   chaveIdempotenciaSchema,
   codigoErroSchema,
   cursorSchema,
+  formatoCifraSchema,
+  keyIdSchema,
   limitePaginaSchema,
   perfilSchema,
   uuidSchema,
   versaoSchema,
 } from './comum.ts';
 import { estadoConcessaoSchema } from './identidade.ts';
+import { sinalCarteiraSchema } from './pendencia.ts';
 
-export const formatoCifraSchema = z.literal(1);
-export const base64UrlSchema = z
-  .string()
-  .min(1)
-  .max(32_768)
-  .regex(/^[A-Za-z0-9_-]+$/);
-const keyIdSchema = z.string().min(1).max(128);
+// Reexportados de `comum.ts`: quem já importava daqui continua importando daqui. A definição
+// mudou de lugar para quebrar o ciclo `identidade.ts` <-> `rpc.ts`.
+export { base64UrlSchema, campoCifradoSchema, formatoCifraSchema } from './comum.ts';
+
 const instanteSchema = z.string().datetime({ offset: true });
-
-/** Persistência e transporte interno; nunca enviado ao navegador. */
-export const campoCifradoSchema = z
-  .object({
-    formato: formatoCifraSchema,
-    key_id: keyIdSchema,
-    nonce: base64UrlSchema,
-    ciphertext: base64UrlSchema,
-    tag: base64UrlSchema,
-  })
-  .strict();
 export const reservaReenvioFamiliarSchema = z
   .object({
     ok: z.literal(true),
@@ -131,7 +122,149 @@ const metadadosAadDiarioSchema = z
   })
   .strict();
 
+/** FR-012: cada versão do registro do diário tem dois textos cifrados — o conteúdo e, na
+ * retificação, a justificativa. `campo` entra na ligação para que um não possa ser lido no
+ * lugar do outro, e `diario_registro_id` prende a versão ao registro a que pertence. */
+const metadadosAadDiarioRegistroSchema = z
+  .object({
+    tabela: z.literal('cadastro.diario_registro_versao'),
+    paciente_id: uuidSchema,
+    diario_registro_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.enum(['conteudo', 'justificativa']),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+const metadadosAadEncaminhamentoSchema = z
+  .object({
+    tabela: z.literal('cadastro.encaminhamento_versao'),
+    paciente_id: uuidSchema,
+    encaminhamento_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+const metadadosAadOrientacaoSchema = z
+  .object({
+    tabela: z.literal('cadastro.orientacao_versao'),
+    paciente_id: uuidSchema,
+    orientacao_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+const metadadosAadSaudeSchema = z
+  .object({
+    tabela: z.literal('cadastro.saude_versao'),
+    paciente_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+const metadadosAadDocumentoCasoSchema = z
+  .object({
+    tabela: z.literal('cadastro.documento_caso_versao'),
+    paciente_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+const metadadosAadContextoCuidadoSchema = z
+  .object({
+    tabela: z.literal('cadastro.contexto_cuidado_versao'),
+    paciente_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+const metadadosAadRedeCuidadoSchema = z
+  .object({
+    tabela: z.literal('cadastro.rede_cuidado_versao'),
+    paciente_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+/** FR-020. O plano de crise é documento versionado por paciente, como os demais;
+ * a tabela entra na ligação para que o envelope de um não sirva para outro. */
+const metadadosAadPlanoCriseSchema = z
+  .object({
+    tabela: z.literal('cadastro.plano_crise_versao'),
+    paciente_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+/** FR-010. Um áudio não cabe num envelope só: a cifra compartilhada limita o texto
+ * cifrado a 32 KiB, então o áudio viaja em partes numeradas. `parte` entra na ligação
+ * para que uma parte não possa ser trocada por outra, nem reordenada, nem movida para
+ * outro áudio. Campos de texto (`transcricao`, `texto_revisado`) usam `parte = 0`. */
+const metadadosAadAudioTranscricaoSchema = z
+  .object({
+    tabela: z.literal('cadastro.audio_transcricao'),
+    paciente_id: uuidSchema,
+    registro_id: uuidSchema,
+    parte: z.number().int().min(0).max(64),
+    campo: z.enum(['audio', 'transcricao', 'texto_revisado']),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+/** FR-040. Solicitação do titular. Dois campos de texto livre sobre pessoa identificada no
+ * mesmo registro — o pedido e o fundamento da resposta —, por isso `campo` entra na ligação:
+ * sem ele, o envelope da descrição serviria no lugar do da resposta. `versao` acompanha a
+ * evolução da linha (1 no registro, 2 na resposta). */
+const metadadosAadSolicitacaoTitularSchema = z
+  .object({
+    tabela: z.literal('cadastro.solicitacao_titular'),
+    paciente_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.enum(['descricao', 'resposta']),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+/** FR-032: destinatário e propósito da exportação são dados de terceiro; `observacao` é a
+ * nota de entrega/conferência de FR-033. O `campo` entra no AAD para que um envelope não
+ * possa ser remontado como se fosse outro campo da mesma exportação. */
+const metadadosAadExportacaoSchema = z
+  .object({
+    tabela: z.enum(['cadastro.exportacao_caso', 'cadastro.exportacao_entrega']),
+    paciente_id: uuidSchema,
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.enum(['destinatario', 'proposito', 'observacao']),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
 export const metadadosAadSchema = z.union([
+  metadadosAadExportacaoSchema,
+  metadadosAadSolicitacaoTitularSchema,
   metadadosAadCamposSchema,
   metadadosAadConcessaoSchema,
   metadadosAadAcessoPacienteSchema,
@@ -140,6 +273,15 @@ export const metadadosAadSchema = z.union([
   metadadosAadPlanoSchema,
   metadadosAadTarefaSchema,
   metadadosAadDiarioSchema,
+  metadadosAadDiarioRegistroSchema,
+  metadadosAadEncaminhamentoSchema,
+  metadadosAadOrientacaoSchema,
+  metadadosAadSaudeSchema,
+  metadadosAadContextoCuidadoSchema,
+  metadadosAadRedeCuidadoSchema,
+  metadadosAadPlanoCriseSchema,
+  metadadosAadAudioTranscricaoSchema,
+  metadadosAadDocumentoCasoSchema,
 ]);
 
 export const dadosAtestadoSchema = z
@@ -251,9 +393,15 @@ export const pacienteBasicoRpcSaidaSchema = z
   })
   .strict();
 const situacaoCasoRpcSchema = z.enum(['entrada', 'ativo', 'pausado', 'encerrado', 'transferido']);
-/** Item da lista; `situacao` só vem no ramo do Administrador da função de carteira. */
+/** Item da lista; `situacao` e `responsavel_usuario_id` só vêm no ramo do Administrador da
+ * função de carteira. `sinal` vem nos dois ramos: é estado operacional do acompanhamento,
+ * não classificação clínica, e sempre acompanha o motivo que o produziu (FR-026/FR-028). */
 export const pacienteListaRpcSaidaSchema = pacienteBasicoRpcSaidaSchema
-  .extend({ situacao: situacaoCasoRpcSchema.nullable().optional() })
+  .extend({
+    situacao: situacaoCasoRpcSchema.nullable().optional(),
+    responsavel_usuario_id: uuidSchema.nullable().optional(),
+    sinal: sinalCarteiraSchema.optional(),
+  })
   .strict();
 export const pacienteAdministrativoRpcSaidaSchema = pacienteBasicoRpcSaidaSchema
   .extend({
@@ -291,7 +439,19 @@ const concessaoSaidaSchema = z
 const operacaoConcluidaSchema = z.object({ id: uuidSchema, versao: versaoSchema }).strict();
 const paginaInterna = <T extends z.ZodType>(item: T) =>
   z.object({ itens: z.array(item), proximo_cursor: cursorSchema.nullable() }).strict();
-const paginacao = { cursor: cursorSchema.optional(), limite: limitePaginaSchema };
+const filtrosCarteiraRpcSchema = z
+  .object({
+    responsavel: z.union([uuidSchema, z.literal('nenhum')]).optional(),
+    situacao: z.union([situacaoCasoRpcSchema, z.literal('a_completar')]).optional(),
+    revisao: z.enum(['vencida', 'proxima', 'sem_data']).optional(),
+    pendencia: z.enum(['abertas', 'nenhuma']).optional(),
+  })
+  .strict();
+const paginacao = {
+  cursor: cursorSchema.optional(),
+  limite: limitePaginaSchema,
+  filtros: filtrosCarteiraRpcSchema.optional(),
+};
 const aadPaciente = <C extends 'nome' | 'nome_preferencia' | 'data_nascimento'>(campo: C) =>
   z
     .object({
@@ -776,6 +936,9 @@ export const assinaturasRpc = {
         ator_id: uuidSchema.optional(),
         objeto_id: uuidSchema.optional(),
         acao: z.string().min(1).max(120).optional(),
+        resultado: z.enum(['permitido', 'negado', 'falhou']).optional(),
+        instante_de: z.iso.datetime({ offset: true }).optional(),
+        instante_ate: z.iso.datetime({ offset: true }).optional(),
       })
       .strict(),
     paginaInterna(eventoAuditoriaSchema),

@@ -108,8 +108,7 @@ export function montarRevogacaoVinculo(
       incerto = false;
       selecaoValida = false;
       botao.disabled = true;
-      status.textContent =
-        'Operação anterior verificada. Selecione o vínculo para uma nova alteração.';
+      status.textContent = 'Tudo conferido. Selecione o vínculo que deseja alterar.';
     },
     invalidarSelecao() {
       selecaoValida = false;

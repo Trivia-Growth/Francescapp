@@ -230,6 +230,7 @@ const saidas: Record<Rota, unknown> = {
     acao: 'consultar',
     tipo_objeto: 'paciente',
     objeto_id: uuid,
+    paciente_id: uuid,
     resultado: 'permitido',
   }),
 };
@@ -503,12 +504,29 @@ describe('interfaces internas consumidas por banco, sessão e handlers', () => {
     ).toBe(true);
   });
   it('cobre as rotas com RPC definida e identifica a reconciliação ainda sem RPC', () => {
+    // Registro de dívida, não lista de isentas: cada rota aqui deixa de ser conferida
+    // pelos testes de entrada/saída interna abaixo. Acrescentar uma rota a esta lista é
+    // decisão consciente; a intenção é que ela encolha, nunca que cresça por descuido.
     const rotasSemRpc = Object.keys(contratosRotas).filter((rota) => !(rota in assinaturasRpc));
     expect(rotasSemRpc).toEqual([
       'desafioTecnico',
       'consultarOperacoesCadastro',
       'consultarAnamnese',
       'salvarAnamnese',
+      'consultarRegrasAtendimento',
+      'listarConfiguracaoSistema',
+      'gravarConfiguracaoSistema',
+      'listarCampoExtraPlano',
+      'gravarCampoExtraPlano',
+      'listarAprovadorPlano',
+      'gravarAprovadorPlano',
+      'aprovarObjetivoPlano',
+      'consultarEncaminhamentos',
+      'salvarEncaminhamento',
+      'consultarOrientacoes',
+      'salvarOrientacao',
+      'consultarDiario',
+      'salvarRegistroDiario',
     ]);
     expect(Object.keys(assinaturasRpc).every((rota) => rota in contratosRotas)).toBe(true);
     expect(contratosRpc.admitirSessao.contexto).toBe('somente-servidor');

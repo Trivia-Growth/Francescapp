@@ -102,15 +102,18 @@ it('apresenta cada bloco com dados consultados e a data da última atualização
   expect(bloco('anamnese').textContent).toContain('Atualizado em 03/11/2026.');
 });
 
-it('indica atenção, agenda e próxima revisão como indisponíveis, sem valor de exemplo', async () => {
+it('omite o que não tem fonte, sem anunciar a ausência nem inventar valor de exemplo', async () => {
   montarVisaoCaso(raiz, paciente, fontes(), () => false);
   await vi.waitFor(() => expect(bloco('objetivos').textContent).toContain('Caminhar'));
-  const texto = bloco('indisponivel').textContent ?? '';
-  expect(texto).toContain('Situação do caso e responsável: indisponíveis nesta versão');
-  expect(texto).toContain('Mudanças recentes: indisponíveis nesta versão');
-  expect(texto).toContain('Atenção sinalizada por profissional: indisponível nesta versão');
-  expect(texto).toContain('Agenda: indisponível nesta versão');
-  expect(texto).toContain('Próxima revisão: indisponível nesta versão');
+  expect(raiz.querySelector('[data-bloco="indisponivel"]')).toBeNull();
+  const texto = raiz.textContent ?? '';
+  expect(texto).not.toContain('indisponível');
+  expect(texto).not.toContain('indisponíveis');
+  expect(texto).not.toContain('Atenção sinalizada');
+  expect(texto).not.toContain('Agenda');
+  expect(texto).not.toContain('Próxima revisão');
+  // Sem fonte de situação o bloco nem é montado; nada afirma responsável.
+  expect(raiz.querySelector('[data-bloco="situacao"]')).toBeNull();
 });
 
 it('distingue carregando, vazio e erro com nova tentativa só no bloco que falhou', async () => {
@@ -250,7 +253,7 @@ const mudanca = (parcial: Record<string, unknown> = {}) => ({
   ...parcial,
 });
 
-it('Administrador vê situação e responsável persistidos com a data e sem a linha de indisponível', async () => {
+it('Administrador vê situação e responsável persistidos com a data da última atualização', async () => {
   montarVisaoCaso(
     raiz,
     paciente,
@@ -268,9 +271,7 @@ it('Administrador vê situação e responsável persistidos com a data e sem a l
   expect(texto).toContain('Responsável: ana@exemplo.test (Profissional)');
   expect(texto).toContain('Atualizado em 06/11/2026.');
   expect(texto).not.toContain('Pausa fictícia');
-  const indisponivel = bloco('indisponivel').textContent ?? '';
-  expect(indisponivel).not.toContain('Situação do caso e responsável');
-  expect(indisponivel).toContain('Mudanças recentes: indisponíveis nesta versão');
+  expect(raiz.querySelector('[data-bloco="indisponivel"]')).toBeNull();
 });
 
 it('indica a completar sem acompanhamento e sinaliza responsável inativo, sem inventar valor', async () => {
@@ -283,7 +284,9 @@ it('indica a completar sem acompanhamento e sinaliza responsável inativo, sem i
   await vi.waitFor(() =>
     expect(bloco('situacao').textContent).toContain('A completar: situação do caso e responsável'),
   );
-  expect(bloco('situacao').textContent).toContain('Data da última atualização indisponível.');
+  // Sem data conhecida o bloco cala: não repete "indisponível" em cada seção.
+  expect(bloco('situacao').textContent).not.toContain('Atualizado em');
+  expect(bloco('situacao').textContent).not.toContain('indisponível');
   raiz.replaceChildren();
   montarVisaoCaso(
     raiz,

@@ -152,9 +152,7 @@ it('mantém criação bloqueada após consulta quando salvamento pode concluir d
     vi.fn(),
   );
   await vi.waitFor(() => expect(raiz.textContent).toContain('Adicionar objetivo'));
-  [...raiz.querySelectorAll('button')]
-    .find((b) => b.textContent === 'Confirmar situação de criação')
-    ?.click();
+  [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Conferir e liberar')?.click();
   await vi.waitFor(() =>
     expect(
       [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Adicionar objetivo')
@@ -193,7 +191,7 @@ it('mantém criação bloqueada após consulta quando salvamento pode concluir d
     (b) => b.textContent === 'Adicionar objetivo',
   );
   expect(adicionar?.disabled).toBe(true);
-  expect(raiz.textContent).toContain('Confirme a situação de criação');
+  expect(raiz.textContent).toContain('confira se já existe algum envio aguardando resposta');
   expect(criarObjetivo).toHaveBeenCalledTimes(1);
 });
 
@@ -229,9 +227,9 @@ it('impede reconhecimento de resultado de criação de outro paciente', async ()
     } as unknown as ServicoPlanoCuidado,
     vi.fn(),
   );
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Confirmar situação de criação'));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Conferir e liberar'));
   const recuperar = [...raiz.querySelectorAll('button')].find(
-    (b) => b.textContent === 'Confirmar situação de criação',
+    (b) => b.textContent === 'Conferir e liberar',
   );
   recuperar?.click();
   await vi.waitFor(() => expect(raiz.textContent).toContain('outro paciente'));
@@ -339,13 +337,9 @@ it('mantém criação bloqueada após recarga quando confirmação da barreira f
     },
     vi.fn(),
   );
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Confirmar situação de criação'));
-  [...raiz.querySelectorAll('button')]
-    .find((b) => b.textContent === 'Confirmar situação de criação')
-    ?.click();
-  await vi.waitFor(() =>
-    expect(raiz.textContent).toContain('Não foi possível confirmar a situação'),
-  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Conferir e liberar'));
+  [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Conferir e liberar')?.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Não foi possível conferir agora'));
   expect(
     [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Adicionar objetivo')
       ?.disabled,
@@ -362,7 +356,7 @@ it('mantém criação bloqueada após recarga quando confirmação da barreira f
     },
     vi.fn(),
   );
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Confirmar situação de criação'));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Conferir e liberar'));
   expect(
     [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Adicionar objetivo')
       ?.disabled,
@@ -409,12 +403,12 @@ it('preserva rascunho de revisão e impede abertura durante reconciliação', as
     ?.querySelector('textarea');
   if (!motivo) throw new Error('Motivo ausente');
   motivo.value = 'Rascunho';
-  expect(botao('Confirmar situação de criação')?.disabled).toBe(true);
-  botao('Confirmar situação de criação')?.click();
+  expect(botao('Conferir e liberar')?.disabled).toBe(true);
+  botao('Conferir e liberar')?.click();
   expect(ciclo.consultar).not.toHaveBeenCalled();
   expect(motivo.value).toBe('Rascunho');
   botao('Cancelar')?.click();
-  botao('Confirmar situação de criação')?.click();
+  botao('Conferir e liberar')?.click();
   botao('Revisar objetivo')?.click();
   expect(raiz.querySelector('form')).toBeNull();
   concluir({ epoca: 1, reserva: null, resultado_pendente: null });

@@ -1,6 +1,26 @@
 import { z } from 'zod';
 import { eventoAuditoriaSchema } from './auditoria.ts';
 import { anamneseSchema, salvarAnamneseSchema } from './anamnese.ts';
+import {
+  consultarEncaminhamentosSchema,
+  encaminhamentoSchema,
+  salvarEncaminhamentoSchema,
+} from './encaminhamento.ts';
+import {
+  consultarOrientacoesSchema,
+  orientacaoSchema,
+  salvarOrientacaoSchema,
+} from './orientacao.ts';
+import {
+  consultarDiarioSchema,
+  registroDiarioSchema,
+  salvarRegistroDiarioSchema,
+} from './diario.ts';
+import {
+  configuracaoSistemaSchema,
+  gravarConfiguracaoSistemaSchema,
+} from './configuracao-sistema.ts';
+import { regrasAtendimentoSchema } from './regras-atendimento.ts';
 import { reservaCadastroSchema } from './rpc.ts';
 import {
   aprovadorPlanoSchema,
@@ -86,15 +106,31 @@ const consultaConcessoesSchema = z
     estado: z.enum(['pendente', 'vinculada', 'revogada']).optional(),
   })
   .strict();
+/** Filtros de FR-039: "identidade, data e objeto". `ator_id` casa tanto `ator_usuario_id`
+ * quanto `ator_auth_id` (identidade Auth não admitida).
+ *
+ * `paciente_id` filtra por CASO. Veio da decisão do solicitante de 12/11/2026, que trocou a
+ * nota 3 de `20261119300000` (onde o filtro não existia): a trilha passou a gravar o caso no
+ * evento (`20261120200000`). Eventos anteriores àquela migration não têm caso e, por isso, não
+ * aparecem neste filtro — aparecem nos demais. */
 const consultaAuditoriaSchema = z
   .object({
     cursor: cursorSchema.optional(),
     limite: limitePaginaSchema,
     ator_id: uuidSchema.optional(),
     objeto_id: uuidSchema.optional(),
+    paciente_id: uuidSchema.optional(),
     acao: z.string().trim().min(1).max(120).optional(),
+    resultado: z.enum(['permitido', 'negado', 'falhou']).optional(),
+    instante_de: z.iso.datetime({ offset: true }).optional(),
+    instante_ate: z.iso.datetime({ offset: true }).optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (v) =>
+      !v.instante_de || !v.instante_ate || Date.parse(v.instante_de) <= Date.parse(v.instante_ate),
+    'O início do período não pode ser depois do fim.',
+  );
 const versaoEsperadaSchema = z.number().int().min(0).max(2147483646);
 const gravarCampoExtraPlanoSchema = z
   .object({
@@ -459,6 +495,24 @@ export const contratosRotas = {
     consultaAuditoriaSchema,
     paginaSchema(eventoAuditoriaSchema),
   ),
+  // FR-041: não é rota de administração. Qualquer sessão autenticada lê — é o ponto do
+  // requisito. A edição continua em `gravarConfiguracaoSistema`, administrador-only.
+  consultarRegrasAtendimento: consulta(
+    '/api/regras-atendimento',
+    vazioSchema,
+    regrasAtendimentoSchema,
+  ),
+  listarConfiguracaoSistema: consulta(
+    '/api/admin/configuracao-sistema',
+    vazioSchema,
+    z.array(configuracaoSistemaSchema),
+  ),
+  gravarConfiguracaoSistema: mutacaoIdempotente(
+    'POST',
+    '/api/admin/configuracao-sistema',
+    gravarConfiguracaoSistemaSchema,
+    configuracaoSistemaSchema,
+  ),
   listarCampoExtraPlano: consulta(
     '/api/admin/campo-extra-plano',
     vazioSchema,
@@ -486,6 +540,45 @@ export const contratosRotas = {
     '/api/plano/aprovar-objetivo',
     aprovarObjetivoPlanoSchema,
     aprovacaoObjetivoPlanoSchema,
+  ),
+  consultarEncaminhamentos: consulta(
+    '/api/pacientes/:paciente_id/encaminhamentos',
+    consultarEncaminhamentosSchema,
+    z.array(encaminhamentoSchema),
+    pacienteParametrosSchema,
+  ),
+  salvarEncaminhamento: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/encaminhamentos',
+    salvarEncaminhamentoSchema,
+    encaminhamentoSchema,
+    pacienteParametrosSchema,
+  ),
+  consultarOrientacoes: consulta(
+    '/api/pacientes/:paciente_id/orientacoes',
+    consultarOrientacoesSchema,
+    z.array(orientacaoSchema),
+    pacienteParametrosSchema,
+  ),
+  salvarOrientacao: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/orientacoes',
+    salvarOrientacaoSchema,
+    orientacaoSchema,
+    pacienteParametrosSchema,
+  ),
+  consultarDiario: consulta(
+    '/api/pacientes/:paciente_id/diario',
+    consultarDiarioSchema,
+    z.array(registroDiarioSchema),
+    pacienteParametrosSchema,
+  ),
+  salvarRegistroDiario: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/diario',
+    salvarRegistroDiarioSchema,
+    registroDiarioSchema,
+    pacienteParametrosSchema,
   ),
 } as const;
 

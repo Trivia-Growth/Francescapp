@@ -11,6 +11,17 @@ export const rotulosSituacao: Readonly<Record<SituacaoCaso, string>> = Object.fr
 /** Pessoa da equipe com concessão vinculada; só as ativas podem ser indicadas como responsável (case manager). */
 export type ResponsavelOpcao = { usuario_id: string; rotulo: string; ativo: boolean };
 
+/** Nome legível a partir do e-mail de acesso. Enquanto a equipe não tem nome próprio
+ *  cadastrado, mostrar o endereço inteiro na ficha deixa a tela com cara de banco de dados. */
+export function nomeDeEmail(email: string): string {
+  const local = email.split('@')[0] ?? email;
+  const partes = local
+    .split(/[._+-]+/)
+    .filter(Boolean)
+    .map((parte) => parte.charAt(0).toLocaleUpperCase('pt-BR') + parte.slice(1));
+  return partes.length ? partes.join(' ') : email;
+}
+
 type PaginaConcessoes = {
   itens: {
     perfil: 'administrador' | 'profissional';
@@ -39,7 +50,7 @@ export function criarCatalogoResponsaveis(
           opcoes.push({
             usuario_id: item.usuario_id,
             ativo: item.ativo !== false,
-            rotulo: `${item.email} (${item.perfil === 'administrador' ? 'Administrador' : 'Profissional'})`,
+            rotulo: `${nomeDeEmail(item.email)} · ${item.perfil === 'administrador' ? 'Administrador' : 'Profissional'}`,
           });
       if (!resposta.proximo_cursor) return opcoes;
       cursor = resposta.proximo_cursor;

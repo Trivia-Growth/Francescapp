@@ -34,12 +34,15 @@ export function montarSelecaoProfissional(
   seguinte.type = 'button';
   seguinte.className = 'button-secondary';
   seguinte.textContent = 'Próxima página';
+  // Paginação só aparece quando há mais de uma página: botões soltos sobre lista
+  // vazia davam a impressão de tela quebrada.
+  anterior.hidden = seguinte.hidden = true;
   const tentar = document.createElement('button');
   tentar.type = 'button';
   tentar.className = 'button-secondary';
   tentar.textContent = 'Tentar novamente';
   const explicacao = document.createElement('p');
-  explicacao.textContent = 'Verifique operações anteriores antes de conceder acesso.';
+  explicacao.textContent = 'Conferindo se há alguma concessão aguardando resposta…';
   const rotuloMotivo = document.createElement('label');
   rotuloMotivo.textContent = 'Motivo da concessão';
   const motivo = document.createElement('textarea');
@@ -52,7 +55,7 @@ export function montarSelecaoProfissional(
   rotuloMotivo.append(motivo);
   const recuperar = document.createElement('button');
   recuperar.type = 'button';
-  recuperar.textContent = 'Verificar operação pendente';
+  recuperar.textContent = 'Conferir novamente';
   const conceder = document.createElement('button');
   conceder.type = 'button';
   conceder.className = 'button-primary';
@@ -149,12 +152,12 @@ export function montarSelecaoProfissional(
       if (!ativa) return;
       liberado = true;
       revogacao.reconciliar();
-      explicacao.textContent = 'Operações anteriores verificadas.';
+      explicacao.textContent = 'Tudo conferido. Você já pode conceder acesso.';
       conceder.disabled = !selecao.value;
     } catch (erro) {
       if (!ativa || acessoPerdido(erro)) return;
       explicacao.textContent =
-        'Não foi possível confirmar a operação anterior. Consulte o paciente correspondente e tente novamente.';
+        'Não foi possível concluir a conferência. Confira o paciente correspondente e tente de novo.';
     } finally {
       verificando = false;
       if (ativa) recuperar.disabled = false;
@@ -179,13 +182,13 @@ export function montarSelecaoProfissional(
           pendenciaConcessao = false;
           informarPendencia();
         }
-        explicacao.textContent = 'Concessão enviada. Verifique o resultado antes de continuar.';
+        explicacao.textContent = 'Concessão enviada. Confira o resultado antes de continuar.';
         void atualizarVinculos().catch(() => {});
       })
       .catch((erro) => {
         if (ativa && !acessoPerdido(erro))
           explicacao.textContent =
-            'Resultado incerto. Verifique a operação antes de tentar novamente.';
+            'Não deu para saber se a concessão foi registrada. Confira antes de tentar de novo.';
       });
   });
   void verificarPendente();
@@ -209,7 +212,7 @@ export function montarSelecaoProfissional(
   vinculos.append(tituloVinculos, estadoVinculos, listaVinculos, maisVinculos, tentarVinculos);
   const areaRevogacao = document.createElement('section');
   const avisoRevogacao = document.createElement('p');
-  avisoRevogacao.textContent = 'Verifique operações anteriores antes de alterar vínculos.';
+  avisoRevogacao.textContent = 'Conclua a conferência acima antes de alterar vínculos.';
   vinculos.append(avisoRevogacao);
   raiz.prepend(vinculos);
   raiz.append(areaRevogacao);
@@ -405,9 +408,12 @@ export function montarSelecaoProfissional(
       );
       const vazio = document.createElement('option');
       vazio.value = '';
+      const unicaPagina = pagina === 0 && !proximo;
       vazio.textContent = profissionais.length
         ? 'Selecione um profissional'
-        : 'Nenhum profissional elegível nesta página';
+        : unicaPagina
+          ? 'Nenhum profissional elegível'
+          : 'Nenhum profissional elegível nesta página';
       selecao.append(vazio);
       for (const profissional of profissionais) {
         const opcao = document.createElement('option');
@@ -418,9 +424,11 @@ export function montarSelecaoProfissional(
       selecao.disabled = profissionais.length === 0;
       anterior.disabled = pagina === 0;
       seguinte.disabled = !proximo;
+      anterior.hidden = seguinte.hidden = unicaPagina;
+      const paginaAtual = unicaPagina ? '' : `Página ${pagina + 1}. `;
       status.textContent = profissionais.length
-        ? `Página ${pagina + 1}. Selecione um profissional.`
-        : `Página ${pagina + 1}. Nenhum profissional elegível nesta página.`;
+        ? `${paginaAtual}Selecione o profissional que vai acompanhar o caso.`
+        : `${paginaAtual}Nenhum profissional da equipe pode receber acesso agora.`;
     } catch (erro) {
       if (!ativa || atual !== consulta || acessoPerdido(erro)) return;
       status.textContent = mensagemFalha(erro);
