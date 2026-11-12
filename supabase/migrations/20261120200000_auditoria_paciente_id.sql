@@ -93,7 +93,23 @@ grant usage on schema cadastro, auditoria to ffcmapp_marcar_caso_owner;
 grant select (id, paciente_id) on cadastro.acesso_paciente to ffcmapp_marcar_caso_owner;
 create policy marcar_caso_acesso_select on cadastro.acesso_paciente
   for select to ffcmapp_marcar_caso_owner using (true);
+-- `alter function ... owner to` exige que o NOVO dono tenha CREATE no schema da função. O
+-- migrador local costuma ser dono de `auditoria` e mascara a falta; no projeto remoto não é, e o
+-- comando recusa com 42501. CREATE entra só para a troca de dono e sai logo depois, no mesmo
+-- padrão de `20261110130000_carteira_tecnica_nativa.sql`: o papel não guarda poder de criar
+-- objetos em `auditoria`. A guarda preserva CREATE preexistente, se houver.
+select set_config('ffcmapp.marcar_caso_tinha_create', exists(select 1 from pg_namespace n cross join lateral aclexplode(coalesce(n.nspacl, acldefault('n', n.nspowner))) a join pg_roles r on r.oid = a.grantee where n.nspname = 'auditoria' and r.rolname = 'ffcmapp_marcar_caso_owner' and a.privilege_type = 'CREATE')::text, false);
+do $$ begin
+  if current_setting('ffcmapp.marcar_caso_tinha_create') = 'false' then
+    grant create on schema auditoria to ffcmapp_marcar_caso_owner;
+  end if;
+end $$;
 alter function auditoria.marcar_caso_evento() owner to ffcmapp_marcar_caso_owner;
+do $$ begin
+  if current_setting('ffcmapp.marcar_caso_tinha_create') = 'false' then
+    revoke create on schema auditoria from ffcmapp_marcar_caso_owner;
+  end if;
+end $$;
 select set_config('ffcmapp.marcar_caso_migrador', current_user, false);
 set role ffcmapp_marcar_caso_owner;
 revoke all on function auditoria.marcar_caso_evento() from public, anon, authenticated, service_role;

@@ -19,6 +19,10 @@
 -- em log. Quem cadastra o VALOR no Vault é o solicitante.
 select set_config('ffcmapp.migrador_segredo_json', current_user, false);
 grant ffcmapp_segredo_integracao_owner to current_user with inherit false, set true;
+-- Refazer a função exige CREATE no schema, e `20261119100000` revogou esse CREATE ao terminar,
+-- de propósito: o papel não guarda poder de criar objetos em `identidade`. Devolvemos só pelo
+-- tempo da troca e tiramos de novo no fim, como lá.
+grant create on schema identidade to ffcmapp_segredo_integracao_owner;
 
 set role ffcmapp_segredo_integracao_owner;
 
@@ -72,6 +76,7 @@ grant execute on function identidade.ler_segredo_integracao_vault(text) to ffcma
 
 reset role;
 select set_config('role', current_setting('ffcmapp.migrador_segredo_json'), false);
+revoke create on schema identidade from ffcmapp_segredo_integracao_owner;
 revoke ffcmapp_segredo_integracao_owner from current_user;
 
 -- PASSO OPERACIONAL FORA DE MIGRATION: o `grant ffcmapp_segredo_integracao_executor to

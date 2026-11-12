@@ -25,7 +25,23 @@ language sql security definer stable set search_path = '' set row_security = on 
   where c.exposicao = 'servidor';
 $$;
 revoke all on function identidade.ler_configuracao_sistema_publica() from public, anon, authenticated, service_role;
+-- `alter function ... owner to` exige que o NOVO dono tenha CREATE no schema da função. O
+-- migrador local costuma ser dono de `identidade` e mascarava a falta; no projeto remoto não é,
+-- e o comando recusava com 42501. CREATE entra só para a troca de dono e sai logo depois, no
+-- mesmo padrão de `20261110130000_carteira_tecnica_nativa.sql`: o papel não guarda poder de
+-- criar objetos em `identidade`. A guarda preserva CREATE preexistente, se houver.
+select set_config('ffcmapp.configuracao_leitor_tinha_create', exists(select 1 from pg_namespace n cross join lateral aclexplode(coalesce(n.nspacl, acldefault('n', n.nspowner))) a join pg_roles r on r.oid = a.grantee where n.nspname = 'identidade' and r.rolname = 'ffcmapp_configuracao_leitor_owner' and a.privilege_type = 'CREATE')::text, false);
+do $$ begin
+  if current_setting('ffcmapp.configuracao_leitor_tinha_create') = 'false' then
+    grant create on schema identidade to ffcmapp_configuracao_leitor_owner;
+  end if;
+end $$;
 alter function identidade.ler_configuracao_sistema_publica() owner to ffcmapp_configuracao_leitor_owner;
+do $$ begin
+  if current_setting('ffcmapp.configuracao_leitor_tinha_create') = 'false' then
+    revoke create on schema identidade from ffcmapp_configuracao_leitor_owner;
+  end if;
+end $$;
 
 select set_config('ffcmapp.configuracao_leitor_migrador', current_user, false);
 set role ffcmapp_configuracao_leitor_owner;
