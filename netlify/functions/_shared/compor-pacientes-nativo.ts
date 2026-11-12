@@ -92,7 +92,7 @@ export async function comporPacientesNativo(
         .schema('api')
         .rpc(
           rota === 'carteira-familiar' || rota === 'paciente-familiar'
-            ? 'consultar_sessao_familiar_privada'
+            ? 'consultar_sessao_familiar_nativa'
             : 'consultar_sessao_nativa',
           {
             p_request_id: crypto.randomUUID(),
