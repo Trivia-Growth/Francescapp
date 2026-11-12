@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { uuidSchema } from './comum.ts';
+import { paginaSchema, uuidSchema } from './comum.ts';
 
 /** Cada evento identifica um usuário, identidade Auth não admitida ou operador restrito. */
 export const eventoAuditoriaSchema = z
@@ -24,3 +24,23 @@ export const eventoAuditoriaSchema = z
         (autor) => autor !== null,
       ).length === 1,
   );
+export type EventoAuditoria = z.output<typeof eventoAuditoriaSchema>;
+
+/** Página devolvida por `api.consultar_auditoria` (migration `20261119300000`).
+ *
+ * O schema é `.strict()` e NÃO tem `motivo_cifrado` nem `request_id`: FR-039 manda "evitar
+ * repetir conteúdo clínico desnecessariamente". O controle de verdade é o grant de coluna no
+ * banco — este schema é a segunda barreira, não a primeira. */
+export const paginaAuditoriaSchema = paginaSchema(eventoAuditoriaSchema);
+export type PaginaAuditoria = z.output<typeof paginaAuditoriaSchema>;
+
+export const respostaConsultaAuditoriaPrivadaSchema = z.discriminatedUnion('ok', [
+  z.object({ ok: z.literal(true), dados: paginaAuditoriaSchema, request_id: uuidSchema }).strict(),
+  z
+    .object({
+      ok: z.literal(false),
+      erro: z.object({ codigo: z.literal('sem_permissao') }).strict(),
+      request_id: uuidSchema,
+    })
+    .strict(),
+]);
