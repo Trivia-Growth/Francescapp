@@ -16,6 +16,16 @@
 -- acontecimento. Tudo o que descreve a pessoa ou o acontecimento — data do acontecimento,
 -- categoria, descrição, contexto, ação tomada, síntese profissional e a justificativa da
 -- retificação — viaja cifrado e o banco nunca vê em claro.
+--
+-- REVISADO EM 12/11/2026, não leia o parágrafo acima como o estado atual. Por decisão do
+-- solicitante, a DATA DO ACONTECIMENTO e o RÓTULO DA ÁREA saíram do envelope e viraram as
+-- colunas `aconteceu_em` e `area`, acrescentadas por
+-- `20261120360000_diario_acontecimento_area_em_claro.sql`. Motivo: FR-007 exige linha do
+-- tempo pesquisável por período e área e a distinção entre acontecimento e registro, e
+-- nenhuma das duas é possível sobre um envelope sem decifrar tudo no servidor. A reversão
+-- para por aí: descrição, contexto, ação tomada, síntese profissional, o texto do relato e
+-- a justificativa da retificação CONTINUAM cifrados. Ampliar além desses dois campos exige
+-- nova decisão registrada.
 
 create table cadastro.diario_registro (
   id uuid primary key,

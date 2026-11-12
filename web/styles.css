@@ -1899,6 +1899,14 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   color: var(--muted);
   font-size: .875rem;
 }
+/* FR-033: a declaração de que houve omissão de terceiros. Fica legível, não em nota de
+   rodapé — quem recebe o pacote precisa saber que ele foi reduzido. */
+.exportacao__terceiros {
+  margin: 0;
+  color: var(--muted);
+  font-size: .875rem;
+  font-style: italic;
+}
 
 @media (max-width: 560px) {
   .linha-tempo__filtros {

@@ -35,16 +35,17 @@ export const itemLinhaTempoSchema = z
     tipo_evento: tipoEventoLinhaTempoSchema,
     /** Quando foi registrado. Existe em claro em todas as fontes. */
     registrado_em: z.string().min(1),
-    /** Quando aconteceu. Só existe em claro onde a fatia de origem o pôs em claro — hoje,
-     * a data do documento. Nulo não significa "sem data": significa que a data está dentro
-     * do conteúdo cifrado e quem decifra o item a apresenta. */
+    /** Quando aconteceu. Em claro no documento e, desde 12/11/2026, também no diário.
+     * Nulo significa que aquele registro não tem data de acontecimento informada — não que
+     * ela esteja escondida. A tela diz isso em vez de apresentar a data de registro. */
     aconteceu_em: z.string().min(1).nullable(),
     autor_usuario_id: uuidSchema.nullable(),
     audiencia: z.enum(['equipe', 'equipe_e_familia']),
     versao: z.number().int().positive(),
     registro_id: uuidSchema,
     objetivo_id: uuidSchema.nullable(),
-    /** Eixo de área em claro; hoje só a categoria do documento. */
+    /** Eixo de área em claro: a categoria do documento e, desde 12/11/2026, a área do
+     * diário. Nulo nas fatias que não têm área. */
     area: z.string().min(1).max(120).nullable(),
     detalhe: z.record(z.string(), z.unknown()),
   })
@@ -71,6 +72,10 @@ export const consultarLinhaTempoSchema = z
     ate: z.string().min(1).optional(),
     fontes: z.array(fonteLinhaTempoSchema).min(1).max(12).optional(),
     autor_usuario_id: uuidSchema.optional(),
+    /** Vocabulário configurado pela equipe, não lista fechada: rótulo inexistente devolve
+     * lista vazia, rótulo malformado é entrada inválida. */
+    areas: z.array(z.string().min(1).max(120)).min(1).max(20).optional(),
+    objetivo_id: uuidSchema.optional(),
     cursor_em: z.string().min(1).optional(),
     cursor_id: uuidSchema.optional(),
     limite: z.number().int().min(1).max(200).optional(),

@@ -7,6 +7,34 @@
 \ir ../migrations/20261111160000_admissao_familiar_privada.sql
 \ir ../migrations/20261118200000_diario_versoes_privadas.sql
 \ir ../migrations/20261118210000_diario_operacoes_privadas.sql
+-- 12/11/2026: a data do acontecimento e a área saem do envelope. O limite exato dessa
+-- reversão é afirmado no bloco abaixo.
+\ir ../migrations/20261120360000_diario_acontecimento_area_em_claro.sql
+
+do $$
+declare coluna text;
+begin
+ -- O que PASSOU a ficar em claro, e só isso.
+ if not has_column_privilege('ffcmapp_diario_owner','cadastro.diario_registro_versao','aconteceu_em','SELECT')
+  or not has_column_privilege('ffcmapp_diario_owner','cadastro.diario_registro_versao','area','SELECT') then
+  raise exception 'REVERSAO_NAO_APLICADA';
+ end if;
+ -- O que CONTINUA cifrado. Se alguém puser qualquer um destes em claro, esta prova quebra
+ -- e a decisão volta à mesa, em vez de a ampliação passar despercebida.
+ foreach coluna in array array['conteudo_cifrado','justificativa_cifrada'] loop
+  if (select atttypid::regtype::text from pg_attribute
+      where attrelid='cadastro.diario_registro_versao'::regclass and attname=coluna) <> 'jsonb' then
+   raise exception 'CAMPO_DESCIFRADO: %', coluna;
+  end if;
+ end loop;
+ -- Nenhuma coluna nova de texto livre entrou junto: a reversão é de dois campos, não um
+ -- convite para descifrar o relato.
+ if exists(select 1 from pg_attribute a
+   where a.attrelid='cadastro.diario_registro_versao'::regclass and a.attnum>0 and not a.attisdropped
+    and a.atttypid='text'::regtype and a.attname not in ('estado','audiencia','origem_conteudo','area')) then
+  raise exception 'TEXTO_LIVRE_INESPERADO';
+ end if;
+end $$;
 
 -- Antes do grant, nenhum papel do PostgREST alcança o wrapper nem as tabelas.
 do $$

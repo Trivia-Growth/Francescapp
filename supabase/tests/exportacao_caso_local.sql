@@ -3,9 +3,12 @@
 -- assinatura são fixtures fictícias e não comprovam serviço real. Reaproveita toda a fixture
 -- da linha do tempo porque o manifesto da exportação sai do mesmo derivador: provar as duas
 -- com fontes diferentes esconderia justamente a divergência que se quer impedir.
-\ir linha_tempo_caso_local.sql
+\ir linha_tempo_fixture_local.sql
 \ir ../migrations/20261120330000_exportacao_caso.sql
 \ir ../migrations/20261120340000_exportacao_operacoes_privadas.sql
+\ir linha_tempo_area_local.sql
+-- 12/11/2026: escopo de quem exporta e declaração de redução de terceiros.
+\ir ../migrations/20261120390000_exportacao_escopo_e_terceiros.sql
 
 -- Antes do grant, nenhum papel do PostgREST alcança o wrapper nem as tabelas.
 do $$
@@ -115,6 +118,34 @@ begin
  end if;
 end $$;
 
+-- 1b. FR-033: o pacote DECLARA que houve redução de terceiros, sem dizer o que foi
+-- omitido. Sem fonte de terceiros no caso, não há o que declarar.
+do $$
+#variable_conflict use_variable
+declare r jsonb;
+begin
+ if (select terceiros_reduzidos from cadastro.exportacao_caso where id='80000000-0000-4000-8000-000000000001') is distinct from false then
+  raise exception 'DECLARACAO_SEM_TERCEIROS';
+ end if;
+ -- Com uma versão de rede de cuidado no caso, a exportação seguinte declara a redução.
+ insert into cadastro.rede_cuidado_versao(id,paciente_id,versao,conteudo_cifrado,criado_por_usuario_id,criado_em)
+  values (gen_random_uuid(),'40000000-0000-4000-8000-000000000001',1,public.envelope_linha_fixture(),'10000000-0000-4000-8000-000000000002',clock_timestamp());
+ r:=public.exportar('10000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001',
+   'api.registrar_exportacao',jsonb_build_object(
+     'registro_id','80000000-0000-4000-8000-000000000009','chave_idempotencia','exp-terceiros',
+     'digest_idempotencia',repeat('3',43),'finalidade','encerramento_uso',
+     'destinatario_cifrado',public.envelope_linha_fixture(),
+     'proposito_cifrado',public.envelope_linha_fixture()));
+ if r->>'ok' is distinct from 'true' then raise exception 'EXP_TERCEIROS: %',r; end if;
+ if (select terceiros_reduzidos from cadastro.exportacao_caso where id='80000000-0000-4000-8000-000000000009') is distinct from true then
+  raise exception 'DECLARACAO_AUSENTE';
+ end if;
+ -- A declaração não carrega o que foi omitido: o owner não enxerga conteúdo de rede.
+ if has_column_privilege('ffcmapp_exportacao_owner','cadastro.rede_cuidado_versao','conteudo_cifrado','SELECT') then
+  raise exception 'EXPORTACAO_LE_TERCEIROS';
+ end if;
+end $$;
+
 -- 2. Destinatário e propósito ficam gravados, cifrados, antes de o manifesto sair.
 do $$ begin
  if not exists(select 1 from cadastro.exportacao_caso
@@ -129,14 +160,15 @@ end $$;
 -- diferente é conflito, nunca sobrescrita.
 do $$
 #variable_conflict use_variable
-declare r jsonb; campos jsonb;
+declare r jsonb; campos jsonb; antes integer;
 begin
+ select count(*) into antes from cadastro.exportacao_caso;
  campos:=jsonb_build_object('registro_id','80000000-0000-4000-8000-000000000001',
    'chave_idempotencia','exp-1','digest_idempotencia',repeat('a',43),'finalidade','acompanhamento',
    'destinatario_cifrado',public.envelope_linha_fixture(),'proposito_cifrado',public.envelope_linha_fixture());
  r:=public.exportar('10000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','api.registrar_exportacao',campos);
  if r->>'ok' is distinct from 'true' or r->>'repeticao' is distinct from 'true'
-  or (select count(*) from cadastro.exportacao_caso)<>1 then raise exception 'REPLAY: %',r; end if;
+  or (select count(*) from cadastro.exportacao_caso)<>antes then raise exception 'REPLAY_CRIOU_SEGUNDA'; end if;
  r:=public.exportar('10000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','api.registrar_exportacao',
    jsonb_set(campos,'{digest_idempotencia}',to_jsonb(repeat('b',43))));
  if r#>>'{erro,codigo}' is distinct from 'conflito_idempotencia' then raise exception 'CONFLITO: %',r; end if;
@@ -188,24 +220,45 @@ do $$ begin
  end;
 end $$;
 
--- 6. Profissional vinculado NÃO exporta (decisão provisória: administrador apenas), e a
--- recusa é auditada.
+-- 6. Profissional do caso exporta (decisão de 12/11/2026); profissional SEM vínculo com
+-- aquele caso é recusada e auditada. Exportar não é mais frouxo que ler.
 do $$
 #variable_conflict use_variable
-declare r jsonb;
+declare r jsonb; antes integer; depois integer;
 begin
+ select count(*) into antes from cadastro.exportacao_caso;
  r:=public.exportar('10000000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000002',
    'api.registrar_exportacao',jsonb_build_object(
-     'registro_id',gen_random_uuid(),'chave_idempotencia','exp-prof','digest_idempotencia',repeat('f',43),
-     'finalidade','acompanhamento','destinatario_cifrado',public.envelope_linha_fixture(),
+     'registro_id','80000000-0000-4000-8000-000000000003','chave_idempotencia','exp-prof',
+     'digest_idempotencia',repeat('f',43),'finalidade','acompanhamento',
+     'destinatario_cifrado',public.envelope_linha_fixture(),
+     'proposito_cifrado',public.envelope_linha_fixture()));
+ if r->>'ok' is distinct from 'true' then raise exception 'PROFISSIONAL_DO_CASO_NEGADA: %',r; end if;
+ select count(*) into depois from cadastro.exportacao_caso;
+ if depois<>antes+1 then raise exception 'EXPORTACAO_NAO_CRIADA'; end if;
+
+ -- Revogado o vínculo, a mesma profissional deixa de exportar na hora.
+ update cadastro.acesso_paciente set revogada_em=clock_timestamp(),
+   revogado_por_usuario_id='10000000-0000-4000-8000-000000000001',
+   motivo_revogacao_cifrado='{"formato":1,"key_id":"teste","nonce":"n","ciphertext":"c","tag":"t"}'
+  where usuario_id='10000000-0000-4000-8000-000000000002' and paciente_id='40000000-0000-4000-8000-000000000001';
+ r:=public.exportar('10000000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000002',
+   'api.registrar_exportacao',jsonb_build_object(
+     'registro_id',gen_random_uuid(),'chave_idempotencia','exp-sem-vinculo',
+     'digest_idempotencia',repeat('7',43),'finalidade','acompanhamento',
+     'destinatario_cifrado',public.envelope_linha_fixture(),
      'proposito_cifrado',public.envelope_linha_fixture()));
  if r->>'ok' is distinct from 'false' or r#>>'{erro,codigo}' is distinct from 'sem_permissao' or r ? 'dados' then
-  raise exception 'PROFISSIONAL_EXPORTOU: %',r;
+  raise exception 'PROFISSIONAL_SEM_VINCULO_EXPORTOU: %',r;
  end if;
  if not exists(select 1 from auditoria.evento where acao='api.registrar_exportacao' and resultado='negado') then
   raise exception 'AUDITORIA_NEGATIVA_AUSENTE';
  end if;
- if (select count(*) from cadastro.exportacao_caso)<>1 then raise exception 'EXPORTACAO_CRIADA_SEM_PERMISSAO'; end if;
+ if (select count(*) from cadastro.exportacao_caso)<>depois then
+  raise exception 'EXPORTACAO_CRIADA_SEM_PERMISSAO';
+ end if;
+ update cadastro.acesso_paciente set revogada_em=null, revogado_por_usuario_id=null, motivo_revogacao_cifrado=null
+  where usuario_id='10000000-0000-4000-8000-000000000002' and paciente_id='40000000-0000-4000-8000-000000000001';
 end $$;
 
 -- 7. Família não exporta de jeito nenhum, nem do próprio caso.
@@ -247,7 +300,12 @@ begin
      'destinatario_cifrado',public.envelope_linha_fixture(),'proposito_cifrado',public.envelope_linha_fixture()));
  if r->>'ok' is distinct from 'true' then raise exception 'PERIODO: %',r; end if;
  select x into ex from jsonb_array_elements(r#>'{dados,exportacoes}') x where x->>'id'='80000000-0000-4000-8000-000000000002';
- if jsonb_array_length(ex->'itens')<>1 then raise exception 'PERIODO_NAO_RECORTOU: %',ex->'itens'; end if;
+ -- O corte precisa deixar de fora tudo que é anterior a ele, e manter o que é posterior.
+ if exists(select 1 from jsonb_array_elements(ex->'itens') i where (i->>'registrado_em')::timestamptz < corte::timestamptz)
+  or not exists(select 1 from jsonb_array_elements(ex->'itens') i where i->>'registro_id'='71000000-0000-4000-8000-000000000002')
+  or exists(select 1 from jsonb_array_elements(ex->'itens') i where i->>'registro_id'='71000000-0000-4000-8000-000000000001') then
+  raise exception 'PERIODO_NAO_RECORTOU: %',ex->'itens';
+ end if;
  begin
   r:=api.exportacao_operacao_privada(public.assinar_linha_fixture(
     jsonb_build_object('request_id',gen_random_uuid(),'paciente_id','40000000-0000-4000-8000-000000000002',

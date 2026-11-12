@@ -47,6 +47,9 @@ export const exportacaoSchema = z
     finalidade: finalidadeExportacaoSchema,
     criado_em: z.string().min(1),
     ator_usuario_id: uuidSchema,
+    /** FR-033: declara que dados de terceiros foram reduzidos ao mínimo identificável
+     * (papel e primeiro nome). Declara QUE houve omissão, nunca O QUE foi omitido. */
+    terceiros_reduzidos: z.boolean(),
     itens: z.array(itemExportacaoSchema),
     entregas: z.array(entregaExportacaoSchema),
   })

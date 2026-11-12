@@ -269,3 +269,57 @@ recusados; chave de idempotência repetida com entrada diferente é conflito.
 partir do manifesto depende da decisão 3 acima); sem revisão independente; sem prova em
 navegador; sem ligação em `web/main.ts`. Faltam estilos para `.secao-exportacao` e
 `.exportacao__*`.
+
+## Decisões do solicitante de 12/11/2026 aplicadas (FR-007, FR-032, FR-033)
+
+**1. Data do acontecimento e área do diário em claro.** Reversão parcial da decisão de
+11/11/2026 registrada em `20261118200000`, cujo comentário foi atualizado no próprio arquivo
+para ninguém reconstituir a decisão antiga por engano. `20261120360000` acrescenta as
+colunas `aconteceu_em` e `area` e refaz `api.diario_operacao_privada` para recebê-las em
+claro ao lado do envelope — o banco não consegue extraí-las de dentro do ciphertext, então
+quem as informa é o servidor, antes de cifrar. **O limite é exatamente esse**: texto do
+relato, justificativa da retificação, descrição, contexto, ação tomada e síntese continuam
+cifrados. `20261120370000` refaz o derivador para lê-las e ganhar os filtros por área e
+objetivo; `20261120380000` refaz o wrapper para aceitá-los. Com isso `aconteceu_em` deixa de
+vir nulo e o filtro por área passa a ser real; a tela oferece as áreas que apareceram no
+acervo carregado, porque o vocabulário é configurado pela equipe, e esconde o seletor
+enquanto não houver nenhuma. O aviso que dizia que a data estava no conteúdo saiu.
+
+A assinatura antiga do derivador é apagada em `20261120370000`: manter as duas conviveria
+com um caminho que ignora silenciosamente os filtros novos.
+
+**2. Exportação passa a ser do Administrador e da profissional do caso.** Bloco
+`ESCOPO_PERFIL` trocado em `20261120390000`. A profissional precisa de `acesso_paciente`
+vigente travado na mesma transação — exportar não pode ser mais frouxo que ler.
+
+**3. FR-033, dados de terceiros.** Entram com o mínimo identificável: papel e primeiro nome.
+Sem contato, anotação, documento ou campo livre. Como esses nomes vivem dentro do envelope e
+**a fatia continua não decifrando nada no servidor** (controle central da exportação, não
+afrouxado), a redução acontece no navegador junto da montagem do pacote. O banco guarda só
+`cadastro.exportacao_caso.terceiros_reduzidos`: a declaração de QUE houve omissão, nunca de
+O QUE foi omitido. A tela mostra a declaração.
+
+**Evidência.** `sh scripts/testar-linha-tempo-local.sh` → `LINHA_TEMPO_OK`,
+`testar-exportacao-local.sh` → `EXPORTACAO_OK`, `testar-diario-operacoes-local.sh` saída 0.
+`pnpm run verificar:rapido` verde, `vitest run web packages/contracts` 75 arquivos / 496
+testes, `build:web` com os módulos no bundle. Asserções novas, nenhuma enfraquecida: data e
+área do diário aparecem na linha do tempo e versão sem data continua nula; filtro por área
+recorta, área inexistente devolve lista vazia honestamente e área malformada é entrada
+inválida; a assinatura antiga do derivador não sobrevive e a nova não é alcançável por
+`anon`/`authenticated`/`service_role`; profissional do caso exporta, profissional com
+vínculo revogado é recusada e auditada sem criar exportação; a declaração de terceiros é
+`false` sem fonte de terceiros e `true` com uma, e o owner da exportação não tem privilégio
+sobre `conteudo_cifrado` da rede. No teste do diário, um bloco novo fixa o limite da
+reversão e **quebra de propósito** se alguém puser outro campo em claro.
+
+Fixture dividida em `linha_tempo_fixture_local.sql` + `linha_tempo_area_local.sql`: a ordem
+das migrations importa, porque `20261120370000` apaga a assinatura que `20261120340000`
+ainda concede, e encadear o teste inteiro inverteria essa ordem.
+
+**Continuam pendentes de decisão do solicitante, não escolhidas aqui:** o formato
+"consultável" de FR-033 e quem confere a entrega. A estrutura aceita os dois atos
+(`entregue`, `conferida`) sem fixar quem os pratica além do escopo de perfil acima.
+
+**Não entregue.** Migrations não aplicadas remotamente; `FFCM_LINHA_TEMPO_ATIVA` e
+`FFCM_EXPORTACAO_ATIVA` fixas em `false`; a montagem do arquivo no navegador depende do
+formato, ainda não decidido; sem revisão independente de dois eixos; sem prova em navegador.

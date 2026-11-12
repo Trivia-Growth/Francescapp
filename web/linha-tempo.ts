@@ -55,15 +55,14 @@ function dataCivil(valor: string | null): string {
 /** Linha do tempo do caso (FR-007).
  *
  * Duas coisas que esta tela nunca faz:
- * - não inventa data de acontecimento. Quando a fatia de origem guarda essa data dentro do
- *   conteúdo cifrado, o banco não a vê; a linha do tempo mostra a data de registro e diz
- *   que o acontecimento está no conteúdo, em vez de apresentar uma como se fosse a outra;
+ * - não inventa data de acontecimento. Quando o registro não tem data informada, ela
+ *   simplesmente não aparece, em vez de a data de registro ocupar o lugar dela;
  * - não anuncia o que foi filtrado por audiência. O que a pessoa não pode ver não chega
  *   aqui nem como contagem.
  *
- * Os filtros de área e de objetivo não são oferecidos porque hoje não existem em claro
- * para a maioria das fontes — oferecer um filtro que silenciosamente ignora parte do
- * acervo seria pior do que não oferecê-lo. */
+ * Desde 12/11/2026 a data do acontecimento e a área do diário saíram do envelope, então o
+ * filtro por área é real. As áreas vêm do que já apareceu no acervo carregado, não de uma
+ * lista fixa no código: o vocabulário é configurado pela equipe. */
 export function montarLinhaTempo(
   raiz: HTMLElement,
   pacienteId: string,
@@ -90,12 +89,17 @@ export function montarLinhaTempo(
   seletor.append(new Option('Todos', ''));
   for (const [chave, rotulo] of Object.entries(ROTULOS_FONTE))
     seletor.append(new Option(rotulo, chave));
+  const rotuloArea = elemento('label', 'Área');
+  const seletorArea = elemento('select');
+  seletorArea.id = `linha-tempo-area-${pacienteId}`;
+  rotuloArea.htmlFor = seletorArea.id;
+  seletorArea.append(new Option('Todas', ''));
   const rotuloDe = elemento('label', 'A partir de');
   const campoDe = elemento('input');
   campoDe.type = 'date';
   campoDe.id = `linha-tempo-de-${pacienteId}`;
   rotuloDe.htmlFor = campoDe.id;
-  barra.append(rotuloFonte, seletor, rotuloDe, campoDe);
+  barra.append(rotuloFonte, seletor, rotuloArea, seletorArea, rotuloDe, campoDe);
 
   const lista = elemento('ol', undefined, 'linha-tempo__lista');
   const mais = elemento('button', 'Carregar mais');
@@ -135,6 +139,22 @@ export function montarLinhaTempo(
   function desenhar(): void {
     lista.replaceChildren();
     for (const item of acumulado) lista.append(desenharItem(item));
+    atualizarAreas();
+  }
+
+  /** As áreas oferecidas saem do acervo já carregado. Enquanto nada apareceu, o seletor
+   * fica escondido em vez de oferecer uma lista vazia que parece defeito. */
+  function atualizarAreas(): void {
+    const vistas = [...new Set(acumulado.map((i) => i.area).filter((a): a is string => !!a))].sort(
+      (a, b) => a.localeCompare(b, 'pt-BR'),
+    );
+    const escolhida = seletorArea.value;
+    seletorArea.replaceChildren(new Option('Todas', ''));
+    for (const area of vistas) seletorArea.append(new Option(area, area));
+    if (vistas.includes(escolhida)) seletorArea.value = escolhida;
+    const vazio = vistas.length === 0;
+    seletorArea.hidden = vazio;
+    rotuloArea.hidden = vazio;
   }
 
   async function carregar(continuar: boolean): Promise<void> {
@@ -188,6 +208,12 @@ export function montarLinhaTempo(
     const escolha = seletor.value;
     const { fontes: _fontes, ...resto } = filtros;
     filtros = escolha ? { ...resto, fontes: [escolha as ItemLinhaTempo['fonte']] } : resto;
+    reiniciar();
+  });
+  seletorArea.addEventListener('change', () => {
+    const escolha = seletorArea.value;
+    const { areas: _areas, ...resto } = filtros;
+    filtros = escolha ? { ...resto, areas: [escolha] } : resto;
     reiniciar();
   });
   campoDe.addEventListener('change', () => {

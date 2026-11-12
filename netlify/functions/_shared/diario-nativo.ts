@@ -160,6 +160,16 @@ export async function operarDiarioNativo(
           ? {}
           : { responde_registro_id: salvar.responde_registro_id.toLowerCase() }),
         ...(salvar.tarefa_id === undefined ? {} : { tarefa_id: salvar.tarefa_id.toLowerCase() }),
+        // 12/11/2026: a data do acontecimento e a área saíram do envelope, porque FR-007
+        // exige buscar por elas e o banco não consegue extraí-las de dentro do ciphertext.
+        // Elas continuam também dentro do conteúdo, que segue sendo a fonte de verdade de
+        // quem decifra; aqui viajam em claro só para o banco filtrar e ordenar.
+        ...('data' in salvar.conteudo && typeof salvar.conteudo.data === 'string'
+          ? { aconteceu_em: salvar.conteudo.data }
+          : {}),
+        ...('area' in salvar.conteudo && typeof salvar.conteudo.area === 'string'
+          ? { area: salvar.conteudo.area }
+          : {}),
         conteudo: campoCifradoSchema.parse(
           await portas.cifra.cifrar(JSON.stringify(salvar.conteudo), aadConteudo),
         ),

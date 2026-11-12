@@ -39,7 +39,11 @@ const ROTULOS_FINALIDADE: Record<RegistrarExportacao['finalidade'], string> = {
  * caso decifrado num só lugar.
  *
  * "Conteúdo indisponível" aqui nunca quer dizer "existe algo que você não pode ver": o que
- * a audiência exclui não chega a esta tela nem como contagem. */
+ * a audiência exclui não chega a esta tela nem como contagem.
+ *
+ * Decisão de 12/11/2026: dados de terceiros entram no pacote com o mínimo identificável —
+ * papel e primeiro nome, sem contato, anotação, documento ou campo livre. A redução é feita
+ * na montagem do pacote, aqui no navegador, porque o servidor não decifra nada. */
 export function montarExportacao(
   raiz: HTMLElement,
   pacienteId: string,
@@ -131,6 +135,16 @@ export function montarExportacao(
         'exportacao__contagem',
       ),
     );
+    // FR-033: o pacote declara que houve omissão de dados de terceiros, sem dizer o que
+    // foi omitido. Terceiros entram com papel e primeiro nome, nada além disso.
+    if (exportacao.terceiros_reduzidos)
+      item.append(
+        elemento(
+          'p',
+          'Dados de outras pessoas entraram apenas como papel e primeiro nome.',
+          'exportacao__terceiros',
+        ),
+      );
     const atos = new Set(exportacao.entregas.map((e) => e.ato));
     const estados = elemento('p', undefined, 'exportacao__entrega');
     estados.textContent = atos.has('conferida')

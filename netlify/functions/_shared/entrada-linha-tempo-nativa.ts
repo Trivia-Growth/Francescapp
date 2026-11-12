@@ -17,7 +17,17 @@ type Dependencias = Parameters<typeof comporLinhaTempoNativa>[2];
 
 /** Parâmetros aceitos na query. Chave desconhecida é entrada inválida, não ignorada em
  * silêncio: filtro que a aplicação não entende não pode virar "lista sem filtro". */
-const PARAMETROS = ['de', 'ate', 'fontes', 'autor_usuario_id', 'cursor_em', 'cursor_id', 'limite'];
+const PARAMETROS = [
+  'de',
+  'ate',
+  'fontes',
+  'areas',
+  'autor_usuario_id',
+  'objetivo_id',
+  'cursor_em',
+  'cursor_id',
+  'limite',
+];
 
 /** Entrada interna da linha do tempo do caso; não registra rota nem concede privilégios. */
 export function criarEntradaLinhaTempoNativa(dependencias: Dependencias) {
@@ -36,7 +46,7 @@ export function criarEntradaLinhaTempoNativa(dependencias: Dependencias) {
       const bruto: Record<string, unknown> = {};
       for (const [chave, valor] of url.searchParams) {
         if (!PARAMETROS.includes(chave) || chave in bruto) return erro('entrada_invalida');
-        if (chave === 'fontes') bruto[chave] = valor.split(',');
+        if (chave === 'fontes' || chave === 'areas') bruto[chave] = valor.split(',');
         else if (chave === 'limite') {
           if (!/^[1-9][0-9]{0,2}$/.test(valor)) return erro('entrada_invalida');
           bruto[chave] = Number(valor);
