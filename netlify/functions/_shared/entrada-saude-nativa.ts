@@ -6,6 +6,7 @@ import {
 } from '../../../packages/contracts/src/erros.ts';
 import { saudeHttp } from '../../../packages/contracts/src/saude-http.ts';
 import { comporSaudeNativa } from './compor-saude-nativa.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -105,8 +106,11 @@ export function criarEntradaSaudeNativa(dependencias: Dependencias) {
           request.method === 'GET' ? saudeHttp.consultar.saida : saudeHttp.salvar.saida;
         const dados = schema.parse(resultado.dados);
         return Response.json({ dados, request_id: resultado.request_id }, { headers });
-      } catch {
-        return erro(request.method === 'PATCH' ? 'pendencia_externa' : 'servico_indisponivel');
+      } catch (erroResposta) {
+        return erro(
+          request.method === 'PATCH' ? 'pendencia_externa' : 'servico_indisponivel',
+          registrarFalhaDeResposta('saude', erroResposta),
+        );
       }
     },
   };

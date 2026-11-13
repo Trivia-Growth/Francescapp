@@ -6,6 +6,7 @@ import {
 } from '../../../packages/contracts/src/erros.ts';
 import { contratosRotas } from '../../../packages/contracts/src/rotas.ts';
 import { comporDiarioNativo } from './compor-diario-nativo.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -110,8 +111,11 @@ export function criarEntradaDiarioNativa(dependencias: Dependencias) {
             : contratosRotas.salvarRegistroDiario.saida;
         const dados = schema.parse(resultado.dados);
         return Response.json({ dados, request_id: resultado.request_id }, { headers });
-      } catch {
-        return erro(request.method === 'POST' ? 'pendencia_externa' : 'servico_indisponivel');
+      } catch (erroResposta) {
+        return erro(
+          request.method === 'POST' ? 'pendencia_externa' : 'servico_indisponivel',
+          registrarFalhaDeResposta('diario', erroResposta),
+        );
       }
     },
   };

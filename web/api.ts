@@ -99,7 +99,9 @@ const rotas = {
     metodo: 'GET',
     caminho: '/api/anamnese/historico/disponibilidade',
     entrada: z.object({}).strict(),
-    saida: z.object({ disponivel: z.boolean() }).strict(),
+    // `roteiro` é opcional de propósito: o caminho de emergência da rota (banco fora do ar)
+    // responde sem ele, e a tela não deve quebrar por causa de uma sugestão.
+    saida: z.object({ disponivel: z.boolean(), roteiro: z.array(z.string()).optional() }).strict(),
   },
   disponibilidadeEdicao: {
     metodo: 'GET',

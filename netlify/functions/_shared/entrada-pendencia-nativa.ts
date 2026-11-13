@@ -6,6 +6,7 @@ import {
 } from '../../../packages/contracts/src/erros.ts';
 import { pendenciaHttp } from '../../../packages/contracts/src/pendencia-http.ts';
 import { comporPendenciaNativa } from './compor-pendencia-nativa.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -118,8 +119,11 @@ export function criarEntradaPendenciaNativa(dependencias: Dependencias) {
         if (!resultado.ok) return erro(resultado.erro.codigo, resultado.request_id);
         const dados = pendenciaHttp.consultar.saida.parse(resultado.dados);
         return Response.json({ dados, request_id: resultado.request_id }, { headers });
-      } catch {
-        return erro(metodo === 'GET' ? 'servico_indisponivel' : 'pendencia_externa');
+      } catch (erroResposta) {
+        return erro(
+          metodo === 'GET' ? 'servico_indisponivel' : 'pendencia_externa',
+          registrarFalhaDeResposta('pendencia', erroResposta),
+        );
       }
     },
   };

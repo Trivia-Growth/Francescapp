@@ -6,6 +6,7 @@ import {
 } from '../../../packages/contracts/src/erros.ts';
 import { exportacaoHttp } from '../../../packages/contracts/src/exportacao-http.ts';
 import { comporExportacaoNativa } from './compor-exportacao-nativa.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -115,8 +116,11 @@ export function criarEntradaExportacaoNativa(dependencias: Dependencias) {
         if (!resultado.ok) return erro(resultado.erro.codigo, resultado.request_id);
         const dados = exportacaoHttp.consultar.saida.parse(resultado.dados);
         return Response.json({ dados, request_id: resultado.request_id }, { headers });
-      } catch {
-        return erro(request.method === 'GET' ? 'servico_indisponivel' : 'pendencia_externa');
+      } catch (erroResposta) {
+        return erro(
+          request.method === 'GET' ? 'servico_indisponivel' : 'pendencia_externa',
+          registrarFalhaDeResposta('exportacao', erroResposta),
+        );
       }
     },
   };

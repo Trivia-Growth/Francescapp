@@ -323,3 +323,56 @@ ainda concede, e encadear o teste inteiro inverteria essa ordem.
 **Não entregue.** Migrations não aplicadas remotamente; `FFCM_LINHA_TEMPO_ATIVA` e
 `FFCM_EXPORTACAO_ATIVA` fixas em `false`; a montagem do arquivo no navegador depende do
 formato, ainda não decidido; sem revisão independente de dois eixos; sem prova em navegador.
+
+## Home do profissional — 13/11/2026
+
+**Motivo.** O solicitante apontou a lacuna no smoke: "não tem uma home, um dashboard
+inicial, já abre a tela do paciente". A aplicação entrava direto na lista de pessoas
+acompanhadas, sem uma tela que responda "o que precisa de mim agora?".
+
+**O que entrou.** `web/home-profissional.ts`, a rota `#home` como entrada após o login, e o
+item "Seu dia" no menu. A lista continua alcançável por `#carteira` e os links da home abrem
+o caso **na aba que resolve o motivo**, não na ficha genérica.
+
+Dois blocos, ambos derivados do sinal operacional da carteira:
+
+- **Precisa de você agora** — casos com pendência aberta, de `listarPacientes` com
+  `filtro_pendencia=abertas`. Cada linha carrega os `motivos` que o servidor já devolve.
+- **Esperando combinar** — casos em `informacao_insuficiente`, com texto que nega
+  explicitamente que ausência de aviso signifique tranquilidade.
+
+**Nenhuma rota nova.** A home é composta de duas chamadas da mesma consulta que a lista de
+pessoas faz, então o recorte por `acesso_paciente` é o do servidor e nenhuma contagem pode
+revelar caso fora do acesso. `filtro_pendencia` e `filtro_revisao` valem para profissional;
+só `filtro_responsavel` e `filtro_situacao` são de Administrador
+(`20261118330000_carteira_filtros_sinal.sql`, linha 157), e a home não usa esses dois.
+
+**Fora de propósito, por falta de fonte.** Agenda e compromissos do dia: a migration
+`20261115100000_agenda_google_conexao.sql` continua em `supabase/drafts/` e não há tabela.
+Documentos e transcrição: desligados por falta de credencial. Nada disso virou bloco vazio
+nem "em breve" — foi exatamente o defeito que removemos da Visão do caso nesta leva.
+
+**A família não recebe a home.** Entra pela própria lista, que já é o recorte dela, e o
+vocabulário do sinal operacional não foi combinado com ela.
+
+**Evidência.** `web/home-profissional.test.ts`, 8 casos: destino do link na aba certa;
+aviso de FR-028 presente; caso "em dia" não vira linha; plural sem "(s)"; estado vazio
+afirmando a calma; bloco de "esperando combinar" com o texto que nega tranquilidade; uma
+fonte que falha degrada só o próprio bloco e o botão refaz a leitura; página parcial não
+afirma total que o servidor não devolveu; sessão perdida entrega a tela ao tratamento de
+sessão; desmontar não deixa resto no DOM. `pnpm run verificar:ativacao` termina com
+código 0.
+
+**Os testes foram verificados contra defeito, não só contra sucesso.** Removendo o aviso de
+FR-028 o caso correspondente falha; trocando `Promise.allSettled` por `Promise.all` sete dos
+oito falham, que é a prova de que a degradação por bloco está mesmo coberta.
+
+**Testes de rota ajustados, nenhum enfraquecido.** Quatro arquivos de integração assumiam a
+carteira como tela inicial; passam a dizer `#carteira` explicitamente. Duas asserções que
+esperavam fragmento vazio ao sair da ficha agora esperam `#carteira`, porque vazio passou a
+ser a home — a mudança é de comportamento, e o valor novo é o correto.
+
+**Não entregue.** Sem prova em navegador real e sem revisão independente de dois eixos. A
+ordenação é a de chegada que o servidor devolve, não uma priorização por gravidade: ordenar
+por gravidade exigiria critério clínico que ninguém definiu, e inventá-lo contrariaria a
+separação operacional/clínica de FR-028.

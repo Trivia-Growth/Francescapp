@@ -40,6 +40,9 @@ function preparar(
   lista: unknown[] = pacientes,
 ) {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
+  // A rota inicial passou a ser a home; quem não escolheu rota aqui exercita a carteira.
+  // Os casos que abrem a ficha direto já definiram o fragmento antes de chamar.
+  if (!window.location.hash) window.location.hash = '#carteira';
   sessionStorage.setItem('modo-acesso', 'tecnica');
   sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
   sessionStorage.setItem('sessao-tecnica', sessionId);
@@ -90,7 +93,8 @@ it('abre a ficha pela lista, atualiza o fragmento e volta com foco na linha', as
   el('ficha-voltar').click();
   expect(el('ficha-view').hidden).toBe(true);
   expect(el('lista-view').hidden).toBe(false);
-  expect(window.location.hash).toBe('');
+  // Sem fragmento seria a home; sair da ficha volta para a lista, que agora se nomeia.
+  expect(window.location.hash).toBe('#carteira');
   expect(document.activeElement).toBe(document.querySelector(linha(A)));
   expect(el('crumb-paciente').hidden).toBe(true);
 });
@@ -132,7 +136,8 @@ it('não consulta o endpoint de paciente para profissional fora da página carre
   );
   expect(el('ficha-view').hidden).toBe(true);
   expect(el('lista-view').hidden).toBe(false);
-  expect(window.location.hash).toBe('');
+  // Sem fragmento seria a home; sair da ficha volta para a lista, que agora se nomeia.
+  expect(window.location.hash).toBe('#carteira');
   expect(caminhos).not.toContain(`/api/pacientes/${C}`);
   expect(el('login-view').hidden).toBe(true);
 });

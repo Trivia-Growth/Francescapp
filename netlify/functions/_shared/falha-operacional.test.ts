@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { causaDaFalha, registrarFalhaOperacional } from './falha-operacional.ts';
+import {
+  causaDaFalha,
+  registrarFalhaDeResposta,
+  registrarFalhaOperacional,
+} from './falha-operacional.ts';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -67,5 +71,38 @@ describe('rastro de falha operacional', () => {
       causa: 'banco_42501',
       request_id: '11111111-1111-4111-8111-111111111111',
     });
+  });
+
+  it('devolve o mesmo request_id que registra, senão o log não liga na resposta', () => {
+    const espiao = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const devolvido = registrarFalhaDeResposta('configuracao-sistema', new TypeError('x'));
+    expect(espiao).toHaveBeenCalledWith(
+      expect.objectContaining({
+        evento: 'falha_operacional',
+        rota: 'configuracao-sistema',
+        etapa: 'resposta',
+        causa: 'excecao_TypeError',
+        request_id: devolvido,
+      }),
+    );
+    expect(devolvido).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  });
+
+  it('não vaza o que o erro de contrato carrega ao falhar na montagem da resposta', () => {
+    // O caso real de 13/11/2026: `z.array(...).parse()` lança um ZodError cuja mensagem lista
+    // caminho e valor recusado de cada item — aqui, chaves e valores do catálogo inteiro.
+    const espiao = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const zodLike = Object.assign(
+      new Error('[{"path":["valor"],"received":"conteudo-sensivel"}]'),
+      {
+        name: 'ZodError',
+        issues: [{ path: ['valor'], message: 'Too small' }],
+      },
+    );
+    registrarFalhaDeResposta('configuracao-sistema', zodLike);
+    const registrado = JSON.stringify(espiao.mock.calls.at(0));
+    expect(registrado).toContain('excecao_ZodError');
+    expect(registrado).not.toContain('conteudo-sensivel');
+    expect(registrado).not.toContain('Too small');
   });
 });

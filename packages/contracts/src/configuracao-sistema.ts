@@ -9,10 +9,20 @@ export type TipoConfiguracao = z.output<typeof tipoConfiguracaoSchema>;
 
 /** Valor de uma chave. A forma depende do `tipo` da linha; a checagem cruzada acontece no
  * banco (`configuracao_sistema_valor_tipo_chk` e a operação privada), porque só lá o tipo é
- * confiável. Aqui o schema aceita as quatro formas e `valorCompativel` cruza as duas. */
+ * confiável. Aqui o schema aceita as quatro formas e `valorCompativel` cruza as duas.
+ *
+ * Texto aceita vazio DE PROPÓSITO: em branco é estado legítimo do catálogo, não ausência de
+ * valor. `ffcm.documentos.drive_pasta_raiz` nasce assim (migration `20261120110000`), e a
+ * própria descrição da chave diz que enquanto estiver em branco o envio de anexos fica
+ * indisponível — falha fechada, que é o comportamento desejado.
+ *
+ * Exigir `min(1)` aqui derrubava a LISTAGEM INTEIRA da tela de configuração por causa dessa
+ * única linha: `schema.parse` lança, o `catch` da entrada devolve `servico_indisponivel`, e o
+ * 503 não dizia nada (13/11/2026). Qual chave pode ficar vazia é regra de negócio por chave,
+ * decidida no banco — não um piso global de comprimento no contrato de transporte. */
 export const valorConfiguracaoSchema = z.union([
   z.boolean(),
-  z.string().min(1).max(600),
+  z.string().max(600),
   z.number().finite(),
   z.array(z.string().trim().min(1).max(200)).min(1).max(50),
 ]);

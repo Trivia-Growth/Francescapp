@@ -11,6 +11,7 @@ import {
 } from '../../../packages/contracts/src/erros.ts';
 import { comporSolicitacaoTitularNativa } from './compor-solicitacao-titular-nativa.ts';
 import type { ComandoSolicitacaoTitular } from './solicitacao-titular-nativa.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -100,8 +101,11 @@ export function criarEntradaSolicitacaoTitularNativa(dependencias: Dependencias)
           { dados: resultado.dados, request_id: resultado.request_id },
           { headers },
         );
-      } catch {
-        return erro(request.method === 'POST' ? 'pendencia_externa' : 'servico_indisponivel');
+      } catch (erroResposta) {
+        return erro(
+          request.method === 'POST' ? 'pendencia_externa' : 'servico_indisponivel',
+          registrarFalhaDeResposta('solicitacao-titular', erroResposta),
+        );
       }
     },
   };

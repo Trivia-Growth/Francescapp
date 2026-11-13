@@ -8,6 +8,7 @@ import { AUDIO_BYTES_MAXIMO } from '../../../packages/contracts/src/transcricao.
 import { transcricaoHttp } from '../../../packages/contracts/src/transcricao-http.ts';
 import { comporTranscricaoNativa } from './compor-transcricao-nativa.ts';
 import type { ComandoTranscricao } from './transcricao-nativa.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -153,8 +154,11 @@ export function criarEntradaTranscricaoNativa(dependencias: Dependencias) {
         if (!resultado.ok) return erro(resultado.erro.codigo, resultado.request_id);
         const dados = transcricaoHttp[nome].saida.parse(resultado.dados);
         return Response.json({ dados, request_id: resultado.request_id }, { headers });
-      } catch {
-        return erro(request.method === 'GET' ? 'servico_indisponivel' : 'pendencia_externa');
+      } catch (erroResposta) {
+        return erro(
+          request.method === 'GET' ? 'servico_indisponivel' : 'pendencia_externa',
+          registrarFalhaDeResposta('transcricao', erroResposta),
+        );
       }
     },
   };

@@ -7,6 +7,7 @@ import {
 import { consultarLinhaTempoSchema } from '../../../packages/contracts/src/linha-tempo.ts';
 import { linhaTempoHttp } from '../../../packages/contracts/src/linha-tempo-http.ts';
 import { comporLinhaTempoNativa } from './compor-linha-tempo-nativa.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -70,8 +71,8 @@ export function criarEntradaLinhaTempoNativa(dependencias: Dependencias) {
         if (!resultado.ok) return erro(resultado.erro.codigo, resultado.request_id);
         const dados = linhaTempoHttp.consultar.saida.parse(resultado.dados);
         return Response.json({ dados, request_id: resultado.request_id }, { headers });
-      } catch {
-        return erro('servico_indisponivel');
+      } catch (erroResposta) {
+        return erro('servico_indisponivel', registrarFalhaDeResposta('linha-tempo', erroResposta));
       }
     },
   };

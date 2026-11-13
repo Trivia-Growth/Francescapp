@@ -64,6 +64,7 @@ import { montarAuditoria } from './auditoria.js';
 import { criarServicoAuditoriaHttp } from './servico-auditoria-http.js';
 import { montarRegrasAtendimento } from './regras-atendimento.js';
 import { criarServicoRegrasAtendimentoHttp } from './servico-regras-atendimento-http.js';
+import { montarHomeProfissional } from './home-profissional.js';
 import { montarSolicitacoesTitular } from './solicitacoes-titular.js';
 import { criarServicoSolicitacaoTitularHttp } from './servico-solicitacao-titular-http.js';
 import { montarConfiguracaoSistema } from './configuracao-sistema.js';
@@ -209,6 +210,7 @@ const pagination = elemento('pagination');
 const registration = elemento('cadastro');
 const newPatientLink = elemento<HTMLAnchorElement>('new-patient-link');
 const listaView = elemento('lista-view');
+const homeView = elemento('home-view');
 const fichaView = elemento('ficha-view');
 const crumbPaciente = elemento('crumb-paciente');
 const buscaCampo = elemento<HTMLInputElement>('busca-pacientes');
@@ -295,12 +297,15 @@ function registrarRota(id: string, secao: string, empilhar: boolean): void {
   else window.history.replaceState(window.history.state, '', endereco);
 }
 
-function limparRota(): void {
-  if (!window.location.hash) return;
+/** Troca o fragmento sem empilhar histórico. O endereço sem fragmento é a home, então sair
+ * da ficha para a lista precisa dizer `#carteira`: limpar o fragmento levaria à home. */
+function trocarRota(hash: string): void {
+  const destino = hash === '#home' ? '' : hash;
+  if (window.location.hash === destino) return;
   window.history.replaceState(
     window.history.state,
     '',
-    `${window.location.pathname}${window.location.search}`,
+    `${window.location.pathname}${window.location.search}${destino}`,
   );
 }
 
@@ -319,8 +324,9 @@ function fecharFicha(): void {
 function voltarParaLista(): void {
   const id = fichaPaciente?.id;
   fecharFicha();
+  fecharHome();
   marcarNavegacao('carteira');
-  limparRota();
+  trocarRota('#carteira');
   aviso('workspace-feedback', '');
   const linha = id ? listaPacientes.querySelector<HTMLElement>(`[data-paciente-id="${id}"]`) : null;
   (linha ?? elemento('patients-title')).focus();
@@ -495,18 +501,20 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'anamnese',
       rotulo: 'Anamnese',
       descarte: descarteAnamnese,
-      montar: (raiz, pendente) =>
-        montarAnamnese(
+      montar: (raiz, pendente) => {
+        // Uma consulta só serve as duas coisas: se o histórico está ligado e o roteiro
+        // sugerido (FR-003), que vem do catálogo em banco e é editável na administração.
+        const disponibilidade = api.disponibilidadeHistoricoAnamnese();
+        return montarAnamnese(
           raiz,
           paciente.id,
           api,
           acessoPerdido,
           pendente,
-          api
-            .disponibilidadeHistoricoAnamnese()
-            .then((resultado) => resultado.disponivel)
-            .catch(() => false),
-        ),
+          disponibilidade.then((resultado) => resultado.disponivel).catch(() => false),
+          disponibilidade.then((resultado) => resultado.roteiro ?? []).catch(() => []),
+        );
+      },
     },
     {
       id: 'saude',
@@ -583,6 +591,7 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
           criarServicoExportacaoHttp(identidadeAtual),
           acessoPerdido,
           pendente,
+          paciente.nome_preferencia ?? paciente.nome,
         ),
     });
   if (administraConcessoes)
@@ -909,8 +918,9 @@ function apagarPacientes(): void {
   elemento('filtros-carteira').hidden = true;
   fecharAdministracao();
   fecharRegras();
+  fecharHome();
   elemento('nav-administracao').hidden = true;
-  marcarNavegacao('carteira');
+  marcarNavegacao('home');
   createFields.disabled = false;
   createButton.disabled = false;
   createButton.textContent = 'Cadastrar paciente';
@@ -1165,8 +1175,18 @@ function fecharRegras(): void {
   elemento('regras-view').hidden = true;
 }
 
-function marcarNavegacao(destino: 'carteira' | 'administracao' | 'regras'): void {
+let desmontarHome: (() => void) | null = null;
+
+function fecharHome(): void {
+  desmontarHome?.();
+  desmontarHome = null;
+  homeView.replaceChildren();
+  homeView.hidden = true;
+}
+
+function marcarNavegacao(destino: 'home' | 'carteira' | 'administracao' | 'regras'): void {
   for (const [id, chave] of [
+    ['nav-home', 'home'],
     ['nav-carteira', 'carteira'],
     ['nav-administracao', 'administracao'],
     ['nav-regras', 'regras'],
@@ -1180,8 +1200,31 @@ function marcarNavegacao(destino: 'carteira' | 'administracao' | 'regras'): void
 function mostrarCarteira(): void {
   fecharAdministracao();
   fecharRegras();
+  fecharHome();
   listaView.hidden = false;
   marcarNavegacao('carteira');
+}
+
+/** Porta de entrada do profissional. Monta sobre a mesma consulta da carteira, então o
+ * recorte por acesso é o do servidor; a tela não soma nada que ele não tenha devolvido. */
+function mostrarHome(): void {
+  if (!sessao) return;
+  if (sessao.usuario.perfil === 'familia') {
+    mostrarCarteira();
+    return;
+  }
+  fecharFicha();
+  fecharAdministracao();
+  fecharRegras();
+  listaView.hidden = true;
+  homeView.hidden = false;
+  marcarNavegacao('home');
+  if (desmontarHome) return;
+  desmontarHome = montarHomeProfissional(
+    homeView,
+    { listar: (filtros) => api.listarPacientes(undefined, filtros) },
+    acessoPerdido,
+  );
 }
 
 function mostrarAdministracao(areaId: string): void {
@@ -1196,6 +1239,7 @@ function mostrarAdministracao(areaId: string): void {
   }
   fecharFicha();
   fecharRegras();
+  fecharHome();
   listaView.hidden = true;
   const vista = elemento('administracao-view');
   vista.hidden = false;
@@ -1225,6 +1269,7 @@ function mostrarRegras(): void {
   if (!sessao) return;
   fecharFicha();
   fecharAdministracao();
+  fecharHome();
   listaView.hidden = true;
   elemento('regras-view').hidden = false;
   marcarNavegacao('regras');
@@ -1236,8 +1281,10 @@ function mostrarRegras(): void {
   elemento('regras-title').focus();
 }
 
+/** `#home` é a rota inicial, então o endereço sem fragmento é dela: entrar na aplicação
+ * não deveria exigir um fragmento para chegar à primeira tela. */
 function irPara(hash: string): void {
-  const endereco = `${window.location.pathname}${window.location.search}${hash === '#carteira' ? '' : hash}`;
+  const endereco = `${window.location.pathname}${window.location.search}${hash === '#home' ? '' : hash}`;
   window.history.pushState(window.history.state, '', endereco);
   navegarPelaRota();
 }
@@ -1260,6 +1307,11 @@ function navegarPelaRota(): void {
   }
   if (hash === '#regras') {
     mostrarRegras();
+    return;
+  }
+  if (hash === '' || hash === '#home') {
+    fecharFicha();
+    mostrarHome();
     return;
   }
   if (ficha && fichaPaciente) {
@@ -1356,6 +1408,14 @@ function aplicarSessao(atual: Sessao): void {
     casoNovo.cancelarCarga();
   }
   montarFiltrosDaCarteira(atual);
+  // A home é da equipe. A família entra pela própria lista, que já é o recorte dela, e o
+  // sinal operacional não é vocabulário que a família tenha combinado.
+  const temHome = atual.usuario.perfil !== 'familia';
+  elemento('nav-home').hidden = !temHome;
+  if (!temHome && desmontarHome) {
+    fecharHome();
+    mostrarCarteira();
+  }
   const temAdministracao = areasDisponiveis(atual).length > 0;
   elemento('nav-administracao').hidden = !temAdministracao;
   if (!temAdministracao && painelAdministracao) {
@@ -1581,7 +1641,8 @@ async function abrirFichaPelaRota(): Promise<void> {
           : null);
     if (!atual()) return;
     if (!paciente) {
-      limparRota();
+      trocarRota('#carteira');
+      mostrarCarteira();
       aviso(
         'workspace-feedback',
         'Não foi possível reabrir a ficha. Escolha o paciente na lista.',
@@ -1597,7 +1658,8 @@ async function abrirFichaPelaRota(): Promise<void> {
     );
   } catch (erro) {
     if (!atual() || acessoPerdido(erro)) return;
-    limparRota();
+    trocarRota('#carteira');
+    mostrarCarteira();
     aviso(
       'workspace-feedback',
       `${mensagemFalha(erro)} Escolha o paciente na lista para abrir a ficha.`,
@@ -1842,7 +1904,7 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
 async function sair(): Promise<void> {
   const pendencia = pendenciaFicha();
   if (logoutOcupado || (pendencia && !window.confirm(pendencia.mensagem))) return;
-  limparRota();
+  trocarRota('#home');
   logoutOcupado = true;
   ciclo = null;
   cadastroLiberado = false;
@@ -2015,6 +2077,7 @@ window.addEventListener('popstate', () => {
   navegarPelaRota();
 });
 for (const [id, destino] of [
+  ['nav-home', '#home'],
   ['nav-carteira', '#carteira'],
   ['nav-administracao', '#administracao/configuracao'],
   ['nav-regras', '#regras'],

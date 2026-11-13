@@ -35,7 +35,7 @@ export function causaDaFalha(erro: unknown): string {
 /** Registra a falha correlacionada ao `request_id` que a resposta devolve. */
 export function registrarFalhaOperacional(dados: {
   rota: string;
-  etapa: 'autorizacao' | 'cofre' | 'operacao';
+  etapa: 'autorizacao' | 'cofre' | 'operacao' | 'resposta';
   request_id: string;
   causa: string;
 }): void {
@@ -46,4 +46,28 @@ export function registrarFalhaOperacional(dados: {
     causa: dados.causa,
     request_id: dados.request_id,
   });
+}
+
+/** Registra uma falha na etapa de resposta e devolve o `request_id` para a resposta carregar.
+ *
+ * As 21 entradas nativas montam a resposta com `<schema>.parse(resultado.dados)` dentro de um
+ * `try`, e o `catch` devolvia `servico_indisponivel` sem deixar rastro. Em 13/11/2026 isso
+ * custou cerca de uma hora: a listagem de configuração falhava porque UMA linha do catálogo
+ * (`ffcm.documentos.drive_pasta_raiz`, semeada em branco) não passava no contrato, e o 503 não
+ * dizia nada. A operação tinha funcionado; quebrou ao conferir a saída.
+ *
+ * Divergência entre o que o banco devolve e o que o contrato aceita é defeito nosso, não do
+ * chamador — e é exatamente o que precisa aparecer no log do servidor. */
+export function registrarFalhaDeResposta(
+  rota: string,
+  erro: unknown,
+): ReturnType<typeof crypto.randomUUID> {
+  const requestId = crypto.randomUUID();
+  registrarFalhaOperacional({
+    rota,
+    etapa: 'resposta',
+    request_id: requestId,
+    causa: causaDaFalha(erro),
+  });
+  return requestId;
 }

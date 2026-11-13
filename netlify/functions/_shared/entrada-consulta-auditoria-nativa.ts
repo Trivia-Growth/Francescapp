@@ -6,6 +6,7 @@ import {
   type CodigoErro,
 } from '../../../packages/contracts/src/erros.ts';
 import { comporConsultaAuditoriaNativa } from './compor-consulta-auditoria-nativa.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -61,8 +62,11 @@ export function criarEntradaConsultaAuditoriaNativa(dependencias: Dependencias) 
         if (!resultado.ok) return erro(resultado.erro.codigo, resultado.request_id);
         const dados = contratosRotas.consultarAuditoria.saida.parse(resultado.dados);
         return Response.json({ dados, request_id: resultado.request_id }, { headers });
-      } catch {
-        return erro('servico_indisponivel');
+      } catch (erroResposta) {
+        return erro(
+          'servico_indisponivel',
+          registrarFalhaDeResposta('consulta-auditoria', erroResposta),
+        );
       }
     },
   };

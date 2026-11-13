@@ -192,3 +192,65 @@ um acesso à tela em vez de outra hora de investigação.
 **Não exercitado:** nenhuma das três rotas foi chamada em produção depois desta mudança; o
 valor da instrumentação é previsto, não medido. `verificar:ativacao` termina com código 0
 (80 arquivos de teste). Nada aplicado no remoto, nada commitado.
+
+## Causa raiz do 503 da tela de Configuração — estabelecida em 13/11/2026
+
+**Era contrato, não permissão.** A listagem devolve **todas** as linhas do catálogo e a entrada
+faz `z.array(configuracaoSistemaSchema).parse(...)` de uma vez. Uma linha fora do contrato
+derruba a resposta inteira.
+
+A linha: `ffcm.documentos.drive_pasta_raiz`, semeada `'""'::jsonb` em
+`20261120110000_documento_caso_privado.sql`. O contrato exigia `z.string().min(1)` para texto,
+então a string vazia não casava com **nenhum** ramo de `valorConfiguracaoSchema` — nem texto,
+nem booleano, nem número, nem lista. `parse` lançava, o `catch` da entrada devolvia
+`servico_indisponivel`, e o 503 não dizia nada.
+
+Provado isolando o schema contra a linha real: `Too small: expected string to have >=1
+characters`. Varredura das 43 seeds do catálogo achou **essa única** linha ofensora — as demais
+chaves de texto têm conteúdo.
+
+**Conserto:** texto passa a aceitar vazio. Em branco é estado legítimo do catálogo, não ausência
+de valor — a própria descrição da chave diz que enquanto estiver em branco o envio de anexos
+fica indisponível, que é falha fechada por desenho. Qual chave pode ficar vazia é regra de
+negócio por chave, decidida no banco, não um piso global de comprimento no contrato de
+transporte. Os demais limites continuam de pé (teto de 600, lista não vazia, item não vazio).
+
+**Por que a instrumentação anterior não pegou:** ela cobria autorização, cofre e operação — e a
+falha acontece **depois**, montando a resposta. A composição tinha funcionado.
+
+### Achado sistêmico: 26 `catch` cegos em 24 entradas
+
+O padrão `const dados = <schema>.parse(resultado.dados); ... } catch { return
+erro('servico_indisponivel') }` se repete em **todas** as entradas nativas. Qualquer divergência
+entre o que o banco devolve e o que o contrato aceita vira 503 mudo, em qualquer rota. Era
+sorte que só uma tivesse disparado.
+
+Todos passam a chamar `registrarFalhaDeResposta(rota, erro)`, que registra `etapa: 'resposta'` e
+devolve o `request_id` que a resposta carrega — ligando o que a pessoa viu ao que o servidor
+soube. Teste novo falha se a mensagem do `ZodError` vazar: ela lista caminho e valor recusado de
+cada item, ou seja, o catálogo inteiro.
+
+### Guarda de regressão
+
+`packages/contracts/test/configuracao-sistema-catalogo.test.ts` lê as **seeds reais** das
+migrations e afirma que todo valor semeado passa no contrato e corresponde ao tipo declarado na
+mesma linha. Lê das migrations em vez de repetir uma amostra à mão, porque amostra copiada
+envelhece junto com o engano. Verificado que **detecta** o defeito: restaurando o `min(1)`, dois
+casos falham nomeando a chave e o arquivo.
+
+**Limitação:** o conserto não foi exercitado em produção — exige sessão autenticada, que é do
+solicitante. `verificar:ativacao` termina com código 0.
+
+**Formato e conferência da exportação decididos (13/11/2026) — FR-032/FR-033.** As duas pendências que a auditoria de requisitos apontou como "falta decisão, não código" foram respondidas pelo solicitante.
+
+**Formato.** O pacote é um ZIP com `resumo.html`, `dados.json` e a pasta `anexos/`. HTML porque "consultável" para uma família significa abrir e ler sem instalar nada; JSON porque outro serviço precisa ler sem raspar HTML. PDF foi descartado: perde estrutura e não ajuda ninguém. Implementado em `web/pacote-exportacao.ts`, montado **no navegador** — a garantia central da fatia continua de pé: o servidor não decifra nada, e montar o pacote lá exigiria reunir o caso decifrado num só lugar, que é o que a fatia foi desenhada para não fazer.
+
+Sem dependência nova: o ZIP é escrito à mão, sem compressão (método `store`). Evita acrescentar código de terceiro a uma fatia que carrega dado clínico, e o ganho seria marginal porque anexos já chegam comprimidos. **Provado que é ZIP de verdade, não só bytes que o nosso código sabe ler**: o teste grava o arquivo em disco e usa o `unzip` do sistema para listar as três entradas e ler o `dados.json` de volta.
+
+**Conferência.** Ninguém confirma recebimento dentro do sistema — o destinatário não tem conta. O que existe é quem entregou registrando a quem entregou. O texto antigo da tela dizia "Entregue e conferida.", que se lê como confirmação do outro lado: isso é garantia falsa, e numa discussão sobre LGPD é pior que não ter carimbo nenhum. Agora a tela traz aviso explícito, e os dois atos foram rotulados como ato de quem entrega ("Registrar que entreguei", "Confirmar que o envio saiu correto"). A mesma ressalva vai **dentro** do pacote, no `resumo.html` e no `dados.json`: quem abrir o arquivo daqui a um ano precisa encontrá-la sem depender da tela.
+
+Decisão de escopo que vale revisão: os valores `entregue` e `conferida` **continuam** no contrato e no banco. Removê-los exigiria migrar dado existente, e a decisão do solicitante não pediu remoção — pediu que a tela não prometa recebimento. Se a intenção for eliminar o ato `conferida`, é mudança de contrato e precisa ser dita.
+
+Evidência: `web/pacote-exportacao.test.ts` (6 casos: vetor canônico do CRC-32, nome de anexo não escapando da pasta — `../../etc/passwd` vira `etc-passwd` —, escape de HTML, a ressalva de entrega presente no HTML e no JSON, indisponível contado sem sugerir conteúdo oculto, e o ZIP aberto pelo `unzip`) e `web/exportacao.test.ts` (4 casos travando os textos de entrega como requisito, incluindo a asserção de que "Entregue e conferida" **não** aparece mais). `pnpm run verificar:ativacao` termina com código 0.
+
+Limitações: nada aplicado no remoto, nada commitado, nenhum deploy. Anexos ainda não entram no pacote na prática — a fatia de documentos segue desligada por falta do segredo do Drive, e o contrato já prevê `anexo_nao_recuperado` para esse caso. A montagem do pacote não foi exercitada em produção com sessão autenticada.

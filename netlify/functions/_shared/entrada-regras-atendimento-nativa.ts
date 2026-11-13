@@ -6,6 +6,7 @@ import {
   type CodigoErro,
 } from '../../../packages/contracts/src/erros.ts';
 import { comporRegrasAtendimentoNativa } from './compor-regras-atendimento-nativa.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -44,8 +45,11 @@ export function criarEntradaRegrasAtendimentoNativa(dependencias: Dependencias) 
         if (!resultado.ok) return erro(resultado.erro.codigo, resultado.request_id);
         const dados = contratosRotas.consultarRegrasAtendimento.saida.parse(resultado.dados);
         return Response.json({ dados, request_id: resultado.request_id }, { headers });
-      } catch {
-        return erro('servico_indisponivel');
+      } catch (erroResposta) {
+        return erro(
+          'servico_indisponivel',
+          registrarFalhaDeResposta('regras-atendimento', erroResposta),
+        );
       }
     },
   };

@@ -6,6 +6,7 @@ import {
   type CodigoErro,
 } from '../../../packages/contracts/src/erros.ts';
 import { comporEdicaoPacienteNativa } from './compor-edicao-paciente-nativa.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 type Dependencias = Parameters<typeof comporEdicaoPacienteNativa>[2];
 const headers = {
@@ -133,8 +134,11 @@ export function criarEntradaEdicaoPacienteNativa(dependencias: Dependencias) {
           },
           { headers },
         );
-      } catch {
-        return erro(request.method === 'GET' ? 'servico_indisponivel' : 'pendencia_externa');
+      } catch (erroResposta) {
+        return erro(
+          request.method === 'GET' ? 'servico_indisponivel' : 'pendencia_externa',
+          registrarFalhaDeResposta('edicao-paciente', erroResposta),
+        );
       }
     },
   };

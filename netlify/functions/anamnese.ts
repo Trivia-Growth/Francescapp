@@ -1,6 +1,6 @@
 import { criarErroPublicoSemCampos } from '../../packages/contracts/src/erros.ts';
 import { configurarDependenciasNativas } from './_shared/configurar-dependencias-nativas.ts';
-import { servicoAtivo } from './_shared/configuracao-servidor.ts';
+import { listaConfigurada, servicoAtivo } from './_shared/configuracao-servidor.ts';
 import { criarEntradaAnamneseNativa } from './_shared/entrada-anamnese-nativa.ts';
 
 export const config = {
@@ -30,6 +30,7 @@ export default async function anamnese(request: Request): Promise<Response> {
       return respostaDisponibilidade(
         process.env.FFCM_ANAMNESE_ATIVADA === 'true' &&
           process.env.FFCM_HISTORICO_ANAMNESE_ATIVADO === 'true',
+        [],
       );
     return falha('configuracao_indisponivel');
   }
@@ -48,15 +49,23 @@ export default async function anamnese(request: Request): Promise<Response> {
       process.env.FFCM_HISTORICO_ANAMNESE_ATIVADO === 'true',
     ),
   ]);
-  if (disponibilidade) return respostaDisponibilidade(ativa && historico);
+  if (disponibilidade) {
+    // O roteiro sugerido (FR-003) é metadado organizacional configurado pela equipe, sem dado
+    // pessoal; vai junto da disponibilidade para a tela montar as sugestões sem uma segunda
+    // chamada, como as áreas do diário já fazem. Resposta da anamnese jamais passa por aqui.
+    const roteiro = ativa
+      ? await listaConfigurada(dependencias.pool, 'ffcm.anamnese.roteiro', [])
+      : [];
+    return respostaDisponibilidade(ativa && historico, roteiro);
+  }
   if (!ativa) return falha('servico_indisponivel');
   if (url.pathname.endsWith('/historico') && !historico) return falha('servico_indisponivel');
   return entrada.atender(request);
 }
 
-function respostaDisponibilidade(disponivel: boolean): Response {
+function respostaDisponibilidade(disponivel: boolean, roteiro: readonly string[]): Response {
   return Response.json(
-    { dados: { disponivel }, request_id: crypto.randomUUID() },
+    { dados: { disponivel, roteiro }, request_id: crypto.randomUUID() },
     {
       headers: {
         'Cache-Control': 'private, no-store',
