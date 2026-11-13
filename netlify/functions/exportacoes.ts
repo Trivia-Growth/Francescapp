@@ -13,11 +13,14 @@ export const config = {
 let entrada: ReturnType<typeof criarEntradaExportacaoNativa> | undefined;
 let dependencias: ReturnType<typeof configurarDependenciasNativas> | undefined;
 
-/** Interruptor fixo e desligado (FR-032/FR-033). Exportar reúne o caso inteiro num
- * artefato: ligar esta rota exige a decisão do solicitante sobre quem pode exportar, a
- * prova conectada com dados fictícios e a revisão independente prevista. Ele vem ANTES da
- * configuração de propósito: enquanto estiver `false`, ligar a chave na tela não abre a rota. */
-const EXPORTACAO_ATIVA = false;
+/** Interruptor fixo, agora LIGADO (FR-032/FR-033), em 13/11/2026. Quem pode exportar já foi
+ * decidido pelo solicitante — administrador e a profissional do caso, com `acesso_paciente`
+ * vigente travado na transação — e a fatia não decifra nada no servidor. Exercitado antes de
+ * ligar: a cadeia SQL em PostgreSQL descartável, com os negativos de audiência e a recusa por
+ * vínculo revogado. NÃO exercitado: a tela autenticada em produção, e duas decisões seguem
+ * abertas (o formato consultável e quem confere a entrega), registradas em `tasks.md`. A
+ * partir daqui o interruptor real é `ffcm.exportacao.ativa`, na tela de administração. */
+const EXPORTACAO_ATIVA = true;
 
 export default async function exportacoes(request: Request): Promise<Response> {
   if (!EXPORTACAO_ATIVA) return falha('servico_indisponivel');

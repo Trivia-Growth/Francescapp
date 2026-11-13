@@ -20,6 +20,13 @@ import {
  * chama. A rota continua validando sessão, concessão e atestado no banco. */
 
 const JANELA_MS = 30_000;
+/** Uma segunda tentativa no processo FRIO, e só nele. Medido em produção em 13/11/2026: a
+ * primeira requisição a um processo novo às vezes não conclui a leitura (conexão fria ao
+ * PostgreSQL), e aí o serviço inteiro respondia "indisponível" porque o padrão de ambiente
+ * passou a ser `false` quando as variáveis duplicadas saíram do Netlify. Uma falha passageira
+ * não pode desligar uma tela. Quando já existe leitura anterior em cache, não há retentativa:
+ * o valor conhecido vale, como antes. */
+const ESPERA_RETENTATIVA_MS = 150;
 
 type Linha = { valor: ValorConfiguracao; tipo: TipoConfiguracao; versao: number };
 
@@ -68,6 +75,18 @@ async function ler(pool: Pool): Promise<ReadonlyMap<string, Linha>> {
   }
 }
 
+/** Primeira leitura do processo: tenta duas vezes antes de desistir. Já havendo cache, uma
+ * falha mantém o valor conhecido e não custa uma segunda conexão. */
+async function lerComRetentativaNoFrio(pool: Pool): Promise<ReadonlyMap<string, Linha>> {
+  try {
+    return await ler(pool);
+  } catch (erro) {
+    if (cache) throw erro;
+    await new Promise((resolver) => setTimeout(resolver, ESPERA_RETENTATIVA_MS));
+    return await ler(pool);
+  }
+}
+
 /** Carrega (com janela curta de cache) o mapa de configuração do servidor. Devolve um mapa
  * vazio quando a leitura falha — quem chama decide o padrão. */
 export async function carregarConfiguracaoServidor(
@@ -77,7 +96,7 @@ export async function carregarConfiguracaoServidor(
   if (cache && agora - cache.em < JANELA_MS) return cache.valores;
   // Uma leitura em voo por processo: uma rajada de requisições não vira uma rajada de
   // conexões ao banco.
-  emVoo ??= ler(pool)
+  emVoo ??= lerComRetentativaNoFrio(pool)
     .then((valores) => {
       cache = { em: Date.now(), valores };
       return valores;

@@ -325,15 +325,22 @@ export function montarPendenciasCaso(
 
   void (async () => {
     try {
-      if (listarResponsaveis)
-        try {
-          equipe = await listarResponsaveis();
-        } catch (erro) {
-          // Sem a lista da equipe a atribuição fica indisponível, mas a pendência não se perde.
-          if (exigeNovoAcesso(erro)) throw erro;
-        }
-      const sinal = await servico.consultar(pacienteId);
+      // As duas consultas saem juntas, e a lista da equipe nunca atrasa a pendência: ela só
+      // enriquece a atribuição. Em série, uma equipe lenta deixava a tela no esqueleto de
+      // carregamento sem nada para mostrar (smoke de 13/11/2026).
+      const equipePedida = listarResponsaveis
+        ? listarResponsaveis().catch((erro: unknown) => {
+            // Sem a lista da equipe a atribuição fica indisponível, mas a pendência não se perde.
+            if (exigeNovoAcesso(erro)) throw erro;
+            return [] as ResponsavelOpcao[];
+          })
+        : Promise.resolve([] as ResponsavelOpcao[]);
+      const [sinal, equipeCarregada] = await Promise.all([
+        servico.consultar(pacienteId),
+        equipePedida,
+      ]);
       if (!ativa) return;
+      equipe = equipeCarregada;
       desenhar(sinal);
     } catch (erro) {
       if (!ativa || descartarAcesso(erro)) return;

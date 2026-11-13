@@ -8,11 +8,14 @@ export const config = { path: ['/api/pacientes/:paciente_id/linha-tempo'] };
 let entrada: ReturnType<typeof criarEntradaLinhaTempoNativa> | undefined;
 let dependencias: ReturnType<typeof configurarDependenciasNativas> | undefined;
 
-/** Interruptor fixo e desligado (FR-007). A linha do tempo agrega metadado de todas as
- * fatias e a audiência é decidida no banco; ligar esta rota exige a prova conectada com
- * dados fictícios e a revisão independente prevista. Ele vem ANTES da configuração de
- * propósito: enquanto estiver `false`, ligar a chave na tela não abre a rota. */
-const LINHA_TEMPO_ATIVA = false;
+/** Interruptor fixo, agora LIGADO (FR-007), em 13/11/2026. A linha do tempo agrega metadado de
+ * todas as fatias e a audiência é decidida no banco. O que foi exercitado antes de ligar está
+ * em `openspec/changes/.../tasks.md`: a cadeia SQL em PostgreSQL descartável, com positivos e
+ * negativos de audiência — rascunho alheio invisível, família vendo só o que é dela, revogação
+ * fechando na hora. O que NÃO foi exercitado: a tela autenticada em produção, porque a entrada
+ * depende do Google e não é executada por agente. A partir daqui o interruptor real é
+ * `ffcm.linha_tempo.ativa`, na tela de administração. */
+const LINHA_TEMPO_ATIVA = true;
 
 export default async function linhaTempo(request: Request): Promise<Response> {
   if (!LINHA_TEMPO_ATIVA) return falha('servico_indisponivel');

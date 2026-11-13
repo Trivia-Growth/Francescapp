@@ -124,3 +124,43 @@ do $$ begin
 end $$;
 
 do $$ begin raise notice 'CONFIGURACAO_SERVICOS_OK'; end $$;
+
+-- A semente do diário vive em outra migration; sem ela a chave do diário não existe nesta
+-- fixture e a guarda da migration de ligar recusa, com razão.
+\ir ../migrations/20261118230000_configuracao_diario.sql
+
+-- Ligar os três serviços prontos (13/11/2026). A migration ATUALIZA valor: se ela voltar a
+-- inserir, a unicidade de `chave` quebra aqui antes de chegar ao projeto remoto.
+\ir ../migrations/20261122100000_ligar_diario_linha_tempo_exportacao.sql
+
+do $$
+declare
+  ligadas integer;
+  duplicadas integer;
+begin
+  select count(*) into ligadas
+  from identidade.configuracao_sistema
+  where chave in ('ffcm.diario.ativo', 'ffcm.linha_tempo.ativa', 'ffcm.exportacao.ativa')
+    and valor = 'true'::jsonb and tipo = 'booleano';
+  if ligadas <> 3 then
+    raise exception 'LIGAR_SERVICOS_FALHOU: % de 3 ligadas', ligadas;
+  end if;
+  select count(*) into duplicadas
+  from (
+    select chave from identidade.configuracao_sistema
+    where chave in ('ffcm.diario.ativo', 'ffcm.linha_tempo.ativa', 'ffcm.exportacao.ativa')
+    group by chave having count(*) > 1
+  ) d;
+  if duplicadas <> 0 then
+    raise exception 'LIGAR_SERVICOS_DUPLICOU: % chaves', duplicadas;
+  end if;
+  -- Ligar serviço não pode mexer em exposição nem em tipo: isso mudaria quem lê a chave.
+  if exists (
+    select 1 from identidade.configuracao_sistema
+    where chave in ('ffcm.diario.ativo', 'ffcm.linha_tempo.ativa', 'ffcm.exportacao.ativa')
+      and (exposicao <> 'servidor' or tipo <> 'booleano')
+  ) then
+    raise exception 'LIGAR_SERVICOS_ALTEROU_CATALOGO';
+  end if;
+  raise notice 'LIGAR_SERVICOS_OK';
+end $$;

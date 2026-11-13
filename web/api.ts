@@ -503,8 +503,19 @@ export class ClienteFFCM {
       return await this.#consultarSessao(entrada, modo === 'familiar');
     } catch (erro) {
       try {
-        if (tentativa === this.#tentativaEntrada)
+        if (tentativa === this.#tentativaEntrada) {
+          // `bloqueada` continua: sem entrada concluída não há sessão, e afrouxar isso é
+          // justamente o que deixaria uma sessão ambígua passar por válida. O que sai são as
+          // marcas da tentativa que falhou — não valem mais, e deixá-las para trás atrapalha a
+          // próxima entrada (smoke de 13/11/2026: sobrou `fluxo-google` órfão de uma tentativa
+          // abandonada). A entrada pelo Google segue se recuperando sozinha: o envio do
+          // formulário grava um fluxo novo.
           sessionStorage.setItem('modo-acesso', 'bloqueada');
+          sessionStorage.removeItem('fluxo-tecnico');
+          sessionStorage.removeItem('fluxo-familiar');
+          sessionStorage.removeItem('sessao-tecnica');
+          sessionStorage.removeItem('sessao-familiar');
+        }
       } catch {
         /* falha fechada */
       }

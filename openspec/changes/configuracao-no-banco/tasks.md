@@ -59,3 +59,81 @@
   Cobre: processo frio com o banco fora caindo no padrão do ambiente nos dois sentidos; **banco fora depois de uma leitura boa mantendo o que a tela mandou, sem reabrir o serviço** (é o caso que mais importa, e o que o cache garante); chave ausente, tipo errado e resposta ilegível caindo no padrão; e o banco vencendo o ambiente quando responde.
 - [x] 5.8 `pnpm run verificar:ativacao` terminou com código 0 depois da migração: 128, 137, 257, 387 e 368 testes nas cinco suítes, mais `build:web` e a validação de configuração local.
   Defeito real encontrado por esse gate e corrigido antes de fechar: montar as dependências antes da checagem fez o endpoint de disponibilidade da anamnese responder erro em vez de `disponivel`, quebrando 4 casos de `anamnese-funcao.test.ts`. A correção foi devolver a resposta do ambiente nesse caminho, e não enfraquecer a asserção.
+
+## 6. Correções do smoke em produção — 13/11/2026
+
+Smoke feito pela coordenação em `https://ffcmapp.netlify.app`, logado como administrador,
+percorrendo as 17 abas da ficha e a área de Administração. O que segue corrige o que ele achou.
+
+- [x] 6.1 **Defeito sistêmico: processo frio desligava serviço.** Reproduzido em produção, dez
+  requisições seguidas às mesmas rotas: `rede-cuidado` devolveu `503` na PRIMEIRA e `401` nas
+  nove seguintes; `contexto-cuidado` idem em medição anterior. Causa: na primeira requisição a
+  um processo novo a leitura da configuração não conclui, `servicoAtivo` cai no padrão de
+  ambiente — que virou `false` quando as variáveis duplicadas saíram do Netlify — e a rota
+  responde "serviço indisponível". Antes da remoção das variáveis o padrão era `true` e a falha
+  era invisível. Não era defeito de duas telas: **qualquer rota podia mostrar "indisponível" no
+  primeiro acesso**.
+  Correção em `configuracao-servidor.ts`: uma segunda tentativa de leitura **no processo frio e
+  só nele** (`ESPERA_RETENTATIVA_MS`). Havendo cache, nada muda — o valor conhecido continua
+  valendo e não se gasta uma segunda conexão.
+  Provas novas em `configuracao-servidor-falha.test.ts` (7/7): uma falha passageira no frio não
+  desliga o serviço; duas falhas seguidas ainda caem no padrão do ambiente; e a retentativa
+  **não reabre** serviço que a tela desligou. As quatro asserções anteriores seguem intactas.
+- [x] 6.2 **Aba Cadastro parecia travada em "Carregando cadastro…".** Não estava carregando
+  nada: `montarEdicaoPaciente` abre sem consultar, esperando a conferência do botão "Conferir o
+  que foi salvo", porque pode haver edição anterior sem resposta. O texto inicial mentia sobre o
+  estado. Agora diz o que a pessoa precisa fazer; "Carregando cadastro…" ficou só onde há
+  leitura em curso. 13/13 em `editar-paciente.test.ts`.
+- [x] 6.3 **Aba Pendências presa no esqueleto.** A lista da equipe era aguardada ANTES da
+  pendência, em série; equipe lenta deixava a tela sem nada para mostrar. As duas consultas
+  passam a sair juntas, e a equipe — que só enriquece a atribuição — nunca atrasa a pendência.
+  A regra de acesso perdido continua: `exigeNovoAcesso` na equipe ainda interrompe tudo. 7/7 em
+  `pendencias-caso.test.ts`.
+- [x] 6.4 **Formulário de acesso familiar oferecido com a rota desligada.** `POST
+  /api/auth/familiar` devolve `503` (jornada familiar desligada), mas o bloco aparecia com
+  e-mail e senha e `web/main.ts` habilitava o fieldset incondicionalmente no carregamento. Quem
+  tentava digitava a senha e levava erro genérico — foi o que travou a primeira tentativa de
+  login do smoke. O bloco passa a nascer `hidden` no HTML, com o fieldset `disabled`.
+  **Limitação assumida, e o motivo:** cheguei a implementar `GET /api/auth/disponibilidade` para
+  a tela perguntar ao servidor quais portas estão abertas, mas **revertei**. Três testes de
+  fluxo Google (`google-fluxo.test.ts`, `acesso.test.ts`) garantem que uma aba sem acesso
+  estabelecido **não faz requisição nenhuma** — garantia deliberada contra dar sequência a uma
+  tentativa que não é daquela aba. Qualquer consulta nova na tela de acesso a viola. Preferi
+  manter a garantia e resolver no HTML a enfraquecer a asserção. **Consequência:** ao ligar a
+  jornada familiar é preciso remover o `hidden` do `<details id="acesso-familiar">` e o
+  `disabled` do fieldset — está comentado no próprio `index.html`.
+- [x] 6.5 **Falha de login deixava marcas de fluxo órfãs.** `web/api.ts` gravava
+  `modo-acesso = 'bloqueada'` e não limpava os fluxos da tentativa. `bloqueada` **continua**,
+  porque sem entrada concluída não há sessão e afrouxar isso deixaria sessão ambígua passar por
+  válida; o que sai agora são `fluxo-tecnico`, `fluxo-familiar`, `sessao-tecnica` e
+  `sessao-familiar`. A entrada pelo Google já se recuperava sozinha (o envio do formulário grava
+  um fluxo novo); o que sobrava era lixo que confundia a tentativa seguinte.
+- [x] 6.6 **Diário, linha do tempo e exportação ligados**, por decisão do solicitante.
+  Interruptores fixos derrubados em `linha-tempo.ts` e `exportacoes.ts`, e
+  `20261122100000_ligar_diario_linha_tempo_exportacao.sql` põe as três chaves em `true`.
+  A migration **atualiza** valor e não insere: o catálogo é definido por migration e `chave` é
+  única. Guarda `CHAVES_DE_SERVICO_INESPERADAS` falha fechada se alguma chave sumir ou trocar de
+  tipo — e ela pegou, no primeiro teste, que a fixture local não carregava a semente do diário.
+  Prova em `configuracao_servicos_local.sql` (`LIGAR_SERVICOS_OK`): as três ligadas, sem
+  duplicar chave e sem alterar exposição nem tipo.
+  **Exercitado antes de ligar:** as cadeias SQL em PostgreSQL descartável, com positivos e
+  negativos de audiência e autorização. **NÃO exercitado:** a tela autenticada em produção — a
+  entrada depende do Google e não é executada por agente. **Documentos continua desligado**: o
+  segredo `ffcmapp.integracao.google_drive` não está no Vault, e ligar só trocaria
+  "indisponível" por erro de integração.
+- [ ] 6.7 **Configuração do sistema continua quebrada — NÃO corrigida.** A tela mostra "Não foi
+  possível carregar os ajustes". O que ficou estabelecido: com `x-sessao` inválido a rota
+  devolve `401` de forma consistente em dez tentativas, logo `FFCM_CONFIGURACAO_SISTEMA_ATIVO`
+  está correta e as dependências são construídas; com sessão **válida** devolve
+  `503 servico_indisponivel`, que em `compor-configuracao-sistema-nativo.ts` só sai de erro de
+  RPC ou do `catch` externo. A auditoria, que usa a mesma `consultar_sessao_nativa` **e também
+  carrega o cofre**, lista 25 registros reais em produção — então nem a sessão compartilhada nem
+  o cofre explicam sozinhos.
+  **Hipótese mais forte, à luz de 6.1:** o `catch` externo engole qualquer falha, e o cofre é
+  carregado pelo mesmo pool cuja conexão fria se provou falhar. A auditoria pode ter respondido
+  num processo quente. Se for isso, a correção é a mesma retentativa de 6.1 aplicada a
+  `carregarCofreNativo`. **Alternativa a descartar antes:** grant ou dono de
+  `api.configuracao_sistema_privado` divergente no projeto remoto.
+  **Por que não corrigi:** confirmar exige uma sessão autenticada em produção (entrada pelo
+  Google, que não executo) ou leitura direta do banco remoto. Não troquei código crítico com
+  base em palpite.
