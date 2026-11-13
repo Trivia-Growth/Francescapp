@@ -1,19 +1,32 @@
 import { criarErroPublicoSemCampos } from '../../packages/contracts/src/erros.ts';
 import { configurarDependenciasNativas } from './_shared/configurar-dependencias-nativas.ts';
+import { servicoAtivo } from './_shared/configuracao-servidor.ts';
 import { criarEntradaAprovadorPlanoNativa } from './_shared/entrada-aprovador-plano-nativa.ts';
 
 export const config = { path: '/api/admin/aprovador-plano' };
 
 let entrada: ReturnType<typeof criarEntradaAprovadorPlanoNativa> | undefined;
+let dependencias: ReturnType<typeof configurarDependenciasNativas> | undefined;
 
 export default async function aprovadorPlano(request: Request): Promise<Response> {
   // Administrador-only; autorização real fica no banco. Desativado por padrão.
-  if (process.env.FFCM_APROVADOR_PLANO_ATIVO !== 'true') return falha('servico_indisponivel');
   try {
-    entrada ??= criarEntradaAprovadorPlanoNativa(configurarDependenciasNativas(process.env));
+    dependencias ??= configurarDependenciasNativas(process.env);
+    entrada ??= criarEntradaAprovadorPlanoNativa(dependencias);
   } catch {
     return falha('configuracao_indisponivel');
   }
+  // Interruptor administrado pela tela (`ffcm.plano.aprovador_ativo`), com a variável de ambiente
+  // como padrão quando o banco não responde ou não tem a chave. Não é autorização: a rota
+  // segue validando sessão, concessão e atestado no banco.
+  if (
+    !(await servicoAtivo(
+      dependencias.pool,
+      'ffcm.plano.aprovador_ativo',
+      process.env.FFCM_APROVADOR_PLANO_ATIVO === 'true',
+    ))
+  )
+    return falha('servico_indisponivel');
   return entrada.atender(request);
 }
 

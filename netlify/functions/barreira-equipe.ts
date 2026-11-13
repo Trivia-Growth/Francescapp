@@ -2,6 +2,7 @@ import { contratosBarreiraEquipeHttp } from '../../packages/contracts/src/barrei
 import { criarErroPublicoSemCampos } from '../../packages/contracts/src/erros.ts';
 import { comporBarreiraEquipeNativa } from './_shared/compor-equipe-barreira-nativa.ts';
 import { configurarDependenciasNativas } from './_shared/configurar-dependencias-nativas.ts';
+import { servicoAtivo } from './_shared/configuracao-servidor.ts';
 
 export const config = {
   path: [
@@ -26,8 +27,6 @@ export default async function barreiraEquipe(request: Request): Promise<Response
         'Referrer-Policy': 'no-referrer',
       },
     });
-  if (process.env.FFCM_BARREIRA_EQUIPE_ATIVADA !== 'true')
-    return falha('servico_indisponivel', 503);
   const rota = Object.entries(contratosBarreiraEquipeHttp).find(
     ([, contrato]) =>
       contrato.metodo === request.method && contrato.caminho === new URL(request.url).pathname,
@@ -38,5 +37,15 @@ export default async function barreiraEquipe(request: Request): Promise<Response
   } catch {
     return falha('configuracao_indisponivel', 503);
   }
+  // Interruptor administrado pela tela (`ffcm.equipe.barreira_ativa`), com a variável de
+  // ambiente como padrão quando o banco não responde. Não é autorização.
+  if (
+    !(await servicoAtivo(
+      dependencias.pool,
+      'ffcm.equipe.barreira_ativa',
+      process.env.FFCM_BARREIRA_EQUIPE_ATIVADA === 'true',
+    ))
+  )
+    return falha('servico_indisponivel', 503);
   return comporBarreiraEquipeNativa(request, rota, dependencias);
 }

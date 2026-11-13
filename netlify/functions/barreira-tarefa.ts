@@ -2,6 +2,7 @@ import { contratosBarreiraTarefaHttp } from '../../packages/contracts/src/barrei
 import { criarErroPublicoSemCampos } from '../../packages/contracts/src/erros.ts';
 import { comporBarreiraTarefaNativa } from './_shared/compor-barreira-tarefa-nativa.ts';
 import { configurarDependenciasNativas } from './_shared/configurar-dependencias-nativas.ts';
+import { servicoAtivo } from './_shared/configuracao-servidor.ts';
 
 export const config = {
   path: [
@@ -26,12 +27,6 @@ export default async function barreiraTarefa(request: Request): Promise<Response
         'Referrer-Policy': 'no-referrer',
       },
     });
-  if (
-    process.env.FFCM_TAREFAS_ATIVADAS !== 'true' ||
-    process.env.FFCM_TAREFAS_ESCRITA_ATIVADA !== 'true' ||
-    process.env.FFCM_BARREIRA_TAREFA_ATIVADA !== 'true'
-  )
-    return falha('servico_indisponivel', 503);
   const rota = Object.entries(contratosBarreiraTarefaHttp).find(
     ([, contrato]) =>
       contrato.metodo === request.method && contrato.caminho === new URL(request.url).pathname,
@@ -42,5 +37,25 @@ export default async function barreiraTarefa(request: Request): Promise<Response
   } catch {
     return falha('configuracao_indisponivel', 503);
   }
+  // Três interruptores administrados pela tela, com as variáveis de ambiente como padrão quando
+  // o banco não responde. Não são autorização.
+  const [tarefas, escrita, barreira] = await Promise.all([
+    servicoAtivo(
+      dependencias.pool,
+      'ffcm.tarefas.ativas',
+      process.env.FFCM_TAREFAS_ATIVADAS === 'true',
+    ),
+    servicoAtivo(
+      dependencias.pool,
+      'ffcm.tarefas.escrita_ativa',
+      process.env.FFCM_TAREFAS_ESCRITA_ATIVADA === 'true',
+    ),
+    servicoAtivo(
+      dependencias.pool,
+      'ffcm.tarefas.barreira_ativa',
+      process.env.FFCM_BARREIRA_TAREFA_ATIVADA === 'true',
+    ),
+  ]);
+  if (!tarefas || !escrita || !barreira) return falha('servico_indisponivel', 503);
   return comporBarreiraTarefaNativa(request, rota, dependencias);
 }

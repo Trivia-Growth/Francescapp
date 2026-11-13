@@ -16,6 +16,7 @@ import { sessaoNativaSchema } from '../../packages/contracts/src/identidade.ts';
 import { credencialAuthRejeitada, criarContextoAuthNativo } from './_shared/auth-nativo/cliente.ts';
 import { carregarCofreNativo } from './_shared/cofre-nativo.ts';
 import { configurarDependenciasNativas } from './_shared/configurar-dependencias-nativas.ts';
+import { servicoAtivo } from './_shared/configuracao-servidor.ts';
 import { metadadosAtestadoNativo } from './_shared/compor-pacientes-nativo.ts';
 
 export const config = { path: '/api/admin/concessoes-equipe' };
@@ -36,9 +37,30 @@ export default async function concessoesEquipe(request: Request): Promise<Respon
       headers,
     });
   const criando = request.method === 'POST';
-  if (process.env[criando ? 'FFCM_CRIACAO_EQUIPE_ATIVA' : 'FFCM_CONSULTA_EQUIPE_ATIVA'] !== 'true')
+  try {
+    dependencias ??= configurarDependenciasNativas(process.env);
+  } catch {
     return erro('servico_indisponivel');
-  if (criando && process.env.FFCM_BARREIRA_EQUIPE_ATIVADA !== 'true')
+  }
+  // Interruptores administrados pela tela, com as variáveis de ambiente como padrão quando o
+  // banco não responde. Não são autorização: a rota segue exigindo sessão de administrador e
+  // atestado. Criar depende também da conferência prévia, que faz parte do mesmo fluxo.
+  if (
+    !(await servicoAtivo(
+      dependencias.pool,
+      criando ? 'ffcm.equipe.criacao_ativa' : 'ffcm.equipe.consulta_ativa',
+      process.env[criando ? 'FFCM_CRIACAO_EQUIPE_ATIVA' : 'FFCM_CONSULTA_EQUIPE_ATIVA'] === 'true',
+    ))
+  )
+    return erro('servico_indisponivel');
+  if (
+    criando &&
+    !(await servicoAtivo(
+      dependencias.pool,
+      'ffcm.equipe.barreira_ativa',
+      process.env.FFCM_BARREIRA_EQUIPE_ATIVADA === 'true',
+    ))
+  )
     return erro('servico_indisponivel');
   const controle = new AbortController();
   const cancelar = () => controle.abort();

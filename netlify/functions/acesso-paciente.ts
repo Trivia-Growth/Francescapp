@@ -11,6 +11,7 @@ import {
 } from '../../packages/contracts/src/barreira-acesso-servidor.ts';
 import { comporAcessoPacienteNativo } from './_shared/compor-acesso-paciente-nativo.ts';
 import { configurarDependenciasNativas } from './_shared/configurar-dependencias-nativas.ts';
+import { servicoAtivo } from './_shared/configuracao-servidor.ts';
 
 export const config = {
   path: [
@@ -27,13 +28,38 @@ const headers = {
 const erro = (codigo: CodigoErro, id: string = crypto.randomUUID()) =>
   Response.json(criarErroPublicoSemCampos(codigo, id), { status: statusErroHttp[codigo], headers });
 
+let dependencias: ReturnType<typeof configurarDependenciasNativas> | undefined;
+
 export default async function acessoPaciente(request: Request): Promise<Response> {
-  if (process.env.FFCM_ACESSO_PACIENTE_ATIVADO !== 'true') return erro('servico_indisponivel');
+  try {
+    dependencias ??= configurarDependenciasNativas(process.env);
+  } catch {
+    return erro('configuracao_indisponivel');
+  }
+  // Dois interruptores administrados pela tela, com as variáveis de ambiente como padrão quando
+  // o banco não responde. Não são autorização: conceder e revogar continuam exigindo sessão,
+  // perfil e atestado verificados no banco. A ordem das checagens é a mesma de antes, para não
+  // revelar se um caminho existe quando o serviço está desligado.
+  if (
+    !(await servicoAtivo(
+      dependencias.pool,
+      'ffcm.acesso_paciente.ativo',
+      process.env.FFCM_ACESSO_PACIENTE_ATIVADO === 'true',
+    ))
+  )
+    return erro('servico_indisponivel');
   const url = new URL(request.url);
   const concessao = /^\/api\/pacientes\/([^/]+)\/acessos$/.exec(url.pathname);
   const revogacao = /^\/api\/pacientes\/([^/]+)\/acessos\/([^/]+)\/revogar$/.exec(url.pathname);
   if ((!concessao && !revogacao) || request.method !== 'POST') return erro('nao_encontrado');
-  if (process.env.FFCM_BARREIRA_ACESSO_ATIVADA !== 'true') return erro('servico_indisponivel');
+  if (
+    !(await servicoAtivo(
+      dependencias.pool,
+      'ffcm.acesso_paciente.barreira_ativa',
+      process.env.FFCM_BARREIRA_ACESSO_ATIVADA === 'true',
+    ))
+  )
+    return erro('servico_indisponivel');
   const pacienteId = (concessao ?? revogacao)?.[1];
   if (
     url.search ||
@@ -102,12 +128,6 @@ export default async function acessoPaciente(request: Request): Promise<Response
     dados = revogacaoValidada.data.entrada;
     reservaId = revogacaoValidada.data.reserva_id;
     geracaoReserva = revogacaoValidada.data.geracao_reserva;
-  }
-  let dependencias: ReturnType<typeof configurarDependenciasNativas>;
-  try {
-    dependencias = configurarDependenciasNativas(process.env);
-  } catch {
-    return erro('configuracao_indisponivel');
   }
   try {
     const resultado = await comporAcessoPacienteNativo(
