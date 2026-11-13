@@ -6,6 +6,7 @@ import {
   type TipoConfiguracao,
   type ValorConfiguracao,
 } from '../../../packages/contracts/src/configuracao-sistema.ts';
+import { causaDaFalha, registrarFalhaOperacional } from './falha-operacional.ts';
 
 /** Leitura da configuração gravada no banco pelo processo do servidor.
  *
@@ -101,7 +102,20 @@ export async function carregarConfiguracaoServidor(
       cache = { em: Date.now(), valores };
       return valores;
     })
-    .catch(() => cache?.valores ?? new Map<string, Linha>())
+    .catch((erro: unknown) => {
+      // Terceiro ponto cego, achado em 13/11/2026: quando esta leitura falha, cada rota cai no
+      // padrão de ambiente e se declara indisponível — e nada registrava o porquê. Como o
+      // padrão virou `false` ao tirar as variáveis duplicadas do Netlify, uma falha aqui apaga
+      // uma tela inteira em silêncio. Sem mensagem do banco: só a causa reduzida a um
+      // identificador curto.
+      registrarFalhaOperacional({
+        rota: 'configuracao-servidor',
+        etapa: 'operacao',
+        request_id: crypto.randomUUID(),
+        causa: causaDaFalha(erro),
+      });
+      return cache?.valores ?? new Map<string, Linha>();
+    })
     .finally(() => {
       emVoo = undefined;
     });
