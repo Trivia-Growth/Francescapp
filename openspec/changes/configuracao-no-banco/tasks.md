@@ -137,3 +137,58 @@ percorrendo as 17 abas da ficha e a área de Administração. O que segue corrig
   **Por que não corrigi:** confirmar exige uma sessão autenticada em produção (entrada pelo
   Google, que não executo) ou leitura direta do banco remoto. Não troquei código crítico com
   base em palpite.
+
+## 13/11/2026 — instrumentação das falhas, e três hipóteses derrubadas com evidência
+
+Medição nova do coordenador: `/api/pacientes/<id>/pendencias` devolvia `200` antes do deploy
+`f6b60be` e passou a devolver `503 servico_indisponivel` em quatro chamadas seguidas. Junto com
+`configuracao-sistema` e `solicitacoes-titular`, são três rotas com o mesmo código público.
+
+**Hipóteses levantadas e DERRUBADAS, cada uma com evidência:**
+
+1. *Grant que não pegou.* Refutada. As migrations de grant são idênticas em lógica às que
+   funcionam, e suas guardas (`WRAPPER_INESPERADO`, `ACL_INICIAL_INESPERADA`) **levantam
+   exceção** — não existe caminho de pulo silencioso: se tivessem disparado, a migration teria
+   falhado. Mais: `supabase/tests/grants_governanca_local.sql` (novo) exercita
+   `20261119310000`, `20261119330000` e `20261119360000` em PostgreSQL descartável e afirma
+   `GRANTS_GOVERNANCA_OK` — `authenticated` alcança os três wrappers, `anon` e `service_role`
+   não, e as operações internas seguem fora do alcance.
+2. *Exposição errada da chave.* Refutada: as 28 chaves de `20261121100000` estão todas em
+   `exposicao = 'servidor'`, que é o que o leitor do servidor enxerga.
+3. *Cofre, idempotência ou nome de RPC divergente.* Refutadas: `habilitacao-plano-crise`
+   funciona em produção e usa **o mesmo** `carregarCofreNativo`, o mesmo
+   `criarIdempotenciaNativa(cofre.cifra)` e o mesmo formato de nome. Os nomes de RPC conferem
+   com as assinaturas concedidas.
+
+**Achado colateral, e é o que permitiu o defeito passar:** das 25 migrations
+`grant_*_teste.sql`, **dez nunca eram exercitadas por teste algum** — inclusive as da
+auditoria, das regras e das solicitações do titular. Cobertura, porém, não explica este caso:
+auditoria funciona em produção *sem* teste, e pendências falha *com* teste. O novo
+`grants_governanca_local.sql` fecha três dessas dez; as outras sete seguem descobertas.
+
+**O que foi corrigido: os três pontos cegos.** O diagnóstico levou cerca de uma hora porque
+nada registrava a causa. Agora registra:
+
+- `netlify/functions/_shared/falha-operacional.ts` (novo) reduz um erro a um identificador
+  curto e seguro (`banco_42501`, `banco_PGRST202`, `cancelado`, `excecao_TypeError`).
+- O `catch` das três composições e os dois retornos `servico_indisponivel` da autorização
+  passam a registrar `{ evento, rota, etapa, causa, request_id }`, seguindo a forma já usada
+  em `auth-nativo/google.ts`. O `request_id` registrado é **o mesmo** que a resposta devolve.
+- `configuracao-servidor.ts`: o `.catch()` que devolvia mapa vazio em silêncio passa a
+  registrar. Este era o ponto cego que explica `pendencias` — o 503 dela nasce no portão
+  `servicoAtivo`, **antes** da composição, e nenhuma instrumentação de composição o alcançaria.
+
+**O que NUNCA entra no registro**, com teste que falha se entrar
+(`falha-operacional.test.ts`): mensagem do banco, `details`, `hint`, pilha, conteúdo de
+paciente, identificador de sessão ou de usuário. Mensagem de PostgreSQL carrega nome de tabela
+e de coluna; `code` diagnostica sem descrever o esquema. Código malformado é recusado em vez de
+repassado.
+
+**Causa raiz: ainda não estabelecida, e não inventei uma.** O que ficou provado é onde ela
+*não* está. A próxima requisição em produção a qualquer das três rotas passa a deixar no log do
+Netlify a linha `falha_operacional` com a causa reduzida — é o que fecha o diagnóstico, e custa
+um acesso à tela em vez de outra hora de investigação.
+
+**Não exercitado:** nenhuma das três rotas foi chamada em produção depois desta mudança; o
+valor da instrumentação é previsto, não medido. `verificar:ativacao` termina com código 0
+(80 arquivos de teste). Nada aplicado no remoto, nada commitado.
