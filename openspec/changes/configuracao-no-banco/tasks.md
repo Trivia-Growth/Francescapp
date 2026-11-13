@@ -240,3 +240,17 @@ casos falham nomeando a chave e o arquivo.
 
 **Limitação:** o conserto não foi exercitado em produção — exige sessão autenticada, que é do
 solicitante. `verificar:ativacao` termina com código 0.
+
+**Formato e conferência da exportação decididos (13/11/2026) — FR-032/FR-033.** As duas pendências que a auditoria de requisitos apontou como "falta decisão, não código" foram respondidas pelo solicitante.
+
+**Formato.** O pacote é um ZIP com `resumo.html`, `dados.json` e a pasta `anexos/`. HTML porque "consultável" para uma família significa abrir e ler sem instalar nada; JSON porque outro serviço precisa ler sem raspar HTML. PDF foi descartado: perde estrutura e não ajuda ninguém. Implementado em `web/pacote-exportacao.ts`, montado **no navegador** — a garantia central da fatia continua de pé: o servidor não decifra nada, e montar o pacote lá exigiria reunir o caso decifrado num só lugar, que é o que a fatia foi desenhada para não fazer.
+
+Sem dependência nova: o ZIP é escrito à mão, sem compressão (método `store`). Evita acrescentar código de terceiro a uma fatia que carrega dado clínico, e o ganho seria marginal porque anexos já chegam comprimidos. **Provado que é ZIP de verdade, não só bytes que o nosso código sabe ler**: o teste grava o arquivo em disco e usa o `unzip` do sistema para listar as três entradas e ler o `dados.json` de volta.
+
+**Conferência.** Ninguém confirma recebimento dentro do sistema — o destinatário não tem conta. O que existe é quem entregou registrando a quem entregou. O texto antigo da tela dizia "Entregue e conferida.", que se lê como confirmação do outro lado: isso é garantia falsa, e numa discussão sobre LGPD é pior que não ter carimbo nenhum. Agora a tela traz aviso explícito, e os dois atos foram rotulados como ato de quem entrega ("Registrar que entreguei", "Confirmar que o envio saiu correto"). A mesma ressalva vai **dentro** do pacote, no `resumo.html` e no `dados.json`: quem abrir o arquivo daqui a um ano precisa encontrá-la sem depender da tela.
+
+Decisão de escopo que vale revisão: os valores `entregue` e `conferida` **continuam** no contrato e no banco. Removê-los exigiria migrar dado existente, e a decisão do solicitante não pediu remoção — pediu que a tela não prometa recebimento. Se a intenção for eliminar o ato `conferida`, é mudança de contrato e precisa ser dita.
+
+Evidência: `web/pacote-exportacao.test.ts` (6 casos: vetor canônico do CRC-32, nome de anexo não escapando da pasta — `../../etc/passwd` vira `etc-passwd` —, escape de HTML, a ressalva de entrega presente no HTML e no JSON, indisponível contado sem sugerir conteúdo oculto, e o ZIP aberto pelo `unzip`) e `web/exportacao.test.ts` (4 casos travando os textos de entrega como requisito, incluindo a asserção de que "Entregue e conferida" **não** aparece mais). `pnpm run verificar:ativacao` termina com código 0.
+
+Limitações: nada aplicado no remoto, nada commitado, nenhum deploy. Anexos ainda não entram no pacote na prática — a fatia de documentos segue desligada por falta do segredo do Drive, e o contrato já prevê `anexo_nao_recuperado` para esse caso. A montagem do pacote não foi exercitada em produção com sessão autenticada.

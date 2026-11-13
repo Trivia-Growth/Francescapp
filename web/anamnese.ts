@@ -6,19 +6,36 @@ import {
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 import { esqueletoCarregando } from './esqueleto.js';
 
-/** Sugestões de partida, não formulário fixo: FR-003 não define as seções e a definição
- *  segue pendente com o solicitante. Quem preferir outra estrutura continua criando
- *  seção e campo livres logo abaixo. */
-const SUGESTOES: readonly { secao: string; campos: readonly string[] }[] = Object.freeze([
-  {
-    secao: 'História e motivação',
-    campos: ['O que motivou o acompanhamento?', 'Quem procurou a Fundação e quando'],
-  },
-  { secao: 'Rotina e autonomia', campos: ['Como é a rotina hoje', 'Pontos fortes e interesses'] },
-  { secao: 'Barreiras e apoios', campos: ['Barreiras percebidas', 'Apoios disponíveis'] },
-  { secao: 'Saúde e acompanhamentos', campos: ['Acompanhamentos em curso', 'Medicações em uso'] },
-  { secao: 'Combinados', campos: ['O que a família espera', 'Primeiros combinados'] },
-]);
+/** Roteiro sugerido de FR-003. Vem do banco (`ffcm.anamnese.roteiro`), editável na tela de
+ *  administração pela diretriz de 11/11/2026 — a estrutura de seis seções foi aprovada pelo
+ *  solicitante em 13/11/2026 e mora na migration `20261123100000`, não aqui.
+ *
+ *  Continua sendo sugestão, não formulário fixo: quem preencher mantém "Outra seção" e
+ *  "Outro campo" livres logo abaixo. Lista vazia é estado legítimo — a tela deixa de sugerir
+ *  e nada mais muda. */
+type Sugestao = { secao: string; campo: string };
+
+const SEPARADOR_ROTEIRO = '::';
+
+/** Converte as linhas `Seção :: Pergunta` do catálogo. Linha sem separador, sem seção ou sem
+ *  pergunta é ignorada em silêncio: é configuração digitada por pessoa, e uma entrada torta
+ *  não pode derrubar a tela inteira da anamnese. */
+export function lerRoteiroAnamnese(linhas: readonly string[]): Sugestao[] {
+  const vistas = new Set<string>();
+  const sugestoes: Sugestao[] = [];
+  for (const linha of linhas) {
+    const corte = linha.indexOf(SEPARADOR_ROTEIRO);
+    if (corte < 0) continue;
+    const secao = linha.slice(0, corte).trim();
+    const campo = linha.slice(corte + SEPARADOR_ROTEIRO.length).trim();
+    if (!secao || !campo) continue;
+    const chave = `${secao}${SEPARADOR_ROTEIRO}${campo}`;
+    if (vistas.has(chave)) continue;
+    vistas.add(chave);
+    sugestoes.push({ secao, campo });
+  }
+  return sugestoes;
+}
 
 type Servico = {
   consultarAnamnese(pacienteId: string): Promise<Anamnese | null>;
@@ -34,10 +51,13 @@ export function montarAnamnese(
   acessoPerdido: (erro: unknown) => void,
   alteracaoPendente: (pendente: boolean) => void = () => {},
   historicoHabilitado: boolean | Promise<boolean> = false,
+  roteiroSugerido: readonly string[] | Promise<readonly string[]> = [],
 ): () => void {
   let ativa = true;
   let versao = 0;
   let conflitoVersao = false;
+  let sugestoes: Sugestao[] = [];
+  let redesenharSugeridas: (() => void) | undefined;
   let pendente: { entrada: SalvarAnamnese; chave: string } | null = null;
   const descartarAcesso = (erro: unknown): boolean => {
     if (!exigeNovoAcesso(erro)) return false;
@@ -194,9 +214,7 @@ export function montarAnamnese(
     const existe = (secao: string, campo: string) =>
       entradas.some((entrada) => entrada.secao === secao && entrada.campo === campo);
     const atualizarSugeridas = () => {
-      const faltantes = SUGESTOES.flatMap(({ secao, campos: perguntas }) =>
-        perguntas.filter((campo) => !existe(secao, campo)).map((campo) => ({ secao, campo })),
-      );
+      const faltantes = sugestoes.filter(({ secao, campo }) => !existe(secao, campo));
       if (!faltantes.length) {
         sugeridas.replaceChildren();
         return;
@@ -234,6 +252,9 @@ export function montarAnamnese(
       sugeridas.replaceChildren(rotuloEscolha, todas);
     };
     atualizarSugeridas();
+    // O roteiro chega do servidor depois do primeiro desenho; guardar o redesenho aqui faz as
+    // sugestões aparecerem sem recarregar a aba.
+    redesenharSugeridas = atualizarSugeridas;
     form.append(sugeridas);
 
     rotularNovo('Outra seção', novaSecao);
@@ -407,6 +428,13 @@ export function montarAnamnese(
       if (!ativa) return;
       historicoDisponivel = disponivel;
       mostrarHistorico?.();
+    })
+    .catch(() => {});
+  void Promise.resolve(roteiroSugerido)
+    .then((linhas) => {
+      if (!ativa) return;
+      sugestoes = lerRoteiroAnamnese(linhas);
+      redesenharSugeridas?.();
     })
     .catch(() => {});
   consultar();

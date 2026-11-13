@@ -7,6 +7,7 @@ import type {
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { dataDeInstante } from './datas.js';
 import { esqueletoCarregando } from './esqueleto.js';
+import { montarPacoteExportacao, nomeDoArquivoPacote } from './pacote-exportacao.js';
 
 export type ServicoExportacao = {
   consultar(pacienteId: string): Promise<RegistroExportacoes>;
@@ -50,6 +51,7 @@ export function montarExportacao(
   servico: ServicoExportacao,
   acessoPerdido: (erro: unknown) => void,
   alteracaoPendente: (pendente: boolean) => void = () => {},
+  pacienteRotulo = 'Pessoa acompanhada',
 ): () => void {
   let vivo = true;
 
@@ -61,6 +63,15 @@ export function montarExportacao(
     'p',
     'Toda exportação fica registrada com destinatário e propósito. O registro não pode ser apagado.',
     'exportacao__explicacao',
+  );
+  // Decisão de 13/11/2026: o carimbo de entrega é declaração de quem entregou, nunca prova de
+  // recebimento — o destinatário não tem conta aqui. Dizer isso com todas as letras é
+  // requisito, não enfeite: um carimbo que parece confirmação do outro lado é garantia falsa,
+  // e numa discussão sobre LGPD isso é pior que não ter carimbo nenhum.
+  const avisoEntrega = elemento(
+    'p',
+    'Os registros de entrega abaixo são declaração de quem entregou. Quem recebe não confirma nada neste sistema.',
+    'exportacao__aviso-entrega',
   );
   const estado = elemento('p', '', 'exportacao__estado');
   estado.setAttribute('role', 'status');
@@ -99,7 +110,7 @@ export function montarExportacao(
   );
 
   const lista = elemento('ol', undefined, 'exportacao__lista');
-  secao.append(titulo, explicacao, estado, formulario, lista);
+  secao.append(titulo, explicacao, avisoEntrega, estado, formulario, lista);
   raiz.append(secao);
 
   const marcarPendente = () =>
@@ -145,18 +156,38 @@ export function montarExportacao(
           'exportacao__terceiros',
         ),
       );
+    const baixar = elemento('button', 'Baixar pacote', 'exportacao__baixar');
+    baixar.type = 'button';
+    baixar.addEventListener('click', () => {
+      // O pacote é montado aqui, no navegador, com o conteúdo que as outras telas já
+      // carregaram. Nenhum servidor reúne o caso decifrado num só lugar.
+      const arquivo = montarPacoteExportacao({ exportacao, pacienteRotulo });
+      const endereco = URL.createObjectURL(arquivo);
+      const ligacao = elemento('a');
+      ligacao.href = endereco;
+      ligacao.download = nomeDoArquivoPacote(exportacao);
+      ligacao.click();
+      URL.revokeObjectURL(endereco);
+    });
+    item.append(baixar);
+
     const atos = new Set(exportacao.entregas.map((e) => e.ato));
     const estados = elemento('p', undefined, 'exportacao__entrega');
+    // Os dois atos continuam existindo no banco e no contrato; o que muda é não prometerem
+    // recebimento. Ambos descrevem o que QUEM ENTREGOU fez.
     estados.textContent = atos.has('conferida')
-      ? 'Entregue e conferida.'
+      ? 'Envio registrado e conferido por quem entregou.'
       : atos.has('entregue')
-        ? 'Entregue, conferência pendente.'
-        : 'Ainda não entregue.';
+        ? 'Envio registrado. Conferência de quem entregou ainda pendente.'
+        : 'Envio ainda não registrado.';
     item.append(estados);
     for (const ato of ['entregue', 'conferida'] as const) {
       if (atos.has(ato)) continue;
       if (ato === 'conferida' && !atos.has('entregue')) continue;
-      const botao = elemento('button', ato === 'entregue' ? 'Marcar entregue' : 'Marcar conferida');
+      const botao = elemento(
+        'button',
+        ato === 'entregue' ? 'Registrar que entreguei' : 'Confirmar que o envio saiu correto',
+      );
       botao.type = 'button';
       botao.addEventListener('click', () => {
         botao.disabled = true;

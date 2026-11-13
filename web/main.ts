@@ -495,18 +495,20 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'anamnese',
       rotulo: 'Anamnese',
       descarte: descarteAnamnese,
-      montar: (raiz, pendente) =>
-        montarAnamnese(
+      montar: (raiz, pendente) => {
+        // Uma consulta só serve as duas coisas: se o histórico está ligado e o roteiro
+        // sugerido (FR-003), que vem do catálogo em banco e é editável na administração.
+        const disponibilidade = api.disponibilidadeHistoricoAnamnese();
+        return montarAnamnese(
           raiz,
           paciente.id,
           api,
           acessoPerdido,
           pendente,
-          api
-            .disponibilidadeHistoricoAnamnese()
-            .then((resultado) => resultado.disponivel)
-            .catch(() => false),
-        ),
+          disponibilidade.then((resultado) => resultado.disponivel).catch(() => false),
+          disponibilidade.then((resultado) => resultado.roteiro ?? []).catch(() => []),
+        );
+      },
     },
     {
       id: 'saude',
@@ -583,6 +585,7 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
           criarServicoExportacaoHttp(identidadeAtual),
           acessoPerdido,
           pendente,
+          paciente.nome_preferencia ?? paciente.nome,
         ),
     });
   if (administraConcessoes)
