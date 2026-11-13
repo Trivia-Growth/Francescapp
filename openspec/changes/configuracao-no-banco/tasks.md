@@ -192,3 +192,51 @@ um acesso à tela em vez de outra hora de investigação.
 **Não exercitado:** nenhuma das três rotas foi chamada em produção depois desta mudança; o
 valor da instrumentação é previsto, não medido. `verificar:ativacao` termina com código 0
 (80 arquivos de teste). Nada aplicado no remoto, nada commitado.
+
+## Causa raiz do 503 da tela de Configuração — estabelecida em 13/11/2026
+
+**Era contrato, não permissão.** A listagem devolve **todas** as linhas do catálogo e a entrada
+faz `z.array(configuracaoSistemaSchema).parse(...)` de uma vez. Uma linha fora do contrato
+derruba a resposta inteira.
+
+A linha: `ffcm.documentos.drive_pasta_raiz`, semeada `'""'::jsonb` em
+`20261120110000_documento_caso_privado.sql`. O contrato exigia `z.string().min(1)` para texto,
+então a string vazia não casava com **nenhum** ramo de `valorConfiguracaoSchema` — nem texto,
+nem booleano, nem número, nem lista. `parse` lançava, o `catch` da entrada devolvia
+`servico_indisponivel`, e o 503 não dizia nada.
+
+Provado isolando o schema contra a linha real: `Too small: expected string to have >=1
+characters`. Varredura das 43 seeds do catálogo achou **essa única** linha ofensora — as demais
+chaves de texto têm conteúdo.
+
+**Conserto:** texto passa a aceitar vazio. Em branco é estado legítimo do catálogo, não ausência
+de valor — a própria descrição da chave diz que enquanto estiver em branco o envio de anexos
+fica indisponível, que é falha fechada por desenho. Qual chave pode ficar vazia é regra de
+negócio por chave, decidida no banco, não um piso global de comprimento no contrato de
+transporte. Os demais limites continuam de pé (teto de 600, lista não vazia, item não vazio).
+
+**Por que a instrumentação anterior não pegou:** ela cobria autorização, cofre e operação — e a
+falha acontece **depois**, montando a resposta. A composição tinha funcionado.
+
+### Achado sistêmico: 26 `catch` cegos em 24 entradas
+
+O padrão `const dados = <schema>.parse(resultado.dados); ... } catch { return
+erro('servico_indisponivel') }` se repete em **todas** as entradas nativas. Qualquer divergência
+entre o que o banco devolve e o que o contrato aceita vira 503 mudo, em qualquer rota. Era
+sorte que só uma tivesse disparado.
+
+Todos passam a chamar `registrarFalhaDeResposta(rota, erro)`, que registra `etapa: 'resposta'` e
+devolve o `request_id` que a resposta carrega — ligando o que a pessoa viu ao que o servidor
+soube. Teste novo falha se a mensagem do `ZodError` vazar: ela lista caminho e valor recusado de
+cada item, ou seja, o catálogo inteiro.
+
+### Guarda de regressão
+
+`packages/contracts/test/configuracao-sistema-catalogo.test.ts` lê as **seeds reais** das
+migrations e afirma que todo valor semeado passa no contrato e corresponde ao tipo declarado na
+mesma linha. Lê das migrations em vez de repetir uma amostra à mão, porque amostra copiada
+envelhece junto com o engano. Verificado que **detecta** o defeito: restaurando o `min(1)`, dois
+casos falham nomeando a chave e o arquivo.
+
+**Limitação:** o conserto não foi exercitado em produção — exige sessão autenticada, que é do
+solicitante. `verificar:ativacao` termina com código 0.

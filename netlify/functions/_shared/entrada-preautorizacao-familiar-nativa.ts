@@ -9,6 +9,7 @@ import {
   type CodigoErro,
 } from '../../../packages/contracts/src/erros.ts';
 import { comporPreautorizacaoFamiliarNativo } from './compor-preautorizacao-familiar-nativo.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -96,8 +97,11 @@ export function criarEntradaPreautorizacaoFamiliarNativa(dependencias: Dependenc
             ? listaPreautorizacoesFamiliaresSchema.parse(resultado.dados)
             : resultado.dados;
         return Response.json({ dados, request_id: resultado.request_id }, { headers });
-      } catch {
-        return erro(request.method === 'POST' ? 'pendencia_externa' : 'servico_indisponivel');
+      } catch (erroResposta) {
+        return erro(
+          request.method === 'POST' ? 'pendencia_externa' : 'servico_indisponivel',
+          registrarFalhaDeResposta('preautorizacao-familiar', erroResposta),
+        );
       }
     },
   };

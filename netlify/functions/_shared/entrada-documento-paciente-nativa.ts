@@ -7,6 +7,7 @@ import {
 } from '../../../packages/contracts/src/erros.ts';
 import type { DefinicaoDocumentoPaciente } from './documento-paciente-nativo.ts';
 import { comporDocumentoPacienteNativo } from './compor-documento-paciente-nativo.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -124,8 +125,11 @@ export function criarEntradaDocumentoPacienteNativa<T>(
         // que o contrato descreve, mesmo que a composição mude depois.
         const dados = saidaSchema.parse(resultado.dados);
         return Response.json({ dados, request_id: resultado.request_id }, { headers });
-      } catch {
-        return erro(request.method === 'PATCH' ? 'pendencia_externa' : 'servico_indisponivel');
+      } catch (erroResposta) {
+        return erro(
+          request.method === 'PATCH' ? 'pendencia_externa' : 'servico_indisponivel',
+          registrarFalhaDeResposta('documento-paciente', erroResposta),
+        );
       }
     },
   };

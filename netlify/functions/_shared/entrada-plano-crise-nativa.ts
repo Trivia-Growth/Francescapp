@@ -6,6 +6,7 @@ import {
 } from '../../../packages/contracts/src/erros.ts';
 import { planoCriseHttp } from '../../../packages/contracts/src/plano-crise-http.ts';
 import { comporPlanoCriseNativo } from './compor-plano-crise-nativo.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -123,8 +124,11 @@ export function criarEntradaPlanoCriseNativa(dependencias: Dependencias) {
             : planoCriseHttp.salvar.saida;
         const dados = schema.parse(resultado.dados);
         return Response.json({ dados, request_id: resultado.request_id }, { headers });
-      } catch {
-        return erro(metodo === 'GET' ? 'servico_indisponivel' : 'pendencia_externa');
+      } catch (erroResposta) {
+        return erro(
+          metodo === 'GET' ? 'servico_indisponivel' : 'pendencia_externa',
+          registrarFalhaDeResposta('plano-crise', erroResposta),
+        );
       }
     },
   };
