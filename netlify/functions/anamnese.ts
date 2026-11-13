@@ -1,5 +1,6 @@
 import { criarErroPublicoSemCampos } from '../../packages/contracts/src/erros.ts';
 import { configurarDependenciasNativas } from './_shared/configurar-dependencias-nativas.ts';
+import { servicoAtivo } from './_shared/configuracao-servidor.ts';
 import { criarEntradaAnamneseNativa } from './_shared/entrada-anamnese-nativa.ts';
 
 export const config = {
@@ -11,42 +12,59 @@ export const config = {
 };
 
 let entrada: ReturnType<typeof criarEntradaAnamneseNativa> | undefined;
+let dependencias: ReturnType<typeof configurarDependenciasNativas> | undefined;
 
 export default async function anamnese(request: Request): Promise<Response> {
   const url = new URL(request.url);
-  if (url.pathname === '/api/anamnese/historico/disponibilidade') {
-    if (request.method !== 'GET' || url.search || url.hash) return falha('servico_indisponivel');
-    return Response.json(
-      {
-        dados: {
-          disponivel:
-            process.env.FFCM_ANAMNESE_ATIVADA === 'true' &&
-            process.env.FFCM_HISTORICO_ANAMNESE_ATIVADO === 'true',
-        },
-        request_id: crypto.randomUUID(),
-      },
-      {
-        headers: {
-          'Cache-Control': 'private, no-store',
-          'X-Content-Type-Options': 'nosniff',
-          'Referrer-Policy': 'no-referrer',
-        },
-      },
-    );
-  }
-  // Ativação exige S-02 e provas integradas de autorização e sessão.
-  if (process.env.FFCM_ANAMNESE_ATIVADA !== 'true') return falha('servico_indisponivel');
-  if (
-    new URL(request.url).pathname.endsWith('/historico') &&
-    process.env.FFCM_HISTORICO_ANAMNESE_ATIVADO !== 'true'
-  )
+  const disponibilidade = url.pathname === '/api/anamnese/historico/disponibilidade';
+  if (disponibilidade && (request.method !== 'GET' || url.search || url.hash))
     return falha('servico_indisponivel');
   try {
-    entrada ??= criarEntradaAnamneseNativa(configurarDependenciasNativas(process.env));
+    dependencias ??= configurarDependenciasNativas(process.env);
+    entrada ??= criarEntradaAnamneseNativa(dependencias);
   } catch {
+    // Sem conseguir montar o acesso ao banco não há configuração a ler, e aí vale a regra de
+    // sempre: o ambiente é o padrão de última instância. Responder "não disponível" aqui
+    // esconderia a aba de quem tem o serviço ligado por ambiente.
+    if (disponibilidade)
+      return respostaDisponibilidade(
+        process.env.FFCM_ANAMNESE_ATIVADA === 'true' &&
+          process.env.FFCM_HISTORICO_ANAMNESE_ATIVADO === 'true',
+      );
     return falha('configuracao_indisponivel');
   }
+  // Dois interruptores administrados pela tela, com as variáveis de ambiente como padrão quando
+  // o banco não responde. Não são autorização: a rota segue validando sessão, concessão e
+  // atestado no banco. O histórico depende da anamnese estar ligada, como já dependia.
+  const [ativa, historico] = await Promise.all([
+    servicoAtivo(
+      dependencias.pool,
+      'ffcm.anamnese.ativa',
+      process.env.FFCM_ANAMNESE_ATIVADA === 'true',
+    ),
+    servicoAtivo(
+      dependencias.pool,
+      'ffcm.anamnese.historico_ativo',
+      process.env.FFCM_HISTORICO_ANAMNESE_ATIVADO === 'true',
+    ),
+  ]);
+  if (disponibilidade) return respostaDisponibilidade(ativa && historico);
+  if (!ativa) return falha('servico_indisponivel');
+  if (url.pathname.endsWith('/historico') && !historico) return falha('servico_indisponivel');
   return entrada.atender(request);
+}
+
+function respostaDisponibilidade(disponivel: boolean): Response {
+  return Response.json(
+    { dados: { disponivel }, request_id: crypto.randomUUID() },
+    {
+      headers: {
+        'Cache-Control': 'private, no-store',
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'no-referrer',
+      },
+    },
+  );
 }
 
 function falha(codigo: 'servico_indisponivel' | 'configuracao_indisponivel'): Response {

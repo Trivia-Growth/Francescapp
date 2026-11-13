@@ -24,6 +24,11 @@ export const config = {
   ],
 };
 
+// FORA da configuração em banco, de propósito (13/11/2026). Os interruptores desta rota
+// continuam vindo só da variável de ambiente: ler a configuração do banco para decidir se a
+// autenticação funciona cria um impasse sem saída — um valor errado tranca todo mundo para
+// fora, e corrigi-lo na tela exige exatamente a sessão que deixou de ser possível. Não
+// "corrija" isto migrando para `servicoAtivo`.
 export default async function auth(request: Request): Promise<Response> {
   // A saída continua disponível para sessões existentes mesmo com a entrada bloqueada.
   const caminho = new URL(request.url).pathname;

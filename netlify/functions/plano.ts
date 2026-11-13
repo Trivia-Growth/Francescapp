@@ -1,5 +1,6 @@
 import { criarErroPublicoSemCampos } from '../../packages/contracts/src/erros.ts';
 import { configurarDependenciasNativas } from './_shared/configurar-dependencias-nativas.ts';
+import { servicoAtivo } from './_shared/configuracao-servidor.ts';
 import { criarEntradaPlanoNativa } from './_shared/entrada-plano-nativa.ts';
 
 export const config = {
@@ -15,16 +16,26 @@ export const config = {
 };
 
 let entrada: ReturnType<typeof criarEntradaPlanoNativa> | undefined;
+let dependencias: ReturnType<typeof configurarDependenciasNativas> | undefined;
 
 export default async function plano(request: Request): Promise<Response> {
-  if (process.env.FFCM_PLANO_ATIVADO !== 'true') {
-    return falha('servico_indisponivel', 503);
-  }
   try {
-    entrada ??= criarEntradaPlanoNativa(configurarDependenciasNativas(process.env));
+    dependencias ??= configurarDependenciasNativas(process.env);
+    entrada ??= criarEntradaPlanoNativa(dependencias);
   } catch {
     return falha('configuracao_indisponivel', 503);
   }
+  // Interruptor administrado pela tela (`ffcm.plano.ativo`), com a variável de ambiente como
+  // padrão quando o banco não responde ou não tem a chave. Não é autorização: a rota segue
+  // validando sessão, concessão e atestado no banco.
+  if (
+    !(await servicoAtivo(
+      dependencias.pool,
+      'ffcm.plano.ativo',
+      process.env.FFCM_PLANO_ATIVADO === 'true',
+    ))
+  )
+    return falha('servico_indisponivel', 503);
   return entrada.atender(request);
 }
 

@@ -10,7 +10,8 @@ export default async function configuracaoSistema(request: Request): Promise<Res
   // Esta rota NÃO lê a própria chave no banco, de propósito: é a tela que edita a
   // configuração. Se ela dependesse do banco, um valor errado gravado pela tela trancaria a
   // própria tela por fora. Continua em variável de ambiente, como interruptor de última
-  // instância. Administrador-only; autorização real fica no banco.
+  // instância. Administrador-only; autorização real fica no banco. Não "corrija" isto migrando
+  // para `servicoAtivo` (13/11/2026).
   if (process.env.FFCM_CONFIGURACAO_SISTEMA_ATIVO !== 'true') return falha('servico_indisponivel');
   try {
     entrada ??= criarEntradaConfiguracaoSistemaNativa(configurarDependenciasNativas(process.env));
