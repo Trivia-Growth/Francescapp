@@ -47,7 +47,11 @@ export function montarEdicaoPaciente(
     acessoPerdido(erro);
     return true;
   };
-  const status = elemento('p', 'Carregando cadastro…');
+  // A aba abre SEM carregar: ela espera a conferência do botão abaixo, porque pode haver uma
+  // edição anterior sem resposta. Dizer "Carregando cadastro…" aqui era mentira — a tela ficava
+  // parada e parecia travada (smoke de 13/11/2026). O texto agora diz o que a pessoa precisa
+  // fazer; "Carregando cadastro…" ficou só onde há leitura de verdade em curso.
+  const status = elemento('p', 'Confira o cadastro para começar a editar.');
   status.setAttribute('role', 'status');
   let equipe: ResponsavelOpcao[] = [];
   const textoSituacao = (mudanca: PacienteEdicao['acompanhamento'][number] | undefined) =>

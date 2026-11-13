@@ -70,3 +70,45 @@ it('o banco vence o ambiente quando responde', async () => {
   const ligadoNoBanco = { 'ffcm.diario.ativo': { valor: true, tipo: 'booleano', versao: 1 } };
   expect(await servicoAtivo(poolQueResponde(ligadoNoBanco), 'ffcm.diario.ativo', false)).toBe(true);
 });
+
+/** Regressão do smoke de 13/11/2026 em produção: a PRIMEIRA requisição a um processo frio
+ * devolvia "serviço indisponível" porque a conexão fria falhava e o padrão de ambiente, agora
+ * `false`, virava a resposta. Uma falha passageira não pode desligar uma tela. */
+function poolQueFalhaNasPrimeiras(falhas: number, configuracao: unknown): Pool {
+  let tentativas = 0;
+  const cliente = {
+    query: async (texto: string): Promise<Resposta> =>
+      texto.includes('ler_configuracao_sistema_publica')
+        ? { rows: [{ configuracao }] }
+        : { rows: [] },
+    release: () => {},
+  };
+  return {
+    connect: async () => {
+      tentativas += 1;
+      if (tentativas <= falhas) throw new Error('conexão fria');
+      return cliente;
+    },
+  } as unknown as Pool;
+}
+
+const ligado = { 'ffcm.diario.ativo': { valor: true, tipo: 'booleano', versao: 1 } };
+
+it('processo frio tenta de novo antes de desistir e não desliga o serviço por falha passageira', async () => {
+  const pool = poolQueFalhaNasPrimeiras(1, ligado);
+  expect(await servicoAtivo(pool, 'ffcm.diario.ativo', false)).toBe(true);
+});
+
+it('duas falhas seguidas no processo frio ainda caem no padrão do ambiente', async () => {
+  const pool = poolQueFalhaNasPrimeiras(2, ligado);
+  expect(await servicoAtivo(pool, 'ffcm.diario.ativo', false)).toBe(false);
+});
+
+it('a retentativa não reabre serviço que a tela desligou', async () => {
+  // A retentativa existe para o processo frio não desligar uma tela por engano. Não pode virar
+  // o contrário: se o banco já respondeu "desligado", nenhuma falha posterior reabre a rota.
+  expect(await servicoAtivo(poolQueResponde(desligadoNoBanco), 'ffcm.diario.ativo', true)).toBe(
+    false,
+  );
+  expect(await servicoAtivo(poolQueFalha(), 'ffcm.diario.ativo', true)).toBe(false);
+});

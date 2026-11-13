@@ -48,7 +48,13 @@
             <button class="button-primary full-width" type="submit">Entrar com Google</button>
           </form>
           <p class="small-text">Entrar não concede acesso automaticamente. A conexão com a agenda será solicitada separadamente.</p>
-          <details>
+          <!-- Oculto enquanto a jornada familiar estiver desligada (FFCM_AUTH_FAMILIAR_ATIVADO).
+               No smoke de 13/11/2026 este bloco aparecia com a rota devolvendo 503: quem tentava
+               digitava a senha e levava um erro genérico. A decisão fica no HTML, e não numa
+               consulta ao servidor, porque esta tela garante que uma aba sem acesso estabelecido
+               não faz requisição nenhuma — garantia que os testes de fluxo Google cobram. Ao
+               ligar a jornada familiar, remover o `hidden` daqui e o `disabled` do fieldset. -->
+          <details id="acesso-familiar" hidden>
           <summary>Acesso de familiares</summary>
           <p>Entre com a conta familiar autorizada pela equipe.</p>
           <form id="familiar-login-form" method="post" autocomplete="on" aria-describedby="familiar-feedback">
@@ -61,7 +67,7 @@
           </form>
           <p id="familiar-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
           </details>
-          <details>
+          <details id="acesso-tecnico">
           <summary>Acesso técnico excepcional</summary>
           <p>Somente para a conta técnica individual previamente autorizada.</p>
           <form id="login-form" method="post" autocomplete="on" aria-describedby="login-feedback">

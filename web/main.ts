@@ -1964,7 +1964,6 @@ async function revalidarAcesso(): Promise<void> {
 
 loginForm.addEventListener('submit', entrar);
 familiarForm.addEventListener('submit', entrarFamiliar);
-familiarFields.disabled = false;
 togglePassword.addEventListener('click', () => {
   const mostrar = passwordInput.type === 'password';
   passwordInput.type = mostrar ? 'text' : 'password';
