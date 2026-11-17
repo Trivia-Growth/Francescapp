@@ -38,6 +38,43 @@ export function fluxoValido(fluxo: string | null): fluxo is string {
   return fluxo !== null && /^[A-Za-z0-9_-]{22}$/.test(fluxo);
 }
 
+/** Expira somente os verificadores PKCE da própria tentativa encerrada, para que
+ * uma tentativa abandonada não ocupe o cabeçalho até o prazo de dez minutos.
+ *
+ * Alcance deliberadamente estreito: o cookie de sessão também se chama
+ * `ffcm-auth-<fluxo>`, então apagar por prefixo permitiria encerrar a sessão de
+ * alguém com um GET forjado ao callback usando um fluxo já conhecido. Só nomes
+ * com sufixo de verificador são expirados; sessão, seus pedaços e outros fluxos
+ * nunca são tocados. Chamar apenas com `fluxo` já validado desta requisição. */
+export function cookiesDeLimpezaDaTentativa(
+  request: Request,
+  fonte: FonteDeConfiguracao,
+  fluxo: string,
+): string[] {
+  if (!fluxoValido(fluxo)) return [];
+  let https: boolean;
+  try {
+    https = carregarConfiguracaoAuthNativo(fonte).https;
+  } catch {
+    return [];
+  }
+  const verificador = new RegExp(`^ffcm-auth-${fluxo}(?:-.*)?-code-verifier(?:\\.\\d+)?$`);
+  const nomes = new Set<string>();
+  for (const { name } of parseCookieHeader(request.headers.get('cookie') ?? '')) {
+    if (verificador.test(name)) nomes.add(name);
+  }
+  return Array.from(nomes, (name) =>
+    serializeCookieHeader(name, '', {
+      maxAge: 0,
+      httpOnly: true,
+      secure: https,
+      sameSite: 'lax',
+      path: '/',
+      domain: undefined,
+    }),
+  );
+}
+
 /** Um contexto por requisição. Auth/refresh são do SDK; autorização continua no banco.
  * O navegador usa somente a API first-party, nunca este cliente nem seus tokens. */
 export function criarContextoAuthNativo(
