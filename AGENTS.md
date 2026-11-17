@@ -15,6 +15,7 @@
 - `openspec/specs/`: requisitos funcionais de referência, com IDs FR, fases e cenários preservados. A existência de uma spec não significa implementação ou confirmação de todas as hipóteses.
 - `openspec/changes/`: propostas, deltas, decisões técnicas e tarefas de cada mudança. Não mantenha uma segunda versão ativa desses artefatos no Spec Kit.
 - `docs/projeto/`: contexto de negócio, decisões confirmadas, pendências, jornadas, metas e referência de código.
+- `docs/processo/estado-do-projeto.md` e `openspec/changes/<id>/estado.md`: estado operacional e passagem entre sessões. Respondem o que está pendente agora, não o que o produto deve fazer.
 - `PRODUCT.md`: contexto resumido para ferramentas de produto/design. `DESIGN.md`: limites e origem da direção visual, não requisitos funcionais duplicados.
 - `docs/legacy/spec-kit/`: arquivo histórico somente de consulta. Não execute seus scripts nem use suas skills como fluxo ativo.
 - O mockup e a proposta comercial não são uma implementação conectada e não definem automaticamente a identidade final da aplicação.
@@ -28,6 +29,16 @@
 - Separe responsabilidade de decisão/revisão e execução delimitada. Uma passagem de trabalho deve informar tarefa, requisito/cenário, decisão aplicável, arquivos permitidos, limites e evidência esperada.
 - Não fixe nomes de modelos copiados do HED nem troque modelos silenciosamente. Por solicitação explícita de 01/11/2026, delegue a agentes as frentes independentes sempre que isso acelerar a entrega sem duplicação ou conflito; use `gpt-6.1-terra` (Terra 6.1) na implementação. Passe contratos, arquivos exclusivos e evidência esperada. Se esse modelo não estiver disponível, informe antes de substituí-lo. A coordenação permanece responsável pela integração e pelas revisões independentes; não prometa trocar o modelo do chat principal por uma ferramenta que só configura subagentes.
 - Não declare conclusão por checkboxes ou existência de arquivos: confira os critérios de aceite e registre resultados, achados e limitações.
+
+## Estado e passagem entre sessões
+
+- O trabalho é conduzido por sessões curtas e por assistentes diferentes (Claude Code e Codex, que leem este mesmo arquivo). O registro de estado é o que mantém a linearidade entre elas; não há formato separado por ferramenta.
+- Antes de agir em uma mudança, leia `openspec/changes/<id>/estado.md`. Para a visão do que está pendente no projeto, leia `docs/processo/estado-do-projeto.md`. Ler o estado substitui reconstruir contexto pelo histórico; não é um gate novo.
+- Ao concluir cada tarefa de `tasks.md`, atualize o `estado.md` da mudança no mesmo commit: onde está, última tarefa concluída com evidência, próximo passo, bloqueadores, decisões vigentes e pendências de confirmação. Tarefa fechada sem estado atualizado não é tarefa concluída.
+- `docs/processo/estado-do-projeto.md` é alterado somente no merge da fatia para `main`, para evitar conflito entre frentes paralelas. Quem faz o merge cria ou substitui a linha da mudança e move a linha para concluídas quando ela é arquivada.
+- O estado descreve o agora e registra fatos verificados: comando executado e resultado, migração aplicada e ambiente, teste de autorização positivo e negativo. Checkbox, arquivo existente ou CI verde não são evidência. Verificação que não executou vira bloqueador explícito, nunca sucesso presumido.
+- O estado não guarda segredos, credenciais, dados pessoais nem conteúdo clínico, e não substitui `proposal.md`, `design.md`, `tasks.md` ou as specs. Modelo e regras completas em `docs/processo/modelo-estado-handoff.md`.
+- A passagem de trabalho entre sessões, assistentes ou subagentes é montada a partir do `estado.md` e continua carregando tarefa, requisito/cenário, decisão aplicável, arquivos permitidos, limites e evidência esperada.
 
 ## Qualidade e experiência
 
