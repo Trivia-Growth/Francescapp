@@ -49,6 +49,13 @@ Desconexão local preparada sob geração e subject, com revogação do segredo 
 
 Reconexão usa `prompt=consent`, sem presumir que Google emitirá refresh token. Após validar ID token, audiência, nonce e subject, ausência de refresh leva a `?agenda=autorizar-novamente` sem substituir credencial anterior. A orientação deve apontar para [conexões da Conta Google](https://support.google.com/accounts/answer/13533235?hl=pt-BR), explicar que remover acesso pode afetar outros acessos do projeto e não garantir emissão posterior. Prova Google real permanece pendente.
 
+**Retomada de implementação — 18/11/2026:** `web/agenda-individual.ts` agora
+apresenta orientação persistente para esse retorno, separada do estado real da
+conexão, com link informativo e aviso de impacto. Não recomenda nem executa
+revogação. `web/agenda-consentimento.test.ts` foi escrito para conexão anterior,
+ausência/ambiguidade do parâmetro e orientação. **Não executado:** solicitante
+adiou validações. A prova anterior da UI não cobre essa alteração.
+
 Desconexão local agora exige versão observada e UUID de operação; recibo transacional permite repetir o mesmo pedido após timeout e compara geração sob lock, impedindo pedido antigo de apagar conexão posterior. Resposta inclui estado atual além do resultado anterior. SQL, concorrência e recuperação após falhas ainda exigem prova; revogação Google segue não comprovada e gate fechado.
 
 Para impedir replay de um marcador em outra conta, status de conexão emite comprovante selado vinculando usuário, subject, versão e UUID; desconexão o confere contra identidade autenticada antes do recibo SQL. Comprovante não substitui autorização nem sessão. Prova de troca de usuário e concorrência permanece pendente.

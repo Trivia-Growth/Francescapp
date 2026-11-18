@@ -47,6 +47,30 @@ export function montarAgendaIndividual(
   titulo.textContent = 'Minha agenda';
   const descricao = document.createElement('p');
   descricao.textContent = 'Consulte os compromissos da sua agenda Google para os próximos 30 dias.';
+  // O callback pode preservar a conexão anterior quando Google não entrega refresh token.
+  // Este aviso é separado do status consultado: não comprova conexão nem deve sumir
+  // quando a consulta assíncrona informa a situação atual.
+  const retornoConsentimento = document.createElement('p');
+  retornoConsentimento.className = 'feedback';
+  retornoConsentimento.setAttribute('role', 'status');
+  const retornosAgenda = new URL(window.location.href).searchParams.getAll('agenda');
+  retornoConsentimento.hidden =
+    retornosAgenda.length !== 1 || retornosAgenda[0] !== 'autorizar-novamente';
+  if (!retornoConsentimento.hidden)
+    retornoConsentimento.textContent =
+      'A nova autorização da agenda não foi concluída: o Google não forneceu acesso para manter a conexão. Uma conexão anterior, se existir, foi preservada. Se a agenda estiver desconectada, use “Conectar agenda Google” para tentar autorizar novamente. Se persistir, peça ao administrador para conferir a configuração da integração.';
+  if (!retornoConsentimento.hidden) {
+    const ajuda = document.createElement('a');
+    ajuda.href = 'https://support.google.com/accounts/answer/13533235?hl=pt-BR';
+    ajuda.target = '_blank';
+    ajuda.rel = 'noopener noreferrer';
+    ajuda.textContent = 'Entenda as conexões da Conta Google';
+    retornoConsentimento.append(
+      ' ',
+      ajuda,
+      '. Alterar ou remover acesso pode afetar outros acessos do projeto e não garante que uma nova autorização seja concluída.',
+    );
+  }
   const status = document.createElement('p');
   status.className = 'feedback';
   status.setAttribute('role', 'status');
@@ -78,7 +102,7 @@ export function montarAgendaIndividual(
   const acoes = document.createElement('div');
   acoes.className = 'agenda-acoes';
   acoes.append(atualizar, conectar, desconectar, reconciliarDesconexao, cancelarDesconexao);
-  raiz.replaceChildren(titulo, descricao, acoes, status, lista);
+  raiz.replaceChildren(titulo, descricao, retornoConsentimento, acoes, status, lista);
 
   function cabecalhos(): Headers {
     const fluxo = sessionStorage.getItem('fluxo-google');
