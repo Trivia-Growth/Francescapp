@@ -41,7 +41,7 @@ Usuário autorizou push e merge após validação. Confirmou que as cinco migrat
 1. Comando de ativação local passou; revisão focal final da corrida do Diário concluída sem achado residual; lint/typecheck finais conferidos antes do envio. Sem declarar ativação remota.
 2. Correções de produto enviadas ao PR #16 em `6f1849f`; CI desse SHA passou. Integradas ao refino visual em `4b88e85`, com testes afetados e duas revisões focais sem achado material.
 3. Banco atualizado com somente as cinco migrations autorizadas. Bloqueio de histórico/dependência resolvido, sem repair nem aplicação de versões adicionais.
-4. Aceite conectado por perfis e roteiro dos PRs, incluindo revogação/acesso direto no ambiente aprovado, permanecem pendentes. Conferência do Chrome encontrou produto na tela de acesso, solicitando nova validação de conta; não há sessão de teste autenticada disponível nesta passagem. CI verde, equivalência estrutural remota e testes simulados não fecham a tarefa 5.1. Sem marcar ativação nem merge antes desse checkpoint. Atualizar registro global somente no merge.
+4. Aceite conectado por perfis e roteiro dos PRs, incluindo revogação/acesso direto no ambiente aprovado, permanecem pendentes. Conferência do Chrome encontrou produto na tela de acesso, solicitando nova validação de conta. Em seguida, o solicitante determinou executar o caderno completo após sua próxima onda de ajustes. Integração dos PRs já autorizada prossegue com código revisado, verificações locais e banco conferidos; a postergação não fecha a tarefa 5.1 nem comprova jornada conectada. Registro global será atualizado na integração.
 
 ## Aplicação remota autorizada — 17/11/2026
 
