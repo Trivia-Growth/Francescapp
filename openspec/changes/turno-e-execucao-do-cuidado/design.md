@@ -163,8 +163,10 @@ As decisões que **mudariam** o recorte — perfis habilitados, autoria da admin
 
 Escopo: leitura do código, migrations, specs desta mudança, DF-021/DF-022 e evidências
 já registradas. Nenhum teste repetido, conta criada, segredo lido ou operação remota
-executada nesta auditoria. Liberação recebida alcança somente 0.6; suspensão dos demais
-trabalhos não é revogada por fechar a checkbox de auditoria.
+executada nesta auditoria. Naquela passagem, a liberação recebida alcançava somente
+0.6; fechar a checkbox da auditoria não liberou os demais trabalhos. A autorização
+posterior do solicitante, em 18/11/2026, retomou implementação local dos grupos 1 e 2
+com validações adiadas; 0.6.1 continua sendo gate de integração/ativação.
 
 | Controle existente conferido | Âncora de implementação | Evidência e limite |
 | --- | --- | --- |

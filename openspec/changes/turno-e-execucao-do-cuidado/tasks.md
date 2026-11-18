@@ -4,7 +4,7 @@ Cada tarefa indica requisito/cenário, dependência e evidência de aceite. A po
 
 Nenhuma tarefa autoriza deploy, migração remota, concessão de acesso ou uso de dados reais. Todos os dados de teste são fictícios.
 
-**Implementação suspensa em 17/11/2026** por decisão do solicitante, até o encerramento de uma frente de ajuste de frontend em andamento. Este arquivo é planejamento; nenhuma tarefa executa antes da liberação explícita. O solicitante também autorizou, na mesma data, operação ampla durante a implementação (migração remota, deploy, push e PR sem pedido a cada passo) — essa autorização **não** vale enquanto a suspensão estiver vigente, e não alcança uso de dados reais.
+**Suspensão histórica de 17/11/2026:** a implementação aguardava liberação da frente de frontend. **Retomada autorizada em 18/11/2026:** o solicitante determinou seguir nas features não impedidas, com agentes Sol em paralelo, deixando as validações para depois. O recorte retomado alcança os grupos 1 e 2, conforme ordem do briefing; grupo 3 não iniciado. As provas de autorização/RLS permanecem obrigatórias antes da ativação. A autorização DF-022 para operações externas não alcança dados reais nem operações destrutivas; esta retomada prepara código e migration local, sem presumir ativação remota.
 
 ## 0. Pré-condições
 
@@ -51,6 +51,13 @@ Depende da auditoria 0.6; integração/ativação permanecem bloqueadas por 0.6.
 - [ ] 1.4 Criar `packages/contracts/src/medicacao.ts` com item prescrito (nome, dose, via, horários, vigência, fonte documental) e administração (referência a `item_id`+`versao`, situação, motivo condicional). Evidência: teste cobrindo item sem fonte documental rejeitado e situação diferente de administrado sem motivo rejeitada (FR-059, FR-060).
 - [ ] 1.5 Criar `packages/contracts/src/ocorrencia-turno.ts` com descrição, instante, providência e anexo opcional. Evidência: teste cobrindo criação válida e rejeição de campo extra (FR-061).
 - [ ] 1.6 Registrar os contratos novos em `packages/contracts/src/index.ts` e as rotas em `rotas.ts`, seguindo o padrão existente. Evidência: `pnpm run verificar:rapido` sem erro de lint ou tipo.
+
+**Implementação local do grupo 1 — 18/11/2026:** os cinco contratos, exports,
+rotas e `packages/contracts/test/turno-execucao.test.ts` foram escritos por Sol.
+Identidade e relógio não são autoridade da entrada; encerramento referencia síntese
+publicada, sem criar domínio paralelo de passagem. **Validação adiada por pedido
+do solicitante:** testes e typecheck não executados nesta retomada. Checkboxes
+continuam abertas até cumprir a evidência prevista; contratos não provam autorização.
 
 ## 2. Turno: persistência, abertura e encerramento
 

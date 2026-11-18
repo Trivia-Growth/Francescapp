@@ -1,3 +1,12 @@
+import { aberturaTurnoSchema, encerramentoTurnoSchema, turnoSchema } from './turno.ts';
+import {
+  criacaoTurnoPrevistoSchema,
+  substituicaoTurnoSchema,
+  turnoPrevistoSchema,
+} from './turno-escala.ts';
+import { criacaoSinalVitalSchema } from './sinal-vital.ts';
+import { criacaoItemMedicacaoSchema, criacaoAdministracaoMedicacaoSchema } from './medicacao.ts';
+import { criacaoOcorrenciaTurnoSchema } from './ocorrencia-turno.ts';
 import { z } from 'zod';
 import { eventoAuditoriaSchema } from './auditoria.ts';
 import { anamneseSchema, salvarAnamneseSchema } from './anamnese.ts';
@@ -287,6 +296,69 @@ const operacaoConcluidaSchema = z
 
 /** Catálogo completo das rotas D-09; handlers não devem declarar DTOs próprios. */
 export const contratosRotas = {
+  // Contratos preparados; exposição exige barreiras, auditoria e gates da fatia.
+  abrirTurno: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/turnos/abrir',
+    aberturaTurnoSchema,
+    turnoSchema,
+    pacienteParametrosSchema,
+  ),
+  encerrarTurno: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/turnos/encerrar',
+    encerramentoTurnoSchema,
+    turnoSchema,
+    pacienteParametrosSchema,
+  ),
+  consultarTurno: consulta(
+    '/api/pacientes/:paciente_id/turnos/:turno_id',
+    vazioSchema,
+    turnoSchema.nullable(),
+    pacienteParametrosSchema.extend({ turno_id: uuidSchema }).strict(),
+  ),
+  criarTurnoPrevisto: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/escala',
+    criacaoTurnoPrevistoSchema,
+    turnoPrevistoSchema,
+    pacienteParametrosSchema,
+  ),
+  substituirTurnoPrevisto: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/escala/substituir',
+    substituicaoTurnoSchema,
+    operacaoConcluidaSchema,
+    pacienteParametrosSchema,
+  ),
+  registrarSinalVital: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/sinais-vitais',
+    criacaoSinalVitalSchema,
+    operacaoConcluidaSchema,
+    pacienteParametrosSchema,
+  ),
+  registrarItemMedicacao: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/medicacao-prescrita',
+    criacaoItemMedicacaoSchema,
+    operacaoConcluidaSchema,
+    pacienteParametrosSchema,
+  ),
+  registrarAdministracaoMedicacao: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/administracoes-medicacao',
+    criacaoAdministracaoMedicacaoSchema,
+    operacaoConcluidaSchema,
+    pacienteParametrosSchema,
+  ),
+  registrarOcorrenciaTurno: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/ocorrencias-turno',
+    criacaoOcorrenciaTurnoSchema,
+    operacaoConcluidaSchema,
+    pacienteParametrosSchema,
+  ),
   desafioTecnico: comandoDeSessao(
     '/api/sessao/desafio-tecnico',
     vazioSchema,

@@ -28,3 +28,8 @@ export * from './rede-cuidado.ts';
 export * from './documento-paciente.ts';
 export * from './pendencia.ts';
 export * from './pendencia-http.ts';
+export * from './turno.ts';
+export * from './turno-escala.ts';
+export * from './sinal-vital.ts';
+export * from './medicacao.ts';
+export * from './ocorrencia-turno.ts';

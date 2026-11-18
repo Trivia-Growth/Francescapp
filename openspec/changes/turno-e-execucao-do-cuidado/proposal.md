@@ -72,7 +72,7 @@ Confirmadas pelo solicitante nesta data. Onde conflitam com 11/11/2026, prevalec
 ### Pendências que não podem ser inferidas
 
 - ~~A fatia 1 precisa estar concluída antes deste recorte.~~ **Resolvido em 17/11/2026**: parte-se do que já existe e está verificado, com tarefa própria de auditoria da base de autorização antes da primeira escrita de turno.
-- A implementação está **suspensa por decisão do solicitante** até o encerramento de uma frente de ajuste de frontend em andamento. Este pacote é planejamento; nenhuma tarefa executa antes da liberação explícita.
+- A implementação foi **suspensa em 17/11/2026** até liberação da frente de frontend. **Retomada em 18/11/2026:** o solicitante autorizou seguir nas features não impedidas e adiar validações. Grupos 1 e 2 entram em implementação local; as lacunas de prova operacional continuam impedindo ativação, sem impedir os contratos e a preparação local. Grupo 3 não iniciado.
 - Se a localização passa a ser exigida pela Francescato como condição de trabalho, isso é decisão trabalhista do solicitante, não do produto. A spec mantém o turno funcionando sem ela.
 - Como o executor externo é identificado e selecionado no registro — lista administrada de profissionais da enfermagem ou texto conferido — permanece em aberto (ver `design.md — Open Questions`).
 - A decisão de audiência familiar ampla precisa ser exercida junto com o fundamento de autorização do caso (FR-038). Georgia é adulta: o acesso familiar ao seu conteúdo de saúde depende do fundamento registrado e permanece revogável, não decorre do parentesco.
