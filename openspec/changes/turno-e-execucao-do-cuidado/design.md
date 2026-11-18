@@ -158,3 +158,52 @@ Questões que não alteram specs, abordagem ou tarefas, e podem ser respondidas 
 - Onde ficam os parâmetros de turno de FR-055: configuração institucional única ou por caso. A spec exige apenas que não sejam valor fixo em código.
 
 As decisões que **mudariam** o recorte — perfis habilitados, autoria da administração, tipos de sinal vital, parâmetros de turno e audiência familiar — foram confirmadas em 11/11/2026 e estão em `proposal.md — Decisões aplicadas`. O que resta em aberto está em `proposal.md — Pendências` e bloqueia as tarefas marcadas como dependentes, em vez de ser resolvido por suposição aqui.
+
+## Auditoria da base para 0.6 — 18/11/2026
+
+Escopo: leitura do código, migrations, specs desta mudança, DF-021/DF-022 e evidências
+já registradas. Nenhum teste repetido, conta criada, segredo lido ou operação remota
+executada nesta auditoria. Liberação recebida alcança somente 0.6; suspensão dos demais
+trabalhos não é revogada por fechar a checkbox de auditoria.
+
+| Controle existente conferido | Âncora de implementação | Evidência e limite |
+| --- | --- | --- |
+| Identidade nativa, perfil único, admissão por concessão | `20261017113000_fundacao_identidade_cadastro.sql` (`usuario`, `concessao_equipe`, `sessao`); `20261105120000_auth_privado.sql`; `20261105130000_auth_nativo_sessao.sql`; `netlify/functions/_shared/auth-nativo/cliente.ts` | Fundação tasks registra login/cadastro/recarga Admin reais anteriores e negativas Auth sem concessão; não prova Profissional/Família atuais ou estabilidade da entrada publicada. |
+| Sessão, concessão e revogação conferidas no banco | `20261106180000_bloqueios_auth.sql`; `20261106190000_wrappers_privados.sql`; `supabase/functions/_shared/atestado-operacao.ts` e `cifra-autenticada.ts` | Ponte Auth, locks e atestado de operação são mecanismos existentes, não novo protocolo de turno. Fundação/S-02 mantém limites de Auth/Vault reais e replay/revogação remotos. |
+| Vínculo ativo por paciente, concessão/revogação auditadas | `20261112050000_conceder_acesso_paciente_privado.sql`; `20261112060000_revogar_acesso_paciente_privado.sql`; `20261112070000_owners_acesso_paciente_privado.sql`; `20261112180000_barreira_acesso_paciente.sql` | `fundar-identidade-e-seguranca-backend/tasks.md` registra PostgreSQL local positivo Admin, negativas Profissional/sessão encerrada/direto, replay e rollback; fixtures Auth/Vault não comprovam integração real. |
+| Exemplo vigente de domínio que exige vínculo sob lock antes de replay | `20261125010000_anamnese_vinculo_caso.sql`; `supabase/tests/anamnese_vinculo_caso_local.sql`; `anamnese_vinculo_revogacao_concorrente_local.sql` | Anamnese tasks, evidência bloco 4: runners vínculo e integrado saída 0; Admin/Profissional vinculados positivos; outro paciente, Família, inativo e revogações negados; dblink nas duas ordens de lock. Auth/PostgREST/Vault fixtures. É referência a reutilizar, não autorização herdada por tabela futura. |
+| Concessão de equipe e barreira de alteração | `20261112310000_criar_concessao_equipe_privado.sql`; `20261112320000_replay_concessao_equipe_versionado.sql`; `20261112350000_barreira_concessao_equipe_privada.sql` | Provas locais existentes em `criar_concessao_equipe_privado_local.sql`, `replay_concessao_equipe_versionado_local.sql` e `barreira_concessao_equipe_local.sql`; estado de execução remota/perfis não foi revalidado aqui. Não confundir concessão de equipe com concessão específica de medicação. |
+| Família tem admissão/vínculo e audiência separadas | `20261111160000_admissao_familiar_privada.sql`; `20261112040000_consultar_paciente_familiar_privado.sql`; `20261120400000_materializar_acesso_familiar.sql`; `20261120420000_cancelar_preautorizacao_revoga_acesso.sql` | Testes `jornada_familiar_local.sql` e diário provam caminhos locais. `cadastro.acesso_paciente` registra concessor/motivo cifrado/revogação; não está comprovado que esse motivo materialize o fundamento específico, vigente e revogável exigido por FR-062. Parentesco nunca supre fundamento. |
+| Liderança por caso, sem quarto perfil (DF-021) | `20261113100000_acompanhamento_caso.sql`; `20261125040000_plano_crise_case_manager_atual.sql` | Runner crise saída 0 nesta passagem: responsável atual Admin/Profissional habilitados positivos; demais atores/direto/replay após troca negados; carimbos preservados. Habilitação de crise não é concessão de medicação. |
+
+**Lacunas concretas e destino.** 0.6.1 retém a prova operacional pendente. 0.6.2 exige
+amarrar os controles novos aos grupos existentes, sem criar camadas antecipadas:
+
+- Ainda não há persistência/RPC de turno nem vínculo de autoria/turno aberto dos filhos;
+  isso pertence a 2.1–2.6 e FR-063, não é garantido pela autorização da anamnese.
+- Concessão de medicação de D4 ainda precisa ser modelada e verificada em 5.1/6.3;
+  `habilitado_plano_crise` não serve como substituto. Pela revisão de 17/11/2026,
+  profissional com vínculo é elegível; liderança de caso não é exigência adicional.
+- Fundamento familiar de 8.3 precisa de prova independente da mera relação/vínculo,
+  inclusive revogação. Não presumir equivalência do motivo cifrado sem contrato verificável.
+- Localização requer consentimento próprio versionado, retenção 90 dias e RPC de audiência
+  própria (12.1–12.7); nenhum mecanismo clínico atual comprova esses controles.
+- Anexo privado e PDF têm fronteiras novas (11 e 10); sua autorização ainda não existe.
+
+**Coerência com decisões vigentes.** D8 conserva descrição histórica do registrador como
+Administrador/case manager; para elegibilidade aplica-se revisão de D4/0.1/FR-060:
+profissional autenticado com vínculo, com registrador derivado e executor declarado distintos.
+A pendência histórica de retenção em D13 foi resolvida por 0.14: 90 dias. Essas correções
+de leitura não autorizam começar implementação de grupos posteriores.
+
+**Estado remoto informado pela coordenação, não observado nesta auditoria:** sete migrations
+novas aplicadas, oito flags runtime ligadas, grant do executor Agenda aplicado e deploy
+`ddf2415` promovido pela UI e depois revertido: contexto de preview trouxe 503 de
+configuração operacional. O deploy anterior `76838b4` voltou publicado/LOCKED;
+novo build com contexto correto está em preparação. Isso não prova entrada funcional ou negativas reais:
+login 400/503 e gates Auth continuam pendentes. DF-022 autoriza operação no ambiente real,
+mas somente com dados fictícios; publicação não equivale a go-live nem a aprovação S-02.
+
+**Conclusão de 0.6:** inventário e lacunas estão registrados; auditoria concluída.
+Base reaproveitável identificada, integração/ativação de turno ainda bloqueadas pelos itens
+0.6.1/0.6.2 pertinentes. Nenhum grupo de implementação foi iniciado nesta passagem.

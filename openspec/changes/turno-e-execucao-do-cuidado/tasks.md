@@ -15,7 +15,23 @@ Decisões 0.1 a 0.5 e 0.7 confirmadas pelo solicitante em 11/11/2026 e registrad
 - [x] 0.3 Tipos de sinal vital: padrões da medicina em conjunto configurável — PA sistólica/diastólica, FC, FR, temperatura, SpO2, glicemia capilar e dor 0 a 10 (FR-058).
 - [x] 0.4 Parâmetros de turno — duração padrão, tolerância de atraso e tratamento de turno não encerrado — são configuração administrada, não valor fixo em código (FR-055).
 - [x] 0.5 Audiência familiar alcança todo o conteúdo do turno, condicionada ao fundamento de autorização do caso e revogável (FR-062, FR-037, FR-038).
-- [ ] 0.6 **Revisado em 17/11/2026** — não se espera mais a fatia 1 inteira. Auditar o que já existe e está verificado de identidade, sessão, vínculo de caso e concessão de equipe no repositório, e listar a lacuna concreta que o turno exige. Evidência: relação dos mecanismos conferidos com arquivo e migração correspondentes, as provas positivas e negativas de autorização já executadas, e a lacuna aberta como tarefa própria. Uma lacuna não coberta vira bloqueador explícito aqui, não premissa. **Bloqueia todos os grupos seguintes.**
+- [x] 0.6 **Revisado em 17/11/2026** — não se espera mais a fatia 1 inteira. Auditar o que já existe e está verificado de identidade, sessão, vínculo de caso e concessão de equipe no repositório, e listar a lacuna concreta que o turno exige. Evidência: relação dos mecanismos conferidos com arquivo e migração correspondentes, as provas positivas e negativas de autorização já executadas, e a lacuna aberta como tarefa própria. Uma lacuna não coberta vira bloqueador explícito aqui, não premissa. **Bloqueia todos os grupos seguintes.**
+  **Auditoria documental concluída em 18/11/2026**, no recorte explicitamente liberado
+  do bloco 7. Evidência em `design.md — Auditoria da base para 0.6`. Fechar esta auditoria
+  não declara base remota aprovada, não encerra S-02 e não libera os grupos seguintes.
+- [ ] 0.6.1 Fechar a lacuna de prova operacional da base antes da integração/ativação do
+  turno: diagnóstico da entrada publicada (400/503), sessão vigente de Profissional e
+  Família existentes, positiva/negativa por caso, acesso direto e revogação no servidor
+  e banco reais. Referência: FR-063 e gates S-02 existentes. Evidência: resultados reais
+  rastreáveis sem tokens/dados pessoais; não substituir por flags, deploy ou registry.
+  **Bloqueador atual:** login e matriz Auth remota não comprovados na passagem.
+- [ ] 0.6.2 Fechar o contrato reutilizável de autorização exigido pelo turno na fatia
+  correspondente: distinguir vínculo de caso, concessão de medicação (5.1/6.3), fundamento
+  familiar vigente e revogável (8.3) e liderança atual para localização (12.3). Evidência:
+  mapa campo/operação/lock/teste positivo-negativo, sem transformar parentesco, motivo
+  genérico, perfil Administrador ou habilitação de crise em autorização de turno.
+  Não criar implementação nesta auditoria; integrar o contrato nos grupos já previstos.
+  **Bloqueia persistência/exposição que dependa de um desses controles ainda ausentes.**
 - [x] 0.7 Evidência de habilitação profissional **não** é exigida. Não implementar campo de conselho, registro profissional ou documento comprobatório, nem verificação do executor informado (FR-060).
 - [x] 0.8 (17/11/2026) Rotina do turno em campos estruturados de alimentação, hidratação, sono e eliminações (FR-064).
 - [x] 0.9 (17/11/2026) Consolidado semanal por caso, além do diário (FR-065).
@@ -27,7 +43,7 @@ Decisões 0.1 a 0.5 e 0.7 confirmadas pelo solicitante em 11/11/2026 e registrad
 
 ## 1. Contratos do domínio de turno
 
-Depende de 0.6.
+Depende da auditoria 0.6; integração/ativação permanecem bloqueadas por 0.6.1 e pelos controles pertinentes de 0.6.2.
 
 - [ ] 1.1 Criar `packages/contracts/src/turno.ts` com os schemas Zod `strict()` de turno (caso, profissional, instante de abertura, instante de encerramento, situação), seguindo o padrão de `tarefa-cuidado.ts` (par `reserva_id`/`geracao_reserva`, `versao_esperada`, `campoCifradoSchema` para texto). Evidência: `pnpm run typecheck` limpo e teste de contrato novo em `packages/contracts/test/` executado uma vez, cobrindo entrada válida e rejeição de campo desconhecido (FR-055).
 - [ ] 1.2 Criar `packages/contracts/src/turno-escala.ts` com turno previsto, substituição e cobertura, exigindo motivo na substituição. Evidência: teste do arquivo cobrindo substituição sem motivo rejeitada (FR-056, cenário "Substituição sem motivo é recusada").

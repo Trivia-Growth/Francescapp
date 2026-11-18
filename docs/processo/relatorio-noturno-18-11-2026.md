@@ -106,7 +106,7 @@ Isso não certifica integração externa nem substitui roteiro publicado.
 
 ## Lista exata do que cadastrar e onde
 
-**Após desbloqueio, migrations e publicação**, entrar como Administrador em
+**Após resolver o acesso e conferir a publicação**, entrar como Administrador em
 **Administração > Credenciais das integrações** (`#administracao/integracoes`):
 
 | Nome exato | Conteúdo que o solicitante cadastrará |
@@ -140,7 +140,7 @@ Não cadastrar nenhum valor em SQL, terminal, PR ou relatório.
 - `SUPABASE_ACCESS_TOKEN` ausente no processo, confirmado sem imprimir valores.
   Consulta CLI não terminou em 60 s. Nenhum token do chat foi copiado para comando,
   arquivo ou log.
-- Sessão existente do navegador permitiu **consulta somente leitura** ao Supabase:
+- Na primeira passagem, sessão existente do navegador permitiu **consulta somente leitura** ao Supabase:
   última migration `20261124140000`, catálogo com 43 chaves, nenhuma divergência no
   contrato verificado, owner `ffcmapp_configuracao_sistema_owner`, EXECUTE para
   `authenticated` e não para `anon`/`service_role`, saída com `opcoes`. Consulta salva
@@ -153,24 +153,63 @@ Não cadastrar nenhum valor em SQL, terminal, PR ou relatório.
   presumido problema de cookie, nem apagados cookies ou revogados acessos.
 - Revalidação sem sessão: raiz HTTP 200; GET de configuração HTTP 401
   `nao_autenticado`, com `request_id` público. Isso prova somente a negativa anônima.
-- Controle posterior do navegador foi recusado por foco e, por fim, `screen_locked`.
-  Sem solicitante disponível, não houve desbloqueio/continuidade de SQL ou publicação.
+- Na primeira passagem, controle do navegador foi recusado por foco e depois
+  `screen_locked`. **Na retomada da manhã, Chrome voltou disponível**; esse bloqueio
+  anterior não descreve o estado atual.
 - Netlify mostrava publicação automática bloqueada e main anterior publicada.
   Preview do PR foi construído, mas exige autenticação (HTTP 401 na verificação
   anônima). CI `verificar-ativacao` no PR draft foi SKIPPED; não conta como evidência.
 
-**Não aplicadas remotamente:** migrations `20261125010000`, `20261125020000`,
-`20261125030000`, `20261125030100`, `20261125040000`, `20261125050000` e
-`20261125060000`, nem o grant
-operacional da Agenda. Não habilitadas flags remotas nesta execução. Autorização
-DF-022 já existe; impedimento é acesso operacional, não falta de consentimento.
+### Retomada remota da manhã
 
-Verificação adicional OpenSpec estrita de `historico-de-saude` e
-`transcricao-audio-relato`: saída 1 por ausência de delta specs nesses pacotes
-preexistentes. Planejamento não foi refeito para contornar o validador. Esse resultado
-não é aprovação; requisitos de referência e revisão de aderência foram consultados
-separadamente. A mudança nova de cadastro teve validação estrita aprovada antes da
-implementação, conforme evidência do bloco 2.
+As sete migrations `20261125010000`, `20261125020000`, `20261125030000`,
+`20261125030100`, `20261125040000`, `20261125050000` e `20261125060000` foram
+aplicadas no projeto de teste. Cada uma executou o source exato dentro de `BEGIN`,
+com registro da migration na mesma transação; cada confirmação JSON informou
+`registrada: true`. Isso atualiza o bloqueio anterior de aplicação remota, sem
+declarar integração ou ativação funcional comprovada.
+
+- `25010000`: duas policies de vínculo da anamnese conferidas.
+- `25020000`: cadastro administrativo de segredos instalado; nenhum valor cadastrado.
+- `25030000`: flag de expurgo permanece `false`.
+- `25030100`: job único de expurgo a cada 15 minutos; flag continua `false`.
+- `25040000`: owner esperado e policy do responsável atual confirmados.
+- `25050000`: wrapper privado, executor sem acesso direto ao Vault e flag Agenda
+  `false` confirmados.
+- `25060000`: catálogo publicado confirmado, sem troca do modelo escolhido.
+
+As oito flags de ficha/edição/contato, contexto, rede, diário, saúde e crise já
+estavam `true`; não foram alteradas por SQL. O login técnico existente foi
+conferido sem privilégios administrativos, sem herança e sem leitura direta do
+Vault. Executores de configuração e segredos já estavam concedidos. O grant
+restrito da Agenda foi aplicado: SET permitido, INHERIT negado, sem owner nem
+leitura direta do Vault.
+
+Uma promoção manual do preview `ddf2415` preservou o contexto de preview e trouxe
+503 `configuracao_indisponivel` nas rotas administrativas, antes da autorização.
+A publicação anterior `76838b4` foi restaurada, ainda LOCKED: raiz 200 e negativa
+anônima de configuração novamente 401. Não confundir esse 503 de configuração
+operacional com a falha 6.7 de sessão válida. Está em preparação um build com
+contexto correto; nenhuma variável ou credencial foi copiada.
+
+Login na raiz continua com
+HTTP 400 reproduzido; causa não estabelecida. Sem linha de log do 503. Nenhum segredo
+ou dado clínico foi lido, nenhum valor foi cadastrado. Autorização DF-022 permanece
+vigente; aplicação das migrations não comprova as jornadas autenticadas.
+
+Compatibilidade local adicional do SDK: 30 testes fictícios com SDK real passaram
+nos modos padrão e `cookies.encode: 'tokens-only'`, cobrindo callback, admissão,
+normalização sem tokens Google, nova requisição, renovação e isolamento/negativas.
+Harness somente em `/tmp`, transporte mockado, sem rede externa. A opção é
+**experimental e não foi ativada**; essa prova não estabelece causa nem correção do
+HTTP 400.
+
+Verificação OpenSpec estrita inicialmente encontrou ausência de delta specs em
+`historico-de-saude` e `transcricao-audio-relato`. Os deltas foram derivados apenas
+dos requisitos e planejamento já aprovados, preservando FR-004/FR-010 e fase
+Inicial; ambas validações estritas passaram, saída 0. Isso valida os artefatos,
+sem comprovar ativação. A mudança nova de cadastro também teve validação estrita
+aprovada antes da implementação, conforme evidência do bloco 2.
 
 ## Gates das seis fatias
 
@@ -215,6 +254,11 @@ implementação, conforme evidência do bloco 2.
 - **SUPOSIÇÃO OPERACIONAL — PR:** um PR draft consolidado, com commits por bloco,
   preserva a branch compartilhada. Difere do pedido de draft por frente; evitou PRs
   sobrepostos da mesma branch. Sem merge nem reescrita de histórico.
+- **SUPOSIÇÃO OPERACIONAL — publicação:** usar temporariamente a branch de trabalho
+  como Production branch da Netlify para gerar artefato com contexto `production`,
+  preservando o deploy anterior LOCKED e os escopos das variáveis existentes.
+  Restaurar a configuração de branch para `main` antes de encerrar a operação.
+  Nenhuma mudança de plano, ambiente contratado ou credencial está incluída.
 
 Hipóteses anteriores preservadas, sem nova decisão silenciosa: diário considera
 coordenação colaboradores vinculados; saúde não proíbe combinação `relato_leigo` +
@@ -223,7 +267,8 @@ operação atômica e nascimento não futuro em UTC). Isso não dispensa S-02.
 
 ## Como testar quando acesso operacional for restabelecido
 
-1. Aplicar migrations e grant estreito revisados no projeto de teste. **Não executar
+1. Conferir grants do runtime e grant estreito revisado da Agenda; as sete migrations
+   novas já foram aplicadas no projeto de teste. **Não executar
    scripts locais de bootstrap/fixtures contra o remoto**: usam banco descartável.
 2. Publicar deploy específico, sem desbloquear globalmente publicação automática.
    Corrigir login/503 somente após colher etapa/causa/request_id e evidência.
@@ -241,8 +286,8 @@ operação atômica e nascimento não futuro em UTC). Isso não dispensa S-02.
 
 ## Explicitamente não feito
 
-Não houve aplicação remota das migrations novas, publicação da nova versão como
-aplicação principal, conserto comprovado do 503 ou do HTTP 400 de login, jornada
+Não houve publicação comprovada da nova versão como aplicação principal,
+conserto comprovado do 503 ou do HTTP 400 de login, jornada
 administrativa publicada, prova Auth/Vault/Google/OpenRouter reais, ativação remota
 das seis fatias, habilitação operacional de case managers, S-02 nem teste visual
   integrado desktop/mobile desta entrega. Conferência visual isolada do componente
@@ -251,7 +296,9 @@ das seis fatias, habilitação operacional de case managers, S-02 nem teste visu
 revogação de acesso existente, alteração de permissões Drive, uso de dados reais,
 cadastro/manuseio manual de segredo, merge ou reescrita de histórico.
 
-Turno 0.6 e grupos 1/2/3 não iniciados: objetivo principal ainda bloqueado. Financeiro,
+Turno 0.6 concluído como auditoria documental, com inventário em seu `design.md` e
+lacunas explícitas 0.6.1/0.6.2; isso não aprova a base remota nem libera integração.
+Grupos 1/2/3 não iniciados. Financeiro,
 PWA, migração Edge, recorrência, agenda global e lembretes não iniciados. Arquivos
 preexistentes não rastreados em `.impeccable/critique`, `mocks` e `questions`
 preservados fora dos commits.
