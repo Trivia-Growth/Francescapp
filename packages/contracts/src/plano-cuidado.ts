@@ -106,6 +106,11 @@ export function validarCamposExtras(
   return { ok: true };
 }
 
+/** Coluna em claro (fora do envelope cifrado): só assim o banco filtra por audiência sem
+ * decifrar. Quem grava decide; a família só lê versões 'publica' (decisão do solicitante,
+ * 17/11/2026). Falta o campo na entrada preserva o comportamento anterior ('interna'). */
+export const visibilidadeObjetivoSchema = z.enum(['interna', 'publica']);
+export type VisibilidadeObjetivo = z.output<typeof visibilidadeObjetivoSchema>;
 export const motivoPlanoSchema = z.string().trim().min(1);
 export const conteudoPlanoSchema = z
   .object({
@@ -122,6 +127,7 @@ const registroPlanoSchema = z
     paciente_id: uuidSchema,
     versao: z.number().int().min(1).max(2147483647),
     conteudo: campoCifradoSchema,
+    visibilidade: visibilidadeObjetivoSchema,
   })
   .strict();
 export const respostaPlanoPrivadaSchema = z.discriminatedUnion('ok', [

@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { uuidSchema } from './comum.ts';
 import { campoCifradoSchema } from './rpc.ts';
+// Mesmo vocabulário de visibilidade do plano de cuidado, não um terceiro: "interna"/"publica"
+// é a mesma pergunta de negócio (decisão do solicitante, 17/11/2026) nos dois domínios.
+import { visibilidadeObjetivoSchema } from './plano-cuidado.ts';
 
 const dataSchema = z
   .string()
@@ -32,6 +35,7 @@ export const orientacaoSchema = conteudoOrientacaoSchema
     orientacao_id: uuidSchema,
     versao: versaoSchema.min(1),
     situacao: situacaoOrientacaoSchema,
+    visibilidade: visibilidadeObjetivoSchema,
     registrado_em: z.iso.datetime({ offset: true }),
   })
   .strict();
@@ -43,6 +47,7 @@ export const salvarOrientacaoSchema = conteudoOrientacaoSchema
     orientacao_id: uuidSchema.optional(),
     versao_esperada: versaoSchema.max(2_147_483_646),
     situacao: situacaoOrientacaoSchema,
+    visibilidade: visibilidadeObjetivoSchema,
   })
   .strict()
   .refine(
@@ -67,6 +72,7 @@ const registroSchema = z
     paciente_id: uuidSchema,
     versao: versaoSchema.min(1),
     situacao: situacaoOrientacaoSchema,
+    visibilidade: visibilidadeObjetivoSchema,
     conteudo: campoCifradoSchema,
     criado_em: z.iso.datetime({ offset: true }),
   })

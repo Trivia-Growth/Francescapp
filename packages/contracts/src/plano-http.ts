@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { cursorSchema, uuidSchema } from './comum.ts';
-import { conteudoPlanoSchema, objetivoSchema, motivoPlanoSchema } from './plano-cuidado.ts';
+import {
+  conteudoPlanoSchema,
+  objetivoSchema,
+  motivoPlanoSchema,
+  visibilidadeObjetivoSchema,
+} from './plano-cuidado.ts';
 import {
   consultaBarreiraPlanoResultadoSchema,
   estadoReservaPlanoSchema,
@@ -10,7 +15,11 @@ import {
 
 const epoca = z.number().int().positive().safe();
 const registro = conteudoPlanoSchema
-  .extend({ objetivo_id: uuidSchema, versao: z.number().int().positive().max(2147483647) })
+  .extend({
+    objetivo_id: uuidSchema,
+    versao: z.number().int().positive().max(2147483647),
+    visibilidade: visibilidadeObjetivoSchema,
+  })
   .strict();
 const paginacao = z
   .object({
@@ -43,6 +52,7 @@ export const planoHttp = {
       .object({
         objetivo_id: uuidSchema,
         objetivo: objetivoSchema,
+        visibilidade: visibilidadeObjetivoSchema,
         reserva_id: uuidSchema,
         geracao_reserva: epoca,
       })
@@ -57,6 +67,7 @@ export const planoHttp = {
         versao_esperada: z.number().int().positive().max(2147483646),
         objetivo: objetivoSchema,
         motivo: motivoPlanoSchema,
+        visibilidade: visibilidadeObjetivoSchema,
       })
       .strict(),
     saida: registro,

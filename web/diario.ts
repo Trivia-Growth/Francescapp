@@ -6,6 +6,7 @@ import type {
   RegistroDiario,
   SalvarRegistroDiario,
 } from '../packages/contracts/src/diario.ts';
+import { relatoTextualSchema } from '../packages/contracts/src/relato-textual.ts';
 import type { TarefaCuidado } from '../packages/contracts/src/tarefa-cuidado.ts';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 
@@ -82,9 +83,20 @@ export function montarDiario(
   alteracaoPendente: (pendente: boolean) => void = () => {},
   converterEmTarefa?: ConversaoEmTarefa,
   montarEntradaPorAudio?: EntradaPorAudio,
+  /** FR-008: família registra relato (tipo `relato_familiar`, audiência sempre `equipe`),
+   * nunca a síntese de evolução da equipe nem a resposta a um relato. */
+  ehFamilia = false,
 ): () => void {
   let ativa = true;
   let registros: RegistroDiario[] = [];
+  let pendenteFamiliar = false;
+  let salvandoFamiliar = false;
+  let geracaoConsulta = 0;
+  let formularioFamiliar: HTMLFormElement | undefined;
+  let regiaoLeituras: HTMLElement | undefined;
+  let avisoLeituras: HTMLElement | undefined;
+  let estadoLeituras: 'carregando' | 'pronto' | 'erro' = 'carregando';
+  let salvosDuranteConsulta: Map<string, RegistroDiario> | undefined;
   // Componentes montados dentro de um formulário que é recriado a cada troca de aba.
   const desmontesDoFormulario: (() => void)[] = [];
   const desmontarFormularios = () => {
@@ -93,6 +105,9 @@ export function montarDiario(
   const descartarAcesso = (erro: unknown): boolean => {
     if (!exigeNovoAcesso(erro)) return false;
     ativa = false;
+    geracaoConsulta++;
+    if (ehFamilia) document.removeEventListener('visibilitychange', visibilidadeAlterada);
+    desmontarFormularios();
     raiz.replaceChildren();
     acessoPerdido(erro);
     return true;
@@ -103,6 +118,7 @@ export function montarDiario(
 
   const gravar = async (entrada: SalvarRegistroDiario): Promise<RegistroDiario> => {
     const salvo = await servico.salvar(pacienteId, entrada);
+    salvosDuranteConsulta?.set(salvo.diario_registro_id, salvo);
     registros = [
       salvo,
       ...registros.filter((r) => r.diario_registro_id !== salvo.diario_registro_id),
@@ -119,6 +135,125 @@ export function montarDiario(
     label.append(controle);
     destino.append(label);
     return controle;
+  };
+
+  /** FR-008: relato da família. Audiência é sempre "equipe" — é a coordenação/equipe que
+   * decide ampliar para "equipe e família" ao responder, não quem relata. Sem atenção
+   * sinalizada e sem resposta: isso é vocabulário da equipe, não da família. */
+  const formularioRelatoFamiliar = (
+    aoConcluir: (aviso: string) => void,
+    rascunhoExistente?: RegistroDiario,
+  ): HTMLFormElement => {
+    const form = elemento('form');
+    form.noValidate = true;
+    form.append(
+      elemento('h3', 'Registrar no diário'),
+      elemento('p', 'Conte o que aconteceu e o que você gostaria de levar à coordenação.'),
+    );
+    const data = campo(form, 'Quando aconteceu? (obrigatória)', elemento('input'));
+    data.type = 'date';
+    const descricao = campo(form, 'O que aconteceu? (obrigatória)', elemento('textarea'));
+    // FR-010: ditar é atalho para preencher a descrição, nunca requisito.
+    let origemConteudo: OrigemConteudoDiario = rascunhoExistente?.origem_conteudo ?? 'texto';
+    if (montarEntradaPorAudio) {
+      const porAudio = document.createElement('div');
+      porAudio.className = 'diario-entrada-audio';
+      form.append(porAudio);
+      const desmontarAudio = montarEntradaPorAudio(porAudio, (texto) => {
+        descricao.value = texto;
+        origemConteudo = 'audio_transcrito';
+        pendenteFamiliar = true;
+        alteracaoPendente(true);
+        descricao.focus();
+      });
+      desmontesDoFormulario.push(desmontarAudio);
+      descricao.addEventListener('input', () => {
+        if (!descricao.value.trim()) origemConteudo = 'texto';
+      });
+    }
+    const categoria = campo(form, 'Categoria (opcional)', elemento('input'));
+    const contexto = campo(form, 'O que ajudou? (opcional)', elemento('textarea'));
+    const acao = campo(form, 'Ação tomada (opcional)', elemento('textarea'));
+    const retorno = elemento('input');
+    retorno.type = 'checkbox';
+    campo(form, 'Gostaria de um retorno da coordenação', retorno);
+    if (rascunhoExistente) {
+      const conteudo = rascunhoExistente.conteudo as ConteudoRelatoDiario;
+      data.value = conteudo.dataAcontecimento;
+      descricao.value = conteudo.descricao;
+      categoria.value = conteudo.categoria ?? '';
+      contexto.value = conteudo.contexto ?? '';
+      acao.value = conteudo.acaoTomada ?? '';
+      retorno.checked = rascunhoExistente.retorno_solicitado;
+    }
+    const aviso = elemento('p');
+    aviso.setAttribute('role', 'status');
+    aviso.setAttribute('aria-live', 'polite');
+    const rascunho = elemento('button', 'Salvar rascunho');
+    rascunho.type = 'button';
+    const publicar = elemento('button', 'Publicar');
+    publicar.type = 'submit';
+    form.append(aviso, rascunho, publicar);
+    form.addEventListener('input', () => {
+      pendenteFamiliar = true;
+      alteracaoPendente(true);
+      aviso.textContent = '';
+    });
+    const montarConteudo = (): ConteudoRelatoDiario | undefined => {
+      const resultado = relatoTextualSchema.safeParse({
+        dataAcontecimento: data.value,
+        descricao: descricao.value,
+        ...(categoria.value.trim() ? { categoria: categoria.value.trim() } : {}),
+        ...(contexto.value.trim() ? { contexto: contexto.value.trim() } : {}),
+        ...(acao.value.trim() ? { acaoTomada: acao.value.trim() } : {}),
+      });
+      return resultado.success ? resultado.data : undefined;
+    };
+    const enviar = async (estado: 'rascunho' | 'publicado') => {
+      const conteudo = montarConteudo();
+      if (!conteudo) {
+        aviso.textContent = 'Informe quando aconteceu e o que aconteceu.';
+        (data.value ? descricao : data).focus();
+        return;
+      }
+      const controles = [
+        ...form.querySelectorAll<
+          HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLButtonElement
+        >('input, textarea, select, button'),
+      ];
+      for (const controle of controles) controle.disabled = true;
+      salvandoFamiliar = true;
+      try {
+        await gravar({
+          ...(rascunhoExistente
+            ? { diario_registro_id: rascunhoExistente.diario_registro_id }
+            : {}),
+          versao_esperada: rascunhoExistente?.versao ?? 0,
+          tipo: 'relato_familiar',
+          estado,
+          audiencia: 'equipe',
+          atencao: false,
+          retorno_solicitado: retorno.checked,
+          origem_conteudo: origemConteudo,
+          conteudo,
+        });
+        pendenteFamiliar = false;
+        alteracaoPendente(false);
+        aoConcluir(estado === 'rascunho' ? 'Rascunho salvo.' : 'Relato enviado à coordenação.');
+      } catch (erro) {
+        if (descartarAcesso(erro)) return;
+        aviso.textContent = mensagemFalha(erro);
+      } finally {
+        salvandoFamiliar = false;
+        for (const controle of controles) controle.disabled = false;
+      }
+    };
+    rascunho.addEventListener('click', () => void enviar('rascunho'));
+    form.addEventListener('submit', (evento) => {
+      evento.preventDefault();
+      void enviar('publicado');
+    });
+    return form;
   };
 
   /** FR-009: modelo curto por área. As áreas vêm da configuração da equipe; quando a leitura
@@ -302,6 +437,7 @@ export function montarDiario(
     confirmar.type = 'submit';
     form.append(aviso, confirmar);
     form.addEventListener('input', () => {
+      if (ehFamilia) pendenteFamiliar = true;
       alteracaoPendente(true);
       aviso.textContent = '';
     });
@@ -319,6 +455,7 @@ export function montarDiario(
           ? ({ ...(registro.conteudo as ConteudoRelatoDiario), descricao: texto } as const)
           : ({ ...(registro.conteudo as ConteudoEvolucaoDiario), atividade: texto } as const);
       confirmar.disabled = true;
+      if (ehFamilia) salvandoFamiliar = true;
       void (async () => {
         try {
           await gravar({
@@ -333,12 +470,15 @@ export function montarDiario(
             conteudo,
             justificativa,
           });
+          if (ehFamilia) pendenteFamiliar = false;
           alteracaoPendente(false);
           aoConcluir('Retificação registrada; a versão anterior continua no histórico.');
         } catch (erro) {
           if (descartarAcesso(erro)) return;
           aviso.textContent = mensagemFalha(erro);
           confirmar.disabled = false;
+        } finally {
+          if (ehFamilia) salvandoFamiliar = false;
         }
       })();
     });
@@ -363,10 +503,46 @@ export function montarDiario(
       confirmacao.setAttribute('role', 'status');
       painel.append(confirmacao);
     }
-    painel.append(formularioEvolucao((texto) => desenhar(texto)));
+    if (ehFamilia) {
+      formularioFamiliar = formularioRelatoFamiliar((texto) => desenhar(texto));
+      painel.append(formularioFamiliar);
+    } else {
+      painel.append(formularioEvolucao((texto) => desenhar(texto)));
+    }
+    avisoLeituras = elemento('p');
+    avisoLeituras.setAttribute('role', 'status');
+    regiaoLeituras = elemento('div');
+    painel.append(avisoLeituras, regiaoLeituras);
+    raiz.replaceChildren(painel);
+    desenharLeituras();
+  };
+
+  const trocarEditorFamiliar = (novo: () => HTMLFormElement) => {
+    if (salvandoFamiliar || !formularioFamiliar) return;
+    if (pendenteFamiliar && !window.confirm('Descartar alterações não salvas do relato atual?'))
+      return;
+    desmontarFormularios();
+    const proximo = novo();
+    formularioFamiliar.replaceWith(proximo);
+    formularioFamiliar = proximo;
+    pendenteFamiliar = false;
+    alteracaoPendente(false);
+    proximo.querySelector<HTMLElement>('input, textarea')?.focus();
+  };
+
+  const desenharLeituras = () => {
+    if (!ativa || !regiaoLeituras) return;
+    regiaoLeituras.replaceChildren();
+    const carregando = estadoLeituras === 'carregando';
+    regiaoLeituras.setAttribute('aria-busy', String(carregando));
+    if (avisoLeituras) avisoLeituras.textContent = carregando ? 'Carregando o diário…' : '';
+    if (ehFamilia && document.visibilityState === 'hidden') {
+      if (avisoLeituras) avisoLeituras.textContent = '';
+      return;
+    }
+    if (estadoLeituras !== 'pronto') return;
     if (!registros.length) {
-      painel.append(elemento('p', 'Nenhum registro no diário deste paciente ainda.'));
-      raiz.replaceChildren(painel);
+      regiaoLeituras.append(elemento('p', 'Nenhum registro no diário deste paciente ainda.'));
       return;
     }
     const lista = elemento('ul');
@@ -416,15 +592,32 @@ export function montarDiario(
         const situacao = elemento('p', situacaoDoRemetente(registro, respostas));
         situacao.setAttribute('role', 'status');
         artigo.append(situacao);
-        if (registro.estado !== 'rascunho') {
+        if (ehFamilia && registro.tipo === 'relato_familiar' && registro.estado === 'rascunho') {
+          const retomar = elemento('button', 'Retomar rascunho');
+          retomar.type = 'button';
+          retomar.addEventListener('click', () => {
+            trocarEditorFamiliar(() =>
+              formularioRelatoFamiliar((texto) => desenhar(texto), registro),
+            );
+          });
+          artigo.append(retomar);
+        } else if (registro.estado !== 'rascunho') {
           const retificar = elemento('button', 'Retificar');
           retificar.type = 'button';
           retificar.addEventListener('click', () => {
-            retificar.replaceWith(formularioRetificacao(registro, (texto) => desenhar(texto)));
+            if (ehFamilia)
+              trocarEditorFamiliar(() =>
+                formularioRetificacao(registro, (texto) => desenhar(texto)),
+              );
+            else retificar.replaceWith(formularioRetificacao(registro, (texto) => desenhar(texto)));
           });
           artigo.append(retificar);
         }
-      } else if (registro.tipo === 'relato_familiar' && registro.estado !== 'rascunho') {
+      } else if (
+        !ehFamilia &&
+        registro.tipo === 'relato_familiar' &&
+        registro.estado !== 'rascunho'
+      ) {
         const responder = elemento('button', 'Responder');
         responder.type = 'button';
         responder.addEventListener('click', () => {
@@ -436,8 +629,7 @@ export function montarDiario(
       item.append(artigo);
       lista.append(item);
     }
-    painel.append(lista);
-    raiz.replaceChildren(painel);
+    regiaoLeituras.append(lista);
   };
 
   /** FR-014: a sinalização guarda motivo, data e o encaminhamento gerado. A tarefa em si é
@@ -509,18 +701,54 @@ export function montarDiario(
     return abrir;
   };
 
-  void (async () => {
+  const consultar = async () => {
+    const geracao = ++geracaoConsulta;
+    const salvos = new Map<string, RegistroDiario>();
+    salvosDuranteConsulta = salvos;
+    estadoLeituras = 'carregando';
+    if (ehFamilia) desenharLeituras();
     try {
-      registros = await servico.consultar(pacienteId);
-      desenhar();
+      const recebidos = await servico.consultar(pacienteId);
+      if (!ativa || geracao !== geracaoConsulta) return;
+      registros = [
+        ...salvos.values(),
+        ...recebidos.filter((r) => !salvos.has(r.diario_registro_id)),
+      ];
+      salvosDuranteConsulta = undefined;
+      estadoLeituras = 'pronto';
+      if (ehFamilia) desenharLeituras();
+      else desenhar();
     } catch (erro) {
-      if (!ativa || descartarAcesso(erro)) return;
-      status.textContent = mensagemFalha(erro);
+      if (!ativa || geracao !== geracaoConsulta || descartarAcesso(erro)) return;
+      salvosDuranteConsulta = undefined;
+      estadoLeituras = 'erro';
+      if (ehFamilia) {
+        desenharLeituras();
+        if (avisoLeituras) avisoLeituras.textContent = mensagemFalha(erro);
+      } else status.textContent = mensagemFalha(erro);
     }
-  })();
+  };
+  const visibilidadeAlterada = () => {
+    if (document.visibilityState === 'hidden') {
+      geracaoConsulta++;
+      salvosDuranteConsulta = undefined;
+      registros = [];
+      estadoLeituras = 'carregando';
+      desenharLeituras();
+    } else {
+      void consultar();
+    }
+  };
+  if (ehFamilia) {
+    desenhar();
+    document.addEventListener('visibilitychange', visibilidadeAlterada);
+    if (document.visibilityState !== 'hidden') void consultar();
+  } else void consultar();
 
   return () => {
     ativa = false;
+    geracaoConsulta++;
+    if (ehFamilia) document.removeEventListener('visibilitychange', visibilidadeAlterada);
     desmontarFormularios();
     alteracaoPendente(false);
     raiz.replaceChildren();

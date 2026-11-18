@@ -37,6 +37,7 @@ export function montarDocumentosCaso(
   obterCategorias: () => readonly string[],
   acessoPerdido: (erro: unknown) => void,
   alteracaoPendente: (pendente: boolean) => void = () => {},
+  ehFamilia = false,
 ): () => void {
   let ativa = true;
   let documentos: DocumentoCaso[] = [];
@@ -60,6 +61,12 @@ export function montarDocumentosCaso(
     if (!ativa) return;
     const secao = elemento('section');
     secao.className = 'secao-documentos';
+
+    if (ehFamilia) {
+      desenharLista(secao);
+      raiz.replaceChildren(secao);
+      return;
+    }
 
     const form = elemento('form');
     form.className = 'documentos-envio';
@@ -191,7 +198,11 @@ export function montarDocumentosCaso(
     });
 
     secao.append(form);
+    desenharLista(secao);
+    raiz.replaceChildren(secao);
+  };
 
+  const desenharLista = (secao: HTMLElement) => {
     const lista = elemento('ul');
     lista.className = 'documentos-lista';
     if (documentos.length === 0) {
@@ -228,7 +239,6 @@ export function montarDocumentosCaso(
       }
       secao.append(lista);
     }
-    raiz.replaceChildren(secao);
   };
 
   void (async () => {

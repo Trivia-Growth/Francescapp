@@ -57,11 +57,23 @@ export function criarServicoDocumentosHttp(
     let fluxo: string | null;
     try {
       modo = sessionStorage.getItem('modo-acesso');
-      fluxo = sessionStorage.getItem(modo === 'tecnica' ? 'fluxo-tecnico' : 'fluxo-google');
+      // Leitura (`ler_documentos`) já tem a trilha familiar no banco (filtro por `audiencia`,
+      // ver migration `20261124120000`); família também passa por aqui para consultar anexos.
+      fluxo = sessionStorage.getItem(
+        modo === 'tecnica'
+          ? 'fluxo-tecnico'
+          : modo === 'familiar'
+            ? 'fluxo-familiar'
+            : 'fluxo-google',
+      );
     } catch {
       throw new FalhaApi('nao_autenticado', 401);
     }
-    if ((modo !== 'google' && modo !== 'tecnica') || !fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo))
+    if (
+      (modo !== 'google' && modo !== 'tecnica' && modo !== 'familiar') ||
+      !fluxo ||
+      !/^[A-Za-z0-9_-]{22}$/.test(fluxo)
+    )
       throw new FalhaApi('nao_autenticado', 401);
     headers.set('x-fluxo', fluxo);
     if (rota.metodo !== 'GET') headers.set('x-chave-idempotencia', crypto.randomUUID());

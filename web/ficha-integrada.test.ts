@@ -118,7 +118,10 @@ it('reabre na mesma seção ao recarregar, revalidando a sessão antes de mostra
   const caminhos = preparar('profissional', []);
   await import('./main.js');
   await vi.waitFor(() => expect(el('ficha-view').hidden).toBe(false));
-  expect(el('ficha-aba-anamnese').getAttribute('aria-selected')).toBe('true');
+  // Anamnese fica em "Mais seções" (destinos primários de 3.1): o destaque de quem está
+  // ativa ali usa "aria-current", não "aria-selected" (reservado à tablist).
+  expect(el('ficha-aba-anamnese').getAttribute('aria-current')).toBe('true');
+  expect(document.querySelector('.ficha-mais')?.hasAttribute('open')).toBe(true);
   expect(el('ficha-title').textContent).toBe('Helena Souza');
   await vi.waitFor(() => expect(caminhos).toContain(`/api/pacientes/${A}/anamnese`));
   expect(caminhos.indexOf('/api/sessao')).toBeLessThan(
@@ -169,56 +172,55 @@ it.each([
   {
     perfil: 'profissional' as const,
     capacidades: [],
-    abas: [
-      'Visão do caso',
+    // Destinos primários (decisão de design 3.1): Visão do caso, Diário, Plano de cuidado
+    // e Pendências. O restante fica em "Mais seções", sem mudar o que o perfil acessa.
+    primarias: ['Visão do caso', 'Diário', 'Plano de cuidado', 'Pendências'],
+    secundarias: [
       'Linha do tempo',
       'Anamnese',
       'Saúde',
-      'Plano de cuidado',
       'Plano de crise',
       'Tarefas',
-      'Pendências',
       'Encaminhamentos',
       'Orientações',
       'Rotina e recursos',
       'Rede de cuidado',
       'Documentos',
-      'Diário',
     ],
   },
   {
     perfil: 'administrador' as const,
     capacidades: ['administrar_cadastro', 'administrar_concessoes'],
-    abas: [
-      'Visão do caso',
+    primarias: ['Visão do caso', 'Diário', 'Plano de cuidado', 'Pendências'],
+    secundarias: [
       'Linha do tempo',
       'Anamnese',
       'Saúde',
-      'Plano de cuidado',
       'Plano de crise',
       'Cadastro',
       'Equipe com acesso',
       'Exportação',
       'Acesso da família',
-      'Pendências',
       'Encaminhamentos',
       'Orientações',
       'Rotina e recursos',
       'Rede de cuidado',
       'Documentos',
-      'Diário',
     ],
   },
 ])(
   'oferece ao perfil $perfil só as seções que ele já usa',
-  async ({ perfil, capacidades, abas }) => {
+  async ({ perfil, capacidades, primarias, secundarias }) => {
     preparar(perfil, capacidades);
     await import('./main.js');
     await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
     document.querySelector<HTMLButtonElement>(linha(A))?.click();
     expect([...document.querySelectorAll('[role="tab"]')].map((aba) => aba.textContent)).toEqual(
-      abas,
+      primarias,
     );
+    expect(
+      [...document.querySelectorAll('.ficha-aba-secundaria')].map((aba) => aba.textContent),
+    ).toEqual(secundarias);
   },
 );
 
@@ -253,9 +255,17 @@ it('mostra à família só os dados do paciente vinculado', async () => {
   await import('./main.js');
   await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
   document.querySelector<HTMLButtonElement>(linha(A))?.click();
+  // FR-008: além dos dados do paciente, família tem Diário, Plano de cuidado, Documentos e
+  // Orientações (sem Mais seções — `destinosPrimarios` exige "visao" para dividir e família
+  // não tem).
   expect([...document.querySelectorAll('[role="tab"]')].map((aba) => aba.textContent)).toEqual([
     'Dados do paciente',
+    'Diário',
+    'Plano de cuidado',
+    'Documentos',
+    'Orientações',
   ]);
+  expect(document.querySelector('.ficha-mais')).toBeNull();
   await vi.waitFor(() => expect(painel()).toContain('Helena Souza'));
   expect(painel()).toContain('Lena');
   expect(painel()).not.toContain('Plano de cuidado');

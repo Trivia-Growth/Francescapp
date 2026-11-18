@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
 import { FalhaApi } from './api.js';
+import { hashFicha } from './ficha-paciente.js';
 import { montarVisaoCaso, type FontesVisaoCaso } from './visao-caso.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
@@ -100,6 +101,48 @@ it('apresenta cada bloco com dados consultados e a data da última atualização
   expect(bloco('anamnese').textContent).toContain('Rotina');
   expect(bloco('anamnese').textContent).not.toContain('Saúde');
   expect(bloco('anamnese').textContent).toContain('Atualizado em 03/11/2026.');
+});
+
+it('cada bloco com origem oferece link para a seção correspondente na ficha', async () => {
+  montarVisaoCaso(raiz, paciente, fontes(), () => false);
+  await vi.waitFor(() => expect(bloco('anamnese').textContent).toContain('Atualizado em'));
+  expect(bloco('objetivos').querySelector('a')?.getAttribute('href')).toBe(hashFicha(id, 'plano'));
+  expect(bloco('objetivos').querySelector('a')?.textContent).toBe('Ver em Plano de cuidado');
+  expect(bloco('tarefas').querySelector('a')?.getAttribute('href')).toBe(hashFicha(id, 'tarefas'));
+  expect(bloco('anamnese').querySelector('a')?.getAttribute('href')).toBe(
+    hashFicha(id, 'anamnese'),
+  );
+  // Identificação não tem uma seção própria de origem: nenhum link de acesso aqui.
+  expect(bloco('identificacao').querySelector('a')).toBeNull();
+});
+
+it('pendências e situação também linkam para a origem (Pendências e Cadastro)', async () => {
+  montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      pendencias: {
+        consultar: async () => ({
+          paciente_id: id,
+          estado: 'em_dia' as const,
+          acordo: null,
+          ultima_atualizacao_em: '2026-11-04T10:00:00Z',
+          pendencias: [],
+          perfil_escrita_acordo: false,
+        }),
+      },
+      situacao: { consultarPaciente: async () => edicao([mudanca()]) },
+    }),
+    () => false,
+  );
+  await vi.waitFor(() => expect(bloco('pendencias').textContent).toContain('Atualizado em'));
+  expect(bloco('pendencias').querySelector('a')?.getAttribute('href')).toBe(
+    hashFicha(id, 'pendencias'),
+  );
+  await vi.waitFor(() => expect(bloco('situacao').textContent).toContain('Atualizado em'));
+  expect(bloco('situacao').querySelector('a')?.getAttribute('href')).toBe(
+    hashFicha(id, 'cadastro'),
+  );
 });
 
 it('omite o que não tem fonte, sem anunciar a ausência nem inventar valor de exemplo', async () => {

@@ -13,7 +13,7 @@ import {
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { dataDeInstante } from './datas.js';
 import { esqueletoCarregando } from './esqueleto.js';
-import type { PacienteFicha } from './ficha-paciente.js';
+import { hashFicha, type PacienteFicha } from './ficha-paciente.js';
 import type { ObjetivoAtual, Pagina, ServicoPlanoCuidado } from './plano-cuidado.js';
 import type { RegistroTarefaCuidado as RegistroTarefa } from '../packages/contracts/src/tarefa-cuidado.js';
 import type { ServicoTarefasCuidado } from './tarefas-cuidado.js';
@@ -72,10 +72,22 @@ export function montarVisaoCaso(
     for (const item of itens) ul.append(elemento('li', item));
     return ul;
   };
-  const blocoBase = (id: string, titulo: string) => {
+  /** Seção da ficha onde o bloco tem a leitura completa (decisão de design 4: toda
+   * leitura de FR-006 oferece acesso à origem). `rotulo` repete o texto do `SecaoFicha`
+   * correspondente em `secoesDaFicha` (`web/main.ts`); os dois não são o mesmo módulo de
+   * propósito, então renomear uma aba lá exige atualizar o rótulo aqui também. */
+  type Origem = { secao: string; rotulo: string };
+
+  const blocoBase = (id: string, titulo: string, origem?: Origem) => {
     const secao = elemento('section', undefined, 'visao-bloco');
     secao.dataset.bloco = id;
-    const cabecalho = elemento('h3', titulo);
+    const cabecalho = elemento('div', undefined, 'visao-bloco-cabecalho');
+    cabecalho.append(elemento('h3', titulo));
+    if (origem) {
+      const link = elemento('a', `Ver em ${origem.rotulo}`, 'visao-bloco-link');
+      link.href = hashFicha(paciente.id, origem.secao);
+      cabecalho.append(link);
+    }
     const corpo = elemento('div', undefined, 'visao-corpo');
     secao.append(cabecalho, corpo);
     return { secao, corpo };
@@ -86,8 +98,9 @@ export function montarVisaoCaso(
     titulo: string,
     consultar: () => Promise<T>,
     desenhar: (dados: T, corpo: HTMLElement) => Corpo,
+    origem?: Origem,
   ): HTMLElement {
-    const { secao, corpo } = blocoBase(id, titulo);
+    const { secao, corpo } = blocoBase(id, titulo, origem);
     const carregar = (): void => {
       const numero = (geracoes.get(id) ?? 0) + 1;
       geracoes.set(id, numero);
@@ -182,6 +195,7 @@ export function montarVisaoCaso(
           // caso. Mostra quando o caso mudou, sem repetir o conteúdo que já tem tela própria.
           return sinal.ultima_atualizacao_em ? { atualizadoEm: sinal.ultima_atualizacao_em } : {};
         },
+        { secao: 'pendencias', rotulo: 'Pendências' },
       ),
     );
   if (situacao)
@@ -218,6 +232,7 @@ export function montarVisaoCaso(
           );
           return { atualizadoEm: atual.criado_em };
         },
+        { secao: 'cadastro', rotulo: 'Cadastro' },
       ),
     );
   if (objetivos)
@@ -252,6 +267,7 @@ export function montarVisaoCaso(
               : {}),
           };
         },
+        { secao: 'plano', rotulo: 'Plano de cuidado' },
       ),
     );
   if (tarefas)
@@ -286,6 +302,7 @@ export function montarVisaoCaso(
             ...(recente ? { atualizadoEm: recente } : {}),
           };
         },
+        { secao: 'tarefas', rotulo: 'Tarefas' },
       ),
     );
   if (anamnese)
@@ -315,6 +332,7 @@ export function montarVisaoCaso(
           if (incompletas.length) corpo.append(lista(incompletas));
           return registro.criado_em ? { atualizadoEm: registro.criado_em } : {};
         },
+        { secao: 'anamnese', rotulo: 'Anamnese' },
       ),
     );
 

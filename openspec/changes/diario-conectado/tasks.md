@@ -74,9 +74,32 @@ migrations desta fatia.
   configuração e destinatários mostrados **antes** de confirmar; rascunho e publicação; botão de
   retificação com justificativa obrigatória; resposta a relato familiar com audiência travada;
   sinalização de atenção com motivo, data e encaminhamento.
-- [ ] 4.2 Ligar a aba na ficha. **Pendente de integração**: `web/main.ts` não foi editado por
-  esta frente (regra da passagem). O trecho está no relatório de entrega.
-- [ ] 4.3 Prova visual e de teclado na tela real. Não executada.
+- [x] 4.2 Ligar a aba na ficha (17/11/2026, sessão de `experiencia-minima-do-mock`, a pedido
+  explícito do solicitante de terminar o código de família). `secoesDaFicha` em `web/main.ts`
+  monta 'diario' tanto para o perfil normal (profissional/administrador, como já previsto)
+  quanto para família — família agora tem 2 seções (Dados do paciente, Diário), não mais só 1.
+  Achado e correção no caminho: `web/servico-diario-http.ts` tinha a mesma pinagem de fluxo
+  `modo==='tecnica'||'google'` que excluía família sem motivo real (igual ao achado anterior
+  em `servico-regras-atendimento-http.ts`, ver `experiencia-minima-do-mock/tasks.md`) — o
+  banco já aceitava as duas trilhas (2.2), só o cliente HTTP barrava antes de tentar. Corrigido
+  aceitando `modo==='familiar'` com a chave `fluxo-familiar`.
+  `web/diario.ts` ganhou um composer próprio para família (`formularioRelatoFamiliar`, tipo
+  `relato_familiar`, audiência sempre `equipe`, sem "indicar atenção" nem seletor de
+  audiência — isso é vocabulário da equipe) em vez de reaproveitar o formulário de evolução
+  profissional; o botão "Responder" (que abriria o formulário de evolução) ficou restrito a
+  quem não é família, para família nunca compor conteúdo como se fosse a equipe.
+  Evidência: `web/diario.test.ts` (4 testes: formulário certo para família, grava
+  `tipo: 'relato_familiar'`/`audiencia: 'equipe'` — nunca o da evolução —, família não vê
+  "Responder" numa evolução compartilhada, regressão do formulário de evolução fora da
+  família) e `web/ficha-familia-diario.test.ts` fim a fim (sessão fictícia, `main.js` real,
+  confirma a chamada HTTP real passando pela pinagem de fluxo e as 2 abas sem "Mais seções").
+  Confirmado em vermelho revertendo a correção do fluxo antes de confirmar em verde. Suíte
+  completa `pnpm run test:web` (405/405, por mudar assinatura de `montarDiario` e seção nova
+  de família) e `pnpm run verificar:rapido`, sem falha.
+  **Sem ativação:** `ffcm.diario.ativo` continua semeada `false` e nenhuma flag foi tocada —
+  o código fica pronto; ativar (e a prova real com Auth/dados reais) é decisão e operação
+  remota separadas, fora deste código.
+- [ ] 4.3 Prova visual e de teclado na tela real. Não executada (depende da rota estar ativa).
 
 ## 5. Limitações e pendências registradas
 

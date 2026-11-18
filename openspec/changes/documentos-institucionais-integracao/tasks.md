@@ -51,7 +51,44 @@
 
   Pendências técnicas conhecidas, não silenciadas:
 
-  - **Leitura pela família não foi ligada.** A audiência é gravada e filtrável, mas a função hoje só reconhece a trilha de colaborador (Google Workspace); um familiar seria recusado. O cenário "Família autorizada" da User Story 8 **não está atendido** até a segunda trilha de autorização entrar, no molde da que o diário já implementou. É passagem dedicada, não ajuste de filtro.
+  - ~~**Leitura pela família não foi ligada.**~~ **Resolvido em 17/11/2026** (decisão do
+    solicitante — "precisa estar marcado como publico; isso pode ser alterado pelo admin em
+    qualquer arquivo"; quem altera é quem já grava o documento — administrador ou profissional,
+    mesma autorização de escrita já existente, confirmado explicitamente ao solicitante antes de
+    implementar). `supabase/migrations/20261124120000_documento_caso_familia_privada.sql`
+    redefine `api.documento_operacao_privada` (`create or replace function`, mesma função já
+    existente) com uma trilha familiar **só para `api.ler_documentos`** — mesma prova de
+    `api.consultar_paciente_familiar_privado` (`cadastro.acesso_paciente` vigente,
+    `identidade.sessao` método `familia`, `amr=password`). Família nunca grava. Nenhuma coluna
+    nova: a leitura filtra pela MESMA `audiencia` que o colaborador já preenche
+    (`equipe_e_familia` vs `equipe`) — "marcar como público" é só escolher a opção que já existe
+    no formulário de envio. Trocar a audiência de um documento já existente usa o caminho de
+    gravação de metadado que já existia (nova versão com o mesmo `drive_file_id`, sem reenviar
+    ao Drive) — nenhum mecanismo novo precisou ser criado para isso. `web/documentos-caso.ts`
+    ganhou parâmetro `ehFamilia` (oculta o formulário de envio, mostra só a lista já filtrada
+    pelo banco); `web/servico-documentos-http.ts` teve o mesmo gate de fluxo corrigido que já
+    tinha sido achado em `servico-regras-atendimento-http.ts`/`servico-diario-http.ts` (aceita
+    `modo==='familiar'`); `web/main.ts` ganhou a seção `'documentos'` na ficha da família.
+    Evidência: `supabase/tests/documento_caso_familia_local.sql` via
+    `scripts/testar-documento-caso-familia-local.sh` — positivo (família lê só o documento
+    público), 4 negativos (sem vínculo, tenta gravar, acesso revogado, sessão de equipe
+    disfarçada), 1 regressão (colaborador continua vendo os dois) e 1 positivo adicional
+    (colaborador troca a audiência do documento interno para público e a família passa a
+    enxergá-lo na próxima leitura, sem recarregar nada) — passou (exit 0) de primeira, aplicando
+    direto a lição já registrada em plano-cuidado-objetivos/design.md sobre a policy `_lock` de
+    `cadastro.acesso_paciente` (`using` precisa espelhar a policy de select, nunca `using(false)`
+    — `false` bloquearia o próprio `for share` da trilha familiar, não só a escrita).
+    `pnpm run test:web` (405/405) e `pnpm run test:proxy` (397 passed/15 skipped) sem regressão —
+    nenhum contrato mudou (a `audiencia` já era exposta), então nenhuma fixture precisou de
+    ajuste, diferente do que aconteceu em plano-cuidado-objetivos. `pnpm run verificar:rapido`
+    limpo. **Sem ativação**: `ffcm.documentos.ativo`/`DOCUMENTOS_ATIVOS` não foram tocados,
+    nenhuma migration aplicada remotamente, nenhuma flag alterada. A integração real com o
+    Drive, a prova de a família de fato alcançar o `drive_file_id` cifrado devolvido (sem
+    vazamento, decifrado pelo mesmo caminho do colaborador) e a questão de permissão da PASTA do
+    Drive em si para a conta Google da família (fora de escopo: depende da ativação da jornada
+    de login familiar com Google real, não decidida agora) continuam como as pendências já
+    registradas nesta tarefa — nenhuma delas foi resolvida por este trabalho, nem pretendia ser.
+    **Revisão independente desta adição ainda não feita.**
   - **Arquivo órfão residual.** A ordem envio→registro tenta desfazer o envio quando o banco recusa; se a remoção também falhar, o arquivo fica na pasta sem vínculo. Não há varredura de reconciliação Drive↔banco — só o estado `indisponivel` para o caminho inverso, e ele hoje é marcado à mão.
   - **FR-031 "sinalizar compartilhamentos incompatíveis" não foi implementado.** Está garantido que o produto não cria compartilhamento; detectar um criado por fora exige consultar permissões no Drive real e uma decisão sobre o que fazer ao encontrá-lo.
   - **FR-032 e FR-033 (exportação) ficaram fora**, como o recorte desta change já previa. São fatia própria: dependem de ler conteúdo cifrado de todas as outras fatias e de registrar destinatário, propósito, entrega e conferência.

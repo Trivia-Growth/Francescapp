@@ -16,6 +16,7 @@
   <body>
     <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
     <header class="topbar">
+      <button id="toggle-sidebar" class="button-quiet toggle-sidebar" type="button" aria-expanded="false" aria-controls="patients-sidebar">Menu</button>
       <div class="brand"><span class="brand-name">FFCMApp</span><span class="brand-organization">Francescato</span></div>
       <nav id="breadcrumbs" class="breadcrumbs" aria-label="Você está em">
         <ol>
@@ -91,7 +92,7 @@
       </section>
 
       <section id="patients-view" class="patients-layout" aria-label="Pacientes" hidden>
-        <aside class="patients-sidebar" aria-label="Área de trabalho">
+        <aside id="patients-sidebar" class="patients-sidebar" aria-label="Área de trabalho">
           <div class="sidebar-brand"><span>FFCMApp</span><small>FRANCESCATO</small></div>
           <p class="sidebar-label" id="sidebar-label">Área de trabalho</p>
           <nav class="sidebar-nav" aria-labelledby="sidebar-label">
@@ -102,6 +103,7 @@
           </nav>
           <p class="sidebar-note">Acompanhamento de pacientes</p>
         </aside>
+        <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
         <p id="workspace-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
         <div id="home-view" hidden></div>
         <div id="lista-view">

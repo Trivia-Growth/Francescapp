@@ -216,6 +216,70 @@ const crumbPaciente = elemento('crumb-paciente');
 const buscaCampo = elemento<HTMLInputElement>('busca-pacientes');
 const buscaVazia = elemento('busca-vazia');
 
+// Abaixo de 760px a barra lateral (Seu dia, Pessoas acompanhadas, Administração, Como
+// funciona) vira uma gaveta: sem este controle, não haveria como alcançar esses destinos
+// a partir do celular depois de sair da home ou da carteira.
+const toggleSidebar = elemento<HTMLButtonElement>('toggle-sidebar');
+const patientsSidebar = elemento('patients-sidebar');
+const sidebarBackdrop = elemento('sidebar-backdrop');
+const gavetaMobile = () => window.innerWidth <= 760;
+function atualizarInerciaGaveta(): void {
+  patientsSidebar.toggleAttribute(
+    'inert',
+    gavetaMobile() && !patientsSidebar.classList.contains('open'),
+  );
+}
+function fecharGavetaLateral(): void {
+  const devolverFoco =
+    patientsSidebar.classList.contains('open') && patientsSidebar.contains(document.activeElement);
+  patientsSidebar.classList.remove('open');
+  sidebarBackdrop.hidden = true;
+  toggleSidebar.setAttribute('aria-expanded', 'false');
+  atualizarInerciaGaveta();
+  if (devolverFoco && !patientsView.hidden && !document.hidden) toggleSidebar.focus();
+}
+function abrirGavetaLateral(): void {
+  patientsSidebar.classList.add('open');
+  atualizarInerciaGaveta();
+  sidebarBackdrop.hidden = false;
+  toggleSidebar.setAttribute('aria-expanded', 'true');
+  patientsSidebar.querySelector<HTMLElement>('a:not([hidden]), button:not([hidden])')?.focus();
+}
+atualizarInerciaGaveta();
+window.addEventListener('resize', () => {
+  if (!gavetaMobile()) fecharGavetaLateral();
+  else atualizarInerciaGaveta();
+});
+toggleSidebar.addEventListener('click', () => {
+  if (patientsSidebar.classList.contains('open')) fecharGavetaLateral();
+  else abrirGavetaLateral();
+});
+sidebarBackdrop.addEventListener('click', fecharGavetaLateral);
+document.addEventListener('keydown', (evento) => {
+  if (!patientsSidebar.classList.contains('open')) return;
+  if (evento.key === 'Escape') {
+    fecharGavetaLateral();
+    return;
+  }
+  if (evento.key !== 'Tab' || !gavetaMobile()) return;
+  const alvos = Array.from(
+    patientsSidebar.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'),
+  ).filter((item) => !item.hidden && !item.closest('[hidden]'));
+  if (!alvos.length) {
+    evento.preventDefault();
+    return;
+  }
+  const indice = alvos.indexOf(document.activeElement as HTMLElement);
+  if (
+    indice < 0 ||
+    (evento.shiftKey && indice === 0) ||
+    (!evento.shiftKey && indice === alvos.length - 1)
+  ) {
+    evento.preventDefault();
+    alvos[evento.shiftKey ? alvos.length - 1 : 0]?.focus();
+  }
+});
+
 const descarteCadastro =
   'Há alterações de cadastro não confirmadas. Ao sair, elas serão descartadas e um salvamento incerto não poderá ser confirmado nesta tela. Deseja continuar?';
 const descartePlano =
@@ -448,6 +512,76 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         id: 'dados',
         rotulo: 'Dados do paciente',
         montar: (raiz) => montarDadosFamiliar(raiz, paciente.id, api, acessoPerdido),
+      },
+      {
+        id: 'diario',
+        rotulo: 'Diário',
+        descarte: descarteDiario,
+        montar: (raiz, pendente) => {
+          pedirAreasDoDiario();
+          // Sem entrada por áudio aqui de propósito: `transcricao-audio-relato` ainda não
+          // tem o planejamento fechado nem cobre sessão familiar — família digita o relato.
+          return montarDiario(
+            raiz,
+            paciente.id,
+            atual.usuario.id,
+            criarServicoDiarioHttp(identidadeAtual),
+            () => areasDiario,
+            acessoPerdido,
+            pendente,
+            undefined,
+            undefined,
+            true,
+          );
+        },
+      },
+      {
+        id: 'plano',
+        rotulo: 'Plano de cuidado',
+        montar: (raiz) =>
+          // Família só lê (banco filtra por `visibilidade='publica'`, migration
+          // `20261124110000`); por isso não entra em `planoAberto` nem no mecanismo de
+          // reconfirmação de acesso do rascunho do colaborador (que leva a `'visao'`, seção
+          // que a família não tem) — família não grava, não tem rascunho nem reserva a perder.
+          montarPlanoCuidado(
+            raiz,
+            paciente.id,
+            criarServicoPlanoHttp(identidadeAtual),
+            acessoPerdido,
+            undefined,
+            true,
+          ),
+      },
+      {
+        id: 'documentos',
+        rotulo: 'Documentos',
+        montar: (raiz) =>
+          // Família só lê (banco filtra por `audiencia='equipe_e_familia'`, migration
+          // `20261124120000`); nunca anexa, então as categorias (só usadas pelo formulário de
+          // envio) não precisam ser pedidas.
+          montarDocumentosCaso(
+            raiz,
+            paciente.id,
+            criarServicoDocumentosHttp(identidadeAtual),
+            () => [],
+            acessoPerdido,
+            undefined,
+            true,
+          ),
+      },
+      {
+        id: 'orientacoes',
+        rotulo: 'Orientações',
+        montar: (raiz) =>
+          // Família só lê (banco filtra por `visibilidade='publica'`, migration
+          // `20261124140000`); nunca registra orientação.
+          montarOrientacoes(
+            raiz,
+            paciente.id,
+            criarServicoOrientacoesHttp(identidadeAtual),
+            acessoPerdido,
+            true,
+          ),
       },
     ];
   const administraCadastro =
@@ -722,6 +856,30 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
   return secoes;
 }
 
+/** Faixa principal da ficha (decisão de design 3): Visão do caso, Diário, Plano de
+ * cuidado e Pendências. O restante fica em "Mais seções", sem mudar quais seções cada
+ * perfil acessa. A decisão também prevê Linha do tempo como alternativa para um perfil
+ * sem Diário; nenhum existe hoje (ver comentário abaixo), então essa parte não foi
+ * escrita ainda — adicionar quando o caso existir.
+ *
+ * A decisão é sobre a ficha de 17 seções (Administrador/Profissional); família não tem
+ * "Visão do caso" e sua lista é curta (hoje: Dados do paciente, Diário). Sem "visao" como
+ * âncora, o par "faixa primária + Mais seções" não faz sentido para essa lista — por isso
+ * exige "visao" para ativar a divisão, e `ficha-paciente.ts` já cai na faixa única quando
+ * nenhum id de `primarias` bate com nada (ver sua robustez para id obsoleto). */
+function destinosPrimarios(secoes: SecaoFicha[]): string[] {
+  const disponiveis = new Set(secoes.map((secao) => secao.id));
+  if (!disponiveis.has('visao')) return [];
+  const primarios: string[] = ['visao'];
+  // A decisão de design prevê Linha do tempo como alternativa quando o perfil não tiver
+  // Diário; `secoesDaFicha` inclui Diário sem condição para todo perfil não família hoje,
+  // então esse caso não existe ainda — adicionar o `else` só quando existir (YAGNI).
+  if (disponiveis.has('diario')) primarios.push('diario');
+  if (disponiveis.has('plano')) primarios.push('plano');
+  if (disponiveis.has('pendencias')) primarios.push('pendencias');
+  return primarios;
+}
+
 function abrirFicha(paciente: PacienteFicha, secao: string | undefined, empilhar: boolean): void {
   const atual = sessao;
   if (!atual) return;
@@ -734,10 +892,12 @@ function abrirFicha(paciente: PacienteFicha, secao: string | undefined, empilhar
   crumbPaciente.textContent = paciente.nome;
   crumbPaciente.hidden = false;
   let primeira = empilhar;
+  const secoesAtual = secoesDaFicha(paciente, atual);
   ficha = montarFicha({
     raiz: fichaView,
     paciente,
-    secoes: secoesDaFicha(paciente, atual),
+    secoes: secoesAtual,
+    primarias: destinosPrimarios(secoesAtual),
     ...(secao ? { secaoInicial: secao } : {}),
     confirmar: (mensagem) => window.confirm(mensagem),
     aoSelecionar: (escolhida) => {
@@ -954,6 +1114,7 @@ function mostrarAcesso(mensagem = '', tom: 'error' | 'success' | 'neutral' = 'ne
   focoAposLoginOculto = false;
   revisao += 1;
   apagarPacientes();
+  fecharGavetaLateral();
   loginForm.reset();
   familiarForm.reset();
   passwordInput.type = 'password';
@@ -1329,17 +1490,26 @@ function sairDaFichaPermitido(): boolean {
   return window.confirm(pendencia.mensagem);
 }
 
-function aplicarSessao(atual: Sessao): void {
+/** Retorna se a sessão, usuário ou perfil mudou. */
+function aplicarSessao(atual: Sessao): boolean {
   if (!atual.usuario.ativo) throw new Error('Acesso indisponível.');
-  if (
+  const trocouIdentidade = Boolean(
     sessao &&
-    (sessao.session_id !== atual.session_id ||
-      sessao.usuario.id !== atual.usuario.id ||
-      sessao.usuario.perfil !== atual.usuario.perfil ||
-      atual.usuario.perfil === 'familia')
-  )
+      (sessao.session_id !== atual.session_id ||
+        sessao.usuario.id !== atual.usuario.id ||
+        sessao.usuario.perfil !== atual.usuario.perfil),
+  );
+  if (trocouIdentidade) {
+    // Nenhuma tela com conteúdo por sessão pode ficar montada da conta anterior: cada uma
+    // só remonta se não achar o próprio estado de montagem já preenchido (`mostrarHome` por
+    // `desmontarHome`, `mostrarAdministracao` por `painelAdministracao?.area`, `mostrarRegras`
+    // por `desmontarRegras`), o que vazaria dados institucionais e de caso de quem usava a
+    // aba antes para quem assumiu a sessão. O retorno orienta o reroteamento.
     fecharFicha();
-  else if (ficha && fichaAssinatura !== assinaturaSessao(atual)) {
+    fecharHome();
+    fecharAdministracao();
+    fecharRegras();
+  } else if (ficha && fichaAssinatura !== assinaturaSessao(atual)) {
     fecharFicha();
     aviso('workspace-feedback', 'Seu acesso foi atualizado. Abra a ficha novamente.');
   }
@@ -1434,6 +1604,7 @@ function aplicarSessao(atual: Sessao): void {
   elemento('empty-description').textContent = podeCadastrar
     ? 'Cadastre o primeiro paciente informando todos os campos exigidos.'
     : 'Nenhum paciente foi disponibilizado para seu acesso nesta consulta.';
+  return trocouIdentidade;
 }
 
 async function entrar(evento: SubmitEvent): Promise<void> {
@@ -1964,7 +2135,26 @@ async function revalidarAcesso(): Promise<void> {
   try {
     const atual = await api.consultarSessao();
     if (versao !== revisao) return;
-    aplicarSessao(atual);
+    // Sessão/perfil trocados fecham a home e a ficha (ver `aplicarSessao`), mas não as
+    // remontam sozinhos: sem rotear de novo aqui, a tela ficaria em branco até o usuário
+    // clicar em algum destino, em vez de mostrar o conteúdo certo para quem está na aba agora.
+    if (aplicarSessao(atual)) navegarPelaRota();
+    // A carteira pode estar paginada ou filtrada; só a consulta direta comprova vínculo.
+    const fichaRevalidada = ficha;
+    const pacienteRevalidado = fichaPaciente;
+    if (atual.usuario.perfil === 'familia' && fichaRevalidada && pacienteRevalidado) {
+      const confirmado = await api.consultarPacienteFamiliar(pacienteRevalidado.id);
+      if (confirmado.id !== pacienteRevalidado.id)
+        throw new Error('Paciente retornado não corresponde à consulta.');
+      if (
+        versao !== revisao ||
+        ficha !== fichaRevalidada ||
+        fichaPaciente !== pacienteRevalidado ||
+        !sessao ||
+        assinaturaSessao(sessao) !== assinaturaSessao(atual)
+      )
+        return;
+    }
     const plano = planoAberto;
     if (plano) {
       try {
@@ -2074,6 +2264,9 @@ window.addEventListener('popstate', () => {
       return;
     }
   }
+  // Voltar/avançar pelo navegador também é uma forma de sair do destino atual: sem isto, a
+  // gaveta do celular ficaria aberta sobre a tela nova até alguém tocar em "Menu" de novo.
+  fecharGavetaLateral();
   navegarPelaRota();
 });
 for (const [id, destino] of [
@@ -2085,6 +2278,7 @@ for (const [id, destino] of [
   elemento(id).addEventListener('click', (evento) => {
     evento.preventDefault();
     if (!sairDaFichaPermitido()) return;
+    fecharGavetaLateral();
     irPara(destino);
   });
 elemento('administracao-abas').addEventListener('click', (evento) => {
@@ -2133,14 +2327,22 @@ for (const evento of ['input', 'change'])
     );
   });
 document.addEventListener('visibilitychange', () => {
-  // A visão do caso reúne dados de vários serviços: não fica no DOM com a aba oculta.
-  if (document.hidden && ficha?.secaoAtual() === 'visao') ficha.limparSecao();
+  if (document.hidden) fecharGavetaLateral();
   if (sessao) {
     if (fichaView.contains(document.activeElement)) focoAposLoginOculto = true;
     patientsView.hidden = true;
     sessionActions.hidden = true;
     revalidacaoStatus.hidden = false;
   }
+  // Leituras familiares precisam consultar novamente a audiência de cada conteúdo.
+  // O Diário preserva o editor e invalida suas próprias leituras ao ocultar.
+  if (
+    document.hidden &&
+    ficha &&
+    (ficha.secaoAtual() === 'visao' ||
+      (sessao?.usuario.perfil === 'familia' && ficha.secaoAtual() !== 'diario'))
+  )
+    ficha.limparSecao();
   void revalidarAcesso();
 });
 window.addEventListener('beforeunload', (evento) => {
