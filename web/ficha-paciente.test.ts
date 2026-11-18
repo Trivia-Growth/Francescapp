@@ -338,3 +338,16 @@ it('traz a aba atual para a área visível da faixa de abas ao abrir e ao trocar
     Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
   }
 });
+
+it('mantém entrada por Tab nas abas primárias com seção secundária ativa', () => {
+  abrir([secao('visao').definicao, secao('plano').definicao, secao('rede').definicao], {
+    primarias: ['visao', 'plano'],
+    secaoInicial: 'rede',
+  });
+  expect(aba('visao').tabIndex).toBe(0);
+  expect(aba('visao').getAttribute('aria-selected')).toBe('false');
+  expect(aba('plano').tabIndex).toBe(-1);
+  aba('visao').focus();
+  aba('visao').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+  expect(document.activeElement).toBe(aba('plano'));
+});

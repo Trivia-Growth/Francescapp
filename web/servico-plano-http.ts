@@ -51,7 +51,7 @@ export function criarServicoPlanoHttp(
     try {
       modo = sessionStorage.getItem('modo-acesso');
       // Leitura (`ler_plano_cuidado`) já tem a trilha familiar no banco (`visibilidade`, ver
-      // migration `20261117240000`); família também passa por aqui para consultar objetivos.
+      // migration `20261124110000`); família também passa por aqui para consultar objetivos.
       fluxo = sessionStorage.getItem(
         modo === 'tecnica'
           ? 'fluxo-tecnico'

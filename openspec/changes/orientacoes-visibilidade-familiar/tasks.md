@@ -9,11 +9,11 @@
   Confirmado também: quem já registra orientação (qualquer colaborador com concessão vigente)
   marca a visibilidade — sem portão administrador-only (mesma pergunta feita para documentos,
   reaproveitada aqui por serem a mesma classe de decisão).
-- [x] 1.2 Migration aditiva `20261117260000_orientacao_visibilidade.sql`: coluna
+- [x] 1.2 Migration aditiva `20261124130000_orientacao_visibilidade.sql`: coluna
   `visibilidade text not null default 'interna' check (in ('interna','publica'))` em
   `cadastro.orientacao_versao`. Default preserva o comportamento de quem grava sem informar o
   campo (testes/chamadores existentes).
-- [x] 1.3 Migration `20261117270000_orientacao_familia_privada.sql`: `create or replace
+- [x] 1.3 Migration `20261124140000_orientacao_familia_privada.sql`: `create or replace
   function api.orientacao_operacao_privada` (redefine a função já existente de
   `20261117140000`) com trilha familiar só para `api.ler_orientacoes` — `cadastro.acesso_paciente`
   vigente, `identidade.sessao` método `familia` sem concessão, `amr=password`. Filtro de

@@ -271,7 +271,10 @@ begin
    into resultado from itens v;
  else
   with pagina as materialized (
-   select o.id from cadastro.objetivo_cuidado o where o.paciente_id=paciente and (cursor_objetivo is null or o.id>cursor_objetivo)
+   select o.id from cadastro.objetivo_cuidado o
+   left join lateral (select x.visibilidade from cadastro.objetivo_cuidado_versao x where x.objetivo_id=o.id order by x.versao desc limit 1) ultima on true
+   where o.paciente_id=paciente and (cursor_objetivo is null or o.id>cursor_objetivo)
+    and (papel='colaborador' or ultima.visibilidade='publica')
    order by o.id limit limite+1
   ), itens as (select * from pagina order by id limit limite)
   select jsonb_build_object('itens',coalesce(jsonb_agg(jsonb_build_object('registro_id',v.id,'objetivo_id',o.id,'paciente_id',paciente,'versao',v.versao,'conteudo',v.conteudo_cifrado,'visibilidade',v.visibilidade) order by o.id) filter (where papel='colaborador' or v.visibilidade='publica'),'[]'::jsonb),

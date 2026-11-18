@@ -21,7 +21,7 @@ rtk proxy psql -X -h "$temporario" -p 55443 -U cadeia_fixture -d ffcm_cadeia_loc
 rtk proxy psql -X -h "$temporario" -p 55443 -U cadeia_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/migrations/20261117140000_orientacao_operacoes_privadas.sql"
 rtk proxy psql -X -h "$temporario" -p 55443 -U cadeia_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/migrations/20261117150000_grant_orientacao_teste.sql"
 rtk proxy psql -X -h "$temporario" -p 55443 -U cadeia_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/migrations/20261111160000_admissao_familiar_privada.sql"
-rtk proxy psql -X -h "$temporario" -p 55443 -U cadeia_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/migrations/20261117260000_orientacao_visibilidade.sql"
-rtk proxy psql -X -h "$temporario" -p 55443 -U cadeia_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/migrations/20261117270000_orientacao_familia_privada.sql"
+rtk proxy psql -X -h "$temporario" -p 55443 -U cadeia_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/migrations/20261124130000_orientacao_visibilidade.sql"
+rtk proxy psql -X -h "$temporario" -p 55443 -U cadeia_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/migrations/20261124140000_orientacao_familia_privada.sql"
 cd "$projeto"
 FFCM_PG_SOCKET="$temporario" rtk proxy pnpm exec vitest run netlify/functions/_shared/orientacao-postgres-local.test.ts --reporter=minimal --silent=passed-only

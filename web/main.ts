@@ -641,7 +641,7 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         rotulo: 'Plano de cuidado',
         montar: (raiz) =>
           // Família só lê (banco filtra por `visibilidade='publica'`, migration
-          // `20261117240000`); por isso não entra em `planoAberto` nem no mecanismo de
+          // `20261124110000`); por isso não entra em `planoAberto` nem no mecanismo de
           // reconfirmação de acesso do rascunho do colaborador (que leva a `'visao'`, seção
           // que a família não tem) — família não grava, não tem rascunho nem reserva a perder.
           montarPlanoCuidado(
@@ -658,7 +658,7 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         rotulo: 'Documentos',
         montar: (raiz) =>
           // Família só lê (banco filtra por `audiencia='equipe_e_familia'`, migration
-          // `20261117250000`); nunca anexa, então as categorias (só usadas pelo formulário de
+          // `20261124120000`); nunca anexa, então as categorias (só usadas pelo formulário de
           // envio) não precisam ser pedidas.
           montarDocumentosCaso(
             raiz,
@@ -675,7 +675,7 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         rotulo: 'Orientações',
         montar: (raiz) =>
           // Família só lê (banco filtra por `visibilidade='publica'`, migration
-          // `20261117270000`); nunca registra orientação.
+          // `20261124140000`); nunca registra orientação.
           montarOrientacoes(
             raiz,
             paciente.id,
@@ -1593,12 +1593,7 @@ function sairDaFichaPermitido(): boolean {
   return window.confirm(pendencia.mensagem);
 }
 
-/** Devolve `true` quando detectou troca de sessão/usuário/perfil na mesma aba (ex.: outra
- * conta autenticada em outra aba do mesmo navegador): quem chama fora do fluxo de
- * entrada/restauração — hoje só `revalidarAcesso` — precisa rotear de novo depois, porque
- * fechar a home ou a ficha aqui não as remonta sozinho. Família sempre fecha a ficha (regra
- * já existente, sem relação com troca de identidade), mas isso não deve, sozinho, acionar
- * esse reroteamento a cada revalidação — só uma troca de verdade deve. */
+/** Retorna se a sessão, usuário ou perfil mudou. */
 function aplicarSessao(atual: Sessao): boolean {
   if (!atual.usuario.ativo) throw new Error('Acesso indisponível.');
   const trocouIdentidade = Boolean(
@@ -1612,20 +1607,11 @@ function aplicarSessao(atual: Sessao): boolean {
     // só remonta se não achar o próprio estado de montagem já preenchido (`mostrarHome` por
     // `desmontarHome`, `mostrarAdministracao` por `painelAdministracao?.area`, `mostrarRegras`
     // por `desmontarRegras`), o que vazaria dados institucionais e de caso de quem usava a
-    // aba antes para quem assumiu a sessão. Só entra aqui numa troca de verdade: o retorno
-    // (`trocouIdentidade`) é o que decide se quem chama precisa rotear de novo depois, e a
-    // regra da família abaixo não deve acionar isso a cada revalidação sem mudança nenhuma.
+    // aba antes para quem assumiu a sessão. O retorno orienta o reroteamento.
     fecharFicha();
     fecharHome();
     fecharAdministracao();
     fecharRegras();
-  } else if (atual.usuario.perfil === 'familia') {
-    // Regra pré-existente e independente da troca de identidade: família nunca fica com a
-    // ficha de outro perfil/sessão aberta. Família não alcança home nem administração; já
-    // alcança "#regras" (sem controle de perfil no link), mas sem risco de vazamento aqui
-    // porque é a mesma sessão/pessoa revalidando, não uma troca — por isso essa página não
-    // precisa (e não deve) fechar sozinha a cada revalidação sem mudança nenhuma.
-    fecharFicha();
   } else if (ficha && fichaAssinatura !== assinaturaSessao(atual)) {
     fecharFicha();
     aviso('workspace-feedback', 'Seu acesso foi atualizado. Abra a ficha novamente.');
@@ -2259,6 +2245,22 @@ async function revalidarAcesso(): Promise<void> {
     // remontam sozinhos: sem rotear de novo aqui, a tela ficaria em branco até o usuário
     // clicar em algum destino, em vez de mostrar o conteúdo certo para quem está na aba agora.
     if (aplicarSessao(atual)) navegarPelaRota();
+    // A carteira pode estar paginada ou filtrada; só a consulta direta comprova vínculo.
+    const fichaRevalidada = ficha;
+    const pacienteRevalidado = fichaPaciente;
+    if (atual.usuario.perfil === 'familia' && fichaRevalidada && pacienteRevalidado) {
+      const confirmado = await api.consultarPacienteFamiliar(pacienteRevalidado.id);
+      if (confirmado.id !== pacienteRevalidado.id)
+        throw new Error('Paciente retornado não corresponde à consulta.');
+      if (
+        versao !== revisao ||
+        ficha !== fichaRevalidada ||
+        fichaPaciente !== pacienteRevalidado ||
+        !sessao ||
+        assinaturaSessao(sessao) !== assinaturaSessao(atual)
+      )
+        return;
+    }
     const plano = planoAberto;
     if (plano) {
       try {
@@ -2432,14 +2434,21 @@ for (const evento of ['input', 'change'])
   });
 document.addEventListener('visibilitychange', () => {
   fecharGavetaLateral();
-  // A visão do caso reúne dados de vários serviços: não fica no DOM com a aba oculta.
-  if (document.hidden && ficha?.secaoAtual() === 'visao') ficha.limparSecao();
   if (sessao) {
     if (fichaView.contains(document.activeElement)) focoAposLoginOculto = true;
     patientsView.hidden = true;
     sessionActions.hidden = true;
     revalidacaoStatus.hidden = false;
   }
+  // Leituras familiares precisam consultar novamente a audiência de cada conteúdo.
+  // O Diário preserva o editor e invalida suas próprias leituras ao ocultar.
+  if (
+    document.hidden &&
+    ficha &&
+    (ficha.secaoAtual() === 'visao' ||
+      (sessao?.usuario.perfil === 'familia' && ficha.secaoAtual() !== 'diario'))
+  )
+    ficha.limparSecao();
   void revalidarAcesso();
 });
 window.addEventListener('beforeunload', (evento) => {

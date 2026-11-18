@@ -53,14 +53,23 @@ Skill `code-review`, eixos padrões e spec, revisão-base `804428e`. Alvo: diff 
 
 - Push autorizado pelo usuário em 17/11/2026 para continuar outra frente com Claude. `rtk git push -u origin codex/refino-visual-pr16` terminou **0**; pre-push passou lint/typecheck, 11,14s.
 - `rtk proxy git ls-remote --heads origin refs/heads/codex/refino-visual-pr16` confirmou **6563d1db636cc5d1fb9624a8cf521dac491f6db8**, commit do produto revisado. Registro de passagem acrescentado depois, sem mudança de código.
-- Branch remota: `origin/codex/refino-visual-pr16`. Base do delta visual continua `804428e` do PR #16; a branch daquele PR e main não foram alteradas. Para integrar em outra frente, considerar também o estado e os gates pendentes abaixo. Nenhum PR, merge ou deploy adicional criado.
+- Branch remota: `origin/codex/refino-visual-pr16`. PR #17 aberto em draft, inicialmente com base na branch do PR #16 para isolar o delta visual. Main ainda não alterada. A integração das correções do #16 está registrada abaixo.
 
 ## Próximo passo e bloqueadores
 
 1. **4.1 parcial:** acesso inicial fictício conferido; retorno de aba, falha e perda de acesso conectados não reproduzidos. Nenhuma alegação de travamento resolvido ou mudança do algoritmo de sessão.
 2. **6.1:** aceite visual conectado por perfis, larguras previstas, zoom 200%, teclado, estados e seções não renderizados. Usar caso fictício autorizado e registrar resultado real.
 3. **6.2:** `verificar:ativacao` e provas positivas/negativas de servidor/RLS não executados; fatia não ativada. Revisão sensível de Família do PR #16 continua própria e pendente; este delta não a certifica.
-4. **6.3/externo:** push da branch autorizado e realizado. Merge, deploy e migração continuam sem autorização específica; frontend não ativado em produção por esta frente. Registro global somente no merge, sem tracker paralelo.
+4. **6.3/externo:** push da branch autorizado e realizado. Merge dos PRs autorizado após validações. Aplicação de somente cinco migrations revisadas do PR #16 também autorizada, sem ativar flags. Deploy manual continua separado; frontend ainda não integrado à main. Registro global somente no merge.
+
+## Integração com revisão do PR #16 — 17/11/2026
+
+- PR #16 recebeu commit `6f1849f` na própria branch, com revisão independente de padrões/spec e correções de paginação, rascunho/audiência/revalidação, teclado e ordem de migrations. Estado específico em `experiencia-minima-do-mock/estado.md`.
+- Merge local desse commit no refino visual resolveu conflitos em `web/main.ts`, `web/gaveta-lateral.test.ts` e `web/diario.ts`, por Terra 6.1 em arquivos exclusivos. Preservados sidebar compacta/modal/foco/resize, seleção da carteira e loading visual, junto dos controles novos de sessão/audiência, editor único, rascunho e consulta/escrita.
+- Testes afetados após integração: gaveta, home familiar, duas revalidações e ficha, **5 arquivos/24 testes**, exit 0; Diário e esqueleto, **2 arquivos/12 testes**, exit 0. Biome dos alvos e `git diff --cached --check` exit 0. `pnpm run verificar:rapido`: exit 0, lint 666 arquivos e typecheck, 9,11s.
+- Revisão independente focal da resolução contra `6f1849f` e `7a20411`: padrões e spec sem achado material; revisores somente leitura. Não reaberta auditoria SQL nem reutilizada GUI fictícia como prova remota.
+- Credencial Supabase local anterior retornou 403; CLI sem resposta. Solicitante forneceu acesso para operação autorizada. Consulta do histórico remoto pelo Management API conferiu 186 versões, sem ausências/divergências contra a base local, última `20261123100000`; as cinco versões novas ainda ausentes nesse momento. Nenhum segredo registrado neste estado.
+- Ativação do PR #16 executou suíte/build/Deno uma vez e passou, com testes de integração skipped explicitados no estado daquela change. Neste delta visual integrado ainda falta comando de ativação e roteiro conectado; fatia não declarada ativada.
 
 ## Histórico essencial
 

@@ -59,6 +59,10 @@ it('abre e fecha a gaveta lateral no celular — botão, fundo, Escape e navega�
   ultimo.focus();
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
   expect(document.activeElement).toBe(fechar);
+  document.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }),
+  );
+  expect(document.activeElement).toBe(ultimo);
 
   fundo.click();
   expect(gaveta.classList.contains('open')).toBe(false);

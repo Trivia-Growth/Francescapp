@@ -36,8 +36,8 @@ Nenhuma.
 
 Contratos (`packages/contracts/src/orientacao.ts`), camada nativa
 (`netlify/functions/_shared/orientacao-nativa.ts`), SQL
-(`supabase/migrations/20261117260000_orientacao_visibilidade.sql`,
-`20261117270000_orientacao_familia_privada.sql`) e interface (`web/orientacoes-local.ts`,
+(`supabase/migrations/20261124130000_orientacao_visibilidade.sql`,
+`20261124140000_orientacao_familia_privada.sql`) e interface (`web/orientacoes-local.ts`,
 `web/orientacoes.ts`, `web/servico-orientacoes-http.ts`, `web/main.ts`). Nenhuma migration
 aplicada remotamente, nenhuma flag alterada, nenhum deploy — decisão e operação remota
 continuam à parte, como em todo o trabalho desta sessão.
