@@ -1,3 +1,4 @@
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import type {
   MedidaSolicitacaoTitular,
   SolicitacaoTitular,
@@ -159,6 +160,7 @@ export function montarSolicitacoesTitular(
       }
       enviar.disabled = true;
       aviso.textContent = 'Registrando…';
+      const finalizar = iniciarAcao(enviar);
       void servico
         .responder({
           solicitacao_id: item.solicitacao_id,
@@ -182,7 +184,8 @@ export function montarSolicitacoesTitular(
                 ? 'Sua conta não pode responder solicitações.'
                 : 'Não foi possível registrar a resposta. Tente de novo.';
           enviar.disabled = false;
-        });
+        })
+        .finally(finalizar);
     });
   };
 
@@ -210,6 +213,8 @@ export function montarSolicitacoesTitular(
 
   const carregar = async () => {
     status.textContent = 'Carregando solicitações…';
+    lista.setAttribute('aria-busy', 'true');
+    if (!lista.hasChildNodes()) lista.append(esqueletoCarregando(3, true));
     voltar.disabled = true;
     avancar.disabled = true;
     try {
@@ -235,6 +240,8 @@ export function montarSolicitacoesTitular(
           ? 'Sua conta não pode ver as solicitações sobre dados pessoais.'
           : 'Não foi possível carregar as solicitações. Tente de novo.';
       voltar.disabled = anteriores.length === 0;
+    } finally {
+      lista.removeAttribute('aria-busy');
     }
   };
 
@@ -249,6 +256,7 @@ export function montarSolicitacoesTitular(
     }
     registrar.disabled = true;
     avisoRegistro.textContent = 'Registrando…';
+    const finalizar = iniciarAcao(registrar);
     void servico
       .registrar({
         paciente_id: pacienteId,
@@ -274,7 +282,8 @@ export function montarSolicitacoesTitular(
             ? 'Sua conta não pode registrar solicitações.'
             : 'Não foi possível registrar. Tente de novo.';
         registrar.disabled = false;
-      });
+      })
+      .finally(finalizar);
   });
 
   avancar.addEventListener('click', () => {

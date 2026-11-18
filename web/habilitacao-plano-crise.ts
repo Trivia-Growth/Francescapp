@@ -1,3 +1,4 @@
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import type { ItemHabilitacao } from '../packages/contracts/src/habilitacao-plano-crise.ts';
 import type { ServicoHabilitacaoPlanoCrise } from './servico-habilitacao-plano-crise-http.ts';
 
@@ -107,6 +108,7 @@ export function montarHabilitacaoPlanoCrise(
         }
         salvar.disabled = caixa.disabled = true;
         aviso.textContent = 'Salvando…';
+        const finalizar = iniciarAcao(salvar);
         void servico
           .gravar({
             concessao_id: item.concessao_id,
@@ -130,7 +132,8 @@ export function montarHabilitacaoPlanoCrise(
                   : 'Não foi possível salvar. Tente de novo.';
             salvar.disabled = caixa.disabled = false;
             caixa.checked = item.habilitado;
-          });
+          })
+          .finally(finalizar);
       });
     }
   };
@@ -138,6 +141,9 @@ export function montarHabilitacaoPlanoCrise(
   const carregar = async (mensagemInicial = 'Carregando equipe…') => {
     status.textContent = mensagemInicial;
     recarregar.disabled = true;
+    lista.setAttribute('aria-busy', 'true');
+    if (!lista.hasChildNodes()) lista.append(esqueletoCarregando(3, true));
+    const finalizar = iniciarAcao(recarregar);
     try {
       const itens = await servico.listar();
       if (!ativa) return;
@@ -152,6 +158,8 @@ export function montarHabilitacaoPlanoCrise(
       lista.replaceChildren();
       status.textContent = 'Não foi possível carregar a equipe. Tente recarregar.';
     } finally {
+      finalizar();
+      lista.removeAttribute('aria-busy');
       if (ativa) recarregar.disabled = false;
     }
   };

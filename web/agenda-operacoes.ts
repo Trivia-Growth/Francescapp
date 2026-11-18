@@ -1,3 +1,4 @@
+import { iniciarAcao } from './esqueleto.js';
 type Evento = { id: string; inicio: string; fim: string; etag?: string };
 type Acao = 'criar' | 'alterar' | 'cancelar';
 
@@ -129,6 +130,7 @@ export function montarOperacoesAgenda(
     abrir.disabled = true;
     reconciliar.disabled = true;
     resultado.textContent = 'Verificando operações pendentes…';
+    const finalizar = iniciarAcao(abrir);
     try {
       const resposta = await fetch('/api/agenda/google/pendencia', {
         headers: cabecalhos(),
@@ -164,12 +166,14 @@ export function montarOperacoesAgenda(
       resultado.textContent =
         'Não foi possível verificar operações pendentes. Tente novamente antes de alterar a agenda.';
     } finally {
+      finalizar();
       if (ativa) reconciliar.disabled = false;
     }
   }
   reconciliar.addEventListener('click', async () => {
     reconciliar.disabled = true;
     resultado.textContent = 'Consultando o Google…';
+    const finalizar = iniciarAcao(reconciliar);
     try {
       const headers = cabecalhos();
       headers.set('Content-Type', 'application/json');
@@ -204,6 +208,7 @@ export function montarOperacoesAgenda(
         resultado.textContent =
           'Não foi possível verificar a operação. Tente novamente mais tarde.';
     } finally {
+      finalizar();
       if (ativa) reconciliar.disabled = false;
     }
   });
@@ -257,6 +262,7 @@ export function montarOperacoesAgenda(
     salvar.disabled = confirmar.disabled = true;
     abrir.disabled = true;
     feedback.textContent = 'Aguardando confirmação do Google…';
+    const finalizar = iniciarAcao(confirmar.hidden ? salvar : confirmar);
     try {
       localStorage.setItem(marcador, '1');
       envioSemResposta = true;
@@ -318,6 +324,7 @@ export function montarOperacoesAgenda(
       formulario.hidden = true;
       void verificarPendencia();
     } finally {
+      finalizar();
       if (ativa && !incerto) {
         ocupado = false;
         abrir.disabled = false;

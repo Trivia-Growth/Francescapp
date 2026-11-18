@@ -4,7 +4,7 @@ import {
   type Saude,
 } from '../packages/contracts/src/saude.ts';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
-import { esqueletoCarregando } from './esqueleto.js';
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 
 export type ServicoSaude = {
   consultar(pacienteId: string): Promise<Saude | null>;
@@ -214,6 +214,7 @@ export function montarSaude(
       if (!pendente) return;
       salvar.disabled = retry.disabled = adicionarBotao.disabled = true;
       aviso.textContent = 'Salvando histórico de saúde…';
+      const finalizar = iniciarAcao(retry.hidden ? salvar : retry);
       try {
         const salvo = await servico.salvar(pacienteId, versao, pendente.registros);
         if (!ativa) return;
@@ -240,6 +241,8 @@ export function montarSaude(
             ? 'O histórico foi alterado por outra pessoa. Copie seu rascunho antes de recarregar a página; suas alterações ainda não foram salvas.'
             : mensagemFalha(erro);
         }
+      } finally {
+        finalizar();
       }
     };
     form.addEventListener('input', () => alteracaoPendente(true));

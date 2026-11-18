@@ -9,3 +9,23 @@ export function esqueletoCarregando(linhas = 3, compacto = false): HTMLElement {
   for (let linha = 0; linha < linhas; linha += 1) bloco.append(document.createElement('span'));
   return bloco;
 }
+
+const indicadores = new WeakMap<HTMLElement, HTMLElement>();
+
+/** Feedback visual de uma ação em curso; a mensagem acessível permanece no status da tela. */
+export function iniciarAcao(botao: HTMLElement): () => void {
+  const indicador = document.createElement('span');
+  indicador.className = 'loading-indicator';
+  indicador.setAttribute('aria-hidden', 'true');
+  indicadores.get(botao)?.remove();
+  indicadores.set(botao, indicador);
+  botao.setAttribute('aria-busy', 'true');
+  botao.append(indicador);
+  return () => {
+    indicador.remove();
+    if (indicadores.get(botao) === indicador) {
+      indicadores.delete(botao);
+      botao.removeAttribute('aria-busy');
+    }
+  };
+}

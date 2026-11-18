@@ -1,3 +1,4 @@
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import {
   salvarPlanoCriseSchema,
   type PlanoCrise,
@@ -74,7 +75,8 @@ export function montarPlanoCrise(
   };
   const status = elemento('p', 'Carregando plano de crise…');
   status.setAttribute('role', 'status');
-  raiz.replaceChildren(status);
+  const carregamento = esqueletoCarregando(3, true);
+  raiz.replaceChildren(status, carregamento);
 
   const desenhar = (resultado: PlanoCrise | null) => {
     if (!ativa) return;
@@ -303,6 +305,7 @@ export function montarPlanoCrise(
       if (!pendente) return;
       bloquear(true);
       aviso.textContent = 'Salvando plano de crise…';
+      const finalizar = iniciarAcao(retry.hidden ? salvar : retry);
       try {
         const salvo = await servico.salvar(pacienteId, versao, pendente.conteudo);
         if (!ativa) return;
@@ -328,6 +331,8 @@ export function montarPlanoCrise(
             ? 'O plano foi alterado por outra pessoa. Copie seu rascunho antes de recarregar a página; suas alterações ainda não foram salvas.'
             : mensagemFalha(erro);
         }
+      } finally {
+        finalizar();
       }
     };
 
@@ -368,6 +373,7 @@ export function montarPlanoCrise(
       if (!resultado || pendente) return;
       bloquear(true);
       aviso.textContent = 'Registrando aprovação…';
+      const finalizar = iniciarAcao(aprovar);
       void servico
         .aprovar(pacienteId, resultado.registro_id, resultado.versao)
         .then((aprovado) => {
@@ -391,19 +397,22 @@ export function montarPlanoCrise(
             : erro instanceof FalhaApi && erro.codigo === 'conflito_versao'
               ? 'O plano mudou desde que esta tela carregou. Recarregue e confira o texto antes de aprovar.'
               : mensagemFalha(erro);
-        });
+        })
+        .finally(finalizar);
     });
     raiz.replaceChildren(form);
   };
 
   const consultar = () => {
     status.textContent = 'Carregando plano de crise…';
-    raiz.replaceChildren(status);
+    const carregamentoAtual = esqueletoCarregando(3, true);
+    raiz.replaceChildren(status, carregamentoAtual);
     void servico
       .consultar(pacienteId)
       .then(desenhar)
       .catch((erro: unknown) => {
         if (!ativa || descartarAcesso(erro)) return;
+        carregamentoAtual.remove();
         status.textContent = mensagemFalha(erro);
         const tentarNovamente = elemento('button', 'Tentar novamente');
         tentarNovamente.type = 'button';

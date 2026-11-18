@@ -1,3 +1,4 @@
+import { iniciarAcao } from './esqueleto.js';
 import { criarConcessaoEquipeSchema } from '../packages/contracts/src/index.js';
 import type { ClienteFFCM } from './api.js';
 import { criarCicloConcessaoEquipe } from './ciclo-concessao-equipe.js';
@@ -63,6 +64,7 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
     liberada = false;
     campos.disabled = enviar.disabled = verificar.disabled = true;
     status.textContent = 'Conferindo se há algum convite aguardando resposta…';
+    const finalizar = iniciarAcao(verificar);
     try {
       let estado = await ciclo.consultar();
       if (!ativa) return;
@@ -117,6 +119,7 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
         status.textContent =
           'Não foi possível concluir a conferência. Tente de novo antes de continuar.';
     } finally {
+      finalizar();
       ocupada = false;
       if (ativa) verificar.disabled = false;
     }
@@ -139,6 +142,7 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
     liberada = false;
     campos.disabled = enviar.disabled = verificar.disabled = true;
     status.textContent = 'Enviando…';
+    const finalizar = iniciarAcao(enviar);
     void ciclo
       .criar(validacao.data)
       .then((resultado) => {
@@ -154,6 +158,7 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
             'Não deu para saber se o convite foi registrado. Confira antes de continuar.';
       })
       .finally(() => {
+        finalizar();
         ocupada = false;
         if (ativa) verificar.disabled = false;
       });

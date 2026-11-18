@@ -1,3 +1,15 @@
+function iniciarAcao(botao) {
+  const indicador = document.createElement('span');
+  indicador.className = 'loading-indicator';
+  indicador.setAttribute('aria-hidden', 'true');
+  botao.setAttribute('aria-busy', 'true');
+  botao.append(indicador);
+  return () => {
+    indicador.remove();
+    botao.removeAttribute('aria-busy');
+  };
+}
+
 const url = new URL(location.href);
 const fragmento = new URLSearchParams(url.hash.slice(1));
 const convite = url.searchParams.get('convite');
@@ -35,6 +47,7 @@ if (!valido) {
     }
     botao.disabled = true;
     status.textContent = 'Criando sua senha…';
+    const finalizar = iniciarAcao(botao);
     const bytes = crypto.getRandomValues(new Uint8Array(16));
     const fluxo = btoa(String.fromCharCode(...bytes))
       .replaceAll('+', '-')
@@ -61,6 +74,8 @@ if (!valido) {
       form.hidden = true;
       status.textContent =
         'Não foi possível concluir. Peça à equipe orientação para recuperar seu acesso.';
+    } finally {
+      finalizar();
     }
   });
 }

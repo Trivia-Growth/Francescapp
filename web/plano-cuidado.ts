@@ -6,7 +6,7 @@ import {
 } from '../packages/contracts/src/plano-cuidado.js';
 import type { criarCicloPlano } from './ciclo-plano.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
-import { esqueletoCarregando } from './esqueleto.js';
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 
 export type ObjetivoAtual = {
   objetivo_id: string;
@@ -250,6 +250,7 @@ export function montarPlanoCuidado(
       const carregarAtual = (cursor?: string) => {
         consultarAtual.disabled = true;
         recuperacao.replaceChildren(elemento('p', 'Consultando plano de cuidado…'));
+        const finalizar = iniciarAcao(consultarAtual);
         void servico
           .consultarObjetivos(pacienteId, cursor)
           .then((paginaAtual) => {
@@ -292,7 +293,8 @@ export function montarPlanoCuidado(
             if (!ativa || perdeuAcesso(erro)) return;
             recuperacao.replaceChildren(elemento('p', mensagemFalha(erro)));
             consultarAtual.disabled = false;
-          });
+          })
+          .finally(finalizar);
       };
       consultarAtual.addEventListener('click', () => carregarAtual());
       let rascunhoAlterado = false;
@@ -330,6 +332,7 @@ export function montarPlanoCuidado(
         gravando = true;
         campos.disabled = salvar.disabled = cancelar.disabled = true;
         aviso.textContent = 'Salvando objetivo…';
+        const finalizar = iniciarAcao(salvar);
         const operacao = atual
           ? servico.revisarObjetivo(pacienteId, atual.objetivo_id, atual.versao, {
               objetivo: validado.data,
@@ -375,7 +378,8 @@ export function montarPlanoCuidado(
             aviso.textContent = conflito
               ? 'O objetivo foi alterado por outra pessoa. Preserve seu rascunho e consulte a versão atual antes de revisar novamente.'
               : mensagemFalha(erro);
-          });
+          })
+          .finally(finalizar);
       });
       form.append(campos, salvar, cancelar, aviso, consultarAtual, recuperacao);
       formulario.replaceChildren(form);
@@ -412,6 +416,7 @@ export function montarPlanoCuidado(
         status.setAttribute('role', 'status');
         historico.querySelector('[data-status-historico]')?.remove();
         status.dataset.statusHistorico = '';
+        const finalizar = iniciarAcao(consultarHistorico);
         if (!cursor) historico.replaceChildren(status);
         else historico.append(status);
         void servico
@@ -455,7 +460,8 @@ export function montarPlanoCuidado(
             if (!ativa || perdeuAcesso(erro) || !raiz.contains(item)) return;
             status.textContent = mensagemFalha(erro);
             consultarHistorico.disabled = false;
-          });
+          })
+          .finally(finalizar);
       };
       consultarHistorico.onclick = () => carregarHistorico();
       item.append(revisar, consultarHistorico, historico);

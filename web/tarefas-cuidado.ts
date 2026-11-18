@@ -4,7 +4,7 @@ import type {
 } from '../packages/contracts/src/tarefa-cuidado.ts';
 import type { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
-import { esqueletoCarregando } from './esqueleto.js';
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 
 type RegistroTarefa = RegistroTarefaCuidado;
 export type ServicoTarefasCuidado = {
@@ -123,12 +123,16 @@ export function montarTarefasCuidado(
               confirmar.textContent = 'Entendi, liberar as tarefas';
               confirmar.onclick = () => {
                 confirmar.disabled = true;
+                const terminarAcao = iniciarAcao(confirmar);
+                aviso.textContent = 'Concluindo conferência…';
                 void (async () => {
                   await ciclo.reconhecer();
                   cercado = true;
                   confirmar.onclick = iniciar;
                   await verificar();
-                })().catch(falhou);
+                })()
+                  .catch(falhou)
+                  .finally(terminarAcao);
               };
               confirmar.disabled = false;
               return;
@@ -146,7 +150,9 @@ export function montarTarefasCuidado(
           };
           const iniciar = () => {
             confirmar.disabled = true;
-            void verificar().catch(falhou);
+            const terminarAcao = iniciarAcao(confirmar);
+            aviso.textContent = 'Conferindo tarefas…';
+            void verificar().catch(falhou).finally(terminarAcao);
           };
           confirmar.onclick = iniciar;
           secao.append(aviso, confirmar);
@@ -356,6 +362,7 @@ export function montarTarefasCuidado(
       };
       const liberarOutros = bloquearOutrosFormularios(form);
       campos.disabled = salvar.disabled = true;
+      const terminarAcao = iniciarAcao(salvar);
       alteracaoPendente(true);
       status.textContent = 'Salvando atualização…';
       void atualizar(pacienteId, registro.tarefa_id, registro.versao, crypto.randomUUID(), tarefa)
@@ -392,7 +399,8 @@ export function montarTarefasCuidado(
           liberarOutros();
           campos.disabled = salvar.disabled = false;
           status.textContent = mensagemFalha(erro);
-        });
+        })
+        .finally(terminarAcao);
     });
     return form;
   };
@@ -460,6 +468,7 @@ export function montarTarefasCuidado(
       const chave = crypto.randomUUID();
       const liberarOutros = bloquearOutrosFormularios(form);
       campos.disabled = salvar.disabled = true;
+      const terminarAcao = iniciarAcao(salvar);
       alteracaoPendente(true);
       status.textContent = 'Criando tarefa…';
       void criar(pacienteId, tarefaId, chave, tarefa)
@@ -494,7 +503,8 @@ export function montarTarefasCuidado(
           liberarOutros();
           campos.disabled = salvar.disabled = false;
           status.textContent = mensagemFalha(erro);
-        });
+        })
+        .finally(terminarAcao);
     });
     return form;
   };

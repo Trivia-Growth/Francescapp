@@ -1,3 +1,4 @@
+import { esqueletoCarregando } from './esqueleto.js';
 import { type ClienteFFCM, mensagemFalha } from './api.js';
 
 /** Dados que a conta de família pode consultar do paciente vinculado. */
@@ -38,6 +39,9 @@ export function montarDadosFamiliar(
     tentar.hidden = true;
     estado.removeAttribute('data-tone');
     estado.textContent = 'Consultando paciente…';
+    dados.setAttribute('aria-busy', 'true');
+    const carregamento = esqueletoCarregando(2, true);
+    dados.before(carregamento);
     try {
       const paciente = await servico.consultarPacienteFamiliar(pacienteId);
       if (!ativa || numero !== geracao) return;
@@ -53,6 +57,9 @@ export function montarDadosFamiliar(
       estado.dataset.tone = 'error';
       estado.textContent = `${mensagemFalha(erro)} Tente novamente.`;
       tentar.hidden = false;
+    } finally {
+      carregamento.remove();
+      if (numero === geracao) dados.removeAttribute('aria-busy');
     }
   };
   tentar.addEventListener('click', () => void consultar());

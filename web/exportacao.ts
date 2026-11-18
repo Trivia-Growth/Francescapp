@@ -6,7 +6,7 @@ import type {
 } from '../packages/contracts/src/exportacao.js';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { dataDeInstante } from './datas.js';
-import { esqueletoCarregando } from './esqueleto.js';
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import { montarPacoteExportacao, nomeDoArquivoPacote } from './pacote-exportacao.js';
 
 export type ServicoExportacao = {
@@ -191,6 +191,8 @@ export function montarExportacao(
       botao.type = 'button';
       botao.addEventListener('click', () => {
         botao.disabled = true;
+        const terminarAcao = iniciarAcao(botao);
+        estado.textContent = 'Registrando confirmação…';
         void (async () => {
           try {
             const registro = await servico.confirmar(pacienteId, {
@@ -207,6 +209,8 @@ export function montarExportacao(
             }
             estado.textContent = mensagemFalha(erro);
             botao.disabled = false;
+          } finally {
+            terminarAcao();
           }
         })();
       });
@@ -219,6 +223,7 @@ export function montarExportacao(
     evento.preventDefault();
     if (!destinatario.value.trim() || !proposito.value.trim()) return;
     enviar.disabled = true;
+    const terminarAcao = iniciarAcao(enviar);
     estado.textContent = 'Registrando a exportação…';
     void (async () => {
       try {
@@ -240,6 +245,7 @@ export function montarExportacao(
         }
         estado.textContent = mensagemFalha(erro);
       } finally {
+        terminarAcao();
         if (vivo) enviar.disabled = false;
       }
     })();

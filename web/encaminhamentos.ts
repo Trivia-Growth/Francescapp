@@ -1,6 +1,6 @@
 import type { Encaminhamento } from '../packages/contracts/src/encaminhamento.ts';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
-import { esqueletoCarregando } from './esqueleto.js';
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import {
   montarEncaminhamentosLocais,
   type DadosEncaminhamento,
@@ -98,19 +98,27 @@ export function montarEncaminhamentos(
       montarEncaminhamentosLocais(corpo, {
         encaminhamentos,
         aoRegistrar: async (valores) => {
+          const botao = corpo.querySelector<HTMLButtonElement>('button[type=submit]');
+          const terminarAcao = botao ? iniciarAcao(botao) : () => {};
           try {
             return comoLocal(await gravar(undefined, valores));
           } catch (erro) {
             if (descartarAcesso(erro)) throw erro;
             throw new Error(mensagemFalha(erro));
+          } finally {
+            terminarAcao();
           }
         },
         aoAtualizar: async (id, valores) => {
+          const botao = corpo.querySelector<HTMLButtonElement>('button[type=submit]');
+          const terminarAcao = botao ? iniciarAcao(botao) : () => {};
           try {
             comoLocal(await gravar(id, valores));
           } catch (erro) {
             if (descartarAcesso(erro)) throw erro;
             throw new Error(mensagemFalha(erro));
+          } finally {
+            terminarAcao();
           }
         },
       });
@@ -118,6 +126,7 @@ export function montarEncaminhamentos(
     } catch (erro) {
       if (!ativa || descartarAcesso(erro)) return;
       status.textContent = mensagemFalha(erro);
+      raiz.replaceChildren(status);
     }
   })();
 

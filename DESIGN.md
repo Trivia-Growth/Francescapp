@@ -83,7 +83,7 @@ components:
 
 **Creative North Star: "Mesa de coordenação serena"**
 
-A referência provisória é o mock existente: leitura ampla, fundo claro, oliva e poucos elementos competindo pela atenção. A carteira se apresenta em linhas, com a agenda como apoio, em vez de um painel repetitivo de cartões de indicadores.
+A referência provisória é o mock existente: leitura ampla, fundo claro, oliva e poucos elementos competindo pela atenção. A carteira apresenta os dados disponíveis em cartões brancos, com duas colunas no desktop e uma no celular.
 
 Atualizado em 15/10/2026: o solicitante confirmou o nome **FFCMApp** e forneceu logos e paleta. [Materiais e limites de uso](docs/projeto/identidade-visual.md); originais em [assets/brand/francescato](assets/brand/francescato/). Os tokens `brand-*` são cores extraídas das imagens, ainda sem códigos de manual. Os demais tokens e os componentes descrevem o mock, não uma migração de marca já executada. Fontes e desenho dos componentes continuam provisórios.
 
@@ -93,7 +93,7 @@ A fonte da interface documentada é [o CSS da demonstração arquivada](docs/leg
 
 - Superfícies claras e apoio tonal suave.
 - Títulos editoriais com texto funcional legível.
-- Casos e relatos em linhas, sem profundidade ornamental.
+- Casos em cartões de borda fina; relatos e listas usam divisórias discretas.
 - Ações simples e foco visível.
 
 ## Colors
@@ -120,7 +120,7 @@ Os estados do mock também usam âmbar, azul e rosa. Não constituem classifica�
 
 ## Typography
 
-Cormorant Garamond nos títulos, com fallback Georgia/serif; o CSS usa o alias local `Cormorant`. Raleway no corpo, controles e formulários, com fallback Arial/sans-serif. As fontes e licenças do mock estão em `docs/legacy/mockup/source/assets/`; cópias licenciadas usadas apenas pela proposta comercial estão em `assets/fonts/`.
+Cormorant Garamond nos títulos, com fallback Georgia/serif; o CSS usa a família local `Cormorant Garamond`. Raleway no corpo, controles e formulários, com fallback Arial/sans-serif. As fontes e licenças do mock estão em `docs/legacy/mockup/source/assets/`; cópias licenciadas usadas apenas pela proposta comercial estão em `assets/fonts/`.
 
 Essas são fontes do mock, não fontes oficiais identificadas nas imagens. Não inferir a tipografia do produto a partir das letras dos logos. Preservar logos como recebidos e pedir fontes/licenças ou confirmação da tipografia provisória.
 
@@ -130,21 +130,21 @@ Papéis-base no frontmatter. No celular, o título principal passa a (42px); o c
 
 ## Layout
 
-Sidebar desktop (248px), conteúdo com máximo (1460px) e padding (50px 56px 72px). Carteira principal e apoio de agenda (330px), com gap (64px). Até (1200px), sidebar (220px), conteúdo (42px 36px 62px) e gap (36px).
+Sidebar branca no desktop (248px), recolhível a 80px, com conteúdo em superfície clara. A carteira usa duas colunas e ferramentas compactas com filtros expansíveis.
 
-Até (760px), menu recolhido, conteúdo (34px 22px 56px) e colunas de carteira/apoio em uma coluna. Topbar (92px desktop, 78px celular). O código possui regras antigas em (980px) e (760px), depois sobrescritas por refinamentos; larguras intermediárias precisam de revisão, não cópia cega.
+Até 760px, navegação vira gaveta e cartões passam a uma coluna. O alerta de ambiente continua visível.
 
 O mock não define as jornadas completas de configuração, cadastro, convite ou erro. Layout de demonstração não é requisito funcional. Novas telas priorizam tarefas e leitura, sem assumir composição de landing page.
 
 ## Elevation & Depth
 
-Linhas de caso e diário são planas, com separador inferior, sem sombra. Painéis auxiliares usam diferença tonal, não elevação. Diálogo tem sombra (0 25px 90px #26301e2b), backdrop escurecido e blur (3px).
+Cartões de caso são brancos, com borda fina e sem sombra; listas e diário usam separadores. Painéis auxiliares usam diferença tonal discreta; diálogos usam backdrop escurecido.
 
 **The Quiet Surface Rule.** Preservar a composição serena do mock; não transformar todos os blocos em cartões elevados.
 
 ## Shapes
 
-Controles discretamente arredondados; raios no frontmatter. Casos e relatos usam cantos retos e divisórias. Avatares são circulares. Chips arredondados não substituem texto para explicar estados.
+Controles discretamente arredondados; raios no frontmatter. Cartões de caso usam cantos arredondados; relatos usam divisórias. Avatares são circulares. Chips arredondados não substituem texto para explicar estados.
 
 ## Components
 

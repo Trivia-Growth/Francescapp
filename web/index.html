@@ -93,7 +93,8 @@
 
       <section id="patients-view" class="patients-layout" aria-label="Pacientes" hidden>
         <aside id="patients-sidebar" class="patients-sidebar" aria-label="Área de trabalho">
-          <div class="sidebar-brand"><span>FFCMApp</span><small>FRANCESCATO</small></div>
+          <div class="sidebar-brand"><img src="./assets/ffcm-logo-branco.jpg" width="64" height="64" alt="Francescato"><span>FFCMApp</span></div>
+          <button id="collapse-sidebar" class="sidebar-collapse" type="button" aria-controls="patients-sidebar" aria-expanded="true" aria-label="Recolher navegação"><span aria-hidden="true">‹</span></button>
           <p class="sidebar-label" id="sidebar-label">Área de trabalho</p>
           <nav class="sidebar-nav" aria-labelledby="sidebar-label">
             <a id="nav-home" class="sidebar-link" href="#home" aria-current="page">Seu dia</a>
@@ -114,12 +115,15 @@
           <section id="agenda-individual" class="agenda-individual" aria-label="Minha agenda" hidden></section>
           <div id="workspace" class="workspace">
             <section class="patient-register" aria-labelledby="list-title">
-              <div class="section-heading"><h2 id="list-title">Lista de pacientes</h2><button id="reload-patients" class="button-secondary" type="button">Atualizar lista</button></div>
+              <div class="section-heading"><h2 id="list-title" class="sr-only">Lista de pacientes</h2></div>
+              <div class="carteira-tools">
               <div id="filtros-carteira" hidden></div>
               <div id="busca" class="busca" hidden>
                 <label for="busca-pacientes">Buscar por nome</label>
                 <input id="busca-pacientes" type="search" autocomplete="off" maxlength="200" aria-describedby="busca-aviso">
                 <p id="busca-aviso" class="small-text">Filtra os pacientes desta página enquanto você digita.</p>
+              </div>
+              <button id="reload-patients" class="button-quiet" type="button">Atualizar lista</button>
               </div>
               <p id="list-status" class="list-status" role="status" aria-live="polite" aria-atomic="true"></p>
               <div id="list-loading" class="list-loading" aria-hidden="true" hidden><span></span><span></span><span></span></div>

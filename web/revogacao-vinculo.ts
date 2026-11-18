@@ -1,3 +1,5 @@
+import { iniciarAcao } from './esqueleto.js';
+
 /** A autorização permanece no servidor. Reconsulta informa somente o estado observado. */
 export function montarRevogacaoVinculo(
   raiz: HTMLElement,
@@ -44,6 +46,7 @@ export function montarRevogacaoVinculo(
     if (!window.confirm(`Revogar o acesso de ${atual.nome}?`)) return;
     enviando = true;
     botao.disabled = true;
+    const terminarAcao = iniciarAcao(botao);
     status.textContent = 'Enviando revogação…';
     let perdeuAcesso = false;
     let concluida = false;
@@ -66,6 +69,7 @@ export function montarRevogacaoVinculo(
         status.textContent =
           'Resultado desconhecido. O pedido ainda pode ser concluído. Consulte o estado atual antes de agir.';
       } finally {
+        terminarAcao();
         if (ativa && !perdeuAcesso) {
           try {
             await atualizarVinculos();

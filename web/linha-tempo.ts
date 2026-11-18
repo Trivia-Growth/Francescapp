@@ -5,7 +5,7 @@ import type {
 } from '../packages/contracts/src/linha-tempo.js';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { dataDeInstante } from './datas.js';
-import { esqueletoCarregando } from './esqueleto.js';
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 
 export type ServicoLinhaTempo = {
   consultar(pacienteId: string, filtros?: FiltrosLinhaTempo): Promise<LinhaTempo>;
@@ -72,6 +72,7 @@ export function montarLinhaTempo(
   let vivo = true;
   let filtros: FiltrosLinhaTempo = {};
   let acumulado: ItemLinhaTempo[] = [];
+  let cargaVisual = 0;
 
   const secao = elemento('section', undefined, 'secao-linha-tempo');
   const titulo = elemento('h3', 'Linha do tempo');
@@ -158,6 +159,9 @@ export function montarLinhaTempo(
   }
 
   async function carregar(continuar: boolean): Promise<void> {
+    const carga = ++cargaVisual;
+    lista.setAttribute('aria-busy', 'true');
+    const finalizar = continuar ? iniciarAcao(mais) : undefined;
     if (!continuar) {
       acumulado = [];
       lista.replaceChildren(esqueletoCarregando(4));
@@ -194,6 +198,8 @@ export function montarLinhaTempo(
       lista.replaceChildren();
       estado.textContent = mensagemFalha(erro);
     } finally {
+      finalizar?.();
+      if (carga === cargaVisual) lista.removeAttribute('aria-busy');
       if (vivo) mais.disabled = false;
     }
   }

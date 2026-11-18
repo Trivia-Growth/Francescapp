@@ -1,3 +1,4 @@
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import {
   avisoSinalOperacional,
   rotulosEstadoPendencia,
@@ -67,6 +68,13 @@ export function montarPendenciasCaso(
 ): () => void {
   let ativa = true;
   let equipe: ResponsavelOpcao[] = [];
+  let gravacaoEmCurso = false;
+  const atualizarControles = () => {
+    for (const campo of raiz.querySelectorAll<HTMLButtonElement | HTMLSelectElement>(
+      '.pendencia-acoes button, .pendencia-acoes select, .pendencia-acordo button[type=submit]',
+    ))
+      campo.disabled = gravacaoEmCurso;
+  };
   const descartarAcesso = (erro: unknown): boolean => {
     if (!exigeNovoAcesso(erro)) return false;
     ativa = false;
@@ -77,11 +85,12 @@ export function montarPendenciasCaso(
 
   const status = elemento('p', 'Carregando pendências…', 'visao-estado');
   status.setAttribute('role', 'status');
-  raiz.replaceChildren(status);
+  const carregamento = esqueletoCarregando(3, true);
+  raiz.replaceChildren(status, carregamento);
 
   const desenharPendencia = (
     pendencia: Pendencia,
-    aplicar: (tratativa: TratarPendencia) => void,
+    aplicar: (tratativa: TratarPendencia, controle: HTMLElement) => void,
   ): HTMLElement => {
     const item = elemento('li', undefined, 'pendencia-item');
     item.dataset.tipo = pendencia.tipo;
@@ -113,12 +122,15 @@ export function montarPendenciasCaso(
           if (opcao.ativo) selecao.append(new Option(opcao.rotulo, opcao.usuario_id));
         selecao.addEventListener('change', () => {
           if (!selecao.value) return;
-          aplicar({
-            tipo: pendencia.tipo,
-            chave_origem: pendencia.chave_origem,
-            acao: 'atribuida',
-            atribuido_usuario_id: selecao.value,
-          });
+          aplicar(
+            {
+              tipo: pendencia.tipo,
+              chave_origem: pendencia.chave_origem,
+              acao: 'atribuida',
+              atribuido_usuario_id: selecao.value,
+            },
+            campo,
+          );
         });
         campo.append(selecao);
         acoes.append(campo);
@@ -127,20 +139,30 @@ export function montarPendenciasCaso(
       const botao = elemento('button', rotulo, 'button-secondary');
       botao.type = 'button';
       botao.addEventListener('click', () =>
-        aplicar({
-          tipo: pendencia.tipo,
-          chave_origem: pendencia.chave_origem,
-          acao,
-          atribuido_usuario_id: null,
-        }),
+        aplicar(
+          {
+            tipo: pendencia.tipo,
+            chave_origem: pendencia.chave_origem,
+            acao,
+            atribuido_usuario_id: null,
+          },
+          botao,
+        ),
       );
       acoes.append(botao);
     }
+    for (const controle of acoes.querySelectorAll<HTMLButtonElement | HTMLSelectElement>(
+      'button, select',
+    ))
+      controle.disabled = gravacaoEmCurso;
     if (acoes.childElementCount) item.append(acoes);
     return item;
   };
 
-  const desenharAcordo = (sinal: SinalOperacional, gravar: (acordo: SalvarAcordo) => void) => {
+  const desenharAcordo = (
+    sinal: SinalOperacional,
+    gravar: (acordo: SalvarAcordo, controle: HTMLElement) => void,
+  ) => {
     const secao = elemento('section', undefined, 'pendencia-acordo');
     secao.append(elemento('h3', 'Periodicidade acordada para este caso'));
     if (!sinal.perfil_escrita_acordo) {
@@ -214,6 +236,7 @@ export function montarPendenciasCaso(
     erroCampo.setAttribute('role', 'alert');
     const salvar = elemento('button', 'Salvar periodicidade');
     salvar.type = 'submit';
+    salvar.disabled = gravacaoEmCurso;
     formulario.append(salvar, erroCampo);
     formulario.addEventListener('submit', (evento) => {
       evento.preventDefault();
@@ -225,13 +248,16 @@ export function montarPendenciasCaso(
         return;
       }
       erroCampo.textContent = '';
-      gravar({
-        versao_esperada: sinal.acordo?.versao ?? 0,
-        dias_entre_atualizacoes: entre,
-        dias_antecedencia_revisao: Number(antecedencia.value),
-        dias_retorno_encaminhamento: Number(retorno.value),
-        proxima_revisao_em: revisao.value === '' ? null : revisao.value,
-      });
+      gravar(
+        {
+          versao_esperada: sinal.acordo?.versao ?? 0,
+          dias_entre_atualizacoes: entre,
+          dias_antecedencia_revisao: Number(antecedencia.value),
+          dias_retorno_encaminhamento: Number(retorno.value),
+          proxima_revisao_em: revisao.value === '' ? null : revisao.value,
+        },
+        salvar,
+      );
     });
     secao.append(formulario);
     return secao;
@@ -260,33 +286,55 @@ export function montarPendenciasCaso(
     const aviso = elemento('p', '', 'visao-estado');
     aviso.setAttribute('role', 'status');
 
-    const aplicar = (tratativa: TratarPendencia) => {
+    const aplicar = (tratativa: TratarPendencia, controle: HTMLElement) => {
+      if (gravacaoEmCurso) return;
+      gravacaoEmCurso = true;
+      atualizarControles();
+      const finalizar = iniciarAcao(controle);
       aviso.textContent = 'Registrando…';
-      servico.tratar(pacienteId, tratativa).then(
-        (atualizado) => {
-          if (!ativa) return;
-          desenhar(atualizado);
-        },
-        (erro: unknown) => {
-          if (!ativa || descartarAcesso(erro)) return;
-          aviso.textContent = mensagemFalha(erro);
-          aviso.dataset.tone = 'error';
-        },
-      );
+      servico
+        .tratar(pacienteId, tratativa)
+        .then(
+          (atualizado) => {
+            if (!ativa) return;
+            desenhar(atualizado);
+          },
+          (erro: unknown) => {
+            if (!ativa || descartarAcesso(erro)) return;
+            aviso.textContent = mensagemFalha(erro);
+            aviso.dataset.tone = 'error';
+          },
+        )
+        .finally(() => {
+          finalizar();
+          gravacaoEmCurso = false;
+          atualizarControles();
+        });
     };
-    const gravarAcordo = (acordo: SalvarAcordo) => {
+    const gravarAcordo = (acordo: SalvarAcordo, controle: HTMLElement) => {
+      if (gravacaoEmCurso) return;
+      gravacaoEmCurso = true;
+      atualizarControles();
+      const finalizar = iniciarAcao(controle);
       aviso.textContent = 'Salvando periodicidade…';
-      servico.acordar(pacienteId, acordo).then(
-        (atualizado) => {
-          if (!ativa) return;
-          desenhar(atualizado);
-        },
-        (erro: unknown) => {
-          if (!ativa || descartarAcesso(erro)) return;
-          aviso.textContent = mensagemFalha(erro);
-          aviso.dataset.tone = 'error';
-        },
-      );
+      servico
+        .acordar(pacienteId, acordo)
+        .then(
+          (atualizado) => {
+            if (!ativa) return;
+            desenhar(atualizado);
+          },
+          (erro: unknown) => {
+            if (!ativa || descartarAcesso(erro)) return;
+            aviso.textContent = mensagemFalha(erro);
+            aviso.dataset.tone = 'error';
+          },
+        )
+        .finally(() => {
+          finalizar();
+          gravacaoEmCurso = false;
+          atualizarControles();
+        });
     };
 
     const abertas = sinal.pendencias.filter((item) => item.estado !== 'resolvida');
@@ -344,6 +392,7 @@ export function montarPendenciasCaso(
       desenhar(sinal);
     } catch (erro) {
       if (!ativa || descartarAcesso(erro)) return;
+      carregamento.remove();
       status.textContent = mensagemFalha(erro);
       status.dataset.tone = 'error';
     }

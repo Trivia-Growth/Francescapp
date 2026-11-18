@@ -1,3 +1,15 @@
+function iniciarAcao(botao) {
+  const indicador = document.createElement('span');
+  indicador.className = 'loading-indicator';
+  indicador.setAttribute('aria-hidden', 'true');
+  botao.setAttribute('aria-busy', 'true');
+  botao.append(indicador);
+  return () => {
+    indicador.remove();
+    botao.removeAttribute('aria-busy');
+  };
+}
+
 const form = document.querySelector('#consulta');
 const convite = document.querySelector('#convite');
 const tentativa = document.querySelector('#tentativa');
@@ -141,6 +153,7 @@ criacao.addEventListener('submit', async (evento) => {
   criarBotao.disabled = true;
   novo.disabled = true;
   criacaoStatus.textContent = 'Registrando convite…';
+  const finalizar = iniciarAcao(criarBotao);
   try {
     const resposta = await fetch('/api/admin/convites-familiares', {
       method: 'POST',
@@ -173,6 +186,7 @@ criacao.addEventListener('submit', async (evento) => {
     criacaoStatus.textContent =
       'Não foi possível confirmar o resultado. Consulte a tentativa antes de iniciar outro convite.';
   } finally {
+    finalizar();
     criarBotao.disabled = false;
     novo.disabled = false;
   }
@@ -203,6 +217,7 @@ form.addEventListener('submit', async (evento) => {
   url.searchParams.set('tentativa', tentativa.value.trim());
   botao.disabled = true;
   status.textContent = 'Consultando…';
+  const finalizar = iniciarAcao(botao);
   try {
     const resposta = await fetch(url, {
       credentials: 'same-origin',
@@ -217,6 +232,7 @@ form.addEventListener('submit', async (evento) => {
   } catch {
     status.textContent = 'Não foi possível consultar. Verifique seu acesso e tente novamente.';
   } finally {
+    finalizar();
     botao.disabled = false;
   }
 });
@@ -236,6 +252,7 @@ cancelarAutorizacao.addEventListener('click', async () => {
   }
   cancelarAutorizacao.disabled = true;
   status.textContent = 'Cancelando autorização…';
+  const finalizar = iniciarAcao(cancelarAutorizacao);
   try {
     const resposta = await fetch('/api/admin/convites-familiares/cancelamento', {
       method: 'POST',
@@ -259,6 +276,7 @@ cancelarAutorizacao.addEventListener('click', async () => {
     status.textContent =
       'Não foi possível confirmar o cancelamento. Verifique a situação antes de continuar.';
   } finally {
+    finalizar();
     cancelarAutorizacao.disabled = false;
   }
 });
