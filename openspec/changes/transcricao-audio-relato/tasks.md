@@ -164,9 +164,9 @@
 
 ## 6. Limitações registradas
 
-- [ ] 6.1 Prazo de 30 dias do áudio abandonado: a coluna `expira_em` é gravada e há índice
-  parcial para a varredura, mas **não existe rotina que apague e avise**. O requisito pede
-  "prazo de 30 dias com aviso"; hoje só o prazo está registrado.
+- [ ] 6.1 Prazo de 30 dias do áudio abandonado com aviso: rotina privada, scheduler e
+  aviso administrativo implementados; falta comprovar o aviso na jornada autenticada
+  publicada. **Expurgo desligado** preserva a trava não destrutiva desta execução.
 
   **Decidido em 17/11/2026: o expurgo roda em `pg_cron`, no próprio Supabase.** É o recurso
   nativo que a diretriz de 01/11/2026 manda preferir, roda perto do dado e mantém o expurgo
@@ -193,8 +193,11 @@ e CREATE preexistente no schema; remove somente concessões temporárias própri
 Prova focal com migrador NOSUPERUSER, sem SET/CREATE prévios e com SET/CREATE prévios,
 compara snapshot integral de pg_auth_members e ACL do schema antes/depois: exit 0 /
 `AUDIO_EXPURGO_AVISO_ADMIN_OK`. Sem TypeScript alterado nesta correção; quick não repetido.
-Sem aplicação dessa migration, prova UI real, scheduler remoto ou ativação funcional remota;
-6.1 permanece aberta até revisão independente e evidência remota autorizada.
+Revisão independente dos dois eixos concluída; P2 de grants resolvido e runner SQL
+reexecutado pelo revisor, saída 0. Migration `25070000` aplicada e registrada no remoto,
+owner esperado, EXECUTE `authenticated` e negativas `anon`/`service_role` conferidos.
+Isso não prova autorização funcional por identidade. **6.1 permanece aberta:** aviso
+na jornada autenticada publicada e ativação funcional ainda pendentes.
 
 - [ ] 6.2 Estado `falha` da exclusão não é alcançável nesta fatia. Ver `design.md`, seção
   "Estado `falha` da exclusão". O que o requisito exige de fato — não apresentar
@@ -217,8 +220,9 @@ linha e recibo em `operacao.audio_expurgo_execucao` registra contagem de pendên
 Prova `scripts/testar-audio-expurgo-local.sh`: exit 0 / `AUDIO_EXPURGO_OK`, incluindo matriz
 existente de autorização da transcrição; vencido excluído com aviso, vigente preservado,
 papéis da aplicação sem execução/marcador, falha de auditoria preserva áudio e registra falha.
-Extensão/scheduler reais não executados: teste local comprova função/RLS, não instalação cron.
-6.1 permanece aberta para revisão, aplicação e prova do job/aviso visível ao operador.
+Teste local comprova função/RLS. Na retomada, `25030000`/`25030100` aplicadas no remoto,
+job único/ativo confirmado e execução de 18/11/2026 10:30 UTC `succeeded`, com flag false
+e saída antes de tocar áudios. Prova scheduler real, sem descarte; aviso publicado pendente.
 
 Cadastrar em **Configuração do sistema / Segredos das integrações** o nome
 `ffcmapp.integracao.openrouter`. Depois ligar `ffcm.transcricao.ativa`, escolher

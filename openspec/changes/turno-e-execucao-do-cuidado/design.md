@@ -196,11 +196,13 @@ profissional autenticado com vínculo, com registrador derivado e executor decla
 A pendência histórica de retenção em D13 foi resolvida por 0.14: 90 dias. Essas correções
 de leitura não autorizam começar implementação de grupos posteriores.
 
-**Estado remoto informado pela coordenação, não observado nesta auditoria:** sete migrations
+**Estado remoto informado pela coordenação no momento da auditoria, não observado aqui:** sete migrations
 novas aplicadas, oito flags runtime ligadas, grant do executor Agenda aplicado e deploy
 `ddf2415` promovido pela UI e depois revertido: contexto de preview trouxe 503 de
 configuração operacional. O deploy anterior `76838b4` voltou publicado/LOCKED;
-novo build com contexto correto está em preparação. Isso não prova entrada funcional ou negativas reais:
+novo build com contexto correto ficou bloqueado pelos créditos da Netlify. Depois da
+auditoria, oitava migration do aviso de expurgo aplicada; estado final e limites em
+`docs/processo/relatorio-noturno-18-11-2026.md`. Isso não prova entrada funcional ou negativas reais:
 login 400/503 e gates Auth continuam pendentes. DF-022 autoriza operação no ambiente real,
 mas somente com dados fictícios; publicação não equivale a go-live nem a aprovação S-02.
 

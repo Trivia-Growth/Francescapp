@@ -2,7 +2,7 @@
 
 ## Resultado observável
 
-**O objetivo publicado não foi alcançado.** Código e provas locais foram entregues;
+**O objetivo publicado não foi alcançado.** Código, provas locais e oito migrations remotas foram entregues;
 não ficou comprovado que o solicitante consegue autenticar, cadastrar uma chave e
 ativar uma integração na aplicação publicada. O PR permanece draft.
 
@@ -73,9 +73,14 @@ implementação e revisão executadas em Sol. Nenhum segredo real foi cadastrado
    Expurgo privado de áudio abandonado vencido após 30 dias preparado em `pg_cron`,
    com lote limitado, auditoria atômica e flag inicialmente desligada. Falha na
    auditoria preserva áudio. SQL provou elegibilidade, flag desligada/ligada, rollback
-   e privilégios do usuário que agenda, sem superuser. **Pendência P2:** recibo de
-   falhas do expurgo continua privado, sem aviso operacional novo na interface;
-   tarefa 6.1 não foi declarada integralmente concluída.
+   e privilégios do usuário que agenda, sem superuser. Aviso agregado de falhas
+   acrescentado à tela Credenciais das integrações, com RPC/BFF somente Administrador:
+   flag, data e contagens, sem áudio, pessoa, causa bruta ou execução de limpeza.
+   SQL local: Admin positivo; Profissional/Família, Admin revogado, acesso direto e
+   ausência de atestado negados. UI 2/2 e BFF/entrada 11/11. Revisão independente
+   corrigiu preservação de grants; prova NOSUPERUSER com/sem privilégios anteriores
+   passou também em execução independente. Migration `25070000` aplicada no remoto;
+   aviso ainda não comprovado na jornada publicada, mantendo 6.1 aberta.
    Compatibilidade documental do adapter confirmada na [documentação oficial STT](https://openrouter.ai/docs/guides/overview/multimodal/stt):
    multipart e resposta `text`. Consulta pública, sem chave/áudio, confirmou dois IDs
    Whisper no [catálogo STT](https://openrouter.ai/api/v1/models?output_modalities=transcription).
@@ -91,8 +96,8 @@ implementação e revisão executadas em Sol. Nenhum segredo real foi cadastrado
    passou, assim como state e privilégios. Teste de escrita 7/7 e derivação de chaves
    1/1. OAuth, ACL e CRUD Google reais permanecem não comprovados.
 
-`pnpm run verificar:ativacao` repetido após correções de saúde/migration:
-**saída 0**, 1.365 testes passaram, 30 pulados pelo
+`pnpm run verificar:ativacao` executado novamente após novo contrato/RPC do aviso:
+**saída 0**, 1.369 testes passaram, 30 pulados pelo
 gate genérico; lint, typechecks, Deno e build passaram. Pulos não são aprovação:
 as matrizes SQL relevantes acima foram executadas separadamente. Auth e Vault dos
 testes locais usam fixtures fictícias. `pnpm run verificar:rapido` final e pre-push:
@@ -159,11 +164,17 @@ Não cadastrar nenhum valor em SQL, terminal, PR ou relatório.
 - Netlify mostrava publicação automática bloqueada e main anterior publicada.
   Preview do PR foi construído, mas exige autenticação (HTTP 401 na verificação
   anônima). CI `verificar-ativacao` no PR draft foi SKIPPED; não conta como evidência.
+- Na retomada, o painel Netlify informou esgotamento dos créditos disponíveis,
+  uso de créditos operacionais e **production deploys pausados**. Não houve compra,
+  upgrade nem alteração de limites. A configuração temporária de Production branch
+  foi restaurada para `main` e conferida após recarregar o painel. O deploy anterior
+  `76838b4` permanece publicado/LOCKED; previews não substituem o contexto necessário.
+  [Evidência do painel](evidencias-noturnas-18-11-2026/netlify-creditos-pausados.png).
 
 ### Retomada remota da manhã
 
-As sete migrations `20261125010000`, `20261125020000`, `20261125030000`,
-`20261125030100`, `20261125040000`, `20261125050000` e `20261125060000` foram
+As oito migrations `20261125010000`, `20261125020000`, `20261125030000`,
+`20261125030100`, `20261125040000`, `20261125050000`, `20261125060000` e `20261125070000` foram
 aplicadas no projeto de teste. Cada uma executou o source exato dentro de `BEGIN`,
 com registro da migration na mesma transação; cada confirmação JSON informou
 `registrada: true`. Isso atualiza o bloqueio anterior de aplicação remota, sem
@@ -177,6 +188,15 @@ declarar integração ou ativação funcional comprovada.
 - `25050000`: wrapper privado, executor sem acesso direto ao Vault e flag Agenda
   `false` confirmados.
 - `25060000`: catálogo publicado confirmado, sem troca do modelo escolhido.
+- `25070000`: aviso administrativo instalado, owner esperado e EXECUTE para
+  `authenticated`; `anon`/`service_role` negados. Exige autorização Admin na RPC.
+
+Conferência final do registry: oito versões presentes. Job único e ativo;
+execução de **18/11/2026 10:30 UTC** terminou `succeeded` com expurgo desligado.
+Prova scheduler real/saída antecipada, sem descarte. Consulta estrutural
+`scripts/diagnosticar-fronteiras-remotas.sql`: **16/16 wrappers e 26/26 tabelas**,
+arrays de divergências vazios. Agenda usa ACL privada; não se afirmou RLS em todas
+as tabelas. Esse diagnóstico não prova autorização funcional por identidade.
 
 As oito flags de ficha/edição/contato, contexto, rede, diário, saúde e crise já
 estavam `true`; não foram alteradas por SQL. O login técnico existente foi
@@ -189,8 +209,8 @@ Uma promoção manual do preview `ddf2415` preservou o contexto de preview e tro
 503 `configuracao_indisponivel` nas rotas administrativas, antes da autorização.
 A publicação anterior `76838b4` foi restaurada, ainda LOCKED: raiz 200 e negativa
 anônima de configuração novamente 401. Não confundir esse 503 de configuração
-operacional com a falha 6.7 de sessão válida. Está em preparação um build com
-contexto correto; nenhuma variável ou credencial foi copiada.
+operacional com a falha 6.7 de sessão válida. Build com contexto correto bloqueado
+pelos créditos da Netlify; nenhuma variável ou credencial foi copiada.
 
 Login na raiz continua com
 HTTP 400 reproduzido; causa não estabelecida. Sem linha de log do 503. Nenhum segredo
@@ -240,8 +260,8 @@ aprovada antes da implementação, conforme evidência do bloco 2.
 - **SUPOSIÇÃO CONSERVADORA — cadastro:** usa sessão BFF/cookie existente e catálogo
   fechado; presença no Vault não valida segredo no provedor.
 - **SUPOSIÇÃO CONSERVADORA — expurgo:** instalar job é separado de executar limpeza;
-  flag false preserva trava não destrutiva. Aviso fica no registro auditado/recibo
-  privado nesta passagem; aviso de falha na interface permanece pendente.
+  flag false preserva trava não destrutiva. Aviso usa recibo auditado e contagens
+  administrativas; entrega da interface publicada permanece pendente.
 - **SUPOSIÇÃO CONSERVADORA — Agenda:** chaves de state, cookie e desconexão derivadas
   por HKDF SHA-256 do HMAC existente, com domínio/versionamento e finalidades
   separadas. Não gerar nem exigir credencial técnica adicional.
@@ -257,8 +277,12 @@ aprovada antes da implementação, conforme evidência do bloco 2.
 - **SUPOSIÇÃO OPERACIONAL — publicação:** usar temporariamente a branch de trabalho
   como Production branch da Netlify para gerar artefato com contexto `production`,
   preservando o deploy anterior LOCKED e os escopos das variáveis existentes.
-  Restaurar a configuração de branch para `main` antes de encerrar a operação.
+  A configuração de branch foi restaurada para `main` e conferida após recarga.
   Nenhuma mudança de plano, ambiente contratado ou credencial está incluída.
+- **SUPOSIÇÃO OPERACIONAL — runtime:** o login técnico existente foi identificado
+  pelo histórico operacional e suas memberships; não se leu o valor da variável de
+  conexão. O grant Agenda ficou restrito a esse login já provisionado. Prova do
+  caminho integrado continua pendente, sem presumir a configuração do deploy.
 
 Hipóteses anteriores preservadas, sem nova decisão silenciosa: diário considera
 coordenação colaboradores vinculados; saúde não proíbe combinação `relato_leigo` +
@@ -267,11 +291,13 @@ operação atômica e nascimento não futuro em UTC). Isso não dispensa S-02.
 
 ## Como testar quando acesso operacional for restabelecido
 
-1. Conferir grants do runtime e grant estreito revisado da Agenda; as sete migrations
-   novas já foram aplicadas no projeto de teste. **Não executar
-   scripts locais de bootstrap/fixtures contra o remoto**: usam banco descartável.
-2. Publicar deploy específico, sem desbloquear globalmente publicação automática.
-   Corrigir login/503 somente após colher etapa/causa/request_id e evidência.
+1. Conferir as oito migrations e o grant Agenda já aplicados no projeto de teste.
+   Não reaplicar migrations históricas. **Não executar scripts locais de
+   bootstrap/fixtures contra o remoto**: usam banco descartável.
+2. Após restabelecer a capacidade de deploy da Netlify, gerar artefato do commit
+   revisado com contexto `production` e publicá-lo sem desbloquear globalmente
+   publicação automática. Promover preview conserva o contexto e não resolve os
+   escopos de configuração. Corrigir login/503 após colher etapa/causa/request_id.
 3. Com dados fictícios, provar Administrador positivo e Profissional/Família
    negativos no servidor **e banco remoto**, incluindo acesso direto e revogação.
 4. Entrar como Administrador, abrir Credenciais das integrações e cadastrar uma
@@ -286,8 +312,8 @@ operação atômica e nascimento não futuro em UTC). Isso não dispensa S-02.
 
 ## Explicitamente não feito
 
-Não houve publicação comprovada da nova versão como aplicação principal,
-conserto comprovado do 503 ou do HTTP 400 de login, jornada
+Não ficou publicada a nova versão como aplicação principal: a promoção do preview
+foi revertida. Não houve conserto comprovado do 503 ou do HTTP 400 de login, jornada
 administrativa publicada, prova Auth/Vault/Google/OpenRouter reais, ativação remota
 das seis fatias, habilitação operacional de case managers, S-02 nem teste visual
   integrado desktop/mobile desta entrega. Conferência visual isolada do componente
