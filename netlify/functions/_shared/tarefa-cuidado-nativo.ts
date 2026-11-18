@@ -18,7 +18,7 @@ type Autorizacao =
   | { estado: 'autorizado'; identidade: Identidade }
   | { estado: 'nao_autenticado' | 'sem_permissao' | 'servico_indisponivel' };
 export type ComandoTarefa =
-  | { operacao: 'ler'; paciente_id: string }
+  | { operacao: 'ler'; paciente_id: string; autorizacao_somente?: true }
   | {
       operacao: 'gravar';
       paciente_id: string;
@@ -87,6 +87,8 @@ export async function operarTarefaCuidadoNativo(
     )
       return erro('nao_autenticado');
     const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+    if (comando.operacao === 'ler' && comando.autorizacao_somente === true)
+      entrada.autorizacao_somente = true;
     if (comando.operacao === 'gravar') {
       const chave = chaveIdempotenciaSchema.safeParse(request.headers.get('x-chave-idempotencia'));
       const tarefa = tarefaCuidadoSchema.safeParse(comando.tarefa);
@@ -177,6 +179,10 @@ export async function operarTarefaCuidadoNativo(
     if (!resposta.ok) return erro(resposta.erro.codigo);
     const registros = Array.isArray(resposta.dados) ? resposta.dados : [resposta.dados];
     if ((comando.operacao === 'ler') !== Array.isArray(resposta.dados)) throw new Error();
+    // A migration de capability confirma autorização sem selecionar conteúdo de tarefas.
+    // Resposta com registros indica contrato incompatível: nunca decifrar como fallback.
+    if (comando.operacao === 'ler' && comando.autorizacao_somente && registros.length !== 0)
+      throw new Error();
     if (
       comando.operacao === 'gravar' &&
       (registros.length !== 1 ||

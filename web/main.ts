@@ -19,6 +19,7 @@ import { criarServicoPlanoHttp } from './servico-plano-http.js';
 import { criarServicoEdicaoPacienteHttp } from './servico-edicao-paciente-http.js';
 import { montarTarefasCuidado } from './tarefas-cuidado.js';
 import { criarServicoTarefasHttp } from './servico-tarefas-http.js';
+import { montarTarefasComDisponibilidade } from './integracao-tarefas-disponibilidade.js';
 import { correspondeBuscaPacienteLocal } from './busca-pacientes-local.js';
 import {
   criarAvatar,
@@ -505,59 +506,65 @@ function montarSecaoTarefas(
   pendente: (valor: boolean) => void,
 ): () => void {
   const servicoTarefas = criarServicoTarefasHttp(identidadeAtual);
-  // Escrita permanece indisponível até existir capability validada no servidor.
-  const escritaDisponivel = false;
-  const cicloTarefas = escritaDisponivel
-    ? criarCicloTarefaCuidado({
-        identidadeAtual,
-        consultar: () => api.consultarBarreiraTarefa(),
-        reservar: async (entrada) => (await api.reservarBarreiraTarefa(entrada)).estado,
-        encerrar: async (entrada) => (await api.encerrarBarreiraTarefa(entrada)).estado,
-        reconhecer: async (entrada) => (await api.reconhecerBarreiraTarefa(entrada)).estado,
-        gravar: async ({
-          paciente_id,
-          tarefa_id,
-          versao_esperada,
-          tarefa,
-          chave,
-          reserva_id,
-          epoca,
-        }) => {
-          const reserva = { reserva_id, geracao_reserva: epoca };
-          if (versao_esperada === 0)
-            await servicoTarefas.criarTarefa(paciente_id, tarefa_id, chave, tarefa, reserva);
-          else
-            await servicoTarefas.atualizarTarefa(
+  return montarTarefasComDisponibilidade(raiz, pacienteId, {
+    identidadeAtual,
+    casoAtual: () => fichaPaciente?.id ?? null,
+    consultarDisponibilidade: servicoTarefas.consultarDisponibilidade,
+    acessoPerdido,
+    montar: (destino, escritaDisponivel, identidadeDaSecao) => {
+      const cicloTarefas = escritaDisponivel
+        ? criarCicloTarefaCuidado({
+            identidadeAtual: identidadeDaSecao,
+            consultar: () => api.consultarBarreiraTarefa(),
+            reservar: async (entrada) => (await api.reservarBarreiraTarefa(entrada)).estado,
+            encerrar: async (entrada) => (await api.encerrarBarreiraTarefa(entrada)).estado,
+            reconhecer: async (entrada) => (await api.reconhecerBarreiraTarefa(entrada)).estado,
+            gravar: async ({
               paciente_id,
               tarefa_id,
               versao_esperada,
-              chave,
               tarefa,
-              reserva,
-            );
+              chave,
+              reserva_id,
+              epoca,
+            }) => {
+              const reserva = { reserva_id, geracao_reserva: epoca };
+              if (versao_esperada === 0)
+                await servicoTarefas.criarTarefa(paciente_id, tarefa_id, chave, tarefa, reserva);
+              else
+                await servicoTarefas.atualizarTarefa(
+                  paciente_id,
+                  tarefa_id,
+                  versao_esperada,
+                  chave,
+                  tarefa,
+                  reserva,
+                );
+            },
+          })
+        : null;
+      return montarTarefasCuidado(
+        destino,
+        pacienteId,
+        {
+          consultarTarefas: servicoTarefas.consultarTarefas,
+          ...(cicloTarefas
+            ? {
+                ciclo: cicloTarefas,
+                criarTarefa: async (paciente, tarefa, _chave, dados) => {
+                  await cicloTarefas.gravar(paciente, tarefa, 0, dados);
+                },
+                atualizarTarefa: async (paciente, tarefa, versao, _chave, dados) => {
+                  await cicloTarefas.gravar(paciente, tarefa, versao, dados);
+                },
+              }
+            : {}),
         },
-      })
-    : null;
-  return montarTarefasCuidado(
-    raiz,
-    pacienteId,
-    {
-      consultarTarefas: servicoTarefas.consultarTarefas,
-      ...(cicloTarefas
-        ? {
-            ciclo: cicloTarefas,
-            criarTarefa: async (paciente, tarefa, _chave, dados) => {
-              await cicloTarefas.gravar(paciente, tarefa, 0, dados);
-            },
-            atualizarTarefa: async (paciente, tarefa, versao, _chave, dados) => {
-              await cicloTarefas.gravar(paciente, tarefa, versao, dados);
-            },
-          }
-        : {}),
+        acessoPerdido,
+        pendente,
+      );
     },
-    acessoPerdido,
-    pendente,
-  );
+  });
 }
 
 function montarSecaoCadastro(
@@ -895,6 +902,20 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
           ),
           acessoPerdido,
           pendente,
+          [],
+          async (pacienteId, cursor) => {
+            const pagina = await criarServicoPlanoHttp(identidadeAtual).consultarObjetivos(
+              pacienteId,
+              cursor,
+            );
+            return {
+              itens: pagina.itens.map((registro) => ({
+                id: registro.objetivo_id,
+                titulo: registro.objetivo.descricao,
+              })),
+              proximo_cursor: pagina.proximo_cursor,
+            };
+          },
         ),
     },
     {
