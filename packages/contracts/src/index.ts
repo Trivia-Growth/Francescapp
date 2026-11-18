@@ -33,3 +33,5 @@ export * from './turno-escala.ts';
 export * from './sinal-vital.ts';
 export * from './medicacao.ts';
 export * from './ocorrencia-turno.ts';
+export * from './turno-barreira.ts';
+export * from './turno-barreira-servidor.ts';

@@ -149,6 +149,41 @@ Nenhuma operação remota é autorizada por este planejamento: sem deploy, sem m
 
 ## Open Questions
 
+**Retomada local de 18/11/2026:** para o grupo 2, os parâmetros são institucionais
+e reutilizam `identidade.configuracao_sistema`/Administração. As três chaves
+`ffcm.turno.duracao_padrao_minutos`, `ffcm.turno.tolerancia_atraso_minutos` e
+`ffcm.turno.tratamento_nao_encerrado` começam como texto vazio, sem duração ou
+tolerância de negócio inventada. Na abertura, duração deve ser inteiro positivo,
+tolerância inteiro não negativo e tratamento `sinalizar_pendencia`; valores são
+copiados para o turno e alterações posteriores não reescrevem o snapshot.
+`ffcm.turno.ativo` começa `false`. **SUPOSIÇÃO CONSERVADORA:** configuração
+institucional única atende ao recorte; vazio nega abertura. Não há encerramento
+automático, nem parâmetro derivado de localização.
+
+Encerramento referencia `sintese_registro_id`, preservando D6. Como o grupo 3 não
+foi iniciado, nenhuma referência ainda é aceita para efetivar encerramento:
+operação falha fechada e o turno permanece aberto. Essa preparação não conclui
+FR-055/FR-057 nem ativa a fatia. Provas locais/remotas e revisão independente
+ficam para a etapa posterior pedida pelo solicitante; não reutilizar evidência
+antiga como aprovação do novo domínio.
+
+Modelo de ameaça do recorte local: autoria/relógio forjados e replay são limitados
+por identidade derivada, entrada estrita, atestado com prazo e reserva vinculada a
+geração/chave/digest. Outro caso, vínculo revogado e sessão/concessão encerrada são
+conferidos sob locks no banco antes de replay; RLS e ausência de grants diretos
+preservam a fronteira das tabelas. Auditoria integra a transação e sua falha aborta.
+Flag desligada é conferida também no SQL, sem depender só da rota HTTP.
+
+A recusa antecipada de perfil usa RPC separada **somente para negativa**. Esta não
+exige HMAC/Vault: valida identidade e sessão Auth, limita ação e alvo, deriva o ator
+e só insere resultado `negado`, sem ler nem alterar turno. **SUPOSIÇÃO CONSERVADORA:**
+registrar uma tentativa negada diretamente por identidade autenticada não confere
+autoridade clínica; não pode registrar sucesso nem atribuir evento a terceiro.
+Isso evita carregar segredos apenas para recusar perfil, sem transformar a RPC de
+negativa em caminho de execução. Falha de auditoria retorna indisponibilidade.
+Provas positivas/negativas dessa fronteira permanecem obrigatórias e ainda não
+executadas, assim como concorrência, instalação NOSUPER e integração Auth real.
+
 Questões que não alteram specs, abordagem ou tarefas, e podem ser respondidas na implementação ou depois dela:
 
 - Paginação da série de aferições: cursor por instante ou por página. Qualquer uma atende FR-058.

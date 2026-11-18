@@ -69,6 +69,24 @@ Depende de 1.1.
 - [ ] 2.4 Garantir que instante de abertura e encerramento vêm do servidor e que instante enviado pelo cliente é descartado (decisão D2). Evidência: teste do handler enviando instante próprio e verificando que o valor persistido é o do servidor (FR-055, cenário "Instante informado pelo cliente é ignorado").
 - [ ] 2.5 Implementar os parâmetros de turno (duração padrão, tolerância de atraso, tratamento de turno não encerrado) como configuração administrada, conforme 0.4. Evidência: teste comprovando que a alteração do parâmetro muda o comportamento sem alteração de código e que turnos já registrados preservam os parâmetros vigentes à época (FR-055, cenário "Parâmetros de turno alterados sem nova versão do produto").
 - [ ] 2.6 Implementar a barreira de servidor e o handler HTTP de turno em `packages/cadastro/src/` e `netlify/functions/`, no padrão `barreira-tarefa-*`. Evidência: teste do handler cobrindo sucesso, `sem_permissao` e falha de persistência sem sucesso falso (FR-055, cenário "Falha de persistência no turno").
+- [ ] 2.7 Auditar a recusa antecipada de perfil no servidor, sem carregar o cofre
+  e sem conceder capacidade de operação à identidade recusada (FR-063/FR-039).
+  RPC restrita a registrar `negado` com ator derivado de Auth, ação fechada e alvo
+  UUID; nunca aceita resultado, autoria ou texto clínico da entrada. Evidência:
+  Família/Admin negados antes do cofre com evento confirmado; falha da auditoria
+  não vira negativa falsamente confirmada; acesso direto não forja ator/permitido
+  nem lê ou altera domínio. Execução das provas adiada nesta retomada.
+- [ ] 2.8 Preparar a concessão mínima dos wrappers para o caminho autenticado,
+  com guardas de owner, assinatura, configuração e ACL inicial, sem acesso às
+  tabelas ou ao Vault. Evidência: migration local de grant e matriz de ACL/acesso
+  positivo-negativo, executadas antes de aplicar remotamente ou ativar a fatia.
+
+**Preparação local do grupo 2 — 18/11/2026:** migrations novas `20261125080000`
+e `20261125100000`, módulos HTTP/barreira/RPC e matrizes SQL/servidor foram escritos
+por Sol. Nenhuma migration nova desta retomada aplicada; nenhum teste executado.
+`ffcm.turno.ativo` permanece desligado. Abertura/consulta e reconciliação estão
+preparadas; encerramento permanece recusado até o grupo 3 validar a síntese publicada.
+Isso mantém 2.3 e os demais critérios de aceite abertos, sem simular entrega completa.
 
 ## 3. Escala e passagem de turno
 
