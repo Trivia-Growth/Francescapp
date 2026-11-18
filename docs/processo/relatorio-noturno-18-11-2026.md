@@ -289,6 +289,14 @@ Não cadastrar nenhum valor em SQL, terminal, PR ou relatório.
   básica; consulta finita ao histórico da função `configuracao-sistema` continuou
   retornando `Unauthorized`, sem eventos. Não estabelece token inválido nem a causa
   da negativa específica dos logs. Nenhum login ou token novo foi criado.
+  Sol inspecionou apenas o código público da CLI instalada 26.0.1: o comando
+  consulta `searchSiteFunctions` antes do histórico Analytics. O erro próprio do
+  histórico seria `Failed to fetch logs: 401 Unauthorized`; a saída observada,
+  `Unauthorized`, não localiza por si só a chamada recusada. Não foram feitas
+  consultas diretas adicionais: `getSite` pode devolver configuração de ambiente,
+  e o swagger de `searchSiteFunctions` declara cada função apenas como `object`,
+  sem garantir ausência de segredos. Não se inspecionou essa resposta nem se
+  tentou contornar autorização. O caminho da CLI permanece impedido.
   Sem linha de falha com
   etapa/causa/request_id, **6.7 permanece aberta**. Não foi aplicado retry de pool
   nem correção especulativa de catálogo/grants.
