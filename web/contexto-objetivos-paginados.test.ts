@@ -103,12 +103,10 @@ it('falha de objetivos preserva rascunho/vínculos e permite tentar mesma págin
 });
 
 it('objetivo antes preservado vira escolha marcada e pode ser desvinculado explicitamente', async () => {
-  const consultar = vi
-    .fn<ConsultaObjetivosContexto>()
-    .mockResolvedValue({
-      itens: [{ id: antigo, titulo: 'Objetivo existente' }],
-      proximo_cursor: null,
-    });
+  const consultar = vi.fn<ConsultaObjetivosContexto>().mockResolvedValue({
+    itens: [{ id: antigo, titulo: 'Objetivo existente' }],
+    proximo_cursor: null,
+  });
   const { raiz, salvar } = montar(consultar, [antigo]);
   await esperar();
   const caixa = raiz.querySelector<HTMLInputElement>(`input[value="${antigo}"]`);

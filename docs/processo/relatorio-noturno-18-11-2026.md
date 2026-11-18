@@ -167,6 +167,10 @@ existente de lint/typecheck; ele identificou duas inconsistências de tipagem,
 corrigidas na união metadados/arquivo e na fixture UUID de turno. Esse hook não
 executa os testes de comportamento ou as matrizes SQL listadas acima.
 
+Na continuação de fiação de objetivos/disponibilidade, o typecheck do hook passou;
+ajustada a formatação de um teste novo apontada pelo lint. Nenhum teste de
+comportamento ou script SQL foi disparado nessa correção.
+
 ## Lista exata do que cadastrar e onde
 
 **Após resolver o acesso e conferir a publicação**, entrar como Administrador em
