@@ -20,7 +20,7 @@ it('descarta relógio forjado e recusa autoria forjada antes da composição', a
       _request: Request,
       _comando: import('./turno-nativo.ts').ComandoTurno,
       _dependencias: typeof dependencias,
-    ) => ({ ok: false as const, erro: { codigo: 'sem_permissao' }, request_id: id }),
+    ) => ({ ok: false as const, erro: { codigo: 'sem_permissao' }, request_id: id }) as const,
   );
   const entrada = criarEntradaTurnoNativa(dependencias, operar);
   expect(
@@ -39,7 +39,7 @@ it('não apresenta sucesso quando composição informa persistência incerta', a
       _request: Request,
       _comando: import('./turno-nativo.ts').ComandoTurno,
       _dependencias: typeof dependencias,
-    ) => ({ ok: false as const, erro: { codigo: 'pendencia_externa' }, request_id: id }),
+    ) => ({ ok: false as const, erro: { codigo: 'pendencia_externa' }, request_id: id }) as const,
   );
   const resposta = await criarEntradaTurnoNativa(dependencias, operar).atender(pedido(corpo));
   expect((await resposta.json()).erro.codigo).toBe('pendencia_externa');

@@ -148,6 +148,11 @@ alterações. Não cobrem download, contratos/execução de turno ou o novo avis
 Agenda. Testes positivos/negativos de autorização e RLS continuam obrigatórios
 antes da ativação; adiamento não significa aprovação nem dispensa.
 
+Nenhum gate foi disparado manualmente nesta retomada. O push preserva o hook
+existente de lint/typecheck; ele identificou duas inconsistências de tipagem,
+corrigidas na união metadados/arquivo e na fixture UUID de turno. Esse hook não
+executa os testes de comportamento ou as matrizes SQL listadas acima.
+
 ## Lista exata do que cadastrar e onde
 
 **Após resolver o acesso e conferir a publicação**, entrar como Administrador em

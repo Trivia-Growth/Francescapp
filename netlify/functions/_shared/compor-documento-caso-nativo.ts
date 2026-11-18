@@ -142,7 +142,7 @@ export async function comporDocumentoCasoNativo(
         return executarDocumentoCasoNativo(contexto.cliente, transporte);
       },
     };
-    return await noPrazo(() =>
+    return await noPrazo<Resultado>(() =>
       comando.operacao === 'entregar'
         ? entregarDocumentoCaso(pedido, comando, portas)
         : operarDocumentoCasoNativo(pedido, comando, portas),
