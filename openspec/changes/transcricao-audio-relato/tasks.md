@@ -125,10 +125,24 @@
   **Evidência:** `web/configuracao-sistema.ts` — chave de texto com `opcoes` vira `select`;
   valor fora da lista atual aparece marcado como "(fora da lista atual)" em vez de sumir.
 - [ ] 4.3 Ligar o componente em `web/main.ts` / na tela de diário.
-  **Bloqueio operacional:** o arquivo está sob edição simultânea de outras frentes; a
-  coordenação pediu para não editá-lo. O trecho exato foi entregue no resumo final, junto do
-  CSS sugerido. O componente foi desenhado para ser montado pela fatia de diário
-  (FR-008/012), que está em andamento em paralelo.
+  **Código conferido em 18/11/2026:** `web/main.ts`, seção Diário da ficha da equipe,
+  já monta `montarDiario` com `montarTranscricaoAudio`, paciente atual e
+  `criarServicoTranscricaoHttp(identidadeAtual)`. O Diário recebe somente texto revisado;
+  publicação e audiência continuam ações próprias. Família permanece por texto: autorização
+  de áudio familiar não integra este recorte. Bloqueio antigo por edição simultânea removido.
+  **Correção de ciclo de vida:** sair da montagem encerra o gravador e tracks; callback
+  `stop` e leitura assíncrona do Blob conferem montagem ativa antes de iniciar envio.
+  Respostas tardias não invalidam acesso de uma montagem seguinte.
+  **Evidência pendente:** dois testes de regressão escritos em `web/transcricao-audio.test.ts`
+  (saída durante gravação e durante leitura do arquivo), **não executados** por instrução
+  do solicitante. Lint/typecheck, navegador e leitor de tela igualmente adiados nesta passagem.
+  **Suposição UX conservadora:** somente uma gravação pendente por montagem. Nova gravação
+  fica bloqueada até revisão humana e descarte confirmado do original atual, incluindo
+  regularização de pendência/falha. Texto humano continua editável e preservado; essa trava
+  não publica nem exige publicação. Botão de revisão volta utilizável na gravação seguinte.
+  Terceiro teste escrito, **não executado**, cobre preservação do original/revisão,
+  bloqueio durante descarte pendente e liberação após regularização, sem apagar texto humano.
+  4.3 permanece aberta até validação; existência da fiação não comprova aceite.
 - [ ] 4.4 Verificação visual real no navegador e passagem de leitor de tela.
   **Pendente:** depende de 4.3 e da ativação da flag.
 
