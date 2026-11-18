@@ -183,3 +183,46 @@
   no teste de tela.
 - [ ] 6.3 Revisão de audiência antes de publicar pertence à fatia de diário. Ver
   `design.md`, seção "Audiência: o que ficou para o diário".
+
+
+## Retomada 18/11/2026 — expurgo preparado
+
+`20261125030000_audio_expurgo_privado.sql` adiciona job privado sob owner sem login/bypass,
+RLS por vencimento e revisão ausente, marcador `exclusao_por_expiracao` não gravável pelo owner
+da API e função sem EXECUTE para papéis da aplicação. Lote de até 500 com `SKIP LOCKED`,
+sem conteúdo clínico em auditoria. Apaga somente áudio abandonado vencido; conserva textos,
+autor e histórico. Auditoria `audio_expirado` registra aviso; falha desfaz descarte daquela
+linha e recibo em `operacao.audio_expurgo_execucao` registra contagem de pendências.
+`20261125030100_audio_expurgo_cron.sql` instala `pg_cron` e agenda a cada 15 minutos.
+
+Prova `scripts/testar-audio-expurgo-local.sh`: exit 0 / `AUDIO_EXPURGO_OK`, incluindo matriz
+existente de autorização da transcrição; vencido excluído com aviso, vigente preservado,
+papéis da aplicação sem execução/marcador, falha de auditoria preserva áudio e registra falha.
+Extensão/scheduler reais não executados: teste local comprova função/RLS, não instalação cron.
+6.1 permanece aberta para revisão, aplicação e prova do job/aviso visível ao operador.
+
+Cadastrar em **Configuração do sistema / Segredos das integrações** o nome
+`ffcmapp.integracao.openrouter`. Depois ligar `ffcm.transcricao.ativa`, escolher
+`ffcm.transcricao.modelo` e teto `ffcm.transcricao.duracao_maxima_segundos` na configuração.
+Flag e leitor Vault já estavam funcionais. Nenhuma requisição paga/externa realizada.
+**Suposição conservadora:** aviso nesta passagem é registro auditado e recibo operacional;
+notificação externa não foi implementada. Backlog acima de 500 será processado em lotes
+subsequentes; execução pode acrescentar até intervalo do job ao prazo nominal de 30 dias.
+
+### Correções após revisão independente — 18/11/2026
+
+- Usuário operacional que aplica migration/agendará cron recebe EXECUTE explícito somente em
+  `operacao.expurgar_audio_abandonado()`, mais USAGE em `operacao`. Grant sobrevive à retirada
+  da membership temporária no owner. Papéis da aplicação continuam sem acesso.
+- Scheduler valida privilégios de quem agenda antes de registrar job; se as migrations forem
+  executadas por usuários diferentes, ausência de privilégio bloqueia instalação.
+- **SUPOSIÇÃO CONSERVADORA / TRAVA NÃO DESTRUTIVA:** cron pode ser instalado nesta noite,
+  mas `ffcm.transcricao.expurgo_ativo` nasce **false** no catálogo editável. Função retorna
+  antes de tocar áudios enquanto desligada. Somente Administrador deve habilitar explicitamente
+  após conferir dados e autorizar limpeza; instalação não descarta dados existentes.
+- Owner restrito lê somente chave/valor dessa configuração por policy específica.
+- `scripts/testar-audio-expurgo-local.sh`: exit 0 / AUDIO_EXPURGO_OK. Usuário real da migration
+  é rebaixado para NOSUPERUSER antes de executar função, sem membership owner. Flag false
+  preserva fictício vencido; true expurga somente vencido; vigente permanece; falha de auditoria
+  reverte descarte e registra pendência; perfis app seguem negados.
+- pg_cron real/scheduler remoto não exercitados. Sem limpeza remota, segredo real, commit ou push.

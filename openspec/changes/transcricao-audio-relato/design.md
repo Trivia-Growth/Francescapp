@@ -92,3 +92,15 @@ estado que o sistema não observou.
 O valor fica no modelo porque a frente de documentos/Drive vai precisar dele: lá o
 original mora num sistema que responde "não consegui", e aí `falha` é um fato, não uma
 suposição.
+
+
+## Expurgo nativo — 18/11/2026
+
+[Supabase Cron](https://supabase.com/docs/guides/cron/quickstart) agenda função SQL privada,
+sem provedor ou segredo adicional. Não há contrato de custo/limite remoto comprovado aqui.
+Owner dedicado acessa apenas colunas necessárias de áudios vencidos sem revisão e grava
+marcador exclusivo de expiração; API não pode forjá-lo. Exceção restrita no CHECK permite
+exclusão por prazo, preservando exigência de revisão nos outros caminhos. Trigger continua
+impedindo ressurreição e alteração de prazo/texto. Auditoria e exclusão são atômicas por linha;
+falha grava recibo de pendência sem causa bruta ou conteúdo. Comprometimento de perfil comum
+não autoriza disparar job nem antecipar expiração. Aplicação/execução cron real é gate pendente.
