@@ -4,7 +4,7 @@
 
 ## Onde está
 
-Implementação local e revisão do delta visual concluídas; ativação pendente. O usuário autorizou executar após informar o PR #16. Worktree exclusiva `ffcmapp-refino-visual-mock`, criada desse SHA confirmado por `gh pr view 16` e fetch de `pull/16/head`. A worktree da outra sessão não foi editada. Após autorização explícita do usuário para empurrar ao Git, a branch foi enviada ao origin. Sem merge, deploy ou migração.
+Código e revisões integrados à main pelo PR #17, merge `d5de49b9f479865e758794875f85e04d548977d9`, após PR #16 e CI do head exato `cb94578` passarem. Aceite conectado completo fica posterior à próxima onda de ajustes, por decisão do solicitante. Worktree exclusiva `ffcmapp-refino-visual-mock`; nenhuma outra worktree editada. Cinco migrations do #16 aplicadas com autorização específica; sem flags alteradas ou deploy manual.
 
 A estética aprovada é a captura do mock: Cormorant Garamond/Raleway, sidebar branca, oliva nas ações/seleções, superfícies claras e bordas finas. Source, glass, sidebar oliva e imagem de conceito foram rejeitados. Nenhuma escolha estética pendente.
 
@@ -60,7 +60,7 @@ Skill `code-review`, eixos padrões e spec, revisão-base `804428e`. Alvo: diff 
 1. **4.1 parcial:** acesso inicial fictício conferido; retorno de aba, falha e perda de acesso conectados não reproduzidos. Nenhuma alegação de travamento resolvido ou mudança do algoritmo de sessão.
 2. **6.1:** aceite visual conectado por perfis, larguras previstas, zoom 200%, teclado, estados e seções não renderizados. Usar caso fictício autorizado e registrar resultado real.
 3. **6.2 parcial:** comando de ativação local passou; provas SQL positivas/negativas e verificação estrutural remota do PR #16 estão registradas abaixo. Jornadas conectadas por perfil continuam pendentes; este delta não as certifica.
-4. **6.3/externo:** push da branch autorizado e realizado. Merge dos PRs autorizado após validações. Aplicação de somente cinco migrations revisadas do PR #16 também autorizada, sem ativar flags. Deploy manual continua separado; frontend ainda não integrado à main. Registro global somente no merge.
+4. **6.3/externo:** pushes e merges autorizados concluídos, sem ativar flags. Cinco migrations do PR #16 aplicadas e conferidas. Frontend integrado à main, registro global atualizado nesta passagem; aceite conectado permanece pendente e deploy manual continua separado.
 
 ## Integração com revisão do PR #16 — 17/11/2026
 

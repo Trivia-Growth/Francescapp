@@ -6,7 +6,7 @@
 
 PR #16 recebeu revisão independente nos eixos padrões e especificação e correções locais. Esta passagem reúne somente os achados da revisão; não declara encerradas as changes de domínio nem paridade integral com o mock. Refino visual continua separado no PR #17, em draft, inicialmente com base na branch do #16.
 
-Usuário autorizou push e merge após validação. Confirmou que as cinco migrations novas ainda não estavam aplicadas e autorizou aplicar somente as cinco versões revisadas após conferir histórico. Aplicação concluída no projeto aprovado, conforme evidência abaixo. Flags preservadas, sem deploy manual ou merge realizado.
+Usuário autorizou push e merge após validação. Confirmou que as cinco migrations novas ainda não estavam aplicadas e autorizou aplicar somente as cinco versões revisadas após conferir histórico. Aplicação concluída no projeto aprovado, conforme evidência abaixo. PR #16 mergeado na main em `afa9cf8a131cb991bc497e82d244b5e4bda194f5`, após CI do head `c33c4cf` passar. PR #17 integrado depois em `d5de49b9f479865e758794875f85e04d548977d9`. Flags preservadas; sem deploy manual.
 
 ## Correções da revisão
 
@@ -41,7 +41,7 @@ Usuário autorizou push e merge após validação. Confirmou que as cinco migrat
 1. Comando de ativação local passou; revisão focal final da corrida do Diário concluída sem achado residual; lint/typecheck finais conferidos antes do envio. Sem declarar ativação remota.
 2. Correções de produto enviadas ao PR #16 em `6f1849f`; CI desse SHA passou. Integradas ao refino visual em `4b88e85`, com testes afetados e duas revisões focais sem achado material.
 3. Banco atualizado com somente as cinco migrations autorizadas. Bloqueio de histórico/dependência resolvido, sem repair nem aplicação de versões adicionais.
-4. Aceite conectado por perfis e roteiro dos PRs, incluindo revogação/acesso direto no ambiente aprovado, permanecem pendentes. Conferência do Chrome encontrou produto na tela de acesso, solicitando nova validação de conta. Em seguida, o solicitante determinou executar o caderno completo após sua próxima onda de ajustes. Integração dos PRs já autorizada prossegue com código revisado, verificações locais e banco conferidos; a postergação não fecha a tarefa 5.1 nem comprova jornada conectada. Registro global será atualizado na integração.
+4. Aceite conectado por perfis e roteiro dos PRs, incluindo revogação/acesso direto no ambiente aprovado, permanecem pendentes. Conferência do Chrome encontrou produto na tela de acesso, solicitando nova validação de conta. Em seguida, o solicitante determinou executar o caderno completo após sua próxima onda de ajustes. Integração autorizada concluída com código revisado, verificações locais e banco conferidos; a postergação não fecha a tarefa 5.1 nem comprova jornada conectada. Registro global atualizado nesta passagem.
 
 ## Aplicação remota autorizada — 17/11/2026
 
