@@ -99,7 +99,11 @@ migrations desta fatia.
   **Sem ativação:** `ffcm.diario.ativo` continua semeada `false` e nenhuma flag foi tocada —
   o código fica pronto; ativar (e a prova real com Auth/dados reais) é decisão e operação
   remota separadas, fora deste código.
-- [ ] 4.3 Prova visual e de teclado na tela real. Não executada (depende da rota estar ativa).
+- [ ] 4.3 Prova visual e de teclado na tela real.
+  **Parcial 18/11/2026:** componente/CSS reais em Chrome headless isolado, desktop
+  1366×900 e celular 390×844, serviço fictício. Sem overflow; campos rotulados;
+  Tab com foco de 3px; carregar/vazio/erro conferidos. Capturas e medidas no relatório
+  noturno. Navegação integrada, perfil Família e jornada publicada permanecem pendentes.
 
 ## 5. Limitações e pendências registradas
 

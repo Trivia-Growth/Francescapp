@@ -43,6 +43,22 @@ implementação e revisão executadas em Sol. Nenhum segredo real foi cadastrado
    acesso ativo; perfil isolado não aprova. RLS, replay após troca de responsável e
    INSERT direto cobertos. Preservados carimbos e privilégios anteriores do migrador;
    revisor independente reexecutou a prova com migrador sem superuser. Tela 4/4.
+   Revisão complementar completa de saúde achou dois P2, corrigidos e revisados por
+   outro Sol: confirmação após resposta perdida agora repete a mesma chave de
+   idempotência; migration histórica preserva memberships/CREATE/concedentes em
+   instalações limpas. Teste tela+serviço HTTP com fetch fictício 1/1; revisor SQL
+   reexecutou matriz de saúde e instalação NOSUPERUSER com/sem privilégios anteriores,
+   saída 0. Migration histórica remota não será reaplicada nem acesso restaurado por
+   suposição. Base dessa revisão: `df326cb96f67281e43cdffe868b6444ea26ddf45`, caminhos
+   `*saude*`, `rpc.ts` e `cifra-autenticada.ts` apenas no impacto da fatia.
+   Diário e saúde renderizados em 1366×900/390×844, sem overflow, com controles
+   rotulados e foco de 3px; origem/natureza/hipótese permanecem visíveis em saúde.
+   Estados carregar/vazio/erro conferidos. [Diário desktop](evidencias-noturnas-18-11-2026/diario-desktop-normal-foco.png),
+   [diário celular](evidencias-noturnas-18-11-2026/diario-mobile-normal-foco.png),
+   [saúde desktop](evidencias-noturnas-18-11-2026/saude-desktop-metadados.png),
+   [saúde celular](evidencias-noturnas-18-11-2026/saude-mobile-metadados.png) e
+   [medidas](evidencias-noturnas-18-11-2026/cuidado-visual.json). Serviços fictícios;
+   sem VoiceOver, jornada integrada, autenticação familiar ou salvamento remoto.
 4. **Anamnese:** leitura, escrita e histórico exigem vínculo ativo. **Matriz inteira
    nova**, posterior à migration, reexecutada: positivas/negativas, outro paciente,
    outro perfil, acesso direto, revogação de vínculo/sessão/concessão, replay e seis
@@ -60,6 +76,13 @@ implementação e revisão executadas em Sol. Nenhum segredo real foi cadastrado
    e privilégios do usuário que agenda, sem superuser. **Pendência P2:** recibo de
    falhas do expurgo continua privado, sem aviso operacional novo na interface;
    tarefa 6.1 não foi declarada integralmente concluída.
+   Compatibilidade documental do adapter confirmada na [documentação oficial STT](https://openrouter.ai/docs/guides/overview/multimodal/stt):
+   multipart e resposta `text`. Consulta pública, sem chave/áudio, confirmou dois IDs
+   Whisper no [catálogo STT](https://openrouter.ai/api/v1/models?output_modalities=transcription).
+   Três aliases `groq/*` semeados não foram encontrados; não se presumiu validade.
+   Migration `20261125060000` limita opções aos dois IDs publicados. Preflight aborta
+   diante de escolha legada ou catálogo divergente; não troca modelo/flag/metadados.
+   SQL focal e revisão independente passaram, incluindo preservação integral após erro.
 7. **Agenda:** migration promovida de draft, executores isolados e script de grant
    operacional estreito preparados. Flag/domínio editáveis; client ID/secret vêm do
    Vault. Evento único em agenda individual; escrita só confirma após reconsulta,
@@ -68,7 +91,8 @@ implementação e revisão executadas em Sol. Nenhum segredo real foi cadastrado
    passou, assim como state e privilégios. Teste de escrita 7/7 e derivação de chaves
    1/1. OAuth, ACL e CRUD Google reais permanecem não comprovados.
 
-`pnpm run verificar:ativacao`: **saída 0**, 1.364 testes passaram, 30 pulados pelo
+`pnpm run verificar:ativacao` repetido após correções de saúde/migration:
+**saída 0**, 1.365 testes passaram, 30 pulados pelo
 gate genérico; lint, typechecks, Deno e build passaram. Pulos não são aprovação:
 as matrizes SQL relevantes acima foram executadas separadamente. Auth e Vault dos
 testes locais usam fixtures fictícias. `pnpm run verificar:rapido` final e pre-push:
@@ -136,17 +160,27 @@ Não cadastrar nenhum valor em SQL, terminal, PR ou relatório.
   anônima). CI `verificar-ativacao` no PR draft foi SKIPPED; não conta como evidência.
 
 **Não aplicadas remotamente:** migrations `20261125010000`, `20261125020000`,
-`20261125030000`, `20261125030100`, `20261125040000` e `20261125050000`, nem o grant
+`20261125030000`, `20261125030100`, `20261125040000`, `20261125050000` e
+`20261125060000`, nem o grant
 operacional da Agenda. Não habilitadas flags remotas nesta execução. Autorização
 DF-022 já existe; impedimento é acesso operacional, não falta de consentimento.
+
+Verificação adicional OpenSpec estrita de `historico-de-saude` e
+`transcricao-audio-relato`: saída 1 por ausência de delta specs nesses pacotes
+preexistentes. Planejamento não foi refeito para contornar o validador. Esse resultado
+não é aprovação; requisitos de referência e revisão de aderência foram consultados
+separadamente. A mudança nova de cadastro teve validação estrita aprovada antes da
+implementação, conforme evidência do bloco 2.
 
 ## Gates das seis fatias
 
 - Ficha: 1.8 e S-02/fechamento publicado ainda pendentes.
 - Contexto/rede: fiação e SQL locais; navegação autenticada publicada pendente,
   mesmo sem checkbox aberta.
-- Diário: 4.3 visual/teclado, autenticação familiar real e ativação pendentes.
-- Saúde: 4.3 acessibilidade, 5.1 ativação remota e fechamento de 5.2 pendentes.
+- Diário: 4.3 visual/teclado isolados conferidos; navegação integrada, autenticação
+  familiar real e ativação pendentes.
+- Saúde: 5.2 revisão concluída após duas correções; 4.3 leitor de tela/jornada
+  integrada e 5.1 ativação remota pendentes. Componente desktop/celular conferido.
 - Crise: 6.2 revisão local concluída; 7.1 ativação e cadastro operacional das
   habilitações de case managers antes do primeiro plano pendentes.
 - Configuração: 6.7 e provas autenticadas remotas da interface/rotas pendentes.
@@ -172,6 +206,12 @@ DF-022 já existe; impedimento é acesso operacional, não falta de consentiment
 - **SUPOSIÇÃO CONSERVADORA — Agenda:** chaves de state, cookie e desconexão derivadas
   por HKDF SHA-256 do HMAC existente, com domínio/versionamento e finalidades
   separadas. Não gerar nem exigir credencial técnica adicional.
+- **SUPOSIÇÃO CONSERVADORA — modelos STT:** oferecer somente os dois IDs Whisper
+  publicados na consulta oficial desta data, sem assumir aliases `groq/*` não
+  documentados. Groq pode atender ID `openai/*` como provedor; não foi criado pinning
+  de provedor nem trocada escolha do usuário. Se houver valor legado, Administrador
+  precisa escolher explicitamente ID publicado em Configuração antes de reaplicar
+  a migration; catálogo divergente também exige conferência, sem sobrescrita.
 - **SUPOSIÇÃO OPERACIONAL — PR:** um PR draft consolidado, com commits por bloco,
   preserva a branch compartilhada. Difere do pedido de draft por frente; evitou PRs
   sobrepostos da mesma branch. Sem merge nem reescrita de histórico.
@@ -206,7 +246,8 @@ aplicação principal, conserto comprovado do 503 ou do HTTP 400 de login, jorna
 administrativa publicada, prova Auth/Vault/Google/OpenRouter reais, ativação remota
 das seis fatias, habilitação operacional de case managers, S-02 nem teste visual
   integrado desktop/mobile desta entrega. Conferência visual isolada do componente
-  de credenciais foi feita, com as limitações acima. Não houve limpeza de áudio/dados, remoção de tabela,
+  de credenciais, diário e saúde foi feita, com as limitações acima. Não houve limpeza
+  de áudio/dados, remoção de tabela,
 revogação de acesso existente, alteração de permissões Drive, uso de dados reais,
 cadastro/manuseio manual de segredo, merge ou reescrita de histórico.
 
