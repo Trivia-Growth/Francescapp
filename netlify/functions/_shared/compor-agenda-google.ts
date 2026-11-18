@@ -18,10 +18,13 @@ import { configurarDependenciasNativas } from './configurar-dependencias-nativas
 import { carregarCofreNativo } from './cofre-nativo.ts';
 import { criarCookieAgenda } from './agenda-google-cookie.ts';
 import { processarConexaoAgenda } from './agenda-google-conexao-handler.ts';
+import { lerSegredoIntegracao } from './segredo-integracao.ts';
+import { servicoAtivo, textoConfigurado } from './configuracao-servidor.ts';
+import { derivarChavesAgendaGoogle } from './chaves-agenda-google.ts';
 
 const jwks = criarInfraGoogleJwks();
 
-/** Composição preparada, não habilitada: depende de privilégios, logs e provas reais. */
+/** Disponibilidade pelo catálogo não substitui sessão, atestado ou autorização SQL. */
 export async function comporAgendaGoogle(
   request: Request,
   fonte: NodeJS.ProcessEnv,
@@ -29,14 +32,15 @@ export async function comporAgendaGoogle(
   const deps = configurarDependenciasNativas(fonte);
   try {
     const origem = carregarConfiguracaoAuthNativo(fonte).origem;
-    const referencia = fonte.FFCM_AGENDA_STATE_VAULT_REFERENCIA ?? '';
-    const clientId = fonte.FFCM_AGENDA_GOOGLE_CLIENT_ID ?? '';
-    const clientSecret = fonte.FFCM_AGENDA_GOOGLE_CLIENT_SECRET ?? '';
-    const dominio = fonte.FFCM_GOOGLE_WORKSPACE_DOMAIN ?? '';
+    if (!(await servicoAtivo(deps.pool, 'ffcm.agenda_google.ativa', false))) throw new Error();
+    const referencia = deps.referencias.referenciaHmac;
+    const [clientId, clientSecret] = await Promise.all([
+      lerSegredoIntegracao(deps.pool, 'ffcmapp.integracao.google_calendar_client_id'),
+      lerSegredoIntegracao(deps.pool, 'ffcmapp.integracao.google_calendar_client_secret'),
+    ]);
+    const dominio = await textoConfigurado(deps.pool, 'ffcm.agenda_google.dominio_workspace', '');
     if (
       !/^ffcmapp\.cifra\.[a-z0-9][a-z0-9_-]{0,63}$/.test(referencia) ||
-      Object.values(deps.referencias.referenciasCifra).includes(referencia) ||
-      deps.referencias.referenciaHmac === referencia ||
       !clientId ||
       !clientSecret ||
       !dominio
@@ -53,6 +57,8 @@ export async function comporAgendaGoogle(
     const binario = atob(textoChave);
     const chave = Uint8Array.from(binario, (caractere) => caractere.charCodeAt(0));
     if (chave.length !== 32 || btoa(binario) !== textoChave) throw new Error();
+    const chaves = await derivarChavesAgendaGoogle(chave);
+    chave.fill(0);
     const executar = criarExecutorAgendaPostgres(deps.pool);
     let identidade: { usuarioId: string; sessaoId: string; subjectGoogle: string } | undefined;
     const canal = {
@@ -150,7 +156,7 @@ export async function comporAgendaGoogle(
     ) {
       return await processarDesconexaoAgenda(request, {
         origem,
-        intencao: criarIntencaoDesconexao(chave),
+        intencao: criarIntencaoDesconexao(chaves.desconexao),
         autorizar,
         statusConexao: (subject) => repositorio.statusConexao(subject),
         consultarDesconexao: (...args) => repositorio.consultarDesconexao(...args),
@@ -186,8 +192,8 @@ export async function comporAgendaGoogle(
         nonceEsperado: nonce,
         chaveDeVerificacao: jwks.chaveDeVerificacao,
       }),
-      state: criarStateAgenda(chave, repositorio),
-      cookie: criarCookieAgenda(chave),
+      state: criarStateAgenda(chaves.state, repositorio),
+      cookie: criarCookieAgenda(chaves.cookie),
       autorizar,
       async salvar(refresh, geracao, atual) {
         if (
