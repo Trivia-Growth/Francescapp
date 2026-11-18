@@ -38,7 +38,9 @@ function lerCampo(
   }
   if (tipo === 'texto') {
     const texto = controle.value.trim();
-    return texto.length >= 1 && texto.length <= 600 ? texto : undefined;
+    // Vazio é valor legítimo do catálogo (por exemplo, raiz Drive não configurada).
+    // Restrições por chave pertencem ao servidor/banco, não a um piso global na tela.
+    return texto.length <= 600 ? texto : undefined;
   }
   const itens = controle.value
     .split('\n')

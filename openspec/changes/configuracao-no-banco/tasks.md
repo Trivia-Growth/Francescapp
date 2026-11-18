@@ -1,5 +1,13 @@
 # Tarefas
 
+**Resumo operacional — 18/11/2026:** a falha 6.7 com sessão válida continua sem
+rastro atual de etapa/causa/request_id; o diagnóstico histórico de 13/11 abaixo
+não prova correção dessa ocorrência. Na retomada local, corrigido outro bloqueio:
+`web/configuracao-sistema.ts` exigia texto não vazio na edição, embora o contrato
+permita vazio (ex.: limpar raiz do Drive para deixá-la não configurada).
+`web/configuracao-sistema.test.ts` foi escrito; execução adiada por instrução do
+solicitante. Isso não é evidência de conserto do 503 remoto.
+
 ## 1. Persistência
 
 - [x] 1.1 Tabela `identidade.configuracao_sistema` com uuid como identidade da linha, `chave` única como endereço legível, CHECK cruzando `tipo` e `jsonb_typeof(valor)`, RLS ligada e `revoke all from public, anon, authenticated, service_role`.
