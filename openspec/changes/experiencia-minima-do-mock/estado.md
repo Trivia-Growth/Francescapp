@@ -6,7 +6,7 @@
 
 PR #16 recebeu revisão independente nos eixos padrões e especificação e correções locais. Esta passagem reúne somente os achados da revisão; não declara encerradas as changes de domínio nem paridade integral com o mock. Refino visual continua separado no PR #17, em draft, inicialmente com base na branch do #16.
 
-Usuário autorizou push e merge após validação. Confirmou que as cinco migrations novas **não foram aplicadas** no Supabase usado pela main. Depois confirmou autorização explícita para aplicar somente as cinco migrations revisadas, após conferir histórico remoto. Flags e deploy manual continuam sem autorização por esta frente. Sem merge realizado.
+Usuário autorizou push e merge após validação. Confirmou que as cinco migrations novas ainda não estavam aplicadas e autorizou aplicar somente as cinco versões revisadas após conferir histórico. Aplicação concluída no projeto aprovado, conforme evidência abaixo. Flags preservadas, sem deploy manual ou merge realizado.
 
 ## Correções da revisão
 
@@ -39,10 +39,18 @@ Usuário autorizou push e merge após validação. Confirmou que as cinco migrat
 ## Bloqueadores e próximo passo
 
 1. Comando de ativação local passou; revisão focal final da corrida do Diário concluída sem achado residual; lint/typecheck finais conferidos antes do envio. Sem declarar ativação remota.
-2. Atualizar PR #16 e reconciliar seu novo head no PR #17 preservando o refino visual e os controles revisados.
-3. Confirmar lista real de migrations do Supabase e aplicar somente as cinco versões revisadas, autorizadas explicitamente pelo solicitante em 17/11/2026. Projeto aprovado em `docs/projeto/fundacao.md`: `drdpuxcllpymtoskmuqv`. Esta worktree não está vinculada; consulta somente leitura no diretório já vinculado não respondeu e foi encerrada. Nenhuma migration remota executada.
-4. Provar compatibilidade das rotas existentes de plano/orientações com banco atualizado; flags familiares desligadas não isolam todos os contratos alterados. Sem essa prova, não mergear código que será publicado automaticamente.
-5. Aceite conectado por perfis e roteiro dos PRs, incluindo revogação/acesso direto no ambiente aprovado, permanecem pendentes. CI verde e testes simulados não fecham esses critérios. Atualizar registro global somente no merge.
+2. Correções de produto enviadas ao PR #16 em `6f1849f`; CI desse SHA passou. Integradas ao refino visual em `4b88e85`, com testes afetados e duas revisões focais sem achado material.
+3. Banco atualizado com somente as cinco migrations autorizadas. Bloqueio de histórico/dependência resolvido, sem repair nem aplicação de versões adicionais.
+4. Aceite conectado por perfis e roteiro dos PRs, incluindo revogação/acesso direto no ambiente aprovado, permanecem pendentes. Conferência do Chrome encontrou produto na tela de acesso, solicitando nova validação de conta; não há sessão de teste autenticada disponível nesta passagem. CI verde, equivalência estrutural remota e testes simulados não fecham a tarefa 5.1. Sem marcar ativação nem merge antes desse checkpoint. Atualizar registro global somente no merge.
+
+## Aplicação remota autorizada — 17/11/2026
+
+- Alvo `drdpuxcllpymtoskmuqv`, aprovado em `docs/projeto/fundacao.md` e confirmado pelo solicitante. Credencial local anterior retornou 403; consulta CLI sem resposta foi encerrada. Nova credencial fornecida pelo solicitante permitiu Management API. Nenhum segredo incluído no repositório ou na saída.
+- Histórico anterior: **186 versões**, última `20261123100000`; nenhuma ausência, versão extra ou divergência de nome frente à base local. Owners das três funções conferidos antes da aplicação.
+- `POST /v1/projects/<ref>/database/query`: HTTP **201**. Cinco arquivos revisados, conferidos por SHA-256, executados em uma transação com lock do histórico, guarda de versões, `lock_timeout=5s` e `statement_timeout=15s`; seus registros em `supabase_migrations.schema_migrations` integraram a mesma transação.
+- Consulta independente posterior pelo endpoint somente leitura: **191 versões**. Histórico anterior intacto; nomes e SQL registrado das cinco novas versões correspondem exatamente aos arquivos locais.
+- `cadastro.objetivo_cuidado_versao.visibilidade` e `cadastro.orientacao_versao.visibilidade`: `text NOT NULL DEFAULT 'interna'`. Três corpos de função idênticos aos revisados, owners `ffcmapp_plano_owner`, `ffcmapp_documento_owner` e `ffcmapp_orientacao_owner`, `SECURITY DEFINER` e `row_security=on`. Execução direta das funções privadas negada por grants a `anon` e `service_role`; RLS permanece habilitada nas cinco tabelas verificadas. Policies familiares previstas presentes.
+- Conferência estrutural não substitui chamadas autenticadas por perfil. Nenhuma flag habilitada e nenhum dado de negócio criado ou alterado além das mudanças de schema autorizadas.
 
 ## Revisão independente
 
