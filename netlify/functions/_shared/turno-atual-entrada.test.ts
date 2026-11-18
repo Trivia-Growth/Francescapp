@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest';
 import { criarEntradaTurnoNativa } from './turno-entrada-nativa.ts';
 
 // PREPARADO, NÃO EXECUTADO. O adapter não substitui provas SQL de autorização.
-const id = 'a0000000-0000-4000-8000-000000000001';
+const id: ReturnType<typeof crypto.randomUUID> = 'a0000000-0000-4000-8000-000000000001';
 const dependencias = {} as Parameters<typeof criarEntradaTurnoNativa>[0];
 const pedido = (sufixo = 'atual') =>
   new Request(`https://example.test/api/pacientes/${id}/turnos/${sufixo}`, {
