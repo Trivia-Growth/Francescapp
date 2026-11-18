@@ -104,3 +104,26 @@ exclusão por prazo, preservando exigência de revisão nos outros caminhos. Tri
 impedindo ressurreição e alteração de prazo/texto. Auditoria e exclusão são atômicas por linha;
 falha grava recibo de pendência sem causa bruta ou conteúdo. Comprometimento de perfil comum
 não autoriza disparar job nem antecipar expiração. Aplicação/execução cron real é gate pendente.
+## Catálogo público de transcrição — 18/11/2026
+
+Consulta somente leitura e sem credenciais ao [catálogo STT público](https://openrouter.ai/api/v1/models?output_modalities=transcription)
+retornou HTTP 200 e 30 modelos. Dos cinco IDs semeados em `20261119140000`, somente
+`openai/whisper-large-v3` e `openai/whisper-large-v3-turbo` estão publicados. Os três IDs com
+prefixo `groq/` não constam. [Endpoints do Whisper Large V3](https://openrouter.ai/api/v1/models/openai/whisper-large-v3/endpoints)
+identificam Groq como provedor desse ID `openai/`, junto com outros provedores.
+
+**Suposição conservadora explícita:** aliases ausentes do catálogo não são opções comprovadas;
+limitar escolhas aos dois IDs publicados, sem inferir modelo equivalente ou escolher provedor.
+Migration aditiva `20261125060000_configuracao_transcricao_catalogo.sql` trava a linha de
+`ffcm.transcricao.modelo`, exige catálogo original exato e valor já entre os dois publicados,
+então altera somente `opcoes`. Se houver escolha legada, aborta com
+`MODELO_TRANSCRICAO_NAO_PUBLICADO` e orienta selecionar modelo publicado em Configuração antes
+de reaplicar. Divergência do catálogo aborta com `CATALOGO_TRANSCRICAO_DIVERGENTE` e exige
+conferência explícita. Flags, valor escolhido, versão, autoria, timestamps e segredos permanecem
+intactos. Operação não faz chamadas externas durante migration.
+
+[Documentação STT primária](https://openrouter.ai/docs/guides/overview/multimodal/stt) confirma
+multipart `file/model/language/response_format=json` e saída `text`, compatíveis com o adapter
+existente. Isso não comprova integração ou qualidade/custo/latência. `provider.order/only/ignore`
+não se aplicam ao STT conforme documentação. Endpoints do Turbo ficaram indisponíveis na
+consulta web e não houve contorno. Nenhum áudio, chave ou chamada de transcrição foi enviado.

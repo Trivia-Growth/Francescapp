@@ -226,3 +226,21 @@ subsequentes; execução pode acrescentar até intervalo do job ao prazo nominal
   preserva fictício vencido; true expurga somente vencido; vigente permanece; falha de auditoria
   reverte descarte e registra pendência; perfis app seguem negados.
 - pg_cron real/scheduler remoto não exercitados. Sem limpeza remota, segredo real, commit ou push.
+
+### Catálogo publicado OpenRouter — 18/11/2026
+
+- Nova migration aditiva `20261125060000_configuracao_transcricao_catalogo.sql`: catálogo
+  limitado aos IDs publicados `openai/whisper-large-v3` e `openai/whisper-large-v3-turbo`.
+  Não altera migration histórica, modelo escolhido, flags ou segredos. Preflight `FOR UPDATE`
+  exige catálogo original e modelo já publicado; erro estável orienta correção explícita,
+  em vez de substituir silenciosamente escolha ou aceitar catálogo divergente.
+- **SUPOSIÇÃO conservadora:** os três aliases `groq/*` semeados não são tratados como válidos
+  por estarem ausentes do catálogo público. Não houve inferência de equivalência/fornecedor.
+  Fontes primárias e limites constam em design, seção de 18/11/2026.
+- `rtk proxy sh scripts/testar-configuracao-transcricao-catalogo-local.sh`: exit 0,
+  `CATALOGO_TRANSCRICAO_OK`. Teste executa SQL real da nova migration contra PostgreSQL
+  descartável: positivo para ambos modelos publicados; negativo para valor legado e catálogo
+  divergente, conferindo snapshot integral do catálogo antes/depois e preservação de estado.
+- Sem TypeScript alterado; nenhum gate amplo repetido. Revisão independente e aplicação
+  ficam com coordenação. Nenhuma credencial/áudio/custo/consulta paga/operação remota;
+  preparo documental e teste SQL não comprovam API real.
