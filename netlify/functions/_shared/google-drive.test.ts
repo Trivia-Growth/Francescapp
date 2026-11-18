@@ -1,9 +1,44 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { criarPortaDrive } from './google-drive.ts';
+import { criarPortaDrive, TAMANHO_MAXIMO_DOCUMENTO } from './google-drive.ts';
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+it('obtém bytes pelo endereço fixo sem seguir redirecionamento', async () => {
+  const { porta, fetch } = preparar({});
+  fetch
+    .mockReset()
+    .mockResolvedValueOnce(Response.json({ access_token: 'ficticio' }))
+    .mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3])));
+  expect(await porta.obter?.('arquivo/ficticio')).toEqual(new Uint8Array([1, 2, 3]));
+  expect(fetch.mock.calls[1]?.[0]).toBe(
+    'https://www.googleapis.com/drive/v3/files/arquivo%2Fficticio?alt=media&supportsAllDrives=true',
+  );
+  expect(fetch.mock.calls[1]?.[1].redirect).toBe('error');
+});
+
+it('interrompe stream acima do teto mesmo com Content-Length falso', async () => {
+  const { porta, fetch } = preparar({});
+  const cancelar = vi.fn();
+  let partes = 0;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controle) {
+      partes += 1;
+      controle.enqueue(new Uint8Array(TAMANHO_MAXIMO_DOCUMENTO / 2));
+    },
+    cancel: cancelar,
+  });
+  fetch
+    .mockReset()
+    .mockResolvedValueOnce(Response.json({ access_token: 'ficticio' }))
+    .mockResolvedValueOnce(new Response(stream, { headers: { 'Content-Length': '1' } }));
+  await expect(porta.obter?.('arquivo-ficticio')).rejects.toThrow(
+    'Guarda de documentos indisponível.',
+  );
+  expect(cancelar).toHaveBeenCalled();
+  expect(partes).toBeLessThanOrEqual(4);
 });
 function preparar(permissoes: unknown) {
   // Material deliberadamente inválido; criptografia simulada, nenhuma credencial criada.

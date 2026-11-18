@@ -11,6 +11,7 @@ import {
 import { comporDocumentoCasoNativo } from './compor-documento-caso-nativo.ts';
 import type { ComandoDocumento } from './documento-caso-nativo.ts';
 import { registrarFalhaDeResposta } from './falha-operacional.ts';
+import { TAMANHO_MAXIMO_DOCUMENTO } from './google-drive.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -21,7 +22,7 @@ type Dependencias = Parameters<typeof comporDocumentoCasoNativo>[2];
 
 /** Teto do arquivo enviado. Exame e laudo cabem folgado; o limite existe para que um envio
  * absurdo não ocupe memória da função nem espaço do Drive institucional por engano. */
-const TAMANHO_MAXIMO_ARQUIVO = 8 * 1024 * 1024;
+const TAMANHO_MAXIMO_ARQUIVO = TAMANHO_MAXIMO_DOCUMENTO;
 const NOME_ARQUIVO = /^[^\p{C}/\\]{1,240}$/u;
 const TIPO_ARQUIVO = /^[a-z0-9][a-z0-9!#$&^_.+-]{0,126}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,126}$/;
 
@@ -35,14 +36,29 @@ export function criarEntradaDocumentoCasoNativa(dependencias: Dependencias) {
           headers,
         });
       const url = new URL(request.url);
-      const caminho = /^\/api\/pacientes\/([^/]+)\/documentos$/.exec(url.pathname);
-      if (!caminho || (request.method !== 'GET' && request.method !== 'POST'))
+      const caminho = /^\/api\/pacientes\/([^/]+)\/documentos(?:\/([^/]+)\/arquivo)?$/.exec(
+        url.pathname,
+      );
+      if (
+        !caminho ||
+        (request.method !== 'GET' && request.method !== 'POST') ||
+        (caminho[2] && request.method !== 'GET')
+      )
         return erro('nao_encontrado');
       const paciente = uuidSchema.safeParse(caminho[1]);
       if (!paciente.success || url.hash || url.search) return erro('entrada_invalida');
       if (!uuidSchema.safeParse(request.headers.get('x-sessao')).success)
         return erro('nao_autenticado');
       let comando: ComandoDocumento = { operacao: 'ler', paciente_id: paciente.data };
+      if (caminho[2]) {
+        const documento = uuidSchema.safeParse(caminho[2]);
+        if (!documento.success) return erro('entrada_invalida');
+        comando = {
+          operacao: 'entregar',
+          paciente_id: paciente.data,
+          documento_id: documento.data,
+        };
+      }
       if (request.method === 'POST') {
         if (
           !chaveIdempotenciaSchema.safeParse(request.headers.get('x-chave-idempotencia')).success ||
@@ -107,6 +123,28 @@ export function criarEntradaDocumentoCasoNativa(dependencias: Dependencias) {
         });
         const resultado = await comporDocumentoCasoNativo(pedido, comando, dependencias);
         if (!resultado.ok) return erro(resultado.erro.codigo, resultado.request_id);
+        if (comando.operacao === 'entregar') {
+          if (!('arquivo' in resultado.dados)) throw new Error();
+          const arquivo = resultado.dados.arquivo;
+          const nome =
+            arquivo.nome
+              .replace(/[\p{C}/\\"<>:|?*]/gu, '_')
+              .trim()
+              .slice(0, 180) || 'documento';
+          const codificado = encodeURIComponent(nome).replace(
+            /['()*]/g,
+            (caractere) => `%${caractere.charCodeAt(0).toString(16).toUpperCase()}`,
+          );
+          return new Response(arquivo.bytes, {
+            headers: {
+              ...headers,
+              'Content-Type': 'application/octet-stream',
+              'Content-Disposition': `attachment; filename="documento"; filename*=UTF-8''${codificado}`,
+              'Content-Length': String(arquivo.bytes.byteLength),
+            },
+          });
+        }
+        if (!('documentos' in resultado.dados)) throw new Error();
         const schema =
           request.method === 'GET'
             ? documentoCasoHttp.consultar.saida

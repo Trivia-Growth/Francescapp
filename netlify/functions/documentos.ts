@@ -4,7 +4,11 @@ import { listaConfigurada, servicoAtivo } from './_shared/configuracao-servidor.
 import { criarEntradaDocumentoCasoNativa } from './_shared/entrada-documento-caso-nativa.ts';
 
 export const config = {
-  path: ['/api/pacientes/:paciente_id/documentos', '/api/documentos/disponibilidade'],
+  path: [
+    '/api/pacientes/:paciente_id/documentos',
+    '/api/pacientes/:paciente_id/documentos/:documento_id/arquivo',
+    '/api/documentos/disponibilidade',
+  ],
 };
 
 let entrada: ReturnType<typeof criarEntradaDocumentoCasoNativa> | undefined;

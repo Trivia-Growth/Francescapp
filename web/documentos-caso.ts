@@ -41,6 +41,7 @@ export function montarDocumentosCaso(
 ): () => void {
   let ativa = true;
   let documentos: DocumentoCaso[] = [];
+  const downloads = new Set<string>();
   const descartarAcesso = (erro: unknown): boolean => {
     if (!exigeNovoAcesso(erro)) return false;
     ativa = false;
@@ -230,6 +231,54 @@ export function montarDocumentosCaso(
         const selo = elemento('span', rotuloEstado(documento.estado));
         selo.className = 'documento-item__estado';
         item.append(nome, meta, selo);
+        if (documento.estado === 'disponivel' && servico.baixar) {
+          const baixar = elemento('button', 'Baixar arquivo');
+          baixar.type = 'button';
+          baixar.className = 'button-secondary';
+          baixar.setAttribute('aria-label', `Baixar ${documento.nome_visivel}`);
+          const feedback = elemento('p');
+          feedback.setAttribute('role', 'status');
+          baixar.addEventListener('click', async () => {
+            if (baixar.disabled || !servico.baixar) return;
+            baixar.disabled = true;
+            feedback.textContent = 'Preparando arquivo…';
+            const finalizar = iniciarAcao(baixar);
+            try {
+              const blob = await servico.baixar(pacienteId, documento.documento_id);
+              if (!ativa) return;
+              const url = URL.createObjectURL(blob);
+              downloads.add(url);
+              const link = elemento('a');
+              link.href = url;
+              link.download =
+                documento.nome_visivel.replace(/[\p{C}/\\"<>:|?*]/gu, '_').slice(0, 180) ||
+                'documento';
+              link.hidden = true;
+              raiz.append(link);
+              try {
+                link.click();
+              } finally {
+                link.remove();
+                window.setTimeout(() => {
+                  URL.revokeObjectURL(url);
+                  downloads.delete(url);
+                }, 1000);
+              }
+              feedback.textContent =
+                'Arquivo enviado ao navegador para download. Confira seus downloads.';
+            } catch (erro) {
+              if (descartarAcesso(erro) || !ativa) return;
+              feedback.textContent =
+                erro instanceof FalhaApi
+                  ? mensagemFalha(erro)
+                  : 'Não foi possível baixar o arquivo. Tente novamente.';
+            } finally {
+              finalizar();
+              if (ativa) baixar.disabled = false;
+            }
+          });
+          item.append(baixar, feedback);
+        }
         if (!ehFamilia && documento.compartilhamento) {
           const mensagem =
             documento.compartilhamento === 'divergente'
@@ -270,6 +319,8 @@ export function montarDocumentosCaso(
 
   return () => {
     ativa = false;
+    for (const url of downloads) URL.revokeObjectURL(url);
+    downloads.clear();
     alteracaoPendente(false);
     raiz.replaceChildren();
   };

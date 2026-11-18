@@ -15,6 +15,7 @@ import { statusErroHttp } from '../packages/contracts/src/erros.ts';
 type Identidade = { usuario_id: string; session_id: string };
 
 export type ServicoDocumentos = {
+  baixar?(paciente: string, documento: string): Promise<Blob>;
   consultar(paciente: string): Promise<DocumentoCaso[]>;
   gravar(
     paciente: string,
@@ -36,7 +37,7 @@ export function criarServicoDocumentosHttp(
   const identidade = identidadeAtual();
   if (!identidade) throw new FalhaApi('nao_autenticado', 401);
   const enviar = async (
-    nome: keyof typeof documentoCasoHttp,
+    nome: 'consultar' | 'gravar',
     paciente: string,
     corpo?: { json: unknown } | { formulario: FormData },
   ) => {
@@ -118,6 +119,68 @@ export function criarServicoDocumentosHttp(
     }
   };
   return {
+    baixar: async (paciente, documento) => {
+      const atual = identidadeAtual();
+      if (
+        !atual ||
+        atual.usuario_id !== identidade.usuario_id ||
+        atual.session_id !== identidade.session_id
+      )
+        throw new FalhaApi('nao_autenticado', 401);
+      try {
+        const modo = sessionStorage.getItem('modo-acesso');
+        if (!['google', 'tecnica', 'familiar'].includes(modo ?? ''))
+          throw new FalhaApi('nao_autenticado', 401);
+        const fluxo = sessionStorage.getItem(
+          modo === 'tecnica'
+            ? 'fluxo-tecnico'
+            : modo === 'familiar'
+              ? 'fluxo-familiar'
+              : 'fluxo-google',
+        );
+        if (!fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo))
+          throw new FalhaApi('nao_autenticado', 401);
+        const caminho = documentoCasoHttp.arquivo.caminho
+          .replace(':paciente_id', encodeURIComponent(uuidSchema.parse(paciente)))
+          .replace(':documento_id', encodeURIComponent(uuidSchema.parse(documento)));
+        const resposta = await fetch(caminho, {
+          headers: {
+            Accept: 'application/octet-stream',
+            'x-sessao': atual.session_id,
+            'x-fluxo': fluxo,
+          },
+          credentials: 'same-origin',
+          cache: 'no-store',
+          redirect: 'error',
+          referrerPolicy: 'no-referrer',
+          signal: AbortSignal.timeout(60_000),
+        });
+        if (!resposta.ok) {
+          const erro = erroRespostaSchema.safeParse(await resposta.json());
+          if (!erro.success || statusErroHttp[erro.data.erro.codigo] !== resposta.status)
+            throw new Error();
+          throw new FalhaApi(erro.data.erro.codigo, resposta.status);
+        }
+        if (
+          resposta.headers.get('content-type') !== 'application/octet-stream' ||
+          !resposta.headers.get('content-disposition')?.startsWith('attachment;')
+        )
+          throw new Error();
+        const blob = await resposta.blob();
+        const depois = identidadeAtual();
+        if (
+          !depois ||
+          depois.usuario_id !== identidade.usuario_id ||
+          depois.session_id !== identidade.session_id
+        )
+          throw new FalhaApi('nao_autenticado', 401);
+        if (!blob.size || blob.size > 8 * 1024 * 1024) throw new Error();
+        return blob;
+      } catch (erro) {
+        if (erro instanceof FalhaApi) throw erro;
+        throw new FalhaApi('servico_indisponivel');
+      }
+    },
     consultar: async (paciente) => (await enviar('consultar', paciente)).documentos,
     gravar: async (paciente, entrada) => {
       const base = {

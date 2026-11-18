@@ -16,6 +16,7 @@ const ENDERECO_TOKEN = 'https://oauth2.googleapis.com/token';
 const ENDERECO_UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
 const ENDERECO_ARQUIVOS = 'https://www.googleapis.com/drive/v3/files';
 const ESCOPO = 'https://www.googleapis.com/auth/drive';
+export const TAMANHO_MAXIMO_DOCUMENTO = 8 * 1024 * 1024;
 
 /** Não inclui causa nem resposta do provedor: a topologia do cofre e o conteúdo do erro
  * remoto não descem ao navegador. */
@@ -126,6 +127,7 @@ async function obterToken(credencial: Credencial, sinal: AbortSignal): Promise<s
 }
 
 export type PortaDrive = {
+  obter?(fileId: string): Promise<Uint8Array<ArrayBuffer>>;
   enviar(entrada: {
     nome: string;
     tipo: string;
@@ -146,6 +148,39 @@ export function criarPortaDrive(segredoJson: string, sinal: AbortSignal): PortaD
   const credencial = lerCredencial(segredoJson);
   const autenticar = () => obterToken(credencial, sinal);
   return {
+    async obter(fileId) {
+      const token = await autenticar();
+      const resposta = await fetch(
+        `${ENDERECO_ARQUIVOS}/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`,
+        { headers: { authorization: `Bearer ${token}` }, signal: sinal, redirect: 'error' },
+      );
+      if (!resposta.ok || !resposta.body) throw new ErroDriveIndisponivel();
+      const leitor = resposta.body.getReader();
+      const partes: Uint8Array[] = [];
+      let tamanho = 0;
+      try {
+        while (true) {
+          const parte = await leitor.read();
+          if (parte.done) break;
+          tamanho += parte.value.byteLength;
+          if (tamanho > TAMANHO_MAXIMO_DOCUMENTO) throw new ErroDriveIndisponivel();
+          partes.push(parte.value);
+        }
+        if (!tamanho) throw new ErroDriveIndisponivel();
+        const bytes = new Uint8Array(new ArrayBuffer(tamanho));
+        let posicao = 0;
+        for (const parte of partes) {
+          bytes.set(parte, posicao);
+          posicao += parte.byteLength;
+        }
+        return bytes;
+      } catch {
+        await leitor.cancel().catch(() => {});
+        throw new ErroDriveIndisponivel();
+      } finally {
+        leitor.releaseLock();
+      }
+    },
     async enviar({ nome, tipo, bytes, pastaRaiz }) {
       if (typeof pastaRaiz !== 'string' || pastaRaiz.trim().length === 0)
         throw new ErroDriveIndisponivel();

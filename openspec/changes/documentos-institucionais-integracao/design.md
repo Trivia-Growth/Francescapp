@@ -57,3 +57,30 @@ Ameaças delimitadas: ACL externa ampliada (impacto alto, detectada/revisão man
 Google perdida (pendência, sem alteração automática); exfiltração de segredo por endereço
 configurável (host fixo); leitura de outro caso (autorização/RLS antes da projeção/conferência).
 Suposição explícita do briefing: dados fictícios; nenhuma prova de ACL real nesta passagem.
+
+## Entrega do arquivo pelo app — retomada de 18/11/2026
+
+Lacuna encontrada na implementação: listagem e envio estavam conectados, mas não
+havia operação para recuperar os bytes pelo app. Família não deve receber link do
+Drive para suprir essa lacuna. A entrega usa GET por paciente/documento, resolve o
+identificador cifrado no servidor após a leitura privada autorizada e mantém a
+flag administrada existente. A migration nova `20261125090000` estende a leitura
+direcionada sem ampliar a consulta antiga ou seus grants; aplicação e provas ficam
+pendentes, conforme adiamento de validações pedido pelo solicitante.
+
+Modelo de ameaça do recorte: ativos são bytes clínicos, credencial de serviço e
+auditoria; fronteiras são navegador/BFF, Auth/RPC/Vault e servidor/Google. IDOR e
+outro caso exigem filtro de documento no banco com a audiência vigente. Nova
+autorização depois da busca externa descarta bytes se vínculo, sessão, audiência ou
+versão tiverem mudado. Endereço Google fixo e recusa de redirects limitam SSRF e
+exfiltração. Leitura limitada ao teto já existente impede buffer sem limite.
+`attachment`, tipo binário, nome saneado, `nosniff` e `no-store` evitam tratar o
+conteúdo como página ativa ou armazená-lo em cache compartilhado. URL Blob existe
+somente no navegador e é revogada; nenhuma URL pública/assinada do Drive é emitida.
+
+**SUPOSIÇÃO CONSERVADORA:** entrega sempre como arquivo binário, sem preview nem
+exportação de documento nativo Google. Formato não suportado produz erro honesto.
+Revogação após a autorização final não recolhe bytes já emitidos. Auditoria comprova
+autorização para entregar, nunca recebimento ou salvamento pelo destinatário.
+Implementação não equivale a prova dessas mitigações; testes positivos/negativos,
+revisão e integração real permanecem pendentes nesta retomada.

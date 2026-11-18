@@ -28,7 +28,8 @@ type Autorizacao =
   | { estado: 'nao_autenticado' | 'sem_permissao' | 'servico_indisponivel' };
 
 export type ComandoDocumento =
-  | { operacao: 'ler'; paciente_id: string }
+  | { operacao: 'ler'; paciente_id: string; documento_id?: string }
+  | { operacao: 'entregar'; paciente_id: string; documento_id: string }
   | {
       operacao: 'gravar';
       paciente_id: string;
@@ -140,6 +141,11 @@ export async function operarDocumentoCasoNativo(
     if (request.headers.get('x-sessao')?.toLowerCase() !== identidade.session_id)
       return erro('nao_autenticado');
     const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+    if (comando.operacao === 'ler' && comando.documento_id !== undefined) {
+      const documento = uuidSchema.safeParse(comando.documento_id);
+      if (!documento.success) return erro('entrada_invalida');
+      entrada.documento_id = documento.data.toLowerCase();
+    }
     if (comando.operacao === 'gravar' && metadado && conteudo && documentoId) {
       if (comando.arquivo) {
         if (!portas.drive) return erro('servico_indisponivel');
@@ -248,7 +254,10 @@ export async function operarDocumentoCasoNativo(
         JSON.parse(await portas.cifra.decifrar(item.conteudo, aad)),
       );
       let compartilhamento: 'divergente' | 'revisao_necessaria' | 'indisponivel' = 'indisponivel';
-      if (portas.drive?.porta.consultarCompartilhamento) {
+      if (
+        portas.drive?.porta.consultarCompartilhamento &&
+        !('documento_id' in comando && comando.operacao === 'ler')
+      ) {
         try {
           compartilhamento = await portas.drive.porta.consultarCompartilhamento(
             aberto.drive_file_id,

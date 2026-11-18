@@ -102,6 +102,17 @@ Nenhuma operação remota foi executada: nenhuma migration aplicada, nenhum depl
 
 ## Retomada 18/11/2026 — pronta para cadastrar chave, sem prova externa
 
+- [ ] 1.4 Entregar os bytes do documento pela interface, com autorização vigente
+  de caso/audiência, alvo específico auditado, negativa de outro paciente/perfil,
+  revogação durante I/O e falha Google sem sucesso falso. **Implementação escrita
+  nesta retomada:** GET de arquivo, consulta privada antes/depois do Drive, stream
+  limitado ao teto existente, download binário com headers restritivos e botão na
+  tela. Migration nova `20261125090000_documento_entrega_privada.sql` preparada,
+  não aplicada. Testes helper/HTTP/adapter/UI/SQL escritos; runner
+  `scripts/testar-documento-entrega-local.sh`. **Validação adiada por pedido do
+  solicitante:** nenhum desses testes executado; revisão e integração real
+  pendentes. Não usar as provas antigas de metadados como prova de entrega.
+
 Removido interruptor constante `DOCUMENTOS_ATIVOS=false`: `ffcm.documentos.ativo` controla
 rota com padrão conservador `false`; categorias e raiz seguem catálogo editável no banco.
 Credencial continua nome canônico `ffcmapp.integracao.google_drive` (JSON conta de serviço),

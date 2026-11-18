@@ -11,8 +11,11 @@ import { criarIdempotenciaNativa } from './idempotencia-nativa.ts';
 import { carregarConfiguracaoServidor } from './configuracao-servidor.ts';
 import { lerSegredoIntegracao } from './segredo-integracao.ts';
 import { criarPortaDrive } from './google-drive.ts';
+import { entregarDocumentoCaso } from './documento-caso-entrega.ts';
 
-type Resultado = Awaited<ReturnType<typeof operarDocumentoCasoNativo>>;
+type Resultado =
+  | Awaited<ReturnType<typeof operarDocumentoCasoNativo>>
+  | Awaited<ReturnType<typeof entregarDocumentoCaso>>;
 
 /** Referência do segredo no Supabase Vault. Cadastrar a referência (migration
  * `20261120100000`) não é cadastrar o valor: o JSON da conta de serviço é colocado no Vault
@@ -124,22 +127,25 @@ export async function comporDocumentoCasoNativo(
       // Relação cifrada continua consultável sem Google; conferência mostra pendência.
       // Envio exige porta configurada e falha fechado em operarDocumentoCasoNativo.
     }
+    const portas: Parameters<typeof operarDocumentoCasoNativo>[2] = {
+      autorizar: async () => inicial,
+      revalidar: autorizar,
+      metadados: (requestId) =>
+        metadadosAtestadoNativo(dependencias.keyIdAtestado, requestId, Date.now()),
+      cifra: cofre.cifra,
+      idempotencia: criarIdempotenciaNativa(cofre.cifra),
+      atestador: cofre.atestador,
+      ...(drive ? { drive } : {}),
+      executar: (_request, transporte) => {
+        verificarCancelamento();
+        mutacaoIniciada = comando.operacao === 'gravar';
+        return executarDocumentoCasoNativo(contexto.cliente, transporte);
+      },
+    };
     return await noPrazo(() =>
-      operarDocumentoCasoNativo(pedido, comando, {
-        autorizar: async () => inicial,
-        revalidar: autorizar,
-        metadados: (requestId) =>
-          metadadosAtestadoNativo(dependencias.keyIdAtestado, requestId, Date.now()),
-        cifra: cofre.cifra,
-        idempotencia: criarIdempotenciaNativa(cofre.cifra),
-        atestador: cofre.atestador,
-        ...(drive ? { drive } : {}),
-        executar: (_request, transporte) => {
-          verificarCancelamento();
-          mutacaoIniciada = comando.operacao === 'gravar';
-          return executarDocumentoCasoNativo(contexto.cliente, transporte);
-        },
-      }),
+      comando.operacao === 'entregar'
+        ? entregarDocumentoCaso(pedido, comando, portas)
+        : operarDocumentoCasoNativo(pedido, comando, portas),
     );
   } catch {
     return {
