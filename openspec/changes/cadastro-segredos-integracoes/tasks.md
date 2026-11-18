@@ -9,7 +9,14 @@
 
 - [x] 2.1 Entregar montarSegredosIntegracoes e serviço HTTP no padrão existente; provar limpeza do campo, estados e metadados no teste da tela.
 - [ ] 2.2 Coordenação fiar navegação administrativa e conferir visual desktop/mobile sem credenciais reais.
-- [ ] 2.3 Executar verificar:rapido e revisão independente padrões/spec; registrar evidência e limitações.
+  **Parcial em 18/11/2026:** fiação implementada em `#administracao/integracoes`;
+  conferência visual desktop/mobile permanece pendente. Critério inteiro não fechado.
+- [x] 2.3 Executar verificar:rapido e revisão independente padrões/spec; registrar evidência e limitações.
+  **18/11/2026:** revisão de dois eixos sobre base `fa1af933`, incluindo arquivos novos,
+  sem achado alto nesta superfície. `verificar:rapido` final: saída 0, lint e todos os
+  typechecks. Gate integrado `verificar:ativacao`: saída 0 (1.364 passaram, 30 pulados);
+  SQL direto executado separadamente. Conferência visual e ativação continuam nos gates
+  2.2/2.4; contagem do gate genérico não substitui Auth/Vault reais.
 - [ ] 2.4 Coordenação aplicar migration/ativar e executar autorização positiva/negativa e roteiro publicado; sem prova real não marcar ativada.
 
 ## Evidências e suposições
@@ -25,6 +32,6 @@ Planejamento concluído antes implementação. Suposição: presença no Vault n
 - `verificar:rapido`: lint/typecheck passaram antes inclusão de testes; execução final typecheck passou, único erro lint observado em arquivo concorrente `web/habilitacao-plano-crise.ts:79`. Gate consolidado fica com coordenação.
 - Task 1.2: complemento `entrada-segredos-integracoes-nativa.test.ts`, 3 testes passando: sem sessão, tipo de conteúdo inválido, corpo excessivo e cancelamento por prazo de 15 segundos, sem chamar composição. Provas da operação cobrem perfis, origem e saída estrita. Não equivalem a Auth/Vault reais.
 - Revisão independente de padrões e aderência à especificação sobre base `fa1af933` e arquivos novos: nenhum achado alto confirmado nesta superfície. Fiação em `web/main.ts`: Administração > Credenciais das integrações (`#administracao/integracoes`). Conferência visual e ativação continuam pendentes.
-- Sem operação remota, credencial real, commit, push ou deploy. Revisão independente, conferência visual desktop/mobile, Vault real, navegação publicada e gate de ativação continuam pendentes.
+- Nesta frente não houve operação remota, credencial real, commit, push ou deploy. Revisão de dois eixos local registrada acima; conferência visual desktop/mobile, Vault real, navegação publicada e ativação permanecem pendentes.
 
 Como testar após ativação: Administrador abre Administração > Credenciais das integrações, escolhe entrada e cadastra valor. Confira somente presença/versão/autoria/data; substitua e confirme incremento. Profissional/Família não podem listar/gravar, inclusive por HTTP e RPC direta. Segredos esperados: `ffcmapp.integracao.google_drive` (JSON conta serviço), `ffcmapp.integracao.openrouter` (chave API), `ffcmapp.integracao.google_calendar_client_id` e `ffcmapp.integracao.google_calendar_client_secret` (OAuth Calendar). Os valores serão cadastrados exclusivamente pelo solicitante. Rota segue interruptor operacional existente `FFCM_CONFIGURACAO_SISTEMA_ATIVO`.

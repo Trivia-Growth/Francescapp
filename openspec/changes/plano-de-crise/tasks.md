@@ -134,14 +134,24 @@
   **Prova de que a falha não é desta fatia:** `pnpm run typecheck:proxy` lista exatamente
   esses dois arquivos e nenhum dos arquivos desta entrega; `pnpm run typecheck:web` passa
   limpo.
-- [ ] 6.2 Revisão independente de dois eixos sobre o diff da fatia.
-  **Pendente.**
+**Atualização 18/11/2026:** a falha de typecheck acima é registro histórico,
+superada no gate integrado informado pela coordenação: `verificar:ativacao` saída 0,
+1.364 testes passaram e 30 foram pulados. Testes pulados não provam autorização;
+as provas SQL diretas da alçada DF-021 foram executadas separadamente, com saída 0.
+Este gate local não comprova Auth/Vault remotos nem fecha ativação publicada.
+
+- [x] 6.2 Revisão independente de dois eixos sobre o diff da fatia.
+  **18/11/2026:** revisão padrões/spec sobre base `fa1af933` e arquivos novos;
+  revisão focal independente da preservação de memberships e CREATE contra `0a778cc`,
+  sem achados P1/P2. Revisor reexecutou `testar-plano-crise-case-manager-local.sh`:
+  saída 0. Isso não fecha ativação remota.
 
 ## 7. Ativação
 
 - [ ] 7.1 Aplicar as quatro migrations no projeto de teste e ligar
   `FFCM_PLANO_CRISE_ATIVO`.
-  **Pendente:** exige autorização explícita para operação remota; não executada.
+  **Pendente:** autorizada por DF-022; acesso operacional indisponível nesta noite.
+  Não executada. Ver relatório noturno de 18/11/2026.
 - [x] 7.2 (17/11/2026) Aprovador do plano de crise: **o case manager do caso**. Registrar essa habilitação antes do primeiro plano.
 
   Fundamento registrado como **DF-021** em `docs/projeto/fundacao.md` na mesma data: o case manager designado é o **líder do caso** e detém a alçada de aprovação do que o caso exige. A ressalva anterior sobre FR-020 falar em "profissional habilitado" fica resolvida assim — a habilitação é concedida ao case manager do caso, de forma administrável, nunca fixa em código. Evidência: habilitação registrada e teste negativo provando que quem não é case manager do caso não aprova, inclusive por acesso direto
@@ -156,5 +166,6 @@
   encerrada, habilitação retirada, responsável removido, replay após troca e INSERT direto.
   Carimbos anteriores preservados. `web/plano-crise.test.ts`: 4 testes passam.
   **Pendente operacional:** registrar habilitações reais antes do primeiro plano exige
-  operação autorizada no ambiente. Nenhuma criada neste trabalho. Revisão independente,
-  ativação e teste remoto continuam pendentes; fixture Auth não comprova integração real.
+  operação no ambiente, já autorizada por DF-022. Nenhuma criada neste trabalho.
+  Revisão independente local concluída; ativação e teste remoto continuam pendentes;
+  fixture Auth não comprova integração real.

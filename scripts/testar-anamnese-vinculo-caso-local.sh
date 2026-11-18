@@ -14,4 +14,3 @@ rtk proxy pg_ctl -D "$temporario/data" -t 30 -o "-k $temporario -p 5432 -c liste
 iniciado=1
 rtk proxy createdb -h "$temporario" -p 5432 -U cadeia_fixture ffcm_cadeia_local
 rtk proxy psql -X -h "$temporario" -p 5432 -U cadeia_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/tests/anamnese_vinculo_caso_local.sql"
-
