@@ -224,6 +224,14 @@ Harness somente em `/tmp`, transporte mockado, sem rede externa. A opção é
 **experimental e não foi ativada**; essa prova não estabelece causa nem correção do
 HTTP 400.
 
+Diagnóstico adicional sem credenciais: quatro GETs anônimos com Cookie inteiramente
+fictício retornaram 200 com 0/8.192 bytes e 400 com corpo vazio com 16.384/32.768
+bytes. Isso reproduz limite de cabeçalho no gateway, sem determinar o limiar exato.
+Configurações do Chrome afetado informou oito cookies do site; nenhum nome, valor
+ou tamanho agregado foi lido. **Não comprova a causa da sessão afetada**. Cookies
+não foram apagados, sessões não foram revogadas e a opção experimental permanece
+desativada.
+
 Verificação OpenSpec estrita inicialmente encontrou ausência de delta specs em
 `historico-de-saude` e `transcricao-audio-relato`. Os deltas foram derivados apenas
 dos requisitos e planejamento já aprovados, preservando FR-004/FR-010 e fase
