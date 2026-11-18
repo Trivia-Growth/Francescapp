@@ -1,6 +1,6 @@
 # Tasks
 
-**Fase atual: execução local autorizada em 17/11/2026 após o PR #16.** Base efetiva `804428e79334234a59b1cd415692a976b60246ef`, branch `codex/refino-visual-pr16`. Push desta branch autorizado e realizado em 17/11/2026; merge, deploy, migrações e ativação continuam pendentes. A estética do mock anexado já está aprovada, sem nova rodada de opção gráfica.
+**Fase atual: integração autorizada em 17/11/2026 após revisão do PR #16.** Base inicial `804428e79334234a59b1cd415692a976b60246ef`, branch `codex/refino-visual-pr16`; correções revisadas do #16 integradas. Push e merges autorizados. Cinco migrations do #16 aplicadas com autorização específica; flags preservadas. Solicitante determinou executar o caderno conectado completo após a próxima onda de ajustes. Essa postergação permite integrar o código preparado, mantendo os critérios conectados pendentes, sem declarar aceite integral. A estética do mock anexado já está aprovada.
 
 Ao fechar qualquer tarefa, atualizar `estado.md` no mesmo commit com evidência, limitações e próximo passo. Os arquivos da outra worktree ativa e `docs/processo/estado-do-projeto.md` não pertencem a esta preparação.
 
@@ -39,7 +39,9 @@ Ao fechar qualquer tarefa, atualizar `estado.md` no mesmo commit com evidência,
 - [x] 5.1 **VIS-001 a VIS-010. Depende de 1–4.** Executar `pnpm run verificar:rapido` no diff integrado; usar o resultado do teste afetado de 2.2 e dos testes de loading pertinentes de 4.3, repetindo somente testes afetados se houver correções. Evidência: comandos/resultados do estado alterado registrados no estado; baseline anterior e OpenSpec válido não substituem esse resultado. Sem suíte completa/build/Deno a cada edição.
 - [x] 5.2 **VIS-001 a VIS-010. Depende de 5.1.** Fazer uma revisão formal independente com `code-review`: padrões do projeto e aderência à spec, informando revisão-base, change e diff exato, incluindo novos/locais. Corrigir achados no diff afetado e registrar a revisão/resolução no estado. Evidência: dois eixos revisados, testes afetados após correção e limitações; nenhuma autodeclaração de segurança por skill.
 
-## 6. Gates de ativação — permanecem pendentes
+## 6. Gates de aceite conectado — permanecem pendentes
+
+**Decisão do solicitante em 17/11/2026:** caderno conectado completo será executado após sua próxima onda de ajustes. Integração dos PRs já autorizada prossegue; não marcar os critérios abaixo como comprovados pela postergação. Comando local de ativação passou uma vez no produto integrado (418 testes web); provas SQL locais e metadados remotos estão detalhados no estado.
 
 - [ ] 6.1 **VIS-001 a VIS-010, cenários aplicáveis por perfil. Depende de 5.2 e acesso/ferramentas/autorização pertinentes.** Inspecionar aplicação conectada desktop 1280/1440 e celular 360/390, zoom 200%, teclado, reduced-motion, assets locais, caso fictício preenchido/vazio, nome longo e falha parcial; comparar com captura aprovada e matriz final. Evidência: capturas/roteiro, perfil/ambiente/revisão e resultados reais; superfície bloqueada não é visualmente aprovada por CSS ou teste simulado. Não habilitar Família/convite/agenda/áudio para cumprir checklist.
 - [ ] 6.2 **SC-VIS-002-C, SC-VIS-006-C, SC-VIS-007-B/C e controles FR/SC dos domínios. Depende de 5.2 e ambiente autorizado.** Antes de ativação, executar uma única vez `pnpm run verificar:ativacao` e roteiro positivo/negativo de autorização/RLS exigido pelo projeto: sessão/caso permitido, outro perfil/caso, revogação e acesso direto pertinentes ao diff. Evidência: resultados efetivamente executados de servidor/banco, não só mocks/CI; se não executar, manter gate bloqueado e fatia não ativada.
