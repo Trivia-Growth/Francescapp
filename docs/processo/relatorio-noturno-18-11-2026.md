@@ -125,6 +125,12 @@ As duas últimas substituem o cadastro operacional por variáveis
 `FFCM_AGENDA_GOOGLE_CLIENT_ID` / `FFCM_AGENDA_GOOGLE_CLIENT_SECRET`.
 Nenhuma chave técnica adicional de state é necessária.
 
+Drive pressupõe pasta raiz em **Drive compartilhado institucional**, conforme
+DF-005, acessível à conta de serviço já configurada na origem. O JSON precisa dos
+campos `client_email` e `private_key`; cadastrar somente pela interface acima.
+Nenhum acesso foi concedido ou alterado nesta execução. O app não configura ACL:
+FR-031 somente sinaliza divergência ou revisão necessária.
+
 Em **Administração > Configuração** (`#administracao/configuracao`), editar:
 
 - `ffcm.documentos.drive_pasta_raiz`: ID da pasta raiz do Drive;
@@ -136,8 +142,19 @@ Em **Administração > Configuração** (`#administracao/configuracao`), editar:
 - `ffcm.transcricao.expurgo_ativo`: permanece **false**. Só ativar após conferir
   elegibilidade e autorizar o descarte de áudios abandonados com mais de 30 dias.
 
-Google exige configuração do cliente OAuth e consentimento individual de cada
-profissional na própria agenda. Cadastrar segredo não comprova validade ou conexão.
+Contrato OAuth da Agenda implementado no código: callback HTTPS
+`https://ffcmapp.netlify.app/api/agenda/google/callback` para essa origem publicada;
+se a origem do ambiente mudar, usar a mesma origem seguida de
+`/api/agenda/google/callback`. O cliente OAuth informado deve aceitar esse retorno.
+Escopos solicitados: `openid`, `email` e
+`https://www.googleapis.com/auth/calendar.events`, com consentimento individual e
+acesso offline. O domínio Workspace configurado precisa coincidir com o claim
+`hd` verificado pelo Google; a conta deve ser a mesma identidade Google da sessão.
+Não há suporte a conta pessoal sem domínio Workspace nesse contrato. Conferência
+do cliente no provedor e consentimento real continuam pendentes; nenhuma credencial
+foi criada ou inspecionada nesta execução.
+
+Cadastrar segredo não comprova validade ou conexão.
 Não cadastrar nenhum valor em SQL, terminal, PR ou relatório.
 
 ## Bloqueios reais
@@ -150,17 +167,25 @@ Não cadastrar nenhum valor em SQL, terminal, PR ou relatório.
   contrato verificado, owner `ffcmapp_configuracao_sistema_owner`, EXECUTE para
   `authenticated` e não para `anon`/`service_role`, saída com `opcoes`. Consulta salva
   em `scripts/diagnosticar-configuracao-remota.sql`. Não prova toda execução da RPC.
-- Log de função Netlify por CLI retornou `Unauthorized`. Sem linha de falha com
+- Revalidação da CLI existente: `status --json` retornou `loggedIn: true` após
+  `getCurrentUser()` aceito, com vínculo do site esperado. Isso prova autenticação
+  básica; consulta finita ao histórico da função `configuracao-sistema` continuou
+  retornando `Unauthorized`, sem eventos. Não estabelece token inválido nem a causa
+  da negativa específica dos logs. Nenhum login ou token novo foi criado.
+  Sem linha de falha com
   etapa/causa/request_id, **6.7 permanece aberta**. Não foi aplicado retry de pool
   nem correção especulativa de catálogo/grants.
+  Na interface de logs, a opção histórica documentada é `Last day`; sua execução
+  no painel ficou impedida pelo estado do navegador. Não foi presumido resultado.
 - Aplicação publicada respondeu à entrada; retorno do login Google chegou a
   **HTTP 400** na raiz com parâmetro `fluxo`. Causa não estabelecida. Não foi
   presumido problema de cookie, nem apagados cookies ou revogados acessos.
 - Revalidação sem sessão: raiz HTTP 200; GET de configuração HTTP 401
   `nao_autenticado`, com `request_id` público. Isso prova somente a negativa anônima.
 - Na primeira passagem, controle do navegador foi recusado por foco e depois
-  `screen_locked`. **Na retomada da manhã, Chrome voltou disponível**; esse bloqueio
-  anterior não descreve o estado atual.
+  `screen_locked`. Chrome voltou disponível na retomada da manhã, permitindo as
+  operações remotas descritas abaixo; **na última tentativa voltou a responder
+  `screen_locked`**. Nenhuma ação de desbloqueio ou novo login foi executada.
 - Netlify mostrava publicação automática bloqueada e main anterior publicada.
   Preview do PR foi construído, mas exige autenticação (HTTP 401 na verificação
   anônima). CI `verificar-ativacao` no PR draft foi SKIPPED; não conta como evidência.
