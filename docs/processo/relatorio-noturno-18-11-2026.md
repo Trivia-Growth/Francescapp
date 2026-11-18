@@ -13,6 +13,14 @@ Planejamento existente preservado; nova mudança OpenSpec
 `cadastro-segredos-integracoes` criada antes de sua implementação. Frentes de
 implementação e revisão executadas em Sol. Nenhum segredo real foi cadastrado.
 
+**Retomada por instrução do solicitante:** os impedimentos remotos não suspendem
+as features locais. Foram acrescentados contratos de turno, preparação local de
+abertura/consulta/barreira, download de documentos pelo app e orientação de
+consentimento incompleto da Agenda. **Validações desta retomada foram adiadas por
+pedido do solicitante.** Três migrations novas estão somente no repositório:
+`20261125080000`, `20261125090000` e `20261125100000`; não fazem parte das oito
+versões remotas já aplicadas. Nenhuma dessas entregas é declarada ativada.
+
 ## Entregue, com evidência
 
 1. **Configuração:** navegação administrativa já estava fiada na base; conferida e
@@ -109,6 +117,37 @@ corrigidos e tiveram provas afetadas reexecutadas. Revisões focais posteriores 
 HKDF/composição/grants Agenda e preservação de privilégios da crise sem P1/P2.
 Isso não certifica integração externa nem substitui roteiro publicado.
 
+### Features locais acrescentadas após a retomada
+
+- **Download Drive pelo app:** GET autenticado
+  `/api/pacientes/:paciente_id/documentos/:documento_id/arquivo` e botão
+  “Baixar arquivo”. O servidor resolve o arquivo após a consulta privada de
+  caso/audiência e consulta novamente após buscar os bytes. Stream limitado ao
+  teto existente de 8 MiB; entrega binária `attachment`, nome saneado, `no-store`
+  e `nosniff`. Não emite URL Drive nem altera ACL. Migration `25090000` prepara
+  leitura direcionada/auditoria sem ampliar a listagem antiga. Testes helper,
+  HTTP, adapter, tela e SQL escritos; runner `testar-documento-entrega-local.sh`.
+  **Nenhum executado nesta retomada; revisão e prova real pendentes.**
+- **Agenda:** orientação persistente para `?agenda=autorizar-novamente`, sem
+  confundir consentimento incompleto com estado atual da conexão. Link informativo
+  explica impacto de alterar acesso sem recomendar revogação. Novo teste
+  `web/agenda-consentimento.test.ts` escrito, não executado.
+- **Turno, grupo 1:** contratos estritos de turno, escala/substituição/cobertura,
+  sinal vital, prescrição/administração e ocorrência; identidade/relógio não vêm
+  do corpo. Exports, rotas e teste de contrato escritos, não executados.
+- **Turno, grupo 2:** migrations `25080000`/`25100000`, abertura/consulta própria,
+  reserva/idempotência, unicidade de turno aberto, RLS, auditoria e configuração
+  administrada preparados. Flag `ffcm.turno.ativo=false`; parâmetros nascem vazios.
+  O encerramento exige referência à síntese e permanece recusado até grupo 3.
+  Recusa de perfil no servidor precede o cofre e usa caminho restrito de auditoria
+  negativa, sem capacidade de operação. Matrizes SQL, concorrência `dblink`,
+  instalação NOSUPER/ACL e testes HTTP/composição escritos, **não executados**.
+
+Os resultados verdes registrados acima pertencem à versão anterior a essas
+alterações. Não cobrem download, contratos/execução de turno ou o novo aviso da
+Agenda. Testes positivos/negativos de autorização e RLS continuam obrigatórios
+antes da ativação; adiamento não significa aprovação nem dispensa.
+
 ## Lista exata do que cadastrar e onde
 
 **Após resolver o acesso e conferir a publicação**, entrar como Administrador em
@@ -141,6 +180,13 @@ Em **Administração > Configuração** (`#administracao/configuracao`), editar:
 - `ffcm.agenda_google.ativa`: ligar/desligar Agenda;
 - `ffcm.transcricao.expurgo_ativo`: permanece **false**. Só ativar após conferir
   elegibilidade e autorizar o descarte de áudios abandonados com mais de 30 dias.
+
+Turno é preparação opcional, sem ativação nesta entrega. Quando seus gates forem
+cumpridos, a mesma Administração terá `ffcm.turno.ativo`,
+`ffcm.turno.duracao_padrao_minutos`, `ffcm.turno.tolerancia_atraso_minutos` e
+`ffcm.turno.tratamento_nao_encerrado`. Não há nova variável de ambiente: a flag
+nasce `false`, os três parâmetros nascem em branco e abertura falha fechada até
+configuração explícita. Não ligar antes de concluir os gates do turno.
 
 Contrato OAuth da Agenda implementado no código: callback HTTPS
 `https://ffcmapp.netlify.app/api/agenda/google/callback` para essa origem publicada;
@@ -316,6 +362,14 @@ aprovada antes da implementação, conforme evidência do bloco 2.
   pelo histórico operacional e suas memberships; não se leu o valor da variável de
   conexão. O grant Agenda ficou restrito a esse login já provisionado. Prova do
   caminho integrado continua pendente, sem presumir a configuração do deploy.
+- **SUPOSIÇÃO CONSERVADORA — download:** somente entrega binária, sem preview ou
+  exportação de documento Google Workspace nativo. Auditoria comprova autorização,
+  não recebimento; revogação após a autorização final não recolhe bytes já emitidos.
+- **SUPOSIÇÃO CONSERVADORA — turno:** parâmetros institucionais no catálogo
+  existente, texto vazio para não inventar duração/tolerância. Tratamento admite
+  somente `sinalizar_pendencia`, nunca encerramento automático. Recusa auditada
+  sem HMAC não concede capacidade de execução: só registra `negado` para o próprio
+  ator Auth, ação fechada e alvo UUID. Revisão/provas dessa fronteira pendentes.
 
 Hipóteses anteriores preservadas, sem nova decisão silenciosa: diário considera
 coordenação colaboradores vinculados; saúde não proíbe combinação `relato_leigo` +
@@ -327,6 +381,11 @@ operação atômica e nascimento não futuro em UTC). Isso não dispensa S-02.
 1. Conferir as oito migrations e o grant Agenda já aplicados no projeto de teste.
    Não reaplicar migrations históricas. **Não executar scripts locais de
    bootstrap/fixtures contra o remoto**: usam banco descartável.
+   Na etapa de validação retomada depois, executar as provas novas/afetadas de
+   download e turno; só então aplicar as migrations novas pertinentes com suas
+   guardas. `25090000` é entrega de documento, independente do turno;
+   `25080000`/`25100000` são preparação/grant do turno. Um bloqueio do turno não
+   impede a validação/entrega de documentos. Flags de turno e expurgo ficam falsas.
 2. Após restabelecer a capacidade de deploy da Netlify, gerar artefato do commit
    revisado com contexto `production` e publicá-lo sem desbloquear globalmente
    publicação automática. Promover preview conserva o contexto e não resolve os
@@ -341,6 +400,9 @@ operação atômica e nascimento não futuro em UTC). Isso não dispensa S-02.
 6. Após chaves do solicitante: testar documento/ACL Drive com arquivo fictício,
    áudio fictício no OpenRouter e evento único na agenda individual. Resultado
    incerto não pode aparecer como sucesso. Recorrência permanece fora do V1.
+   No documento, conferir envio e “Baixar arquivo”, audiência familiar e negativas
+   após revogação/mudança de audiência; a consulta de metadados sozinha não prova
+   entrega dos bytes. Na Agenda, conferir também o estado de consentimento incompleto.
 7. Registrar evidências reais e só então retirar PR de draft/fechar gates.
 
 ## Explicitamente não feito
@@ -357,7 +419,10 @@ cadastro/manuseio manual de segredo, merge ou reescrita de histórico.
 
 Turno 0.6 concluído como auditoria documental, com inventário em seu `design.md` e
 lacunas explícitas 0.6.1/0.6.2; isso não aprova a base remota nem libera integração.
-Grupos 1/2/3 não iniciados. Financeiro,
+Grupos 1/2 receberam implementação local após nova autorização; não foram validados
+nem ativados. Encerramento permanece indisponível; grupo 3 não iniciado. As três
+migrations da retomada não foram aplicadas remotamente. Não houve nova execução de
+testes, build ou prova remota dessas features nesta passagem. Financeiro,
 PWA, migração Edge, recorrência, agenda global e lembretes não iniciados. Arquivos
 preexistentes não rastreados em `.impeccable/critique`, `mocks` e `questions`
 preservados fora dos commits.
