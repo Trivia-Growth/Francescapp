@@ -1,3 +1,7 @@
+import {
+  converterDiarioTarefaSchema,
+  reciboConversaoDiarioTarefaSchema,
+} from './conversao-diario-tarefa.ts';
 import { aberturaTurnoSchema, encerramentoTurnoSchema, turnoSchema } from './turno.ts';
 import {
   criacaoTurnoPrevistoSchema,
@@ -296,6 +300,19 @@ const operacaoConcluidaSchema = z
 
 /** Catálogo completo das rotas D-09; handlers não devem declarar DTOs próprios. */
 export const contratosRotas = {
+  consultarConversaoDiarioTarefa: consulta(
+    '/api/pacientes/:paciente_id/diario/:origem_id/conversao-tarefa',
+    vazioSchema,
+    reciboConversaoDiarioTarefaSchema.nullable(),
+    pacienteParametrosSchema.extend({ origem_id: uuidSchema }).strict(),
+  ),
+  converterDiarioTarefa: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/diario/:origem_id/conversao-tarefa',
+    converterDiarioTarefaSchema,
+    reciboConversaoDiarioTarefaSchema,
+    pacienteParametrosSchema.extend({ origem_id: uuidSchema }).strict(),
+  ),
   // Contratos preparados; exposição exige barreiras, auditoria e gates da fatia.
   abrirTurno: mutacaoIdempotente(
     'POST',

@@ -1,3 +1,4 @@
+import { prepararAtestadoConversao } from './conversao-diario-atestado.ts';
 import { chaveIdempotenciaSchema, uuidSchema } from '../../../packages/contracts/src/comum.ts';
 import {
   tarefaCuidadoSchema,
@@ -30,38 +31,40 @@ export type ComandoTarefa =
     };
 
 /** Operação privada: a RPC revalida profissional e vínculo ativo e audita transacionalmente. */
+type PortasTarefaNativa = {
+  autorizar(request: Request): Promise<Autorizacao>;
+  revalidar(request: Request): Promise<Autorizacao>;
+  metadados(requestId: string): {
+    key_id: string;
+    emitido_em: string;
+    expira_em: string;
+    request_id: string;
+  };
+  cifra: {
+    cifrar(valor: string, aad: Aad): Promise<CampoCifrado>;
+    decifrar(valor: CampoCifrado, aad: Aad): Promise<string>;
+  };
+  idempotencia: { calcularDigestIdempotencia(comandoLogico: string): Promise<string> };
+  atestador: {
+    canonicalizar(valor: unknown): string;
+    atestarEntrada(dados: unknown, entrada: Record<string, unknown>): Promise<unknown>;
+  };
+  executar(
+    request: Request,
+    transporte: {
+      p_transporte: {
+        entrada: Record<string, unknown>;
+        entrada_canonica: string;
+        dados_canonicos: string;
+      };
+    },
+  ): Promise<unknown>;
+};
+
 export async function operarTarefaCuidadoNativo(
   request: Request,
   comando: ComandoTarefa,
-  portas: {
-    autorizar(request: Request): Promise<Autorizacao>;
-    revalidar(request: Request): Promise<Autorizacao>;
-    metadados(requestId: string): {
-      key_id: string;
-      emitido_em: string;
-      expira_em: string;
-      request_id: string;
-    };
-    cifra: {
-      cifrar(valor: string, aad: Aad): Promise<CampoCifrado>;
-      decifrar(valor: CampoCifrado, aad: Aad): Promise<string>;
-    };
-    idempotencia: { calcularDigestIdempotencia(comandoLogico: string): Promise<string> };
-    atestador: {
-      canonicalizar(valor: unknown): string;
-      atestarEntrada(dados: unknown, entrada: Record<string, unknown>): Promise<unknown>;
-    };
-    executar(
-      request: Request,
-      transporte: {
-        p_transporte: {
-          entrada: Record<string, unknown>;
-          entrada_canonica: string;
-          dados_canonicos: string;
-        };
-      },
-    ): Promise<unknown>;
-  },
+  portas: PortasTarefaNativa,
 ) {
   const requestId = crypto.randomUUID();
   const erro = (codigo: string) => ({
@@ -86,7 +89,7 @@ export async function operarTarefaCuidadoNativo(
       request.headers.get('x-sessao')?.toLowerCase() !== identidade.session_id
     )
       return erro('nao_autenticado');
-    const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+    let entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
     if (comando.operacao === 'ler' && comando.autorizacao_somente === true)
       entrada.autorizacao_somente = true;
     if (comando.operacao === 'gravar') {
@@ -106,45 +109,23 @@ export async function operarTarefaCuidadoNativo(
         comando.versao_esperada >= 2147483647
       )
         return erro('entrada_invalida');
-      const registroId = crypto.randomUUID();
-      const aad: Aad = {
-        tabela: 'cadastro.tarefa_cuidado_versao',
-        paciente_id: pacienteId,
-        tarefa_id: id.data.toLowerCase(),
-        registro_id: registroId,
-        versao: comando.versao_esperada + 1,
-        campo: 'conteudo',
-        formato: 1,
-      };
-      const conteudo = conteudoTarefaSchema.parse({
-        tarefa: tarefa.data,
-        ator_usuario_id: identidade.usuario_id,
-        data: new Date().toISOString(),
-      });
-      if (new TextEncoder().encode(JSON.stringify(conteudo)).length > 23000)
-        return erro('entrada_invalida');
-      const digest = await portas.idempotencia.calcularDigestIdempotencia(
-        portas.atestador.canonicalizar({
-          paciente_id: pacienteId,
-          tarefa_id: aad.tarefa_id,
-          versao_esperada: comando.versao_esperada,
-          tarefa: tarefa.data,
-        }),
-      );
-      if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) throw new Error();
-      Object.assign(entrada, {
-        reserva_id: reserva.data.toLowerCase(),
-        geracao_reserva: comando.geracao_reserva,
-        chave_idempotencia: chave.data,
-        digest_idempotencia: digest,
-        tarefa_id: aad.tarefa_id,
-        registro_id: registroId,
-        versao_esperada: comando.versao_esperada,
-        conteudo: campoCifradoSchema.parse(
-          await portas.cifra.cifrar(JSON.stringify(conteudo), aad),
-        ),
-        aad,
-      });
+      try {
+        entrada = await prepararEntradaGravacaoTarefaNativa(
+          {
+            requestId,
+            pacienteId,
+            registroId: crypto.randomUUID(),
+            identidade,
+            comando,
+            chave: chave.data,
+          },
+          portas,
+        );
+      } catch (falha) {
+        if (falha instanceof Error && falha.message === 'Entrada inválida.')
+          return erro('entrada_invalida');
+        throw falha;
+      }
     }
     const metadados = dadosAtestadoSchema.omit({ digest_entrada: true }).parse({
       ...portas.metadados(requestId),
@@ -232,4 +213,77 @@ export async function operarTarefaCuidadoNativo(
   } catch {
     return erro(iniciada ? 'pendencia_externa' : 'servico_indisponivel');
   }
+}
+
+type EntradaPreparacaoTarefa = {
+  requestId: string;
+  pacienteId: string;
+  registroId: string;
+  identidade: Identidade;
+  comando: Extract<ComandoTarefa, { operacao: 'gravar' }>;
+  chave: string;
+};
+async function prepararEntradaGravacaoTarefaNativa(
+  parametros: EntradaPreparacaoTarefa,
+  portas: Pick<PortasTarefaNativa, 'cifra' | 'idempotencia' | 'atestador'>,
+) {
+  const { requestId, pacienteId, registroId, identidade, comando } = parametros;
+  const chave = chaveIdempotenciaSchema.safeParse(parametros.chave);
+  const tarefa = tarefaCuidadoSchema.safeParse(comando.tarefa);
+  const id = uuidSchema.safeParse(comando.tarefa_id);
+  const reserva = uuidSchema.safeParse(comando.reserva_id);
+  if (!chave.success || !tarefa.success || !id.success || !reserva.success)
+    throw new Error('Entrada inválida.');
+  const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+
+  const aad: Aad = {
+    tabela: 'cadastro.tarefa_cuidado_versao',
+    paciente_id: pacienteId,
+    tarefa_id: id.data.toLowerCase(),
+    registro_id: registroId,
+    versao: comando.versao_esperada + 1,
+    campo: 'conteudo',
+    formato: 1,
+  };
+  const conteudo = conteudoTarefaSchema.parse({
+    tarefa: tarefa.data,
+    ator_usuario_id: identidade.usuario_id,
+    data: new Date().toISOString(),
+  });
+  if (new TextEncoder().encode(JSON.stringify(conteudo)).length > 23000)
+    throw new Error('Entrada inválida.');
+  const digest = await portas.idempotencia.calcularDigestIdempotencia(
+    portas.atestador.canonicalizar({
+      paciente_id: pacienteId,
+      tarefa_id: aad.tarefa_id,
+      versao_esperada: comando.versao_esperada,
+      tarefa: tarefa.data,
+    }),
+  );
+  if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) throw new Error();
+  Object.assign(entrada, {
+    reserva_id: reserva.data.toLowerCase(),
+    geracao_reserva: comando.geracao_reserva,
+    chave_idempotencia: chave.data,
+    digest_idempotencia: digest,
+    tarefa_id: aad.tarefa_id,
+    registro_id: registroId,
+    versao_esperada: comando.versao_esperada,
+    conteudo: campoCifradoSchema.parse(await portas.cifra.cifrar(JSON.stringify(conteudo), aad)),
+    aad,
+  });
+  return entrada;
+}
+export async function prepararGravacaoTarefaNativa(
+  parametros: EntradaPreparacaoTarefa,
+  portas: Pick<PortasTarefaNativa, 'cifra' | 'idempotencia' | 'atestador' | 'metadados'>,
+) {
+  const entrada = await prepararEntradaGravacaoTarefaNativa(parametros, portas);
+  return prepararAtestadoConversao(
+    entrada,
+    'api.gravar_tarefa_cuidado',
+    parametros.identidade,
+    parametros.requestId,
+    portas,
+  );
 }

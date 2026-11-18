@@ -1,3 +1,4 @@
+import { prepararAtestadoConversao } from './conversao-diario-atestado.ts';
 import { chaveIdempotenciaSchema, uuidSchema } from '../../../packages/contracts/src/comum.ts';
 import {
   conteudoDiarioSchema,
@@ -41,38 +42,40 @@ type Comando =
  * são conferidas aqui: o relato precisa de data e descrição (FR-008) e a publicação de uma
  * evolução precisa de síntese (FR-009). O que o banco garante sozinho é autoria, data,
  * audiência, estado e a presença da justificativa na retificação. */
+type PortasDiarioNativo = {
+  autorizar(request: Request): Promise<Autorizacao>;
+  revalidar(request: Request): Promise<Autorizacao>;
+  metadados(requestId: string): {
+    key_id: string;
+    emitido_em: string;
+    expira_em: string;
+    request_id: string;
+  };
+  cifra: {
+    cifrar(valor: string, aad: Aad): Promise<CampoCifrado>;
+    decifrar(valor: CampoCifrado, aad: Aad): Promise<string>;
+  };
+  idempotencia: { calcularDigestIdempotencia(comandoLogico: string): Promise<string> };
+  atestador: {
+    canonicalizar(valor: unknown): string;
+    atestarEntrada(dados: unknown, entrada: Record<string, unknown>): Promise<unknown>;
+  };
+  executar(
+    request: Request,
+    transporte: {
+      p_transporte: {
+        entrada: Record<string, unknown>;
+        entrada_canonica: string;
+        dados_canonicos: string;
+      };
+    },
+  ): Promise<unknown>;
+};
+
 export async function operarDiarioNativo(
   request: Request,
   comando: Comando,
-  portas: {
-    autorizar(request: Request): Promise<Autorizacao>;
-    revalidar(request: Request): Promise<Autorizacao>;
-    metadados(requestId: string): {
-      key_id: string;
-      emitido_em: string;
-      expira_em: string;
-      request_id: string;
-    };
-    cifra: {
-      cifrar(valor: string, aad: Aad): Promise<CampoCifrado>;
-      decifrar(valor: CampoCifrado, aad: Aad): Promise<string>;
-    };
-    idempotencia: { calcularDigestIdempotencia(comandoLogico: string): Promise<string> };
-    atestador: {
-      canonicalizar(valor: unknown): string;
-      atestarEntrada(dados: unknown, entrada: Record<string, unknown>): Promise<unknown>;
-    };
-    executar(
-      request: Request,
-      transporte: {
-        p_transporte: {
-          entrada: Record<string, unknown>;
-          entrada_canonica: string;
-          dados_canonicos: string;
-        };
-      },
-    ): Promise<unknown>;
-  },
+  portas: PortasDiarioNativo,
 ) {
   const requestId = crypto.randomUUID();
   const erro = (
@@ -120,70 +123,22 @@ export async function operarDiarioNativo(
     };
     if (request.headers.get('x-sessao')?.toLowerCase() !== identidade.session_id)
       return erro('nao_autenticado');
-    const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+    let entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
     let registroId: string | undefined;
     if (comando.operacao === 'gravar' && salvar && diarioId) {
       registroId = crypto.randomUUID();
-      const versao = salvar.versao_esperada + 1;
-      const aad = (campo: Aad['campo']): Aad => ({
-        tabela: 'cadastro.diario_registro_versao',
-        paciente_id: pacienteId,
-        diario_registro_id: diarioId,
-        registro_id: registroId as string,
-        versao,
-        campo,
-        formato: 1,
-      });
-      const digest = await portas.idempotencia.calcularDigestIdempotencia(
-        portas.atestador.canonicalizar({
-          paciente_id: pacienteId,
-          diario_registro_id: diarioId,
-          versao_esperada: salvar.versao_esperada,
-          estado: salvar.estado,
-          conteudo: salvar.conteudo,
-          justificativa: salvar.justificativa ?? null,
-        }),
+      entrada = await prepararEntradaGravacaoDiarioNativa(
+        {
+          requestId,
+          pacienteId,
+          diarioId,
+          registroId,
+          chaveIdempotencia: chaveIdempotencia as string,
+          identidade,
+          salvar,
+        },
+        portas,
       );
-      if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) throw new Error();
-      const aadConteudo = aad('conteudo');
-      Object.assign(entrada, {
-        diario_registro_id: diarioId,
-        registro_id: registroId,
-        versao_esperada: salvar.versao_esperada,
-        tipo: salvar.tipo,
-        estado: salvar.estado,
-        audiencia: salvar.audiencia,
-        atencao: salvar.atencao,
-        retorno_solicitado: salvar.retorno_solicitado,
-        origem_conteudo: salvar.origem_conteudo,
-        ...(salvar.responde_registro_id === undefined
-          ? {}
-          : { responde_registro_id: salvar.responde_registro_id.toLowerCase() }),
-        ...(salvar.tarefa_id === undefined ? {} : { tarefa_id: salvar.tarefa_id.toLowerCase() }),
-        // 12/11/2026: a data do acontecimento e a área saíram do envelope, porque FR-007
-        // exige buscar por elas e o banco não consegue extraí-las de dentro do ciphertext.
-        // Elas continuam também dentro do conteúdo, que segue sendo a fonte de verdade de
-        // quem decifra; aqui viajam em claro só para o banco filtrar e ordenar.
-        ...('data' in salvar.conteudo && typeof salvar.conteudo.data === 'string'
-          ? { aconteceu_em: salvar.conteudo.data }
-          : {}),
-        ...('area' in salvar.conteudo && typeof salvar.conteudo.area === 'string'
-          ? { area: salvar.conteudo.area }
-          : {}),
-        conteudo: campoCifradoSchema.parse(
-          await portas.cifra.cifrar(JSON.stringify(salvar.conteudo), aadConteudo),
-        ),
-        aad: aadConteudo,
-        chave_idempotencia: chaveIdempotencia,
-        digest_idempotencia: digest,
-      });
-      if (salvar.justificativa !== undefined) {
-        const aadJustificativa = aad('justificativa');
-        entrada.justificativa = campoCifradoSchema.parse(
-          await portas.cifra.cifrar(JSON.stringify(salvar.justificativa), aadJustificativa),
-        );
-        entrada.aad_justificativa = aadJustificativa;
-      }
     }
     const metadados = dadosAtestadoSchema.omit({ digest_entrada: true }).parse({
       ...portas.metadados(requestId),
@@ -303,4 +258,96 @@ export async function operarDiarioNativo(
   } catch {
     return erro(iniciada ? 'pendencia_externa' : 'servico_indisponivel');
   }
+}
+
+type EntradaPreparacaoDiario = {
+  requestId: string;
+  pacienteId: string;
+  diarioId: string;
+  registroId: string;
+  chaveIdempotencia: string;
+  identidade: Identidade;
+  salvar: ReturnType<typeof salvarRegistroDiarioSchema.parse>;
+};
+async function prepararEntradaGravacaoDiarioNativa(
+  parametros: EntradaPreparacaoDiario,
+  portas: Pick<PortasDiarioNativo, 'cifra' | 'idempotencia' | 'atestador'>,
+) {
+  const { requestId, pacienteId, diarioId, registroId, chaveIdempotencia } = parametros;
+  const salvar = salvarRegistroDiarioSchema.parse(parametros.salvar);
+  const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+  const versao = salvar.versao_esperada + 1;
+  const aad = (campo: Aad['campo']): Aad => ({
+    tabela: 'cadastro.diario_registro_versao',
+    paciente_id: pacienteId,
+    diario_registro_id: diarioId,
+    registro_id: registroId as string,
+    versao,
+    campo,
+    formato: 1,
+  });
+  const digest = await portas.idempotencia.calcularDigestIdempotencia(
+    portas.atestador.canonicalizar({
+      paciente_id: pacienteId,
+      diario_registro_id: diarioId,
+      versao_esperada: salvar.versao_esperada,
+      estado: salvar.estado,
+      conteudo: salvar.conteudo,
+      justificativa: salvar.justificativa ?? null,
+    }),
+  );
+  if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) throw new Error();
+  const aadConteudo = aad('conteudo');
+  Object.assign(entrada, {
+    diario_registro_id: diarioId,
+    registro_id: registroId,
+    versao_esperada: salvar.versao_esperada,
+    tipo: salvar.tipo,
+    estado: salvar.estado,
+    audiencia: salvar.audiencia,
+    atencao: salvar.atencao,
+    retorno_solicitado: salvar.retorno_solicitado,
+    origem_conteudo: salvar.origem_conteudo,
+    ...(salvar.responde_registro_id === undefined
+      ? {}
+      : { responde_registro_id: salvar.responde_registro_id.toLowerCase() }),
+    ...(salvar.tarefa_id === undefined ? {} : { tarefa_id: salvar.tarefa_id.toLowerCase() }),
+    // 12/11/2026: a data do acontecimento e a área saíram do envelope, porque FR-007
+    // exige buscar por elas e o banco não consegue extraí-las de dentro do ciphertext.
+    // Elas continuam também dentro do conteúdo, que segue sendo a fonte de verdade de
+    // quem decifra; aqui viajam em claro só para o banco filtrar e ordenar.
+    ...('data' in salvar.conteudo && typeof salvar.conteudo.data === 'string'
+      ? { aconteceu_em: salvar.conteudo.data }
+      : {}),
+    ...('area' in salvar.conteudo && typeof salvar.conteudo.area === 'string'
+      ? { area: salvar.conteudo.area }
+      : {}),
+    conteudo: campoCifradoSchema.parse(
+      await portas.cifra.cifrar(JSON.stringify(salvar.conteudo), aadConteudo),
+    ),
+    aad: aadConteudo,
+    chave_idempotencia: chaveIdempotencia,
+    digest_idempotencia: digest,
+  });
+  if (salvar.justificativa !== undefined) {
+    const aadJustificativa = aad('justificativa');
+    entrada.justificativa = campoCifradoSchema.parse(
+      await portas.cifra.cifrar(JSON.stringify(salvar.justificativa), aadJustificativa),
+    );
+    entrada.aad_justificativa = aadJustificativa;
+  }
+  return entrada;
+}
+export async function prepararGravacaoDiarioNativa(
+  parametros: EntradaPreparacaoDiario,
+  portas: Pick<PortasDiarioNativo, 'cifra' | 'idempotencia' | 'atestador' | 'metadados'>,
+) {
+  const entrada = await prepararEntradaGravacaoDiarioNativa(parametros, portas);
+  return prepararAtestadoConversao(
+    entrada,
+    'api.gravar_diario',
+    parametros.identidade,
+    parametros.requestId,
+    portas,
+  );
 }

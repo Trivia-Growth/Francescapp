@@ -35,3 +35,4 @@ export * from './medicacao.ts';
 export * from './ocorrencia-turno.ts';
 export * from './turno-barreira.ts';
 export * from './turno-barreira-servidor.ts';
+export * from './conversao-diario-tarefa.ts';
