@@ -1,0 +1,222 @@
+import type { Turno } from '../packages/contracts/src/turno.ts';
+import type { ServicoTurnoHttp } from './servico-turno-http.ts';
+
+/** Seção da ficha da equipe. Regras de autorização continuam no servidor e banco. */
+export function montarTurnoProprio(
+  raiz: HTMLElement,
+  pacienteId: string,
+  servico: ServicoTurnoHttp,
+  opcoes: { acessoPerdido(): void },
+): () => void {
+  let ativa = true;
+  let ocupada = false;
+  let permiteAbrir = false;
+  let pendente = false;
+  const secao = document.createElement('section');
+  secao.className = 'turno-proprio';
+  const titulo = document.createElement('h3');
+  titulo.textContent = 'Meu turno';
+  const explicacao = document.createElement('p');
+  explicacao.textContent =
+    'Consulte ou abra seu turno neste caso. O horário de abertura é registrado pelo sistema.';
+  const status = document.createElement('p');
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
+  const conteudo = document.createElement('div');
+  const formulario = document.createElement('form');
+  const rotulo = document.createElement('label');
+  const confirmar = document.createElement('input');
+  confirmar.type = 'checkbox';
+  rotulo.append(
+    confirmar,
+    document.createTextNode(' Confirmo que desejo abrir meu turno neste caso.'),
+  );
+  const abrir = document.createElement('button');
+  abrir.type = 'submit';
+  abrir.className = 'button-primary';
+  abrir.textContent = 'Abrir meu turno';
+  const atualizar = document.createElement('button');
+  atualizar.type = 'button';
+  atualizar.className = 'button-secondary';
+  atualizar.textContent = 'Atualizar turno';
+  const recuperar = document.createElement('button');
+  recuperar.type = 'button';
+  recuperar.className = 'button-secondary';
+  recuperar.textContent = 'Recuperar operação pendente';
+  const acoes = document.createElement('div');
+  acoes.className = 'turno-proprio__acoes';
+  acoes.append(abrir, atualizar, recuperar);
+  formulario.append(rotulo, acoes);
+  const limite = document.createElement('p');
+  limite.textContent =
+    'Encerramento de turno ainda indisponível. A passagem de turno será necessária para encerrar.';
+  secao.append(titulo, explicacao, status, conteudo, formulario, limite);
+  raiz.replaceChildren(secao);
+
+  function controles() {
+    secao.setAttribute('aria-busy', String(ocupada));
+    confirmar.disabled = ocupada || !permiteAbrir || pendente;
+    abrir.disabled = confirmar.disabled || !confirmar.checked;
+    atualizar.disabled = ocupada;
+    recuperar.disabled = ocupada || !pendente;
+    rotulo.hidden = !permiteAbrir || pendente;
+    abrir.hidden = !permiteAbrir || pendente;
+    recuperar.hidden = !pendente;
+  }
+  function mostrar(turno: Turno | null) {
+    conteudo.replaceChildren();
+    permiteAbrir = !turno;
+    if (!turno) {
+      const vazio = document.createElement('p');
+      vazio.textContent = 'Você não tem turno aberto neste caso.';
+      conteudo.append(vazio);
+      return;
+    }
+    const lista = document.createElement('dl');
+    const instante = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+    for (const [nome, valor] of [
+      ['Situação', turno.situacao === 'aberto' ? 'Aberto' : 'Encerrado'],
+      ['Abertura registrada', instante.format(new Date(turno.aberto_em))],
+      ['Duração prevista', `${turno.parametros.duracao_padrao_minutos} minutos`],
+      ['Tolerância de atraso', `${turno.parametros.tolerancia_atraso_minutos} minutos`],
+    ]) {
+      const termo = document.createElement('dt');
+      termo.textContent = nome ?? '';
+      const valorElemento = document.createElement('dd');
+      valorElemento.textContent = valor ?? '';
+      lista.append(termo, valorElemento);
+    }
+    conteudo.append(lista);
+  }
+  function falhou(erro: unknown) {
+    if (!ativa) return;
+    conteudo.replaceChildren();
+    permiteAbrir = false;
+    confirmar.checked = false;
+    const codigo = erro && typeof erro === 'object' && 'codigo' in erro ? String(erro.codigo) : '';
+    if (codigo === 'nao_autenticado' || codigo === 'sem_permissao') {
+      ativa = false;
+      raiz.replaceChildren();
+      opcoes.acessoPerdido();
+      return;
+    }
+    status.textContent =
+      codigo === 'conflito_versao' || codigo === 'conflito_idempotencia'
+        ? 'A abertura não foi confirmada. Atualize ou recupere a operação; você pode ter um turno aberto em outro caso.'
+        : pendente
+          ? 'Não foi possível confirmar o resultado. Recupere a operação antes de abrir outro turno.'
+          : 'Não foi possível consultar seu turno. O recurso pode estar indisponível. Tente atualizar.';
+  }
+  async function executar(mensagem: string, acao: () => Promise<void>) {
+    if (!ativa || ocupada) return;
+    ocupada = true;
+    status.textContent = mensagem;
+    controles();
+    try {
+      await acao();
+    } catch (erro) {
+      falhou(erro);
+    } finally {
+      ocupada = false;
+      if (ativa) controles();
+    }
+  }
+  async function carregar() {
+    const barreira = await servico.consultarBarreira();
+    if (!ativa) return;
+    pendente = Boolean(barreira.reserva || barreira.resultado_pendente);
+    const turno = await servico.consultarAtual(pacienteId);
+    if (!ativa) return;
+    mostrar(turno);
+    status.textContent = pendente
+      ? 'Existe uma operação pendente. Recupere o resultado antes de abrir outro turno.'
+      : 'Consulta atualizada.';
+  }
+  async function reconciliar() {
+    let barreira = await servico.consultarBarreira();
+    if (!ativa) return;
+    if (barreira.reserva) {
+      // Encerrar esta barreira resolve a operação; nunca encerra o turno clínico.
+      const encerramento = await servico.encerrarBarreira({
+        epoca: barreira.epoca,
+        reserva_id: barreira.reserva.id,
+        comando_id: crypto.randomUUID(),
+      });
+      if (!ativa) return;
+      if (encerramento.estado !== 'confirmada' && encerramento.estado !== 'cancelada')
+        throw new Error('Barreira não reconciliada');
+      barreira = await servico.consultarBarreira();
+      if (!ativa) return;
+    }
+    if (barreira.reserva) throw new Error('Operação ainda pendente');
+    const resultado = barreira.resultado_pendente;
+    if (resultado) {
+      if (resultado.paciente_id.toLowerCase() !== pacienteId.toLowerCase()) {
+        pendente = true;
+        permiteAbrir = false;
+        conteudo.replaceChildren();
+        status.textContent =
+          'A operação pendente pertence a outro caso. Abra a ficha de origem e recupere por lá.';
+        return;
+      }
+      if (resultado.resultado === 'confirmada') {
+        const turno = await servico.consultar(pacienteId, resultado.turno_id);
+        if (!ativa) return;
+        if (!turno) throw new Error('Turno não confirmado');
+        // Não reconhecer antes de consultar: uma falha mantém IDs recuperáveis no servidor.
+      }
+      const reconhecimento = await servico.reconhecer({ comando_id: resultado.recibo_id });
+      if (!ativa) return;
+      if (reconhecimento.estado !== 'reconhecido') throw new Error('Resultado ainda pendente');
+    }
+    await carregar();
+    if (ativa && !pendente)
+      status.textContent =
+        resultado?.resultado === 'cancelada'
+          ? 'A operação anterior foi cancelada sem abrir turno. Consulta atualizada.'
+          : 'Resultado recuperado e consulta atualizada.';
+  }
+  confirmar.addEventListener('change', controles);
+  atualizar.addEventListener('click', () => void executar('Consultando seu turno…', carregar));
+  recuperar.addEventListener('click', () => void executar('Recuperando resultado…', reconciliar));
+  formulario.addEventListener('submit', (evento) => {
+    evento.preventDefault();
+    if (abrir.disabled || !confirmar.checked || !permiteAbrir || pendente) return;
+    void executar('Abrindo seu turno…', async () => {
+      const barreira = await servico.consultarBarreira();
+      if (!ativa) return;
+      if (barreira.reserva || barreira.resultado_pendente) {
+        pendente = true;
+        status.textContent = 'Existe uma operação pendente. Recupere antes de abrir outro turno.';
+        return;
+      }
+      const turnoId = crypto.randomUUID();
+      const reservaId = crypto.randomUUID();
+      pendente = true;
+      confirmar.checked = false;
+      const reserva = await servico.reservar({
+        epoca: barreira.epoca,
+        reserva_id: reservaId,
+        paciente_id: pacienteId,
+        turno_id: turnoId,
+        versao_esperada: 0,
+      });
+      if (!ativa) return;
+      if (reserva.estado !== 'aberta') throw new Error('Reserva não confirmada');
+      // Geração é a época recebida do servidor, conferida na reserva e no SQL de abertura.
+      await servico.abrir(
+        pacienteId,
+        { turno_id: turnoId, reserva_id: reservaId, geracao_reserva: barreira.epoca },
+        crypto.randomUUID(),
+      );
+      if (!ativa) return;
+      await reconciliar();
+    });
+  });
+  controles();
+  void executar('Consultando seu turno…', carregar);
+  return () => {
+    ativa = false;
+    raiz.replaceChildren();
+  };
+}

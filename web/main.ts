@@ -48,6 +48,9 @@ import { criarServicoPlanoCriseHttp } from './servico-plano-crise-http.js';
 import { montarHabilitacaoPlanoCrise } from './habilitacao-plano-crise.js';
 import { criarServicoHabilitacaoPlanoCriseHttp } from './servico-habilitacao-plano-crise-http.js';
 import { montarDiario } from './diario.js';
+import { montarTurnoProprio } from './turno-proprio.js';
+import { criarServicoTurnoHttp } from './servico-turno-http.js';
+import './turno-proprio.css';
 import { montarConversaoDiario } from './conversao-diario.js';
 import { criarServicoConversaoDiarioHttp } from './servico-conversao-diario-http.js';
 import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
@@ -880,6 +883,16 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       rotulo: 'Tarefas',
       descarte: descarteTarefa,
       montar: (raiz, pendente) => montarSecaoTarefas(raiz, paciente.id, pendente),
+    });
+  if (atual.usuario.perfil === 'profissional')
+    secoes.push({
+      id: 'meu-turno',
+      rotulo: 'Meu turno',
+      // Visibilidade organiza a ficha; autorização continua no servidor e banco.
+      montar: (raiz) =>
+        montarTurnoProprio(raiz, paciente.id, criarServicoTurnoHttp(identidadeAtual), {
+          acessoPerdido: () => acessoPerdido(new FalhaApi('nao_autenticado', 401)),
+        }),
     });
   if (administraCadastro)
     secoes.push({

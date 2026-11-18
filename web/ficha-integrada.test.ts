@@ -181,6 +181,7 @@ it.each([
       'Saúde',
       'Plano de crise',
       'Tarefas',
+      'Meu turno',
       'Encaminhamentos',
       'Orientações',
       'Rotina e recursos',
@@ -223,6 +224,26 @@ it.each([
     ).toEqual(secundarias);
   },
 );
+
+it('monta Meu turno no caso atual e desmonta ao sair da seção', async () => {
+  const caminhos = preparar('profissional', [], (caminho) =>
+    caminho === '/api/turnos/barreira'
+      ? envelope({ epoca: 1, reserva: null, resultado_pendente: null })
+      : caminho === `/api/pacientes/${A}/turnos/atual`
+        ? envelope(null)
+        : undefined,
+  );
+  await import('./main.js');
+  await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
+  document.querySelector<HTMLButtonElement>(linha(A))?.click();
+  el('ficha-aba-meu-turno').click();
+  await vi.waitFor(() => expect(painel()).toContain('Você não tem turno aberto neste caso.'));
+  expect(caminhos).toContain(`/api/pacientes/${A}/turnos/atual`);
+  expect(caminhos).not.toContain(`/api/pacientes/${B}/turnos/atual`);
+  expect(painel()).toContain('Encerramento de turno ainda indisponível.');
+  el('ficha-aba-visao').click();
+  expect(document.querySelector('.turno-proprio')).toBeNull();
+});
 
 it('só mostra a seção da visão de tarefas ao profissional', async () => {
   preparar('administrador', ['administrar_cadastro']);

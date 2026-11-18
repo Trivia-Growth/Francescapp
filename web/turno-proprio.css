@@ -1,0 +1,70 @@
+.turno-proprio {
+  border-top: 1px solid var(--line, #dfe5d4);
+  padding-block: 24px;
+  color: var(--ink, #273123);
+}
+.turno-proprio h3 {
+  margin: 0 0 12px;
+}
+.turno-proprio p {
+  max-width: 70ch;
+}
+.turno-proprio form {
+  display: grid;
+  gap: 16px;
+}
+.turno-proprio label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  line-height: 1.6;
+}
+.turno-proprio input[type="checkbox"] {
+  flex: none;
+  margin-top: 6px;
+  accent-color: #475436;
+}
+.turno-proprio__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.turno-proprio button {
+  min-height: 44px;
+  max-width: 100%;
+  white-space: normal;
+}
+.turno-proprio :focus-visible {
+  outline: 3px solid #475436;
+  outline-offset: 4px;
+}
+.turno-proprio dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 8px 20px;
+  margin-block: 20px;
+}
+.turno-proprio dt {
+  font-weight: 600;
+}
+.turno-proprio dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.turno-proprio [hidden] {
+  display: none;
+}
+@media (max-width: 560px) {
+  .turno-proprio__acoes {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .turno-proprio dl {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .turno-proprio dd {
+    margin-bottom: 12px;
+  }
+}
