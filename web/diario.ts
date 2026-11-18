@@ -1,3 +1,4 @@
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import type {
   AudienciaDiario,
   ConteudoEvolucaoDiario,
@@ -114,7 +115,8 @@ export function montarDiario(
   };
   const status = elemento('p', 'Carregando o diário…');
   status.setAttribute('role', 'status');
-  raiz.replaceChildren(status);
+  const carregamento = esqueletoCarregando(3, true);
+  raiz.replaceChildren(status, carregamento);
 
   const gravar = async (entrada: SalvarRegistroDiario): Promise<RegistroDiario> => {
     const salvo = await servico.salvar(pacienteId, entrada);
@@ -222,6 +224,8 @@ export function montarDiario(
         >('input, textarea, select, button'),
       ];
       for (const controle of controles) controle.disabled = true;
+      aviso.textContent = estado === 'rascunho' ? 'Salvando rascunho…' : 'Publicando…';
+      const finalizar = iniciarAcao(estado === 'rascunho' ? rascunho : publicar);
       salvandoFamiliar = true;
       try {
         await gravar({
@@ -244,6 +248,7 @@ export function montarDiario(
         if (descartarAcesso(erro)) return;
         aviso.textContent = mensagemFalha(erro);
       } finally {
+        finalizar();
         salvandoFamiliar = false;
         for (const controle of controles) controle.disabled = false;
       }
@@ -381,6 +386,8 @@ export function montarDiario(
         >('input, textarea, select, button'),
       ];
       for (const controle of controles) controle.disabled = true;
+      aviso.textContent = estado === 'rascunho' ? 'Salvando rascunho…' : 'Publicando…';
+      const finalizar = iniciarAcao(estado === 'rascunho' ? rascunho : publicar);
       try {
         await gravar({
           versao_esperada: 0,
@@ -403,6 +410,7 @@ export function montarDiario(
         if (descartarAcesso(erro)) return;
         aviso.textContent = mensagemFalha(erro);
       } finally {
+        finalizar();
         for (const controle of controles) controle.disabled = false;
         if (responde?.tipo === 'relato_familiar') audiencia.disabled = true;
       }
@@ -455,6 +463,8 @@ export function montarDiario(
           ? ({ ...(registro.conteudo as ConteudoRelatoDiario), descricao: texto } as const)
           : ({ ...(registro.conteudo as ConteudoEvolucaoDiario), atividade: texto } as const);
       confirmar.disabled = true;
+      aviso.textContent = 'Registrando retificação…';
+      const finalizar = iniciarAcao(confirmar);
       if (ehFamilia) salvandoFamiliar = true;
       void (async () => {
         try {
@@ -478,6 +488,7 @@ export function montarDiario(
           aviso.textContent = mensagemFalha(erro);
           confirmar.disabled = false;
         } finally {
+          finalizar();
           if (ehFamilia) salvandoFamiliar = false;
         }
       })();
@@ -540,6 +551,7 @@ export function montarDiario(
       if (avisoLeituras) avisoLeituras.textContent = '';
       return;
     }
+    if (carregando) regiaoLeituras.append(esqueletoCarregando(3, true));
     if (estadoLeituras !== 'pronto') return;
     if (!registros.length) {
       regiaoLeituras.append(elemento('p', 'Nenhum registro no diário deste paciente ainda.'));
@@ -658,6 +670,8 @@ export function montarDiario(
           return;
         }
         confirmar.disabled = true;
+        aviso.textContent = 'Registrando atenção…';
+        const finalizar = iniciarAcao(confirmar);
         void (async () => {
           try {
             const descricao = `Atenção sinalizada no diário: ${texto}`;
@@ -693,6 +707,8 @@ export function montarDiario(
             if (descartarAcesso(erro)) return;
             aviso.textContent = mensagemFalha(erro);
             confirmar.disabled = false;
+          } finally {
+            finalizar();
           }
         })();
       });
@@ -725,7 +741,10 @@ export function montarDiario(
       if (ehFamilia) {
         desenharLeituras();
         if (avisoLeituras) avisoLeituras.textContent = mensagemFalha(erro);
-      } else status.textContent = mensagemFalha(erro);
+      } else {
+        carregamento.remove();
+        status.textContent = mensagemFalha(erro);
+      }
     }
   };
   const visibilidadeAlterada = () => {

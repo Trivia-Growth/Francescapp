@@ -143,6 +143,7 @@ export function montarHomeProfissional(
     saudacao.textContent = 'Carregando seu dia…';
     apoio.textContent = '';
     estado.textContent = 'Carregando o resumo do seu dia.';
+    corpo.setAttribute('aria-busy', 'true');
     corpo.replaceChildren(esqueletoCarregando(3));
 
     // As duas leituras são a mesma consulta da carteira, com recortes diferentes. Elas
@@ -156,6 +157,7 @@ export function montarHomeProfissional(
     for (const resultado of [atencao, todos])
       if (resultado.status === 'rejected' && descartarAcesso(resultado.reason)) return;
 
+    corpo.removeAttribute('aria-busy');
     corpo.replaceChildren();
 
     if (atencao.status === 'fulfilled') {

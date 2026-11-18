@@ -4,7 +4,7 @@ import {
   type SalvarAnamnese,
 } from '../packages/contracts/src/index.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
-import { esqueletoCarregando } from './esqueleto.js';
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 
 /** Roteiro sugerido de FR-003. Vem do banco (`ffcm.anamnese.roteiro`), editável na tela de
  *  administração pela diretriz de 11/11/2026 — a estrutura de seis seções foi aprovada pelo
@@ -297,6 +297,7 @@ export function montarAnamnese(
         if (!servico.consultarHistoricoAnamnese) return;
         anterior.disabled = true;
         historicoStatus.textContent = 'Carregando histórico…';
+        const finalizar = iniciarAcao(anterior);
         try {
           const pagina = await servico.consultarHistoricoAnamnese(pacienteId, cursor);
           if (!ativa) return;
@@ -323,6 +324,8 @@ export function montarAnamnese(
           if (!ativa || descartarAcesso(erro)) return;
           historicoStatus.textContent = mensagemFalha(erro);
           anterior.disabled = false;
+        } finally {
+          finalizar();
         }
       });
       historico.append(anterior, historicoStatus, conteudo);
@@ -333,6 +336,7 @@ export function montarAnamnese(
       if (!pendente) return;
       salvar.disabled = retry.disabled = adicionarBotao.disabled = true;
       aviso.textContent = 'Salvando anamnese…';
+      const finalizar = iniciarAcao(retry.hidden ? salvar : retry);
       try {
         const salvo = await servico.salvarAnamnese(pacienteId, pendente.entrada, pendente.chave);
         if (!ativa) return;
@@ -360,6 +364,8 @@ export function montarAnamnese(
             ? 'A anamnese foi alterada por outra pessoa. Copie seu rascunho antes de recarregar a página para consultar a versão atual; suas alterações ainda não foram salvas.'
             : mensagemFalha(erro);
         }
+      } finally {
+        finalizar();
       }
     };
     form.addEventListener('input', () => {

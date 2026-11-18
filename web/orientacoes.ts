@@ -2,7 +2,7 @@ import type { Orientacao } from '../packages/contracts/src/orientacao.ts';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { montarOrientacoesLocais, type OrientacaoLocal } from './orientacoes-local.js';
 import type { EntradaOrientacao } from './servico-orientacoes-http.js';
-import { esqueletoCarregando } from './esqueleto.js';
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 
 type Servico = {
   consultar(pacienteId: string, apenasVigentes?: boolean): Promise<Orientacao[]>;
@@ -77,6 +77,8 @@ export function montarOrientacoes(
               (item) => item.anterior && anteriores.get(item.id)?.anterior === false,
             );
             const novas = proximas.filter((item) => !anteriores.has(item.id));
+            const botao = corpo.querySelector<HTMLButtonElement>('button[type=submit]');
+            const terminarAcao = botao ? iniciarAcao(botao) : () => {};
             try {
               for (const item of superadas) {
                 const versao = versoes.get(item.id);
@@ -103,6 +105,8 @@ export function montarOrientacoes(
             } catch (erro) {
               if (descartarAcesso(erro)) throw erro;
               throw new Error(mensagemFalha(erro));
+            } finally {
+              terminarAcao();
             }
           },
         },
@@ -112,6 +116,7 @@ export function montarOrientacoes(
     } catch (erro) {
       if (!ativa || descartarAcesso(erro)) return;
       status.textContent = mensagemFalha(erro);
+      raiz.replaceChildren(status);
     }
   })();
 

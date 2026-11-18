@@ -1,3 +1,4 @@
+import { iniciarAcao } from './esqueleto.js';
 import { type ClienteFFCM, mensagemFalha } from './api.js';
 import { criarCicloAcesso } from './ciclo-acesso.js';
 import { montarRevogacaoVinculo } from './revogacao-vinculo.js';
@@ -95,6 +96,8 @@ export function montarSelecaoProfissional(
     verificando = true;
     liberado = false;
     conceder.disabled = recuperar.disabled = true;
+    const terminarAcao = iniciarAcao(recuperar);
+    explicacao.textContent = 'Conferindo acesso…';
     try {
       let estado = await ciclo.consultar();
       if (!ativa) return;
@@ -159,6 +162,7 @@ export function montarSelecaoProfissional(
       explicacao.textContent =
         'Não foi possível concluir a conferência. Confira o paciente correspondente e tente de novo.';
     } finally {
+      terminarAcao();
       verificando = false;
       if (ativa) recuperar.disabled = false;
     }
@@ -171,6 +175,8 @@ export function montarSelecaoProfissional(
     if (!liberado || !selecao.value || !motivo.value.trim()) return;
     liberado = false;
     conceder.disabled = true;
+    const terminarAcao = iniciarAcao(conceder);
+    explicacao.textContent = 'Enviando concessão…';
     const usuario = selecao.value;
     const razao = motivo.value;
     void ciclo
@@ -189,7 +195,8 @@ export function montarSelecaoProfissional(
         if (ativa && !acessoPerdido(erro))
           explicacao.textContent =
             'Não deu para saber se a concessão foi registrada. Confira antes de tentar de novo.';
-      });
+      })
+      .finally(terminarAcao);
   });
   void verificarPendente();
 
@@ -314,6 +321,7 @@ export function montarSelecaoProfissional(
     const executar = async (): Promise<boolean> => {
       maisVinculos.disabled = tentarVinculos.disabled = true;
       estadoVinculos.textContent = 'Consultando vínculos…';
+      listaVinculos.setAttribute('aria-busy', 'true');
       const reiniciar = atualizacaoPendente;
       const geracao = geracaoAtualizacao;
       try {
@@ -375,6 +383,7 @@ export function montarSelecaoProfissional(
         }
         return false;
       } finally {
+        listaVinculos.removeAttribute('aria-busy');
         maisVinculos.disabled = tentarVinculos.disabled = false;
       }
     };
@@ -393,6 +402,7 @@ export function montarSelecaoProfissional(
     const atual = ++consulta;
     status.textContent = 'Consultando equipe…';
     selecao.disabled = anterior.disabled = seguinte.disabled = true;
+    selecao.setAttribute('aria-busy', 'true');
     tentar.hidden = true;
     selecao.replaceChildren();
     try {
@@ -434,6 +444,8 @@ export function montarSelecaoProfissional(
       status.textContent = mensagemFalha(erro);
       tentar.hidden = false;
       anterior.disabled = pagina === 0;
+    } finally {
+      if (atual === consulta) selecao.removeAttribute('aria-busy');
     }
   }
   anterior.addEventListener('click', () => {
@@ -455,6 +467,8 @@ export function montarSelecaoProfissional(
   return () => {
     ativa = false;
     consulta += 1;
+    selecao.removeAttribute('aria-busy');
+    listaVinculos.removeAttribute('aria-busy');
     revogacao.destruir();
     raiz.replaceChildren();
   };

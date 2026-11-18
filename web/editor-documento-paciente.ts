@@ -1,3 +1,4 @@
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
 import type { ServicoDocumentoPaciente } from './servico-documento-paciente-http.ts';
 
@@ -75,6 +76,7 @@ export function montarEditorDocumentoPaciente<T>(
       if (!pendente) return;
       salvar.disabled = retry.disabled = true;
       aviso.textContent = textos.salvando;
+      const finalizar = iniciarAcao(retry.hidden ? salvar : retry);
       try {
         const salvo = await servico.salvar(pacienteId, versao, pendente.conteudo, pendente.chave);
         if (!ativa) return;
@@ -98,6 +100,8 @@ export function montarEditorDocumentoPaciente<T>(
           retry.hidden = true;
           aviso.textContent = conflitoVersao ? textos.conflito : mensagemFalha(erro);
         }
+      } finally {
+        finalizar();
       }
     };
 
@@ -125,12 +129,16 @@ export function montarEditorDocumentoPaciente<T>(
 
   const consultar = () => {
     status.textContent = textos.carregando;
-    raiz.replaceChildren(status);
+    const conteudo = elemento('div');
+    conteudo.setAttribute('aria-busy', 'true');
+    conteudo.append(esqueletoCarregando(3, true));
+    raiz.replaceChildren(status, conteudo);
     void servico
       .consultar(pacienteId)
       .then(desenhar)
       .catch((erro: unknown) => {
         if (!ativa || descartarAcesso(erro)) return;
+        conteudo.remove();
         status.textContent = mensagemFalha(erro);
         const tentarNovamente = elemento('button', 'Tentar novamente');
         tentarNovamente.type = 'button';

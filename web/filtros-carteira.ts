@@ -53,6 +53,10 @@ export function montarFiltrosCarteira(
   },
   aoFiltrar: AoFiltrar,
 ): { aplicar(): void; limpar(): void } {
+  const painel = document.createElement('details');
+  painel.className = 'filtros-carteira-painel';
+  const resumo = document.createElement('summary');
+  painel.append(resumo);
   const formulario = document.createElement('form');
   formulario.className = 'filtros-carteira';
   formulario.noValidate = true;
@@ -116,7 +120,16 @@ export function montarFiltrosCarteira(
       ? { pendencia: pen.selecao.value as NonNullable<FiltrosCarteira['pendencia']> }
       : {}),
   });
-  const aplicar = () => aoFiltrar(reunir());
+  const atualizarResumo = () => {
+    const quantidade = campos.filter((campo) => campo.value !== '').length;
+    resumo.textContent = quantidade
+      ? `Filtrar pessoas (${quantidade} ${quantidade === 1 ? 'filtro ativo' : 'filtros ativos'})`
+      : 'Filtrar pessoas';
+  };
+  const aplicar = () => {
+    atualizarResumo();
+    aoFiltrar(reunir());
+  };
   for (const campo of campos) campo.addEventListener('change', aplicar);
   const limpar = () => {
     for (const campo of campos) campo.value = '';
@@ -127,7 +140,9 @@ export function montarFiltrosCarteira(
     evento.preventDefault();
     aplicar();
   });
-  raiz.replaceChildren(formulario);
+  atualizarResumo();
+  painel.append(formulario);
+  raiz.replaceChildren(painel);
   return { aplicar, limpar };
 }
 

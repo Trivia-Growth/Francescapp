@@ -1,3 +1,4 @@
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import {
   tipoConfiguracaoSchema,
   valorCompativel,
@@ -202,6 +203,7 @@ export function montarConfiguracaoSistema(
         if (controle instanceof HTMLSelectElement) controle.disabled = true;
         else if (tipo !== 'booleano') controle.readOnly = true;
         aviso.textContent = 'Salvando…';
+        const finalizar = iniciarAcao(salvar);
         void servico
           .gravar({
             configuracao_chave: item.chave,
@@ -228,7 +230,8 @@ export function montarConfiguracaoSistema(
             salvar.disabled = false;
             if (controle instanceof HTMLSelectElement) controle.disabled = false;
             else controle.readOnly = false;
-          });
+          })
+          .finally(finalizar);
       });
     }
   };
@@ -236,6 +239,9 @@ export function montarConfiguracaoSistema(
   const carregar = async (mensagemInicial = 'Carregando ajustes…') => {
     status.textContent = mensagemInicial;
     recarregar.disabled = true;
+    lista.setAttribute('aria-busy', 'true');
+    if (!lista.hasChildNodes()) lista.append(esqueletoCarregando(3, true));
+    const finalizar = iniciarAcao(recarregar);
     try {
       const itens = await servico.listar();
       if (!ativa) return;
@@ -249,6 +255,8 @@ export function montarConfiguracaoSistema(
       lista.replaceChildren();
       status.textContent = 'Não foi possível carregar os ajustes. Tente recarregar.';
     } finally {
+      finalizar();
+      lista.removeAttribute('aria-busy');
       if (ativa) recarregar.disabled = false;
     }
   };

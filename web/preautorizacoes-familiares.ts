@@ -1,3 +1,4 @@
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import type { z } from 'zod';
 import type {
   cancelarPreautorizacaoFamiliarSchema,
@@ -98,6 +99,7 @@ export function montarPreautorizacoesFamiliares(
           ocupada = true;
           campos.disabled = true;
           avisar('Encerrando o acesso…');
+          const finalizar = iniciarAcao(botao);
           try {
             await servico.cancelar({
               convite_id: item.convite_id,
@@ -112,6 +114,7 @@ export function montarPreautorizacoesFamiliares(
             acessoPerdido(erro);
             avisar('Não foi possível encerrar o acesso agora. Tente de novo.');
           } finally {
+            finalizar();
             ocupada = false;
             campos.disabled = false;
           }
@@ -124,6 +127,10 @@ export function montarPreautorizacoesFamiliares(
 
   const carregar = async () => {
     avisar('Carregando os acessos da família…');
+    lista.setAttribute('aria-busy', 'true');
+    const carregamento = document.createElement('li');
+    carregamento.append(esqueletoCarregando(2, true));
+    if (!lista.hasChildNodes()) lista.append(carregamento);
     try {
       const itens = await servico.listar(pacienteId);
       if (!ativa) return;
@@ -132,6 +139,9 @@ export function montarPreautorizacoesFamiliares(
       if (!ativa) return;
       acessoPerdido(erro);
       avisar('Não foi possível carregar os acessos da família agora.');
+    } finally {
+      carregamento.remove();
+      lista.removeAttribute('aria-busy');
     }
   };
 

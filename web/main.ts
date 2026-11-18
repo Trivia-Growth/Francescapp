@@ -1,3 +1,4 @@
+import { iniciarAcao } from './esqueleto.js';
 import { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.js';
 import { montarAgendaIndividual } from './agenda-individual.js';
 import { montarContatoPaciente } from './contatos-paciente.js';
@@ -129,6 +130,7 @@ const loginView = elemento('login-view');
 const patientsView = elemento('patients-view');
 const logoutView = elemento('logout-view');
 const revalidacaoStatus = elemento('revalidacao-status');
+revalidacaoStatus.classList.add('revalidacao-loading');
 const loginForm = elemento<HTMLFormElement>('login-form');
 const familiarForm = elemento<HTMLFormElement>('familiar-login-form');
 const familiarFields = elemento<HTMLFieldSetElement>('familiar-login-fields');
@@ -216,69 +218,168 @@ const crumbPaciente = elemento('crumb-paciente');
 const buscaCampo = elemento<HTMLInputElement>('busca-pacientes');
 const buscaVazia = elemento('busca-vazia');
 
-// Abaixo de 760px a barra lateral (Seu dia, Pessoas acompanhadas, Administração, Como
-// funciona) vira uma gaveta: sem este controle, não haveria como alcançar esses destinos
-// a partir do celular depois de sair da home ou da carteira.
+// A navegação mantém os mesmos links e seu estado de autorização nas duas larguras.
 const toggleSidebar = elemento<HTMLButtonElement>('toggle-sidebar');
 const patientsSidebar = elemento('patients-sidebar');
 const sidebarBackdrop = elemento('sidebar-backdrop');
-const gavetaMobile = () => window.innerWidth <= 760;
-function atualizarInerciaGaveta(): void {
-  patientsSidebar.toggleAttribute(
-    'inert',
-    gavetaMobile() && !patientsSidebar.classList.contains('open'),
-  );
+const collapseSidebar = elemento<HTMLButtonElement>('collapse-sidebar');
+const closeSidebar = document.createElement('button');
+closeSidebar.id = 'close-sidebar';
+closeSidebar.className = 'sidebar-close';
+closeSidebar.type = 'button';
+closeSidebar.textContent = 'Fechar menu';
+patientsSidebar.prepend(closeSidebar);
+const mobileSidebar = () => window.innerWidth <= 760;
+let elementosInertes: { elemento: HTMLElement; anterior: boolean }[] = [];
+
+for (const [id, caminho] of [
+  ['nav-home', 'M3 10 12 3l9 7v10h-6v-6H9v6H3z'],
+  ['nav-carteira', 'M4 20v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2M12 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
+  ['nav-administracao', 'M12 3 4 7v5c0 5 3 8 8 9 5-1 8-4 8-9V7z'],
+  ['nav-regras', 'M5 4h14v16H5z M8 8h8 M8 12h8 M8 16h5'],
+] as const) {
+  const link = elemento<HTMLAnchorElement>(id);
+  const nome = link.textContent?.trim() ?? '';
+  link.setAttribute('aria-label', nome);
+  const icone = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icone.classList.add('sidebar-icon');
+  icone.setAttribute('viewBox', '0 0 24 24');
+  icone.setAttribute('aria-hidden', 'true');
+  icone.setAttribute('fill', 'none');
+  icone.setAttribute('stroke', 'currentColor');
+  icone.setAttribute('stroke-width', '1.7');
+  const forma = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  forma.setAttribute('d', caminho);
+  icone.append(forma);
+  const rotulo = document.createElement('span');
+  rotulo.className = 'sidebar-link-label';
+  rotulo.textContent = nome;
+  const tooltip = document.createElement('span');
+  tooltip.className = 'sidebar-tooltip';
+  tooltip.textContent = nome;
+  tooltip.hidden = true;
+  tooltip.setAttribute('aria-hidden', 'true');
+  link.replaceChildren(icone, rotulo, tooltip);
+  const mostrarTooltip = () => {
+    tooltip.hidden = !document.body.classList.contains('sidebar-collapsed') || mobileSidebar();
+  };
+  const ocultarTooltip = () => {
+    tooltip.hidden = true;
+  };
+  link.addEventListener('pointerenter', mostrarTooltip);
+  link.addEventListener('pointerleave', ocultarTooltip);
+  link.addEventListener('focus', mostrarTooltip);
+  link.addEventListener('blur', ocultarTooltip);
 }
-function fecharGavetaLateral(): void {
-  const devolverFoco =
-    patientsSidebar.classList.contains('open') && patientsSidebar.contains(document.activeElement);
+function ocultarTooltips(): void {
+  for (const tooltip of patientsSidebar.querySelectorAll<HTMLElement>('.sidebar-tooltip'))
+    tooltip.hidden = true;
+}
+function fecharGavetaLateral(devolverFoco = false): void {
+  const estavaAberta = patientsSidebar.classList.contains('open');
+  if (estavaAberta && mobileSidebar() && patientsSidebar.contains(document.activeElement))
+    (document.activeElement as HTMLElement).blur();
   patientsSidebar.classList.remove('open');
   sidebarBackdrop.hidden = true;
   toggleSidebar.setAttribute('aria-expanded', 'false');
-  atualizarInerciaGaveta();
-  if (devolverFoco && !patientsView.hidden && !document.hidden) toggleSidebar.focus();
+  patientsSidebar.inert = mobileSidebar();
+  patientsSidebar.removeAttribute('role');
+  patientsSidebar.removeAttribute('aria-modal');
+  for (const item of elementosInertes) item.elemento.inert = item.anterior;
+  elementosInertes = [];
+  document.body.classList.remove('sidebar-open');
+  ocultarTooltips();
+  if (devolverFoco && estavaAberta && !toggleSidebar.hidden && !document.hidden)
+    toggleSidebar.focus();
 }
 function abrirGavetaLateral(): void {
+  if (!mobileSidebar() || patientsView.hidden || document.hidden) return;
+  patientsSidebar.inert = false;
   patientsSidebar.classList.add('open');
-  atualizarInerciaGaveta();
+  patientsSidebar.setAttribute('role', 'dialog');
+  patientsSidebar.setAttribute('aria-modal', 'true');
   sidebarBackdrop.hidden = false;
   toggleSidebar.setAttribute('aria-expanded', 'true');
-  patientsSidebar.querySelector<HTMLElement>('a:not([hidden]), button:not([hidden])')?.focus();
+  document.body.classList.add('sidebar-open');
+  const alvos = [
+    ...Array.from(document.body.children).filter((item) => item !== patientsView.parentElement),
+    ...Array.from(patientsView.parentElement?.children ?? []).filter(
+      (item) => item !== patientsView,
+    ),
+    ...Array.from(patientsView.children).filter(
+      (item) => item !== patientsSidebar && item !== sidebarBackdrop,
+    ),
+  ];
+  elementosInertes = alvos
+    .filter((item): item is HTMLElement => item instanceof HTMLElement)
+    .map((item) => ({ elemento: item, anterior: item.inert }));
+  for (const item of elementosInertes) item.elemento.inert = true;
+  closeSidebar.focus();
 }
-atualizarInerciaGaveta();
-window.addEventListener('resize', () => {
-  if (!gavetaMobile()) fecharGavetaLateral();
-  else atualizarInerciaGaveta();
-});
 toggleSidebar.addEventListener('click', () => {
-  if (patientsSidebar.classList.contains('open')) fecharGavetaLateral();
+  if (patientsSidebar.classList.contains('open')) fecharGavetaLateral(true);
   else abrirGavetaLateral();
 });
-sidebarBackdrop.addEventListener('click', fecharGavetaLateral);
+collapseSidebar.addEventListener('click', () => {
+  const recolhida = document.body.classList.toggle('sidebar-collapsed');
+  collapseSidebar.setAttribute('aria-expanded', String(!recolhida));
+  collapseSidebar.setAttribute(
+    'aria-label',
+    recolhida ? 'Expandir navegação' : 'Recolher navegação',
+  );
+  const simbolo = collapseSidebar.querySelector('span');
+  if (simbolo) simbolo.textContent = recolhida ? '›' : '‹';
+  ocultarTooltips();
+});
+closeSidebar.addEventListener('click', () => fecharGavetaLateral(true));
+sidebarBackdrop.addEventListener('click', () => fecharGavetaLateral(true));
 document.addEventListener('keydown', (evento) => {
-  if (!patientsSidebar.classList.contains('open')) return;
   if (evento.key === 'Escape') {
-    fecharGavetaLateral();
-    return;
+    ocultarTooltips();
+    if (patientsSidebar.classList.contains('open')) fecharGavetaLateral(true);
   }
-  if (evento.key !== 'Tab' || !gavetaMobile()) return;
-  const alvos = Array.from(
+  if (evento.key !== 'Tab' || !patientsSidebar.classList.contains('open')) return;
+  const focaveis = Array.from(
     patientsSidebar.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'),
-  ).filter((item) => !item.hidden && !item.closest('[hidden]'));
-  if (!alvos.length) {
-    evento.preventDefault();
-    return;
-  }
-  const indice = alvos.indexOf(document.activeElement as HTMLElement);
+  ).filter((item) => !item.hidden && !item.closest('[hidden]') && item !== collapseSidebar);
+  if (!focaveis.length) return;
+  const primeiro = focaveis[0];
+  const ultimo = focaveis[focaveis.length - 1];
+  if (!primeiro || !ultimo) return;
   if (
-    indice < 0 ||
-    (evento.shiftKey && indice === 0) ||
-    (!evento.shiftKey && indice === alvos.length - 1)
+    evento.shiftKey &&
+    (document.activeElement === primeiro || !patientsSidebar.contains(document.activeElement))
   ) {
     evento.preventDefault();
-    alvos[evento.shiftKey ? alvos.length - 1 : 0]?.focus();
+    ultimo.focus();
+  } else if (
+    !evento.shiftKey &&
+    (document.activeElement === ultimo || !patientsSidebar.contains(document.activeElement))
+  ) {
+    evento.preventDefault();
+    primeiro.focus();
   }
 });
+let eraMobile = mobileSidebar();
+window.addEventListener('resize', () => {
+  const agoraMobile = mobileSidebar();
+  const focoNaGaveta = patientsSidebar.contains(document.activeElement);
+  const gavetaAberta = patientsSidebar.classList.contains('open');
+  const focoNoFechar = document.activeElement === closeSidebar;
+  fecharGavetaLateral();
+  if (!mobileSidebar() && focoNoFechar && !patientsView.hidden && !document.hidden)
+    collapseSidebar.focus();
+  else if (
+    agoraMobile &&
+    focoNaGaveta &&
+    (!eraMobile || gavetaAberta) &&
+    !patientsView.hidden &&
+    !document.hidden
+  )
+    toggleSidebar.focus();
+  eraMobile = agoraMobile;
+});
+patientsSidebar.inert = mobileSidebar();
 
 const descarteCadastro =
   'Há alterações de cadastro não confirmadas. Ao sair, elas serão descartadas e um salvamento incerto não poderá ser confirmado nesta tela. Deseja continuar?';
@@ -884,6 +985,8 @@ function abrirFicha(paciente: PacienteFicha, secao: string | undefined, empilhar
   const atual = sessao;
   if (!atual) return;
   fecharFicha();
+  fecharHome();
+  marcarNavegacao('carteira');
   fichaPaciente = paciente;
   fichaAssinatura = assinaturaSessao(atual);
   aviso('workspace-feedback', '');
@@ -1612,7 +1715,7 @@ async function entrar(evento: SubmitEvent): Promise<void> {
   if (loginOcupado) return;
   loginOcupado = true;
   loginFields.disabled = true;
-  loginButton.textContent = 'Entrando…';
+  const finalizar = iniciarAcao(loginButton);
   aviso('login-feedback', 'Verificando credenciais e autorização…');
   const email = emailInput.value.trim();
   let senha = passwordInput.value;
@@ -1658,7 +1761,7 @@ async function entrar(evento: SubmitEvent): Promise<void> {
     senha = '';
     loginOcupado = false;
     loginFields.disabled = false;
-    loginButton.textContent = 'Entrar';
+    finalizar();
   }
 }
 
@@ -1667,7 +1770,7 @@ async function entrarFamiliar(evento: SubmitEvent): Promise<void> {
   if (loginOcupado) return;
   loginOcupado = true;
   loginFields.disabled = familiarFields.disabled = true;
-  familiarBotao.textContent = 'Entrando…';
+  const finalizar = iniciarAcao(familiarBotao);
   aviso('familiar-feedback', 'Verificando credenciais e autorização…');
   const email = familiarEmail.value.trim();
   let senha = familiarSenha.value;
@@ -1707,7 +1810,7 @@ async function entrarFamiliar(evento: SubmitEvent): Promise<void> {
     senha = '';
     loginOcupado = false;
     loginFields.disabled = familiarFields.disabled = false;
-    familiarBotao.textContent = 'Entrar';
+    finalizar();
   }
 }
 
@@ -2025,7 +2128,7 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
   cadastroOcupado = true;
   createFields.disabled = true;
   createButton.disabled = true;
-  createButton.textContent = 'Cadastrando…';
+  const finalizar = iniciarAcao(createButton);
   aviso('create-feedback', 'Aguardando confirmação do cadastro…');
   aviso('workspace-feedback', '');
   try {
@@ -2059,11 +2162,11 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
       'error',
     );
   } finally {
+    finalizar();
     if (versao === revisao) {
       cadastroOcupado = false;
       createFields.disabled = !cadastroLiberado;
       createButton.disabled = !cadastroLiberado;
-      createButton.textContent = 'Cadastrar paciente';
       if (revalidacaoPendente) {
         revalidacaoPendente = false;
         void revalidarAcesso();
@@ -2097,6 +2200,7 @@ async function sair(): Promise<void> {
   loginView.hidden = true;
   sessionActions.hidden = true;
   logoutView.hidden = false;
+  logoutView.classList.add('logout-loading');
   revalidacaoStatus.hidden = true;
   document.title = 'FFCMApp | Encerrar acesso';
   retryLogout.hidden = true;
@@ -2120,11 +2224,13 @@ async function sair(): Promise<void> {
     retryLogout.hidden = false;
     retryLogout.focus();
   } finally {
+    logoutView.classList.remove('logout-loading');
     logoutOcupado = false;
   }
 }
 
 async function revalidarAcesso(): Promise<void> {
+  fecharGavetaLateral();
   if (document.hidden || !sessao) return;
   if (verificandoSessao || cadastroOcupado) {
     revalidacaoPendente = true;
@@ -2327,7 +2433,7 @@ for (const evento of ['input', 'change'])
     );
   });
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) fecharGavetaLateral();
+  fecharGavetaLateral();
   if (sessao) {
     if (fichaView.contains(document.activeElement)) focoAposLoginOculto = true;
     patientsView.hidden = true;

@@ -11,7 +11,7 @@ import {
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 import type { criarCicloEdicaoPaciente } from './ciclo-edicao-paciente.js';
 import { dataDeInstante } from './datas.js';
-import { esqueletoCarregando } from './esqueleto.js';
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 
 export type ServicoEdicaoPaciente = {
   consultarPaciente(pacienteId: string): Promise<PacienteEdicao>;
@@ -176,6 +176,7 @@ export function montarEdicaoPaciente(
     form.append(campos, salvar, aviso);
     const enviar = async (entrada: AtualizarPaciente) => {
       campos.disabled = salvar.disabled = true;
+      const terminarAcao = iniciarAcao(salvar);
       aviso.textContent = 'Salvando cadastro…';
       try {
         await servico.ciclo.editar(pacienteId, entrada);
@@ -187,6 +188,8 @@ export function montarEdicaoPaciente(
           erro instanceof FalhaApi && !resultadoIncerto(erro)
             ? `${mensagemFalha(erro)} Nada foi alterado; confira o cadastro e tente de novo. O rascunho permanece nesta tela.`
             : 'Não deu para saber se as alterações foram salvas. Confira o cadastro antes de editar de novo; o rascunho permanece nesta tela.';
+      } finally {
+        terminarAcao();
       }
       bloqueada = true;
       recuperar.textContent = 'Conferir o que foi salvo';
@@ -271,6 +274,7 @@ export function montarEdicaoPaciente(
     if (recuperando) return;
     recuperando = true;
     recuperar.disabled = true;
+    const terminarAcao = iniciarAcao(recuperar);
     status.textContent = 'Conferindo o cadastro…';
     void (async () => {
       if (reconhecido) {
@@ -317,6 +321,8 @@ export function montarEdicaoPaciente(
             if (recuperando) return;
             recuperando = true;
             recuperar.disabled = true;
+            const terminarReconhecimento = iniciarAcao(recuperar);
+            status.textContent = 'Concluindo conferência…';
             void (async () => {
               if (!reconhecido) {
                 await servico.ciclo.reconhecer();
@@ -335,6 +341,7 @@ export function montarEdicaoPaciente(
                 recuperar.disabled = false;
               })
               .finally(() => {
+                terminarReconhecimento();
                 recuperando = false;
               });
           };
@@ -352,6 +359,7 @@ export function montarEdicaoPaciente(
         recuperar.disabled = false;
       })
       .finally(() => {
+        terminarAcao();
         recuperando = false;
       });
   };

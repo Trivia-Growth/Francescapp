@@ -519,7 +519,8 @@ input[aria-invalid="true"] {
     font-size: .875rem;
   }
   .session-actions {
-    gap: 4px;
+    gap: 12px;
+    flex-wrap: nowrap;
   }
   .session-actions > span {
     max-width: 15ch;
@@ -1178,7 +1179,16 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
     padding: 14px 4px;
   }
   .ficha-identidade {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
     gap: 14px;
+  }
+  .ficha-identidade > div {
+    min-width: 0;
+  }
+  .ficha-identidade .ficha-acoes {
+    grid-column: 1 / -1;
+    margin-left: 0;
   }
   .ficha-identidade .avatar {
     width: 52px;
@@ -2115,5 +2125,494 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   .home,
   .home-corpo {
     gap: 26px;
+  }
+}
+
+/* Refino da casca e carteira conforme o mock aprovado. */
+:root {
+  --sidebar-width: 248px;
+}
+body:has(#patients-view:not([hidden])) .topbar,
+body:has(#patients-view:not([hidden])) main,
+body:has(#patients-view:not([hidden])) .footer {
+  margin-left: var(--sidebar-width);
+}
+body:has(#patients-view:not([hidden])) .topbar .brand {
+  display: none;
+}
+.patients-sidebar {
+  width: var(--sidebar-width);
+  padding: 28px 20px 24px;
+}
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 25px;
+}
+.sidebar-brand img {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+.sidebar-collapse {
+  align-self: flex-end;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  margin: 12px 0 -12px;
+  background: transparent;
+  color: var(--primary);
+  font: 400 28px / 1 var(--font-body);
+}
+.sidebar-collapse:hover {
+  background: var(--soft);
+}
+.sidebar-label {
+  margin: 32px 12px 12px;
+  font-size: .875rem;
+}
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  color: var(--muted);
+}
+.sidebar-icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.sidebar-tooltip {
+  display: none;
+}
+body.sidebar-collapsed {
+  --sidebar-width: 80px;
+}
+body.sidebar-collapsed .patients-sidebar {
+  padding-inline: 12px;
+}
+body.sidebar-collapsed .sidebar-brand span,
+body.sidebar-collapsed .sidebar-label,
+body.sidebar-collapsed .sidebar-note,
+body.sidebar-collapsed .sidebar-link-label {
+  display: none;
+}
+body.sidebar-collapsed .sidebar-brand img {
+  width: 56px;
+  height: 56px;
+}
+body.sidebar-collapsed .sidebar-link {
+  justify-content: center;
+  padding-inline: 0;
+  position: relative;
+}
+body.sidebar-collapsed .sidebar-link:hover .sidebar-tooltip,
+body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
+  display: block;
+  position: absolute;
+  left: calc(100% + 8px);
+  z-index: 5;
+  width: max-content;
+  max-width: 220px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--white);
+  color: var(--ink);
+  box-shadow: 0 3px 12px rgb(39 49 35 / 12%);
+}
+.sidebar-close {
+  display: none;
+}
+.patients-layout {
+  padding: 48px 4% 72px;
+}
+.patient-register {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.patient-register .section-heading {
+  padding-bottom: 14px;
+}
+.busca {
+  margin: 16px 0;
+}
+.people-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  border: 0;
+}
+.people-list li {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+.pessoa {
+  height: 100%;
+  min-height: 150px;
+  align-items: flex-start;
+  padding: 24px;
+  border-radius: inherit;
+}
+.pessoa-texto {
+  gap: 5px;
+}
+.pessoa-nome {
+  font: 600 1.6rem / 1.1 var(--font-display);
+}
+.pessoa-seta {
+  align-self: center;
+}
+.filtros-carteira {
+  gap: 10px;
+  padding: 12px;
+  background: transparent;
+}
+.filtros-carteira-titulo {
+  text-transform: none;
+  letter-spacing: normal;
+}
+.filtro-carteira select {
+  font-size: 1rem;
+}
+@media (max-width: 760px) {
+  body:has(#patients-view:not([hidden])) .topbar,
+  body:has(#patients-view:not([hidden])) main,
+  body:has(#patients-view:not([hidden])) .footer {
+    margin-left: 0;
+  }
+  body:has(#patients-view:not([hidden])) .topbar .brand {
+    display: flex;
+  }
+  .patients-sidebar,
+  body.sidebar-collapsed .patients-sidebar {
+    width: min(280px, 84vw);
+    padding: 28px 20px 24px;
+  }
+  body.sidebar-collapsed .sidebar-brand span,
+  body.sidebar-collapsed .sidebar-label,
+  body.sidebar-collapsed .sidebar-note,
+  body.sidebar-collapsed .sidebar-link-label {
+    display: revert;
+  }
+  body.sidebar-collapsed .sidebar-link {
+    justify-content: flex-start;
+    padding-inline: 14px;
+  }
+  .sidebar-collapse {
+    display: none;
+  }
+  .sidebar-close {
+    display: inline-flex;
+    align-self: flex-end;
+  }
+  .people-list {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .pessoa {
+    min-height: 120px;
+    padding: 20px;
+  }
+  .patient-register {
+    padding: 0;
+  }
+}
+
+/* Movimento decorativo começa depois do feedback textual imediato. */
+.list-loading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  animation: loading-reveal 0s linear 300ms backwards;
+}
+.list-loading span {
+  height: 64px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--soft);
+  animation: loading-pulse 1.4s ease-in-out 300ms infinite alternate;
+}
+.list-loading[data-compacto] span {
+  height: 36px;
+}
+#list-loading {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+#list-loading span {
+  height: 150px;
+  border-radius: var(--radius-card);
+}
+.loading-indicator {
+  display: inline-block;
+  width: .8em;
+  height: .8em;
+  margin-inline-end: .5em;
+  vertical-align: -.1em;
+  pointer-events: none;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: loading-reveal 0s linear 300ms backwards, loading-spin .8s linear 300ms infinite;
+}
+body.sidebar-open {
+  overflow: hidden;
+}
+.sidebar-link,
+.sidebar-collapse,
+.button-primary,
+.button-secondary {
+  transition: background-color .16s ease, color .16s ease, border-color .16s ease;
+}
+body.sidebar-collapsed .sidebar-link:hover .sidebar-tooltip,
+body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+}
+@keyframes loading-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes loading-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.55;
+  }
+}
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (max-width: 760px) {
+  #list-loading {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  #list-loading span {
+    height: 120px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .list-loading,
+  .list-loading span,
+  .loading-indicator {
+    animation: none;
+  }
+  .sidebar-link,
+  .sidebar-collapse,
+  .button-primary,
+  .button-secondary,
+  .patients-sidebar {
+    transition: none;
+  }
+}
+
+/* Ferramentas da carteira permanecem disponíveis sem dominar a lista. */
+.patient-register .section-heading {
+  padding: 0;
+  border: 0;
+}
+.carteira-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px 16px;
+  margin-bottom: 18px;
+}
+.carteira-tools > #filtros-carteira {
+  flex: 1 1 100%;
+}
+.carteira-tools .busca {
+  flex: 1 1 260px;
+  margin: 0;
+}
+.carteira-tools .busca label {
+  font-size: .875rem;
+  font-weight: 600;
+}
+.carteira-tools .busca .small-text {
+  margin-top: 4px;
+  font-size: .8125rem;
+}
+.carteira-tools #reload-patients {
+  align-self: center;
+}
+@media (max-width: 760px) {
+  body:has(#patients-view:not([hidden])) .topbar {
+    gap: 6px 12px;
+    padding: 10px 16px;
+  }
+  body:has(#patients-view:not([hidden])) .chip-ambiente {
+    padding: 3px 8px;
+    font-size: .75rem;
+  }
+  .carteira-tools {
+    gap: 8px 12px;
+    margin-bottom: 14px;
+  }
+  .carteira-tools .busca {
+    flex-basis: 100%;
+  }
+  .carteira-tools #reload-patients {
+    min-height: 44px;
+    padding: 8px 0;
+  }
+}
+.carteira-tools > #filtros-carteira {
+  flex: 0 1 auto;
+}
+.filtros-carteira-painel summary {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius-control);
+  background: var(--white);
+  color: var(--primary);
+  font-size: .9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.filtros-carteira-painel summary::after {
+  content: "▾";
+}
+.filtros-carteira-painel[open] summary::after {
+  content: "▴";
+}
+.filtros-carteira-painel[open] .filtros-carteira {
+  margin: 8px 0 0;
+}
+.carteira-tools:has(.filtros-carteira-painel[open]) > #filtros-carteira {
+  flex-basis: 100%;
+}
+@media (max-width: 760px) {
+  .carteira-tools > #filtros-carteira {
+    order: 1;
+  }
+  .carteira-tools #reload-patients {
+    order: 2;
+    margin-left: auto;
+  }
+  .carteira-tools .busca {
+    order: 3;
+  }
+}
+
+@media (min-width: 761px) {
+  .carteira-tools > #filtros-carteira,
+  .carteira-tools #reload-patients {
+    margin-top: 25px;
+  }
+  .carteira-tools #reload-patients {
+    align-self: flex-start;
+  }
+}
+/* Superfícies existentes compartilham bordas e hierarquia do mock. */
+.access-form-panel,
+.ficha-secao form,
+.administracao-conteudo form,
+.dialogo,
+.registration-panel {
+  background: var(--white);
+}
+.access-form-panel {
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+}
+.ficha-secao form,
+.administracao-conteudo form {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+.ficha-aba,
+.administracao-aba {
+  transition: background-color .16s ease, color .16s ease, border-color .16s ease;
+}
+.ficha-aba[aria-selected="true"],
+.administracao-aba[aria-current="page"] {
+  color: var(--primary);
+}
+@media (max-width: 760px) {
+  .access-form-panel {
+    padding: 22px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ficha-aba,
+  .administracao-aba {
+    transition: none;
+  }
+}
+
+button:has(> .loading-indicator),
+label:has(> .loading-indicator) {
+  position: relative;
+}
+button > .loading-indicator,
+label > .loading-indicator {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 8px;
+  height: 8px;
+  margin: 0;
+}
+
+/* Na gaveta móvel o conteúdo continua alcançável em telas baixas. */
+@media (max-width: 760px) {
+  .patients-sidebar {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+#revalidacao-status:not([hidden])::before,
+#logout-view.logout-loading::before {
+  content: "";
+  display: inline-block;
+  width: .8em;
+  height: .8em;
+  margin-inline-end: .6em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: loading-reveal 0s linear 300ms backwards, loading-spin .8s linear 300ms infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  #revalidacao-status:not([hidden])::before,
+  #logout-view.logout-loading::before {
+    animation: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .filtro-carteira {
+    min-width: 0;
+    flex-basis: 100%;
+  }
+  .filtros-carteira select {
+    width: 100%;
   }
 }

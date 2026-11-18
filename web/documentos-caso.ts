@@ -4,7 +4,7 @@ import type {
   EstadoDocumento,
 } from '../packages/contracts/src/documento-caso.ts';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
-import { esqueletoCarregando } from './esqueleto.js';
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import type { ServicoDocumentos } from './servico-documentos-http.js';
 
 const AUDIENCIAS = [
@@ -169,6 +169,7 @@ export function montarDocumentosCaso(
       }
       enviar.disabled = true;
       aviso.textContent = 'Enviando…';
+      const finalizar = iniciarAcao(enviar);
       try {
         documentos = await servico.gravar(pacienteId, {
           documento_id: crypto.randomUUID(),
@@ -194,6 +195,8 @@ export function montarDocumentosCaso(
           : erro instanceof FalhaApi
             ? mensagemFalha(erro)
             : 'Não foi possível anexar o documento. Tente novamente.';
+      } finally {
+        finalizar();
       }
     });
 

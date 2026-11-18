@@ -1,3 +1,4 @@
+import { iniciarAcao } from './esqueleto.js';
 import type { EventoAuditoria } from '../packages/contracts/src/auditoria.ts';
 import type { FiltrosAuditoria, ServicoAuditoria } from './servico-auditoria-http.ts';
 
@@ -225,6 +226,8 @@ export function montarAuditoria(
 
   const carregar = async () => {
     status.textContent = 'Carregando registros…';
+    corpo.setAttribute('aria-busy', 'true');
+    const finalizar = iniciarAcao(aplicar);
     aplicar.disabled = true;
     voltar.disabled = true;
     avancar.disabled = true;
@@ -257,6 +260,8 @@ export function montarAuditoria(
       avancar.disabled = true;
       voltar.disabled = anteriores.length === 0;
     } finally {
+      finalizar();
+      corpo.removeAttribute('aria-busy');
       if (ativa) aplicar.disabled = false;
     }
   };

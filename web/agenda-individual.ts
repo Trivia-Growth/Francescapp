@@ -1,3 +1,4 @@
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import { montarVinculoAgenda } from './agenda-vinculo.js';
 import { montarOperacoesAgenda } from './agenda-operacoes.js';
 
@@ -13,6 +14,7 @@ export function montarAgendaIndividual(
 ): () => void {
   let ativa = true;
   let consulta = 0;
+  let finalizarConsulta: (() => void) | undefined;
   let suspensa = true;
   const marcadorDesconexao = `ffcm-agenda-desconexao-incerta:${usuarioId}`;
   type PedidoDesconexao = { operacao_id: string; versao: string };
@@ -106,7 +108,13 @@ export function montarAgendaIndividual(
     const versao = ++consulta;
     lista.replaceChildren();
     status.textContent = 'Consultando agenda…';
+    lista.setAttribute('aria-busy', 'true');
+    const placeholder = document.createElement('li');
+    placeholder.append(esqueletoCarregando(2, true));
+    lista.append(placeholder);
     atualizar.disabled = true;
+    const finalizar = iniciarAcao(atualizar);
+    finalizarConsulta = finalizar;
     try {
       const inicio = new Date();
       const fim = new Date(inicio.getTime() + 30 * 86400000);
@@ -275,6 +283,7 @@ export function montarAgendaIndividual(
                 return;
               retirar.disabled = true;
               destino.textContent = 'Retirando vínculo…';
+              const finalizar = iniciarAcao(retirar);
               try {
                 const headers = cabecalhos();
                 headers.set('Content-Type', 'application/json');
@@ -313,6 +322,8 @@ export function montarAgendaIndividual(
                     'Não foi possível confirmar a retirada. Tente novamente ou atualize a agenda.';
                   retirar.disabled = false;
                 }
+              } finally {
+                finalizar();
               }
             });
             destino.after(retirar);
@@ -333,12 +344,21 @@ export function montarAgendaIndividual(
         status.textContent =
           'Não foi possível consultar a agenda. Conecte sua conta Google ou tente atualizar novamente.';
     } finally {
-      if (ativa && versao === consulta) atualizar.disabled = false;
+      finalizar();
+      if (versao === consulta) finalizarConsulta = undefined;
+      if (ativa && versao === consulta) {
+        lista.removeAttribute('aria-busy');
+        placeholder.remove();
+        atualizar.disabled = false;
+      }
     }
   }
   const ocultarDados = () => {
     if (document.hidden) {
       consulta += 1;
+      finalizarConsulta?.();
+      finalizarConsulta = undefined;
+      lista.removeAttribute('aria-busy');
       lista.replaceChildren();
       vinculos.ocultar();
     } else if (ativa && !suspensa) void carregar();
@@ -399,6 +419,7 @@ export function montarAgendaIndividual(
     if (!pedidoDesconexao || !autorizacaoDesconexao) return;
     reconciliarDesconexao.disabled = true;
     status.textContent = 'Verificando desconexão…';
+    const finalizar = iniciarAcao(desconectar);
     try {
       const headers = cabecalhos();
       headers.set('Content-Type', 'application/json');
@@ -445,6 +466,7 @@ export function montarAgendaIndividual(
           'Não foi possível confirmar a desconexão. Use “Verificar desconexão” para consultar o resultado da mesma operação.';
       }
     } finally {
+      finalizar();
       if (ativa) reconciliarDesconexao.disabled = false;
     }
   }
@@ -470,6 +492,9 @@ export function montarAgendaIndividual(
     suspensa = true;
     conectar.disabled = desconectar.disabled = atualizar.disabled = true;
     consulta += 1;
+    finalizarConsulta?.();
+    finalizarConsulta = undefined;
+    lista.removeAttribute('aria-busy');
     lista.replaceChildren();
     vinculos.ocultar();
     operacoesRaiz.hidden = true;
@@ -479,6 +504,7 @@ export function montarAgendaIndividual(
     if (!pedidoDesconexao) return;
     reconciliarDesconexao.disabled = true;
     status.textContent = 'Consultando recibo…';
+    const finalizar = iniciarAcao(reconciliarDesconexao);
     try {
       const url = new URL('/api/agenda/google/desconexao/recibo', window.location.origin);
       url.searchParams.set('operacao_id', pedidoDesconexao.operacao_id);
@@ -528,6 +554,7 @@ export function montarAgendaIndividual(
       if (ativa)
         status.textContent = 'Não foi possível consultar o recibo. Tente novamente mais tarde.';
     } finally {
+      finalizar();
       if (ativa) reconciliarDesconexao.disabled = false;
     }
   });
@@ -536,6 +563,7 @@ export function montarAgendaIndividual(
       return;
     cancelarDesconexao.disabled = reconciliarDesconexao.disabled = true;
     status.textContent = 'Cancelando tentativa…';
+    const finalizar = iniciarAcao(cancelarDesconexao);
     try {
       const headers = cabecalhos();
       headers.set('Content-Type', 'application/json');
@@ -581,12 +609,14 @@ export function montarAgendaIndividual(
         status.textContent =
           'Não foi possível confirmar o cancelamento. Tente novamente ou consulte o recibo.';
     } finally {
+      finalizar();
       if (ativa) cancelarDesconexao.disabled = reconciliarDesconexao.disabled = false;
     }
   });
   conectar.addEventListener('click', async () => {
     conectar.disabled = true;
     status.textContent = 'Preparando conexão com Google…';
+    const finalizar = iniciarAcao(conectar);
     try {
       const headers = cabecalhos();
       headers.set('Content-Type', 'application/json');
@@ -613,6 +643,7 @@ export function montarAgendaIndividual(
         status.textContent =
           'Não foi possível iniciar a conexão. Tente novamente quando o serviço estiver disponível.';
     } finally {
+      finalizar();
       if (ativa && !pedidoDesconexao) conectar.disabled = false;
     }
   });
@@ -632,6 +663,8 @@ export function montarAgendaIndividual(
     operacoes.desmontar();
     vinculos.desmontar();
     consulta += 1;
+    finalizarConsulta?.();
+    lista.removeAttribute('aria-busy');
     raiz.replaceChildren();
   };
 }

@@ -170,15 +170,21 @@ it('a barra de filtros entrega o recorte escolhido e esconde responsável fora d
   const raiz = document.createElement('div');
   const aoFiltrar = vi.fn();
   montarFiltrosCarteira(raiz, { administrador: true, responsaveis: EQUIPE }, aoFiltrar);
+  const painel = raiz.querySelector('details.filtros-carteira-painel') as HTMLDetailsElement;
+  const resumo = painel.querySelector('summary') as HTMLElement;
+  expect(painel.open).toBe(false);
+  expect(resumo.textContent).toBe('Filtrar pessoas');
   const revisao = raiz.querySelector('select[name="revisao"]') as HTMLSelectElement;
   revisao.value = 'vencida';
   revisao.dispatchEvent(new Event('change'));
   expect(aoFiltrar).toHaveBeenCalledWith({ revisao: 'vencida' });
+  expect(resumo.textContent).toBe('Filtrar pessoas (1 filtro ativo)');
 
   const pendencia = raiz.querySelector('select[name="pendencia"]') as HTMLSelectElement;
   pendencia.value = 'abertas';
   pendencia.dispatchEvent(new Event('change'));
   expect(aoFiltrar).toHaveBeenLastCalledWith({ revisao: 'vencida', pendencia: 'abertas' });
+  expect(resumo.textContent).toBe('Filtrar pessoas (2 filtros ativos)');
 
   (
     [...raiz.querySelectorAll('button')].find(
@@ -186,6 +192,10 @@ it('a barra de filtros entrega o recorte escolhido e esconde responsável fora d
     ) as HTMLButtonElement
   ).click();
   expect(aoFiltrar).toHaveBeenLastCalledWith({});
+  expect(aoFiltrar).toHaveBeenCalledTimes(3);
+  expect(revisao.value).toBe('');
+  expect(pendencia.value).toBe('');
+  expect(resumo.textContent).toBe('Filtrar pessoas');
 
   const outra = document.createElement('div');
   montarFiltrosCarteira(outra, { administrador: false }, vi.fn());
@@ -203,4 +213,60 @@ it('o selo do sinal sempre carrega motivo e o aviso de que não é leitura clín
   expect(selo.textContent).toContain('Nenhum compromisso operacional em atraso.');
   expect(selo.textContent).toContain('Não é avaliação clínica');
   expect(selo.title).toContain('Não é avaliação clínica');
+});
+
+it('impede envios concorrentes que substituem o painel e libera após falha', async () => {
+  const raiz = document.createElement('div');
+  let rejeitarTratativa: (erro: Error) => void = () => {};
+  let rejeitarAcordo: (erro: Error) => void = () => {};
+  const tratar = vi.fn(
+    () =>
+      new Promise<SinalOperacional>((_, rejeitar) => {
+        rejeitarTratativa = rejeitar;
+      }),
+  );
+  const acordar = vi.fn(
+    () =>
+      new Promise<SinalOperacional>((_, rejeitar) => {
+        rejeitarAcordo = rejeitar;
+      }),
+  );
+  montarPendenciasCaso(
+    raiz,
+    PACIENTE,
+    { consultar: async () => sinal(), tratar, acordar },
+    () => {},
+    async () => EQUIPE,
+  );
+  await vi.waitFor(() => expect(raiz.querySelector('.pendencia-atribuir select')).not.toBeNull());
+  const selecao = raiz.querySelector<HTMLSelectElement>('.pendencia-atribuir select');
+  const resolver = [...raiz.querySelectorAll('button')].find(
+    (botao) => botao.textContent === 'Resolver',
+  );
+  const form = raiz.querySelector<HTMLFormElement>('.pendencia-acordo form');
+  const salvar = form?.querySelector<HTMLButtonElement>('button[type=submit]');
+  const pessoa = EQUIPE[0];
+  if (!selecao || !resolver || !form || !salvar || !pessoa)
+    throw new Error('Controles indisponíveis');
+  selecao.value = pessoa.usuario_id;
+  selecao.dispatchEvent(new Event('change'));
+  expect(selecao.disabled).toBe(true);
+  expect(resolver.disabled).toBe(true);
+  selecao.dispatchEvent(new Event('change'));
+  resolver.click();
+  expect(tratar).toHaveBeenCalledTimes(1);
+  expect(salvar.disabled).toBe(true);
+  form.dispatchEvent(new Event('submit', { cancelable: true }));
+  form.dispatchEvent(new Event('submit', { cancelable: true }));
+  expect(acordar).not.toHaveBeenCalled();
+  rejeitarTratativa(new Error('Falha fictícia'));
+  await vi.waitFor(() => expect(selecao.disabled).toBe(false));
+  form.dispatchEvent(new Event('submit', { cancelable: true }));
+  form.dispatchEvent(new Event('submit', { cancelable: true }));
+  expect(acordar).toHaveBeenCalledTimes(1);
+  expect(resolver.disabled).toBe(true);
+  rejeitarAcordo(new Error('Falha fictícia'));
+  await vi.waitFor(() => expect(salvar.disabled).toBe(false));
+  expect(resolver.disabled).toBe(false);
+  expect(salvar.disabled).toBe(false);
 });
