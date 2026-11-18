@@ -41,7 +41,7 @@ Pode ser feito agora, ainda na Netlify, com os testes atuais verdes. Reduz a sup
 
 Só começa quando 0.5 a 0.8 estiverem respondidas e a V1 estiver conectada.
 
-- [ ] 3.1 Abrir a mudança OpenSpec da execução da migração, com as decisões de 0.5 a 0.8 já incorporadas e a ordem do `Migration Plan`. Evidência: mudança criada e validada.
+- [x] 3.1 (17/11/2026) Mudança de execução aberta: `migrar-rotas-para-edge-functions`, validada, com as decisões de 0.5 a 0.8 incorporadas e os sete lotes definidos. As tarefas 3.2 a 3.4 abaixo foram absorvidas por ela e permanecem aqui apenas como rastro.
 - [ ] 3.2 Definir a matriz de autorização completa a ser reexecutada na plataforma nova — positiva e negativa, incluindo acesso direto ao servidor e ao banco, outro paciente, outro perfil, ausência de concessão e revogação. Registrar que nenhum teste do runtime antigo vale como evidência do estado migrado (design D5). Evidência: matriz escrita antes de qualquer rota migrar.
 - [ ] 3.3 Definir o plano de segredos: o que sai das variáveis da Netlify, o que passa a segredo do projeto Supabase, o que permanece no Vault, e como a fronteira é conferida. Evidência: plano registrado; nenhuma credencial no repositório.
 - [ ] 3.4 Definir os lotes por domínio e o período de operação em paralelo das duas plataformas. Evidência: lotes registrados com critério de corte por lote.
