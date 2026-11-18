@@ -132,6 +132,10 @@ export type PortaDrive = {
     bytes: Uint8Array;
     pastaRaiz: string;
   }): Promise<{ file_id: string }>;
+  consultarCompartilhamento?(
+    fileId: string,
+    audiencia: 'equipe' | 'equipe_e_familia',
+  ): Promise<'divergente' | 'revisao_necessaria'>;
   remover(fileId: string): Promise<void>;
   conferir(fileId: string): Promise<{ disponivel: boolean }>;
 };
@@ -173,6 +177,61 @@ export function criarPortaDrive(segredoJson: string, sinal: AbortSignal): PortaD
       const id = (dados as Record<string, unknown> | null)?.id;
       if (typeof id !== 'string' || id.length === 0) throw new ErroDriveIndisponivel();
       return { file_id: id };
+    },
+    async consultarCompartilhamento(fileId, audiencia) {
+      // Uma ACL nominal não prova vínculo ativo ao caso. Sem identidade Google dos
+      // destinatários, encaminhar revisão; nunca declarar compatibilidade presumida.
+      const token = await autenticar();
+      let pagina: string | undefined;
+      const paginas = new Set<string>();
+      do {
+        const url = new URL(`${ENDERECO_ARQUIVOS}/${encodeURIComponent(fileId)}/permissions`);
+        url.searchParams.set('supportsAllDrives', 'true');
+        url.searchParams.set('fields', 'nextPageToken,permissions(type,deleted)');
+        url.searchParams.set('pageSize', '100');
+        if (pagina) url.searchParams.set('pageToken', pagina);
+        const resposta = await fetch(url, {
+          method: 'GET',
+          headers: { authorization: `Bearer ${token}` },
+          signal: sinal,
+          redirect: 'error',
+        });
+        if (!resposta.ok) throw new ErroDriveIndisponivel();
+        const dados: unknown = await resposta.json();
+        if (
+          !dados ||
+          typeof dados !== 'object' ||
+          !('permissions' in dados) ||
+          !Array.isArray(dados.permissions)
+        )
+          throw new ErroDriveIndisponivel();
+        for (const permissao of dados.permissions) {
+          if (
+            !permissao ||
+            typeof permissao !== 'object' ||
+            !('type' in permissao) ||
+            typeof permissao.type !== 'string'
+          )
+            throw new ErroDriveIndisponivel();
+          if (permissao.deleted === true) continue;
+          // Nenhuma audiência do produto autoriza acesso público. Domínio inteiro
+          // tampouco equivale à equipe vinculada ou à família do caso.
+          if (
+            permissao.type === 'anyone' ||
+            (audiencia === 'equipe' && permissao.type === 'domain')
+          )
+            return 'divergente';
+        }
+        const proxima = 'nextPageToken' in dados ? dados.nextPageToken : undefined;
+        if (
+          proxima !== undefined &&
+          (typeof proxima !== 'string' || !proxima || paginas.has(proxima) || paginas.size >= 100)
+        )
+          throw new ErroDriveIndisponivel();
+        pagina = proxima as string | undefined;
+        if (pagina) paginas.add(pagina);
+      } while (pagina);
+      return 'revisao_necessaria';
     },
     async remover(fileId) {
       const token = await autenticar();

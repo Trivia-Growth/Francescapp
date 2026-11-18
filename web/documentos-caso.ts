@@ -230,6 +230,15 @@ export function montarDocumentosCaso(
         const selo = elemento('span', rotuloEstado(documento.estado));
         selo.className = 'documento-item__estado';
         item.append(nome, meta, selo);
+        if (!ehFamilia && documento.compartilhamento) {
+          const mensagem =
+            documento.compartilhamento === 'divergente'
+              ? 'Pendência: compartilhamento no Drive incompatível com a audiência. Coordenação deve revisar na origem.'
+              : documento.compartilhamento === 'indisponivel'
+                ? 'Pendência: não foi possível conferir compartilhamento no Drive.'
+                : 'Pendência: coordenação deve conferir destinatários do Drive com a audiência do caso.';
+          item.append(elemento('p', mensagem));
+        }
         if (documento.estado === 'indisponivel') {
           const orientacao = elemento(
             'p',

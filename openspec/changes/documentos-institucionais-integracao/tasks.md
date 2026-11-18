@@ -98,3 +98,30 @@
   - Revisão independente de dois eixos não foi feita nesta passagem.
 
 Nenhuma operação remota foi executada: nenhuma migration aplicada, nenhum deploy, nenhum commit, nenhuma alteração no Drive.
+
+
+## Retomada 18/11/2026 — pronta para cadastrar chave, sem prova externa
+
+Removido interruptor constante `DOCUMENTOS_ATIVOS=false`: `ffcm.documentos.ativo` controla
+rota com padrão conservador `false`; categorias e raiz seguem catálogo editável no banco.
+Credencial continua nome canônico `ffcmapp.integracao.google_drive` (JSON conta de serviço),
+a cadastrar em **Configuração do sistema / Segredos das integrações**. Preencher
+`ffcm.documentos.drive_pasta_raiz` com ID da pasta institucional e ligar `ffcm.documentos.ativo`.
+
+FR-031 consulta `/permissions` paginada, somente GET, após banco autorizar os documentos da
+resposta. `anyone` diverge das duas audiências; domínio inteiro diverge de `equipe`.
+Ausência de mapeamento verificável Google-destinatário/vínculo ativo não vira aprovação:
+permissões nominais ou domínio da audiência familiar levantam revisão da coordenação.
+Falha Google vira pendência de conferência indisponível; metadados autorizados continuam
+legíveis sem segredo/raiz, envio continua falhando fechado. Nenhum caminho escreve ACL.
+Pendências aparecem na lista da equipe, sem expor destinatários ou credencial à família.
+
+**Suposição conservadora:** nenhuma ACL nominal pode ser declarada compatível só pelo tipo
+`user`/`group`; checagem exata de destinatários exige autoridade de identidade ainda ausente.
+Por isso há revisão necessária, não falso selo de conformidade. Pendência é reavaliada na
+consulta; não foi criado workflow persistente independente de coordenação.
+
+Provas: `google-drive.test.ts` 5 testes novos passaram (público, domínio, nominal,
+paginação, erro); `scripts/testar-documento-caso-familia-local.sh` exit 0 inclui matriz
+SQL de documentos e família. Nenhuma chamada Google real ou ativação foi feita.
+Revisão independente e limite/conferência do Drive compartilhado continuam pendentes.

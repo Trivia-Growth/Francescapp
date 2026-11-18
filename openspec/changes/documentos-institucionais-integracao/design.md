@@ -42,3 +42,18 @@ O solicitante pediu rascunho só de domínio/design esta rodada, sem código iso
 - Auditoria: leitura e escrita deste registro devem seguir o mesmo padrão transacional (RPC auditada, autorização no servidor) já usado nas demais fatias — sem detalhe novo, só reafirmando consistência.
 
 Isto é prosa de preparação, não um contrato implementável: nenhum destes campos tem forma final (tipo, obrigatoriedade, enum fechado) até as perguntas de "Open Questions" serem respondidas pelo solicitante, incluindo com acesso real ao Drive/Workspace, o que não é algo resolvível numa sessão sem o solicitante presente.
+
+
+## FR-031 — decisão 17/11 aplicada em 18/11/2026
+
+Detecção é somente leitura e nunca altera permissões. Adaptador usa
+[permissions.list](https://developers.google.com/workspace/drive/api/reference/rest/v3/permissions/list)
+com paginação e host fixo, sem emails no contrato/log. Comparação encontra público incompatível
+com ambas as audiências e domínio incompatível com equipe. Sem mapeamento nominal comprovado,
+resultado encaminha revisão em vez de declarar segurança. Consultar apenas IDs de documentos
+já autorizados pelo banco evita transformar conferência em oráculo para arquivos arbitrários.
+
+Ameaças delimitadas: ACL externa ampliada (impacto alto, detectada/revisão manual); resposta
+Google perdida (pendência, sem alteração automática); exfiltração de segredo por endereço
+configurável (host fixo); leitura de outro caso (autorização/RLS antes da projeção/conferência).
+Suposição explícita do briefing: dados fictícios; nenhuma prova de ACL real nesta passagem.

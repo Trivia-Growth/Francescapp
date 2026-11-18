@@ -112,21 +112,17 @@ export async function comporDocumentoCasoNativo(
     // A pasta raiz e a credencial só são buscadas quando há arquivo a enviar: uma consulta de
     // relação de anexos não precisa alcançar o cofre nem o Google.
     let drive: Parameters<typeof operarDocumentoCasoNativo>[2]['drive'];
-    if (comando.operacao === 'gravar' && comando.arquivo) {
+    try {
       const configuracao = await noPrazo(() => carregarConfiguracaoServidor(dependencias.pool));
       const raiz = configuracao.get('ffcm.documentos.drive_pasta_raiz')?.valor;
-      // Sem pasta configurada, o envio é recusado. Nunca se escolhe outro local de guarda:
-      // substituição silenciosa de armazenamento é proibida pelo design desta fatia.
-      if (typeof raiz !== 'string' || raiz.trim().length === 0)
-        return {
-          ok: false,
-          erro: { codigo: 'servico_indisponivel' as const },
-          request_id: crypto.randomUUID(),
-        };
+      if (typeof raiz !== 'string' || raiz.trim().length === 0) throw new Error();
       const segredo = await noPrazo(() =>
         lerSegredoIntegracao(dependencias.pool, REFERENCIA_DRIVE),
       );
       drive = { porta: criarPortaDrive(segredo, controle.signal), pastaRaiz: raiz.trim() };
+    } catch {
+      // Relação cifrada continua consultável sem Google; conferência mostra pendência.
+      // Envio exige porta configurada e falha fechado em operarDocumentoCasoNativo.
     }
     return await noPrazo(() =>
       operarDocumentoCasoNativo(pedido, comando, {

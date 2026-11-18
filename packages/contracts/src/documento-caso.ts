@@ -63,6 +63,7 @@ export const documentoCasoSchema = metadadoDocumentoSchema
     documento_id: uuidSchema,
     registro_id: uuidSchema,
     versao: z.number().int().min(1),
+    compartilhamento: z.enum(['divergente', 'revisao_necessaria', 'indisponivel']).optional(),
     criado_por_usuario_id: uuidSchema.optional(),
     criado_em: z.iso.datetime({ offset: true }).optional(),
   })

@@ -247,8 +247,20 @@ export async function operarDocumentoCasoNativo(
       const aberto = conteudoDocumentoSchema.parse(
         JSON.parse(await portas.cifra.decifrar(item.conteudo, aad)),
       );
+      let compartilhamento: 'divergente' | 'revisao_necessaria' | 'indisponivel' = 'indisponivel';
+      if (portas.drive?.porta.consultarCompartilhamento) {
+        try {
+          compartilhamento = await portas.drive.porta.consultarCompartilhamento(
+            aberto.drive_file_id,
+            item.audiencia,
+          );
+        } catch {
+          /* A falha da conferência não transforma ausência de prova em aprovação. */
+        }
+      }
       documentos.push(
         documentoCasoSchema.parse({
+          compartilhamento,
           documento_id: item.documento_id,
           registro_id: item.registro_id,
           versao: item.versao,
