@@ -48,7 +48,7 @@ function preparar() {
       cifrar: vi.fn(async (texto) => {
         claros.push(JSON.parse(texto));
         return {
-          formato: 1,
+          formato: 1 as const,
           key_id: 'teste',
           nonce: 'bm9uY2U',
           ciphertext: 'Y2lmcmE',

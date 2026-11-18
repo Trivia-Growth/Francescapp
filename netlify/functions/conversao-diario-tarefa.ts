@@ -20,6 +20,7 @@ export default async function conversaoDiarioTarefa(request: Request): Promise<R
   } catch {
     return falha('configuracao_indisponivel');
   }
+  const dependenciasAtuais = dependencias;
   try {
     const chaves = [
       'ffcm.diario.ativo',
@@ -29,11 +30,11 @@ export default async function conversaoDiarioTarefa(request: Request): Promise<R
       'ffcm.diario.conversao_tarefa_ativa',
     ];
     const estados = await Promise.all(
-      chaves.map((chave) => servicoAtivo(dependencias.pool, chave, false)),
+      chaves.map((chave) => servicoAtivo(dependenciasAtuais.pool, chave, false)),
     );
     if (!estados.every(Boolean)) return falha('servico_indisponivel');
   } catch {
     return falha('servico_indisponivel');
   }
-  return criarEntradaConversaoDiarioNativa(dependencias).atender(request);
+  return criarEntradaConversaoDiarioNativa(dependenciasAtuais).atender(request);
 }
