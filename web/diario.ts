@@ -8,22 +8,21 @@ import type {
   SalvarRegistroDiario,
 } from '../packages/contracts/src/diario.ts';
 import { relatoTextualSchema } from '../packages/contracts/src/relato-textual.ts';
-import type { TarefaCuidado } from '../packages/contracts/src/tarefa-cuidado.ts';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
+import type { MontagemConversaoDiario } from './conversao-diario.ts';
 
 export type ServicoDiarioTela = {
   consultar(pacienteId: string): Promise<RegistroDiario[]>;
   salvar(pacienteId: string, entrada: SalvarRegistroDiario): Promise<RegistroDiario>;
 };
 
-/** Conversão em tarefa (FR-014). A tarefa pertence à fatia de tarefas, com a barreira e o
- * ciclo dela; aqui só entra o identificador devolvido, para o registro guardar o
- * encaminhamento que a sinalização gerou. Sem esta porta a tela ainda sinaliza atenção e
- * registra motivo e data — só não amarra a tarefa. */
+/** Monta jornada atômica autorizada. Diário não grava tarefa nem evolução da conversão. */
 export type ConversaoEmTarefa = (
-  pacienteId: string,
-  tarefa: TarefaCuidado,
-) => Promise<string | undefined>;
+  raiz: HTMLElement,
+  origem: RegistroDiario,
+  pendente: (valor: boolean) => void,
+  aoConcluir: () => void,
+) => MontagemConversaoDiario;
 
 /** FR-010: ditar o registro em vez de digitá-lo. A gravação, o envio e a transcrição
  * pertencem à fatia de áudio; o diário só recebe o texto já revisado e confirmado pelo
@@ -88,6 +87,26 @@ export function montarDiario(
    * nunca a síntese de evolução da equipe nem a resposta a um relato. */
   ehFamilia = false,
 ): () => void {
+  let pendenteEditor = false;
+  const pendenciasConversao = new Set<string>();
+  const conversoes = new Map<
+    string,
+    {
+      raiz: HTMLElement;
+      versao: number;
+      montagem: MontagemConversaoDiario;
+      reabrir?: HTMLButtonElement;
+    }
+  >();
+  const registrarPendencia = (valor: boolean) => {
+    pendenteEditor = valor;
+    alteracaoPendente(valor || pendenciasConversao.size > 0);
+  };
+  const desmontarConversoes = () => {
+    for (const conversao of conversoes.values()) conversao.montagem.desmontar();
+    conversoes.clear();
+    pendenciasConversao.clear();
+  };
   let ativa = true;
   let registros: RegistroDiario[] = [];
   let pendenteFamiliar = false;
@@ -109,6 +128,7 @@ export function montarDiario(
     geracaoConsulta++;
     if (ehFamilia) document.removeEventListener('visibilitychange', visibilidadeAlterada);
     desmontarFormularios();
+    desmontarConversoes();
     raiz.replaceChildren();
     acessoPerdido(erro);
     return true;
@@ -165,7 +185,7 @@ export function montarDiario(
         descricao.value = texto;
         origemConteudo = 'audio_transcrito';
         pendenteFamiliar = true;
-        alteracaoPendente(true);
+        registrarPendencia(true);
         descricao.focus();
       });
       desmontesDoFormulario.push(desmontarAudio);
@@ -198,7 +218,7 @@ export function montarDiario(
     form.append(aviso, rascunho, publicar);
     form.addEventListener('input', () => {
       pendenteFamiliar = true;
-      alteracaoPendente(true);
+      registrarPendencia(true);
       aviso.textContent = '';
     });
     const montarConteudo = (): ConteudoRelatoDiario | undefined => {
@@ -242,7 +262,7 @@ export function montarDiario(
           conteudo,
         });
         pendenteFamiliar = false;
-        alteracaoPendente(false);
+        registrarPendencia(false);
         aoConcluir(estado === 'rascunho' ? 'Rascunho salvo.' : 'Relato enviado à coordenação.');
       } catch (erro) {
         if (descartarAcesso(erro)) return;
@@ -298,7 +318,7 @@ export function montarDiario(
       const desmontarAudio = montarEntradaPorAudio(porAudio, (texto) => {
         atividade.value = texto;
         origemAtividade = 'audio_transcrito';
-        alteracaoPendente(true);
+        registrarPendencia(true);
         atividade.focus();
       });
       desmontesDoFormulario.push(desmontarAudio);
@@ -349,7 +369,7 @@ export function montarDiario(
     publicar.type = 'submit';
     form.append(destinatarios, aviso, rascunho, publicar);
     form.addEventListener('input', () => {
-      alteracaoPendente(true);
+      registrarPendencia(true);
       aviso.textContent = '';
     });
     const montarConteudo = (): ConteudoEvolucaoDiario | undefined => {
@@ -400,7 +420,7 @@ export function montarDiario(
           ...(responde ? { responde_registro_id: responde.diario_registro_id } : {}),
           conteudo,
         });
-        alteracaoPendente(false);
+        registrarPendencia(false);
         aoConcluir(
           estado === 'rascunho'
             ? 'Rascunho salvo.'
@@ -446,7 +466,7 @@ export function montarDiario(
     form.append(aviso, confirmar);
     form.addEventListener('input', () => {
       if (ehFamilia) pendenteFamiliar = true;
-      alteracaoPendente(true);
+      registrarPendencia(true);
       aviso.textContent = '';
     });
     form.addEventListener('submit', (evento) => {
@@ -481,7 +501,7 @@ export function montarDiario(
             justificativa,
           });
           if (ehFamilia) pendenteFamiliar = false;
-          alteracaoPendente(false);
+          registrarPendencia(false);
           aoConcluir('Retificação registrada; a versão anterior continua no histórico.');
         } catch (erro) {
           if (descartarAcesso(erro)) return;
@@ -537,7 +557,7 @@ export function montarDiario(
     formularioFamiliar.replaceWith(proximo);
     formularioFamiliar = proximo;
     pendenteFamiliar = false;
-    alteracaoPendente(false);
+    registrarPendencia(false);
     proximo.querySelector<HTMLElement>('input, textarea')?.focus();
   };
 
@@ -636,85 +656,62 @@ export function montarDiario(
           responder.replaceWith(formularioEvolucao((texto) => desenhar(texto), registro));
         });
         artigo.append(responder);
-        if (converterEmTarefa) artigo.append(botaoConversao(registro, respostas));
+      }
+      if (!ehFamilia && registro.estado !== 'rascunho' && converterEmTarefa) {
+        let conversao = conversoes.get(registro.diario_registro_id);
+        if (!conversao) {
+          const destino = elemento('div');
+          const montagem = converterEmTarefa(
+            destino,
+            registro,
+            (valor) => {
+              if (valor) pendenciasConversao.add(registro.diario_registro_id);
+              else pendenciasConversao.delete(registro.diario_registro_id);
+              alteracaoPendente(pendenteEditor || pendenciasConversao.size > 0);
+            },
+            () => void consultar(),
+          );
+          conversao = { raiz: destino, versao: registro.versao, montagem };
+          conversoes.set(registro.diario_registro_id, conversao);
+        }
+        if (conversao.versao !== registro.versao) {
+          conversao.montagem.invalidarOrigem();
+          if (!conversao.reabrir) {
+            const reabrir = elemento('button', 'Descartar campos e usar versão atual');
+            reabrir.type = 'button';
+            reabrir.className = 'button-secondary';
+            reabrir.addEventListener('click', () => {
+              if (
+                pendenciasConversao.has(registro.diario_registro_id) &&
+                !window.confirm(
+                  'Descartar os campos da conversão anterior e abrir a versão atual do registro?',
+                )
+              )
+                return;
+              conversoes.get(registro.diario_registro_id)?.montagem.desmontar();
+              conversoes.delete(registro.diario_registro_id);
+              desenharLeituras();
+            });
+            conversao.reabrir = reabrir;
+            conversao.raiz.append(reabrir);
+          }
+        }
+        artigo.append(conversao.raiz);
       }
       item.append(artigo);
       lista.append(item);
     }
+    for (const [id, conversao] of conversoes) {
+      if (
+        !registros.some(
+          (registro) => registro.diario_registro_id === id && registro.estado !== 'rascunho',
+        )
+      ) {
+        conversao.montagem.desmontar();
+        conversoes.delete(id);
+      }
+    }
     regiaoLeituras.append(lista);
-  };
-
-  /** FR-014: a sinalização guarda motivo, data e o encaminhamento gerado. A tarefa em si é
-   * criada pela fatia de tarefas; aqui entra só o identificador que ela devolve. */
-  const botaoConversao = (registro: RegistroDiario, _respostas: number): HTMLElement => {
-    const abrir = elemento('button', 'Sinalizar atenção e converter em tarefa');
-    abrir.type = 'button';
-    abrir.addEventListener('click', () => {
-      const form = elemento('form');
-      form.noValidate = true;
-      form.append(elemento('h4', 'Converter relato em tarefa'));
-      const motivo = campo(form, 'Motivo da atenção (obrigatório)', elemento('textarea'));
-      const responsavel = campo(form, 'Responsável (obrigatório)', elemento('input'));
-      const prazo = campo(form, 'Prazo (obrigatório)', elemento('input'));
-      prazo.type = 'date';
-      const aviso = elemento('p');
-      aviso.setAttribute('role', 'status');
-      const confirmar = elemento('button', 'Converter');
-      confirmar.type = 'submit';
-      form.append(aviso, confirmar);
-      form.addEventListener('submit', (evento) => {
-        evento.preventDefault();
-        const texto = motivo.value.trim();
-        if (!texto || !responsavel.value.trim() || !prazo.value) {
-          aviso.textContent = 'Informe motivo, responsável e prazo.';
-          return;
-        }
-        confirmar.disabled = true;
-        aviso.textContent = 'Registrando atenção…';
-        const finalizar = iniciarAcao(confirmar);
-        void (async () => {
-          try {
-            const descricao = `Atenção sinalizada no diário: ${texto}`;
-            const tarefaId = await converterEmTarefa?.(pacienteId, {
-              descricao,
-              responsavel: responsavel.value.trim(),
-              prazo: prazo.value,
-              prioridade: 'alta',
-              estado: 'pendente',
-            });
-            await gravar({
-              versao_esperada: 0,
-              tipo: 'evolucao_profissional',
-              estado: 'publicado',
-              audiencia: 'equipe_e_familia',
-              atencao: true,
-              retorno_solicitado: false,
-              origem_conteudo: 'texto',
-              responde_registro_id: registro.diario_registro_id,
-              ...(tarefaId ? { tarefa_id: tarefaId } : {}),
-              conteudo: {
-                data: new Date().toISOString().slice(0, 10),
-                area: 'Coordenação do cuidado',
-                atividade: descricao,
-              },
-            });
-            desenhar(
-              tarefaId
-                ? 'Atenção sinalizada e tarefa criada para a equipe.'
-                : 'Atenção sinalizada. Abra a aba Tarefas para criar a ação com responsável.',
-            );
-          } catch (erro) {
-            if (descartarAcesso(erro)) return;
-            aviso.textContent = mensagemFalha(erro);
-            confirmar.disabled = false;
-          } finally {
-            finalizar();
-          }
-        })();
-      });
-      abrir.replaceWith(form);
-    });
-    return abrir;
   };
 
   const consultar = async () => {
@@ -769,7 +766,8 @@ export function montarDiario(
     geracaoConsulta++;
     if (ehFamilia) document.removeEventListener('visibilitychange', visibilidadeAlterada);
     desmontarFormularios();
-    alteracaoPendente(false);
+    desmontarConversoes();
+    registrarPendencia(false);
     raiz.replaceChildren();
   };
 }

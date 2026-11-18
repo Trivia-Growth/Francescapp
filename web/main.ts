@@ -48,6 +48,8 @@ import { criarServicoPlanoCriseHttp } from './servico-plano-crise-http.js';
 import { montarHabilitacaoPlanoCrise } from './habilitacao-plano-crise.js';
 import { criarServicoHabilitacaoPlanoCriseHttp } from './servico-habilitacao-plano-crise-http.js';
 import { montarDiario } from './diario.js';
+import { montarConversaoDiario } from './conversao-diario.js';
+import { criarServicoConversaoDiarioHttp } from './servico-conversao-diario-http.js';
 import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
 import { montarLinhaTempo } from './linha-tempo.js';
 import { criarServicoLinhaTempoHttp } from './servico-linha-tempo-http.js';
@@ -498,6 +500,77 @@ function voltarParaLista(): void {
   aviso('workspace-feedback', '');
   const linha = id ? listaPacientes.querySelector<HTMLElement>(`[data-paciente-id="${id}"]`) : null;
   (linha ?? elemento('patients-title')).focus();
+}
+
+function montarConversaoDaFicha(
+  raiz: HTMLElement,
+  pacienteId: string,
+  origem: Parameters<typeof montarConversaoDiario>[2],
+  pendente: (valor: boolean) => void,
+  aoConcluir: () => void,
+): ReturnType<typeof montarConversaoDiario> {
+  const identidade = identidadeAtual();
+  try {
+    if (
+      !identidade ||
+      sessao?.usuario.perfil !== 'profissional' ||
+      sessionStorage.getItem('modo-acesso') !== 'google'
+    )
+      return { desmontar: () => {}, invalidarOrigem: () => {} };
+  } catch {
+    return { desmontar: () => {}, invalidarOrigem: () => {} };
+  }
+  if (!identidade) return { desmontar: () => {}, invalidarOrigem: () => {} };
+  let ativa = true;
+  const identidadeDaConversao = () => {
+    const atual = identidadeAtual();
+    return ativa &&
+      sessao?.usuario.perfil === 'profissional' &&
+      fichaPaciente?.id === pacienteId &&
+      atual?.usuario_id === identidade.usuario_id &&
+      atual.session_id === identidade.session_id
+      ? atual
+      : null;
+  };
+  const servico = criarServicoConversaoDiarioHttp(identidadeDaConversao);
+  const tarefas = criarServicoTarefasHttp(identidadeDaConversao);
+  return montarConversaoDiario(
+    raiz,
+    pacienteId,
+    origem,
+    {
+      atual: () => identidadeDaConversao() !== null,
+      acessoPerdido,
+      consultar: () => servico.consultar(pacienteId, origem.diario_registro_id),
+      converter: (entrada, chave) =>
+        servico.converter(pacienteId, origem.diario_registro_id, entrada, chave),
+      contexto: async () => {
+        const [capacidade, diario] = await Promise.all([
+          tarefas.consultarDisponibilidade(pacienteId),
+          consultarDisponibilidadeDiario(),
+        ]);
+        return {
+          escrita_disponivel: capacidade.escrita_disponivel && diario.disponivel,
+          areas: diario.areas,
+        };
+      },
+      criarCiclo: (gravar) =>
+        criarCicloTarefaCuidado({
+          identidadeAtual: identidadeDaConversao,
+          consultar: () => api.consultarBarreiraTarefa(),
+          reservar: async (entrada) => (await api.reservarBarreiraTarefa(entrada)).estado,
+          encerrar: async (entrada) => (await api.encerrarBarreiraTarefa(entrada)).estado,
+          reconhecer: async (entrada) => (await api.reconhecerBarreiraTarefa(entrada)).estado,
+          gravar,
+        }),
+      desmontar: () => {
+        ativa = false;
+        servico.desmontar();
+      },
+    },
+    pendente,
+    aoConcluir,
+  );
 }
 
 function montarSecaoTarefas(
@@ -965,7 +1038,10 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         () => areasDiario,
         acessoPerdido,
         pendente,
-        undefined,
+        atual.usuario.perfil === 'profissional'
+          ? (destino, origem, alteracao, concluido) =>
+              montarConversaoDaFicha(destino, paciente.id, origem, alteracao, concluido)
+          : undefined,
         (destino, aoConfirmar) =>
           montarTranscricaoAudio(
             destino,
