@@ -292,11 +292,25 @@ O produto SHALL autorizar abertura de turno, registro de aferição, medicação
 
 **Fase de origem**: Evolução.
 
-O produto SHALL permitir que o profissional do turno aberto registre a rotina do período em campos estruturados — refeição com momento e aceitação, hidratação, período de sono com qualidade observada e eliminações — cada registro com instante de ocorrência informado, instante de gravação do servidor e autor identificado. Esses campos SHALL ser consultáveis como série por período, independentemente do texto da passagem. O sistema NÃO SHALL derivar diagnóstico, gravidade, adequação nutricional ou alerta a partir desses valores.
+O produto SHALL permitir que o profissional do turno aberto registre a rotina do período nos campos estruturados confirmados em 17/11/2026 — refeição por momento (café, almoço, lanche, jantar, ceia) com aceitação em total, parcial, mínima ou recusou; hidratação em mililitros; sono com início, fim e qualidade observada em tranquilo, agitado ou não dormiu; e eliminações como contagem por tipo (urina, fezes) — cada registro com instante de ocorrência informado, instante de gravação do servidor e autor identificado.
+
+Cada registro de rotina SHALL admitir um campo textual livre de observações adicionais, opcional, cifrado como os demais textos livres do produto e sujeito à mesma audiência do conteúdo do turno. Esse campo NÃO SHALL ser usado para substituir os campos estruturados, e a série consultável SHALL continuar funcionando quando ele estiver vazio. Esses campos SHALL ser consultáveis como série por período, independentemente do texto da passagem. O sistema NÃO SHALL derivar diagnóstico, gravidade, adequação nutricional ou alerta a partir desses valores.
 
 #### Scenario: Rotina do turno registrada
-- **WHEN** profissional com turno aberto registra refeição fictícia com momento e aceitação observada, hidratação, sono e eliminação
+- **WHEN** profissional com turno aberto registra refeição fictícia com momento e aceitação observada, hidratação em mililitros, sono com início, fim e qualidade, e eliminação por tipo
 - **THEN** cada item é persistido vinculado ao turno e ao caso, com instante informado, instante do servidor e autor identificado
+
+#### Scenario: Observação livre acompanha o registro estruturado
+- **WHEN** o profissional preenche a observação adicional de um registro de rotina
+- **THEN** o texto é persistido cifrado, vinculado ao registro, sujeito à mesma audiência do conteúdo do turno, e os campos estruturados permanecem preenchidos e consultáveis como série
+
+#### Scenario: Registro sem observação é válido
+- **WHEN** o registro de rotina é enviado sem a observação adicional
+- **THEN** o registro é aceito e a consulta por período funciona normalmente
+
+#### Scenario: Valor fora do conjunto confirmado é recusado
+- **WHEN** o registro informa momento de refeição, nível de aceitação, qualidade de sono ou tipo de eliminação fora do conjunto administrado
+- **THEN** o registro é recusado e nada é persistido
 
 #### Scenario: Rotina consultável como série
 - **WHEN** pessoa autorizada consulta a rotina do caso por período
@@ -384,7 +398,7 @@ O produto SHALL emitir relatório de turno, consolidado diário, consolidado sem
 
 O produto SHALL registrar, na abertura e no encerramento do turno de FR-055, a localização informada pelo aparelho do profissional, com latitude, longitude, precisão informada e instante do servidor. A localização SHALL ser tratada como **dado declarado pelo aparelho, nunca como prova de presença**: nenhuma superfície, relatório ou exportação SHALL afirmar que o profissional esteve no local.
 
-A coleta SHALL depender de consentimento prévio do profissional, registrado com identidade, finalidade, audiência e data, obtido antes do primeiro check-in e revogável. A ausência de localização — permissão negada, recurso indisponível, falha ou consentimento revogado — NÃO SHALL impedir a abertura ou o encerramento do turno; o registro SHALL guardar a ausência com o motivo correspondente.
+A coleta SHALL depender de consentimento prévio do profissional, registrado com identidade, finalidade, audiência, prazo de retenção e data, obtido antes do primeiro check-in e revogável. A localização SHALL ser retida por 90 dias contados do turno a que pertence, e SHALL ser descartada após esse prazo; o turno e seus demais registros permanecem íntegros sem ela. A ausência de localização — permissão negada, recurso indisponível, falha ou consentimento revogado — NÃO SHALL impedir a abertura ou o encerramento do turno; o registro SHALL guardar a ausência com o motivo correspondente.
 
 A localização SHALL ser visível apenas a Administrador e case manager. Perfil familiar NÃO SHALL ter acesso à localização em nenhuma superfície, relatório ou exportação, ainda que tenha fundamento de autorização para o restante do conteúdo do turno.
 
@@ -426,7 +440,15 @@ A localização SHALL ser visível apenas a Administrador e case manager. Perfil
 
 #### Scenario: Consentimento registrado com finalidade e audiência
 - **WHEN** o profissional concede o consentimento
-- **THEN** o aceite é persistido com identidade, data, finalidade declarada e audiência informada, e fica consultável por ele e pela coordenação
+- **THEN** o aceite é persistido com identidade, data, finalidade declarada, audiência informada e prazo de retenção, e fica consultável por ele e pela coordenação
+
+#### Scenario: Localização descartada após 90 dias
+- **WHEN** passam 90 dias do turno a que a localização pertence
+- **THEN** a localização é descartada, o turno e seus demais registros permanecem íntegros e consultáveis, e a consulta de localização daquele turno retorna ausência por retenção expirada, sem erro
+
+#### Scenario: Retenção informada no consentimento
+- **WHEN** o profissional concede o consentimento
+- **THEN** o prazo de retenção de 90 dias é apresentado junto da finalidade e da audiência, e fica registrado na versão de consentimento aceita
 
 #### Scenario: Auditoria da localização
 - **WHEN** uma localização de turno é registrada, consultada ou exportada

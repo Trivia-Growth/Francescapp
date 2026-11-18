@@ -53,7 +53,7 @@ Confirmadas pelo solicitante nesta data. Onde conflitam com 11/11/2026, prevalec
 - **Quem registra medicação**: qualquer profissional autenticado com vínculo ativo no caso, prescrita e administrada. Substitui a restrição a Administrador e case managers. A separação executor/registrador, a auditoria obrigatória e a negativa para perfil familiar permanecem inalteradas.
 
   *Consequência de segurança registrada, não um bloqueio*: o controle que restava sobre o registro de dado de saúde de alta sensibilidade passa a ser o vínculo com o caso. A verificação continua no servidor **e** no banco, e o modelo mantém a concessão como ponto de aperto — restringir de novo depois é mudar a regra da barreira, não refazer o esquema.
-- **Rotina do turno em campos estruturados** (FR-064): alimentação, hidratação, sono e eliminações deixam de ser prosa dentro da passagem e viram medidas do turno, consultáveis por período como os sinais vitais.
+- **Rotina do turno em campos estruturados** (FR-064): alimentação, hidratação, sono e eliminações deixam de ser prosa dentro da passagem e viram medidas do turno, consultáveis por período como os sinais vitais. Conjunto confirmado: refeição por momento (café, almoço, lanche, jantar, ceia) com aceitação em total, parcial, mínima ou recusou; hidratação em mililitros; sono com início, fim e qualidade observada em tranquilo, agitado ou não dormiu; eliminações como contagem por tipo (urina, fezes). Cada registro admite ainda um campo textual livre de observações adicionais, opcional e cifrado como os demais textos livres.
 - **Consolidado semanal** (FR-065): além do relatório de turno e do consolidado diário, o produto gera o fechamento de sete dias por caso.
 - **PDF gerado no servidor** (FR-066): relatório e exportação em PDF produzidos na fronteira autorizada, com a mesma audiência da consulta e evento de exportação auditado. Não é geração no navegador nem impressão de página.
 - **Foto de ocorrência em repositório privado do Supabase**, com a mesma autorização do caso, em vez de esperar a definição da raiz do Google Drive institucional (FR-030). Migrar para o Drive depois é cópia de arquivo, não troca de modelo de autorização.
@@ -63,7 +63,8 @@ Confirmadas pelo solicitante nesta data. Onde conflitam com 11/11/2026, prevalec
 - **Check-in e check-out com localização** (FR-067): a localização é coletada na abertura e no encerramento do turno. Três condições confirmadas na mesma data:
   - permissão negada, recurso indisponível ou consentimento ausente **não impedem** o turno — registra-se a ausência com motivo;
   - a localização é visível somente a Administrador e case manager; perfil familiar não a vê em nenhuma superfície;
-  - o profissional consente antes do primeiro check-in, com finalidade, audiência e data registradas, e pode revogar.
+  - o profissional consente antes do primeiro check-in, com finalidade, audiência, prazo de retenção e data registradas, e pode revogar;
+  - a localização é retida por **90 dias** contados do turno e descartada depois, sem afetar o turno nem seus demais registros.
 
   *Consequência registrada*: coordenada de navegador é declarada, não comprovada — pode ser imprecisa, negada ou falsificada. A spec proíbe apresentá-la como prova de presença e proíbe derivar atraso ou falta dela. O dado também revela o endereço residencial da pessoa acompanhada, o que o coloca sob FR-042 junto do conteúdo de saúde.
 - **Base de implementação**: a fatia 1 não será concluída antes deste recorte. A implementação parte dos mecanismos de identidade, sessão, vínculo e concessão já existentes e verificados no repositório, abrindo tarefa somente para a lacuna que o turno exigir. Isso substitui a condição de 11/11/2026 de aguardar a fatia 1 inteira.
@@ -72,8 +73,6 @@ Confirmadas pelo solicitante nesta data. Onde conflitam com 11/11/2026, prevalec
 
 - ~~A fatia 1 precisa estar concluída antes deste recorte.~~ **Resolvido em 17/11/2026**: parte-se do que já existe e está verificado, com tarefa própria de auditoria da base de autorização antes da primeira escrita de turno.
 - A implementação está **suspensa por decisão do solicitante** até o encerramento de uma frente de ajuste de frontend em andamento. Este pacote é planejamento; nenhuma tarefa executa antes da liberação explícita.
-- Os campos exatos de FR-064 — quais refeições, qual escala de aceitação, se eliminações entram como contagem ou descrição — são proposta deste pacote e precisam de confirmação antes da tarefa de contrato.
-- **Por quanto tempo a localização de FR-067 fica guardada** não foi definido. Dado pessoal do profissional sem prazo de retenção declarado contraria FR-040 e FR-042. Precisa de resposta antes da tarefa de persistência da localização; o restante de FR-067 não depende disso.
 - Se a localização passa a ser exigida pela Francescato como condição de trabalho, isso é decisão trabalhista do solicitante, não do produto. A spec mantém o turno funcionando sem ela.
 - Como o executor externo é identificado e selecionado no registro — lista administrada de profissionais da enfermagem ou texto conferido — permanece em aberto (ver `design.md — Open Questions`).
 - A decisão de audiência familiar ampla precisa ser exercida junto com o fundamento de autorização do caso (FR-038). Georgia é adulta: o acesso familiar ao seu conteúdo de saúde depende do fundamento registrado e permanece revogável, não decorre do parentesco.

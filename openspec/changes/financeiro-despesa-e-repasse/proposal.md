@@ -28,15 +28,14 @@ Na operação atual, Fabiana cuida de compras e conferência financeira por fora
 Confirmadas pelo solicitante em 17/11/2026.
 
 - **Financeiro entra no produto**, inclusive repasse por profissional. Substitui a exclusão registrada em 11/11/2026 em `turno-e-execucao-do-cuidado`.
-- **Base do repasse**: turno realizado multiplicado por valor acordado, cadastrado por profissional. Não é lançamento manual nem apuração por duração aferida entre abertura e encerramento.
+- **Base do repasse**: turno realizado multiplicado por valor acordado **por turno**, cadastrado por profissional. Não é valor-hora, não é lançamento manual e não é apuração por duração aferida entre abertura e encerramento.
+- **Turno não encerrado** entra na apuração como linha pendente de resolução, identificada e sem valor — não é omitido do período nem pago integralmente.
+- **Sem ciclo de apuração travado** nesta versão: a apuração é consulta aberta por período, apresentando o instante da consulta. Um fechamento futuro não deve exigir quebra de contrato (design D3).
+- **Despesa pertence ao caso**, sem teto e sem aprovação em duas etapas. Despesa da própria instituição, sem caso vinculado, segue fora do escopo.
 - **Audiência**: Administrador e perfil financeiro (a Fabiana). Profissional **não** vê valores, nem os próprios. Família **não** vê nada do financeiro.
 
 ### Pendências que não podem ser inferidas
 
-- **Valor por turno ou valor por hora** não foi definido. A decisão diz "valor acordado"; o repasse por turno realizado sugere valor por turno, mas valor-hora com duração prevista pela escala também atende. Bloqueia o contrato de FR-068.
-- **O que acontece com turno não encerrado** na apuração: entra com valor zero, fica pendente de resolução ou é excluído do período. Bloqueia FR-070.
-- **Se o repasse tem ciclo de apuração fechado** (quinzena, mês) com travamento, ou é consulta aberta por período. Travamento muda o modelo de retificação.
-- **Se a despesa de FR-047 pertence ao caso ou à instituição**, e se há teto ou alçada de autorização. Bloqueia FR-069.
 - A implementação está **suspensa** até a liberação do solicitante, como em `turno-e-execucao-do-cuidado`.
 
 ### Dependência

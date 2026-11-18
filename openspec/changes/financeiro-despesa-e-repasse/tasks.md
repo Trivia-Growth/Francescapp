@@ -11,18 +11,18 @@ Nenhuma tarefa autoriza deploy, migração remota, concessão de acesso, integra
 - [x] 0.1 (17/11/2026) Financeiro entra no produto, inclusive repasse por profissional. Substitui a exclusão registrada em 11/11/2026.
 - [x] 0.2 (17/11/2026) Base do repasse: turno realizado multiplicado por valor acordado por profissional.
 - [x] 0.3 (17/11/2026) Audiência: Administrador e perfil financeiro. Profissional não vê valores, nem os próprios. Família não vê nada do financeiro.
-- [ ] 0.4 Confirmar com o solicitante se o valor acordado é **por turno** ou **por hora** com duração prevista pela escala. **Bloqueia 1.1 e 3.1.** Evidência: resposta registrada aqui e refletida no contrato.
-- [ ] 0.5 Confirmar o tratamento de **turno não encerrado** na apuração: valor zero, pendente de resolução ou excluído do período. **Bloqueia 3.2.** Evidência: resposta registrada aqui e coberta por teste.
-- [ ] 0.6 Confirmar se existe **ciclo de apuração fechado** com travamento (quinzena, mês) ou se a apuração é consulta aberta por período. **Bloqueia 3.5.** Evidência: resposta registrada aqui; o contrato de 1.2 não pode impedir um fechamento futuro (design D3).
-- [ ] 0.7 Confirmar se a **despesa pertence ao caso ou à instituição** e se há teto ou alçada de autorização. **Bloqueia 2.1.** Evidência: resposta registrada aqui.
+- [x] 0.4 (17/11/2026) Valor acordado é **por turno**, não por hora.
+- [x] 0.5 (17/11/2026) Turno não encerrado entra na apuração como **linha pendente de resolução**, identificada e sem valor.
+- [x] 0.6 (17/11/2026) **Sem ciclo travado** nesta versão: apuração é consulta aberta por período, com o instante da consulta apresentado. O contrato não pode impedir um fechamento futuro (design D3).
+- [x] 0.7 (17/11/2026) Despesa pertence **ao caso**, sem teto e sem aprovação em duas etapas. Despesa da instituição fica fora.
 - [ ] 0.8 Auditar os mecanismos de concessão de equipe existentes e confirmar que admitem uma permissão nova sem alterar as trilhas de cuidado já provadas. Evidência: arquivos e migrações conferidos, e a lacuna aberta como tarefa própria se existir. **Bloqueia o grupo 1.**
 
 ## 1. Audiência financeira e valor acordado
 
-Depende de 0.4 e 0.8.
+Depende de 0.8.
 
-- [ ] 1.1 Criar `packages/contracts/src/financeiro.ts` com os schemas Zod `strict()` de valor acordado (profissional, valor, vigência) na unidade confirmada em 0.4, seguindo o padrão de `tarefa-cuidado.ts`. Evidência: teste de contrato cobrindo entrada válida e rejeição de campo desconhecido (FR-068).
-- [ ] 1.2 Modelar o contrato de apuração de forma que um fechamento futuro não exija quebra de contrato (design D3). Evidência: contrato revisado com a decisão de 0.6 registrada; se 0.6 ainda estiver aberta, registrar o bloqueio em vez de supor.
+- [ ] 1.1 Criar `packages/contracts/src/financeiro.ts` com os schemas Zod `strict()` de valor acordado por turno (profissional, valor, vigência), seguindo o padrão de `tarefa-cuidado.ts`. Evidência: teste de contrato cobrindo entrada válida, rejeição de campo desconhecido e ausência de qualquer campo de duração ou valor-hora (FR-068).
+- [ ] 1.2 Modelar o contrato de apuração como consulta aberta por período, com o instante da consulta no retorno, de forma que um fechamento futuro não exija quebra de contrato (design D3). Evidência: teste cobrindo o instante presente no retorno (FR-070).
 - [ ] 1.3 Criar a concessão de perfil financeiro como permissão distinta, conferida no servidor e no banco, sem consultar vínculo de caso. Evidência: migração local e teste SQL cobrindo concessão vigente, ausente e revogada (FR-068, design D1).
 - [ ] 1.4 Implementar persistência do valor acordado em tabela própria, com restrição de banco contra vigências sobrepostas. Evidência: teste SQL cobrindo o cenário "Vigência sobreposta é recusada", inclusive com duas escritas concorrentes (FR-068, design D4).
 - [ ] 1.5 Implementar RPC privada de criação, alteração e leitura do valor acordado, com auditoria obrigatória na mesma transação. Evidência: teste cobrindo "Alteração cria nova vigência" e "Auditoria do valor acordado" (FR-068, FR-039).
@@ -31,9 +31,9 @@ Depende de 0.4 e 0.8.
 
 ## 2. Despesa e comprovante
 
-Depende de 0.7 e 1.3.
+Depende de 1.3.
 
-- [ ] 2.1 Criar o contrato de despesa com descrição, valor, data, responsável, autorização aplicável e comprovante, conforme o escopo confirmado em 0.7. Evidência: teste cobrindo despesa sem autorização rejeitada (FR-069, cenário "Despesa sem autorização registrada é recusada").
+- [ ] 2.1 Criar o contrato de despesa vinculada a caso, com descrição, valor, data, responsável, autorização aplicável e comprovante, sem teto e sem etapa de aprovação. Evidência: testes cobrindo "Despesa sem autorização registrada é recusada", "Despesa sem caso vinculado é recusada" e "Valor alto não exige aprovação adicional" (FR-069).
 - [ ] 2.2 Implementar persistência e RPC privada de despesa com auditoria obrigatória na mesma transação. Evidência: teste cobrindo registro válido e auditoria do evento (FR-069, FR-039).
 - [ ] 2.3 Guardar o comprovante no repositório privado do Supabase com política ligada à concessão financeira, não à autorização do caso. Evidência: migração local e teste cobrindo leitura autorizada e negada (FR-069, design D5).
 - [ ] 2.4 Implementar entrega do comprovante por fluxo autorizado a cada leitura, sem URL pública e sem URL assinada de longa duração. Evidência: teste cobrindo "Comprovante não é público" e revogação da concessão negando a leitura seguinte (FR-069).
@@ -45,11 +45,11 @@ Depende de 0.7 e 1.3.
 
 Depende de 1.5 e de FR-055 implementado e verificado em `turno-e-execucao-do-cuidado`. **Não inicia antes disso.**
 
-- [ ] 3.1 Implementar a apuração como consulta derivada de turnos encerrados, aplicando o valor vigente na data de cada turno, com cada linha referenciando turno e vigência. Evidência: teste cobrindo "Repasse apurado por período" e "Valor alterado no meio do período" (FR-070, design D3).
-- [ ] 3.2 Aplicar o tratamento de turno não encerrado confirmado em 0.5. Evidência: teste cobrindo o caso confirmado; se 0.5 estiver aberta, registrar bloqueio em vez de escolher.
+- [ ] 3.1 Implementar a apuração como consulta derivada de turnos encerrados, aplicando o valor por turno vigente na data de cada turno, com cada linha referenciando turno e vigência. Evidência: teste cobrindo "Repasse apurado por período" e "Valor alterado no meio do período" (FR-070, design D3).
+- [ ] 3.2 Implementar a linha pendente de resolução para turno aberto e nunca encerrado dentro do período, identificada e sem valor, sem omitir do período. Evidência: teste cobrindo "Turno não encerrado aparece como pendente de resolução" (FR-070).
 - [ ] 3.3 Implementar a linha pendente de valor para turno sem vigência aplicável, sem valor presumido. Evidência: teste cobrindo "Turno sem valor vigente" (FR-070).
 - [ ] 3.4 Garantir que a apuração não crie, altere nem encerre turno. Evidência: teste cobrindo "Apuração não altera o turno" (FR-070).
-- [ ] 3.5 Apresentar o instante da apuração e refletir retificação de turno na apuração seguinte, preservando o histórico da anterior. Evidência: teste cobrindo "Retificação de turno reflete na apuração" (FR-070, design D3). Se 0.6 definir ciclo travado, estender esta tarefa ao fechamento em vez de criar outro modelo.
+- [ ] 3.5 Apresentar o instante da apuração e refletir retificação de turno na apuração seguinte. Evidência: testes cobrindo "Retificação de turno reflete na apuração" e "Apuração informa o instante da consulta" (FR-070, design D3).
 - [ ] 3.6 Restringir o retorno da apuração a turno, data, profissional e valor, sem passagem, aferição, medicação, rotina ou ocorrência. Evidência: teste de contrato e de RPC cobrindo "Apuração não expõe conteúdo de saúde" (FR-070, design D6).
 - [ ] 3.7 Provar a negativa de audiência, incluindo o próprio profissional apurado. Evidência: teste cobrindo "Apuração restrita à audiência financeira", inclusive por acesso direto ao banco (FR-070).
 - [ ] 3.8 Auditar execução, consulta e exportação da apuração. Evidência: teste cobrindo os três eventos (FR-070, FR-039).

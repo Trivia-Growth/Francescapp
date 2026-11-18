@@ -10,7 +10,7 @@ Controlar o financeiro do acompanhamento sem misturá-lo ao conteúdo de saúde:
 
 **Fase de origem**: Evolução.
 
-O produto SHALL permitir que Administrador ou perfil financeiro registre o valor acordado de repasse de um profissional, com período de vigência, autor e data. A alteração do valor SHALL criar nova vigência e NÃO SHALL alterar períodos já apurados. O valor SHALL ser dado da instituição sobre a pessoa, não um campo do cadastro de usuário exposto ao próprio profissional.
+O produto SHALL permitir que Administrador ou perfil financeiro registre o valor acordado de repasse de um profissional **por turno realizado**, com período de vigência, autor e data. O valor NÃO SHALL ser valor-hora nem derivar da duração do turno. A alteração do valor SHALL criar nova vigência e NÃO SHALL alterar períodos já apurados. O valor SHALL ser dado da instituição sobre a pessoa, não um campo do cadastro de usuário exposto ao próprio profissional.
 
 #### Scenario: Valor acordado registrado
 - **WHEN** Administrador ou perfil financeiro registra valor acordado fictício para profissional fictício, com início de vigência
@@ -40,7 +40,7 @@ O produto SHALL permitir que Administrador ou perfil financeiro registre o valor
 
 **Fase de origem**: Evolução.
 
-O produto SHALL permitir que Administrador ou perfil financeiro registre despesa relacionada ao cuidado com descrição, valor, data, responsável pelo gasto, autorização aplicável e comprovante anexado. O comprovante SHALL ser guardado em repositório privado sujeito à autorização aplicável, nunca público. Despesa SHALL ser dado financeiro: a sua audiência NÃO SHALL decorrer do vínculo de cuidado nem do fundamento de autorização de saúde do caso.
+O produto SHALL permitir que Administrador ou perfil financeiro registre despesa relacionada ao cuidado **vinculada a um caso**, com descrição, valor, data, responsável pelo gasto, autorização aplicável e comprovante anexado. Não há teto nem aprovação em duas etapas: quem possui a audiência financeira registra qualquer valor. Despesa sem caso vinculado — despesa da própria instituição — está fora deste requisito. O comprovante SHALL ser guardado em repositório privado sujeito à autorização aplicável, nunca público. Despesa SHALL ser dado financeiro: a sua audiência NÃO SHALL decorrer do vínculo de cuidado nem do fundamento de autorização de saúde do caso.
 
 #### Scenario: Despesa registrada com comprovante
 - **WHEN** perfil financeiro registra despesa fictícia com descrição, valor, data, responsável e comprovante
@@ -58,6 +58,14 @@ O produto SHALL permitir que Administrador ou perfil financeiro registre despesa
 - **WHEN** profissional com vínculo ativo no caso, ou familiar com fundamento de autorização vigente, consulta as despesas do caso
 - **THEN** a operação é negada, e o acesso ao conteúdo de saúde não concede acesso ao financeiro
 
+#### Scenario: Despesa sem caso vinculado é recusada
+- **WHEN** a despesa é enviada sem caso vinculado
+- **THEN** o registro é recusado e nada é persistido
+
+#### Scenario: Valor alto não exige aprovação adicional
+- **WHEN** perfil financeiro registra despesa de valor elevado
+- **THEN** a despesa é registrada normalmente, sem etapa de aprovação e sem ficar pendente, preservando autor e data
+
 #### Scenario: Retificação preserva o lançamento original
 - **WHEN** uma despesa registrada é retificada com motivo
 - **THEN** o lançamento original permanece consultável com autor e data, e nada é apagado
@@ -70,7 +78,7 @@ O produto SHALL permitir que Administrador ou perfil financeiro registre despesa
 
 **Fase de origem**: Evolução.
 
-O produto SHALL apurar o repasse de um profissional em um período a partir dos turnos encerrados de FR-055, aplicando o valor acordado vigente na data de cada turno. Cada linha de apuração SHALL referenciar o turno que a originou e a vigência de valor aplicada, de modo que a conta seja reconstituível. A apuração SHALL ser derivada dos registros existentes e NÃO SHALL alterar, encerrar ou criar turno.
+O produto SHALL apurar o repasse de um profissional em um período a partir dos turnos encerrados de FR-055, aplicando o valor acordado por turno vigente na data de cada turno. A apuração SHALL ser consulta aberta por período, refletindo sempre os registros vigentes, e SHALL apresentar o instante em que foi consultada. NÃO SHALL existir fechamento travado de ciclo nesta versão. Cada linha de apuração SHALL referenciar o turno que a originou e a vigência de valor aplicada, de modo que a conta seja reconstituível. A apuração SHALL ser derivada dos registros existentes e NÃO SHALL alterar, encerrar ou criar turno.
 
 #### Scenario: Repasse apurado por período
 - **WHEN** perfil financeiro apura o repasse de um profissional fictício em um período com turnos encerrados
@@ -83,6 +91,14 @@ O produto SHALL apurar o repasse de um profissional em um período a partir dos 
 #### Scenario: Apuração não altera o turno
 - **WHEN** a apuração é executada
 - **THEN** nenhum turno é criado, alterado ou encerrado, e a execução do cuidado permanece intacta
+
+#### Scenario: Turno não encerrado aparece como pendente de resolução
+- **WHEN** existe turno aberto e nunca encerrado do profissional dentro do período apurado
+- **THEN** a linha é apresentada como pendente de resolução, identificando o turno, sem valor atribuído e sem ser omitida do período
+
+#### Scenario: Apuração informa o instante da consulta
+- **WHEN** a apuração de um período é consultada
+- **THEN** o instante da consulta é apresentado junto do total, de modo que duas consultas com resultados diferentes após uma retificação sejam distinguíveis
 
 #### Scenario: Turno sem valor vigente
 - **WHEN** existe turno encerrado de profissional sem valor acordado vigente naquela data

@@ -10,7 +10,11 @@ Sinalizar dentro do aplicativo o que exige atenção da pessoa — pendências, 
 
 **Fase de origem**: Evolução.
 
-O produto SHALL apresentar, dentro do aplicativo, a lista de avisos dirigidos à pessoa autenticada, com indicador de quantidade não lida. Os avisos SHALL ser derivados de eventos já previstos — pendências de FR-027, sinalizações de FR-028, passagem pendente de ciência de FR-057 e conteúdo marcado como necessitando atenção em FR-014 — e NÃO SHALL constituir uma fila de mensagens própria com conteúdo novo.
+O produto SHALL apresentar, dentro do aplicativo, a lista de avisos dirigidos à pessoa autenticada, com indicador de quantidade não lida. Os avisos SHALL ser derivados dos quatro eventos confirmados em 17/11/2026 — passagem pendente de ciência de FR-057, pendências por atraso de FR-027, sinalizações clínicas de FR-028 e conteúdo marcado como necessitando atenção em FR-014 — e NÃO SHALL constituir uma fila de mensagens própria com conteúdo novo.
+
+O aviso SHALL ser dirigido **à pessoa** responsável. Quando houver substituição registrada de case manager conforme FR-037, os avisos em aberto dirigidos a quem está ausente SHALL passar a ser apresentados também a quem substitui, enquanto a substituição vigorar, sem deixar de pertencer ao destinatário original.
+
+Marcar como lido SHALL retirar o aviso do indicador de não lidos e SHALL mantê-lo na lista até que o evento de origem seja resolvido ou a ciência registrada. Nenhum aviso SHALL sair da lista por decurso de prazo com a origem ainda aberta.
 
 Cada aviso SHALL respeitar a audiência de quem o recebe: o texto do aviso NÃO SHALL revelar conteúdo fora da audiência do destinatário, e um aviso NÃO SHALL ser dirigido a quem não tem acesso ao que ele aponta. Marcar um aviso como lido SHALL ser ato local do destinatário e NÃO SHALL registrar ciência de FR-013 nem encerrar a pendência de origem. Nenhuma notificação SHALL ser enviada por push, e-mail, SMS ou WhatsApp.
 
@@ -33,6 +37,22 @@ Cada aviso SHALL respeitar a audiência de quem o recebe: o texto do aviso NÃO 
 #### Scenario: Aviso não é dirigido a quem não tem acesso
 - **WHEN** o evento de origem aponta para conteúdo ao qual uma pessoa não tem acesso
 - **THEN** nenhum aviso é criado para ela, e a ausência não revela a existência do conteúdo
+
+#### Scenario: Substituição alcança os avisos em aberto
+- **WHEN** existe substituição registrada de case manager e há avisos em aberto dirigidos a quem está ausente
+- **THEN** quem substitui passa a ver esses avisos enquanto a substituição vigorar, o destinatário original continua sendo quem é, e a substituição não concede acesso a conteúdo fora da sua audiência
+
+#### Scenario: Fim da substituição retira os avisos do substituto
+- **WHEN** a substituição é encerrada
+- **THEN** os avisos do destinatário original deixam de ser apresentados a quem substituía, e o indicador do substituto é recalculado
+
+#### Scenario: Aviso lido permanece até a origem ser resolvida
+- **WHEN** o destinatário marca um aviso como lido e o evento de origem continua aberto
+- **THEN** o aviso sai do indicador de não lidos, permanece na lista identificado como lido, e não desaparece por decurso de prazo
+
+#### Scenario: Aviso sai da lista quando a origem é resolvida
+- **WHEN** a pendência de origem é resolvida ou a ciência correspondente é registrada
+- **THEN** o aviso deixa de ser apresentado na lista, e o histórico do evento permanece consultável no seu próprio fluxo
 
 #### Scenario: Revogação retira os avisos
 - **WHEN** o vínculo ou o fundamento de autorização do destinatário é revogado

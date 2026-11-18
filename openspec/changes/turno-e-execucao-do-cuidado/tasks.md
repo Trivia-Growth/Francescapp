@@ -22,8 +22,8 @@ Decisões 0.1 a 0.5 e 0.7 confirmadas pelo solicitante em 11/11/2026 e registrad
 - [x] 0.10 (17/11/2026) PDF gerado no servidor, com a mesma audiência da consulta e exportação auditada (FR-066).
 - [x] 0.11 (17/11/2026) Anexo de ocorrência em repositório privado do Supabase, com migração posterior para o Drive (FR-061, FR-030 modificado, design D12).
 - [x] 0.12 (17/11/2026) Check-in e check-out com localização declarada, consentida e revogável, visível só a Administrador e case manager, sem impedir o turno quando ausente (FR-067, design D13).
-- [ ] 0.13 Confirmar com o solicitante os campos exatos de FR-064: quais refeições, qual escala de aceitação e se eliminações entram como contagem ou descrição. **Bloqueia 9.1.** Evidência: resposta registrada aqui e refletida no catálogo de tipos.
-- [ ] 0.14 Confirmar com o solicitante o prazo de retenção da localização de FR-067. Dado pessoal de trabalhador sem retenção declarada contrai FR-040 e FR-042. **Bloqueia 12.2.** Evidência: prazo registrado aqui e aplicado na persistência e no aviso de consentimento.
+- [x] 0.13 (17/11/2026) Campos de FR-064 confirmados: refeição por momento (café, almoço, lanche, jantar, ceia) com aceitação em total, parcial, mínima ou recusou; hidratação em mililitros; sono com início, fim e qualidade em tranquilo, agitado ou não dormiu; eliminações como contagem por tipo (urina, fezes). Mais um campo textual livre de observações adicionais, opcional e cifrado.
+- [x] 0.14 (17/11/2026) Retenção da localização de FR-067: **90 dias** contados do turno, com descarte depois e prazo informado no consentimento.
 
 ## 1. Contratos do domínio de turno
 
@@ -109,10 +109,10 @@ Depende de 3.5, 4.6, 6.7 e 7.3.
 
 ## 9. Rotina do turno (alimentação, hidratação, sono, eliminações)
 
-Depende de 0.13, 4.6 e 7.3. Reaproveita o modelo de medida de FR-058 (design D9).
+Depende de 4.6 e 7.3. Reaproveita o modelo de medida de FR-058 (design D9).
 
-- [ ] 9.1 Estender o catálogo de tipos de medida com os tipos de rotina confirmados em 0.13, marcando-os como observação e não como medida fisiológica. Evidência: teste cobrindo tipo de rotina aceito, tipo desconhecido rejeitado e rótulo de observação preservado na leitura (FR-064).
-- [ ] 9.2 Estender `packages/contracts/src/sinal-vital.ts` (ou arquivo irmão, se a leitura ficar confusa) com os campos de rotina, mantendo instante de ocorrência, unidade opcional e vínculo de turno. Evidência: teste do arquivo cobrindo entrada válida e rejeição de campo desconhecido (FR-064).
+- [ ] 9.1 Estender o catálogo de tipos de medida com os tipos de rotina de 0.13 — momentos de refeição, níveis de aceitação, qualidade de sono e tipos de eliminação — marcando-os como observação e não como medida fisiológica. Evidência: teste cobrindo tipo de rotina aceito, valor fora do conjunto rejeitado e rótulo de observação preservado na leitura (FR-064, cenário "Valor fora do conjunto confirmado é recusado").
+- [ ] 9.2 Estender `packages/contracts/src/sinal-vital.ts` (ou arquivo irmão, se a leitura ficar confusa) com os campos de rotina e o campo textual de observação adicional usando `campoCifradoSchema`, mantendo instante de ocorrência, unidade e vínculo de turno. Evidência: teste do arquivo cobrindo entrada válida, registro sem observação aceito e rejeição de campo desconhecido (FR-064, cenários "Observação livre acompanha o registro estruturado" e "Registro sem observação é válido").
 - [ ] 9.3 Implementar persistência e RPC privada de rotina com auditoria obrigatória na mesma transação, validando a janela do turno. Evidência: teste SQL cobrindo registro válido, instante fora da janela recusado e registro sem turno aberto recusado (FR-064, cenários "Instante informado fora da janela do turno" e "Registro de rotina sem turno aberto é recusada").
 - [ ] 9.4 Implementar leitura da rotina como série paginada por período, com autor e turno de origem. Evidência: teste cobrindo ordem cronológica e paginação, sem carregar histórico completo (FR-064, cenário "Rotina consultável como série").
 - [ ] 9.5 Implementar retificação preservando o registro original com autor, motivo e data. Evidência: teste comprovando que nenhum lançamento é apagado (FR-064, cenário "Retificação preserva o registro original").
@@ -143,13 +143,14 @@ Depende de 7.3.
 
 ## 12. Check-in, check-out e localização
 
-Depende de 0.14 e 2.5.
+Depende de 2.5.
 
 - [ ] 12.1 Implementar o registro de consentimento de localização como versão, com identidade, finalidade, audiência informada e data; revogação cria nova versão em vez de apagar. Evidência: teste cobrindo concessão, consulta pelo próprio profissional e revogação preservando o histórico (FR-067, design D13).
-- [ ] 12.2 Implementar a persistência da localização em tabela própria, separada do retorno do turno, com latitude, longitude, precisão informada, instante do servidor e referência ao consentimento vigente à época, aplicando o prazo de retenção confirmado em 0.14. Evidência: migração local e teste SQL cobrindo abertura e encerramento com localizações distintas (FR-067).
+- [ ] 12.2 Implementar a persistência da localização em tabela própria, separada do retorno do turno, com latitude, longitude, precisão informada, instante do servidor e referência ao consentimento vigente à época. Evidência: migração local e teste SQL cobrindo abertura e encerramento com localizações distintas (FR-067).
+- [ ] 12.2.1 Implementar o descarte da localização após 90 dias do turno, preservando turno e demais registros. Evidência: teste cobrindo "Localização descartada após 90 dias", com a consulta posterior retornando ausência por retenção expirada e não erro (FR-067, FR-042).
 - [ ] 12.3 Implementar a leitura da localização por RPC distinta, com prova própria de perfil Administrador ou case manager. Evidência: testes negativos comprovando que familiar autorizado e profissional sem coordenação não obtêm a localização, inclusive por acesso direto ao banco — a omissão não pode depender do cliente nem da serialização (FR-067, design D13).
 - [ ] 12.4 Garantir que ausência de localização — permissão negada, recurso indisponível, consentimento ausente ou revogado — não impeça abertura nem encerramento, registrando o motivo. Evidência: testes cobrindo os quatro motivos, sem coordenada inventada, estimada ou derivada de endereço de rede (FR-067).
-- [ ] 12.5 Implementar a coleta no cliente com aviso de finalidade, audiência e retenção antes do primeiro check-in. Evidência: teste de interface cobrindo aceite, recusa e turno aberto sem localização (FR-067, cenário "Consentimento registrado com finalidade e audiência").
+- [ ] 12.5 Implementar a coleta no cliente com aviso de finalidade, audiência e retenção de 90 dias antes do primeiro check-in. Evidência: teste de interface cobrindo aceite, recusa e turno aberto sem localização (FR-067, cenário "Consentimento registrado com finalidade e audiência").
 - [ ] 12.6 Garantir que nenhuma superfície apresente a localização como prova de presença, nem derive atraso, falta, conformidade ou ranqueamento dela. Evidência: teste cobrindo os cenários "Localização não é apresentada como prova de presença" e "Coordenada enviada sem coleta real é tratada como declarada" (FR-067).
 - [ ] 12.7 Auditar registro, consulta e exportação de localização conforme FR-039. Evidência: teste cobrindo os três eventos com identidade, ação, caso e instante (FR-067, FR-039).
 

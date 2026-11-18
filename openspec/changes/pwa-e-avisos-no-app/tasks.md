@@ -12,9 +12,9 @@ Nenhuma tarefa autoriza deploy, migração remota, concessão de acesso, registr
 - [x] 0.2 (17/11/2026) Offline-first com fila descartado nesta entrega.
 - [x] 0.3 (17/11/2026) Sem notificação externa; apenas o sino dentro do aplicativo, com indicador de não lido.
 - [ ] 0.4 Confirmar a frente de ajuste de frontend encerrada e integrada. Evidência: revisão-base registrada aqui. **Bloqueia todos os grupos.**
-- [ ] 0.5 Confirmar com o solicitante quais eventos geram aviso. A proposta é FR-027, FR-028, FR-057 e FR-014. **Bloqueia 3.1.** Evidência: lista confirmada registrada aqui.
-- [ ] 0.6 Confirmar se o aviso é dirigido **à pessoa** ou **ao perfil no caso** — isto é, se um aviso do case manager alcança quem o substitui durante ausência. **Bloqueia 3.2.** Evidência: resposta registrada aqui.
-- [ ] 0.7 Confirmar por quanto tempo um aviso lido permanece na lista e se há arquivamento. **Bloqueia 3.7.** Evidência: resposta registrada aqui.
+- [x] 0.5 (17/11/2026) Eventos que geram aviso, todos confirmados: FR-057 passagem pendente de ciência, FR-027 pendência por atraso, FR-028 sinalização clínica, FR-014 relato marcado como atenção.
+- [x] 0.6 (17/11/2026) Aviso é **da pessoa**, com repasse a quem substitui enquanto houver substituição registrada de case manager.
+- [x] 0.7 (17/11/2026) Aviso lido permanece na lista **até a origem ser resolvida** ou a ciência registrada. Nada sai por decurso de prazo.
 
 ## 1. Instalação e casca
 
@@ -38,15 +38,15 @@ Depende de 1.2.
 
 ## 3. Avisos no aplicativo
 
-Depende de 0.5, 0.6 e 1.3.
+Depende de 1.3.
 
-- [ ] 3.1 Implementar a leitura de avisos como projeção dos eventos confirmados em 0.5, sem tabela de notificação com texto próprio gravado. Evidência: teste cobrindo avisos derivados de cada origem confirmada (FR-072, design D6).
-- [ ] 3.2 Implementar o modelo de destinatário conforme 0.6. Evidência: teste cobrindo o caso confirmado; se 0.6 estiver aberta, registrar bloqueio em vez de escolher.
+- [ ] 3.1 Implementar a leitura de avisos como projeção dos quatro eventos de 0.5, sem tabela de notificação com texto próprio gravado. Evidência: teste cobrindo um aviso derivado de cada uma das quatro origens (FR-072, design D6).
+- [ ] 3.2 Implementar o destinatário por pessoa, com repasse dos avisos em aberto a quem substitui enquanto a substituição de case manager vigorar. Evidência: testes cobrindo "Substituição alcança os avisos em aberto" e "Fim da substituição retira os avisos do substituto", provando que a substituição não concede acesso a conteúdo fora da audiência (FR-072, FR-037).
 - [ ] 3.3 Implementar a situação de leitura por pessoa, separada de qualquer registro de ciência. Evidência: testes cobrindo "Lido é por pessoa", "Ler o aviso não registra ciência" e "Ler o aviso não encerra a pendência" (FR-072, FR-013, FR-057, design D7).
 - [ ] 3.4 Aplicar o filtro de audiência na leitura, com a autorização vigente, e garantir que o texto do aviso não revele conteúdo fora da audiência. Evidência: testes cobrindo "Aviso não revela conteúdo fora da audiência" e "Aviso não é dirigido a quem não tem acesso" (FR-072, FR-036).
 - [ ] 3.5 Provar que a revogação retira os avisos imediatamente e recalcula o indicador, inclusive por acesso direto. Evidência: teste cobrindo "Revogação retira os avisos" (FR-072, FR-037).
 - [ ] 3.6 Implementar o indicador de não lido e a lista na navegação do celular, considerando a gaveta lateral existente. Evidência: teste de interface com os quatro estados, cobrindo "Sem avisos" e "Falha ao carregar avisos" sem apresentar lista vazia como ausência de avisos (FR-072).
-- [ ] 3.7 Aplicar a permanência e o arquivamento confirmados em 0.7. Evidência: teste cobrindo a regra confirmada.
+- [ ] 3.7 Implementar a permanência: lido sai do indicador e permanece na lista até a origem ser resolvida ou a ciência registrada, sem expiração por prazo. Evidência: testes cobrindo "Aviso lido permanece até a origem ser resolvida" e "Aviso sai da lista quando a origem é resolvida" (FR-072).
 - [ ] 3.8 Auditar a consulta da lista conforme FR-039, sem gravar conteúdo clínico no registro de auditoria. Evidência: teste cobrindo o evento e a ausência de conteúdo clínico no registro (FR-072, FR-039).
 - [ ] 3.9 Garantir que nenhuma notificação saia do aplicativo e que nenhum token de dispositivo seja registrado. Evidência: teste cobrindo "Nenhuma notificação sai do aplicativo"; revisão deve tratar qualquer chamada externa como achado (FR-072).
 
