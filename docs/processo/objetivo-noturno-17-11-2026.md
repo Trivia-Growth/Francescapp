@@ -10,6 +10,12 @@ O solicitante **não está disponível**. Não perguntar nada: decidir, registra
 
 Na noite de 18/11/2026 o solicitante quer **entrar na aplicação, cadastrar as chaves das dependências externas pela interface, ligar as integrações e começar a testar**. Tudo que não serve a isso é secundário.
 
+## Modelo e credenciais
+
+**Modelo de implementação: Sol** (decisão de 17/11/2026, substitui a indicação de Terra 6.1 que constava em `AGENTS.md`). Vale também para as frentes com frontend e para as de maior complexidade.
+
+**Acesso ao Supabase**: quando uma operação exigir a CLI do Supabase, ler o token de `SUPABASE_ACCESS_TOKEN` no ambiente. **Não solicitar, não gerar, não imprimir e não gravar o token** em arquivo, log, commit, relatório ou descrição de PR. Se a variável não estiver presente, registrar o bloqueio e seguir para o próximo bloco — nunca pedir a credencial em texto.
+
 ## Paralelismo e isolamento
 
 Usar subagentes sempre que possível. **Impedimento em um bloco não pode impactar os outros**: bloco travado vira bloqueio registrado, e o trabalho segue nos demais.
