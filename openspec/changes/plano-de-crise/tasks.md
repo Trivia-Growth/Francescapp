@@ -119,12 +119,10 @@
   os dois avisos obrigatórios, a aprovação usando a versão lida, a recusa por falta de
   habilitação **sem** derrubar a ficha, o aviso de que editar exige nova aprovação e a
   marca só oferecida a profissional com acesso ativo.
-- [ ] 5.4 Fiação em `web/main.ts`.
-  **Pendente por limite de escopo:** este trabalho não edita `web/main.ts`,
-  `web/index.html` nem `web/styles.css` para não conflitar com as demais frentes em
-  andamento. Os trechos exatos a colar estão no resumo da entrega.
-  **Consequência:** a seção e a tela existem e são testadas, mas ainda não aparecem na
-  navegação.
+- [x] 5.4 Fiação em `web/main.ts`.
+  **Evidência 18/11/2026:** seção `crise` e área administrativa `plano-de-crise` já
+  presentes na base. Texto e habilitação atualizados para DF-021; teste de tela 4/4.
+  Gate local passou; navegação autenticada publicada permanece pendente.
 
 ## 6. Verificação
 

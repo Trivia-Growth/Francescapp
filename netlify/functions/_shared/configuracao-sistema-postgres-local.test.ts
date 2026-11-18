@@ -20,6 +20,8 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
     const sessao_admin_id = '20000000-0000-4000-8000-000000000001';
     const profissional_id = '10000000-0000-4000-8000-000000000002';
     const sessao_prof_id = '20000000-0000-4000-8000-000000000002';
+    const familia_id = '10000000-0000-4000-8000-000000000004';
+    const sessao_familia_id = '20000000-0000-4000-8000-000000000004';
     // calcularHmac é a única parte de `cifra` usada aqui (idempotência); configuração é
     // parâmetro operacional e não passa por cifra/AAD.
     const cifra = criarCifraAutenticada({
@@ -151,15 +153,46 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
       esquecerConfiguracaoServidor();
       expect(await servicoAtivo(pool, 'ffcm.contato.ativo', true)).toBe(false);
 
-      // Profissional não administra configuração, nem para ler.
-      const profissional = portasPara(profissional_id, sessao_prof_id, 'prof_fict_123');
-      expect(
-        await operarConfiguracaoSistemaNativo(
-          profissional.request,
-          { operacao: 'listar' },
-          profissional.portas,
-        ),
-      ).toMatchObject({ ok: false, erro: { codigo: 'sem_permissao' } });
+      // Mesmo passando pelo servidor com identidade atestada, o banco nega ambos os perfis.
+      await pool.query('insert into auth.users values ($1);', [familia_id]);
+      await pool.query('insert into public.usuario(id,perfil) values ($1,$2)', [
+        familia_id,
+        'familia',
+      ]);
+      await pool.query('insert into auth.sessions values ($1,$2,null)', [
+        sessao_familia_id,
+        familia_id,
+      ]);
+      for (const [usuarioId, sessaoId] of [
+        [profissional_id, sessao_prof_id],
+        [familia_id, sessao_familia_id],
+      ] as const) {
+        const negado = portasPara(usuarioId, sessaoId, 'perfil-negado-ficticio');
+        expect(
+          await operarConfiguracaoSistemaNativo(
+            negado.request,
+            { operacao: 'listar' },
+            negado.portas,
+          ),
+        ).toMatchObject({ ok: false, erro: { codigo: 'sem_permissao' } });
+        expect(
+          await operarConfiguracaoSistemaNativo(
+            negado.request,
+            {
+              operacao: 'gravar',
+              configuracao_chave: 'ffcm.contato.ativo',
+              valor: true,
+              versao_esperada: 2,
+            },
+            negado.portas,
+          ),
+        ).toMatchObject({ ok: false, erro: { codigo: 'sem_permissao' } });
+      }
+      const estadoFinal = await pool.query(
+        'select valor, versao from identidade.configuracao_sistema where chave=$1',
+        ['ffcm.contato.ativo'],
+      );
+      expect(estadoFinal.rows).toEqual([{ valor: false, versao: 2 }]);
     } finally {
       await pool.end();
     }

@@ -73,9 +73,10 @@
   em `web/styles.css` dá contorno próprio ao relato leigo e destaque à hipótese.
   Estados de carregamento, vazio, erro, conflito de versão e salvamento incerto seguem
   o mesmo comportamento já revisado da anamnese.
-- [ ] 4.2 Ligar a seção em `secoesDaFicha` de `web/main.ts`.
-  **Bloqueio operacional:** o arquivo está sob edição simultânea de outras frentes; a
-  coordenação pediu para não editá-lo. O trecho exato foi entregue no resumo final.
+- [x] 4.2 Ligar a seção em `secoesDaFicha` de `web/main.ts`.
+  **Evidência 18/11/2026:** seção `saude` já presente na base, montando serviço HTTP e
+  guarda de rascunho. `verificar:ativacao` local passou e matriz SQL de saúde foi
+  reexecutada com saída 0. Conferência visual publicada e leitor de tela continuam pendentes.
 - [ ] 4.3 Verificação visual real no navegador e passagem de leitor de tela.
   **Pendente:** depende de 4.2 e da ativação da flag.
 

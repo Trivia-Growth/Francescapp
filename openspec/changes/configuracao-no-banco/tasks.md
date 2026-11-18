@@ -23,7 +23,7 @@
 
 - [x] 3.1 Tela de administração em `web/configuracao-sistema.ts` com editor por tipo (interruptor, texto, número, lista uma-por-linha), estados de carregando/vazio/erro/sucesso, `role="status"` com `aria-live`, rótulo ligado por `for`/`id`, ajuda por `aria-describedby`, e a autoria da última alteração ("Última alteração por … em …" ou "Ainda no valor original").
   Estilos em `web/styles.css` usando os tokens existentes, com ajuste para telas estreitas.
-- [ ] 3.2 Fiação na navegação (`web/index.html` e `web/main.ts`) — NÃO feita nesta passagem por decisão de coordenação: quatro frentes mexeriam no mesmo arquivo em paralelo. O trecho exato a colar foi entregue no relatório da frente.
+- [x] 3.2 Fiação na navegação (`web/index.html` e `web/main.ts`). Conferida em 18/11/2026: link Administração, rota `#administracao/configuracao`, montagem e desmontagem já presentes na base. Nova aba de credenciais integrada na mesma navegação. Gate local inclui `ficha-integrada.test.ts`, com importação real de `main.ts`; prova autenticada publicada permanece pendente.
 
 ## 4. Migração de rotas
 
@@ -50,7 +50,7 @@
   Cobre também a semântica do leitor: banco vence o ambiente depois da gravação; chave ausente cai no padrão do ambiente nos dois sentidos; e pool inalcançável devolve o padrão do ambiente — nunca liga um serviço que estava desligado.
 - [x] 5.3 `pnpm run verificar:rapido`: typecheck passou inteiro.
   Limitação registrada: o `lint` do repositório falha em dois arquivos de OUTRAS frentes em andamento (`netlify/functions/_shared/encaminhamento-postgres-local.test.ts`, formatação; `netlify/functions/_shared/entrada-documento-paciente-nativa.ts`, `lint/style/useImportType`). Todos os arquivos desta frente passam no Biome.
-- [ ] 5.4 Revisão independente de dois eixos (padrões do projeto e aderência à especificação) — pendente.
+- [x] 5.4 Revisão independente de dois eixos (padrões do projeto e aderência à especificação). 18/11/2026: base `fa1af933`, diff local e arquivos novos pertinentes; nenhum achado alto na configuração. Correção do runner integrado incluiu migration `20261119110000` antes de validar resposta com `opcoes`; ampliadas negativas de leitura/escrita para Profissional e Família. Teste integrado passou após correção. Isso não comprova causa do 503 remoto.
 - [x] 5.5 Passo operacional da membership do leitor: EXECUTADO pelo solicitante em 13/11/2026 (`grant ffcmapp_configuracao_leitor_executor to ffcmapp_vault_login with inherit false, set true`). Prova observável em produção: `/api/diario/disponibilidade` passou de `disponivel: true` para `disponivel: false` sem nenhum deploy, porque o banco tem `ffcm.diario.ativo = false` e passou a vencer o `FFCM_DIARIO_ATIVADO=true` do Netlify. É a demonstração de que a leitura do banco entrou em vigor e de que o banco manda.
   Pendente ainda: provas positivas e negativas de autorização em ambiente real para as rotas migradas em 4.3, e a aplicação remota de `20261121100000`.
 - [x] 5.6 Teste SQL da semente dos interruptores: `supabase/tests/configuracao_servicos_local.sql`, por `scripts/testar-configuracao-servicos-local.sh` (porta 55463). Passou (`CONFIGURACAO_SERVICOS_OK`).
