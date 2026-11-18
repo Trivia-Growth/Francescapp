@@ -3,6 +3,79 @@
 -- A coluna `ator_auth_id` da auditoria vem desta migration; a fatia de saúde a exige.
 \ir ../migrations/20261112100000_auditoria_carteira_auth_nao_admitido.sql
 \ir ../migrations/20261117200000_saude_versoes_privadas.sql
+-- Instalação limpa com migrador NOSUPERUSER. Nunca reaplica migration histórica remota.
+create role saude_migrador_fixture nologin nosuperuser createrole;
+grant usage on schema public,identidade,cadastro,api,operacao,auditoria,auth_privado,bloqueios_auth to saude_migrador_fixture;
+do $$ declare dono text; begin
+ for dono in select distinct rolname from pg_roles where oid in (
+  select relowner from pg_class where relnamespace in (
+   select oid from pg_namespace where nspname in ('public','identidade','cadastro','operacao','auditoria'))
+  union select nspowner from pg_namespace where nspname in ('public','identidade','cadastro','api','operacao','auditoria','auth_privado','bloqueios_auth')
+ ) and rolname not in ('ffcmapp_atestado_verificador_owner','pg_database_owner') loop
+  execute format('grant %I to saude_migrador_fixture with inherit true, set false',dono);
+ end loop;
+end $$;
+grant ffcmapp_atestado_verificador_owner to saude_migrador_fixture with admin true, inherit false, set false;
+begin;
+create temp table saude_acl_anterior as
+ select 'membership' tipo,to_jsonb(m) dados from pg_auth_members m where roleid='ffcmapp_atestado_verificador_owner'::regrole
+ union all select 'schema',to_jsonb(a) from pg_namespace n cross join lateral aclexplode(n.nspacl) a where n.nspname='api';
+set role saude_migrador_fixture;
+\ir ../migrations/20261117210000_saude_operacoes_privadas.sql
+do $$ begin
+ if pg_has_role(current_user,'ffcmapp_atestado_verificador_owner','SET') then raise exception 'SET_VERIFICADOR_TEMPORARIO_RESTANTE'; end if;
+ if exists(
+  (select * from saude_acl_anterior where tipo='membership' except
+   select 'membership',to_jsonb(m) from pg_auth_members m where roleid='ffcmapp_atestado_verificador_owner'::regrole)
+  union all
+  (select 'membership',to_jsonb(m) from pg_auth_members m where roleid='ffcmapp_atestado_verificador_owner'::regrole
+   except select * from saude_acl_anterior where tipo='membership')
+ ) then raise exception 'MEMBERSHIP_VERIFICADOR_ALTERADA'; end if;
+ if has_schema_privilege('ffcmapp_saude_owner','api','CREATE') then raise exception 'CREATE_TEMPORARIO_RESTANTE'; end if;
+ -- CREATEROLE recebe ADMIN OPTION automático do PostgreSQL ao criar papel;
+ -- não confundir essa administração sem SET com grant temporário da migration.
+ if pg_has_role(current_user,'ffcmapp_saude_owner','SET') or exists(
+  select 1 from pg_auth_members where roleid='ffcmapp_saude_owner'::regrole
+   and member=current_user::regrole and grantor=current_user::regrole)
+ then raise exception 'MEMBERSHIP_SAUDE_TEMPORARIA_RESTANTE'; end if;
+ if (select proowner from pg_proc where oid='api.saude_operacao_privada(jsonb)'::regprocedure)
+  is distinct from 'ffcmapp_saude_owner'::regrole then raise exception 'OWNER_SAUDE_INESPERADO'; end if;
+end $$;
+reset role;
+rollback;
+
+begin;
+grant ffcmapp_atestado_verificador_owner to saude_migrador_fixture with admin true, inherit true, set true;
+grant create on schema api to ffcmapp_atestado_verificador_owner;
+create temp table saude_acl_anterior as
+ select 'membership' tipo,to_jsonb(m) dados from pg_auth_members m where roleid='ffcmapp_atestado_verificador_owner'::regrole
+ union all select 'schema',to_jsonb(a) from pg_namespace n cross join lateral aclexplode(n.nspacl) a where n.nspname='api';
+set role saude_migrador_fixture;
+\ir ../migrations/20261117210000_saude_operacoes_privadas.sql
+do $$ begin
+ if exists(
+  (select * from saude_acl_anterior except
+   (select 'membership',to_jsonb(m) from pg_auth_members m where roleid='ffcmapp_atestado_verificador_owner'::regrole
+    union all select 'schema',to_jsonb(a) from pg_namespace n cross join lateral aclexplode(n.nspacl) a
+     where n.nspname='api' and a.grantee<>'ffcmapp_saude_owner'::regrole))
+  union all
+  ((select 'membership',to_jsonb(m) from pg_auth_members m where roleid='ffcmapp_atestado_verificador_owner'::regrole
+    union all select 'schema',to_jsonb(a) from pg_namespace n cross join lateral aclexplode(n.nspacl) a
+     where n.nspname='api' and a.grantee<>'ffcmapp_saude_owner'::regrole)
+   except select * from saude_acl_anterior)
+ ) then raise exception 'ACL_PREEXISTENTE_ALTERADA'; end if;
+ if has_schema_privilege('ffcmapp_saude_owner','api','CREATE') then raise exception 'CREATE_TEMPORARIO_RESTANTE'; end if;
+ -- CREATEROLE recebe ADMIN OPTION automático do PostgreSQL ao criar papel;
+ -- não confundir essa administração sem SET com grant temporário da migration.
+ if pg_has_role(current_user,'ffcmapp_saude_owner','SET') or exists(
+  select 1 from pg_auth_members where roleid='ffcmapp_saude_owner'::regrole
+   and member=current_user::regrole and grantor=current_user::regrole)
+ then raise exception 'MEMBERSHIP_SAUDE_TEMPORARIA_RESTANTE'; end if;
+ if (select proowner from pg_proc where oid='api.saude_operacao_privada(jsonb)'::regprocedure)
+  is distinct from 'ffcmapp_saude_owner'::regrole then raise exception 'OWNER_SAUDE_INESPERADO'; end if;
+end $$;
+reset role;
+rollback;
 \ir ../migrations/20261117210000_saude_operacoes_privadas.sql
 
 -- Antes do grant, nenhum papel do PostgREST alcança o wrapper nem a tabela.

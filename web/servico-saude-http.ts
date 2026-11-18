@@ -108,12 +108,12 @@ export function criarServicoSaudeHttp(identidadeAtual: () => Identidade | null):
   };
   return {
     consultar: async (paciente) => (await enviar('consultar', {}, paciente)) as Saude | null,
-    salvar: async (paciente, versaoEsperada, registros) =>
+    salvar: async (paciente, versaoEsperada, registros, chaveIdempotencia) =>
       (await enviar(
         'salvar',
         { versao_esperada: versaoEsperada, registros },
         paciente,
-        crypto.randomUUID(),
+        chaveIdempotencia,
       )) as Saude,
   };
 }
