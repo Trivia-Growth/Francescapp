@@ -120,6 +120,12 @@ migrations desta fatia.
   data e encaminhamento e aceita o identificador da tarefa pela porta `converterEmTarefa`; sem
   essa porta ligada, ela instrui a abrir a aba Tarefas. `tarefa_id` não tem chave estrangeira,
   de propósito — a tarefa é de outro owner.
+  **Retomada 18/11/2026:** essa limitação histórica é tratada separadamente pela change
+  [`conversao-diario-tarefa-atomica`](../conversao-diario-tarefa-atomica/proposal.md),
+  planejada antes da implementação. A composição substitui o encadeamento de duas
+  gravações por transação única, sem transformar conversão em retorno FR-013.
+  Seus testes e gates novos são próprios; resultados antigos desta fatia não os
+  aprovam. Execução das validações adiada pelo solicitante; sem ativação implícita.
 - **"Coordenação" foi tratada como "colaboradores vinculados ao paciente"**, como nas demais
   fatias. Restringir o relato familiar à case manager é mudança de regra de negócio e precisa de
   decisão explícita.
