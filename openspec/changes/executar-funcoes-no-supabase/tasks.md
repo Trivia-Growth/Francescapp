@@ -10,10 +10,16 @@ Nenhuma tarefa aqui autoriza deploy, criação de função no projeto Supabase, 
 - [x] 0.2 (17/11/2026) Migração ocorre depois da V1 conectada, não agora (design D2).
 - [x] 0.3 (17/11/2026) Transporte migra, protocolo de identidade não. Cookie selado, `x-sessao`, CSRF e atestado permanecem (design D4).
 - [x] 0.4 (17/11/2026) Sem camada de abstração entre plataformas; a disciplina é manter rota fina (design D3).
-- [ ] 0.5 Decidir, com o solicitante, o que fazer com a perda do **deploy preview por pull request**. Opções levantadas: aceitar a perda; manter ambiente de verificação próprio; manter o site estático em preview apontando para funções de um projeto de teste. **É a questão que pode reverter D1.** Evidência: decisão registrada aqui.
-- [ ] 0.6 Decidir a granularidade: 39 Edge Functions espelhando as rotas, ou menos funções com roteamento interno. Considerar que 28 dos 104 caminhos usam parâmetro no path. Evidência: decisão registrada com o desenho de roteamento correspondente.
-- [ ] 0.7 Decidir a estratégia de conexão ao PostgreSQL a partir do isolate: Supavisor, modo de pool e o que acontece com o cache de 30 segundos de `configuracao-servidor.ts`. Medir, não transpor — há cicatriz de processo frio documentada e medida em 13/11/2026. Evidência: medição registrada.
-- [ ] 0.8 Decidir como `/api/*` passa a receber `Cache-Control: no-store`, `X-Content-Type-Options` e as demais regras hoje servidas por `netlify.toml`: proxy, responsabilidade de cada função, ou ambos. Evidência: decisão registrada.
+- [x] 0.5 (17/11/2026) **Perda do deploy preview aceita.** D1 confirmada. O solicitante informou que trará Docker na semana seguinte para subir o Supabase local e executar os testes ali. Isso muda o quadro de verificação: hoje o notebook não tem Docker, o que limita teste conectado. A verificação da migração passa a depender desse ambiente local — se ele não existir, registrar bloqueio, não presumir.
+- [x] 0.6 (17/11/2026) **Uma Edge Function por domínio**, 39 funções espelhando os arquivos atuais, cada uma parseando o próprio sufixo de caminho. Mantém a organização existente e contém o raio de impacto de um deploy a um domínio.
+- [x] 0.7 (17/11/2026) **Supavisor em transaction mode**, sem pool próprio no isolate. É o recurso nativo que a diretriz de 01/11/2026 manda preferir. O cache de 30 segundos de `configuracao-servidor.ts` passa a viver por isolate e precisa ser reavaliado, e a partida a frio precisa ser **medida de novo** no ambiente novo — a medição de 13/11/2026 não se transpõe.
+- [x] 0.8 (17/11/2026) **Netlify permanece como proxy de `/api/*`.** O cliente continua chamando a mesma origem e a Netlify encaminha para o Supabase.
+
+  Fundamento, porque a alternativa parecia mais limpa: ir direto ao Supabase torna tudo origem cruzada, e o cookie de sessão — hoje selado e de mesma origem — passaria a exigir `SameSite=None`, reabrindo a superfície de CSRF que o desenho atual fechou com cookie selado, token CSRF e mesma origem. Isso é decidir o protocolo de sessão de novo, o acoplamento que D4 proíbe nesta fatia. Os cabeçalhos também permanecem num `netlify.toml` versionado, em vez de 39 funções com 39 chances de omitir um.
+
+  Sobre desempenho: o acesso direto economiza um salto HTTP, mas estas rotas são dominadas pela ida e volta ao PostgreSQL. Se a latência do proxy se mostrar material, a investigação começa pelo banco, não por remover o proxy.
+
+  **"Direto depois" não é continuação natural**: exige decidir o protocolo de sessão, e por isso seria mudança material própria, nunca efeito colateral desta migração.
 
 ## 1. Conter o acoplamento enquanto a migração não ocorre
 

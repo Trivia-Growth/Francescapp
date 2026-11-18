@@ -111,12 +111,38 @@ Teste de autorização executado no runtime antigo **não é evidência** do est
 
 Isto não é zelo excessivo: a barreira depende de como a identidade chega à RPC, e é exatamente isso que muda de transporte.
 
+### D6 — Netlify permanece como proxy de `/api/*`; a origem não muda
+
+Confirmado em 17/11/2026. O cliente continua chamando `/api/*` na mesma origem e a Netlify encaminha para as Edge Functions.
+
+A alternativa — cliente falando direto com o Supabase — parece mais limpa e é mais rápida por um salto, mas custa caro em dois pontos. Primeiro, torna tudo origem cruzada, e o cookie de sessão selado passaria a exigir `SameSite=None`, reabrindo a superfície de CSRF que o desenho fechou com cookie selado, token CSRF e mesma origem. Isso é decidir o protocolo de identidade de novo — o acoplamento que D4 proíbe. Segundo, os cabeçalhos sairiam de um arquivo versionado para 39 funções, com 39 chances de omitir um.
+
+O ganho de desempenho não compensa: estas rotas são dominadas pela ida e volta ao PostgreSQL, não pelo salto HTTP.
+
+*Consequência aceita:* a Netlify permanece no caminho da requisição. A migração move execução, não remove a Netlify.
+
+*Alternativa adiada, não descartada:* acesso direto. Se for desejado, é mudança material própria, com sua própria decisão sobre sessão — nunca efeito colateral desta migração.
+
+### D7 — Uma Edge Function por domínio
+
+39 funções espelhando os arquivos de rota atuais, cada uma parseando o próprio sufixo de caminho para cobrir os 28 caminhos com parâmetro. Mantém a organização mental existente, limita o raio de impacto de um deploy a um domínio, e torna o diff da migração legível arquivo a arquivo.
+
+*Alternativas descartadas:* uma função por caminho (104 pastas e 104 superfícies de partida a frio) e poucas funções grandes com router (qualquer deploy republica tudo, e um erro derruba a API inteira).
+
+### D8 — Supavisor em transaction mode, sem pool próprio no isolate
+
+Recurso nativo do Supabase, conforme a diretriz de 01/11/2026. O isolate abre e devolve a conexão; o pooler cuida do resto.
+
+Duas consequências que a implementação não pode presumir resolvidas:
+
+1. O cache de 30 segundos de `configuracao-servidor.ts` passa a viver por isolate, com ciclo de vida diferente do processo Netlify atual. Precisa ser reavaliado, não transposto.
+2. A partida a frio precisa ser **medida de novo**. A cicatriz de 13/11/2026 — primeira requisição a processo novo não concluindo a leitura de configuração — nasceu exatamente de uma suposição sobre conexão que não se confirmou. Repetir a suposição na plataforma nova seria repetir o erro.
+
+*Alternativa descartada:* session mode com o pool próprio atual. Pouparia reescrita, mas isolate efêmero segurando conexão de sessão tende a esgotar o limite sob concorrência.
+
 ## Riscos e questões abertas
 
-- **Perda do deploy preview por PR.** Custo operacional concreto, sem equivalente no Supabase. É a questão que mais pode reverter D1. Decisão do solicitante.
-- **Granularidade das funções.** 39 funções espelhando as rotas, ou menos com roteamento interno. Os 28 caminhos com parâmetro concentram a dificuldade.
-- **Conexão ao PostgreSQL no isolate.** Pool, Supavisor e o cache de 30 segundos de `configuracao-servidor.ts` precisam ser decididos e medidos. Há cicatriz documentada de processo frio medida em produção em 13/11/2026; não transpor sem medir de novo.
-- **Cabeçalhos e origem.** `/api/*` deixa de herdar `no-store`, `X-Content-Type-Options` e as demais regras de `netlify.toml`. Definir proxy, responsabilidade por função, ou ambos.
+- **Deploy preview por PR: perda aceita em 17/11/2026.** D1 confirmada. A verificação passa a depender do Supabase local com Docker, que o solicitante informou que trará na semana seguinte. Enquanto esse ambiente não existir, a verificação conectada da migração fica bloqueada — registrar como bloqueador, não presumir cobertura.
 - **Segredos.** Variáveis hoje na Netlify passam a segredos do projeto Supabase. O Vault já é usado para chave de provedor; a fronteira muda de lugar e precisa ser reconferida, não assumida.
 
 ## Migration Plan

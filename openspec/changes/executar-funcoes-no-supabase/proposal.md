@@ -49,12 +49,18 @@ Acoplamento concreto encontrado:
 - Mudança de hospedagem do site estático.
 - Troca de provedor de banco, de IA ou de armazenamento.
 
-### Pendências que não podem ser inferidas
+### Decisões de 17/11/2026, segunda rodada
 
-- **Granularidade das funções**: 39 Edge Functions espelhando as rotas atuais, ou menos funções com roteamento interno. Supabase serve uma função por pasta em `/functions/v1/<nome>`, sem o `path` declarativo com parâmetro da Netlify. Bloqueia o desenho do roteamento.
-- **Perda do deploy preview por pull request.** A Netlify publica um preview por PR — o #16 tem um, e é o que permite verificar antes do merge. Supabase Edge Functions não oferecem equivalente. É o único custo operacional concreto identificado, e o solicitante precisa decidir se aceita perdê-lo, se mantém um ambiente de verificação próprio, ou se o site estático em preview continua apontando para funções de um projeto de teste.
-- **Conexão ao PostgreSQL a partir do isolate.** Hoje há pool com cache de 30 segundos e uma cicatriz documentada de processo frio em `configuracao-servidor.ts`, medida em produção em 13/11/2026. O ciclo de vida de um isolate de Edge Function é diferente; a estratégia de conexão (Supavisor, modo de pool, cache) precisa ser decidida e medida, não transposta.
-- **Origem e cabeçalhos**: com as funções fora do domínio da Netlify, `/api/*` deixa de herdar `Cache-Control: no-store`, `X-Content-Type-Options` e as demais regras de `netlify.toml`. Definir se entra proxy, se os cabeçalhos passam a ser responsabilidade de cada função, ou ambos.
+Todas confirmadas pelo solicitante. Nenhuma pendência de decisão permanece aberta neste pacote.
+
+- **Perda do deploy preview aceita**; D1 confirmada. O solicitante trará Docker na semana seguinte para subir o Supabase local e executar os testes ali.
+- **Granularidade**: uma Edge Function por domínio, 39 ao todo, cada uma parseando o próprio sufixo de caminho (design D7).
+- **Conexão**: Supavisor em transaction mode, sem pool próprio no isolate. Cache de configuração e partida a frio reavaliados e medidos de novo no ambiente novo (design D8).
+- **Origem e cabeçalhos**: a Netlify permanece como proxy de `/api/*`, preservando mesma origem, cookie selado e `netlify.toml` versionado. Acesso direto fica adiado e exigiria decidir o protocolo de sessão de novo (design D6).
+
+### Pendências que permanecem
+
+- O ambiente Supabase local com Docker ainda não existe. Enquanto não existir, a verificação conectada da migração fica bloqueada — registrar o bloqueio, não presumir cobertura.
 
 ## Capabilities
 
