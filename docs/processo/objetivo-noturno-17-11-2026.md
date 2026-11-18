@@ -4,6 +4,8 @@ Briefing completo do trabalho autônomo da noite de 17 para 18/11/2026. O comand
 
 O solicitante **não está disponível**. Não perguntar nada: decidir, registrar a decisão e seguir.
 
+**Executor: Codex**, por limite de uso. O trabalho de spec que precede esta noite já está feito e empurrado: a branch `fatia7/turno-execucao-cuidado` existe em `origin` com 9 commits (cinco pacotes OpenSpec novos ou revisados, DF-021 e DF-022 em `docs/projeto/fundacao.md`, e este briefing). Não refazer esse planejamento; partir dele.
+
 ## Objetivo único
 
 Na noite de 18/11/2026 o solicitante quer **entrar na aplicação, cadastrar as chaves das dependências externas pela interface, ligar as integrações e começar a testar**. Tudo que não serve a isso é secundário.
@@ -30,7 +32,32 @@ Não há nada em produção. Autorizado a aplicar migrations no Supabase remoto,
 
 ## Base
 
-Partir de `origin/main` (Codex integrou os PRs 16 e 17). A branch `fatia7/turno-execucao-cuidado` tem 8 commits de spec já rebaseados; fazer push dela e seguir a partir dali.
+A branch `fatia7/turno-execucao-cuidado` **já está em `origin`**, rebaseada sobre a `main` que integrou os PRs 16 e 17. Partir dela; não é preciso push inicial.
+
+## Bloco 1 — como diagnosticar antes de corrigir
+
+A tarefa 6.7 lista duas hipóteses para o `503 servico_indisponivel` com sessão válida: conexão fria do pool ao carregar o cofre, e grant ou dono divergente de `api.configuracao_sistema_privado`. **Não escolher entre elas por palpite — o diagnóstico já está instrumentado.**
+
+`netlify/functions/_shared/falha-operacional.ts` registra, a cada falha, um objeto com `evento: 'falha_operacional'`, `rota`, `etapa`, `causa` e `request_id`. O mesmo `request_id` vai na resposta 503 que o solicitante vê. Logo, **uma linha de log diz qual hipótese é a certa**:
+
+- `etapa: 'autorizacao'` — sessão ou Auth;
+- `etapa: 'cofre'` — confirma a hipótese do pool frio, e a correção é a retentativa de 6.1 aplicada a `carregarCofreNativo`;
+- `etapa: 'operacao'` — erro da RPC, e `causa` traz o código do PostgreSQL (`banco_42501` seria permissão, confirmando a hipótese de grant);
+- `etapa: 'resposta'` — **hipótese que a tarefa 6.7 não considerou**: a operação funcionou e quebrou ao conferir a saída contra o contrato. O docstring de `falha-operacional.ts` registra que em 13/11/2026 foi exatamente isso: uma linha do catálogo não passava no contrato e o 503 não dizia nada. Vale conferir antes de mexer no pool.
+
+Para ler o log (a API REST do Netlify não expõe log de função; só a CLI):
+
+```
+NETLIFY_SITE_ID=5e2a6923-f069-4593-983d-2c3e37b55624 \
+  npx netlify-cli@latest logs --source functions --function configuracao-sistema \
+  --since 30m --filter ffcmapp --auth <token>
+```
+
+`--filter ffcmapp` é obrigatório: sem ele a CLI abre menu interativo e trava em execução não interativa. O token precisa ser da conta que enxerga o site; **não gerar, não pedir e não registrar token** — se não houver um disponível no ambiente, registrar o bloqueio e usar o caminho alternativo abaixo.
+
+Caminho alternativo sem log: reproduzir a chamada contra o banco remoto, conferindo (a) os grants e o dono de `api.configuracao_sistema_privado` e (b) se **toda** linha do catálogo passa em `configuracaoSistemaSchema` de `packages/contracts/src/configuracao-sistema.ts` — atenção a `rotulo`, que exige no mínimo um caractere depois do `trim`, enquanto `valor` aceita texto vazio.
+
+Correção mínima e honesta: se a causa for de uma linha só, corrigir a linha e não o mecanismo. Se for o pool frio, aplicar a mesma retentativa já usada em 6.1. Em qualquer caso, deixar um teste que falhe sem a correção.
 
 ## Bloco 1 — Consertar a porta de entrada (prioridade máxima)
 
