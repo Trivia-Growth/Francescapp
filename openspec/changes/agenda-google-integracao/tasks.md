@@ -2,7 +2,9 @@
 
 ## 1. Decisões para abertura da implementação
 
-- [ ] 1.1 Confirmar bloqueadores materiais do design para FR-023/025/049/050 e registrar decisões verificáveis; evidência: respostas reconciliadas entre proposta, spec e design.
+- [x] 1.1 (17/11/2026) Escopo da V1 confirmado: **somente evento único na agenda individual do profissional** — consultar, criar, alterar e cancelar uma ocorrência, com confirmação na origem antes de informar sucesso. É o recorte já descrito como demonstrável nesta change.
+
+  **Ficam fora da V1, com seus requisitos preservados**: recorrência e séries (e as decisões de alterar uma ocorrência ou a série toda, preservando as demais), agenda global compartilhada com consulta e edição separadas, e lembretes — estes últimos também porque dependem de canal, e notificação externa está fora da V1 por decisão de 17/11/2026. Cada um volta como recorte próprio; nenhum é promovido por inferência.
 - [ ] 1.2 Após 1.1, detalhar fatia e revisão independente com autorização positiva e negativa, acesso direto, outro paciente/perfil, revogação, ACL Google, falha e resposta incerta; evidência: tarefas com dependências e critérios de aceite sem presumir integração.
 
 ### Recorte demonstrável: agenda individual

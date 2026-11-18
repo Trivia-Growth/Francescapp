@@ -89,6 +89,7 @@
     de login familiar com Google real, não decidida agora) continuam como as pendências já
     registradas nesta tarefa — nenhuma delas foi resolvida por este trabalho, nem pretendia ser.
     **Revisão independente desta adição ainda não feita.**
+  - **Decidido em 17/11/2026 — FR-031: sinalizar, nunca alterar.** O produto consulta as permissões do Drive, compara com a audiência do caso e levanta pendência para a coordenação quando divergem. NÃO remove compartilhamento por conta própria: revogar automaticamente pode cortar alguém que a Francescato autorizou por fora, por um motivo que o sistema desconhece. Evidência: teste cobrindo divergência detectada virando pendência, e nenhuma escrita de permissão no Drive.
   - **Arquivo órfão residual.** A ordem envio→registro tenta desfazer o envio quando o banco recusa; se a remoção também falhar, o arquivo fica na pasta sem vínculo. Não há varredura de reconciliação Drive↔banco — só o estado `indisponivel` para o caminho inverso, e ele hoje é marcado à mão.
   - **FR-031 "sinalizar compartilhamentos incompatíveis" não foi implementado.** Está garantido que o produto não cria compartilhamento; detectar um criado por fora exige consultar permissões no Drive real e uma decisão sobre o que fazer ao encontrá-lo.
   - **FR-032 e FR-033 (exportação) ficaram fora**, como o recorte desta change já previa. São fatia própria: dependem de ler conteúdo cifrado de todas as outras fatias e de registrar destinatário, propósito, entrega e conferência.

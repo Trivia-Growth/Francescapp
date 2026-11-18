@@ -24,8 +24,13 @@ A persistência local com dados fictícios integra o planejamento; o uso de dado
 
 Esta preparação não autoriza migração remota nem transforma o domínio em persistência. A fatia deve preservar FR-003 (fase Inicial): preenchimento gradual em seções, estados informado, desconhecido, não se aplica e pendente, fonte e data, e localização de seções incompletas. Deve preservar histórico contínuo por paciente e respostas versionadas, distinguindo informação relatada de avaliação clínica. Recarregar deve recuperar o progresso salvo; dados de teste devem ser fictícios.
 
-- [ ] Definir com o solicitante seções, campos e critérios de pendência aplicáveis, sem inferir diagnóstico ou completude clínica.
-- [x] Registrar decisão provisória: colaboradores ativos com concessão vigente consultam e editam qualquer anamnese sem vínculo individual; familiares não recebem acesso por inferência. FFCM deverá definir regra definitiva. Revogação e sessão devem ser verificadas no servidor e banco.
+- [x] (17/11/2026) Seções, campos e critérios de pendência **derivados de FR-004 e FR-005**: histórico de saúde, avaliações e diagnósticos ou hipóteses com origem e data; rotina, recursos, barreiras, preferências, pontos fortes e o que a pessoa quer. Pendência é campo sem estado escolhido entre informado, desconhecido, não se aplica e pendente. A proposta concreta de seções e campos é apresentada ao solicitante para validação **antes** de implementar, não depois.
+- [x] ~~Decisão provisória: colaboradores com concessão vigente consultam e editam qualquer anamnese sem vínculo individual.~~ **Substituída em 17/11/2026.**
+- [ ] **Regra definitiva de acesso (17/11/2026): exigir vínculo ativo com o caso** para ler e editar a anamnese daquele paciente. Familiares continuam sem acesso por inferência.
+
+  Atenção: **isto é mudança de comportamento sobre trilha já implementada**, não configuração. A regra provisória está em produção de teste e permite que um profissional vinculado a um caso leia a anamnese de todos os pacientes. Exige migração da trilha de autorização e **reexecução completa da matriz** — positiva, negativa, outro paciente, outro perfil, acesso direto ao banco e revogação. Nenhum teste da regra anterior vale como evidência da nova.
+
+  Evidência: teste negativo provando que profissional sem vínculo no caso é recusado na leitura e na escrita, inclusive por acesso direto, e teste positivo do profissional vinculado.
 - [ ] Projetar armazenamento versionado, concorrência e proveniência, proteção de conteúdo, auditoria sem conteúdo clínico desnecessário, retenção e recuperação. Registrar decisões e ameaças nesta mudança antes de implementar.
 - [ ] Planejar integração de servidor e banco com testes positivos e negativos: outro paciente, outro perfil/audiência, acesso direto, revogação e caminhos privilegiados. Comprovar persistência e retomada em ambiente local autorizado; adapters fictícios não comprovam integração externa.
 

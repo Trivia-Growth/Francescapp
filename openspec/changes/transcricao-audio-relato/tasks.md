@@ -166,8 +166,17 @@
 
 - [ ] 6.1 Prazo de 30 dias do áudio abandonado: a coluna `expira_em` é gravada e há índice
   parcial para a varredura, mas **não existe rotina que apague e avise**. O requisito pede
-  "prazo de 30 dias com aviso"; hoje só o prazo está registrado. Precisa de uma tarefa
-  agendada, que não existe na plataforma ainda.
+  "prazo de 30 dias com aviso"; hoje só o prazo está registrado.
+
+  **Decidido em 17/11/2026: o expurgo roda em `pg_cron`, no próprio Supabase.** É o recurso
+  nativo que a diretriz de 01/11/2026 manda preferir, roda perto do dado e mantém o expurgo
+  na mesma transação auditada das demais operações. Descartadas: varredura na leitura (o
+  áudio só sumiria quando alguém abrisse a tela, deixando dado pessoal além do prazo) e
+  rotina externa agendada (acrescenta serviço, segredo e mais uma superfície a autorizar).
+
+  Evidência: job criado em migração, teste cobrindo áudio vencido apagado com aviso
+  registrado, áudio dentro do prazo preservado, e falha de expurgo virando pendência
+  explícita em vez de descarte presumido.
 - [ ] 6.2 Estado `falha` da exclusão não é alcançável nesta fatia. Ver `design.md`, seção
   "Estado `falha` da exclusão". O que o requisito exige de fato — não apresentar
   indisponibilidade como descarte concluído — está coberto por `pendente`, provado no SQL e
