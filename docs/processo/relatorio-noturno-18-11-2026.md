@@ -20,9 +20,14 @@ as features locais. Foram acrescentados contratos de turno, preparação local d
 abertura/consulta/barreira, download de documentos pelo app e orientação de
 consentimento incompleto da Agenda; depois, objetivos no contexto, escrita de
 Tarefas por capacidade autorizada e conversão atômica Diário/Tarefa.
-**Validações desta retomada foram adiadas por pedido do solicitante.** Cinco
+Nova retomada por pedido explícito de continuar nos outros blocos acrescentou
+proteção de ciclo de vida do áudio e a seção **Meu turno**, com consulta após
+recarga, abertura e recuperação da operação. São entregas locais independentes
+do bloqueio da publicação; não houve nova tentativa de ativação.
+**Validações desta retomada foram adiadas por pedido do solicitante.** Seis
 migrations novas estão somente no repositório: `20261125080000`,
-`20261125090000`, `20261125100000`, `20261125110000` e `20261125120000`; não fazem parte das oito
+`20261125090000`, `20261125100000`, `20261125110000`, `20261125120000` e
+`20261125130000`; não fazem parte das oito
 versões remotas já aplicadas. Nenhuma dessas entregas é declarada ativada.
 
 ## Entregue, com evidência
@@ -187,11 +192,39 @@ Isso não certifica integração externa nem substitui roteiro publicado.
   Recusa de perfil no servidor precede o cofre e usa caminho restrito de auditoria
   negativa, sem capacidade de operação. Matrizes SQL, concorrência `dblink`,
   instalação NOSUPER/ACL e testes HTTP/composição escritos, **não executados**.
+- **Áudio no Diário:** a fiação de 4.3 já existia; removida a justificativa antiga
+  de conflito de edição, sem duplicar montagem. Em `7a3c460`, sair do caso durante
+  gravação ou leitura do Blob impede início tardio da transcrição; erros tardios
+  não invalidam montagem seguinte. Nova gravação fica bloqueada enquanto o original
+  aguarda revisão/descarte confirmado, inclusive regularização. Texto humano segue
+  editável e publicação manual. Três testes novos escritos, **não executados**.
+  Isso não cancela uma requisição que já começou antes da saída, nem comprova
+  integração com microfone, provedor ou Vault reais.
+- **Meu turno na ficha:** change focada `abertura-consulta-turno-interface`
+  criada antes da implementação. Seção secundária disponível ao Profissional,
+  com consulta atual, confirmação de abertura e recuperação de operação pendente.
+  GET `/api/pacientes/:paciente_id/turnos/atual` retorna somente turno aberto
+  próprio daquele caso ou `null` após autorização; reusa a ação privada existente,
+  locks, flag e auditoria. Migration `25130000` preserva owners/ACL e consulta por
+  UUID. Não cria lista de turnos ou histórico. Identidade fica fixa por instância
+  do cliente; mudança de usuário/sessão nega novas chamadas. Recuperação consulta
+  registro confirmado antes de reconhecer recibo; fechar barreira não encerra
+  turno clínico. Sem dados de turno em storage. Servidor, HTTP, UI, composição e
+  matriz SQL/NOSUPER têm provas escritas, **não executadas**; runner
+  `scripts/testar-turno-atual-local.sh` é para banco local descartável. Flag continua
+  `false`, migration não aplicada, grupo 3 e tarefa 13.1 integral não concluídos.
+
+Confirmado por fonte, sem conceder acesso: a habilitação do aprovador de crise já
+tem interface em **Administração > Quem aprova plano de crise**
+(`#administracao/plano-de-crise`). Não foi criada administração paralela. A marca
+por concessão não substitui a exigência DF-021 de ser responsável atual do caso;
+nenhuma habilitação real foi registrada nesta retomada.
 
 Os resultados verdes registrados acima pertencem à versão anterior a essas
 alterações. Não cobrem download, contratos/execução de turno, aviso da Agenda,
 campo de configuração, objetivos do contexto, capacidade de escrita de Tarefas ou
-conversão Diário/Tarefa. Testes positivos/negativos de autorização e RLS continuam obrigatórios
+conversão Diário/Tarefa, proteção adicional do áudio ou seção Meu turno/consulta
+atual. Testes positivos/negativos de autorização e RLS continuam obrigatórios
 antes da ativação; adiamento não significa aprovação nem dispensa.
 
 Nenhum gate foi disparado manualmente nesta retomada. O push preserva o hook
@@ -208,6 +241,14 @@ captura local das dependências inicializadas dentro do `map`. Corrigidos em
 `e8da0f6`; novo push passou lint (734 arquivos) e todos os projetos de typecheck.
 Não executou teste, build, SQL ou validação manual. Servidor/interface enviados
 para a branch; isso não publica nem aprova a conversão.
+
+Na retomada seguinte, áudio em `7a3c460`, consulta atual em `c60188e` e interface
+em `e2868b0` foram acrescentados com agentes Sol. Hook de commit corrigiu formato
+e apontou dois acessos de teste sem guarda; substituídos por guardas explícitas.
+Hook de push apontou apenas tipo UUID de fixture, corrigido em `abf6b0f`.
+Novo push passou lint (743 arquivos) e todos os projetos de typecheck. Esses
+hooks não executaram testes, build ou matriz SQL; revisão independente e todas
+as provas novas continuam pendentes. Isso não altera o adiamento solicitado.
 
 ## Lista exata do que cadastrar e onde
 
@@ -481,6 +522,13 @@ aprovada antes da implementação, conforme evidência do bloco 2.
   somente `sinalizar_pendencia`, nunca encerramento automático. Recusa auditada
   sem HMAC não concede capacidade de execução: só registra `negado` para o próprio
   ator Auth, ação fechada e alvo UUID. Revisão/provas dessa fronteira pendentes.
+- **SUPOSIÇÃO UX CONSERVADORA — áudio:** uma gravação pendente por montagem,
+  até revisão e descarte confirmado do original. Preserva texto humano e não
+  exige publicação; não altera a política de retenção.
+- **SUPOSIÇÃO CONSERVADORA — Meu turno:** recorte limitado à abertura e consulta
+  do turno aberto próprio. Não exibe lista de colegas, histórico ou encerramento
+  sem passagem. É uma interface do grupo 2, não conclusão parcial disfarçada da
+  tarefa 13.1 inteira. A geração vem da barreira do servidor, nunca do relógio local.
 - **SUPOSIÇÃO CONSERVADORA — escrita de tarefas:** disponibilidade é informativa,
   por caso e falsa por padrão; não abre exceção para Administrador. Autorização
   da gravação permanece no servidor/banco. Não carregar conteúdo clínico apenas
@@ -508,7 +556,7 @@ operação atômica e nascimento não futuro em UTC). Isso não dispensa S-02.
    guardas. `25090000` é entrega de documento, independente do turno;
    `25080000`/`25100000` são preparação/grant do turno; `25110000` é a consulta
    somente de autorização de tarefas; `25120000` é a conversão atômica, dependente
-   de `25110000`. Um bloqueio do turno não
+   de `25110000`; `25130000` acrescenta consulta atual própria ao turno. Um bloqueio do turno não
    impede a validação/entrega de documentos. Flags de turno e expurgo ficam falsas.
 2. Após restabelecer a capacidade de deploy da Netlify, gerar artefato do commit
    revisado com contexto `production` e publicá-lo sem desbloquear globalmente
@@ -533,7 +581,18 @@ operação atômica e nascimento não futuro em UTC). Isso não dispensa S-02.
    humanos. Conferir tarefa e evolução interna, original intacto e recuperação
    após resposta perdida/recarga, sem duplicação. Provar Família/Admin/outro caso,
    acesso direto e vínculo revogado negativos no servidor e banco antes de ativar.
-8. Registrar evidências reais e só então retirar PR de draft/fechar gates.
+8. Para crise, em caso fictício com responsável atual definido, abrir
+   **Administração > Quem aprova plano de crise** e registrar a habilitação desse
+   case manager pela interface existente. Não retirar habilitações de terceiros.
+   Provar que a marca sozinha não aprova fora do caso liderado.
+9. Quando os gates do turno forem liberados, executar as provas novas antes de
+   aplicar `25130000` ou ligar flag. Configurar os três parâmetros explicitamente;
+   como Profissional vinculado ao caso fictício, abrir **Meu turno**, confirmar
+   abertura, recarregar e conferir consulta. Simular resposta perdida e recuperar
+   recibo, sem abrir segundo turno. Conferir negativas de outro caso/perfil,
+   vínculo/sessão revogados e acesso direto. Encerramento continua indisponível;
+   não usar esse roteiro para presumir grupo 3 entregue.
+10. Registrar evidências reais e só então retirar PR de draft/fechar gates.
 
 ## Explicitamente não feito
 
@@ -550,7 +609,7 @@ cadastro/manuseio manual de segredo, merge ou reescrita de histórico.
 Turno 0.6 concluído como auditoria documental, com inventário em seu `design.md` e
 lacunas explícitas 0.6.1/0.6.2; isso não aprova a base remota nem libera integração.
 Grupos 1/2 receberam implementação local após nova autorização; não foram validados
-nem ativados. Encerramento permanece indisponível; grupo 3 não iniciado. As cinco
+nem ativados. Encerramento permanece indisponível; grupo 3 não iniciado. As seis
 migrations da retomada não foram aplicadas remotamente. Não houve nova execução de
 testes, build ou prova remota dessas features nesta passagem. Conversão FR-014 não
 foi declarada aprovada apenas por código, testes escritos ou flag presente. Financeiro,

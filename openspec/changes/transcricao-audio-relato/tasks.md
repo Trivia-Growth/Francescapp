@@ -135,7 +135,8 @@
   Respostas tardias não invalidam acesso de uma montagem seguinte.
   **Evidência pendente:** dois testes de regressão escritos em `web/transcricao-audio.test.ts`
   (saída durante gravação e durante leitura do arquivo), **não executados** por instrução
-  do solicitante. Lint/typecheck, navegador e leitor de tela igualmente adiados nesta passagem.
+  do solicitante. Navegador e leitor de tela igualmente adiados nesta passagem;
+  hooks existentes de commit/push são preservados.
   **Suposição UX conservadora:** somente uma gravação pendente por montagem. Nova gravação
   fica bloqueada até revisão humana e descarte confirmado do original atual, incluindo
   regularização de pendência/falha. Texto humano continua editável e preservado; essa trava
