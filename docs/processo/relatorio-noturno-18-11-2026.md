@@ -29,6 +29,13 @@ implementação e revisão executadas em Sol. Nenhum segredo real foi cadastrado
    Profissional, Família, sessão revogada e acesso direto. Limite de corpo/prazo e
    limpeza imediata do campo testados. SQL local passou; testes do servidor 5/5,
    entrada 3/3 e tela 1/1. O Vault local é adapter fictício: extensão real não provada.
+   Complemento: componente real e CSS real renderizados em Chrome headless isolado,
+   1366×900 e 390×844, sem overflow horizontal. Tab mostrou foco de 3px; Enter enviou
+   formulário fictício e limpou todos os campos. Estados carregar/erro/sucesso
+   conferidos. [Desktop](evidencias-noturnas-18-11-2026/desktop-normal-foco.png),
+   [celular](evidencias-noturnas-18-11-2026/mobile-normal-foco.png) e
+   [medidas](evidencias-noturnas-18-11-2026/relatorio.json). Serviço fictício, sem
+   navegação autenticada, HTTP ou Vault reais; nenhum perfil existente foi usado.
 3. **Seis fatias:** fiações de configuração, contexto/rede, saúde e crise conferidas
    em `web/main.ts`; diário e ficha já conectados na base. SQL local de contexto/rede,
    diário, saúde e crise reexecutado com saída 0. Não equivale a ativação remota.
@@ -120,6 +127,8 @@ Não cadastrar nenhum valor em SQL, terminal, PR ou relatório.
 - Aplicação publicada respondeu à entrada; retorno do login Google chegou a
   **HTTP 400** na raiz com parâmetro `fluxo`. Causa não estabelecida. Não foi
   presumido problema de cookie, nem apagados cookies ou revogados acessos.
+- Revalidação sem sessão: raiz HTTP 200; GET de configuração HTTP 401
+  `nao_autenticado`, com `request_id` público. Isso prova somente a negativa anônima.
 - Controle posterior do navegador foi recusado por foco e, por fim, `screen_locked`.
   Sem solicitante disponível, não houve desbloqueio/continuidade de SQL ou publicação.
 - Netlify mostrava publicação automática bloqueada e main anterior publicada.
@@ -141,8 +150,9 @@ DF-022 já existe; impedimento é acesso operacional, não falta de consentiment
 - Crise: 6.2 revisão local concluída; 7.1 ativação e cadastro operacional das
   habilitações de case managers antes do primeiro plano pendentes.
 - Configuração: 6.7 e provas autenticadas remotas da interface/rotas pendentes.
-- Segredos: 2.2 conferência visual desktop/mobile e 2.4 ativação/Auth/Vault reais
-  pendentes. Nenhuma dessas fatias declarada ativada apenas por CI ou checkbox.
+- Segredos: conferência visual do componente desktop/mobile concluída; 2.2 ainda
+  requer navegação integrada e 2.4 ativação/Auth/Vault reais. Nenhuma dessas fatias
+  declarada ativada apenas por CI ou checkbox.
 
 ## Suposições desta execução
 
@@ -195,7 +205,8 @@ Não houve aplicação remota das migrations novas, publicação da nova versão
 aplicação principal, conserto comprovado do 503 ou do HTTP 400 de login, jornada
 administrativa publicada, prova Auth/Vault/Google/OpenRouter reais, ativação remota
 das seis fatias, habilitação operacional de case managers, S-02 nem teste visual
-desktop/mobile desta entrega. Não houve limpeza de áudio/dados, remoção de tabela,
+  integrado desktop/mobile desta entrega. Conferência visual isolada do componente
+  de credenciais foi feita, com as limitações acima. Não houve limpeza de áudio/dados, remoção de tabela,
 revogação de acesso existente, alteração de permissões Drive, uso de dados reais,
 cadastro/manuseio manual de segredo, merge ou reescrita de histórico.
 
