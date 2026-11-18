@@ -62,7 +62,7 @@ export function criarServicoOrientacoesHttp(
     try {
       modo = sessionStorage.getItem('modo-acesso');
       // Leitura (`ler_orientacoes`) já tem a trilha familiar no banco (filtro por
-      // `visibilidade`, ver migration `20261117270000`); família também passa por aqui.
+      // `visibilidade`, ver migration `20261124140000`); família também passa por aqui.
       fluxo = sessionStorage.getItem(
         modo === 'tecnica'
           ? 'fluxo-tecnico'

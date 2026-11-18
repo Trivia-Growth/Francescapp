@@ -163,9 +163,9 @@ Testes de integração real (PostgreSQL descartável, papel `authenticated`, ate
 "Decisão do solicitante (17/11/2026)"). Decisão do solicitante fecha a pendência de 1.2: família
 passa a ler a lista de objetivos (nunca histórico, nunca gravar), filtrada para
 `visibilidade='publica'` — marcação feita por quem já grava o objetivo, sem portão novo de
-autorização. Implementado: coluna aditiva `visibilidade` (migration `20261117230000`), trilha
+autorização. Implementado: coluna aditiva `visibilidade` (migration `20261124100000`), trilha
 familiar dentro de `api.plano_cuidado_operacao_privada` redefinida por `create or replace
-function` (migration `20261117240000`, mesmo padrão de evolução das migrations anteriores desta
+function` (migration `20261124110000`, mesmo padrão de evolução das migrations anteriores desta
 função), contratos (`visibilidadeObjetivoSchema`), camada `_shared/plano-cuidado-nativo.ts`
 (visibilidade no digest de idempotência e no resultado), interface (`web/plano-cuidado.ts` com
 seletor Interna/Pública e modo somente-leitura para família; `web/main.ts` com a seção `'plano'`

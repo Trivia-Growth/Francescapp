@@ -233,6 +233,8 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
     for (const [id, aba] of botoes) {
       const selecionada = id === atual;
       aplicarEstadoAba(aba, idsSecundarios.has(id), selecionada);
+      if (!idsSecundarios.has(id) && idsSecundarios.has(atual) && id === grupoPrimario[0]?.id)
+        aba.tabIndex = 0;
       // Na faixa rolável do celular, a aba atual precisa estar à vista, também depois de recarregar.
       if (selecionada) aba.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     }

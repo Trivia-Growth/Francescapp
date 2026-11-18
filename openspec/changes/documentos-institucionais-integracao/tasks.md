@@ -55,7 +55,7 @@
     solicitante — "precisa estar marcado como publico; isso pode ser alterado pelo admin em
     qualquer arquivo"; quem altera é quem já grava o documento — administrador ou profissional,
     mesma autorização de escrita já existente, confirmado explicitamente ao solicitante antes de
-    implementar). `supabase/migrations/20261117250000_documento_caso_familia_privada.sql`
+    implementar). `supabase/migrations/20261124120000_documento_caso_familia_privada.sql`
     redefine `api.documento_operacao_privada` (`create or replace function`, mesma função já
     existente) com uma trilha familiar **só para `api.ler_documentos`** — mesma prova de
     `api.consultar_paciente_familiar_privado` (`cadastro.acesso_paciente` vigente,

@@ -17,6 +17,7 @@ afterEach(() => {
  * `web/main.ts`): sem o botão/backdrop/Escape, o Administrador e o Profissional não
  * teriam como sair de "Seu dia" ou da carteira no celular. */
 it('abre e fecha a gaveta lateral no celular — botão, fundo, Escape e navegação', async () => {
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: 500, writable: true });
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   sessionStorage.setItem('modo-acesso', 'tecnica');
   sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
@@ -38,15 +39,24 @@ it('abre e fecha a gaveta lateral no celular — botão, fundo, Escape e navega�
   const gaveta = document.getElementById('patients-sidebar') as HTMLElement;
   const fundo = document.getElementById('sidebar-backdrop') as HTMLElement;
 
+  expect(gaveta.hasAttribute('inert')).toBe(true);
   expect(botao.getAttribute('aria-expanded')).toBe('false');
   expect(fundo.hidden).toBe(true);
 
   botao.click();
+  expect(gaveta.hasAttribute('inert')).toBe(false);
   expect(gaveta.classList.contains('open')).toBe(true);
   expect(fundo.hidden).toBe(false);
   expect(botao.getAttribute('aria-expanded')).toBe('true');
+  const primeiro = document.activeElement as HTMLElement;
+  expect(gaveta.contains(primeiro)).toBe(true);
+  primeiro.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }),
+  );
+  expect(gaveta.contains(document.activeElement)).toBe(true);
 
   fundo.click();
+  expect(document.activeElement).toBe(botao);
   expect(gaveta.classList.contains('open')).toBe(false);
   expect(fundo.hidden).toBe(true);
   expect(botao.getAttribute('aria-expanded')).toBe('false');
@@ -67,4 +77,8 @@ it('abre e fecha a gaveta lateral no celular — botão, fundo, Escape e navega�
   window.dispatchEvent(new PopStateEvent('popstate'));
   expect(gaveta.classList.contains('open')).toBe(false);
   expect(fundo.hidden).toBe(true);
+  expect(gaveta.hasAttribute('inert')).toBe(true);
+  window.innerWidth = 1000;
+  window.dispatchEvent(new Event('resize'));
+  expect(gaveta.hasAttribute('inert')).toBe(false);
 });

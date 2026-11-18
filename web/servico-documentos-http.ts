@@ -58,7 +58,7 @@ export function criarServicoDocumentosHttp(
     try {
       modo = sessionStorage.getItem('modo-acesso');
       // Leitura (`ler_documentos`) já tem a trilha familiar no banco (filtro por `audiencia`,
-      // ver migration `20261117250000`); família também passa por aqui para consultar anexos.
+      // ver migration `20261124120000`); família também passa por aqui para consultar anexos.
       fluxo = sessionStorage.getItem(
         modo === 'tecnica'
           ? 'fluxo-tecnico'

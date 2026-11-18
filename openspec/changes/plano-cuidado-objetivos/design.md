@@ -119,11 +119,11 @@ marcar como Interna ou publica"**.
 
 ## Implementação (17/11/2026)
 
-- `supabase/migrations/20261117230000_objetivo_cuidado_visibilidade.sql`: coluna aditiva
+- `supabase/migrations/20261124100000_objetivo_cuidado_visibilidade.sql`: coluna aditiva
   `visibilidade text not null default 'interna' check (in ('interna','publica'))` em
   `cadastro.objetivo_cuidado_versao` — em claro (fora do envelope cifrado), porque o banco
   precisa filtrar por ela sem decifrar.
-- `supabase/migrations/20261117240000_plano_cuidado_familia_privada.sql`: `create or replace
+- `supabase/migrations/20261124110000_plano_cuidado_familia_privada.sql`: `create or replace
   function api.plano_cuidado_operacao_privada` (redefine a função já existente, como todas as
   evoluções anteriores desta mesma função) adicionando uma trilha familiar **só para
   `api.ler_plano_cuidado`** — mesma prova de `api.consultar_paciente_familiar_privado`

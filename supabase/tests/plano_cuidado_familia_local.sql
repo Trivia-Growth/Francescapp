@@ -4,8 +4,8 @@
 -- concessao_id/concessao_versao_admissao opcionais); sem ela o fixture de sessão familiar
 -- abaixo violaria a constraint antes de chegar perto da autorização.
 \ir ../migrations/20261111160000_admissao_familiar_privada.sql
-\ir ../migrations/20261117230000_objetivo_cuidado_visibilidade.sql
-\ir ../migrations/20261117240000_plano_cuidado_familia_privada.sql
+\ir ../migrations/20261124100000_objetivo_cuidado_visibilidade.sql
+\ir ../migrations/20261124110000_plano_cuidado_familia_privada.sql
 
 -- Paciente próprio deste teste (não o reaproveitado pelo resto da cadeia): evita que objetivos
 -- de testes anteriores inflem a contagem das asserções de leitura abaixo.
@@ -143,5 +143,45 @@ begin
  r:=api.plano_cuidado_privado(public.assinar_anamnese_fixture(e,'api.ler_plano_cuidado',colaborador,sessao_colab));
  if r->>'ok' is distinct from 'true' or jsonb_array_length(r#>'{dados,itens}') <> 2 then
   raise exception 'COLABORADOR_FILTRADO_POR_VISIBILIDADE: %',r;
+ end if;
+end $$;
+
+-- Paginação filtra pela versão mais recente antes de contar objetivos para a família.
+insert into cadastro.paciente(id,nome_cifrado,criado_por_usuario_id) values
+ ('40000000-0000-4000-8000-0000000000f1','{"formato":1,"key_id":"teste","nonce":"n","ciphertext":"c","tag":"t"}','10000000-0000-4000-8000-000000000002');
+insert into cadastro.acesso_paciente(id,paciente_id,usuario_id,concedido_por_usuario_id,motivo_concessao_cifrado) values
+ ('50000000-0000-4000-8000-0000000000f6','40000000-0000-4000-8000-0000000000f1','10000000-0000-4000-8000-0000000000f4','10000000-0000-4000-8000-000000000002','{"formato":1,"key_id":"teste","nonce":"n","ciphertext":"c","tag":"t"}');
+insert into cadastro.objetivo_cuidado(id,paciente_id) values
+ ('60000000-0000-4000-8000-000000000001','40000000-0000-4000-8000-0000000000f1'),
+ ('60000000-0000-4000-8000-000000000002','40000000-0000-4000-8000-0000000000f1'),
+ ('60000000-0000-4000-8000-000000000003','40000000-0000-4000-8000-0000000000f1'),
+ ('60000000-0000-4000-8000-000000000004','40000000-0000-4000-8000-0000000000f1');
+insert into cadastro.objetivo_cuidado_versao(id,objetivo_id,versao,versao_esperada,conteudo_cifrado,criado_por_usuario_id,visibilidade) values
+ ('70000000-0000-4000-8000-000000000001','60000000-0000-4000-8000-000000000001',1,null,'{"formato":1,"key_id":"teste","nonce":"n","ciphertext":"c","tag":"t"}','10000000-0000-4000-8000-000000000002','interna'),
+ ('70000000-0000-4000-8000-000000000002','60000000-0000-4000-8000-000000000002',1,null,'{"formato":1,"key_id":"teste","nonce":"n","ciphertext":"c","tag":"t"}','10000000-0000-4000-8000-000000000002','publica'),
+ ('70000000-0000-4000-8000-000000000003','60000000-0000-4000-8000-000000000003',1,null,'{"formato":1,"key_id":"teste","nonce":"n","ciphertext":"c","tag":"t"}','10000000-0000-4000-8000-000000000002','publica'),
+ ('70000000-0000-4000-8000-000000000004','60000000-0000-4000-8000-000000000004',1,null,'{"formato":1,"key_id":"teste","nonce":"n","ciphertext":"c","tag":"t"}','10000000-0000-4000-8000-000000000002','publica');
+insert into cadastro.objetivo_cuidado_versao(id,objetivo_id,versao,versao_esperada,conteudo_cifrado,criado_por_usuario_id,visibilidade) values
+ ('70000000-0000-4000-8000-000000000005','60000000-0000-4000-8000-000000000003',2,1,'{"formato":1,"key_id":"teste","nonce":"n","ciphertext":"c","tag":"t"}','10000000-0000-4000-8000-000000000002','interna');
+
+do $$
+declare
+ familia uuid:='10000000-0000-4000-8000-0000000000f4'; sessao uuid:='20000000-0000-4000-8000-0000000000f4';
+ e jsonb; r jsonb;
+begin
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',familia,'session_id',sessao,'amr',jsonb_build_array(jsonb_build_object('method','password')))::text,true);
+ e:=jsonb_build_object('request_id',gen_random_uuid(),'paciente_id','40000000-0000-4000-8000-0000000000f1','cursor',null,'limite',1);
+ r:=api.plano_cuidado_privado(public.assinar_anamnese_fixture(e,'api.ler_plano_cuidado',familia,sessao));
+ if r->>'ok' is distinct from 'true' or jsonb_array_length(r#>'{dados,itens}')<>1
+  or r#>>'{dados,itens,0,objetivo_id}' is distinct from '60000000-0000-4000-8000-000000000002'
+  or r#>>'{dados,proximo_cursor}' is distinct from '60000000-0000-4000-8000-000000000002' then
+  raise exception 'FAMILIA_PAGINA_1: %',r;
+ end if;
+ e:=jsonb_set(jsonb_set(e,'{request_id}',to_jsonb(gen_random_uuid())),'{cursor}',r#>'{dados,proximo_cursor}');
+ r:=api.plano_cuidado_privado(public.assinar_anamnese_fixture(e,'api.ler_plano_cuidado',familia,sessao));
+ if r->>'ok' is distinct from 'true' or jsonb_array_length(r#>'{dados,itens}')<>1
+  or r#>>'{dados,itens,0,objetivo_id}' is distinct from '60000000-0000-4000-8000-000000000004'
+  or r#>'{dados,proximo_cursor}' is distinct from 'null'::jsonb then
+  raise exception 'FAMILIA_PAGINA_2: %',r;
  end if;
 end $$;

@@ -86,3 +86,7 @@ Entregar ao executor a tarefa numerada, cenário da spec, decisão do design, ar
 
 - Revisar a proposta com o solicitante antes de transformar esta mudança em execução.
 - Sincronizar e arquivar somente após critérios de aceite e gates completos.
+
+## Correções na revisão do PR #16 — 17/11/2026
+
+Revisão de `76838b4` até `804428e` mais correções locais, com arquivos novos incluídos. Achados, correções, testes e bloqueadores operacionais estão em [estado.md](estado.md). A observação histórica de que a família sempre fechava a ficha foi superada: mesmo vínculo confirmado preserva apenas editor próprio; leituras são renovadas e revogação/troca de identidade continuam removendo o conteúdo protegido. Teclado da faixa primária e gaveta fechada também corrigidos. Nenhuma tarefa ampla de aceite foi marcada como concluída por esses testes locais. Cinco migrations novas, ainda não aplicadas segundo o solicitante, foram reordenadas para `20261124100000` a `20261124140000`, após dependências da base. Aplicação remota e compatibilidade do banco continuam bloqueando o merge.

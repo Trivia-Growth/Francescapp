@@ -4,8 +4,8 @@
 -- concessao_id/concessao_versao_admissao opcionais); sem ela o fixture de sessão familiar
 -- abaixo violaria a constraint antes de chegar perto da autorização.
 \ir ../migrations/20261111160000_admissao_familiar_privada.sql
-\ir ../migrations/20261117260000_orientacao_visibilidade.sql
-\ir ../migrations/20261117270000_orientacao_familia_privada.sql
+\ir ../migrations/20261124130000_orientacao_visibilidade.sql
+\ir ../migrations/20261124140000_orientacao_familia_privada.sql
 
 -- Paciente próprio deste teste (não o reaproveitado pelo resto da cadeia): evita que
 -- orientações de testes anteriores inflem a contagem das asserções de leitura abaixo.
