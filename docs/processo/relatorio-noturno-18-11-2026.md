@@ -17,8 +17,8 @@ implementação e revisão executadas em Sol. Nenhum segredo real foi cadastrado
 as features locais. Foram acrescentados contratos de turno, preparação local de
 abertura/consulta/barreira, download de documentos pelo app e orientação de
 consentimento incompleto da Agenda. **Validações desta retomada foram adiadas por
-pedido do solicitante.** Três migrations novas estão somente no repositório:
-`20261125080000`, `20261125090000` e `20261125100000`; não fazem parte das oito
+pedido do solicitante.** Quatro migrations novas estão somente no repositório:
+`20261125080000`, `20261125090000`, `20261125100000` e `20261125110000`; não fazem parte das oito
 versões remotas já aplicadas. Nenhuma dessas entregas é declarada ativada.
 
 ## Entregue, com evidência
@@ -132,6 +132,20 @@ Isso não certifica integração externa nem substitui roteiro publicado.
   confundir consentimento incompleto com estado atual da conexão. Link informativo
   explica impacto de alterar acesso sem recomendar revogação. Novo teste
   `web/agenda-consentimento.test.ts` escrito, não executado.
+- **Configuração:** removido piso indevido de um caractere no campo de texto
+  livre. Administrador pode limpar valor permitido pelo contrato, inclusive raiz
+  do Drive; regra específica continua no banco. Teste novo escrito, não executado.
+  Não é diagnóstico nem correção comprovada do 503 da sessão válida.
+- **Contexto:** objetivos do plano agora chegam ao editor pelo serviço autorizado
+  do mesmo caso, com paginação sob demanda, carregamento/erro/retry/vazio e
+  preservação dos vínculos anteriores. Cinco provas escritas, não executadas.
+- **Tarefas:** removido bloqueio fixo da escrita na interface. Capability por caso
+  depende de autorização no banco e das três flags existentes; não confere
+  permissão à gravação. A consulta interna de autorização retorna vazio sem ler
+  ou decifrar tarefas. Migration `25110000` prepara essa modalidade na RPC
+  existente, preservando assinatura/grants/listagem. Ciclo de reserva/idempotência
+  permanece, com descarte por caso/sessão. Provas HTTP/cliente/UI/SQL/NOSUPER
+  escritas, não executadas. Sem migration, falha fechada; nenhuma flag foi ligada.
 - **Turno, grupo 1:** contratos estritos de turno, escala/substituição/cobertura,
   sinal vital, prescrição/administração e ocorrência; identidade/relógio não vêm
   do corpo. Exports, rotas e teste de contrato escritos, não executados.
@@ -192,6 +206,11 @@ cumpridos, a mesma Administração terá `ffcm.turno.ativo`,
 `ffcm.turno.tratamento_nao_encerrado`. Não há nova variável de ambiente: a flag
 nasce `false`, os três parâmetros nascem em branco e abertura falha fechada até
 configuração explícita. Não ligar antes de concluir os gates do turno.
+
+Escrita de Tarefas usa as chaves existentes `ffcm.tarefas.ativas`,
+`ffcm.tarefas.escrita_ativa` e `ffcm.tarefas.barreira_ativa`. Após seus gates, as
+três devem permitir a operação para que a interface ofereça escrita ao profissional
+com vínculo vigente. Nenhuma dessas flags foi alterada nesta retomada.
 
 Contrato OAuth da Agenda implementado no código: callback HTTPS
 `https://ffcmapp.netlify.app/api/agenda/google/callback` para essa origem publicada;
@@ -321,7 +340,9 @@ aprovada antes da implementação, conforme evidência do bloco 2.
 - Contexto/rede: fiação e SQL locais; navegação autenticada publicada pendente,
   mesmo sem checkbox aberta.
 - Diário: 4.3 visual/teclado isolados conferidos; navegação integrada, autenticação
-  familiar real e ativação pendentes.
+  familiar real e ativação pendentes. Conversão em tarefa FR-014 ainda não fiada:
+  criar tarefa e depois evolução requer recuperação persistente entre as duas
+  gravações, inclusive reload/resposta perdida. Não ligar o botão antes disso.
 - Saúde: 5.2 revisão concluída após duas correções; 4.3 leitor de tela/jornada
   integrada e 5.1 ativação remota pendentes. Componente desktop/celular conferido.
 - Crise: 6.2 revisão local concluída; 7.1 ativação e cadastro operacional das
@@ -375,6 +396,10 @@ aprovada antes da implementação, conforme evidência do bloco 2.
   somente `sinalizar_pendencia`, nunca encerramento automático. Recusa auditada
   sem HMAC não concede capacidade de execução: só registra `negado` para o próprio
   ator Auth, ação fechada e alvo UUID. Revisão/provas dessa fronteira pendentes.
+- **SUPOSIÇÃO CONSERVADORA — escrita de tarefas:** disponibilidade é informativa,
+  por caso e falsa por padrão; não abre exceção para Administrador. Autorização
+  da gravação permanece no servidor/banco. Não carregar conteúdo clínico apenas
+  para decidir se o formulário aparece.
 
 Hipóteses anteriores preservadas, sem nova decisão silenciosa: diário considera
 coordenação colaboradores vinculados; saúde não proíbe combinação `relato_leigo` +
@@ -389,7 +414,8 @@ operação atômica e nascimento não futuro em UTC). Isso não dispensa S-02.
    Na etapa de validação retomada depois, executar as provas novas/afetadas de
    download e turno; só então aplicar as migrations novas pertinentes com suas
    guardas. `25090000` é entrega de documento, independente do turno;
-   `25080000`/`25100000` são preparação/grant do turno. Um bloqueio do turno não
+   `25080000`/`25100000` são preparação/grant do turno; `25110000` é a consulta
+   somente de autorização de tarefas. Um bloqueio do turno não
    impede a validação/entrega de documentos. Flags de turno e expurgo ficam falsas.
 2. Após restabelecer a capacidade de deploy da Netlify, gerar artefato do commit
    revisado com contexto `production` e publicá-lo sem desbloquear globalmente
@@ -425,7 +451,7 @@ cadastro/manuseio manual de segredo, merge ou reescrita de histórico.
 Turno 0.6 concluído como auditoria documental, com inventário em seu `design.md` e
 lacunas explícitas 0.6.1/0.6.2; isso não aprova a base remota nem libera integração.
 Grupos 1/2 receberam implementação local após nova autorização; não foram validados
-nem ativados. Encerramento permanece indisponível; grupo 3 não iniciado. As três
+nem ativados. Encerramento permanece indisponível; grupo 3 não iniciado. As quatro
 migrations da retomada não foram aplicadas remotamente. Não houve nova execução de
 testes, build ou prova remota dessas features nesta passagem. Financeiro,
 PWA, migração Edge, recorrência, agenda global e lembretes não iniciados. Arquivos
