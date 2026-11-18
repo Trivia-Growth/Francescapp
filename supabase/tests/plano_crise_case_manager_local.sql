@@ -5,6 +5,59 @@
 \ir ../migrations/20261118110000_plano_crise_versoes_privadas.sql
 \ir ../migrations/20261118120000_plano_crise_operacoes_privadas.sql
 \ir ../migrations/20261118130000_grant_plano_crise_teste.sql
+-- Migrador sem superuser: herda propriedade dos objetos da fixture, nunca SUPERUSER.
+-- ADMIN OPTION sem SET prévio e concedente distinto deve sobreviver ao grant temporário.
+create role crise_migrador_fixture nologin nosuperuser createrole;
+grant usage on schema identidade,cadastro,operacao,api,public to crise_migrador_fixture;
+do $$ declare dono text; begin
+ for dono in select distinct r.rolname from pg_roles r where r.oid in (
+  select relowner from pg_class where oid in ('identidade.concessao_equipe'::regclass,
+   'cadastro.plano_crise_aprovacao'::regclass,'cadastro.acompanhamento_caso'::regclass)
+  union select nspowner from pg_namespace where nspname='api'
+  union select proowner from pg_proc where oid='operacao.habilitacao_plano_crise_privada(jsonb)'::regprocedure
+ ) loop
+  execute format('grant %I to crise_migrador_fixture with inherit true, set false',dono);
+ end loop;
+end $$;
+grant ffcmapp_plano_crise_owner to crise_migrador_fixture with admin true, inherit false, set false;
+begin;
+set role crise_migrador_fixture;
+\ir ../migrations/20261125040000_plano_crise_case_manager_atual.sql
+do $$ begin
+ if pg_has_role(current_user,'ffcmapp_plano_crise_owner','SET') then raise exception 'SET_TEMPORARIO_RESTANTE'; end if;
+ if exists(select 1 from pg_auth_members where roleid='ffcmapp_plano_crise_owner'::regrole
+  and member=current_user::regrole and grantor=current_user::regrole) then raise exception 'GRANT_TEMPORARIO_RESTANTE'; end if;
+ if not exists(select 1 from pg_auth_members where roleid='ffcmapp_plano_crise_owner'::regrole
+  and member=current_user::regrole and grantor='cadeia_fixture'::regrole and admin_option and not set_option and not inherit_option)
+ then raise exception 'MEMBERSHIP_ORIGINAL_ALTERADA'; end if;
+ if exists(select 1 from pg_namespace n cross join lateral aclexplode(n.nspacl) a
+  where n.nspname='api' and a.grantee='ffcmapp_plano_crise_owner'::regrole and a.privilege_type='CREATE')
+ then raise exception 'CREATE_TEMPORARIO_RESTANTE'; end if;
+end $$;
+reset role;
+rollback;
+
+begin;
+grant ffcmapp_plano_crise_owner to crise_migrador_fixture with admin true, inherit true, set true;
+grant create on schema api to ffcmapp_plano_crise_owner;
+create temp table crise_acl_anterior as
+ select 'membership' tipo,to_jsonb(m) dados from pg_auth_members m where roleid='ffcmapp_plano_crise_owner'::regrole
+ union all select 'schema',jsonb_build_object('acl',nspacl) from pg_namespace where nspname='api';
+set role crise_migrador_fixture;
+\ir ../migrations/20261125040000_plano_crise_case_manager_atual.sql
+do $$ begin
+ if exists(
+  (select * from crise_acl_anterior except
+   (select 'membership',to_jsonb(m) from pg_auth_members m where roleid='ffcmapp_plano_crise_owner'::regrole
+    union all select 'schema',jsonb_build_object('acl',nspacl) from pg_namespace where nspname='api'))
+  union all
+  ((select 'membership',to_jsonb(m) from pg_auth_members m where roleid='ffcmapp_plano_crise_owner'::regrole
+    union all select 'schema',jsonb_build_object('acl',nspacl) from pg_namespace where nspname='api')
+   except select * from crise_acl_anterior)
+ ) then raise exception 'ACL_PREEXISTENTE_ALTERADA'; end if;
+end $$;
+reset role;
+rollback;
 \ir ../migrations/20261125040000_plano_crise_case_manager_atual.sql
 
 -- Toda aprovação cruza wrapper como authenticated: não depende de esconder controle.

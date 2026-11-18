@@ -28,8 +28,25 @@ create policy crise_aprovacao_responsavel_atual on cadastro.plano_crise_aprovaca
    where h.paciente_id=plano_crise_aprovacao.paciente_id order by h.versao desc limit 1)
   = (select auth_privado.uid())
  );
-grant ffcmapp_plano_crise_owner to current_user with inherit false, set true;
-grant create on schema api to ffcmapp_plano_crise_owner;
+select set_config('ffcmapp.crise_caso_tinha_set',pg_has_role(current_user,'ffcmapp_plano_crise_owner','SET')::text,false);
+select set_config('ffcmapp.crise_caso_tinha_create',exists(
+ select 1 from pg_namespace n cross join lateral aclexplode(coalesce(n.nspacl,acldefault('n',n.nspowner))) a
+ join pg_roles r on r.oid=a.grantee where n.nspname='api'
+ and r.rolname='ffcmapp_plano_crise_owner' and a.privilege_type='CREATE')::text,false);
+do $$ begin
+ if (select p.proowner from pg_proc p where p.oid='api.plano_crise_operacao_privada(jsonb)'::regprocedure)
+  is distinct from 'ffcmapp_plano_crise_owner'::regrole then raise exception 'OWNER_INESPERADO'; end if;
+ if current_setting('ffcmapp.crise_caso_tinha_set')='false' then
+  if exists(select 1 from pg_auth_members m where m.roleid='ffcmapp_plano_crise_owner'::regrole
+   and m.member=current_user::regrole and m.grantor=current_user::regrole) then
+   raise exception 'MEMBERSHIP_CONCEDENTE_EXISTENTE_SEM_SET';
+  end if;
+  execute format('grant ffcmapp_plano_crise_owner to %I with inherit false, set true granted by %I',current_user,current_user);
+ end if;
+ if current_setting('ffcmapp.crise_caso_tinha_create')='false' then
+  grant create on schema api to ffcmapp_plano_crise_owner;
+ end if;
+end $$;
 set role ffcmapp_plano_crise_owner;
 create or replace function api.plano_crise_operacao_privada(p_transporte jsonb) returns jsonb
 language plpgsql security definer set search_path = '' set row_security = on as $$
@@ -257,8 +274,14 @@ begin
 end $$;
 reset role;
 select set_config('role', current_setting('ffcmapp.migrador_crise_caso'), false);
-revoke create on schema api from ffcmapp_plano_crise_owner;
-revoke ffcmapp_plano_crise_owner from current_user;
+do $$ begin
+ if current_setting('ffcmapp.crise_caso_tinha_create')='false' then
+  revoke create on schema api from ffcmapp_plano_crise_owner;
+ end if;
+ if current_setting('ffcmapp.crise_caso_tinha_set')='false' then
+  execute format('revoke ffcmapp_plano_crise_owner from %I granted by %I',current_user,current_user);
+ end if;
+end $$;
 
 create or replace function operacao.habilitacao_plano_crise_privada(p_transporte jsonb) returns jsonb
 language plpgsql security invoker set search_path = '' as $$
