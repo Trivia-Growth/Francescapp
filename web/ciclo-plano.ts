@@ -5,7 +5,9 @@ import {
   estadoReconhecimentoPlanoSchema,
   estadoReservaPlanoSchema,
   uuidSchema,
+  visibilidadeObjetivoSchema,
   type Objetivo,
+  type VisibilidadeObjetivo,
 } from '../packages/contracts/src/index.ts';
 
 type Consulta = ReturnType<typeof consultaBarreiraPlanoResultadoSchema.parse>;
@@ -20,6 +22,7 @@ export type PortasCicloPlano = {
   criar(
     entrada: {
       entrada: Objetivo;
+      visibilidade: VisibilidadeObjetivo;
       paciente_id: string;
       chave: string;
       reserva_id: string;
@@ -121,9 +124,10 @@ export function criarCicloPlano(
           throw erro;
         }
       }),
-    criar: (pacienteId: string, dados: Objetivo) =>
+    criar: (pacienteId: string, dados: Objetivo, visibilidade: VisibilidadeObjetivo) =>
       executar(async () => {
         const entrada = objetivoSchema.parse(dados);
+        const audiencia = visibilidadeObjetivoSchema.parse(visibilidade);
         const paciente_id = uuidSchema.parse(pacienteId);
         if (
           !consulta ||
@@ -148,7 +152,14 @@ export function criarCicloPlano(
         if (estado !== 'aberta') throw new Error('Reserva não confirmada');
         await chamar(() =>
           portas.criar(
-            { entrada, paciente_id, chave, reserva_id, geracao_reserva: epoca },
+            {
+              entrada,
+              visibilidade: audiencia,
+              paciente_id,
+              chave,
+              reserva_id,
+              geracao_reserva: epoca,
+            },
             identidade,
           ),
         );

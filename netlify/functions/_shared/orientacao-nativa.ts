@@ -6,6 +6,7 @@ import {
   situacaoOrientacaoSchema,
   type Orientacao,
 } from '../../../packages/contracts/src/orientacao.ts';
+import { visibilidadeObjetivoSchema } from '../../../packages/contracts/src/plano-cuidado.ts';
 import {
   campoCifradoSchema,
   dadosAtestadoSchema,
@@ -34,6 +35,9 @@ type Comando =
       orientacao_id?: string;
       versao_esperada: number;
       situacao: unknown;
+      // Opcional aqui (testes internos chamam `Comando` direto, sem passar pela rota HTTP, que
+      // já exige o campo); ausência cai no mesmo padrão 'interna' da coluna no banco.
+      visibilidade?: unknown;
       texto: unknown;
       autor: unknown;
       data: unknown;
@@ -101,6 +105,7 @@ export async function operarOrientacaoNativa(
       return erro('entrada_invalida');
     let orientacaoId: string | undefined;
     let situacao: Orientacao['situacao'] | undefined;
+    let visibilidade: Orientacao['visibilidade'] | undefined;
     let conteudo: ReturnType<typeof conteudoOrientacaoSchema.parse> | undefined;
     if (comando.operacao === 'gravar') {
       if (!chaveIdempotenciaSchema.safeParse(request.headers.get('x-chave-idempotencia')).success)
@@ -121,6 +126,9 @@ export async function operarOrientacaoNativa(
         orientacaoId = alvo.data.toLowerCase();
       }
       const situacaoValidada = situacaoOrientacaoSchema.safeParse(comando.situacao);
+      const visibilidadeValidada = visibilidadeObjetivoSchema.safeParse(
+        comando.visibilidade ?? 'interna',
+      );
       const conteudoValidado = conteudoOrientacaoSchema.safeParse({
         texto: comando.texto,
         autor: comando.autor,
@@ -128,12 +136,14 @@ export async function operarOrientacaoNativa(
         destinatarios: comando.destinatarios,
         validade: comando.validade ?? null,
       });
-      if (!situacaoValidada.success || !conteudoValidado.success) return erro('entrada_invalida');
+      if (!situacaoValidada.success || !visibilidadeValidada.success || !conteudoValidado.success)
+        return erro('entrada_invalida');
       // Uma orientação nova nasce vigente; o banco recusa o contrário, mas falhar aqui
       // evita gastar cifra e atestado num pedido que já se sabe inválido.
       if (comando.versao_esperada === 0 && situacaoValidada.data !== 'vigente')
         return erro('entrada_invalida');
       situacao = situacaoValidada.data;
+      visibilidade = visibilidadeValidada.data;
       conteudo = conteudoValidado.data;
     }
     const autorizacao = await portas.autorizar(request);
@@ -164,6 +174,7 @@ export async function operarOrientacaoNativa(
         registro_id: registroId,
         versao_esperada: comando.versao_esperada,
         situacao,
+        visibilidade,
         conteudo: campoCifradoSchema.parse(
           await portas.cifra.cifrar(JSON.stringify(conteudo), aad),
         ),
@@ -213,7 +224,8 @@ export async function operarOrientacaoNativa(
       (registros[0]?.registro_id !== entrada.registro_id ||
         registros[0]?.orientacao_id !== orientacaoId ||
         registros[0]?.versao !== comando.versao_esperada + 1 ||
-        registros[0]?.situacao !== situacao)
+        registros[0]?.situacao !== situacao ||
+        registros[0]?.visibilidade !== visibilidade)
     )
       throw new Error();
     const resultado: Orientacao[] = [];
@@ -237,6 +249,7 @@ export async function operarOrientacaoNativa(
           orientacao_id: registro.orientacao_id,
           versao: registro.versao,
           situacao: registro.situacao,
+          visibilidade: registro.visibilidade,
           registrado_em: registro.criado_em,
         }),
       );

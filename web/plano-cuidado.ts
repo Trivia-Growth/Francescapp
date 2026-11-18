@@ -2,12 +2,18 @@ import {
   objetivoSchema,
   type Objetivo,
   type RevisaoObjetivo,
+  type VisibilidadeObjetivo,
 } from '../packages/contracts/src/plano-cuidado.js';
 import type { criarCicloPlano } from './ciclo-plano.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 import { esqueletoCarregando } from './esqueleto.js';
 
-export type ObjetivoAtual = { objetivo_id: string; versao: number; objetivo: Objetivo };
+export type ObjetivoAtual = {
+  objetivo_id: string;
+  versao: number;
+  objetivo: Objetivo;
+  visibilidade: VisibilidadeObjetivo;
+};
 export type VersaoHistoricoObjetivo = ObjetivoAtual & {
   ator_usuario_id: string;
   data: string;
@@ -26,7 +32,7 @@ export type ServicoPlanoCuidado = {
     pacienteId: string,
     objetivoId: string,
     versaoEsperada: number,
-    revisao: RevisaoObjetivo,
+    revisao: RevisaoObjetivo & { visibilidade: VisibilidadeObjetivo },
   ): Promise<void>;
 };
 
@@ -37,6 +43,7 @@ export function montarPlanoCuidado(
   servico: ServicoPlanoCuidado,
   acessoPerdido: (erro: unknown) => void,
   alteracaoPendente: (pendente: boolean) => void = () => {},
+  ehFamilia = false,
 ): () => void {
   let ativa = true;
   let gravando = false;
@@ -84,7 +91,7 @@ export function montarPlanoCuidado(
       elemento('p', 'A lista pode mudar entre páginas. Atualize para consultar novamente.'),
     );
     const formulario = elemento('div');
-    if (criacaoIncerta) {
+    if (criacaoIncerta && !ehFamilia) {
       const aviso = elemento(
         'p',
         'Antes de criar um objetivo, confira se já existe algum envio aguardando resposta.',
@@ -206,6 +213,18 @@ export function montarPlanoCuidado(
       }
       labelEstado.append(estado);
       campos.append(labelEstado);
+      const labelVisibilidade = elemento('label', 'Visibilidade para a família');
+      const visibilidade = elemento('select');
+      for (const [valor, rotulo] of [
+        ['interna', 'Interna (só a equipe vê)'],
+        ['publica', 'Pública (a família também vê)'],
+      ] as const) {
+        const opcao = elemento('option', rotulo);
+        opcao.value = valor;
+        visibilidade.append(opcao);
+      }
+      labelVisibilidade.append(visibilidade);
+      campos.append(labelVisibilidade);
       const motivo = atual ? criarCampo('Motivo da revisão', 'textarea') : null;
       if (atual) {
         const objetivo = atual.objetivo;
@@ -216,6 +235,7 @@ export function montarPlanoCuidado(
         observacaoProgresso.value = objetivo.observacaoProgresso;
         dataRevisao.value = objetivo.dataRevisao;
         estado.value = objetivo.estado;
+        visibilidade.value = atual.visibilidade;
       }
       const salvar = elemento('button', atual ? 'Salvar revisão' : 'Salvar objetivo');
       salvar.type = 'submit';
@@ -302,6 +322,7 @@ export function montarPlanoCuidado(
           estado: estado.value,
         });
         const razao = motivo?.value.trim();
+        const audiencia = visibilidade.value === 'publica' ? 'publica' : 'interna';
         if (!validado.success || (atual && !razao)) {
           aviso.textContent = 'Preencha todos os campos e confira a data de revisão.';
           return;
@@ -313,8 +334,9 @@ export function montarPlanoCuidado(
           ? servico.revisarObjetivo(pacienteId, atual.objetivo_id, atual.versao, {
               objetivo: validado.data,
               motivo: razao ?? '',
+              visibilidade: audiencia,
             })
-          : servico.ciclo.criar(pacienteId, validado.data);
+          : servico.ciclo.criar(pacienteId, validado.data, audiencia);
         void operacao
           .then(() => {
             if (!ativa) return;
@@ -369,8 +391,15 @@ export function montarPlanoCuidado(
         ['Como observar o progresso', atual.objetivo.observacaoProgresso],
         ['Data de revisão', atual.objetivo.dataRevisao],
         ['Estado', atual.objetivo.estado],
+        ...(ehFamilia
+          ? []
+          : [['Visibilidade', atual.visibilidade === 'publica' ? 'Pública' : 'Interna']]),
       ])
         item.append(elemento('p', `${rotulo}: ${valor}`));
+      if (ehFamilia) {
+        lista.append(item);
+        continue;
+      }
       const revisar = elemento('button', 'Revisar objetivo');
       revisar.type = 'button';
       revisar.addEventListener('click', () => abrir(atual));
@@ -432,10 +461,6 @@ export function montarPlanoCuidado(
       item.append(revisar, consultarHistorico, historico);
       lista.append(item);
     }
-    const adicionar = elemento('button', 'Adicionar objetivo');
-    adicionar.type = 'button';
-    adicionar.disabled = criacaoIncerta;
-    adicionar.addEventListener('click', () => abrir());
     secao.append(lista);
     if (cursores.length) {
       const anterior = elemento('button', 'Página anterior de objetivos');
@@ -456,7 +481,13 @@ export function montarPlanoCuidado(
       });
       secao.append(proxima);
     }
-    secao.append(adicionar, formulario);
+    if (!ehFamilia) {
+      const adicionar = elemento('button', 'Adicionar objetivo');
+      adicionar.type = 'button';
+      adicionar.disabled = criacaoIncerta;
+      adicionar.addEventListener('click', () => abrir());
+      secao.append(adicionar, formulario);
+    }
     raiz.replaceChildren(secao);
   };
   consultar();

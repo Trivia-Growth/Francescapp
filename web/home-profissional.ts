@@ -163,8 +163,9 @@ export function montarHomeProfissional(
       const parcial = atencao.value.proximo_cursor !== null;
       if (casos.length === 0) {
         saudacao.textContent = 'Nada precisa de você agora';
-        apoio.textContent =
-          'Nenhum caso com pendência aberta no seu acesso. Os compromissos combinados estão em dia.';
+        // A agenda não é lida aqui: afirmar que "os compromissos estão em dia" seria uma
+        // conclusão sem fonte. O que esta leitura sabe é só a ausência de pendência na carteira.
+        apoio.textContent = 'Nenhum caso com pendência aberta no seu acesso.';
         const sereno = elemento('div', undefined, 'home-sereno');
         sereno.append(
           elemento(

@@ -50,11 +50,23 @@ export function criarServicoPlanoHttp(
     let fluxo: string | null;
     try {
       modo = sessionStorage.getItem('modo-acesso');
-      fluxo = sessionStorage.getItem(modo === 'tecnica' ? 'fluxo-tecnico' : 'fluxo-google');
+      // Leitura (`ler_plano_cuidado`) já tem a trilha familiar no banco (`visibilidade`, ver
+      // migration `20261117240000`); família também passa por aqui para consultar objetivos.
+      fluxo = sessionStorage.getItem(
+        modo === 'tecnica'
+          ? 'fluxo-tecnico'
+          : modo === 'familiar'
+            ? 'fluxo-familiar'
+            : 'fluxo-google',
+      );
     } catch {
       throw new FalhaApi('nao_autenticado', 401);
     }
-    if ((modo !== 'google' && modo !== 'tecnica') || !fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo))
+    if (
+      (modo !== 'google' && modo !== 'tecnica' && modo !== 'familiar') ||
+      !fluxo ||
+      !/^[A-Za-z0-9_-]{22}$/.test(fluxo)
+    )
       throw new FalhaApi('nao_autenticado', 401);
     headers.set('x-fluxo', fluxo);
     if (chave) headers.set('x-chave-idempotencia', uuidSchema.parse(chave));
@@ -124,10 +136,16 @@ export function criarServicoPlanoHttp(
     identidadeAtual,
     consultar: () => enviar('consultarReserva', {}),
     reservar: async (entrada) => ((await enviar('reservar', entrada)) as { estado: string }).estado,
-    criar: async ({ entrada, paciente_id, chave, reserva_id, geracao_reserva }) =>
+    criar: async ({ entrada, visibilidade, paciente_id, chave, reserva_id, geracao_reserva }) =>
       enviar(
         'criar',
-        { objetivo_id: crypto.randomUUID(), objetivo: entrada, reserva_id, geracao_reserva },
+        {
+          objetivo_id: crypto.randomUUID(),
+          objetivo: entrada,
+          visibilidade,
+          reserva_id,
+          geracao_reserva,
+        },
         paciente_id,
         undefined,
         chave,

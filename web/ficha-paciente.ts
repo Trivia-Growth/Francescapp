@@ -31,6 +31,9 @@ export type OpcoesFicha = {
   paciente: PacienteFicha;
   secoes: SecaoFicha[];
   secaoInicial?: string;
+  /** Ids que ficam na primeira faixa; os demais entram em "Mais seções". Sem esta lista, ou
+   * se ela cobrir todas as seções recebidas, a ficha mantém a faixa única de sempre. */
+  primarias?: readonly string[];
   confirmar: (mensagem: string) => boolean;
   aoSelecionar: (secao: string) => void;
   aoVoltar: () => void;
@@ -144,32 +147,72 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
   const cabecalho = elemento('header', 'ficha-cabecalho');
   cabecalho.append(voltar, identidade);
 
+  // A ordem da faixa primária segue a prioridade informada pelo chamador (decisão de
+  // design), não a ordem em que as seções chegam — essa continua livre para o segundo nível.
+  // Se nenhum id de `primarias` corresponder a uma seção recebida (lista vazia, desatualizada
+  // ou sem nenhuma seção em comum), a divisão não faz sentido: cai no comportamento de faixa
+  // única de sempre, em vez de deixar a tablist vazia e tudo em "Mais seções".
+  const porId = new Map(secoes.map((secao) => [secao.id, secao] as const));
+  const primariosEncontrados = (opcoes.primarias ?? [])
+    .map((id) => porId.get(id))
+    .filter((secao): secao is SecaoFicha => secao !== undefined);
+  const grupoPrimario = primariosEncontrados.length ? primariosEncontrados : secoes;
+  const idsPrimarios = new Set(grupoPrimario.map((secao) => secao.id));
+  const grupoSecundario = secoes.filter((secao) => !idsPrimarios.has(secao.id));
+  const idsSecundarios = new Set(grupoSecundario.map((secao) => secao.id));
+
   const abas = elemento('div', 'ficha-abas');
   abas.setAttribute('role', 'tablist');
   abas.setAttribute('aria-label', 'Seções da ficha');
   const botoes = new Map<string, HTMLButtonElement>();
-  for (const secao of secoes) {
-    const aba = elemento('button', 'ficha-aba');
+
+  /** Única fonte da diferença de papel entre as duas faixas: fora da tablist, "aria-selected"
+   * exigiria o papel "tab", então o destaque de quem está ativa usa "aria-current" — chamada
+   * tanto na criação quanto em `marcarAbas`, para as duas não poderem divergir. */
+  function aplicarEstadoAba(
+    aba: HTMLButtonElement,
+    secundaria: boolean,
+    selecionada: boolean,
+  ): void {
+    if (secundaria) aba.setAttribute('aria-current', String(selecionada));
+    else {
+      aba.setAttribute('aria-selected', String(selecionada));
+      aba.tabIndex = selecionada ? 0 : -1;
+    }
+  }
+
+  function criarAba(secao: SecaoFicha, secundaria: boolean): HTMLButtonElement {
+    const aba = elemento('button', secundaria ? 'ficha-aba ficha-aba-secundaria' : 'ficha-aba');
     aba.type = 'button';
     aba.id = `ficha-aba-${secao.id}`;
-    aba.setAttribute('role', 'tab');
     aba.setAttribute('aria-controls', 'ficha-painel');
-    aba.setAttribute('aria-selected', 'false');
-    aba.tabIndex = -1;
+    if (!secundaria) aba.setAttribute('role', 'tab');
+    aplicarEstadoAba(aba, secundaria, false);
     aba.append(secao.rotulo);
     if (!secao.montar) aba.append(' ', elemento('span', 'ficha-aba-estado', 'em breve'));
     aba.addEventListener('click', () => {
       if (!selecionar(secao.id)) botoes.get(atual)?.focus();
     });
     botoes.set(secao.id, aba);
-    abas.append(aba);
+    return aba;
+  }
+
+  for (const secao of grupoPrimario) abas.append(criarAba(secao, false));
+
+  let mais: HTMLDetailsElement | null = null;
+  if (grupoSecundario.length > 0) {
+    mais = elemento('details', 'ficha-mais');
+    const resumo = elemento('summary', 'ficha-mais-resumo', 'Mais seções');
+    const lista = elemento('div', 'ficha-mais-lista');
+    for (const secao of grupoSecundario) lista.append(criarAba(secao, true));
+    mais.append(resumo, lista);
   }
 
   const painel = elemento('div', 'ficha-painel');
   painel.id = 'ficha-painel';
   painel.setAttribute('role', 'tabpanel');
   painel.tabIndex = 0;
-  raiz.replaceChildren(cabecalho, abas, painel);
+  raiz.replaceChildren(cabecalho, abas, ...(mais ? [mais] : []), painel);
 
   const mensagemAtual = (): string =>
     secoes.find((secao) => secao.id === atual)?.descarte ?? DESCARTE_PADRAO;
@@ -184,10 +227,12 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
   }
 
   function marcarAbas(): void {
+    // Seção ativa vinda do segundo nível precisa estar visível antes do scrollIntoView
+    // abaixo, senão o scroll na aba ainda dentro do <details> fechado não faz nada.
+    if (mais) mais.open = idsSecundarios.has(atual);
     for (const [id, aba] of botoes) {
       const selecionada = id === atual;
-      aba.setAttribute('aria-selected', String(selecionada));
-      aba.tabIndex = selecionada ? 0 : -1;
+      aplicarEstadoAba(aba, idsSecundarios.has(id), selecionada);
       // Na faixa rolável do celular, a aba atual precisa estar à vista, também depois de recarregar.
       if (selecionada) aba.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     }
@@ -242,8 +287,14 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
     opcoes.aoVoltar();
   });
 
+  // Restrito à faixa primária: as demais seções vivem em "Mais seções" e seguem a ordem
+  // natural de Tab, não o ciclo de setas de uma tablist. `grupoPrimario`/`botoes` não mudam
+  // depois da montagem, então a ordem é calculada uma vez, não a cada tecla.
+  const ordemTeclado = grupoPrimario
+    .map((secao) => botoes.get(secao.id))
+    .filter((aba) => aba !== undefined);
   abas.addEventListener('keydown', (evento) => {
-    const ordem = secoes.map((secao) => botoes.get(secao.id)).filter((aba) => aba !== undefined);
+    const ordem = ordemTeclado;
     const foco = ordem.indexOf(document.activeElement as HTMLButtonElement);
     if (foco < 0) return;
     const destino =

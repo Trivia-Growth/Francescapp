@@ -159,4 +159,51 @@ Testes de integração real (PostgreSQL descartável, papel `authenticated`, ate
 
 **Fechamento 2.2 (11/11/2026) — revisão independente holística da fatia inteira.** Tratada como revisão de contexto limpo adversarial mesmo sendo eu quem fecha o item: não aceitei as revisões já registradas sem conferir amostra própria. Reexecutei os 6 testes locais/integrados de plano-cuidado em sequência (`testar-plano-cuidado-local.sh`, `testar-campo-extra-plano-local.sh`, `testar-aprovador-plano-local.sh`, `testar-campo-extra-plano-integrada-local.sh`, `testar-aprovador-plano-integrada-local.sh`, `testar-aprovar-objetivo-plano-integrada-local.sh`) — todos exit 0, nenhuma regressão cruzada entre as peças. `pnpm run verificar:rapido` limpo (lint+typecheck, sem o problema de memória do Biome registrado antes). Conferi por leitura (amostra própria, não só texto de commit): grants/revoke de `api.plano_cuidado_privado`/`api.plano_composicao_privada` permanecem `revoke all ... from public,anon,authenticated,service_role` nas migrations originais (`20261107130000`/`20261107170000`) — o grant pra `authenticated` vem só da migration de teste separada, consistente com o padrão do projeto. Conferi os 7 owner roles novos de hoje (`ffcmapp_campo_extra_plano_owner`, `ffcmapp_aprovador_plano_owner`, `ffcmapp_aprovar_objetivo_plano_owner`) contra os já existentes (`ffcmapp_plano_owner`, `ffcmapp_tarefa_owner`, `ffcmapp_tarefa_barreira_owner`, `ffcmapp_atestado_verificador_owner`) — nenhuma colisão de nome. **Nenhum achado novo além do já registrado** (achado cross-cutting de 2.1 acima não é um bug, é uma lacuna de documentação, já corrigida). Ativação completa da fatia (dados reais, S-02, prova de Profissional/Família) continua fora do escopo desta revisão.
 
+**Sessão supervisionada (17/11/2026), visibilidade do objetivo para a família** (ver design.md
+"Decisão do solicitante (17/11/2026)"). Decisão do solicitante fecha a pendência de 1.2: família
+passa a ler a lista de objetivos (nunca histórico, nunca gravar), filtrada para
+`visibilidade='publica'` — marcação feita por quem já grava o objetivo, sem portão novo de
+autorização. Implementado: coluna aditiva `visibilidade` (migration `20261117230000`), trilha
+familiar dentro de `api.plano_cuidado_operacao_privada` redefinida por `create or replace
+function` (migration `20261117240000`, mesmo padrão de evolução das migrations anteriores desta
+função), contratos (`visibilidadeObjetivoSchema`), camada `_shared/plano-cuidado-nativo.ts`
+(visibilidade no digest de idempotência e no resultado), interface (`web/plano-cuidado.ts` com
+seletor Interna/Pública e modo somente-leitura para família; `web/main.ts` com a seção `'plano'`
+na ficha da família); gate de fluxo do cliente HTTP corrigido (mesma classe de achado de
+`servico-regras-atendimento-http.ts`/`servico-diario-http.ts`).
+
+**Bug real encontrado e corrigido nesta sessão**: a policy `_lock` nova de
+`cadastro.acesso_paciente` foi escrita com `using (false)`, que bloqueou o próprio `for share`
+da trilha familiar (não só a escrita — Postgres aplica a `using` da policy de UPDATE também para
+decidir se `FOR SHARE`/`FOR UPDATE` pode travar a linha). Sintoma: leitura simples encontrava a
+linha, a mesma leitura com `for share` não. Corrigido espelhando a `using` da policy de select.
+Ver design.md para o detalhe completo — é a mesma CLASSE de armadilha já documentada em 11/11
+("Postgres exige UPDATE para FOR SHARE"), só que desta vez na própria condição `using`, não na
+ausência do grant.
+
+Evidência: `supabase/tests/plano_cuidado_familia_local.sql` via
+`scripts/testar-plano-cuidado-familia-local.sh` — positivo (família lê só o objetivo público) e
+5 negativos (sem vínculo, tenta gravar, tenta ler histórico, acesso revogado, sessão de equipe
+disfarçada) e 1 regressão (colaborador continua vendo os dois, publica e interna) — passou
+(exit 0). `pnpm run test:web` (405/405) e `pnpm run test:proxy` (397 passed, 15 skipped —
+`*-postgres-local.test.ts`, que exigem Postgres descartável e não rodam via vitest) sem
+regressão, depois de adicionar `visibilidade` às fixtures pré-existentes que quebraram ao ficar
+o campo obrigatório na saída (`plano-cuidado-nativo.test.ts`, `entrada-plano-nativa.test.ts`,
+`entrada-plano-integracao.test.ts`, `web/ciclo-plano.test.ts`, `web/plano-cuidado.test.ts`,
+`web/ficha-integrada.test.ts`, `web/ficha-familia-diario.test.ts`) — mudança de contrato
+genuína (campo novo e obrigatório na resposta), não falha de teste. `pnpm run verificar:rapido`
+limpo.
+
+**Sem ativação**: `ffcm.plano.ativo` não foi tocado, nenhuma migration aplicada remotamente,
+nenhuma flag alterada. **Revisão independente desta adição ainda não feita.**
+
+**Achado incidental corrigido**: três scripts de integração (`testar-plano-cuidado-integrada-local.sh`,
+`testar-plano-composicao-integrada-local.sh`, `testar-plano-http-integrada-local.sh`) paravam a
+cadeia de migrations em `20261108130000`, sem as três migrations de auditoria já aplicadas desde
+antes desta sessão (`20261112100000`/`122000`/`200000`) nem, agora, as duas novas desta fatia —
+mascarando, não provando, o comportamento atual da função a cada execução. Corrigidos para
+aplicar a cadeia completa; os três voltaram a passar (exit 0) depois da correção, incluindo um
+ajuste de fixture em `plano-http-postgres-local.test.ts` (corpo HTTP sem `visibilidade`, agora
+campo obrigatório no contrato).
+
 **Deploy no projeto Supabase de teste (11/11/2026).** Autorização explícita do solicitante pra subir o schema das 3 operações pro Supabase de teste e destravar as demais frentes. `supabase migration list --linked` confirmou que até `20261116100000` já estava aplicado remotamente; as 7 migrations desta mudança (`20261116130000` a `20261116190000`) estavam pendentes. `supabase db push` aplicou as 5 primeiras (schema + operações das 3 funções) sem erro; as duas últimas (`grant_campo_extra_plano_teste`/`grant_aprovador_plano_teste`) falharam na primeira tentativa com `permission denied` — o grant tentava `grant execute ... to authenticated` direto como migrador, sem antes assumir o papel dono da função (só o dono pode conceder EXECUTE na própria função). Essas duas migrations tinham, inclusive, um comentário meu avisando "NUNCA aplicar remotamente sem antes decidir ativar" — perguntei ao solicitante antes de corrigir e reaplicar, já que isso expõe de verdade as 3 operações pra `authenticated`; autorizado explicitamente ("libera as 3 agora"). Corrigido o grant pra seguir o mesmo padrão já usado em `grant_plano_cuidado_teste.sql` (assume temporariamente o papel dono via `SET ROLE` antes de conceder, com as mesmas checagens defensivas `WRAPPER_INESPERADO`/`ACL_INICIAL_INESPERADA`); testado em PostgreSQL descartável reproduzindo a cadeia completa das 7 migrations antes de reaplicar. `supabase db push` aplicou as duas sem erro. Verificação por catálogo (só leitura) após o deploy: `api.campo_extra_plano_privado`, `api.aprovador_plano_privado` e `api.aprovar_objetivo_plano_privado` com EXECUTE só para `authenticated` — `anon`/`service_role`/`public` confirmados sem acesso. `pnpm run verificar:rapido` limpo depois. Isso comprova que o schema foi aplicado como desenhado — não substitui S-02 (prova real de Profissional/Família, jornada HTTP real contra o projeto de teste com conta Google real), que continua pendente.

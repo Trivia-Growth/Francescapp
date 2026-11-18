@@ -24,17 +24,24 @@ it('reserva vinculada ao paciente e mantém bloqueio após resposta perdida incl
   };
   const ciclo = criarCicloPlano(portas, () => id);
   await ciclo.consultar();
-  await expect(ciclo.criar(id, objetivo)).rejects.toThrow('bloqueado');
+  await expect(ciclo.criar(id, objetivo, 'interna')).rejects.toThrow('bloqueado');
   await ciclo.encerrar();
   await ciclo.consultar();
   ciclo.liberar();
-  await expect(ciclo.criar(id, objetivo)).rejects.toThrow('resposta perdida');
+  await expect(ciclo.criar(id, objetivo, 'interna')).rejects.toThrow('resposta perdida');
   expect(portas.reservar).toHaveBeenCalledWith(
     { epoca: 1, reserva_id: id, paciente_id: id },
     expect.anything(),
   );
   expect(portas.criar).toHaveBeenCalledWith(
-    { entrada: objetivo, paciente_id: id, chave: id, reserva_id: id, geracao_reserva: 1 },
+    {
+      entrada: objetivo,
+      visibilidade: 'interna',
+      paciente_id: id,
+      chave: id,
+      reserva_id: id,
+      geracao_reserva: 1,
+    },
     expect.anything(),
   );
   await ciclo.consultar();

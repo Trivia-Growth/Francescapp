@@ -40,11 +40,23 @@ export function criarServicoDiarioHttp(identidadeAtual: () => Identidade | null)
     let fluxo: string | null;
     try {
       modo = sessionStorage.getItem('modo-acesso');
-      fluxo = sessionStorage.getItem(modo === 'tecnica' ? 'fluxo-tecnico' : 'fluxo-google');
+      // O diário já tem as duas trilhas de autorização (colaborador e familiar) no banco
+      // (`api.diario_operacao_privada`); família também lê e grava o próprio relato.
+      fluxo = sessionStorage.getItem(
+        modo === 'tecnica'
+          ? 'fluxo-tecnico'
+          : modo === 'familiar'
+            ? 'fluxo-familiar'
+            : 'fluxo-google',
+      );
     } catch {
       throw new FalhaApi('nao_autenticado', 401);
     }
-    if ((modo !== 'google' && modo !== 'tecnica') || !fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo))
+    if (
+      (modo !== 'google' && modo !== 'tecnica' && modo !== 'familiar') ||
+      !fluxo ||
+      !/^[A-Za-z0-9_-]{22}$/.test(fluxo)
+    )
       throw new FalhaApi('nao_autenticado', 401);
     headers.set('x-fluxo', fluxo);
     if (chave) headers.set('x-chave-idempotencia', uuidSchema.parse(chave));

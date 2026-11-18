@@ -28,7 +28,7 @@ const objetivo = {
   dataRevisao: '2026-12-01',
   estado: 'proposto' as const,
 };
-const atual = { objetivo_id: 'objetivo', versao: 1, objetivo };
+const atual = { objetivo_id: 'objetivo', versao: 1, objetivo, visibilidade: 'interna' as const };
 
 it('mostra texto como texto e envia revisão com versão esperada', async () => {
   const raiz = document.createElement('div');
@@ -57,6 +57,7 @@ it('mostra texto como texto e envia revisão com versão esperada', async () => 
     expect(revisarObjetivo).toHaveBeenCalledWith('paciente', 'objetivo', 1, {
       objetivo,
       motivo: 'Ajuste',
+      visibilidade: 'interna',
     }),
   );
 });

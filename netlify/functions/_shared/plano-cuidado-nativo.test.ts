@@ -57,6 +57,7 @@ function portas() {
             paciente_id: e.paciente_id,
             versao: Number(e.versao_esperada) + 1,
             conteudo: e.conteudo,
+            visibilidade: e.visibilidade,
           },
         };
       },
@@ -201,6 +202,7 @@ describe('plano interno', () => {
       paciente_id,
       versao: 1,
       conteudo: entrada.conteudo,
+      visibilidade: entrada.visibilidade,
     };
     const historico = { operacao: 'historico' as const, paciente_id, objetivo_id };
     const executar = async (
@@ -239,6 +241,7 @@ describe('plano interno', () => {
       paciente_id,
       versao: 1,
       conteudo: entrada.conteudo,
+      visibilidade: entrada.visibilidade,
     };
     const executar = vi.fn(
       async (_r: Request, t: { p_transporte: { entrada: Record<string, unknown> } }) => ({

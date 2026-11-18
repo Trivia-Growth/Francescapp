@@ -4,6 +4,7 @@ import {
   motivoPlanoSchema,
   conteudoPlanoSchema,
   respostaPlanoPrivadaSchema,
+  visibilidadeObjetivoSchema,
   type Objetivo,
 } from '../../../packages/contracts/src/plano-cuidado.ts';
 import {
@@ -37,6 +38,9 @@ type Comando =
       geracao_reserva?: number;
       objetivo: unknown;
       motivo?: unknown;
+      // Opcional aqui (testes internos chamam `Comando` direto, sem passar pela rota HTTP, que
+      // já exige o campo); ausência cai no mesmo padrão 'interna' da coluna no banco.
+      visibilidade?: unknown;
     };
 /** Operação interna sem rota ou grant; banco autoriza e audita antes da leitura. */
 export async function operarPlanoCuidadoNativo(
@@ -104,6 +108,7 @@ export async function operarPlanoCuidadoNativo(
     let objetivoId: string | undefined;
     let objetivo: Objetivo | undefined;
     let motivo: string | undefined;
+    let visibilidade: 'interna' | 'publica' | undefined;
     let chaveIdempotencia: string | undefined;
     if (comando.operacao === 'historico') {
       const id = uuidSchema.safeParse(comando.objetivo_id);
@@ -118,9 +123,11 @@ export async function operarPlanoCuidadoNativo(
       const reserva = uuidSchema.safeParse(comando.reserva_id);
       const valor = objetivoSchema.safeParse(comando.objetivo);
       const razao = motivoPlanoSchema.safeParse(comando.motivo);
+      const audiencia = visibilidadeObjetivoSchema.safeParse(comando.visibilidade ?? 'interna');
       if (
         !id.success ||
         !valor.success ||
+        !audiencia.success ||
         (comando.versao_esperada === 0 &&
           (!reserva.success ||
             !Number.isSafeInteger(comando.geracao_reserva) ||
@@ -137,6 +144,7 @@ export async function operarPlanoCuidadoNativo(
       objetivoId = id.data.toLowerCase();
       objetivo = valor.data;
       motivo = razao.success ? razao.data : undefined;
+      visibilidade = audiencia.data;
       if (new TextEncoder().encode(JSON.stringify({ objetivo, motivo })).length > 23_000)
         return erro('entrada_invalida');
     }
@@ -218,6 +226,7 @@ export async function operarPlanoCuidadoNativo(
           objetivo_id: objetivoId,
           versao_esperada: comando.versao_esperada,
           objetivo,
+          visibilidade,
           ...(motivo === undefined ? {} : { motivo }),
         }),
       );
@@ -232,6 +241,7 @@ export async function operarPlanoCuidadoNativo(
         objetivo_id: objetivoId,
         registro_id: registroId,
         versao_esperada: comando.versao_esperada,
+        visibilidade,
         conteudo: campoCifradoSchema.parse(
           await portas.cifra.cifrar(JSON.stringify(conteudo), aad),
         ),
@@ -327,7 +337,12 @@ export async function operarPlanoCuidadoNativo(
         JSON.parse(await portas.cifra.decifrar(registro.conteudo, aad)),
       );
       if (registro.versao > 1 && !conteudo.motivo) throw new Error();
-      resultado.push({ objetivo_id: aad.objetivo_id, versao: registro.versao, ...conteudo });
+      resultado.push({
+        objetivo_id: aad.objetivo_id,
+        versao: registro.versao,
+        visibilidade: registro.visibilidade,
+        ...conteudo,
+      });
     }
     let proximoCursor: string | null = null;
     if (

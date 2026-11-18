@@ -103,7 +103,9 @@ it('protege edição não salva ao trocar de seção, fechar, sair ou recarregar
   campo.dispatchEvent(new Event('input', { bubbles: true }));
   document.getElementById('ficha-aba-plano')?.click();
   expect(confirmar).toHaveBeenCalledTimes(1);
-  expect(document.getElementById('ficha-aba-anamnese')?.getAttribute('aria-selected')).toBe('true');
+  // Anamnese vive em "Mais seções" (destinos primários de 3.1): "aria-current" marca a
+  // seção ativa ali, "aria-selected" é só da tablist.
+  expect(document.getElementById('ficha-aba-anamnese')?.getAttribute('aria-current')).toBe('true');
   document.getElementById('ficha-voltar')?.click();
   expect(confirmar).toHaveBeenCalledTimes(2);
   expect(document.getElementById('ficha-view')?.hidden).toBe(false);

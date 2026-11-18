@@ -57,7 +57,13 @@ it('encaminha criação validada, chave e sessão sem registrar rota pública', 
     new Request(`https://app.example/api/pacientes/${id}/plano`, {
       method: 'POST',
       headers: { ...cabecalhos, 'x-chave-idempotencia': id },
-      body: JSON.stringify({ objetivo_id: id, objetivo, reserva_id: id, geracao_reserva: 1 }),
+      body: JSON.stringify({
+        objetivo_id: id,
+        objetivo,
+        visibilidade: 'interna',
+        reserva_id: id,
+        geracao_reserva: 1,
+      }),
     }),
   );
   expect(resposta.status).toBe(403);
@@ -69,6 +75,7 @@ it('encaminha criação validada, chave e sessão sem registrar rota pública', 
       versao_esperada: 0,
       objetivo_id: id,
       objetivo,
+      visibilidade: 'interna',
       reserva_id: id,
       geracao_reserva: 1,
     },

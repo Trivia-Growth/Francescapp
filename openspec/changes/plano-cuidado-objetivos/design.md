@@ -99,6 +99,88 @@ Seguindo o padrão já estabelecido (não exposto) de `plano-cuidado-nativo.ts`/
 
 **Não feito nesta rodada, fica para continuar**: operação 2 (lista de aprovadores: `listar_aprovador_plano`/`gravar_aprovador_plano`, administrador-only, mesmo padrão exato da operação 1 — só trocar nomes de campo) e operação 3 (`aprovar_objetivo_plano`, autorização administrador-ou-aprovador, sem idempotência por chave — ver nota no código sobre `x-chave-idempotencia` exigido pelo envelope padrão mas não usado pela operação). Os contratos de rotas das três já existem (`contratosRotas`), faltando só operar/compor/executor/entrada/rota/teste das operações 2 e 3, seguindo o mesmo molde desta. Interface web (tela da Edilaine, formulário do profissional) continua totalmente pendente — depende desta camada HTTP existir primeiro, que agora existe parcialmente (1 de 3). Revisão independente desta camada HTTP ainda não feita.
 
+## Decisão do solicitante (17/11/2026) — visibilidade do objetivo para a família
+
+Fecha a pendência registrada em 1.2/"Recorte local provisório" ("família sem acesso por
+inferência; matriz definitiva... permanece pendente"): a família passa a poder ler objetivos,
+mas só por marcação explícita, nunca por inferência de perfil — consistente com o que já estava
+decidido, não uma mudança dele. Resposta literal do solicitante: **"Na anotacoes criar opcao de
+marcar como Interna ou publica"**.
+
+- Quem já grava objetivo/revisão (colaborador com concessão vigente) marca cada versão como
+  `interna` (padrão, preserva o comportamento anterior à coluna existir) ou `publica`.
+- Família só lê a **lista** de objetivos (`api.ler_plano_cuidado`), filtrada para
+  `visibilidade='publica'` da última versão de cada objetivo. Família não lê histórico
+  (`api.ler_historico_objetivo_cuidado`) nem grava — nenhuma dessas duas capacidades foi pedida;
+  manter o recorte mínimo evita inventar superfície de autorização não solicitada (YAGNI).
+- Sem admin-only: ao contrário de documentos (onde o solicitante foi explícito sobre ser o admin
+  quem alterna o flag), aqui qualquer colaborador que já tem autorização de escrita no objetivo
+  decide a visibilidade dele — mesma autorização existente, campo adicional.
+
+## Implementação (17/11/2026)
+
+- `supabase/migrations/20261117230000_objetivo_cuidado_visibilidade.sql`: coluna aditiva
+  `visibilidade text not null default 'interna' check (in ('interna','publica'))` em
+  `cadastro.objetivo_cuidado_versao` — em claro (fora do envelope cifrado), porque o banco
+  precisa filtrar por ela sem decifrar.
+- `supabase/migrations/20261117240000_plano_cuidado_familia_privada.sql`: `create or replace
+  function api.plano_cuidado_operacao_privada` (redefine a função já existente, como todas as
+  evoluções anteriores desta mesma função) adicionando uma trilha familiar **só para
+  `api.ler_plano_cuidado`** — mesma prova de `api.consultar_paciente_familiar_privado`
+  (`cadastro.acesso_paciente` vigente, `identidade.sessao` método `familia` sem concessão,
+  `amr=password`), nunca estendida a `gravar`/`historico` (a condição já checa
+  `acao='api.ler_plano_cuidado'` antes de tentar autorizar como família, então os outros dois
+  ramos nunca a alcançam — sem precisar repetir o gate de papel na validação de escrita). Filtro
+  de visibilidade aplicado só na leitura da lista, via `filter (where papel='colaborador' or
+  v.visibilidade='publica')` dentro do `jsonb_agg` — deliberadamente feito no agregado de saída,
+  não na CTE de paginação por cursor, para o `proximo_cursor` continuar contando a partir do
+  conjunto completo de ids (senão uma página inteira de objetivos internos faria o cursor
+  "sumir" mesmo havendo mais objetivos à frente). Novas policies (RLS): `plano_owner_paciente_familiar`
+  (segunda policy PERMISSIVE em `cadastro.paciente`, somada por OR à já existente do colaborador,
+  sem tocar nela) e `plano_owner_acesso_familiar`/`_lock` em `cadastro.acesso_paciente`.
+- **Bug real encontrado e corrigido na própria sessão**: a policy `_lock` nova foi escrita
+  primeiro como `using (false) with check (false)` — e isso quebrou o `for share` da própria
+  trilha familiar (não só a escrita), porque o Postgres aplica a `using` da policy de UPDATE
+  (não só a de SELECT) para decidir se uma linha pode ser travada por `FOR SHARE`/`FOR UPDATE`.
+  Sintoma: uma leitura simples (sem lock) encontrava a linha, a mesma leitura com `for share`
+  não. Corrigido espelhando a `using` da policy de select (`usuario_id = auth_privado.uid()`),
+  mantendo só o `with check (false)` para barrar escrita de fato — mesmo padrão que as outras
+  policies `_lock` deste projeto já usam (`using(true)` ou a condição da policy de select, nunca
+  `using(false)`); eu tinha generalizado errado a partir de um exemplo que coincidentemente usava
+  `using(true)`.
+- Contratos: `visibilidadeObjetivoSchema` (`plano-cuidado.ts`), adicionado como campo em claro
+  irmão de `objetivo_id`/`versao` em `registroPlanoSchema` e no `registro` de `plano-http.ts`
+  (nunca dentro de `objetivoSchema`/`conteudoPlanoSchema`, que vão para o envelope cifrado);
+  `criar`/`revisar` passam a exigir `visibilidade` na entrada HTTP (opcional só na camada interna
+  `Comando` do `_shared/plano-cuidado-nativo.ts`, para não quebrar testes unitários que chamam
+  essa camada direto sem passar pelo contrato HTTP — default `'interna'` espelhando o default da
+  coluna). `visibilidade` entrou também no digest de idempotência (`calcularDigestIdempotencia`)
+  — sem isso, duas gravações com a mesma chave de idempotência mas `visibilidade` diferente
+  seriam tratadas como repetição e a segunda seria silenciosamente ignorada.
+- `web/plano-cuidado.ts`: seletor "Visibilidade para a família" (Interna/Pública) no formulário
+  de criar/revisar; parâmetro `ehFamilia` oculta formulário, histórico e "Revisar objetivo",
+  mostrando só a lista (com o rótulo de visibilidade) e a paginação. `web/ciclo-plano.ts`/
+  `web/servico-plano-http.ts`: `visibilidade` roteado através do ciclo de criação; gate de fluxo
+  do cliente HTTP corrigido para aceitar `modo-acesso==='familiar'` (mesma classe de achado já
+  corrigida em `servico-regras-atendimento-http.ts`/`servico-diario-http.ts`). `web/main.ts`:
+  `secoesDaFicha` da família ganhou a seção `'plano'` (não entra em `planoAberto` nem no
+  mecanismo de reconfirmação de acesso do colaborador, que leva a `'visao'` — seção que família
+  não tem; família não grava, não tem rascunho nem reserva a perder).
+- Evidência: `supabase/tests/plano_cuidado_familia_local.sql` via
+  `scripts/testar-plano-cuidado-familia-local.sh` (positivo: família lê só o objetivo público;
+  negativos: sem `acesso_paciente` nega, tenta gravar nega e não persiste, tenta ler histórico
+  nega, acesso revogado nega mesmo com sessão viva, sessão de equipe disfarçada — `amr=oauth` —
+  não passa pela trilha familiar; regressão: colaborador continua lendo os dois objetivos,
+  publica e interna, sem filtro) — passou (exit 0) depois de corrigir o bug da policy `_lock`
+  acima. `pnpm run test:web` (405/405) e `pnpm run test:proxy` (397 passed/15 skipped, os
+  skipped são os `*-postgres-local.test.ts` que exigem Postgres descartável e não rodam via
+  vitest) sem regressão nos testes já existentes de plano-cuidado, depois de atualizar fixtures
+  pré-existentes que não tinham `visibilidade` (ver tasks.md). `pnpm run verificar:rapido` limpo.
+- **Sem ativação**: `ffcm.plano.ativo` não foi tocado; nenhuma migration aplicada remotamente;
+  nenhuma flag alterada. Código pronto, decisão de subir é do solicitante.
+- **Revisão independente desta adição ainda não feita** — quem implementou não aprova a própria
+  revisão, mesma regra das adições anteriores desta fatia.
+
 ## Camada HTTP de aprovador e aprovar-objetivo (11/11/2026) — operações 2 e 3, provadas
 
 Replicando o mesmo molde da operação 1 (lido como template literal), em paralelo à revisão independente da operação 1 (sem tocar nos arquivos dela):

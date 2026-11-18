@@ -6,6 +6,7 @@ import type {
   RegistroDiario,
   SalvarRegistroDiario,
 } from '../packages/contracts/src/diario.ts';
+import { relatoTextualSchema } from '../packages/contracts/src/relato-textual.ts';
 import type { TarefaCuidado } from '../packages/contracts/src/tarefa-cuidado.ts';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 
@@ -82,6 +83,9 @@ export function montarDiario(
   alteracaoPendente: (pendente: boolean) => void = () => {},
   converterEmTarefa?: ConversaoEmTarefa,
   montarEntradaPorAudio?: EntradaPorAudio,
+  /** FR-008: família registra relato (tipo `relato_familiar`, audiência sempre `equipe`),
+   * nunca a síntese de evolução da equipe nem a resposta a um relato. */
+  ehFamilia = false,
 ): () => void {
   let ativa = true;
   let registros: RegistroDiario[] = [];
@@ -119,6 +123,103 @@ export function montarDiario(
     label.append(controle);
     destino.append(label);
     return controle;
+  };
+
+  /** FR-008: relato da família. Audiência é sempre "equipe" — é a coordenação/equipe que
+   * decide ampliar para "equipe e família" ao responder, não quem relata. Sem atenção
+   * sinalizada e sem resposta: isso é vocabulário da equipe, não da família. */
+  const formularioRelatoFamiliar = (aoConcluir: (aviso: string) => void): HTMLFormElement => {
+    const form = elemento('form');
+    form.noValidate = true;
+    form.append(
+      elemento('h3', 'Registrar no diário'),
+      elemento('p', 'Conte o que aconteceu e o que você gostaria de levar à coordenação.'),
+    );
+    const data = campo(form, 'Quando aconteceu? (obrigatória)', elemento('input'));
+    data.type = 'date';
+    const descricao = campo(form, 'O que aconteceu? (obrigatória)', elemento('textarea'));
+    // FR-010: ditar é atalho para preencher a descrição, nunca requisito.
+    let origemConteudo: OrigemConteudoDiario = 'texto';
+    if (montarEntradaPorAudio) {
+      const porAudio = document.createElement('div');
+      porAudio.className = 'diario-entrada-audio';
+      form.append(porAudio);
+      const desmontarAudio = montarEntradaPorAudio(porAudio, (texto) => {
+        descricao.value = texto;
+        origemConteudo = 'audio_transcrito';
+        alteracaoPendente(true);
+        descricao.focus();
+      });
+      desmontesDoFormulario.push(desmontarAudio);
+      descricao.addEventListener('input', () => {
+        if (!descricao.value.trim()) origemConteudo = 'texto';
+      });
+    }
+    const contexto = campo(form, 'O que ajudou? (opcional)', elemento('textarea'));
+    const acao = campo(form, 'Ação tomada (opcional)', elemento('textarea'));
+    const retorno = elemento('input');
+    retorno.type = 'checkbox';
+    campo(form, 'Gostaria de um retorno da coordenação', retorno);
+    const aviso = elemento('p');
+    aviso.setAttribute('role', 'status');
+    aviso.setAttribute('aria-live', 'polite');
+    const rascunho = elemento('button', 'Salvar rascunho');
+    rascunho.type = 'button';
+    const publicar = elemento('button', 'Publicar');
+    publicar.type = 'submit';
+    form.append(aviso, rascunho, publicar);
+    form.addEventListener('input', () => {
+      alteracaoPendente(true);
+      aviso.textContent = '';
+    });
+    const montarConteudo = (): ConteudoRelatoDiario | undefined => {
+      const resultado = relatoTextualSchema.safeParse({
+        dataAcontecimento: data.value,
+        descricao: descricao.value,
+        ...(contexto.value.trim() ? { contexto: contexto.value.trim() } : {}),
+        ...(acao.value.trim() ? { acaoTomada: acao.value.trim() } : {}),
+      });
+      return resultado.success ? resultado.data : undefined;
+    };
+    const enviar = async (estado: 'rascunho' | 'publicado') => {
+      const conteudo = montarConteudo();
+      if (!conteudo) {
+        aviso.textContent = 'Informe quando aconteceu e o que aconteceu.';
+        (data.value ? descricao : data).focus();
+        return;
+      }
+      const controles = [
+        ...form.querySelectorAll<
+          HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLButtonElement
+        >('input, textarea, select, button'),
+      ];
+      for (const controle of controles) controle.disabled = true;
+      try {
+        await gravar({
+          versao_esperada: 0,
+          tipo: 'relato_familiar',
+          estado,
+          audiencia: 'equipe',
+          atencao: false,
+          retorno_solicitado: retorno.checked,
+          origem_conteudo: origemConteudo,
+          conteudo,
+        });
+        alteracaoPendente(false);
+        aoConcluir(estado === 'rascunho' ? 'Rascunho salvo.' : 'Relato enviado à coordenação.');
+      } catch (erro) {
+        if (descartarAcesso(erro)) return;
+        aviso.textContent = mensagemFalha(erro);
+      } finally {
+        for (const controle of controles) controle.disabled = false;
+      }
+    };
+    rascunho.addEventListener('click', () => void enviar('rascunho'));
+    form.addEventListener('submit', (evento) => {
+      evento.preventDefault();
+      void enviar('publicado');
+    });
+    return form;
   };
 
   /** FR-009: modelo curto por área. As áreas vêm da configuração da equipe; quando a leitura
@@ -363,7 +464,11 @@ export function montarDiario(
       confirmacao.setAttribute('role', 'status');
       painel.append(confirmacao);
     }
-    painel.append(formularioEvolucao((texto) => desenhar(texto)));
+    painel.append(
+      ehFamilia
+        ? formularioRelatoFamiliar((texto) => desenhar(texto))
+        : formularioEvolucao((texto) => desenhar(texto)),
+    );
     if (!registros.length) {
       painel.append(elemento('p', 'Nenhum registro no diário deste paciente ainda.'));
       raiz.replaceChildren(painel);
@@ -424,7 +529,11 @@ export function montarDiario(
           });
           artigo.append(retificar);
         }
-      } else if (registro.tipo === 'relato_familiar' && registro.estado !== 'rascunho') {
+      } else if (
+        !ehFamilia &&
+        registro.tipo === 'relato_familiar' &&
+        registro.estado !== 'rascunho'
+      ) {
         const responder = elemento('button', 'Responder');
         responder.type = 'button';
         responder.addEventListener('click', () => {

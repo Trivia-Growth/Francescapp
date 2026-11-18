@@ -29,11 +29,24 @@ export function criarServicoRegrasAtendimentoHttp(
       let fluxo: string | null;
       try {
         modo = sessionStorage.getItem('modo-acesso');
-        fluxo = sessionStorage.getItem(modo === 'tecnica' ? 'fluxo-tecnico' : 'fluxo-google');
+        // Única leitura desta família de serviços HTTP aberta à família (FR-041: "qualquer
+        // sessão autenticada", e o comentário acima promete "profissional, paciente e
+        // familiar") — por isso, diferente das demais, também aceita o fluxo familiar.
+        fluxo = sessionStorage.getItem(
+          modo === 'tecnica'
+            ? 'fluxo-tecnico'
+            : modo === 'familiar'
+              ? 'fluxo-familiar'
+              : 'fluxo-google',
+        );
       } catch {
         throw new FalhaApi('nao_autenticado', 401);
       }
-      if ((modo !== 'google' && modo !== 'tecnica') || !fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo))
+      if (
+        (modo !== 'google' && modo !== 'tecnica' && modo !== 'familiar') ||
+        !fluxo ||
+        !/^[A-Za-z0-9_-]{22}$/.test(fluxo)
+      )
         throw new FalhaApi('nao_autenticado', 401);
       headers.set('x-fluxo', fluxo);
       try {

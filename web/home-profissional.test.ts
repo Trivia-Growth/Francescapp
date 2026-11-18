@@ -94,6 +94,11 @@ it('sem pendência aberta a tela afirma a calma em vez de parecer quebrada', asy
   expect(raiz.querySelector('.home-sereno')).not.toBeNull();
   expect(raiz.querySelectorAll('.home-caso')).toHaveLength(0);
   expect(raiz.textContent).toContain('Você acompanha 1 pessoa.');
+  // Esta leitura não consulta a agenda: não pode afirmar que compromissos estão em dia.
+  expect(raiz.querySelector('.home-apoio')?.textContent).toBe(
+    'Nenhum caso com pendência aberta no seu acesso.',
+  );
+  expect(raiz.textContent).not.toContain('compromisso');
 });
 
 it('caso sem periodicidade acordada aparece, e o texto nega que silêncio seja tranquilidade', async () => {

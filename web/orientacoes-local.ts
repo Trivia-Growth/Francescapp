@@ -1,3 +1,5 @@
+import type { VisibilidadeObjetivo } from '../packages/contracts/src/plano-cuidado.ts';
+
 export type OrientacaoLocal = {
   id: string;
   texto: string;
@@ -6,6 +8,7 @@ export type OrientacaoLocal = {
   destinatarios: string;
   validade: string | null;
   anterior: boolean;
+  visibilidade: VisibilidadeObjetivo;
 };
 
 export function montarOrientacoesLocais(
@@ -14,8 +17,20 @@ export function montarOrientacoesLocais(
     orientacoes: OrientacaoLocal[];
     aoSalvar: (orientacoes: OrientacaoLocal[]) => Promise<void>;
   },
+  ehFamilia = false,
 ): void {
   raiz.replaceChildren();
+  if (ehFamilia) {
+    const lista = document.createElement('ul');
+    if (!dados.orientacoes.length) lista.textContent = 'Nenhuma orientação registrada.';
+    for (const item of dados.orientacoes) {
+      const linha = document.createElement('li');
+      linha.textContent = `${item.anterior ? 'Anterior' : 'Atual'} · ${item.texto} · ${item.autor} · ${item.data} · ${item.destinatarios}${item.validade ? ` · Validade/revisão: ${item.validade}` : ''}`;
+      lista.append(linha);
+    }
+    raiz.append(lista);
+    return;
+  }
   const formulario = document.createElement('form');
   const campo = (rotulo: string, tipo: 'textarea' | 'text' | 'date', obrigatorio = true) => {
     const label = document.createElement('label');
@@ -34,6 +49,20 @@ export function montarOrientacoesLocais(
   const data = campo('Data', 'date');
   const destinatarios = campo('Destinatários', 'text');
   const validade = campo('Validade ou revisão (opcional)', 'date', false);
+  const labelVisibilidade = document.createElement('label');
+  labelVisibilidade.textContent = 'Visibilidade para a família';
+  const visibilidade = document.createElement('select');
+  for (const [valor, rotulo] of [
+    ['interna', 'Interna (só a equipe vê)'],
+    ['publica', 'Pública (a família também vê)'],
+  ] as const) {
+    const opcao = document.createElement('option');
+    opcao.value = valor;
+    opcao.textContent = rotulo;
+    visibilidade.append(opcao);
+  }
+  labelVisibilidade.append(visibilidade);
+  formulario.append(labelVisibilidade);
   const botao = document.createElement('button');
   botao.type = 'submit';
   botao.textContent = 'Registrar orientação';
@@ -47,7 +76,7 @@ export function montarOrientacoesLocais(
   const lista = document.createElement('ul');
   let substituindo: string | null = null;
   let salvando = false;
-  const controles = [texto, autor, data, destinatarios, validade, botao, cancelar];
+  const controles = [texto, autor, data, destinatarios, validade, visibilidade, botao, cancelar];
   const limpar = () => {
     formulario.reset();
     substituindo = null;
@@ -64,7 +93,8 @@ export function montarOrientacoesLocais(
     for (const item of dados.orientacoes) {
       const linha = document.createElement('li');
       const descricao = document.createElement('span');
-      descricao.textContent = `${item.anterior ? 'Anterior' : 'Atual'} · ${item.texto} · ${item.autor} · ${item.data} · ${item.destinatarios}${item.validade ? ` · Validade/revisão: ${item.validade}` : ''}`;
+      const rotuloVisibilidade = item.visibilidade === 'publica' ? 'Pública' : 'Interna';
+      descricao.textContent = `${item.anterior ? 'Anterior' : 'Atual'} · ${item.texto} · ${item.autor} · ${item.data} · ${item.destinatarios}${item.validade ? ` · Validade/revisão: ${item.validade}` : ''} · ${rotuloVisibilidade}`;
       linha.append(descricao);
       if (!item.anterior) {
         const substituir = document.createElement('button');
@@ -83,6 +113,7 @@ export function montarOrientacoesLocais(
           data.value = item.data;
           destinatarios.value = item.destinatarios;
           validade.value = item.validade ?? '';
+          visibilidade.value = item.visibilidade;
           cancelar.hidden = false;
           botao.textContent = 'Salvar nova versão';
           texto.focus();
@@ -107,6 +138,7 @@ export function montarOrientacoesLocais(
       destinatarios: destinatarios.value.trim(),
       validade: validade.value || null,
       anterior: false,
+      visibilidade: visibilidade.value === 'publica' ? 'publica' : 'interna',
     };
     const proximas = [
       ...dados.orientacoes.map((item) =>
