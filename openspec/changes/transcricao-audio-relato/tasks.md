@@ -177,6 +177,25 @@
   Evidência: job criado em migração, teste cobrindo áudio vencido apagado com aviso
   registrado, áudio dentro do prazo preservado, e falha de expurgo virando pendência
   explícita em vez de descarte presumido.
+**Aviso administrativo preparado em 18/11/2026 (P2):** migration aditiva
+`20261125070000_audio_expurgo_aviso_admin.sql` expõe somente flag ativa e último recibo
+(data, falhas, apagados), sem identificadores de áudio/pessoa, conteúdo, causa bruta ou segredo.
+Consulta própria `api.consultar_expurgo_audio`, com atestado vinculado à operação,
+autorização Admin/sessão e auditoria; nenhuma permissão para executar limpeza. Reusa owner
+e controles Admin existentes. BFF existente atende GET `?operacao=expurgo`; tela Integrações
+mostra pendência operacional, última execução, ausência de recibo e flag desligada honestamente.
+Leitura não ativa flag nem executa job. `scripts/testar-audio-expurgo-aviso-admin-local.sh`:
+exit 0 / `AUDIO_EXPURGO_AVISO_ADMIN_OK`, PostgreSQL descartável, Admin positivo,
+Profissional/Família e Admin revogado negativos, recibo direto e RPC sem atestado negados. UI: 2 testes;
+BFF/entrada: 11 testes focais, todos aprovados. Lint/typecheck em `verificar:rapido` conferidos.
+Revisão SPEC P2 corrigida: migration preserva membership preexistente (concedente/opções)
+e CREATE preexistente no schema; remove somente concessões temporárias próprias.
+Prova focal com migrador NOSUPERUSER, sem SET/CREATE prévios e com SET/CREATE prévios,
+compara snapshot integral de pg_auth_members e ACL do schema antes/depois: exit 0 /
+`AUDIO_EXPURGO_AVISO_ADMIN_OK`. Sem TypeScript alterado nesta correção; quick não repetido.
+Sem aplicação dessa migration, prova UI real, scheduler remoto ou ativação funcional remota;
+6.1 permanece aberta até revisão independente e evidência remota autorizada.
+
 - [ ] 6.2 Estado `falha` da exclusão não é alcançável nesta fatia. Ver `design.md`, seção
   "Estado `falha` da exclusão". O que o requisito exige de fato — não apresentar
   indisponibilidade como descarte concluído — está coberto por `pendente`, provado no SQL e

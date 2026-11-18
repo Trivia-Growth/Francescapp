@@ -28,7 +28,12 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-it.each(['profissional', 'familia'])('servidor nega %s antes do Vault', async (perfil) => {
+it.each([
+  ['profissional', 'listar'],
+  ['familia', 'listar'],
+  ['profissional', 'expurgo'],
+  ['familia', 'expurgo'],
+] as const)('servidor nega %s em %s antes do Vault', async (perfil, operacao) => {
   mocks.rpc.mockResolvedValue({
     data: {
       session_id: sessao,
@@ -41,7 +46,7 @@ it.each(['profissional', 'familia'])('servidor nega %s antes do Vault', async (p
     new Request('https://app.example.test/api/admin/segredos-integracoes', {
       headers: { 'x-sessao': sessao },
     }),
-    { operacao: 'listar' },
+    { operacao },
     dependencias,
   );
   expect(resultado).toMatchObject({ ok: false, erro: { codigo: 'sem_permissao' } });
@@ -139,4 +144,36 @@ it('nega resposta que tentaria devolver valor; não repassa exceção nem corpo'
   const resultado = await operarSegredosIntegracoesNativo(request(), comando, p);
   expect(resultado).toMatchObject({ ok: false, erro: { codigo: 'pendencia_externa' } });
   expect(JSON.stringify(resultado)).not.toContain(comando.valor);
+});
+
+it('consulta expurgo com propósito atestado próprio e revalida sessão', async () => {
+  const revalidar = vi.fn(autorizado);
+  const executar = vi.fn(
+    async (
+      _request: Request,
+      transporte: { p_transporte: { entrada: Record<string, unknown> } },
+    ) => ({
+      ok: true,
+      request_id: transporte.p_transporte.entrada.request_id,
+      dados: {
+        ativo: false,
+        ultima_execucao: { executado_em: '2026-11-18T12:00:00Z', falhas: 2, apagados: 0 },
+      },
+    }),
+  );
+  const resultado = await operarSegredosIntegracoesNativo(
+    new Request('https://app.example.test/api/admin/segredos-integracoes?operacao=expurgo', {
+      headers: { 'x-sessao': sessao },
+    }),
+    { operacao: 'expurgo' },
+    { ...portas(), executar, revalidar },
+  );
+  expect(resultado).toMatchObject({
+    ok: true,
+    dados: { ativo: false, ultima_execucao: { falhas: 2 } },
+  });
+  expect(executar.mock.calls[0]?.[1].p_transporte.entrada.atestado).toMatchObject({
+    operacao: 'api.consultar_expurgo_audio',
+  });
+  expect(revalidar).toHaveBeenCalledOnce();
 });

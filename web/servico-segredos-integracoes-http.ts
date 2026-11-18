@@ -1,6 +1,7 @@
 import { contratosSegredos as contratosRotas } from '../packages/contracts/src/segredos-integracoes.ts';
 import type {
   SegredosIntegracoes,
+  EstadoExpurgoAudio,
   ValorSegredo,
 } from '../packages/contracts/src/segredos-integracoes.ts';
 import {
@@ -15,6 +16,7 @@ type Identidade = { usuario_id: string; session_id: string };
 
 export type ServicoSegredosIntegracoes = {
   listar(): Promise<SegredosIntegracoes[]>;
+  consultarExpurgo?(): Promise<EstadoExpurgoAudio>;
   gravar(entrada: {
     segredo_chave: string;
     valor: ValorSegredo;
@@ -30,6 +32,7 @@ export function criarServicoSegredosIntegracoesHttp(
   if (!identidade) throw new FalhaApi('nao_autenticado', 401);
   const enviar = async (
     rota:
+      | typeof contratosRotas.consultarExpurgoAudio
       | typeof contratosRotas.listarSegredosIntegracoes
       | typeof contratosRotas.gravarSegredosIntegracoes,
     entrada: unknown,
@@ -95,6 +98,8 @@ export function criarServicoSegredosIntegracoesHttp(
     }
   };
   return {
+    consultarExpurgo: async () =>
+      (await enviar(contratosRotas.consultarExpurgoAudio, {})) as EstadoExpurgoAudio,
     listar: async () =>
       (await enviar(contratosRotas.listarSegredosIntegracoes, {})) as SegredosIntegracoes[],
     gravar: async (entrada) =>

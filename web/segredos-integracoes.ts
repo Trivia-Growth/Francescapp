@@ -30,9 +30,29 @@ export function montarSegredosIntegracoes(
   const recarregar = document.createElement('button');
   recarregar.type = 'button';
   recarregar.className = 'button-secondary';
-  recarregar.textContent = 'Recarregar credenciais';
+  recarregar.textContent = 'Recarregar integrações';
   secao.append(titulo, explicacao, status, lista, recarregar);
+  const tituloExpurgo = document.createElement('h2');
+  tituloExpurgo.textContent = 'Descarte de áudios abandonados';
+  const avisoExpurgo = document.createElement('p');
+  avisoExpurgo.setAttribute('role', 'status');
+  avisoExpurgo.setAttribute('aria-live', 'polite');
+  secao.append(tituloExpurgo, avisoExpurgo);
   raiz.replaceChildren(secao);
+  const carregarExpurgo = async () => {
+    if (!servico.consultarExpurgo) return;
+    avisoExpurgo.textContent = 'Consultando descarte automático…';
+    try {
+      const estado = await servico.consultarExpurgo();
+      if (!ativa) return;
+      const ultima = estado.ultima_execucao;
+      avisoExpurgo.textContent = `${estado.ativo ? 'Descarte automático habilitado.' : 'Descarte automático desligado.'} ${ultima ? `Última execução em ${new Date(ultima.executado_em).toLocaleString('pt-BR')}. ${ultima.falhas > 0 ? `Pendência operacional: ${ultima.falhas} descartes falharam. Solicite verificação à equipe responsável.` : 'Nenhuma falha registrada nessa execução.'}` : 'Nenhuma execução registrada.'}`;
+    } catch {
+      if (ativa)
+        avisoExpurgo.textContent =
+          'Não foi possível consultar o descarte. Recarregue para tentar novamente.';
+    }
+  };
 
   const desenhar = (itens: SegredosIntegracoes[]) => {
     lista.replaceChildren();
@@ -98,6 +118,7 @@ export function montarSegredosIntegracoes(
     }
   };
   const carregar = async (mensagem = 'Carregando credenciais…') => {
+    void carregarExpurgo();
     status.textContent = mensagem;
     recarregar.disabled = true;
     lista.setAttribute('aria-busy', 'true');

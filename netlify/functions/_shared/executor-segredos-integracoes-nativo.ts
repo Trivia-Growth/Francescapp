@@ -9,7 +9,16 @@ export async function executarSegredosIntegracoesNativo(
   transporte: Transporte,
 ): Promise<unknown> {
   try {
-    const resultado = await cliente.schema('api').rpc('segredos_integracoes_privado', transporte);
+    const resultado = await cliente
+      .schema('api')
+      .rpc(
+        transporte.p_transporte.entrada.atestado &&
+          (transporte.p_transporte.entrada.atestado as { operacao?: string }).operacao ===
+            'api.consultar_expurgo_audio'
+          ? 'consultar_expurgo_audio'
+          : 'segredos_integracoes_privado',
+        transporte,
+      );
     if (resultado.error) throw new Error();
     return resultado.data;
   } catch {

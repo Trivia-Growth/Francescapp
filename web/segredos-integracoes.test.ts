@@ -40,3 +40,18 @@ it('envia uma vez, limpa campo imediatamente e mostra somente metadados', async 
   desmontar();
   expect(raiz.childElementCount).toBe(0);
 });
+
+it('avisa falha operacional mesmo com descarte desligado, sem conteúdo privado', async () => {
+  const raiz = document.createElement('div');
+  montarSegredosIntegracoes(raiz, {
+    listar: vi.fn().mockResolvedValue([]),
+    gravar: vi.fn(),
+    consultarExpurgo: vi.fn().mockResolvedValue({
+      ativo: false,
+      ultima_execucao: { executado_em: '2026-11-18T12:00:00Z', falhas: 2, apagados: 0 },
+    }),
+  });
+  await vi.waitFor(() => expect(raiz.textContent).toContain('2 descartes falharam'));
+  expect(raiz.textContent).toContain('Descarte automático desligado');
+  expect(raiz.querySelectorAll('button').length).toBe(1);
+});

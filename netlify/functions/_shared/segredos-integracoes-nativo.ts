@@ -1,6 +1,8 @@
 import { chaveIdempotenciaSchema, uuidSchema } from '../../../packages/contracts/src/comum.ts';
 import {
   respostaSegredosIntegracoesPrivadaSchema,
+  estadoExpurgoAudioSchema,
+  segredosIntegracoesSchema,
   valorSegredoSchema,
 } from '../../../packages/contracts/src/segredos-integracoes.ts';
 import {
@@ -13,7 +15,7 @@ type Autorizacao =
   | { estado: 'autorizado'; identidade: Identidade }
   | { estado: 'nao_autenticado' | 'sem_permissao' | 'servico_indisponivel' };
 type Comando =
-  | { operacao: 'listar' }
+  | { operacao: 'listar' | 'expurgo' }
   | {
       operacao: 'gravar';
       segredo_chave: string;
@@ -68,7 +70,11 @@ export async function operarSegredosIntegracoesNativo(
   let iniciada = false;
   try {
     if (request.signal.aborted) return erro('servico_indisponivel');
-    if (comando.operacao !== 'listar' && comando.operacao !== 'gravar')
+    if (
+      comando.operacao !== 'listar' &&
+      comando.operacao !== 'gravar' &&
+      comando.operacao !== 'expurgo'
+    )
       return erro('entrada_invalida');
     let chaveConfiguracao: string | undefined;
     let valor: unknown;
@@ -125,9 +131,11 @@ export async function operarSegredosIntegracoesNativo(
       ...portas.metadados(requestId),
       ...identidade,
       operacao:
-        comando.operacao === 'listar'
-          ? 'api.listar_segredos_integracoes'
-          : 'api.gravar_segredos_integracoes',
+        comando.operacao === 'expurgo'
+          ? 'api.consultar_expurgo_audio'
+          : comando.operacao === 'listar'
+            ? 'api.listar_segredos_integracoes'
+            : 'api.gravar_segredos_integracoes',
     });
     if (metadados.request_id !== requestId) throw new Error();
     const prova = resultadoAtestacaoSchema.parse(
@@ -161,12 +169,13 @@ export async function operarSegredosIntegracoesNativo(
             ? 'conflito_idempotencia'
             : 'sem_permissao',
       );
-    if ((comando.operacao === 'listar') !== Array.isArray(resposta.dados)) throw new Error();
+    if (comando.operacao === 'expurgo') estadoExpurgoAudioSchema.parse(resposta.dados);
+    else if ((comando.operacao === 'listar') !== Array.isArray(resposta.dados)) throw new Error();
     if (
       comando.operacao === 'gravar' &&
       !Array.isArray(resposta.dados) &&
-      (resposta.dados.chave !== chaveConfiguracao ||
-        resposta.dados.versao !== comando.versao_esperada + 1)
+      (segredosIntegracoesSchema.parse(resposta.dados).chave !== chaveConfiguracao ||
+        segredosIntegracoesSchema.parse(resposta.dados).versao !== comando.versao_esperada + 1)
     )
       throw new Error();
     const atual = await portas.revalidar(request);

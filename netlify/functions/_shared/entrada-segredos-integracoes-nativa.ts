@@ -29,14 +29,14 @@ export function criarEntradaSegredosIntegracoesNativa(dependencias: Dependencias
         url.pathname !== '/api/admin/segredos-integracoes' ||
         (request.method !== 'GET' && request.method !== 'POST') ||
         url.hash ||
-        (request.method === 'GET' && url.search)
+        (url.search !== '' && !(request.method === 'GET' && url.search === '?operacao=expurgo'))
       )
         return erro('nao_encontrado');
       if (!uuidSchema.safeParse(request.headers.get('x-sessao')).success)
         return erro('nao_autenticado');
       let comando: Parameters<typeof comporSegredosIntegracoesNativo>[1];
       if (request.method === 'GET') {
-        comando = { operacao: 'listar' };
+        comando = { operacao: url.search ? 'expurgo' : 'listar' };
       } else {
         // x-chave-idempotencia flui até virar chave_idempotencia na entrada da RPC,
         // comparada no banco a cada replay (ver operacao.segredos_integracoes_operacao_privada).
@@ -106,7 +106,9 @@ export function criarEntradaSegredosIntegracoesNativa(dependencias: Dependencias
         if (!resultado.ok) return erro(resultado.erro.codigo, resultado.request_id);
         const schema =
           request.method === 'GET'
-            ? contratosRotas.listarSegredosIntegracoes.saida
+            ? url.search
+              ? contratosRotas.consultarExpurgoAudio.saida
+              : contratosRotas.listarSegredosIntegracoes.saida
             : contratosRotas.gravarSegredosIntegracoes.saida;
         const dados = schema.parse(resultado.dados);
         return Response.json({ dados, request_id: resultado.request_id }, { headers });
