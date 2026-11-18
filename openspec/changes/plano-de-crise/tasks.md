@@ -146,7 +146,7 @@
   **Pendente:** exige autorização explícita para operação remota; não executada.
 - [x] 7.2 (17/11/2026) Aprovador do plano de crise: **o case manager do caso**. Registrar essa habilitação antes do primeiro plano.
 
-  Ressalva registrada, não bloqueio: FR-020 fala em profissional habilitado, e aprovação de plano de crise é ato clínico que o case manager pode não exercer. A decisão vale; se a Edilaine apontar que o aprovador deve ser outro profissional, é troca de quem recebe a habilitação, não mudança de esquema. Evidência: habilitação registrada e teste negativo provando que quem não é case manager do caso não aprova, inclusive por acesso direto
+  Fundamento registrado como **DF-021** em `docs/projeto/fundacao.md` na mesma data: o case manager designado é o **líder do caso** e detém a alçada de aprovação do que o caso exige. A ressalva anterior sobre FR-020 falar em "profissional habilitado" fica resolvida assim — a habilitação é concedida ao case manager do caso, de forma administrável, nunca fixa em código. Evidência: habilitação registrada e teste negativo provando que quem não é case manager do caso não aprova, inclusive por acesso direto
   real.
   **Pendente:** enquanto ninguém estiver marcado, nenhum plano pode ser aprovado — por
   desenho.
