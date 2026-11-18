@@ -102,7 +102,7 @@ export function montarPlanoCrise(
     const aprovacao = resultado?.aprovacao ?? null;
     if (!resultado) situacao.textContent = 'Nenhum plano de crise registrado ainda.';
     else if (!aprovacao)
-      situacao.textContent = `Versão ${resultado.versao} ainda sem aprovação do profissional habilitado.`;
+      situacao.textContent = `Versão ${resultado.versao} ainda sem aprovação do case manager habilitado.`;
     else {
       const quando = instanteLegivel(aprovacao.aprovado_em);
       situacao.textContent = quando
@@ -266,7 +266,7 @@ export function montarPlanoCrise(
     aprovar.hidden = !resultado || aprovacao !== null;
     const explicacaoAprovacao = elemento(
       'p',
-      'Só profissional com habilitação registrada pela administração aprova o plano de crise.',
+      'Só o case manager atual deste caso, com habilitação registrada pela administração e acesso ativo, aprova o plano de crise.',
     );
     explicacaoAprovacao.className = 'plano-crise__explicacao';
     form.append(salvar, retry, aprovar, explicacaoAprovacao, aviso);
@@ -393,7 +393,7 @@ export function montarPlanoCrise(
           if (!naoHabilitado && descartarAcesso(erro)) return;
           bloquear(false);
           aviso.textContent = naoHabilitado
-            ? 'Sua conta não tem habilitação para aprovar plano de crise. Peça à administração para registrar a habilitação.'
+            ? 'Aprovação exige ser o case manager atual deste caso, ter acesso ativo e habilitação registrada. Confira com a administração.'
             : erro instanceof FalhaApi && erro.codigo === 'conflito_versao'
               ? 'O plano mudou desde que esta tela carregou. Recarregue e confira o texto antes de aprovar.'
               : mensagemFalha(erro);

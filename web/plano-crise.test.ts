@@ -31,7 +31,7 @@ it('mostra sempre os dois avisos exigidos e a falta de aprovação', async () =>
   // Texto fixo do requisito: não depende do que foi digitado e não pode sumir da tela.
   expect(raiz.textContent).toContain('diário não garante resposta imediata');
   expect(raiz.textContent).toContain('não emite conduta clínica');
-  expect(raiz.textContent).toContain('ainda sem aprovação do profissional habilitado');
+  expect(raiz.textContent).toContain('ainda sem aprovação do case manager habilitado');
 });
 
 it('aprovar usa a versão lida e explica a recusa de quem não tem habilitação', async () => {
@@ -48,7 +48,9 @@ it('aprovar usa a versão lida e explica a recusa de quem não tem habilitação
   botao.click();
   await vi.waitFor(() => expect(aprovar).toHaveBeenCalledWith(paciente, plano.registro_id, 1));
   await vi.waitFor(() =>
-    expect(raiz.textContent).toContain('não tem habilitação para aprovar plano de crise'),
+    expect(raiz.textContent).toContain(
+      'Aprovação exige ser o case manager atual deste caso, ter acesso ativo e habilitação registrada. Confira com a administração.',
+    ),
   );
   expect(acessoPerdido).not.toHaveBeenCalled();
 });
@@ -76,7 +78,7 @@ it('plano aprovado avisa que editar exige nova aprovação', async () => {
   expect(aprovar.hidden).toBe(true);
 });
 
-it('marca de habilitação só é oferecida para profissional com acesso ativo', async () => {
+it('habilitação permite administrador e profissional ativos sem prometer alçada global', async () => {
   const raiz = document.createElement('div');
   const itens = [
     {
@@ -102,8 +104,8 @@ it('marca de habilitação só é oferecida para profissional com acesso ativo',
   montarHabilitacaoPlanoCrise(raiz, { listar: vi.fn(async () => itens), gravar });
   await vi.waitFor(() => expect(raiz.textContent).toContain('equipe.ficticia@example.test'));
   const caixas = [...raiz.querySelectorAll('input[type="checkbox"]')] as HTMLInputElement[];
-  expect(caixas[0]?.disabled).toBe(true);
-  expect(raiz.textContent).toContain('A coordenação não aprova plano de crise.');
+  expect(caixas[0]?.disabled).toBe(false);
+  expect(raiz.textContent).toContain('case manager atual do caso');
   expect(caixas[1]?.disabled).toBe(false);
   caixas[1].checked = true;
   (raiz.querySelectorAll('form')[1] as HTMLFormElement).dispatchEvent(

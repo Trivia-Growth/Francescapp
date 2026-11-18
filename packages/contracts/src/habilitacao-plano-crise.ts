@@ -6,10 +6,9 @@ import { campoCifradoSchema } from './rpc.ts';
  * preenchida pela administração na tela e nunca por constante no código
  * (decisão do solicitante de 11/11/2026: o que é variável se preenche no front e fica no banco).
  *
- * A marca só faz sentido para concessão de perfil `profissional` e estado `vinculada`:
- * a coordenação (administrador) organiza o cuidado, mas FR-020 diz que a case manager não
- * emite conduta clínica por assumir a coordenação. O banco recusa a marca nos demais casos;
- * este contrato só descreve o transporte. */
+ * DF-021: Administrador ou Profissional pode receber habilitação explícita; aprovar
+ * exige também ser o case manager atual do caso. Perfil ou marca isolados não dão alçada.
+ * O banco exige concessão vinculada; este contrato descreve somente o transporte. */
 const versaoHabilitacaoSchema = z.number().int().min(0).max(2_147_483_647);
 
 export const itemHabilitacaoSchema = z

@@ -20,7 +20,7 @@ emite conduta clínica por assumir a coordenação) não apareciam em lugar nenh
 
 - Novas colunas em `identidade.concessao_equipe`: `habilitado_plano_crise`,
   `habilitacao_versao`, `habilitacao_por_usuario_id` e `habilitacao_em`, com CHECK que
-  impede marcar concessão de administrador.
+  permite Administrador e Profissional, conforme DF-021.
 - Nova operação administrativa `api.habilitacao_plano_crise_privado(jsonb)` sob owner
   dedicado `ffcmapp_habilitacao_crise_owner`, que lista a equipe e grava a marca. Só
   administrador passa, pelo mesmo bloco de autorização já usado em
@@ -30,7 +30,7 @@ emite conduta clínica por assumir a coordenação) não apareciam em lugar nenh
   autorizou.
 - Nova operação `api.plano_crise_operacao_privada(jsonb)` sob owner dedicado
   `ffcmapp_plano_crise_owner`, com três ações: ler, gravar e aprovar. Aprovar exige
-  perfil `profissional` **e** a marca na concessão, lida sob trava na mesma transação.
+  perfil Administrador ou Profissional, marca explícita na concessão e ser o **case manager atual do caso** (DF-021). Concessão e paciente ficam travados na mesma transação; ausência de responsável recusa aprovação.
 - Rotas HTTP `GET`/`PATCH /api/pacientes/:paciente_id/plano-crise`,
   `POST /api/pacientes/:paciente_id/plano-crise/aprovacao` e
   `GET`/`POST /api/admin/habilitacao-plano-crise`, todas atrás da flag
@@ -47,3 +47,10 @@ emite conduta clínica por assumir a coordenação) não apareciam em lugar nenh
 - Qualquer notificação ou lembrete na data de revisão. A tela mostra a data e avisa
   quando está vencida; agenda e notificação são outras fatias.
 - Ativação remota: migrations não aplicadas, flag não ligada, nada comitado.
+
+## Ajuste confirmado em 17/11/2026 — DF-021
+
+A habilitação clínica permanece administrável e não cria acesso nem alçada global.
+O case manager atual do caso aprova, inclusive quando seu perfil é Administrador,
+como Edilaine; administrar a equipe sozinho não concede aprovação. Migração aditiva
+`20261125040000_plano_crise_case_manager_atual.sql`, sem backfill ou alteração de dados.

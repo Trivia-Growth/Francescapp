@@ -148,5 +148,15 @@
 
   Fundamento registrado como **DF-021** em `docs/projeto/fundacao.md` na mesma data: o case manager designado é o **líder do caso** e detém a alçada de aprovação do que o caso exige. A ressalva anterior sobre FR-020 falar em "profissional habilitado" fica resolvida assim — a habilitação é concedida ao case manager do caso, de forma administrável, nunca fixa em código. Evidência: habilitação registrada e teste negativo provando que quem não é case manager do caso não aprova, inclusive por acesso direto
   real.
-  **Pendente:** enquanto ninguém estiver marcado, nenhum plano pode ser aprovado — por
-  desenho.
+  **Implementação local (18/11/2026):** migration aditiva
+  `20261125040000_plano_crise_case_manager_atual.sql` exige responsável atual após trava
+  do paciente e antes de replay, com defesa RLS no INSERT. Administrador e Profissional
+  habilitáveis; perfil, marca ou liderança isolados não bastam. Nenhum dado alterado por backfill.
+  **Evidência local:** `rtk proxy sh scripts/testar-plano-crise-case-manager-local.sh`, saída 0;
+  aprovações positivas para ambos os perfis habilitados e responsáveis; negativas para
+  habilitado fora do caso, Administrador sem marca/não responsável, Família, sessão
+  encerrada, habilitação retirada, responsável removido, replay após troca e INSERT direto.
+  Carimbos anteriores preservados. `web/plano-crise.test.ts`: 4 testes passam.
+  **Pendente operacional:** registrar habilitações reais antes do primeiro plano exige
+  operação autorizada no ambiente. Nenhuma criada neste trabalho. Revisão independente,
+  ativação e teste remoto continuam pendentes; fixture Auth não comprova integração real.

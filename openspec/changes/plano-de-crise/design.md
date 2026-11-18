@@ -25,14 +25,21 @@ nova de aprovadores:
 desmarcar não pode interferir no versionamento do ciclo de vida da concessão (criação,
 vínculo, revogação), nem o contrário.
 
-O CHECK `concessao_habilitacao_perfil_chk` cobre só o perfil, não o estado. FR-020 diz
-que a case manager não emite conduta clínica por assumir a coordenação, então
-administrador nunca recebe a marca — isso é invariante e vale no banco. Já exigir
-`estado = 'vinculada'` no CHECK quebraria a revogação de uma concessão marcada: o
-`update` que revoga falharia. O estado é exigido onde ele é decisão, não invariante: ao
-**marcar** (na operação) e ao **aprovar** (no bloco de autorização, que já exige
-concessão vinculada). Desmarcar continua possível em qualquer estado, para que retirar
-uma habilitação nunca fique travado.
+DF-021 (17/11/2026) esclarece a alçada: o case manager atual do caso recebe
+habilitação explícita. Pode ter perfil Administrador ou Profissional; ser administrador
+não basta. A interpretação anterior que excluía Administrador foi substituída pela
+migration aditiva `20261125040000_plano_crise_case_manager_atual.sql` no CHECK,
+na operação de habilitação e na aprovação. Não há concessão automática nem backfill.
+O CHECK cobre perfil; `estado = 'vinculada'` é exigido ao marcar e aprovar, permitindo
+revogar concessões já habilitadas. Desmarcar continua possível em qualquer estado.
+
+A aprovação consulta o último retrato de `cadastro.acompanhamento_caso` por versão,
+com igualdade entre `responsavel_usuario_id` e ator autenticado. Sem retrato ou com
+responsável nulo, recusa. A consulta ocorre **após** a trava `FOR UPDATE` do paciente,
+a mesma trava usada por `operacao.editar_paciente_privado` ao trocar responsável;
+vale também antes de devolver replay. Policy restritiva de INSERT exige a mesma
+liderança atual, além da policy de identidade/concessão existente. O owner recebe só
+SELECT de paciente, versão e responsável no histórico, filtrado pelo acesso ao paciente.
 
 ## Aprovação é carimbo preso à versão
 
@@ -66,7 +73,7 @@ Como `for share`/`for update` exigem privilégio de UPDATE além do de SELECT no
 PostgreSQL, cada tabela travada recebe `update` de uma coluna inócua acompanhado de uma
 policy `_lock` com `using (true) with check (false)`. A exceção é
 `identidade.concessao_equipe` no owner da habilitação, que precisa de UPDATE real — daí
-o grant por coluna e a policy que recusa marcar quem não é profissional.
+o grant por coluna e a policy que só aceita habilitação para Administrador ou Profissional.
 
 ## `sem_permissao` na aprovação não derruba a ficha
 
@@ -80,7 +87,7 @@ comportamento.
 
 A tela não esconde o botão de aprovar para quem não tem a marca: a sessão não carrega
 essa informação, e esconder controle não é autorização. Ela mostra o botão, diz em texto
-que só profissional habilitado aprova, e explica a recusa quando ela vem do servidor.
+que só case manager atual e habilitado aprova, e explica a recusa quando ela vem do servidor.
 
 ## Avisos obrigatórios são texto fixo
 
@@ -88,3 +95,24 @@ As duas frases exigidas pelo FR-020 — o diário não garante resposta imediata
 manager não emite conduta clínica por assumir a coordenação — são constantes da tela, não
 campos do plano. Não dependem do que alguém digitou e não podem ser apagadas por engano
 ao editar o plano. `web/plano-crise.test.ts` falha se alguma sumir.
+
+## Recorte de ameaças e evidências — DF-021
+
+Escopo: integridade do carimbo de crise; navegador/HTTP não confiáveis, servidor que
+assina atestado e RPC PostgreSQL com owner dedicado/RLS. Ator autenticado pode tentar
+RPC diretamente ou reenviar pedido antigo, mas não recebe o papel owner nem a chave de
+assinatura. Não inclui migração remota ou validação do provedor Auth real.
+
+- **Alta:** colaborador habilitado globalmente aprovar caso liderado por outra pessoa.
+  Mitigação implementada: responsável atual após trava do paciente + INSERT RLS restritivo.
+- **Alta:** antigo titular repetir pedido após troca/revogação. Mitigação implementada:
+  revalidar liderança antes de idempotência e manter concessão/sessão/habilitação vigentes.
+- **Alta:** confundir liderança administrativa com alçada clínica. Mitigação implementada:
+  habilitação explícita e liderança do caso cumulativas, para ambos os perfis.
+
+Suposição conservadora: o último retrato por versão é fonte vigente; ausência/nulo não
+restaura titular anterior. DF-021 confirma negócio; nenhuma habilitação real é inventada.
+`supabase/tests/plano_crise_case_manager_local.sql` prova wrappers como `authenticated`,
+INSERT direto negado, RLS sob owner, troca, falta de habilitação, sessão encerrada,
+Família e preservação dos carimbos. A serialização usa a trava já existente da edição;
+este teste não exercita duas transações concorrentes. Integração remota segue pendente.

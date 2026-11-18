@@ -16,7 +16,7 @@ const ESTADOS: Record<ItemHabilitacao['estado'], string> = {
  * aprovar plano de crise. A marca fica no banco, presa à concessão de acesso da pessoa:
  * não é constante no código nem variável de ambiente.
  *
- * Marcar aqui não dá acesso a nada além de aprovar o plano de crise, e quem aprova
+ * Marcar aqui não concede acesso a casos nem alçada fora do caso liderado, e quem aprova
  * continua sendo verificado no servidor e no banco a cada aprovação. */
 export function montarHabilitacaoPlanoCrise(
   raiz: HTMLElement,
@@ -30,7 +30,7 @@ export function montarHabilitacaoPlanoCrise(
   const explicacao = document.createElement('p');
   explicacao.className = 'habilitacao-crise__explicacao';
   explicacao.textContent =
-    'Só quem estiver marcado aqui pode aprovar o plano de crise de um paciente. A marca vale para profissionais com acesso ativo; a coordenação organiza o cuidado, mas não aprova conduta clínica.';
+    'Aprova o plano de crise quem estiver habilitado aqui e for o case manager atual do caso. Administradores e profissionais com acesso ativo podem receber a habilitação; o perfil sozinho não permite aprovar.';
   const status = document.createElement('p');
   status.className = 'habilitacao-crise__status';
   status.setAttribute('role', 'status');
@@ -62,9 +62,9 @@ export function montarHabilitacaoPlanoCrise(
       caixa.type = 'checkbox';
       caixa.id = identificador;
       caixa.checked = item.habilitado;
-      // Marcar exige profissional com acesso ativo; desmarcar continua possível sempre,
+      // Marcar exige colaborador com acesso ativo; desmarcar continua possível sempre,
       // para que retirar a habilitação de alguém nunca fique travado.
-      const podeMarcar = item.perfil === 'profissional' && item.estado === 'vinculada';
+      const podeMarcar = item.estado === 'vinculada';
       caixa.disabled = !podeMarcar && !item.habilitado;
       const rotulo = document.createElement('label');
       rotulo.className = 'habilitacao-crise__rotulo';
@@ -76,11 +76,7 @@ export function montarHabilitacaoPlanoCrise(
       const ajuda = document.createElement('p');
       ajuda.className = 'habilitacao-crise__ajuda';
       ajuda.id = `${identificador}-ajuda`;
-      if (!podeMarcar)
-        ajuda.textContent =
-          item.perfil === 'administrador'
-            ? 'A coordenação não aprova plano de crise.'
-            : 'Só quem tem acesso ativo pode ser habilitado.';
+      if (!podeMarcar) ajuda.textContent = 'Só quem tem acesso ativo pode ser habilitado.';
       if (ajuda.textContent) caixa.setAttribute('aria-describedby', ajuda.id);
       const salvar = document.createElement('button');
       salvar.type = 'submit';
