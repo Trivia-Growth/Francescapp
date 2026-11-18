@@ -26,7 +26,7 @@ Esta preparação não autoriza migração remota nem transforma o domínio em p
 
 - [x] (17/11/2026) Seções, campos e critérios de pendência **derivados de FR-004 e FR-005**: histórico de saúde, avaliações e diagnósticos ou hipóteses com origem e data; rotina, recursos, barreiras, preferências, pontos fortes e o que a pessoa quer. Pendência é campo sem estado escolhido entre informado, desconhecido, não se aplica e pendente. A proposta concreta de seções e campos é apresentada ao solicitante para validação **antes** de implementar, não depois.
 - [x] ~~Decisão provisória: colaboradores com concessão vigente consultam e editam qualquer anamnese sem vínculo individual.~~ **Substituída em 17/11/2026.**
-- [ ] **Regra definitiva de acesso (17/11/2026): exigir vínculo ativo com o caso** para ler e editar a anamnese daquele paciente. Familiares continuam sem acesso por inferência.
+- [x] **Regra definitiva de acesso (17/11/2026): exigir vínculo ativo com o caso** para ler e editar a anamnese daquele paciente. Familiares continuam sem acesso por inferência.
 
   Atenção: **isto é mudança de comportamento sobre trilha já implementada**, não configuração. A regra provisória está em produção de teste e permite que um profissional vinculado a um caso leia a anamnese de todos os pacientes. Exige migração da trilha de autorização e **reexecução completa da matriz** — positiva, negativa, outro paciente, outro perfil, acesso direto ao banco e revogação. Nenhum teste da regra anterior vale como evidência da nova.
 
@@ -105,3 +105,14 @@ Conferido contra o FR-003 antes de implementar: o requisito exige seções, pree
 Evidência: `web/anamnese.test.ts` passou de 14 para 17 casos. Os três novos cobrem o leitor do roteiro (linha sem separador, sem seção, sem pergunta e repetida são ignoradas sem derrubar a tela), a tela oferecendo o que veio do servidor, e o catálogo vazio não quebrando a anamnese. **Verifiquei que o teste detecta o defeito**: substituindo `sugestoes = lerRoteiroAnamnese(linhas)` por `sugestoes = []`, o caso "oferece as perguntas do roteiro que vem do servidor" falha; restaurado, os 17 voltam a passar.
 
 Limitação: a rota `/api/anamnese/historico/disponibilidade` passou a devolver `roteiro` junto da disponibilidade, no mesmo padrão das áreas do diário, para a tela montar sem segunda chamada. O campo é opcional no contrato de propósito — o caminho de emergência da rota (banco fora do ar) responde sem ele. Nada disso foi exercitado em produção: a migration não foi aplicada no remoto e não houve deploy.
+
+## Evidência bloco 4 — 18/11/2026
+
+Migration `20261125010000_anamnese_vinculo_caso.sql` revisada e executada em PostgreSQL descartável. Exige vínculo ativo na leitura, escrita e histórico. **Suposição conservadora: não existe exceção administrativa explícita; administrador também precisa de vínculo.** Nenhuma credencial real, `.env`, CLI autenticada, migration remota ou deploy foi usado.
+
+- `rtk proxy sh scripts/testar-anamnese-vinculo-caso-local.sh`: exit 0. Matriz nova executada depois da migration: admin/profissional vinculados permitidos; outro paciente e vínculo revogado negados nas três operações; usuário inativo, sessão encerrada, concessão revogada e família negados; auditoria conferida em cada resultado. Grants diretos negados a anon/authenticated/service_role/carteira owner; anamnese owner não consegue alterar vínculo. Conexões dblink reais comprovam concorrência de vínculo, sessão e concessão nas duas ordens de lock e replay negado após revogação.
+- `rtk proxy sh scripts/testar-anamnese-integrada-local.sh`: exit 0, 1 arquivo/1 teste passou, reporter minimal/silent passed-only. Handler/executor/cifra/atestado e PostgreSQL com a nova migration: salvar, recarregar, replay, outro paciente negado, vínculo revogado nega leitura e replay de escrita, sessão/concessão revogadas, rollback por falha de auditoria. Auth/PostgREST/Vault continuam fixtures locais.
+
+Provas anteriores da regra provisória não foram usadas como evidência da nova. Pendentes: revisão independente desta alteração, matriz em Supabase real/HTTP com perfis reais e ativação autorizada; gate histórico/S-02 permanece aberto. Demais gates de retenção/recuperação e conteúdo clínico não foram fechados por esta entrega.
+
+`rtk proxy pnpm exec openspec validate anamnese-gradual-dominio`: exit 0. `rtk proxy pnpm run verificar:rapido`: exit 1; lint/typecheck bloqueados por alterações paralelas de `packages/contracts/src/segredos-integracoes.ts` (TS1109/TS1003) e formatação de Drive/web, fora deste recorte. Não é resultado aprovado nem falha da matriz SQL; coordenação deve repetir após integrar as frentes.

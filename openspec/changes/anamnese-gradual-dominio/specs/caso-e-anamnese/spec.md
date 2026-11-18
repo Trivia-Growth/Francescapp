@@ -21,18 +21,18 @@ Para apoiar FR-003 (fase Inicial), o domínio SHALL identificar campos esperados
 - **WHEN** uma resposta informada, desconhecida ou não aplicável for representada no domínio
 - **THEN** sua fonte e data permanecem associadas à resposta; informação relatada não se torna diagnóstico confirmado por essa representação.
 
-### Requirement: Acesso provisório da equipe à anamnese
+### Requirement: Acesso da equipe vinculada ao caso à anamnese
 
-Até definição da FFCM, o sistema SHALL permitir consulta e edição da anamnese a colaboradores ativos com concessão de equipe vigente, sem exigir vínculo individual por paciente. A relação familiar ou permissão de agenda não SHALL conceder acesso por inferência. A autorização SHALL ser revalidada no servidor e no banco, inclusive após revogação.
+Conforme decisão de 17/11/2026, o sistema SHALL permitir consulta, edição e histórico da anamnese somente a colaboradores ativos com concessão de equipe vigente e vínculo ativo ao caso daquele paciente. A relação familiar ou permissão de agenda não SHALL conceder acesso por inferência. A autorização SHALL ser revalidada no servidor e no banco, inclusive após revogação.
 
 #### Scenario: Colaborador autorizado
 
-- **WHEN** colaborador ativo com concessão e sessão vigentes consulta ou edita anamnese
-- **THEN** a operação é autorizada mesmo sem vínculo individual com o paciente.
+- **WHEN** colaborador ativo com concessão, sessão e vínculo ao caso vigentes consulta ou edita anamnese
+- **THEN** a operação é autorizada para aquele paciente.
 
 #### Scenario: Acesso negado ou revogado
 
-- **WHEN** familiar, usuário inativo, sessão encerrada ou concessão revogada tenta consultar ou editar
+- **WHEN** familiar, usuário inativo, sessão encerrada, concessão revogada ou vínculo ao caso ausente/revogado tenta consultar ou editar
 - **THEN** a operação é negada também no acesso direto ao banco.
 
 ### Requirement: Consulta do histórico de anamnese
@@ -46,5 +46,5 @@ O sistema SHALL permitir a colaborador autorizado consultar versões anteriores 
 
 #### Scenario: Acesso revogado
 
-- **WHEN** sessão ou concessão é revogada antes de uma página
+- **WHEN** sessão, concessão ou vínculo ao caso é revogado antes de uma página
 - **THEN** a consulta é negada e nenhuma versão é retornada.

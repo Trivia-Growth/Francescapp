@@ -87,6 +87,11 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
         ok: false,
         erro: { codigo: 'pendencia_externa' },
       });
+      await pool.query(
+        `insert into cadastro.acesso_paciente(id,paciente_id,usuario_id,concedido_por_usuario_id,motivo_concessao_cifrado)
+         values(gen_random_uuid(),$1,$2,$2,'{"formato":1,"key_id":"teste","nonce":"n","ciphertext":"c","tag":"t"}')`,
+        [paciente_id, usuario_id],
+      );
       await pool.query('grant usage on schema api to authenticated');
       await pool.query('grant execute on function api.anamnese_privada(jsonb) to authenticated');
       expect(await operarAnamneseNativa(request, gravar, portas)).toMatchObject({
@@ -100,6 +105,28 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
       expect(
         await operarAnamneseNativa(request, { operacao: 'ler', paciente_id }, portas),
       ).toMatchObject({ ok: true, dados: { versao: 1, secoes } });
+      expect(
+        await operarAnamneseNativa(
+          request,
+          { operacao: 'ler', paciente_id: '40000000-0000-4000-8000-000000000001' },
+          portas,
+        ),
+      ).toMatchObject({ ok: false, erro: { codigo: 'sem_permissao' } });
+      await pool.query(
+        'update cadastro.acesso_paciente set revogada_em=clock_timestamp(),revogado_por_usuario_id=$1,motivo_revogacao_cifrado=motivo_concessao_cifrado where usuario_id=$1',
+        [usuario_id],
+      );
+      expect(
+        await operarAnamneseNativa(request, { operacao: 'ler', paciente_id }, portas),
+      ).toMatchObject({ ok: false, erro: { codigo: 'sem_permissao' } });
+      expect(await operarAnamneseNativa(request, gravar, portas)).toMatchObject({
+        ok: false,
+        erro: { codigo: 'sem_permissao' },
+      });
+      await pool.query(
+        'update cadastro.acesso_paciente set revogada_em=null,revogado_por_usuario_id=null,motivo_revogacao_cifrado=null where usuario_id=$1',
+        [usuario_id],
+      );
       // O banco deve negar acesso mesmo com autorização simulada obsoleta.
       await pool.query(
         'update identidade.sessao set encerrada_em=clock_timestamp() where session_id=$1',
