@@ -4,17 +4,26 @@ Cada tarefa indica requisito/cenário, dependência e evidência de aceite. A po
 
 Nenhuma tarefa autoriza deploy, migração remota, concessão de acesso ou uso de dados reais. Todos os dados de teste são fictícios.
 
+**Implementação suspensa em 17/11/2026** por decisão do solicitante, até o encerramento de uma frente de ajuste de frontend em andamento. Este arquivo é planejamento; nenhuma tarefa executa antes da liberação explícita. O solicitante também autorizou, na mesma data, operação ampla durante a implementação (migração remota, deploy, push e PR sem pedido a cada passo) — essa autorização **não** vale enquanto a suspensão estiver vigente, e não alcança uso de dados reais.
+
 ## 0. Pré-condições
 
 Decisões 0.1 a 0.5 e 0.7 confirmadas pelo solicitante em 11/11/2026 e registradas em `proposal.md — Decisões aplicadas`. Permanecem aqui como marcadas para preservar o rastro.
 
-- [x] 0.1 Perfis habilitados a registrar medicação prescrita e administrada: Administrador e grupo de case managers da equipe da Edilaine, como concessão administrada (FR-059, FR-060).
+- [x] 0.1 ~~Perfis habilitados: Administrador e grupo de case managers.~~ **Revisado em 17/11/2026**: qualquer profissional autenticado com vínculo ativo no caso registra medicação prescrita e administrada. A concessão continua modelada e nasce concedida a todo profissional com vínculo, como ponto de aperto futuro (FR-059, FR-060, design D4).
 - [x] 0.2 Autoria da administração: executor e registrador são campos distintos; o executor pode ser profissional externo sem conta no sistema (FR-060, design D8).
 - [x] 0.3 Tipos de sinal vital: padrões da medicina em conjunto configurável — PA sistólica/diastólica, FC, FR, temperatura, SpO2, glicemia capilar e dor 0 a 10 (FR-058).
 - [x] 0.4 Parâmetros de turno — duração padrão, tolerância de atraso e tratamento de turno não encerrado — são configuração administrada, não valor fixo em código (FR-055).
 - [x] 0.5 Audiência familiar alcança todo o conteúdo do turno, condicionada ao fundamento de autorização do caso e revogável (FR-062, FR-037, FR-038).
-- [ ] 0.6 Verificar que a fatia 1 (identidade, perfis, concessões e vínculo de caso) está concluída e com evidências registradas, conforme `docs/projeto/roteiro-especificacoes.md`. Em 11/11/2026 ela segue **em desenvolvimento**. Evidência: apontar as provas positivas e negativas de autorização executadas; enquanto ausentes, registrar o bloqueio e não iniciar o grupo 1. **Bloqueia todos os grupos seguintes.**
-- [x] 0.7 Evidência de habilitação profissional **não** é exigida. A concessão de execução de medicação é o único controle; não implementar campo de conselho, registro profissional ou documento comprobatório, nem verificação do executor informado (FR-060).
+- [ ] 0.6 **Revisado em 17/11/2026** — não se espera mais a fatia 1 inteira. Auditar o que já existe e está verificado de identidade, sessão, vínculo de caso e concessão de equipe no repositório, e listar a lacuna concreta que o turno exige. Evidência: relação dos mecanismos conferidos com arquivo e migração correspondentes, as provas positivas e negativas de autorização já executadas, e a lacuna aberta como tarefa própria. Uma lacuna não coberta vira bloqueador explícito aqui, não premissa. **Bloqueia todos os grupos seguintes.**
+- [x] 0.7 Evidência de habilitação profissional **não** é exigida. Não implementar campo de conselho, registro profissional ou documento comprobatório, nem verificação do executor informado (FR-060).
+- [x] 0.8 (17/11/2026) Rotina do turno em campos estruturados de alimentação, hidratação, sono e eliminações (FR-064).
+- [x] 0.9 (17/11/2026) Consolidado semanal por caso, além do diário (FR-065).
+- [x] 0.10 (17/11/2026) PDF gerado no servidor, com a mesma audiência da consulta e exportação auditada (FR-066).
+- [x] 0.11 (17/11/2026) Anexo de ocorrência em repositório privado do Supabase, com migração posterior para o Drive (FR-061, FR-030 modificado, design D12).
+- [x] 0.12 (17/11/2026) Check-in e check-out com localização declarada, consentida e revogável, visível só a Administrador e case manager, sem impedir o turno quando ausente (FR-067, design D13).
+- [ ] 0.13 Confirmar com o solicitante os campos exatos de FR-064: quais refeições, qual escala de aceitação e se eliminações entram como contagem ou descrição. **Bloqueia 9.1.** Evidência: resposta registrada aqui e refletida no catálogo de tipos.
+- [ ] 0.14 Confirmar com o solicitante o prazo de retenção da localização de FR-067. Dado pessoal de trabalhador sem retenção declarada contrai FR-040 e FR-042. **Bloqueia 12.2.** Evidência: prazo registrado aqui e aplicado na persistência e no aviso de consentimento.
 
 ## 1. Contratos do domínio de turno
 
@@ -98,24 +107,73 @@ Depende de 3.5, 4.6, 6.7 e 7.3.
 - [ ] 8.4 Aplicar a audiência de FR-036 ao restante do conteúdo exibido. Evidência: teste comprovando que a pessoa cuja audiência não alcança conteúdo restrito recebe somente o seu conteúdo, sem indicar o teor omitido (FR-062, FR-036).
 - [ ] 8.5 Integrar a exportação à FR-032 e registrar a exportação conforme FR-039. Evidência: teste cobrindo exportação autorizada, conteúdo limitado à audiência e evento de exportação auditado (FR-062, FR-032, FR-039).
 
-## 9. Interface de turno no celular
+## 9. Rotina do turno (alimentação, hidratação, sono, eliminações)
+
+Depende de 0.13, 4.6 e 7.3. Reaproveita o modelo de medida de FR-058 (design D9).
+
+- [ ] 9.1 Estender o catálogo de tipos de medida com os tipos de rotina confirmados em 0.13, marcando-os como observação e não como medida fisiológica. Evidência: teste cobrindo tipo de rotina aceito, tipo desconhecido rejeitado e rótulo de observação preservado na leitura (FR-064).
+- [ ] 9.2 Estender `packages/contracts/src/sinal-vital.ts` (ou arquivo irmão, se a leitura ficar confusa) com os campos de rotina, mantendo instante de ocorrência, unidade opcional e vínculo de turno. Evidência: teste do arquivo cobrindo entrada válida e rejeição de campo desconhecido (FR-064).
+- [ ] 9.3 Implementar persistência e RPC privada de rotina com auditoria obrigatória na mesma transação, validando a janela do turno. Evidência: teste SQL cobrindo registro válido, instante fora da janela recusado e registro sem turno aberto recusado (FR-064, cenários "Instante informado fora da janela do turno" e "Registro de rotina sem turno aberto é recusada").
+- [ ] 9.4 Implementar leitura da rotina como série paginada por período, com autor e turno de origem. Evidência: teste cobrindo ordem cronológica e paginação, sem carregar histórico completo (FR-064, cenário "Rotina consultável como série").
+- [ ] 9.5 Implementar retificação preservando o registro original com autor, motivo e data. Evidência: teste comprovando que nenhum lançamento é apagado (FR-064, cenário "Retificação preserva o registro original").
+- [ ] 9.6 Provar as negativas: profissional sem vínculo, familiar e acesso revogado, inclusive por acesso direto ao servidor e ao banco. Evidência: testes negativos no handler e em SQL direto, com auditoria da negação (FR-064, cenário "Pessoa sem vínculo é negada").
+- [ ] 9.7 Garantir que nenhuma superfície derive rótulo de adequação, gravidade, alerta ou recomendação dos valores de rotina, e que nenhum campo seja pré-preenchido a partir de histórico. Evidência: teste de leitura e de interface cobrindo o cenário "Sistema não interpreta a rotina" (FR-064).
+
+## 10. Consolidado semanal e emissão em PDF
+
+Depende de 8.5 e 9.4.
+
+- [ ] 10.1 Implementar o consolidado semanal como consulta derivada de sete dias, sem tabela materializada nem job periódico, reunindo turnos, rotina, aferições, administrações e ocorrências, com lacunas de cobertura indicadas. Evidência: teste cobrindo ordem cronológica, lacuna indicada e estado vazio honesto após consulta real (FR-065, design D10).
+- [ ] 10.2 Aplicar ao consolidado semanal a mesma audiência de 8.3 e 8.4. Evidência: testes positivos e negativos com familiar autorizado, familiar sem fundamento e fundamento revogado, e com audiência parcial no período (FR-065, FR-036, FR-037, FR-038).
+- [ ] 10.3 Garantir que o consolidado não afirme tendência, evolução, melhora, piora ou recomendação. Evidência: teste cobrindo o cenário "Consolidado não interpreta" (FR-065).
+- [ ] 10.4 Escolher a biblioteca de PDF medindo tempo frio e tamanho do pacote no runtime da função; registrar a medição. Se não couber, registrar o bloqueio e propor serviço de renderização autorizado — **não** mover a geração para o navegador. Evidência: medição registrada aqui com a decisão tomada (FR-066, design D11).
+- [ ] 10.5 Implementar a emissão de PDF no servidor para relatório de turno, consolidado diário, consolidado semanal e exportação de caso, montando o conteúdo exclusivamente a partir da persistência e da identidade autenticada. Evidência: teste comprovando que conteúdo, registros ou identidade enviados no corpo são descartados (FR-066, cenário "Conteúdo do PDF não vem do cliente").
+- [ ] 10.6 Registrar cada emissão como exportação conforme FR-039 e FR-032, com destinatário e propósito. Evidência: teste cobrindo emissão autorizada com evento auditado e emissão negada sem arquivo produzido (FR-066, FR-032 modificado, FR-039).
+- [ ] 10.7 Aplicar a audiência ao conteúdo do PDF e preservar executor e registrador como papéis distintos. Evidência: testes cobrindo PDF de familiar limitado à sua audiência e PDF com administração de medicação (FR-066, FR-060).
+- [ ] 10.8 Tratar falha de geração ou de registro da exportação sem apresentar sucesso nem entregar arquivo parcial. Evidência: teste cobrindo o cenário "Falha na geração não é apresentada como sucesso" (FR-066).
+
+## 11. Anexo da ocorrência em repositório privado
+
+Depende de 7.3.
+
+- [ ] 11.1 Criar o repositório privado do Supabase para anexos de execução de turno, com política ligada à mesma prova de autorização do caso e sem bucket público. Evidência: migração aplicada localmente e teste SQL cobrindo leitura autorizada e leitura negada por identidade sem vínculo (FR-030 modificado, design D12).
+- [ ] 11.2 Implementar envio do anexo preservando caso, classificação, audiência e autor, e marcando a origem como destino temporário até a definição da raiz do Drive. Evidência: teste cobrindo o cenário "Anexo de turno guardado no repositório privado" (FR-061, FR-030 modificado).
+- [ ] 11.3 Implementar entrega por fluxo autorizado a cada leitura, sem URL pública e sem URL assinada de longa duração que sobreviva à revogação. Evidência: testes cobrindo "Anexo de turno não é público" e "Revogação alcança o anexo", inclusive por acesso direto (FR-061, FR-030 modificado, FR-037).
+- [ ] 11.4 Garantir que anexos que não pertencem à execução de turno continuem indo para o Drive institucional. Evidência: teste cobrindo o cenário "Destino temporário não altera as demais classes de anexo" (FR-030 modificado).
+
+## 12. Check-in, check-out e localização
+
+Depende de 0.14 e 2.5.
+
+- [ ] 12.1 Implementar o registro de consentimento de localização como versão, com identidade, finalidade, audiência informada e data; revogação cria nova versão em vez de apagar. Evidência: teste cobrindo concessão, consulta pelo próprio profissional e revogação preservando o histórico (FR-067, design D13).
+- [ ] 12.2 Implementar a persistência da localização em tabela própria, separada do retorno do turno, com latitude, longitude, precisão informada, instante do servidor e referência ao consentimento vigente à época, aplicando o prazo de retenção confirmado em 0.14. Evidência: migração local e teste SQL cobrindo abertura e encerramento com localizações distintas (FR-067).
+- [ ] 12.3 Implementar a leitura da localização por RPC distinta, com prova própria de perfil Administrador ou case manager. Evidência: testes negativos comprovando que familiar autorizado e profissional sem coordenação não obtêm a localização, inclusive por acesso direto ao banco — a omissão não pode depender do cliente nem da serialização (FR-067, design D13).
+- [ ] 12.4 Garantir que ausência de localização — permissão negada, recurso indisponível, consentimento ausente ou revogado — não impeça abertura nem encerramento, registrando o motivo. Evidência: testes cobrindo os quatro motivos, sem coordenada inventada, estimada ou derivada de endereço de rede (FR-067).
+- [ ] 12.5 Implementar a coleta no cliente com aviso de finalidade, audiência e retenção antes do primeiro check-in. Evidência: teste de interface cobrindo aceite, recusa e turno aberto sem localização (FR-067, cenário "Consentimento registrado com finalidade e audiência").
+- [ ] 12.6 Garantir que nenhuma superfície apresente a localização como prova de presença, nem derive atraso, falta, conformidade ou ranqueamento dela. Evidência: teste cobrindo os cenários "Localização não é apresentada como prova de presença" e "Coordenada enviada sem coleta real é tratada como declarada" (FR-067).
+- [ ] 12.7 Auditar registro, consulta e exportação de localização conforme FR-039. Evidência: teste cobrindo os três eventos com identidade, ação, caso e instante (FR-067, FR-039).
+
+## 13. Interface de turno no celular
 
 Depende de 8.2.
 
-- [ ] 9.1 Implementar as telas de abrir turno, registrar aferição, registrar administração, registrar ocorrência e encerrar turno com passagem, em `web/`, com estados de carregamento, vazio, erro e sucesso. Evidência: teste de interface cobrindo os quatro estados sem fallback de dados de exemplo em erro.
-- [ ] 9.2 Garantir uso confortável no celular, com teclado, foco visível e alternativa ao áudio quando houver. Evidência: verificação registrada em viewport de celular, conforme `AGENTS.md — Qualidade e experiência`.
-- [ ] 9.3 Apresentar a passagem pendente de ciência na abertura de turno, com ato explícito de ciência. Evidência: teste de interface comprovando que consultar não registra ciência (FR-057, FR-013 modificado).
+- [ ] 13.1 Implementar as telas de abrir turno, registrar aferição, registrar administração, registrar ocorrência e encerrar turno com passagem, em `web/`, com estados de carregamento, vazio, erro e sucesso. Evidência: teste de interface cobrindo os quatro estados sem fallback de dados de exemplo em erro.
+- [ ] 13.2 Garantir uso confortável no celular, com teclado, foco visível e alternativa ao áudio quando houver. Evidência: verificação registrada em viewport de celular, conforme `AGENTS.md — Qualidade e experiência`.
+- [ ] 13.3 Apresentar a passagem pendente de ciência na abertura de turno, com ato explícito de ciência. Evidência: teste de interface comprovando que consultar não registra ciência (FR-057, FR-013 modificado).
+- [ ] 13.4 Implementar as telas de rotina do turno, consolidado semanal e emissão de PDF, com os quatro estados. Evidência: teste de interface sem fallback de dados de exemplo em erro (FR-064, FR-065, FR-066).
+- [ ] 13.5 Implementar o check-in e o check-out com o aviso de consentimento e o caminho sem localização. Evidência: teste de interface cobrindo aceite, recusa e turno aberto sem localização (FR-067).
 
-## 10. Revogação, negativas e verificação integrada
+## 14. Revogação, negativas e verificação integrada
 
-Depende de 9.3.
+Depende de 13.3.
 
-- [ ] 10.1 Provar que a revogação de vínculo impede novas ações imediatamente e preserva os registros existentes. Evidência: teste SQL direto e teste de handler cobrindo revogação com turno aberto (FR-063, cenário "Revogação impede novas ações").
-- [ ] 10.2 Provar isolamento entre casos: profissional de outro caso não enxerga turno, aferição, medicação ou ocorrência deste caso, e a negação não revela a existência do caso. Evidência: testes positivos e negativos, incluindo acesso direto (FR-063).
-- [ ] 10.3 Provar que perfil familiar não registra execução, independentemente da interface. Evidência: teste no servidor e no banco (FR-063, cenário "Perfil familiar não registra execução").
-- [ ] 10.4 Provar que registros permanecem com o autor original após encerramento do vínculo, sem anonimizar ou reatribuir. Evidência: teste de leitura de relatório anterior (FR-063).
-- [ ] 10.5 Executar `pnpm run verificar:ativacao` uma única vez e o roteiro "Como testar" do PR na retirada do draft, com os testes positivos e negativos de autorização e RLS obrigatórios. Evidência: saída registrada; se algum gate não executar, registrar o bloqueio aqui em vez de presumir sucesso.
-- [ ] 10.6 Solicitar revisão independente da fatia com `code-review`, informando a revisão-base, esta mudança OpenSpec e o diff exato, incluindo arquivos novos. Evidência: achados registrados e tratados; correções seguidas apenas pelos testes afetados pelo diff.
+- [ ] 14.1 Provar que a revogação de vínculo impede novas ações imediatamente e preserva os registros existentes. Evidência: teste SQL direto e teste de handler cobrindo revogação com turno aberto (FR-063, cenário "Revogação impede novas ações").
+- [ ] 14.2 Provar isolamento entre casos: profissional de outro caso não enxerga turno, aferição, medicação ou ocorrência deste caso, e a negação não revela a existência do caso. Evidência: testes positivos e negativos, incluindo acesso direto (FR-063).
+- [ ] 14.3 Provar que perfil familiar não registra execução, independentemente da interface. Evidência: teste no servidor e no banco (FR-063, cenário "Perfil familiar não registra execução").
+- [ ] 14.3.1 Provar que perfil familiar não obtém localização em nenhuma superfície — leitura, relatório, consolidado, PDF e acesso direto ao banco — ainda que tenha fundamento de autorização vigente. Evidência: testes negativos nas cinco superfícies (FR-067).
+- [ ] 14.4 Provar que registros permanecem com o autor original após encerramento do vínculo, sem anonimizar ou reatribuir. Evidência: teste de leitura de relatório anterior (FR-063).
+- [ ] 14.5 Executar `pnpm run verificar:ativacao` uma única vez e o roteiro "Como testar" do PR na retirada do draft, com os testes positivos e negativos de autorização e RLS obrigatórios. Evidência: saída registrada; se algum gate não executar, registrar o bloqueio aqui em vez de presumir sucesso.
+- [ ] 14.6 Solicitar revisão independente da fatia com `code-review`, informando a revisão-base, esta mudança OpenSpec e o diff exato, incluindo arquivos novos. Evidência: achados registrados e tratados; correções seguidas apenas pelos testes afetados pelo diff.
 
 ## Workflow follow-up
 

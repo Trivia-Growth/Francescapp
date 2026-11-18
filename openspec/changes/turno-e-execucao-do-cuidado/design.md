@@ -52,9 +52,15 @@ Tipo de medida, valor, unidade e situação da administração ficam em colunas 
 
 ### D4 — Habilitação como concessão verificada, não como papel no token
 
-FR-059 e FR-060 exigem perfil habilitado: Administrador e o grupo de case managers da equipe da Edilaine. A verificação reaproveita o mecanismo de concessão de equipe já existente (`concessoes-equipe`, `preparar-concessao-equipe.ts`, `*_barreira_concessao_equipe_privada.sql`), acrescentando uma concessão específica de execução de medicação. A RPC confere a concessão vigente dentro da transação, sob o mesmo lock das demais barreiras.
+**Revisado em 17/11/2026.** FR-059 e FR-060 passam a admitir qualquer profissional autenticado com vínculo ativo no caso. A verificação reaproveita a prova de vínculo já usada pelas demais barreiras (`*_barreira_*_privada.sql`), conferida dentro da transação, sob o mesmo lock.
 
-Essa concessão é um controle de produto e **não atesta habilitação profissional**. O nome "habilitado" na spec designa quem pode operar o registro, não quem pode exercer o ato clínico. Por decisão de 11/11/2026, nenhuma evidência de habilitação profissional é coletada ou validada: não há campo de conselho, número de registro ou documento comprobatório a implementar, nem verificação do executor informado.
+A concessão específica de execução de medicação **continua modelada**, mas nasce concedida a todo profissional com vínculo. Isso não é cerimônia vazia: é o ponto de aperto. Restringir de novo passa a ser mudar quem recebe a concessão, não reescrever a barreira, a RPC, o contrato e os testes. O custo de manter a coluna agora é muito menor que o de reintroduzir o conceito depois sobre dados já gravados.
+
+*Alternativa descartada:* conferir apenas o vínculo e remover o conceito de concessão. Mais enxuto hoje, mas o requisito de restringir volta assim que a equipe crescer — e aí a mudança alcança dados de medicação já persistidos.
+
+Essa concessão é um controle de produto e **não atesta habilitação profissional**. Nenhuma evidência de habilitação é coletada ou validada: não há campo de conselho, número de registro ou documento comprobatório a implementar, nem verificação do executor informado.
+
+*Risco explicitado:* com a abertura de 17/11/2026, o único controle sobre o registro de medicação é o vínculo com o caso. A revisão de código deve tratar a prova negativa — familiar, profissional de outro caso, acesso revogado, acesso direto ao banco — como critério de aceite, não como teste acessório.
 
 *Alternativa descartada:* checar um papel carregado na sessão. Uma concessão revogada continuaria valendo até a sessão expirar — incompatível com o cenário de revogação de FR-063, que exige efeito imediato.
 
@@ -82,6 +88,48 @@ A síntese de encerramento é um registro de síntese profissional com o modelo 
 
 Item prescrito é texto estruturado digitado por profissional habilitado, com vigência. Sem base de medicamentos, sem autocomplete, sem validação de dose — qualquer uma dessas coisas aproximaria o sistema de sugerir conduta, que a spec proíbe explicitamente. Administração referencia `(item_id, versao)` vigente à época, para que uma alteração posterior do item não reescreva o que foi executado.
 
+### D9 — Rotina do turno reaproveita o modelo de medida, não cria domínio
+
+FR-064 (alimentação, hidratação, sono, eliminações) tem a mesma forma de FR-058: tipo, valor, unidade opcional, instante de ocorrência, instante do servidor, autor, turno. Entra na mesma tabela de medidas do turno, distinguida por um tipo em catálogo administrado, com as mesmas regras de janela, retificação e paginação.
+
+*Alternativa descartada:* tabela própria por categoria (`refeicao`, `sono`, `eliminacao`). Multiplica migração, RPC, barreira e teste para três formas idênticas, e obriga a consolidar em três lugares ao montar FR-062 e FR-065.
+
+*Consequência aceita:* "aceitação da refeição" é escala observada, não medida fisiológica. Fica em catálogo com rótulo explícito de observação, e vale a mesma proibição de interpretação de D-não-interpretar: nenhum rótulo de adequação é derivado do valor.
+
+### D10 — Consolidado semanal é consulta derivada, não tabela materializada
+
+FR-065 lê os mesmos registros de FR-062 numa janela de sete dias. Nenhuma tabela de resumo, nenhum job noturno, nenhuma materialização. Um consolidado materializado precisaria ser invalidado a cada retificação — e retificação é esperada neste domínio.
+
+*Quando revisitar:* se a leitura de sete dias passar a doer em volume real, medido, e não antes. Paginação e o índice `(caso, instante)` de FR-058 vêm primeiro.
+
+### D11 — PDF montado no servidor a partir da persistência
+
+FR-066 gera o PDF na função Netlify, pela mesma RPC autorizada que alimenta a tela. O corpo da requisição informa **o quê** (caso, período, tipo de relatório), nunca **o conteúdo**. Isso mantém uma única fonte de autorização e torna a emissão auditável como exportação (FR-039, FR-032).
+
+*Alternativa descartada:* gerar no navegador a partir do que já está em tela. Barato, mas a exportação deixa de ser um evento do servidor, e o conteúdo passa a depender do que o cliente tinha carregado — inclusive do que ele conseguiu carregar.
+
+*Risco:* biblioteca de PDF em runtime de função é dependência nova e pesada. Escolher na implementação medindo tempo frio e tamanho do pacote; se não couber, a saída é um serviço de renderização autorizado, não mover a geração para o cliente.
+
+### D12 — Anexo de turno em repositório privado, sem URL pública
+
+A foto de FR-061 vai para armazenamento privado do Supabase, com política ligada à mesma prova de autorização do caso. Entrega por fluxo autorizado a cada leitura; sem bucket público, sem URL assinada de longa duração que sobreviva à revogação.
+
+*Por que não esperar o Drive (FR-030):* a raiz institucional não está definida e o recorte não deve ficar bloqueado por isso. O anexo guarda caso, classificação, audiência e autor, então migrar depois é cópia de arquivo com reescrita de referência — não redefinição do modelo de autorização.
+
+*Alternativa descartada:* URL assinada longa para simplificar a exibição no celular. Quebra FR-037: o link continuaria funcionando depois da revogação.
+
+### D13 — Localização é dado declarado, com consentimento versionado e audiência própria
+
+FR-067 persiste latitude, longitude e precisão **informadas pelo aparelho**, junto do consentimento vigente à época. Três consequências de modelagem:
+
+1. **Nunca é autoridade.** O instante continua sendo o do servidor (D2). A coordenada não valida, não confirma presença e não alimenta cálculo de atraso ou falta. Nenhuma coluna derivada, nenhum rótulo de conformidade.
+2. **Audiência separada do resto do turno.** A família enxerga o conteúdo do turno (decisão de 11/11/2026) mas não a localização. Logo a localização não pode ser coluna do mesmo retorno: fica em tabela própria, lida por RPC distinta, com sua própria prova de perfil. Filtrar no cliente ou na serialização seria um controle de interface, não autorização.
+3. **Consentimento é registro versionado, não flag.** Guarda identidade, finalidade, audiência informada e data; revogação cria nova versão em vez de apagar. Sem isso não há como responder, depois, sob qual base um ponto foi coletado.
+
+*Alternativa descartada:* guardar apenas "dentro/fora do local esperado". Expõe menos, mas exige cadastrar o endereço do caso como geocoordenada e fixar um raio — duas decisões de negócio não tomadas — e ainda assim deriva um juízo a partir de um dado não confiável.
+
+*Pendência que bloqueia a persistência:* prazo de retenção da localização não definido (ver `proposal.md — Pendências`).
+
 ## Risks / Trade-offs
 
 - **Dado de saúde estruturado em claro no banco (D3)** → sem grant direto; leitura apenas por RPC autorizada e auditada; prova negativa obrigatória de acesso direto com identidade sem vínculo.
@@ -89,6 +137,8 @@ Item prescrito é texto estruturado digitado por profissional habilitado, com vi
 - **Audiência familiar ampla sobre dado de saúde de pessoa adulta** → o acesso familiar a todo o conteúdo do turno decorre do fundamento de autorização registrado no caso (FR-038), nunca do parentesco, e é revogável (FR-037). A implementação deve negar por ausência de fundamento, não por ausência de vínculo, e o teste negativo correspondente é obrigatório.
 - **Turno aberto indefinidamente** → situação derivada na leitura a partir da janela prevista na escala; não encerrar automaticamente, porque um encerramento sintético atribuiria à pessoa uma passagem que ela não escreveu. Expor como pendência em FR-027/FR-028.
 - **Volume de aferição cresce rápido** → série paginada por período, sem carregar histórico completo; medir antes de indexar além do par `(caso, instante_afericao)`.
+- **Localização do profissional e endereço da pessoa acompanhada (D13)** → dado pessoal de trabalhador somado a endereço residencial de pessoa adulta acompanhada. Tratar sob FR-042 com o mesmo rigor do conteúdo clínico: audiência restrita provada no banco, consentimento versionado, prova negativa obrigatória para perfil familiar e para profissional sem coordenação, e retenção declarada antes da primeira gravação.
+- **Ferramenta de registro vira ferramenta de vigilância** → a observação do próprio solicitante no levantamento de 11/11/2026 vale aqui: o aplicativo deve apoiar o cuidado, não vigiar. Nenhuma superfície pode ranquear, pontuar ou alertar sobre a presença de profissional, e nenhum cálculo de atraso ou falta pode derivar da coordenada.
 - **Escopo adjacente ao proibido** → a fronteira entre "registrar o executado" e "orientar conduta" é estreita. Nenhum campo calculado, nenhum rótulo derivado de valor, nenhum preenchimento automático. Revisão de código deve tratar isso como critério, não como detalhe.
 
 ## Migration Plan
