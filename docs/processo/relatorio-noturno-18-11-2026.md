@@ -10,15 +10,19 @@ Branch `fatia7/turno-execucao-cuidado`; revisão-base
 `fa1af9330aafa543b3c6b8cb040ed2c11c9b1667`.
 PR: https://github.com/Trivia-Growth/Francescapp/pull/18.
 Planejamento existente preservado; nova mudança OpenSpec
-`cadastro-segredos-integracoes` criada antes de sua implementação. Frentes de
+`cadastro-segredos-integracoes` criada antes de sua implementação. A continuação
+FR-014 recebeu mudança focada `conversao-diario-tarefa-atomica`, também registrada
+antes do código, sem refazer os cinco pacotes anteriores. Frentes de
 implementação e revisão executadas em Sol. Nenhum segredo real foi cadastrado.
 
 **Retomada por instrução do solicitante:** os impedimentos remotos não suspendem
 as features locais. Foram acrescentados contratos de turno, preparação local de
 abertura/consulta/barreira, download de documentos pelo app e orientação de
-consentimento incompleto da Agenda. **Validações desta retomada foram adiadas por
-pedido do solicitante.** Quatro migrations novas estão somente no repositório:
-`20261125080000`, `20261125090000`, `20261125100000` e `20261125110000`; não fazem parte das oito
+consentimento incompleto da Agenda; depois, objetivos no contexto, escrita de
+Tarefas por capacidade autorizada e conversão atômica Diário/Tarefa.
+**Validações desta retomada foram adiadas por pedido do solicitante.** Cinco
+migrations novas estão somente no repositório: `20261125080000`,
+`20261125090000`, `20261125100000`, `20261125110000` e `20261125120000`; não fazem parte das oito
 versões remotas já aplicadas. Nenhuma dessas entregas é declarada ativada.
 
 ## Entregue, com evidência
@@ -146,6 +150,33 @@ Isso não certifica integração externa nem substitui roteiro publicado.
   existente, preservando assinatura/grants/listagem. Ciclo de reserva/idempotência
   permanece, com descarte por caso/sessão. Provas HTTP/cliente/UI/SQL/NOSUPER
   escritas, não executadas. Sem migration, falha fechada; nenhuma flag foi ligada.
+- **Diário/Tarefa, FR-014:** substituído o gancho sequencial não ligado por
+  composição única GET/POST
+  `/api/pacientes/:paciente_id/diario/:origem_id/conversao-tarefa`, formulário e
+  fiação em `web/main.ts`. Comando humano exige motivo, data da atenção,
+  encaminhamento, responsável, prazo, prioridade e área configurada. Servidor
+  prepara cifra/atestação das duas filhas e chama somente a RPC agregada.
+  Migration `25120000` compõe tarefa e evolução interna na mesma transação,
+  confere origem/versão após lock do paciente e mantém ledger operacional único
+  por origem. Consulta/replay exigem autorização vigente antes de devolver recibo.
+  Interface cerca ou reconhece barreira anterior antes de liberar repetição;
+  resposta perdida/abort não são considerados rollback. Mudança da origem bloqueia
+  envio antigo sem descartar silenciosamente campos. Nenhum texto clínico é
+  persistido no navegador. Negativa de perfil tem auditador estreito sem cofre;
+  não concede capacidade de operação. **Código preparado; provas novas escritas,
+  não executadas.** Flag `ffcm.diario.conversao_tarefa_ativa=false`; migration,
+  revisão independente, matriz de autorização/RLS e jornada real pendentes.
+  Evidência de implementação: servidor/contratos `b56e90c`, interface `df01629`,
+  cinco arquivos `conversao-diario-*` de testes do servidor/contrato e três de UI/
+  cliente/elegibilidade. Modelo de ameaças focado na própria change distingue
+  controles existentes, novos e provas ainda pendentes.
+  SQL/migration em `346d94c`: cinco arquivos
+  `supabase/tests/conversao_diario_tarefa_*_local.sql` e runner
+  `scripts/testar-conversao-diario-tarefa-atomica-local.sh`, para banco descartável;
+  não executar fixtures contra o remoto. Matrizes incluem rollback das filhas,
+  negativas, executor/migrador NOSUPER, preservação de privilégios e concorrência.
+  Sintaxe/runtime SQL, interleavings/locks, NOSUPER efetivo e integração Auth/Vault
+  ainda não têm resultados; provas escritas não os demonstram.
 - **Turno, grupo 1:** contratos estritos de turno, escala/substituição/cobertura,
   sinal vital, prescrição/administração e ocorrência; identidade/relógio não vêm
   do corpo. Exports, rotas e teste de contrato escritos, não executados.
@@ -158,8 +189,9 @@ Isso não certifica integração externa nem substitui roteiro publicado.
   instalação NOSUPER/ACL e testes HTTP/composição escritos, **não executados**.
 
 Os resultados verdes registrados acima pertencem à versão anterior a essas
-alterações. Não cobrem download, contratos/execução de turno ou o novo aviso da
-Agenda. Testes positivos/negativos de autorização e RLS continuam obrigatórios
+alterações. Não cobrem download, contratos/execução de turno, aviso da Agenda,
+campo de configuração, objetivos do contexto, capacidade de escrita de Tarefas ou
+conversão Diário/Tarefa. Testes positivos/negativos de autorização e RLS continuam obrigatórios
 antes da ativação; adiamento não significa aprovação nem dispensa.
 
 Nenhum gate foi disparado manualmente nesta retomada. O push preserva o hook
@@ -170,6 +202,12 @@ executa os testes de comportamento ou as matrizes SQL listadas acima.
 Na continuação de fiação de objetivos/disponibilidade, o typecheck do hook passou;
 ajustada a formatação de um teste novo apontada pelo lint. Nenhum teste de
 comportamento ou script SQL foi disparado nessa correção.
+
+Na continuação FR-014, o hook apontou dois tipos: literal `formato: 1` de fixture e
+captura local das dependências inicializadas dentro do `map`. Corrigidos em
+`e8da0f6`; novo push passou lint (734 arquivos) e todos os projetos de typecheck.
+Não executou teste, build, SQL ou validação manual. Servidor/interface enviados
+para a branch; isso não publica nem aprova a conversão.
 
 ## Lista exata do que cadastrar e onde
 
@@ -215,6 +253,11 @@ Escrita de Tarefas usa as chaves existentes `ffcm.tarefas.ativas`,
 `ffcm.tarefas.escrita_ativa` e `ffcm.tarefas.barreira_ativa`. Após seus gates, as
 três devem permitir a operação para que a interface ofereça escrita ao profissional
 com vínculo vigente. Nenhuma dessas flags foi alterada nesta retomada.
+
+Conversão Diário/Tarefa acrescenta `ffcm.diario.conversao_tarefa_ativa`, desligada
+na migration local `25120000`. Após seus gates e aplicação da migration, editar
+essa flag em **Administração > Configuração**; depende também de
+`ffcm.diario.ativo` e das três flags de Tarefas. Não exige nova credencial.
 
 Contrato OAuth da Agenda implementado no código: callback HTTPS
 `https://ffcmapp.netlify.app/api/agenda/google/callback` para essa origem publicada;
@@ -344,9 +387,10 @@ aprovada antes da implementação, conforme evidência do bloco 2.
 - Contexto/rede: fiação e SQL locais; navegação autenticada publicada pendente,
   mesmo sem checkbox aberta.
 - Diário: 4.3 visual/teclado isolados conferidos; navegação integrada, autenticação
-  familiar real e ativação pendentes. Conversão em tarefa FR-014 ainda não fiada:
-  criar tarefa e depois evolução requer recuperação persistente entre as duas
-  gravações, inclusive reload/resposta perdida. Não ligar o botão antes disso.
+  familiar real e ativação pendentes. Conversão FR-014 agora preparada e fiada
+  numa change própria, com transação única e recuperação por origem/barreira.
+  Migration `25120000`, provas novas, revisão e ativação permanecem pendentes;
+  flag desligada. Resultado antigo do Diário não aprova essa composição nova.
 - Saúde: 5.2 revisão concluída após duas correções; 4.3 leitor de tela/jornada
   integrada e 5.1 ativação remota pendentes. Componente desktop/celular conferido.
 - Crise: 6.2 revisão local concluída; 7.1 ativação e cadastro operacional das
@@ -404,6 +448,13 @@ aprovada antes da implementação, conforme evidência do bloco 2.
   por caso e falsa por padrão; não abre exceção para Administrador. Autorização
   da gravação permanece no servidor/banco. Não carregar conteúdo clínico apenas
   para decidir se o formulário aparece.
+- **SUPOSIÇÕES CONSERVADORAS — conversão Diário/Tarefa:** uma conversão por
+  registro de origem; somente Profissional Google com vínculo ativo; evolução
+  resultante interna à equipe, sem retorno familiar implícito nem alteração do
+  original. Outras ações independentes continuam em Tarefas. Auditoria anterior
+  ao cofre só registra tentativa negada do próprio ator Auth, em duas ações
+  fechadas; não autoriza leitura/conversão. São escolhas conservadoras desta
+  execução autônoma, não regras clínicas ratificadas.
 
 Hipóteses anteriores preservadas, sem nova decisão silenciosa: diário considera
 coordenação colaboradores vinculados; saúde não proíbe combinação `relato_leigo` +
@@ -419,7 +470,8 @@ operação atômica e nascimento não futuro em UTC). Isso não dispensa S-02.
    download e turno; só então aplicar as migrations novas pertinentes com suas
    guardas. `25090000` é entrega de documento, independente do turno;
    `25080000`/`25100000` são preparação/grant do turno; `25110000` é a consulta
-   somente de autorização de tarefas. Um bloqueio do turno não
+   somente de autorização de tarefas; `25120000` é a conversão atômica, dependente
+   de `25110000`. Um bloqueio do turno não
    impede a validação/entrega de documentos. Flags de turno e expurgo ficam falsas.
 2. Após restabelecer a capacidade de deploy da Netlify, gerar artefato do commit
    revisado com contexto `production` e publicá-lo sem desbloquear globalmente
@@ -438,7 +490,13 @@ operação atômica e nascimento não futuro em UTC). Isso não dispensa S-02.
    No documento, conferir envio e “Baixar arquivo”, audiência familiar e negativas
    após revogação/mudança de audiência; a consulta de metadados sozinha não prova
    entrega dos bytes. Na Agenda, conferir também o estado de consentimento incompleto.
-7. Registrar evidências reais e só então retirar PR de draft/fechar gates.
+7. Separadamente, após as provas novas de FR-014, aplicar `25120000` e ligar sua
+   flag pela Administração. Como Profissional Google vinculado a caso fictício,
+   abrir Diário, escolher origem publicada e converter com todos os campos
+   humanos. Conferir tarefa e evolução interna, original intacto e recuperação
+   após resposta perdida/recarga, sem duplicação. Provar Família/Admin/outro caso,
+   acesso direto e vínculo revogado negativos no servidor e banco antes de ativar.
+8. Registrar evidências reais e só então retirar PR de draft/fechar gates.
 
 ## Explicitamente não feito
 
@@ -455,9 +513,10 @@ cadastro/manuseio manual de segredo, merge ou reescrita de histórico.
 Turno 0.6 concluído como auditoria documental, com inventário em seu `design.md` e
 lacunas explícitas 0.6.1/0.6.2; isso não aprova a base remota nem libera integração.
 Grupos 1/2 receberam implementação local após nova autorização; não foram validados
-nem ativados. Encerramento permanece indisponível; grupo 3 não iniciado. As quatro
+nem ativados. Encerramento permanece indisponível; grupo 3 não iniciado. As cinco
 migrations da retomada não foram aplicadas remotamente. Não houve nova execução de
-testes, build ou prova remota dessas features nesta passagem. Financeiro,
+testes, build ou prova remota dessas features nesta passagem. Conversão FR-014 não
+foi declarada aprovada apenas por código, testes escritos ou flag presente. Financeiro,
 PWA, migração Edge, recorrência, agenda global e lembretes não iniciados. Arquivos
 preexistentes não rastreados em `.impeccable/critique`, `mocks` e `questions`
 preservados fora dos commits.

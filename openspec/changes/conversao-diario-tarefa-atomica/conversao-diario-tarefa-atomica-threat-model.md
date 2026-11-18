@@ -97,10 +97,10 @@ Não se presume posse do HMAC, chave de cifra, superuser, controle do provedor o
 
 | Path | Why it matters | Related Threat IDs |
 | --- | --- | --- |
-| `packages/contracts/src/conversao-diario-tarefa.ts` (previsto) | Limites e campos de autoridade | TM-001/002 |
+| `packages/contracts/src/conversao-diario-tarefa.ts` | Limites e campos de autoridade | TM-001/002 |
 | `netlify/functions/_shared/tarefa-cuidado-nativo.ts` | Extração sem modificar autorização comum | TM-001/006 |
 | `netlify/functions/_shared/diario-nativo.ts` | Cifra/AAD e audiência da evolução | TM-001/006 |
-| `supabase/migrations/20261125120000_conversao_diario_tarefa_atomica.sql` (prevista) | Agregado, roles, locks e rollback | TM-001/002/003/005/006 |
+| `supabase/migrations/20261125120000_conversao_diario_tarefa_atomica.sql` | Agregado, roles, locks e rollback | TM-001/002/003/005/006 |
 | `web/ciclo-tarefa-cuidado.ts` e nova composição UI | Cercamento e recuperação após recarga | TM-003/004 |
 
 Cobertura: entradas HTTP/SQL/erro e fronteiras enumeradas; desenvolvimento/CI excluídos da autoridade clínica; indisponibilidade do solicitante e suposições explícitas. Revisão independente e provas novas continuam pendentes, sem certificação implícita.
