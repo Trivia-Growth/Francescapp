@@ -69,6 +69,8 @@ import { montarHomeProfissional } from './home-profissional.js';
 import { montarSolicitacoesTitular } from './solicitacoes-titular.js';
 import { criarServicoSolicitacaoTitularHttp } from './servico-solicitacao-titular-http.js';
 import { montarConfiguracaoSistema } from './configuracao-sistema.js';
+import { montarSegredosIntegracoes } from './segredos-integracoes.js';
+import { criarServicoSegredosIntegracoesHttp } from './servico-segredos-integracoes-http.js';
 import { criarServicoConfiguracaoSistemaHttp } from './servico-configuracao-sistema-http.js';
 import { montarConcessaoEquipe } from './concessao-equipe.js';
 import { montarFiltrosCarteira, montarSinalCarteira } from './filtros-carteira.js';
@@ -1364,6 +1366,15 @@ const nomeDoUsuarioNaEquipe = (() => {
 
 const areasAdministracao: AreaAdministracao[] = [
   {
+    id: 'integracoes',
+    rotulo: 'Credenciais das integrações',
+    disponivel: (atual) => atual.usuario.perfil === 'administrador',
+    montar: (raiz) =>
+      montarSegredosIntegracoes(raiz, criarServicoSegredosIntegracoesHttp(identidadeAtual), {
+        nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
+      }),
+  },
+  {
     id: 'configuracao',
     rotulo: 'Configuração',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
@@ -1521,7 +1532,8 @@ function mostrarAdministracao(areaId: string): void {
   );
   if (painelAdministracao?.area === area.id) return;
   // A equipe só é consultada pelas telas que trocam identificador por nome.
-  if (area.id === 'configuracao' || area.id === 'auditoria') nomeDoUsuarioNaEquipe.carregar(atual);
+  if (['configuracao', 'integracoes', 'auditoria'].includes(area.id))
+    nomeDoUsuarioNaEquipe.carregar(atual);
   painelAdministracao?.desmontar();
   const conteudo = elemento('administracao-conteudo');
   conteudo.replaceChildren();
