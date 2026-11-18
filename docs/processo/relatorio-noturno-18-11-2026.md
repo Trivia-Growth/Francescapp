@@ -292,17 +292,24 @@ Não cadastrar nenhum valor em SQL, terminal, PR ou relatório.
   Sem linha de falha com
   etapa/causa/request_id, **6.7 permanece aberta**. Não foi aplicado retry de pool
   nem correção especulativa de catálogo/grants.
-  Na interface de logs, a opção histórica documentada é `Last day`; sua execução
-  no painel ficou impedida pelo estado do navegador. Não foi presumido resultado.
+  Na interface de logs, a opção histórica documentada é `Last day`. Na última
+  retomada o Chrome voltou acessível, mas abrir esse menu foi recusado como
+  `background_unavailable`; seleção semântica retornou `value_not_settable`.
+  Nenhum resultado de histórico foi presumido, nem foi tomada a tela do solicitante.
+  O guia versionado carregado pela skill `orca-computer-use`
+  (`/Users/lucasazevedo/.agents/skills/orca-computer-use/SKILL.md`) determina:
+  **“Never add --restore-window on your own.”** Abrir o menu exige primeiro plano;
+  como o solicitante está indisponível, foi preservada essa fronteira e seguido
+  o diagnóstico alternativo somente leitura.
 - Aplicação publicada respondeu à entrada; retorno do login Google chegou a
   **HTTP 400** na raiz com parâmetro `fluxo`. Causa não estabelecida. Não foi
   presumido problema de cookie, nem apagados cookies ou revogados acessos.
 - Revalidação sem sessão: raiz HTTP 200; GET de configuração HTTP 401
   `nao_autenticado`, com `request_id` público. Isso prova somente a negativa anônima.
 - Na primeira passagem, controle do navegador foi recusado por foco e depois
-  `screen_locked`. Chrome voltou disponível na retomada da manhã, permitindo as
-  operações remotas descritas abaixo; **na última tentativa voltou a responder
-  `screen_locked`**. Nenhuma ação de desbloqueio ou novo login foi executada.
+  `screen_locked`. Chrome alternou disponibilidade nas retomadas; **a última
+  permitiu leitura dos painéis e diagnóstico de metadados no SQL Editor**.
+  Nenhuma ação de desbloqueio ou novo login foi executada.
 - Netlify mostrava publicação automática bloqueada e main anterior publicada.
   Preview do PR foi construído, mas exige autenticação (HTTP 401 na verificação
   anônima). CI `verificar-ativacao` no PR draft foi SKIPPED; não conta como evidência.
@@ -312,6 +319,28 @@ Não cadastrar nenhum valor em SQL, terminal, PR ou relatório.
   foi restaurada para `main` e conferida após recarregar o painel. O deploy anterior
   `76838b4` permanece publicado/LOCKED; previews não substituem o contexto necessário.
   [Evidência do painel](evidencias-noturnas-18-11-2026/netlify-creditos-pausados.png).
+  Última leitura do painel confirmou novamente créditos esgotados, produção
+  pausada e `76838b4` publicado/LOCKED; preview `20b1a2b` concluído não altera isso.
+
+Diagnóstico complementar de 6.7, somente leitura, realizado após a retomada do
+Chrome: nenhuma chave com carimbo nulo/infinito/ano fora de 1–9999 ou número acima
+do limite finito JavaScript conferido. A wrapper tem owner esperado e restrito,
+`SECURITY DEFINER`, `search_path` vazio e `row_security=on`; EXECUTE para
+`authenticated`, não para `anon`/`service_role`. A operação interna é
+`SECURITY INVOKER`, não concede EXECUTE a esses três papéis e tem `search_path`
+vazio; seus atributos não devem ser comparados aos da wrapper como se fossem a
+mesma fronteira. Consulta reproduzível no complemento de
+`scripts/diagnosticar-configuracao-remota.sql`. A coluna adicional
+`owner_configuracao_executa` foi preparada no script, mas ainda não consultada
+remotamente; nenhum resultado foi presumido para esse grant interno.
+
+Comparação local por Sol entre o publicado `76838b4` e `20b1a2b`: contrato,
+entrada, composição e operação nativa de Configuração sem diferenças. O publicado
+já aceita texto vazio e exige opções/autoria/data. **Não foi estabelecida causa
+do 503**, nem foi provado envelope/projeção real, chamada com sessão válida ou
+RLS funcional por essa consulta. Duas tentativas anteriores do diagnóstico
+falharam por sintaxe na entrada do editor; nenhum dado foi modificado. Isso é
+investigação operacional, não retomada das validações adiadas.
 
 ### Retomada remota da manhã
 
