@@ -40,9 +40,15 @@ export function criarEntradaTurnoNativa(dependencias: Dependencias, operar = com
       try {
         let comando: ComandoTurno;
         if (request.method === 'GET') {
-          const turno = uuidSchema.safeParse(caminho[2]);
-          if (!turno.success || request.body) return erro('entrada_invalida');
-          comando = { operacao: 'consultar', paciente_id: paciente.data, turno_id: turno.data };
+          if (request.body) return erro('entrada_invalida');
+          // A rota literal precede a consulta UUID; nunca interpretar 'atual' como ID.
+          if (caminho[2] === 'atual') {
+            comando = { operacao: 'consultar_atual', paciente_id: paciente.data };
+          } else {
+            const turno = uuidSchema.safeParse(caminho[2]);
+            if (!turno.success) return erro('entrada_invalida');
+            comando = { operacao: 'consultar', paciente_id: paciente.data, turno_id: turno.data };
+          }
         } else {
           if (
             !['abrir', 'encerrar'].includes(caminho[2] ?? '') ||

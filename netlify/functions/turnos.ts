@@ -9,6 +9,7 @@ export const config = {
   path: [
     '/api/pacientes/:paciente_id/turnos/abrir',
     '/api/pacientes/:paciente_id/turnos/encerrar',
+    '/api/pacientes/:paciente_id/turnos/atual',
     '/api/pacientes/:paciente_id/turnos/:turno_id',
     '/api/turnos/barreira',
     '/api/turnos/barreira/reservar',

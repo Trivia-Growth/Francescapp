@@ -62,7 +62,8 @@ export async function comporTurnoNativo(
       const alvo = request.headers.get('x-sessao');
       if (
         !alvo ||
-        (comando.operacao !== 'consultar' && request.headers.get('origin') !== contexto.origem)
+        (!['consultar', 'consultar_atual'].includes(comando.operacao) &&
+          request.headers.get('origin') !== contexto.origem)
       )
         return { estado: 'nao_autenticado' as const };
       const usuario = await contexto.cliente.auth.getUser();
@@ -95,12 +96,13 @@ export async function comporTurnoNativo(
           abrir: 'api.abrir_turno',
           encerrar: 'api.encerrar_turno',
           consultar: 'api.consultar_turno',
+          consultar_atual: 'api.consultar_turno',
         } as const;
         const parametros = {
           p_request_id: requestIdNegacao,
           p_acao: acoes[comando.operacao],
           p_paciente_id: comando.paciente_id,
-          p_turno_id: comando.turno_id,
+          p_turno_id: comando.operacao === 'consultar_atual' ? null : comando.turno_id,
         };
         const negacao = await contexto.cliente
           .schema('api')
@@ -136,7 +138,7 @@ export async function comporTurnoNativo(
         atestador: cofre.atestador,
         executar: (_request, transporte) => {
           verificarCancelamento();
-          mutacaoIniciada = comando.operacao !== 'consultar';
+          mutacaoIniciada = !['consultar', 'consultar_atual'].includes(comando.operacao);
           return executarTurnoNativo(contexto.cliente, transporte);
         },
       }),

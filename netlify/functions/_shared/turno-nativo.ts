@@ -12,6 +12,7 @@ import type { operarTarefaCuidadoNativo } from './tarefa-cuidado-nativo.ts';
 
 type Portas = Omit<Parameters<typeof operarTarefaCuidadoNativo>[2], 'cifra'>;
 export type ComandoTurno =
+  | { operacao: 'consultar_atual'; paciente_id: string }
   | { operacao: 'consultar'; paciente_id: string; turno_id: string }
   | {
       operacao: 'abrir';
@@ -41,8 +42,10 @@ export async function operarTurnoNativo(request: Request, comando: ComandoTurno,
   let iniciada = false;
   try {
     const pacienteId = uuidSchema.parse(comando.paciente_id).toLowerCase();
-    const turnoId = uuidSchema.parse(comando.turno_id).toLowerCase();
-    if (!['consultar', 'abrir', 'encerrar'].includes(comando.operacao))
+    const consultaAtual = comando.operacao === 'consultar_atual';
+    const leitura = consultaAtual || comando.operacao === 'consultar';
+    const turnoId = consultaAtual ? undefined : uuidSchema.parse(comando.turno_id).toLowerCase();
+    if (!['consultar', 'consultar_atual', 'abrir', 'encerrar'].includes(comando.operacao))
       return erro('entrada_invalida');
     const autorizacao = await portas.autorizar(request);
     if (autorizacao.estado !== 'autorizado') return erro(autorizacao.estado);
@@ -58,9 +61,9 @@ export async function operarTurnoNativo(request: Request, comando: ComandoTurno,
     const entrada: Record<string, unknown> = {
       request_id: requestId,
       paciente_id: pacienteId,
-      turno_id: turnoId,
+      ...(turnoId ? { turno_id: turnoId } : {}),
     };
-    if (comando.operacao !== 'consultar') {
+    if (comando.operacao === 'abrir' || comando.operacao === 'encerrar') {
       const { operacao: _operacao, paciente_id: _paciente, ...dados } = comando;
       const validada = (
         comando.operacao === 'abrir' ? aberturaTurnoSchema : encerramentoTurnoSchema
@@ -83,6 +86,7 @@ export async function operarTurnoNativo(request: Request, comando: ComandoTurno,
       abrir: 'api.abrir_turno',
       encerrar: 'api.encerrar_turno',
       consultar: 'api.consultar_turno',
+      consultar_atual: 'api.consultar_turno',
     } as const;
     const metadados = dadosAtestadoSchema.omit({ digest_entrada: true }).parse({
       ...portas.metadados(requestId),
@@ -109,7 +113,7 @@ export async function operarTurnoNativo(request: Request, comando: ComandoTurno,
       atual.identidade.session_id.toLowerCase() !== identidade.session_id
     )
       return erro('nao_autenticado');
-    iniciada = comando.operacao !== 'consultar';
+    iniciada = !leitura;
     const resposta = respostaTurnoPrivadaSchema.parse(
       await portas.executar(request, {
         p_transporte: {
@@ -126,7 +130,8 @@ export async function operarTurnoNativo(request: Request, comando: ComandoTurno,
     if (
       (!resposta.dados && comando.operacao === 'abrir') ||
       (resposta.dados &&
-        (resposta.dados.turno_id.toLowerCase() !== turnoId ||
+        ((!consultaAtual && resposta.dados.turno_id.toLowerCase() !== turnoId) ||
+          (consultaAtual && resposta.dados.situacao !== 'aberto') ||
           resposta.dados.paciente_id.toLowerCase() !== pacienteId ||
           resposta.dados.profissional_usuario_id.toLowerCase() !== identidade.usuario_id))
     )

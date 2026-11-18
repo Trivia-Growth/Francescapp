@@ -334,6 +334,12 @@ export const contratosRotas = {
     turnoSchema.nullable(),
     pacienteParametrosSchema.extend({ turno_id: uuidSchema }).strict(),
   ),
+  consultarTurnoAtual: consulta(
+    '/api/pacientes/:paciente_id/turnos/atual',
+    vazioSchema,
+    turnoSchema.nullable(),
+    pacienteParametrosSchema,
+  ),
   criarTurnoPrevisto: mutacaoIdempotente(
     'POST',
     '/api/pacientes/:paciente_id/escala',
