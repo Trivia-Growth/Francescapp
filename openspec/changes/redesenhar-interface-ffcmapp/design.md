@@ -25,7 +25,7 @@ A carteira desktop publicada foi observada na revisão anterior. Na execução, 
 | P2 Movimento sem sistema consistente | Leitura de fonte mostra pouco movimento funcional; screenshot estático não comprova fluidez ou ausência de animação no publicado. | Transições curtas e coerentes em controles/navegação; validar reduced-motion e desempenho percebido na retomada, sem efeitos decorativos novos. |
 | P1 Estados desconectados visualmente | Relato do usuário e leitura de status/carregamento/erro nas fontes. “Verificando seu acesso…” não foi visto travado na carteira capturada. | Reproduzir entrada/retorno de aba; só então reduzir flicker comprovado e harmonizar estrutura/feedback, preservando ocultação de dados, timeout e recuperação existentes. |
 
-**Gate de retomada atendido:** o solicitante pediu a execução após informar o PR #16. O commit publicado foi conferido e usado como base; frentes Terra receberam arquivos exclusivos e a gaveta existente foi reutilizada. Não houve merge, push ou deploy.
+**Gate de retomada atendido:** o solicitante pediu a execução após informar o PR #16. O commit publicado foi conferido e usado como base; frentes Terra receberam arquivos exclusivos e a gaveta existente foi reutilizada. Na retomada não houve operação externa. Posteriormente o usuário autorizou push desta branch; envio registrado no estado, sem merge ou deploy.
 
 ## Goals / Non-Goals
 
@@ -165,6 +165,6 @@ Pendências funcionais a **revalidar**, fora deste recorte visual: jornada famil
 2. Reutilizar/completar navegação; avaliar módulo independente apenas se necessário. Conciliar DOM, mantendo nós/listeners, IDs/hrefs e roteamento existente.
 3. Harmonizar carteira e conferir a primeira entrega renderizada de shell/sidebar/carteira em desktop e celular. Depois, propagar às classes da ficha/formulários/abas/feedback, Seu dia e demais grupos da matriz, sem novas agregações.
 4. Reproduzir retorno de aba antes de reduzir flicker; acrescentar movimento/reduced-motion e verificar somente o diff afetado; registrar revisão padrões/spec.
-5. Manter gates de visual conectado e autorização/RLS abertos até evidência. Publicação, push, merge e migrações exigem autorização explícita própria; não fazem parte da preparação autorizada.
+5. Manter gates de visual conectado e autorização/RLS abertos até evidência. Push desta branch recebeu autorização posterior e foi realizado; merge, deploy e migrações continuam exigindo autorização explícita própria.
 
 Reversão futura: retirar somente arquivos/links/classes da fatia e restaurar seus estilos anteriores, preservando dados, gates, DOM de domínio e trabalho de outras sessões. Sem alteração de banco, APIs ou autenticação, não há migration remota pressuposta. Estado da change acompanha tarefa, comandos/resultado, limitações e próximo passo no mesmo commit; registro global só no merge.

@@ -1,6 +1,6 @@
 # Tasks
 
-**Fase atual: execução local autorizada em 17/11/2026 após o PR #16.** Base efetiva `804428e79334234a59b1cd415692a976b60246ef`, branch `codex/refino-visual-pr16`. Operações externas e ativação continuam sem autorização. A estética do mock anexado já está aprovada, sem nova rodada de opção gráfica.
+**Fase atual: execução local autorizada em 17/11/2026 após o PR #16.** Base efetiva `804428e79334234a59b1cd415692a976b60246ef`, branch `codex/refino-visual-pr16`. Push desta branch autorizado e realizado em 17/11/2026; merge, deploy, migrações e ativação continuam pendentes. A estética do mock anexado já está aprovada, sem nova rodada de opção gráfica.
 
 Ao fechar qualquer tarefa, atualizar `estado.md` no mesmo commit com evidência, limitações e próximo passo. Os arquivos da outra worktree ativa e `docs/processo/estado-do-projeto.md` não pertencem a esta preparação.
 
@@ -47,6 +47,6 @@ Ao fechar qualquer tarefa, atualizar `estado.md` no mesmo commit com evidência,
 
 ## Workflow follow-up
 
-- Solicitar/usar autorização explícita específica antes de push, merge, deploy ou operação remota; nenhuma dessas operações está autorizada por esta preparação.
+- Push de `codex/refino-visual-pr16` autorizado pelo usuário e realizado em 17/11/2026, com SHA remoto conferido no estado. Merge, deploy, migração e demais operações remotas continuam exigindo autorização específica.
 - Sincronizar/arquivar a change somente depois de implementação, revisão e gates realmente concluídos; atualizar registro global apenas no merge, conforme processo.
 - Revalidar pendências funcionais de Família/convite/recuperação, agenda/tarefas, áudio/documentos e solicitação do titular contra o commit concluído; mantê-las nas changes próprias, sem ativação silenciosa pelo refino visual.

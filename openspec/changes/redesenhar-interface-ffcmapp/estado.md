@@ -4,7 +4,7 @@
 
 ## Onde está
 
-Implementação local e revisão do delta visual concluídas; ativação pendente. O usuário autorizou executar após informar o PR #16. Worktree exclusiva `ffcmapp-refino-visual-mock`, criada desse SHA confirmado por `gh pr view 16` e fetch de `pull/16/head`. A worktree da outra sessão não foi editada. Sem push, merge, deploy, migração ou alteração remota.
+Implementação local e revisão do delta visual concluídas; ativação pendente. O usuário autorizou executar após informar o PR #16. Worktree exclusiva `ffcmapp-refino-visual-mock`, criada desse SHA confirmado por `gh pr view 16` e fetch de `pull/16/head`. A worktree da outra sessão não foi editada. Após autorização explícita do usuário para empurrar ao Git, a branch foi enviada ao origin. Sem merge, deploy ou migração.
 
 A estética aprovada é a captura do mock: Cormorant Garamond/Raleway, sidebar branca, oliva nas ações/seleções, superfícies claras e bordas finas. Source, glass, sidebar oliva e imagem de conceito foram rejeitados. Nenhuma escolha estética pendente.
 
@@ -49,12 +49,18 @@ Skill `code-review`, eixos padrões e spec, revisão-base `804428e`. Alvo: diff 
 - Família na base possui Dados, Diário, Plano, Documentos, Orientações; sem Home/admin. Gates existentes mantidos. Não habilitar integrações para cumprir cobertura visual.
 - Não aplicar Impeccable, gerar identidade, trocar fontes ou reconstruir logo. Vetores/variantes finais continuam com marketing.
 
+## Envio remoto e passagem ao Claude
+
+- Push autorizado pelo usuário em 17/11/2026 para continuar outra frente com Claude. `rtk git push -u origin codex/refino-visual-pr16` terminou **0**; pre-push passou lint/typecheck, 11,14s.
+- `rtk proxy git ls-remote --heads origin refs/heads/codex/refino-visual-pr16` confirmou **6563d1db636cc5d1fb9624a8cf521dac491f6db8**, commit do produto revisado. Registro de passagem acrescentado depois, sem mudança de código.
+- Branch remota: `origin/codex/refino-visual-pr16`. Base do delta visual continua `804428e` do PR #16; a branch daquele PR e main não foram alteradas. Para integrar em outra frente, considerar também o estado e os gates pendentes abaixo. Nenhum PR, merge ou deploy adicional criado.
+
 ## Próximo passo e bloqueadores
 
 1. **4.1 parcial:** acesso inicial fictício conferido; retorno de aba, falha e perda de acesso conectados não reproduzidos. Nenhuma alegação de travamento resolvido ou mudança do algoritmo de sessão.
 2. **6.1:** aceite visual conectado por perfis, larguras previstas, zoom 200%, teclado, estados e seções não renderizados. Usar caso fictício autorizado e registrar resultado real.
 3. **6.2:** `verificar:ativacao` e provas positivas/negativas de servidor/RLS não executados; fatia não ativada. Revisão sensível de Família do PR #16 continua própria e pendente; este delta não a certifica.
-4. **6.3/externo:** push, merge, deploy e migração sem autorização específica. Nenhuma alteração publicada por esta frente. Registro global somente no merge, sem tracker paralelo.
+4. **6.3/externo:** push da branch autorizado e realizado. Merge, deploy e migração continuam sem autorização específica; frontend não ativado em produção por esta frente. Registro global somente no merge, sem tracker paralelo.
 
 ## Histórico essencial
 

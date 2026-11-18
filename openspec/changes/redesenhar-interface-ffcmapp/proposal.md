@@ -36,4 +36,4 @@ Arquivos alcançados: `web/styles.css`, `web/index.html`, estilos/HTML/JS das p�
 
 A cobertura visual incluirá somente vistas e seções existentes na base reconciliada, com suas disponibilidades reais. Não habilitar Família, convite, áudio, tarefas ou agenda; não acrescentar rotas, agregações, busca global, dados de exemplo, audiência ou funções do mock. Logo vetorial/variantes pequenas continuam pendência do marketing; usar originais intactos e fallback textual.
 
-Sem autorização para push, merge, deploy, migração, mudança remota, dados reais ou ativação de integração. `docs/processo/estado-do-projeto.md` permanece reservado ao merge; evidências e próximos passos desta frente ficam no `estado.md` da change.
+Em 17/11/2026 o usuário autorizou push da branch `codex/refino-visual-pr16`; envio e evidência registrados no estado. Merge, deploy, migração, demais mudanças remotas, dados reais e ativação de integração continuam sem autorização. `docs/processo/estado-do-projeto.md` permanece reservado ao merge; evidências e próximos passos desta frente ficam no `estado.md` da change.
