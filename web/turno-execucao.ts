@@ -419,6 +419,9 @@ export function montarExecucaoTurno(
     prescricoes = cursor ? [...prescricoes, ...pagina.itens] : pagina.itens;
     paginaPrescricoes = pagina;
   }
+  function focarEditorAtual() {
+    editor?.focar();
+  }
   async function abrirEditor(classeEscolhida: ClasseExecucao, atual?: RegistroExecucaoPublico) {
     if (
       !ativa ||
@@ -516,7 +519,7 @@ export function montarExecucaoTurno(
       ocupada = false;
       if (ativa) {
         controles();
-        editor?.focar();
+        focarEditorAtual();
       }
     }
   }
