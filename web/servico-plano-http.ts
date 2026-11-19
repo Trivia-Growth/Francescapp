@@ -1,3 +1,9 @@
+import type { z } from 'zod';
+import type {
+  CampoExtraCatalogo,
+  AprovadorPlano,
+  aprovacaoObjetivoPlanoSchema,
+} from '../packages/contracts/src/plano-cuidado.ts';
 import { contratosRotas } from '../packages/contracts/src/rotas.ts';
 import { planoHttp } from '../packages/contracts/src/plano-http.ts';
 import {
@@ -168,16 +174,12 @@ export function criarServicoPlanoHttp(
   return {
     ciclo,
     consultarCatalogo: async () =>
-      (await enviar('listarCampoExtraPlano', {})) as import(
-        '../packages/contracts/src/plano-cuidado.ts',
-      ).CampoExtraCatalogo[],
+      (await enviar('listarCampoExtraPlano', {})) as CampoExtraCatalogo[],
     gravarCampoExtra: async (entrada, chave) => {
       await enviar('gravarCampoExtraPlano', entrada, undefined, undefined, chave);
     },
     consultarAprovadores: async () =>
-      (await enviar('listarAprovadorPlano', {})) as import(
-        '../packages/contracts/src/plano-cuidado.ts',
-      ).AprovadorPlano[],
+      (await enviar('listarAprovadorPlano', {})) as AprovadorPlano[],
     gravarAprovador: async (entrada, chave) => {
       await enviar('gravarAprovadorPlano', entrada, undefined, undefined, chave);
     },
@@ -188,9 +190,7 @@ export function criarServicoPlanoHttp(
         undefined,
         undefined,
         crypto.randomUUID(),
-      )) as import('zod').output<
-        typeof import('../packages/contracts/src/plano-cuidado.ts').aprovacaoObjetivoPlanoSchema
-      >,
+      )) as z.output<typeof aprovacaoObjetivoPlanoSchema>,
     consultarObjetivos: async (paciente, cursor) =>
       (await enviar(
         'consultar',
