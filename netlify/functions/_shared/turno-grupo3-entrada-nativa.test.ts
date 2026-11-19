@@ -42,7 +42,7 @@ it('consulta último próprio usa modo específico sem interpretar literal como 
     async (
       _request: Request,
       _comando: Parameters<NonNullable<Parameters<typeof criarEntradaTurnoNativa>[1]>>[1],
-    ) => ({ ok: true as const, dados: null, request_id: id }),
+    ) => ({ ok: true as const, repeticao: false, dados: null, request_id: id }),
   );
   const entrada = criarEntradaTurnoNativa(
     {} as Parameters<typeof criarEntradaTurnoNativa>[0],
