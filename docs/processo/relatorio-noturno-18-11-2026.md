@@ -146,7 +146,9 @@ Isso não certifica integração externa nem substitui roteiro publicado.
   e `nosniff`. Não emite URL Drive nem altera ACL. Migration `25090000` prepara
   leitura direcionada/auditoria sem ampliar a listagem antiga. Testes helper,
   HTTP, adapter, tela e SQL escritos; runner `testar-documento-entrega-local.sh`.
-  **Nenhum executado nesta retomada; revisão e prova real pendentes.**
+  **Nenhum executado nesta retomada; prova real pendente.** A revisão independente
+  de fonte adicional encontrou e corrigiu a composição do download em `34cc57c`,
+  conforme registro adiante.
 - **Agenda:** orientação persistente para `?agenda=autorizar-novamente`, sem
   confundir consentimento incompleto com estado atual da conexão. Link informativo
   explica impacto de alterar acesso sem recomendar revogação. Novo teste
@@ -180,7 +182,8 @@ Isso não certifica integração externa nem substitui roteiro publicado.
   persistido no navegador. Negativa de perfil tem auditador estreito sem cofre;
   não concede capacidade de operação. **Código preparado; provas novas escritas,
   não executadas.** Flag `ffcm.diario.conversao_tarefa_ativa=false`; migration,
-  revisão independente, matriz de autorização/RLS e jornada real pendentes.
+  matriz de autorização/RLS e jornada real pendentes; revisão independente de
+  fonte realizada na continuação descrita adiante, com correção em `f502832`.
   Evidência de implementação: servidor/contratos `b56e90c`, interface `df01629`,
   cinco arquivos `conversao-diario-*` de testes do servidor/contrato e três de UI/
   cliente/elegibilidade. Modelo de ameaças focado na própria change distingue
@@ -329,6 +332,39 @@ O primeiro push apontou somente `repeticao` ausente numa fixture, completada em
 os projetos passaram. Nenhum teste de comportamento, SQL, build, Deno ou jornada
 manual foi disparado nesta continuação. Os hooks existentes foram preservados;
 seus resultados não substituem as provas de autorização/RLS ainda adiadas.
+
+
+### Revisão de fonte adicional — Drive e conversão FR-014
+
+Base fixa `abac1a6f2c7c3d68df52bfa4b8edf28e3c066b4a`, diff delimitado aos dois
+recortes anteriores até `6715f6a`, mais patches corretivos. Dois revisores Sol
+independentes do executor, nos eixos padrões/segurança e especificação.
+
+- **Padrões/segurança:** P1 do download: comando externo `entregar` sobrescrevia
+  a leitura interna `ler` por spread, impedindo a rota real de alcançar o banco.
+  `34cc57c` projeta campos explicitamente. Três novas provas escritas atravessam
+  handler/composição/operação reais, com adapters fictícios: entrega e negativas
+  antes/depois do I/O. Nenhuma foi executada. Expectativa HTTP antiga alinhada ao
+  contrato atual, sem alterar o contrato para fazer o teste aceitar.
+- **Padrões/segurança:** P2 FR-014: primeiro ledger podia adotar tarefa criada
+  anteriormente por replay da filha. `f502832` exige ausência prévia da tarefa
+  sob lock do paciente, além do registro exato atestado nas duas filhas e
+  `repeticao=false` onde o Diário realmente expõe esse campo. Wrapper de Tarefas
+  permanece intacta; replay do ledger agregado confirmado continua permitido e
+  reautorizado. Grant novo somente `SELECT(id,paciente_id)` à role privada nova,
+  com RLS de caso, sem conteúdo clínico, escrita ou acesso novo da aplicação.
+  Negativas SQL de transportes antigos exatos, preservação e rollback escritas,
+  **não executadas**. Migration `25120000` permanece somente local.
+- **Especificação:** releituras dos dois patches conferiram entrega dirigida,
+  proveniência das filhas, original intacto, audiência interna, atomicidade e
+  recuperação. Sem P1/P2 de fonte remanescente nos deltas relidos e sem escopo
+  adicional injustificado. Isso não comprova integração nem segurança runtime.
+
+Push de `34cc57c` e `f502832`: saída 0, hooks existentes de lint (**760 arquivos**)
+e typecheck passaram; nenhum teste/build/SQL/manual executado. Conferência somente
+de metadados do PR no head anterior `6715f6a` mostrou ativação `SKIPPED` por draft
+e preview `SUCCESS`; esses estados não comprovam Auth, Vault, bytes Drive reais
+nem a aplicação principal publicada. Nenhum gate foi aberto por CI ou preview.
 
 ## Lista exata do que cadastrar e onde
 
@@ -547,8 +583,8 @@ aprovada antes da implementação, conforme evidência do bloco 2.
 - Diário: 4.3 visual/teclado isolados conferidos; navegação integrada, autenticação
   familiar real e ativação pendentes. Conversão FR-014 agora preparada e fiada
   numa change própria, com transação única e recuperação por origem/barreira.
-  Migration `25120000`, provas novas, revisão e ativação permanecem pendentes;
-  flag desligada. Resultado antigo do Diário não aprova essa composição nova.
+  Migration `25120000`, execução das provas novas e ativação permanecem pendentes;
+  revisão independente de fonte realizada, flag desligada. Resultado antigo do Diário não aprova essa composição nova.
 - Saúde: 5.2 revisão concluída após duas correções; 4.3 leitor de tela/jornada
   integrada e 5.1 ativação remota pendentes. Componente desktop/celular conferido.
 - Crise: 6.2 revisão local concluída; 7.1 ativação e cadastro operacional das
@@ -641,6 +677,14 @@ aprovada antes da implementação, conforme evidência do bloco 2.
   `72cd532`, alterações locais e arquivos novos do grupo 3. Dois revisores Sol,
   padrões/segurança e especificação, fazem leitura de fonte; esse exame não
   substitui testes adiados nem comprova SQL, Auth, Vault ou provedor reais.
+
+
+- **SUPOSIÇÃO TÉCNICA CONSERVADORA — novidade da conversão:** UUID fresco no
+  servidor não substitui prova de novidade no banco. A role privada da conversão
+  lê somente identificadores de tarefa em caso autorizado, sob o lock já existente,
+  para recusar adoção de gravação anterior. Nenhuma mudança de API de Tarefas,
+  exceção de perfil ou acesso direto da aplicação foi criada. Provas executáveis
+  dessa fronteira continuam obrigatórias antes de ativar.
 
 Hipóteses anteriores preservadas, sem nova decisão silenciosa: diário considera
 coordenação colaboradores vinculados; saúde não proíbe combinação `relato_leigo` +
