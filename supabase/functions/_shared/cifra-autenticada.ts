@@ -125,6 +125,31 @@ function aadCanonico(aad: MetadadosAad): Uint8Array {
       }),
     );
   }
+  // FR-024. Observação livre do registro de realização do compromisso. O registro é
+  // append-only: `registro_id` e `versao` entram na ligação para que o envelope de uma
+  // versão não decifre no lugar do de outra versão do mesmo compromisso.
+  if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.realizacao_compromisso') {
+    if (
+      typeof aad.registro_id !== 'string' ||
+      !uuid.test(aad.registro_id) ||
+      !Number.isInteger(aad.versao) ||
+      aad.versao < 1 ||
+      aad.versao > 2147483647 ||
+      aad.campo !== 'observacao' ||
+      aad.formato !== formatoAtual
+    ) {
+      throw new ErroCifraAutenticada();
+    }
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        registro_id: aad.registro_id,
+        versao: aad.versao,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
   if (typeof aad === 'object' && aad !== null && aad.tabela === 'identidade.acesso_gerenciado') {
     if (
       !uuid.test(aad.registro_id) ||

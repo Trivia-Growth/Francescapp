@@ -283,7 +283,21 @@ export const metadadosAadAcessoGerenciadoSchema = z
   })
   .strict();
 
+/** FR-024. Observação livre do registro de realização do compromisso. `registro_id` e
+ * `versao` entram na ligação porque o registro é append-only: a observação de uma versão
+ * não pode ser remontada como se fosse a de outra versão do mesmo compromisso. */
+export const metadadosAadRealizacaoCompromissoSchema = z
+  .object({
+    tabela: z.literal('cadastro.realizacao_compromisso'),
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('observacao'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
 export const metadadosAadSchema = z.union([
+  metadadosAadRealizacaoCompromissoSchema,
   metadadosAadExecucaoTurnoSchema,
   metadadosAadAcessoGerenciadoSchema,
   metadadosAadEscalaTurnoSchema,

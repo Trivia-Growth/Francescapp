@@ -42,3 +42,6 @@ export * from './turno-passagem.ts';
 export * from './acessos.ts';
 
 export * from './turno-execucao.ts';
+
+export * from './realizacao-compromisso.ts';
+export * from './realizacao-compromisso-http.ts';
