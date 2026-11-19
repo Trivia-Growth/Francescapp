@@ -65,6 +65,7 @@ it('origem incorreta impede registrar antes da autorização e do Vault', async 
       substituto_usuario_id: substituta,
       inicio: '2026-11-20T09:00:00.000Z',
       fim: '2026-11-27T09:00:00.000Z',
+      motivo: 'Férias programadas da titular.',
     },
     dependencias,
   );
@@ -89,6 +90,7 @@ it('entrada HTTP recusa período invertido e caminho desconhecido sem chamar a c
         substituto_usuario_id: substituta,
         inicio: '2026-11-27T09:00:00.000Z',
         fim: '2026-11-20T09:00:00.000Z',
+        motivo: 'Período invertido de propósito.',
       }),
     }),
   );

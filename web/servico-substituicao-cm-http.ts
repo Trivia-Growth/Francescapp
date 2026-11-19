@@ -15,6 +15,9 @@ import { FalhaApi } from './api.ts';
 type Identidade = { usuario_id: string; session_id: string };
 
 export type ServicoSubstituicaoCaseManager = {
+  /** Diz se a FATIA está ligada. Não é autorização e não fala de caso nenhum: existe para a
+   * tela mostrar indisponibilidade honesta em vez de um erro de carregamento. */
+  disponibilidade(): Promise<{ disponivel: boolean }>;
   consultar(pacienteId: string): Promise<PainelSubstituicao>;
   registrar(pacienteId: string, entrada: RegistrarSubstituicao): Promise<PainelSubstituicao>;
   encerrar(pacienteId: string, entrada: EncerrarSubstituicao): Promise<PainelSubstituicao>;
@@ -29,12 +32,19 @@ export function criarServicoSubstituicaoCmHttp(
   if (!identidade) throw new FalhaApi('nao_autenticado', 401);
   const enviar = async (
     rota: (typeof substituicaoCaseManagerHttp)[keyof typeof substituicaoCaseManagerHttp],
-    pacienteId: string,
+    pacienteId: string | null,
     entrada: unknown,
     chave?: string,
   ) => {
     const corpo = rota.entrada.parse(entrada);
-    const alvo = rota.caminho.replace(':paciente_id', uuidSchema.parse(pacienteId));
+    // URL absoluta, como em `api.ts`: o caminho relativo deixava o destino ambíguo para
+    // quem observa a chamada e dependia da base do documento.
+    const alvo = new URL(
+      pacienteId === null
+        ? rota.caminho
+        : rota.caminho.replace(':paciente_id', uuidSchema.parse(pacienteId)),
+      location.origin,
+    );
     const atual = identidadeAtual();
     if (
       !atual ||
@@ -104,6 +114,10 @@ export function criarServicoSubstituicaoCmHttp(
     }
   };
   return {
+    disponibilidade: async () =>
+      (await enviar(substituicaoCaseManagerHttp.disponibilidade, null, {})) as {
+        disponivel: boolean;
+      },
     consultar: async (pacienteId) =>
       (await enviar(substituicaoCaseManagerHttp.consultar, pacienteId, {})) as PainelSubstituicao,
     registrar: async (pacienteId, entrada) =>

@@ -24,7 +24,9 @@ begin
     'paciente_id', caso, 'substituicao_id', p_sub, 'substituto_usuario_id', prof,
     'inicio', date_trunc('hour', clock_timestamp()) + interval '1 hour',
     'fim', date_trunc('hour', clock_timestamp()) + interval '5 hours',
-    'chave_idempotencia', p_chave, 'digest_idempotencia', repeat('d', 43)),
+    'chave_idempotencia', p_chave, 'digest_idempotencia', repeat('d', 43),
+    'motivo_cifrado', jsonb_build_object('formato', 1, 'key_id', 'teste', 'nonce', repeat('a', 16),
+      'ciphertext', 'YQ', 'tag', repeat('a', 22))),
     'api.registrar_substituicao_cm', admin, sa);
   execute 'set local role authenticated';
   r := api.substituicao_case_manager_privado(t);

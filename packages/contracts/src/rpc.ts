@@ -301,9 +301,26 @@ export const metadadosAadRealizacaoCompromissoSchema = z
   })
   .strict();
 
-/** AAD do financeiro do cuidado (FR-068/FR-069). O da despesa amarra ao lançamento, não à
- * linha: `api.consultar_despesas` devolve `despesa_id` e `versao`, nunca o id da linha, e a
- * versão da retificação é decidida pelo banco depois que a cifra já foi montada. */
+/** FR-037. Motivo da substituição temporária da case manager e motivo do encerramento
+ * antecipado. Mesma forma genérica do repositório — `{tabela, registro_id, campo, formato}` —,
+ * com `registro_id` na chave primária da linha (`cadastro.substituicao_case_manager.id`), que
+ * é conhecida antes da cifra nos dois caminhos de escrita. `campo` entra na ligação porque a
+ * mesma linha guarda dois textos cifrados: sem isso o envelope do motivo do registro seria
+ * aceito no lugar do motivo do encerramento. A linha é append-only com uma única transição
+ * nomeada, então `versao` seria redundante com `id`. Não há convenção própria aqui. */
+export const metadadosAadSubstituicaoCmSchema = z
+  .object({
+    tabela: z.literal('cadastro.substituicao_case_manager'),
+    registro_id: uuidSchema,
+    campo: z.enum(['motivo', 'motivo_encerramento']),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+/** AAD do financeiro do cuidado (FR-068/FR-069). As duas tabelas usam a forma genérica do
+ * repositório — `{tabela, registro_id, campo, formato}` —, com `registro_id` na chave
+ * primária da linha: `valor_id` no valor acordado, `id` no lançamento de despesa. Não existe
+ * segunda convenção de AAD aqui. */
 export const metadadosAadFinanceiroValorSchema = z
   .object({
     tabela: z.literal('financeiro.valor_acordado_turno'),
@@ -313,23 +330,24 @@ export const metadadosAadFinanceiroValorSchema = z
   })
   .strict();
 
+/** `registro_id` é o `id` da linha, não o `despesa_id` do lançamento: a tabela é append-only
+ * por `(despesa_id, versao)` e cada versão é uma linha própria, então amarrar o `id` é o que
+ * impede reaproveitar o envelope de uma versão como se fosse o de outra, do mesmo lançamento
+ * e do mesmo campo. `api.consultar_despesas` projeta `id` justamente para isso. `campo`
+ * continua na ligação porque há três campos cifrados na mesma linha. */
 export const metadadosAadFinanceiroDespesaSchema = z
   .object({
     tabela: z.literal('financeiro.despesa_lancamento'),
-    despesa_id: uuidSchema,
+    registro_id: uuidSchema,
     campo: z.enum(['descricao', 'autorizacao', 'motivo_retificacao']),
     formato: formatoCifraSchema,
   })
   .strict();
 
-/** União do AAD financeiro, DELIBERADAMENTE fora de `metadadosAadSchema`.
- *
- * Motivo concreto, não preferência: `supabase/functions/_shared/cifra-autenticada.ts`
- * canonicaliza o AAD por `tabela`, com uma cadeia de ramos fechados e sem ramo genérico para
- * `financeiro.*`. Acrescentar a variante da despesa — que não tem `registro_id` — à união
- * compartilhada quebra a tipagem do ramo final daquele arquivo. Enquanto ele não ganhar um
- * ramo próprio para as duas tabelas financeiras, a cifra do financeiro não tem como ser
- * calculada: ver a limitação registrada em `tasks.md`. */
+/** Recorte do AAD financeiro: os MESMOS membros que `metadadosAadSchema` carrega, reunidos
+ * para que a composição do financeiro (`compor-financeiro-nativo.ts`) possa recusar na
+ * fronteira qualquer AAD de tabela de cuidado. Não é uma segunda convenção — é um
+ * subconjunto da única união, e a separação de chaves do design D1 depende dele. */
 export const metadadosAadFinanceiroSchema = z.union([
   metadadosAadFinanceiroValorSchema,
   metadadosAadFinanceiroDespesaSchema,
@@ -337,7 +355,10 @@ export const metadadosAadFinanceiroSchema = z.union([
 export type MetadadosAadFinanceiro = z.infer<typeof metadadosAadFinanceiroSchema>;
 
 export const metadadosAadSchema = z.union([
+  metadadosAadFinanceiroValorSchema,
+  metadadosAadFinanceiroDespesaSchema,
   metadadosAadRealizacaoCompromissoSchema,
+  metadadosAadSubstituicaoCmSchema,
   metadadosAadExecucaoTurnoSchema,
   metadadosAadAcessoGerenciadoSchema,
   metadadosAadEscalaTurnoSchema,
@@ -773,6 +794,9 @@ export const financeiroValorSaidaSchema = z
 
 export const financeiroDespesaSaidaSchema = z
   .object({
+    /** Chave primária da LINHA (uma por versão), distinta do `despesa_id` do lançamento. É o
+     * `registro_id` do AAD da despesa; sem ela na listagem o texto cifrado não é decifrável. */
+    id: uuidSchema,
     despesa_id: uuidSchema,
     versao: versaoSchema,
     paciente_id: uuidSchema,

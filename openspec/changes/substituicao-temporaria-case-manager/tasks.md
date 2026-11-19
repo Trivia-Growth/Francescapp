@@ -11,9 +11,13 @@
 - [x] 1.2 Contrato HTTP isolado, sem tocar o `rotas.ts` compartilhado.
   **Evidência:** `packages/contracts/src/substituicao-case-manager-http.ts`, no mesmo
   padrão de `plano-crise-http.ts`. Encerrar é rota separada de registrar.
-- [x] 1.3 Nenhum AAD novo.
-  **Evidência:** a fatia não cifra campo algum; `cifra-autenticada.ts` e a união
-  `MetadadosAad` ficam intocadas.
+- [x] 1.3 AAD próprio do motivo, na forma genérica do repositório (revisto em 19/11/2026).
+  **Evidência:** `metadadosAadSubstituicaoCmSchema` em `packages/contracts/src/rpc.ts` e o
+  ramo `cadastro.substituicao_case_manager` em `supabase/functions/_shared/cifra-autenticada.ts`,
+  com a forma `{tabela, registro_id, campo, formato}` — a mesma de
+  `financeiro.valor_acordado_turno` e `financeiro.despesa_lancamento`. Nenhum ramo existente
+  mudou de forma: `cifra-autenticada.test.ts` e os sete vetores de regressão de
+  `cifra-financeira.test.ts` continuam passando sem edição (42 testes).
 
 ## 2. Banco — registro da substituição
 
@@ -83,14 +87,46 @@
 
 ## 7. Pendências
 
-- [ ] 7.1 Campo de motivo da substituição, quando o AAD compartilhado puder receber a
-  tabela nova (`supabase/functions/_shared/cifra-autenticada.ts` está fora desta onda).
-- [ ] 7.2 Passar o serviço em `web/main.ts` quando a flag for ligada. A costura já existe:
-  `ServicoEdicaoPaciente.substituicao` é opcional e `montarEdicaoPaciente` só desenha a
-  seção quando ele é informado. Enquanto a rota responde 503 por flag desligada, informar
-  o serviço só mostraria erro de carregamento ao Administrador. Falta também uma rota de
-  disponibilidade como a de `plano-crise`, para a tela saber distinguir fatia desligada de
-  serviço fora do ar.
+- [x] 7.1 Motivo cifrado da substituição e do encerramento antecipado (19/11/2026).
+  **Decisão:** motivo OBRIGATÓRIO nas duas ações. FR-037 pede motivo em toda alteração de
+  acesso, e encerrar antes da hora também é alteração de acesso — é a que devolve a alçada ao
+  titular. Deixá-lo opcional permitiria exatamente o registro que o requisito proíbe.
+  **Migração:** editada a `20261126100000_substituicao_case_manager.sql`, não aditiva. Ela é
+  desta entrega e nunca foi aplicada em ambiente algum; `motivo_cifrado` é `not null` e uma
+  migração aditiva teria de aceitar coluna nula ou inventar um envelope de preenchimento,
+  enfraquecendo o invariante. Tabela, gatilho, grants e a operação privada mudam juntos.
+  **Evidência:** `cadastro.substituicao_case_manager.motivo_cifrado` (not null) e
+  `motivo_encerramento_cifrado`, com checagem de forma do envelope; o
+  `substituicao_cm_encerramento_completo_chk` passou a exigir as QUATRO colunas do
+  encerramento; o gatilho `substituicao_cm_imutavel` recusa alterar `motivo_cifrado` e exige
+  o motivo do encerramento na transição. Contrato, RPC, handler e tela:
+  `packages/contracts/src/substituicao-case-manager.ts` (painel público já decifrado e painel
+  privado com envelopes), `netlify/functions/_shared/substituicao-cm-nativa.ts` (cifra depois
+  da autorização e antes do atestado; decifra a resposta), `web/substituicao-case-manager.ts`.
+  **Testes:** `supabase/functions/_shared/cifra-substituicao-cm.test.ts` (7) — ida e volta dos
+  dois campos, tabela/campo/registro/formato trocados recusados, envelope de uma substituição
+  não decifra no contexto de outra, forma canônica campo a campo;
+  `netlify/functions/_shared/substituicao-cm-motivo.test.ts` (4) — motivo gravado cifrado e
+  devolvido decifrado, motivo do encerramento preservado ao lado do motivo do registro, recusa
+  sem motivo antes do banco, envelope de outra linha derruba a resposta;
+  `supabase/tests/substituicao_case_manager_local.sql` — registrar e encerrar sem motivo
+  recusados, envelope de forma errada recusado, motivo de encerramento barrado no registro,
+  motivo do registro imutável.
+- [x] 7.2 Serviço montado em `web/main.ts`, com indisponibilidade honesta (19/11/2026).
+  **Evidência:** rota de sondagem `/api/pacientes/substituicao-case-manager/disponibilidade`
+  em `netlify/functions/substituicao-case-manager.ts`, no padrão de
+  `netlify/functions/edicao-paciente.ts` (configuração ilegível fecha a disponibilidade em vez
+  de estourar); contrato `substituicaoCaseManagerHttp.disponibilidade`; método
+  `disponibilidade()` em `web/servico-substituicao-cm-http.ts`; `sondarSubstituicaoCm()` e
+  `servicoSubstituicaoCm()` em `web/main.ts`, que passam `substituicao: null` quando a fatia
+  está desligada. Com `null`, `montarSubstituicaoCaseManager` desenha a seção com título,
+  explicação e o texto "ainda não está disponível neste ambiente" — sem formulário, sem botão
+  e sem mensagem de erro. A sondagem falha fechada: qualquer erro vira indisponível.
+  **Testes:** `web/substituicao-case-manager.test.ts` (9), incluindo o estado indisponível e os
+  quatro estados (carregando, vazio, erro, sucesso); os 28 arquivos de interface que montam
+  `main.js` passam inteiros (109 testes).
+  **Achado:** `web/servico-substituicao-cm-http.ts` passava caminho relativo a `fetch`,
+  diferente de `web/api.ts`, que usa `URL` absoluta. Corrigido para `new URL(..., location.origin)`.
 - [ ] 7.3 Ativação remota: migrações não aplicadas, flag desligada, nada comitado.
 
 ## Achado de padrão — 19/11/2026

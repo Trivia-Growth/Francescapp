@@ -111,6 +111,9 @@ export async function comporSubstituicaoCmNativo(
         metadados: (requestId) =>
           metadadosAtestadoNativo(dependencias.keyIdAtestado, requestId, Date.now()),
         idempotencia: criarIdempotenciaNativa(cofre.cifra),
+        // Mesma cifra autenticada do resto do repositório; o AAD da fatia é validado no
+        // operador antes de chegar aqui.
+        cifra: cofre.cifra,
         atestador: cofre.atestador,
         executar: (_request, transporte) => {
           verificarCancelamento();

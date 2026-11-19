@@ -2670,6 +2670,8 @@ label > .loading-indicator {
 .substituicao-cm__explicacao,
 .substituicao-cm__status,
 .substituicao-cm__situacao,
+.substituicao-cm__motivo,
+.substituicao-cm__ajuda,
 .substituicao-cm__aviso {
   margin: 0;
   color: var(--muted);
@@ -2701,6 +2703,20 @@ label > .loading-indicator {
 .substituicao-cm__formulario input {
   width: 100%;
   min-height: 44px;
+}
+.substituicao-cm__formulario textarea,
+.substituicao-cm__encerramento textarea {
+  width: 100%;
+  min-height: 66px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-field, 8px);
+  font: inherit;
+  resize: vertical;
+}
+.substituicao-cm__encerramento {
+  display: grid;
+  gap: 8px;
 }
 .substituicao-cm__vazio {
   margin: 0;

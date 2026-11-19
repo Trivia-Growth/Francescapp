@@ -12,6 +12,13 @@
 \ir ../migrations/20261126100000_substituicao_case_manager.sql
 \ir ../migrations/20261126100100_grant_substituicao_cm_teste.sql
 
+-- Envelope fictício no formato que a tabela e a RPC conferem. O texto claro nunca entra no
+-- banco: a cifra e a decifra ficam no servidor, provadas em `cifra-substituicao-cm.test.ts`.
+create function public.envelope_fixture() returns jsonb language sql immutable as $$
+  select jsonb_build_object('formato', 1, 'key_id', 'teste', 'nonce', repeat('a', 16),
+    'ciphertext', 'YQ', 'tag', repeat('a', 22))
+$$;
+
 create function public.substituicao_fixture(p_ator uuid, p_sessao uuid, p_acao text, p_entrada jsonb)
 returns jsonb language plpgsql as $$
 declare t jsonb; r jsonb;
@@ -77,7 +84,8 @@ begin
   r := public.substituicao_fixture(prof, sp, 'api.registrar_substituicao_cm', jsonb_build_object(
     'paciente_id', caso, 'substituicao_id', gen_random_uuid(), 'substituto_usuario_id', prof,
     'inicio', clock_timestamp(), 'fim', clock_timestamp() + interval '1 hour',
-    'chave_idempotencia', 'prof-registra', 'digest_idempotencia', repeat('d', 43)));
+    'chave_idempotencia', 'prof-registra', 'digest_idempotencia', repeat('d', 43),
+    'motivo_cifrado', public.envelope_fixture()));
   if r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'PROF_REGISTROU: %', r; end if;
   if not exists(select 1 from auditoria.evento where acao = 'api.registrar_substituicao_cm'
     and resultado = 'negado' and ator_usuario_id = prof) then raise exception 'AUDITORIA_NEGADA_AUSENTE'; end if;
@@ -86,7 +94,8 @@ begin
   r := public.substituicao_fixture(admin, sa, 'api.registrar_substituicao_cm', jsonb_build_object(
     'paciente_id', caso, 'substituicao_id', s1, 'substituto_usuario_id', prof,
     'inicio', clock_timestamp() - interval '1 hour', 'fim', clock_timestamp() + interval '1 hour',
-    'chave_idempotencia', 'sub-1', 'digest_idempotencia', repeat('d', 43)));
+    'chave_idempotencia', 'sub-1', 'digest_idempotencia', repeat('d', 43),
+    'motivo_cifrado', public.envelope_fixture()));
   if r->>'ok' is distinct from 'true' or r#>>'{dados,vigente,id}' is distinct from s1::text
     or r#>>'{dados,case_manager_atual_id}' is distinct from prof::text
     or r#>>'{dados,titular_usuario_id}' is distinct from admin::text then raise exception 'REGISTRO: %', r; end if;
@@ -135,7 +144,8 @@ begin
   r := public.substituicao_fixture(admin, sa, 'api.registrar_substituicao_cm', jsonb_build_object(
     'paciente_id', caso, 'substituicao_id', gen_random_uuid(), 'substituto_usuario_id', prof,
     'inicio', clock_timestamp(), 'fim', clock_timestamp() + interval '30 minutes',
-    'chave_idempotencia', 'sub-sobreposta', 'digest_idempotencia', repeat('d', 43)));
+    'chave_idempotencia', 'sub-sobreposta', 'digest_idempotencia', repeat('d', 43),
+    'motivo_cifrado', public.envelope_fixture()));
   if r#>>'{erro,codigo}' is distinct from 'conflito' then raise exception 'SOBREPOSICAO_ACEITA: %', r; end if;
   if (select count(*) from cadastro.substituicao_case_manager where paciente_id = caso) <> 1
     or exists(select 1 from operacao.requisicao where chave_idempotencia = 'sub-sobreposta') then
@@ -145,7 +155,8 @@ begin
   -- 8. Encerramento antecipado devolve o poder ao titular imediatamente.
   r := public.substituicao_fixture(admin, sa, 'api.encerrar_substituicao_cm', jsonb_build_object(
     'paciente_id', caso, 'substituicao_id', s1,
-    'chave_idempotencia', 'sub-encerra-1', 'digest_idempotencia', repeat('e', 43)));
+    'chave_idempotencia', 'sub-encerra-1', 'digest_idempotencia', repeat('e', 43),
+    'motivo_encerramento_cifrado', public.envelope_fixture()));
   if r->>'ok' is distinct from 'true' or r->'dados'->'vigente' <> 'null'::jsonb
     or r#>>'{dados,case_manager_atual_id}' is distinct from admin::text then raise exception 'ENCERRAMENTO: %', r; end if;
   perform public.nova_versao_crise_fixture(caso, admin);
@@ -172,7 +183,8 @@ begin
   r := public.substituicao_fixture(admin, sa, 'api.registrar_substituicao_cm', jsonb_build_object(
     'paciente_id', caso, 'substituicao_id', s2, 'substituto_usuario_id', prof,
     'inicio', clock_timestamp() + interval '1 day', 'fim', clock_timestamp() + interval '2 days',
-    'chave_idempotencia', 'sub-futura', 'digest_idempotencia', repeat('d', 43)));
+    'chave_idempotencia', 'sub-futura', 'digest_idempotencia', repeat('d', 43),
+    'motivo_cifrado', public.envelope_fixture()));
   if r->>'ok' is distinct from 'true' or r->'dados'->'vigente' <> 'null'::jsonb then raise exception 'REGISTRO_FUTURO: %', r; end if;
   perform public.nova_versao_crise_fixture(caso, admin);
   r := public.aprovar_crise_fixture(prof, sp, caso, 'sub-antes-do-inicio');
@@ -182,7 +194,8 @@ begin
   r := public.substituicao_fixture(admin, sa, 'api.registrar_substituicao_cm', jsonb_build_object(
     'paciente_id', caso, 'substituicao_id', s3, 'substituto_usuario_id', prof,
     'inicio', clock_timestamp(), 'fim', clock_timestamp() + interval '2 seconds',
-    'chave_idempotencia', 'sub-curta', 'digest_idempotencia', repeat('d', 43)));
+    'chave_idempotencia', 'sub-curta', 'digest_idempotencia', repeat('d', 43),
+    'motivo_cifrado', public.envelope_fixture()));
   if r->>'ok' is distinct from 'true' or r#>>'{dados,vigente,id}' is distinct from s3::text then raise exception 'REGISTRO_CURTO: %', r; end if;
   perform public.nova_versao_crise_fixture(caso, admin);
   r := public.aprovar_crise_fixture(prof, sp, caso, 'sub-janela-curta');
@@ -203,7 +216,8 @@ begin
   ] loop
     if (public.substituicao_fixture(admin, sa, 'api.registrar_substituicao_cm',
       jsonb_build_object('paciente_id', caso, 'substituicao_id', gen_random_uuid(),
-        'chave_idempotencia', gen_random_uuid()::text, 'digest_idempotencia', repeat('d', 43)) || r)
+        'chave_idempotencia', gen_random_uuid()::text, 'digest_idempotencia', repeat('d', 43),
+        'motivo_cifrado', public.envelope_fixture()) || r)
       )#>>'{erro,codigo}' is distinct from 'responsavel_invalido' then
       raise exception 'ENTRADA_INDEVIDA_ACEITA: %', r;
     end if;
@@ -212,16 +226,77 @@ begin
   -- 12. Encerrar algo já encerrado ou de outro caso é conflito, não sucesso silencioso.
   r := public.substituicao_fixture(admin, sa, 'api.encerrar_substituicao_cm', jsonb_build_object(
     'paciente_id', caso, 'substituicao_id', s1,
-    'chave_idempotencia', 'sub-reencerra', 'digest_idempotencia', repeat('e', 43)));
+    'chave_idempotencia', 'sub-reencerra', 'digest_idempotencia', repeat('e', 43),
+    'motivo_encerramento_cifrado', public.envelope_fixture()));
   if r#>>'{erro,codigo}' is distinct from 'conflito' then raise exception 'REENCERRAMENTO_ACEITO: %', r; end if;
   r := public.substituicao_fixture(admin, sa, 'api.encerrar_substituicao_cm', jsonb_build_object(
     'paciente_id', outro, 'substituicao_id', s2,
-    'chave_idempotencia', 'sub-encerra-caso-errado', 'digest_idempotencia', repeat('e', 43)));
+    'chave_idempotencia', 'sub-encerra-caso-errado', 'digest_idempotencia', repeat('e', 43),
+    'motivo_encerramento_cifrado', public.envelope_fixture()));
   if r#>>'{erro,codigo}' is distinct from 'conflito' then raise exception 'ENCERRAMENTO_CRUZADO_ACEITO: %', r; end if;
 
-  -- 13. Consulta devolve histórico do caso e nada do outro.
+  -- 13. FR-037: sem motivo não há alteração de acesso. Registrar e encerrar são recusados na
+  -- entrada, e envelope de forma errada também — o banco não guarda texto, só confere a forma.
+  begin
+    perform public.substituicao_fixture(admin, sa, 'api.registrar_substituicao_cm', jsonb_build_object(
+      'paciente_id', caso, 'substituicao_id', gen_random_uuid(), 'substituto_usuario_id', prof,
+      'inicio', clock_timestamp() + interval '20 days', 'fim', clock_timestamp() + interval '21 days',
+      'chave_idempotencia', 'sub-sem-motivo', 'digest_idempotencia', repeat('d', 43)));
+    raise exception 'REGISTRO_SEM_MOTIVO_ACEITO';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.substituicao_fixture(admin, sa, 'api.encerrar_substituicao_cm', jsonb_build_object(
+      'paciente_id', caso, 'substituicao_id', s2,
+      'chave_idempotencia', 'sub-encerra-sem-motivo', 'digest_idempotencia', repeat('e', 43)));
+    raise exception 'ENCERRAMENTO_SEM_MOTIVO_ACEITO';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.substituicao_fixture(admin, sa, 'api.registrar_substituicao_cm', jsonb_build_object(
+      'paciente_id', caso, 'substituicao_id', gen_random_uuid(), 'substituto_usuario_id', prof,
+      'inicio', clock_timestamp() + interval '20 days', 'fim', clock_timestamp() + interval '21 days',
+      'chave_idempotencia', 'sub-envelope-torto', 'digest_idempotencia', repeat('d', 43),
+      'motivo_cifrado', public.envelope_fixture() || jsonb_build_object('extra', 'x')));
+    raise exception 'ENVELOPE_TORTO_ACEITO';
+  exception when invalid_parameter_value then null;
+  end;
+  -- O envelope do encerramento não entra no registro, e vice-versa.
+  begin
+    perform public.substituicao_fixture(admin, sa, 'api.registrar_substituicao_cm', jsonb_build_object(
+      'paciente_id', caso, 'substituicao_id', gen_random_uuid(), 'substituto_usuario_id', prof,
+      'inicio', clock_timestamp() + interval '20 days', 'fim', clock_timestamp() + interval '21 days',
+      'chave_idempotencia', 'sub-motivo-trocado', 'digest_idempotencia', repeat('d', 43),
+      'motivo_cifrado', public.envelope_fixture(),
+      'motivo_encerramento_cifrado', public.envelope_fixture()));
+    raise exception 'MOTIVO_DE_ENCERRAMENTO_NO_REGISTRO_ACEITO';
+  exception when invalid_parameter_value then null;
+  end;
+  -- Os dois motivos ficam gravados na linha, e o do registro não muda depois.
+  if not exists(select 1 from cadastro.substituicao_case_manager
+    where id = s1 and motivo_cifrado is not null and motivo_encerramento_cifrado is not null) then
+    raise exception 'MOTIVOS_NAO_GRAVADOS';
+  end if;
+  if exists(select 1 from cadastro.substituicao_case_manager
+    where id = s2 and motivo_encerramento_cifrado is not null) then
+    raise exception 'MOTIVO_DE_ENCERRAMENTO_SEM_ENCERRAMENTO';
+  end if;
+  begin
+    update cadastro.substituicao_case_manager set motivo_cifrado = public.envelope_fixture()
+      where id = s1;
+    raise exception 'MOTIVO_ALTERADO';
+  exception when insufficient_privilege then
+    if sqlerrm <> 'REGISTRO_IMUTAVEL' then raise; end if;
+  end;
+
+  -- 14. Consulta devolve histórico do caso e nada do outro.
   r := public.substituicao_fixture(admin, sa, 'api.consultar_substituicao_cm', jsonb_build_object('paciente_id', caso));
-  if r->>'ok' is distinct from 'true' or jsonb_array_length(r#>'{dados,substituicoes}') <> 3 then raise exception 'CONSULTA: %', r; end if;
+  if r->>'ok' is distinct from 'true' or jsonb_array_length(r#>'{dados,substituicoes}') <> 3
+    or exists(select 1 from jsonb_array_elements(r#>'{dados,substituicoes}') i
+      where i->'motivo_cifrado' is null or jsonb_typeof(i->'motivo_cifrado') <> 'object')
+    or not exists(select 1 from jsonb_array_elements(r#>'{dados,substituicoes}') i
+      where i->>'id' = s1::text and jsonb_typeof(i->'motivo_encerramento_cifrado') = 'object')
+  then raise exception 'CONSULTA: %', r; end if;
   r := public.substituicao_fixture(admin, sa, 'api.consultar_substituicao_cm', jsonb_build_object('paciente_id', outro));
   if r->>'ok' is distinct from 'true' or jsonb_array_length(r#>'{dados,substituicoes}') <> 0 then raise exception 'CONSULTA_OUTRO: %', r; end if;
   s4 := s4;

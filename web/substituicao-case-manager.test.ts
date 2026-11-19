@@ -41,6 +41,8 @@ const comVigente: PainelSubstituicao = {
       inicio: '2026-11-19T09:00:00+00:00',
       fim: '2026-11-26T09:00:00+00:00',
       encerrada_em: null,
+      motivo: 'Titular em férias programadas.',
+      motivo_encerramento: null,
       registrada_por_usuario_id: titular,
       criado_em: '2026-11-19T08:00:00+00:00',
     },
@@ -57,6 +59,7 @@ const montar = (servico: Parameters<typeof montarSubstituicaoCaseManager>[1]) =>
 it('mostra carregamento, depois estado vazio sem esconder o formulário', async () => {
   let liberar!: (valor: PainelSubstituicao) => void;
   const servico = {
+    disponibilidade: vi.fn(async () => ({ disponivel: true })),
     consultar: vi.fn(
       () =>
         new Promise<PainelSubstituicao>((resolve) => {
@@ -84,6 +87,7 @@ it('mostra carregamento, depois estado vazio sem esconder o formulário', async 
 
 it('diz quem é o titular, quem substitui e até quando', async () => {
   const servico = {
+    disponibilidade: vi.fn(async () => ({ disponivel: true })),
     consultar: vi.fn(async () => comVigente),
     registrar: vi.fn(),
     encerrar: vi.fn(),
@@ -100,6 +104,7 @@ it('diz quem é o titular, quem substitui e até quando', async () => {
 
 it('registra substituição e repassa início e fim como instantes com fuso', async () => {
   const servico = {
+    disponibilidade: vi.fn(async () => ({ disponivel: true })),
     consultar: vi.fn(async () => vazio),
     registrar: vi.fn(async () => comVigente),
     encerrar: vi.fn(),
@@ -113,11 +118,14 @@ it('registra substituição e repassa início e fim como instantes com fuso', as
   if (escolha) escolha.value = substituta;
   campos[0]?.setAttribute('value', '2026-11-20T09:00');
   campos[1]?.setAttribute('value', '2026-11-27T09:00');
+  const porque = raiz.querySelector<HTMLTextAreaElement>('.substituicao-cm__formulario textarea');
+  if (porque) porque.value = 'Titular em férias programadas.';
   raiz.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() => expect(servico.registrar).toHaveBeenCalledTimes(1));
   const [idEnviado, corpo] = servico.registrar.mock.calls[0] as [string, Record<string, string>];
   expect(idEnviado).toBe(paciente);
   expect(corpo.substituto_usuario_id).toBe(substituta);
+  expect(corpo.motivo).toBe('Titular em férias programadas.');
   expect(corpo.inicio).toMatch(/Z$/);
   expect(Date.parse(corpo.fim)).toBeGreaterThan(Date.parse(corpo.inicio));
   await vi.waitFor(() =>
@@ -129,6 +137,7 @@ it('registra substituição e repassa início e fim como instantes com fuso', as
 
 it('explica a recusa de período sobreposto em vez de falar em erro genérico', async () => {
   const servico = {
+    disponibilidade: vi.fn(async () => ({ disponivel: true })),
     consultar: vi.fn(async () => vazio),
     registrar: vi.fn(async () => {
       throw new FalhaApi('conflito', 409);
@@ -142,6 +151,10 @@ it('explica a recusa de período sobreposto em vez de falar em erro genérico', 
   if (escolha) escolha.value = substituta;
   campos[0]?.setAttribute('value', '2026-11-20T09:00');
   campos[1]?.setAttribute('value', '2026-11-27T09:00');
+  const porqueSobreposto = raiz.querySelector<HTMLTextAreaElement>(
+    '.substituicao-cm__formulario textarea',
+  );
+  if (porqueSobreposto) porqueSobreposto.value = 'Cobertura de plantão.';
   raiz.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() =>
     expect(raiz.querySelector('.substituicao-cm__aviso')?.textContent).toContain(
@@ -152,16 +165,24 @@ it('explica a recusa de período sobreposto em vez de falar em erro genérico', 
 
 it('encerra a substituição vigente e devolve o caso ao titular', async () => {
   const servico = {
+    disponibilidade: vi.fn(async () => ({ disponivel: true })),
     consultar: vi.fn(async () => comVigente),
     registrar: vi.fn(),
     encerrar: vi.fn(async () => vazio),
   };
   const { raiz } = montar(servico);
   await vi.waitFor(() => expect(raiz.querySelector('.substituicao-cm__item')).not.toBeNull());
-  raiz.querySelector<HTMLButtonElement>('.substituicao-cm__item .button-secondary')?.click();
+  const campoFim = raiz.querySelector<HTMLTextAreaElement>(
+    '.substituicao-cm__encerramento textarea',
+  );
+  if (campoFim) campoFim.value = 'Titular voltou antes do previsto.';
+  raiz
+    .querySelector('.substituicao-cm__encerramento')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() =>
     expect(servico.encerrar).toHaveBeenCalledWith(paciente, {
       substituicao_id: substituicao,
+      motivo: 'Titular voltou antes do previsto.',
     }),
   );
   await vi.waitFor(() =>
@@ -174,6 +195,7 @@ it('encerra a substituição vigente e devolve o caso ao titular', async () => {
 
 it('mostra erro de carregamento sem derrubar a seção', async () => {
   const servico = {
+    disponibilidade: vi.fn(async () => ({ disponivel: true })),
     consultar: vi.fn(async () => {
       throw new FalhaApi('servico_indisponivel');
     }),
@@ -187,4 +209,72 @@ it('mostra erro de carregamento sem derrubar a seção', async () => {
     ),
   );
   expect(raiz.querySelector('.substituicao-cm')).not.toBeNull();
+});
+
+it('com a fatia desligada mostra indisponibilidade honesta, sem erro e sem formulário', () => {
+  const { raiz } = montar(null);
+  const secao = raiz.querySelector('.substituicao-cm');
+  expect(secao).not.toBeNull();
+  expect(raiz.querySelector('.substituicao-cm__status')?.textContent).toContain(
+    'ainda não está disponível neste ambiente',
+  );
+  // Nem erro de carregamento nem controle que falharia: a seção só explica o estado.
+  expect(raiz.textContent).not.toContain('Não foi possível');
+  expect(raiz.querySelector('form')).toBeNull();
+  expect(raiz.querySelector('button')).toBeNull();
+  expect(raiz.textContent).toContain('não concede acesso ao conteúdo do caso');
+});
+
+it('mostra o motivo do registro e o do encerramento antecipado', async () => {
+  const encerrada: PainelSubstituicao = {
+    ...vazio,
+    substituicoes: [
+      {
+        ...(comVigente.substituicoes[0] as PainelSubstituicao['substituicoes'][number]),
+        encerrada_em: '2026-11-21T09:00:00+00:00',
+        motivo_encerramento: 'Titular voltou antes do previsto.',
+      },
+    ],
+  };
+  const servico = {
+    disponibilidade: vi.fn(async () => ({ disponivel: true })),
+    consultar: vi.fn(async () => encerrada),
+    registrar: vi.fn(),
+    encerrar: vi.fn(),
+  };
+  const { raiz } = montar(servico);
+  await vi.waitFor(() => expect(raiz.querySelector('.substituicao-cm__item')).not.toBeNull());
+  const motivos = [...raiz.querySelectorAll('.substituicao-cm__motivo')].map(
+    (no) => no.textContent ?? '',
+  );
+  expect(motivos[0]).toContain('Titular em férias programadas.');
+  expect(motivos[1]).toContain('Titular voltou antes do previsto.');
+  // Encerrada não oferece encerrar de novo.
+  expect(raiz.querySelector('.substituicao-cm__encerramento')).toBeNull();
+});
+
+it('não registra nem encerra sem motivo, e diz o que falta', async () => {
+  const servico = {
+    disponibilidade: vi.fn(async () => ({ disponivel: true })),
+    consultar: vi.fn(async () => comVigente),
+    registrar: vi.fn(),
+    encerrar: vi.fn(),
+  };
+  const { raiz } = montar(servico);
+  await vi.waitFor(() => expect(raiz.querySelector('.substituicao-cm__item')).not.toBeNull());
+  const escolha = raiz.querySelector<HTMLSelectElement>('select');
+  const campos = raiz.querySelectorAll<HTMLInputElement>('input[type="datetime-local"]');
+  if (escolha) escolha.value = substituta;
+  campos[0]?.setAttribute('value', '2026-12-01T09:00');
+  campos[1]?.setAttribute('value', '2026-12-08T09:00');
+  raiz.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+  expect(servico.registrar).not.toHaveBeenCalled();
+  expect(raiz.querySelector('.substituicao-cm__aviso')?.textContent).toContain('motivo');
+  raiz
+    .querySelector('.substituicao-cm__encerramento')
+    ?.dispatchEvent(new Event('submit', { cancelable: true }));
+  expect(servico.encerrar).not.toHaveBeenCalled();
+  expect(raiz.querySelector('.substituicao-cm__aviso')?.textContent).toBe(
+    'Informe o motivo do encerramento.',
+  );
 });

@@ -51,6 +51,7 @@ import { montarPlanoCrise } from './plano-crise.js';
 import { criarServicoPlanoCriseHttp } from './servico-plano-crise-http.js';
 import { montarHabilitacaoPlanoCrise } from './habilitacao-plano-crise.js';
 import { criarServicoHabilitacaoPlanoCriseHttp } from './servico-habilitacao-plano-crise-http.js';
+import { criarServicoSubstituicaoCmHttp } from './servico-substituicao-cm-http.js';
 import { montarFinanceiro } from './financeiro.js';
 import { criarServicoFinanceiroHttp } from './servico-financeiro-http.js';
 import { criarAudienciaFinanceira } from './financeiro-audiencia.js';
@@ -519,6 +520,9 @@ let consultaFicha = 0;
 let planoAberto: { pacienteId: string; servico: ReturnType<typeof criarServicoPlanoHttp> } | null =
   null;
 let edicaoDisponivel = false;
+/** FR-037: sondagem da fatia de substituição temporária. Falsa por padrão; com a flag
+ * desligada a seção é desenhada em estado honesto de indisponibilidade, não com erro. */
+let substituicaoCmDisponivel = false;
 let pacientesDaPagina: PacienteLista[] = [];
 let buscaTexto = '';
 
@@ -717,6 +721,27 @@ function montarSecaoTarefas(
   });
 }
 
+/** Sondagem da fatia de substituição (FR-037). Falha fechada: qualquer erro vira
+ * indisponível, nunca erro de carregamento na ficha. */
+async function sondarSubstituicaoCm(): Promise<{ disponivel: boolean }> {
+  try {
+    return await criarServicoSubstituicaoCmHttp(identidadeAtual).disponibilidade();
+  } catch {
+    return { disponivel: false };
+  }
+}
+
+/** `null` quando a fatia está desligada ou a sessão não serve: a seção é desenhada em estado
+ * honesto de indisponibilidade em vez de falhar ao carregar. */
+function servicoSubstituicaoCm(): ReturnType<typeof criarServicoSubstituicaoCmHttp> | null {
+  if (!substituicaoCmDisponivel) return null;
+  try {
+    return criarServicoSubstituicaoCmHttp(identidadeAtual);
+  } catch {
+    return null;
+  }
+}
+
 function montarSecaoCadastro(
   raiz: HTMLElement,
   pacienteId: string,
@@ -737,6 +762,10 @@ function montarSecaoCadastro(
       {
         ...criarServicoEdicaoPacienteHttp(identidadeAtual),
         ...(listarResponsaveis ? { listarResponsaveis } : {}),
+        // Chave sempre presente para quem administra o cadastro: com a fatia desligada vai
+        // `null`, e a seção aparece dizendo que ainda não está disponível. Visibilidade não é
+        // autorização — o servidor e o banco continuam decidindo cada operação.
+        substituicao: servicoSubstituicaoCm(),
       },
       acessoPerdido,
       (valor) => {
@@ -2317,15 +2346,21 @@ async function carregarPacientes(): Promise<boolean> {
   listaPacientes.setAttribute('aria-busy', 'true');
   aviso('list-status', 'Consultando pacientes…');
   try {
-    const [resultado, disponibilidade] = await Promise.all([
-      api.listarPacientes(cursores[pagina], filtrosCarteira),
+    const administraCadastroAgora =
       sessao.usuario.perfil === 'administrador' &&
-      sessao.capacidades.includes('administrar_cadastro')
+      sessao.capacidades.includes('administrar_cadastro');
+    const [resultado, disponibilidade, disponibilidadeSubstituicao] = await Promise.all([
+      api.listarPacientes(cursores[pagina], filtrosCarteira),
+      administraCadastroAgora
         ? api.disponibilidadeEdicao().catch(() => ({ disponivel: false }))
         : Promise.resolve({ disponivel: false }),
+      administraCadastroAgora
+        ? sondarSubstituicaoCm()
+        : Promise.resolve({ disponivel: false as boolean }),
     ]);
     if (!atual()) return false;
     edicaoDisponivel = disponibilidade.disponivel;
+    substituicaoCmDisponivel = disponibilidadeSubstituicao.disponivel;
     pacientesDaPagina = resultado.itens;
     renderizarLista();
     proximoCursor = resultado.proximo_cursor;

@@ -6,13 +6,12 @@ import type {
 
 export type { CampoCifrado, MetadadosAad, MetadadosAadFinanceiro };
 
-/** Todo AAD que este canonicalizador aceita. Existe um único mecanismo de AAD no repositório:
- * esta função. A união continua escrita em duas partes em `packages/contracts/src/rpc.ts`
- * (`metadadosAadSchema` e `metadadosAadFinanceiroSchema`) apenas porque aquele arquivo está
- * fora do recorte desta frente; o ramo de canonicalização que faltava — o motivo técnico
- * original da separação — passou a existir aqui, então juntar as duas uniões em rpc.ts é
- * mudança de uma linha, sem efeito sobre a forma de nenhum AAD. */
-export type AadCifra = MetadadosAad | MetadadosAadFinanceiro;
+/** Todo AAD que este canonicalizador aceita. Existe um único mecanismo de AAD no repositório —
+ * esta função — e uma única união que o descreve, `metadadosAadSchema`, que passou a conter
+ * também as duas tabelas financeiras. `MetadadosAadFinanceiro` continua exportado por
+ * `rpc.ts`, mas como SUBCONJUNTO dessa união, usado só para recusar AAD de cuidado na
+ * fronteira da composição do financeiro. */
+export type AadCifra = MetadadosAad;
 
 export type ConfiguracaoCifraAutenticada = Readonly<{
   keyIdAtiva: string;
@@ -157,6 +156,36 @@ function aadCanonico(aad: AadCifra): Uint8Array {
         tabela: aad.tabela,
         registro_id: aad.registro_id,
         versao: aad.versao,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
+  // FR-037. Motivo da substituição temporária da case manager e motivo do encerramento
+  // antecipado. Mesma forma genérica do repositório, como no financeiro: `registro_id` é o `id`
+  // da linha de `cadastro.substituicao_case_manager`, conhecido antes da cifra nos dois
+  // caminhos de escrita. O ramo é próprio, e não o genérico do fim, porque o genérico aceita
+  // qualquer nome de campo com até 80 caracteres; a linha tem exatamente dois campos cifrados e
+  // `campo` entra na ligação para que o envelope do motivo do registro não seja aceito no lugar
+  // do motivo do encerramento. `versao` fica de fora: a linha é append-only com uma única
+  // transição nomeada, então `id` já é único por registro.
+  if (
+    typeof aad === 'object' &&
+    aad !== null &&
+    aad.tabela === 'cadastro.substituicao_case_manager'
+  ) {
+    if (
+      typeof aad.registro_id !== 'string' ||
+      !uuid.test(aad.registro_id) ||
+      (aad.campo !== 'motivo' && aad.campo !== 'motivo_encerramento') ||
+      aad.formato !== formatoAtual
+    ) {
+      throw new ErroCifraAutenticada();
+    }
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        registro_id: aad.registro_id,
         campo: aad.campo,
         formato: aad.formato,
       }),
@@ -573,21 +602,18 @@ function aadCanonico(aad: AadCifra): Uint8Array {
   // contra a lista própria e entra na ligação: sem isso o envelope da descrição seria aceito no
   // lugar do da autorização ou do motivo da retificação.
   //
-  // A AUSÊNCIA de `registro_id` e de `versao` é deliberada, e é o que mantém a listagem
-  // decifrável. A tabela é append-only por `(despesa_id, versao)`; `api.consultar_despesas`
-  // devolve `despesa_id` e `versao`, nunca a chave primária `id`; e a `versao` da retificação é
-  // decidida pelo banco DEPOIS que a cifra já foi montada (`versao := corrente.versao + 1`).
-  // Amarrar qualquer um dos dois tornaria o texto gravado impossível de decifrar na leitura.
-  //
-  // O que isso deixa aberto é reusar o envelope entre duas VERSÕES do mesmo lançamento e do
-  // mesmo campo. Não é alcançável pela aplicação: o gatilho `financeiro.despesa_imutavel`
-  // recusa UPDATE e DELETE, o papel dono só tem SELECT e INSERT, e todo INSERT passa pela RPC
-  // atestada. Fechar isso no AAD exige que `api.consultar_despesas` devolva `d.id` — mudança de
-  // migração, fora deste recorte e descrita no relatório da tarefa.
+  // `registro_id` é o `id` da LINHA, não o `despesa_id` do lançamento. A tabela é append-only
+  // por `(despesa_id, versao)` e cada versão ocupa uma linha própria, então amarrar o `id`
+  // separa as versões: o envelope de uma versão não decifra no contexto de outra, do mesmo
+  // lançamento e do mesmo campo. O `id` é conhecido antes da cifra nos dois caminhos de
+  // escrita (`lancamento := coalesce(retificacao_id, despesa_id)`) e é projetado por
+  // `api.consultar_despesas`, então a listagem continua decifrável. `versao` fica de fora
+  // porque é decidida pelo banco depois da cifra — e é redundante, já que `id` é único por
+  // versão. Mesma forma genérica do resto do repositório; não há convenção própria aqui.
   if (typeof aad === 'object' && aad !== null && aad.tabela === 'financeiro.despesa_lancamento') {
     if (
-      typeof aad.despesa_id !== 'string' ||
-      !uuid.test(aad.despesa_id) ||
+      typeof aad.registro_id !== 'string' ||
+      !uuid.test(aad.registro_id) ||
       (aad.campo !== 'descricao' &&
         aad.campo !== 'autorizacao' &&
         aad.campo !== 'motivo_retificacao') ||
@@ -598,7 +624,7 @@ function aadCanonico(aad: AadCifra): Uint8Array {
     return codificador.encode(
       JSON.stringify({
         tabela: aad.tabela,
-        despesa_id: aad.despesa_id,
+        registro_id: aad.registro_id,
         campo: aad.campo,
         formato: aad.formato,
       }),

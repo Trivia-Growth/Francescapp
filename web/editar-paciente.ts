@@ -21,7 +21,9 @@ export type ServicoEdicaoPaciente = {
   listarResponsaveis?: () => Promise<ResponsavelOpcao[]>;
   /** FR-037: ausente enquanto a fatia da substituição temporária está desligada. A seção
    *  só aparece quando o serviço é passado; a autorização continua no servidor e no banco. */
-  substituicao?: ServicoSubstituicaoCaseManager;
+  /** `null` = fatia desligada: a seção é montada em estado honesto de indisponibilidade.
+   * Ausente = o perfil não administra o caso e a seção não existe. */
+  substituicao?: ServicoSubstituicaoCaseManager | null;
   ciclo: ReturnType<typeof criarCicloEdicaoPaciente>;
 };
 
@@ -236,7 +238,7 @@ export function montarEdicaoPaciente(
     raiz.replaceChildren(resumo, form, recuperar, status);
     desmontarSubstituicao?.();
     desmontarSubstituicao = null;
-    if (servico.substituicao) {
+    if (servico.substituicao !== undefined) {
       const substituicaoRaiz = elemento('div');
       substituicaoRaiz.className = 'ficha-subsecao';
       raiz.append(substituicaoRaiz);

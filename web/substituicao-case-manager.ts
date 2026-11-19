@@ -31,9 +31,14 @@ function paraInstante(valor: string): string | null {
  * do servidor é explicada. */
 export function montarSubstituicaoCaseManager(
   raiz: HTMLElement,
-  servico: ServicoSubstituicaoCaseManager,
+  servicoOuNulo: ServicoSubstituicaoCaseManager | null,
   opcoes: { paciente_id: string; equipe?: readonly ResponsavelOpcao[] },
 ): () => void {
+  // Fatia desligada: a tela diz isso com todas as letras em vez de oferecer um formulário que
+  // responderia 503, e em vez de alegar falha de carregamento. Esconder não seria honesto, e
+  // mostrar um erro mentiria sobre a causa.
+  if (servicoOuNulo === null) return montarIndisponivel(raiz);
+  const servico: ServicoSubstituicaoCaseManager = servicoOuNulo;
   let ativa = true;
   const equipe = opcoes.equipe ?? [];
   const nomear = (id: string | null) =>
@@ -81,6 +86,20 @@ export function montarSubstituicaoCaseManager(
   const rotuloFim = document.createElement('label');
   rotuloFim.htmlFor = fim.id;
   rotuloFim.textContent = 'Fim';
+  const motivo = document.createElement('textarea');
+  motivo.id = 'substituicao-cm-motivo';
+  motivo.required = true;
+  motivo.maxLength = 500;
+  motivo.rows = 3;
+  const rotuloMotivo = document.createElement('label');
+  rotuloMotivo.htmlFor = motivo.id;
+  rotuloMotivo.textContent = 'Motivo da substituição';
+  const ajudaMotivo = document.createElement('p');
+  ajudaMotivo.className = 'substituicao-cm__ajuda';
+  ajudaMotivo.id = 'substituicao-cm-motivo-ajuda';
+  ajudaMotivo.textContent =
+    'Obrigatório: toda alteração de acesso registra data, responsável e motivo. O texto é guardado cifrado.';
+  motivo.setAttribute('aria-describedby', ajudaMotivo.id);
   const registrar = document.createElement('button');
   registrar.type = 'submit';
   registrar.className = 'button-primary';
@@ -89,7 +108,19 @@ export function montarSubstituicaoCaseManager(
   aviso.className = 'substituicao-cm__aviso';
   aviso.setAttribute('role', 'status');
   aviso.setAttribute('aria-live', 'polite');
-  formulario.append(rotuloPessoa, escolha, rotuloInicio, inicio, rotuloFim, fim, registrar, aviso);
+  formulario.append(
+    rotuloPessoa,
+    escolha,
+    rotuloInicio,
+    inicio,
+    rotuloFim,
+    fim,
+    rotuloMotivo,
+    motivo,
+    ajudaMotivo,
+    registrar,
+    aviso,
+  );
 
   const recarregar = document.createElement('button');
   recarregar.type = 'button';
@@ -127,7 +158,10 @@ export function montarSubstituicaoCaseManager(
     );
   };
 
-  const desenharHistorico = (painel: PainelSubstituicao, aoEncerrar: (id: string) => void) => {
+  const desenharHistorico = (
+    painel: PainelSubstituicao,
+    aoEncerrar: (id: string, motivo: string) => void,
+  ) => {
     historico.replaceChildren();
     if (painel.substituicoes.length === 0) {
       const vazio = document.createElement('p');
@@ -147,7 +181,7 @@ export function montarSubstituicaoCaseManager(
   const linhaDoHistorico = (
     item: SubstituicaoCaseManager,
     painel: PainelSubstituicao,
-    aoEncerrar: (id: string) => void,
+    aoEncerrar: (id: string, motivo: string) => void,
   ) => {
     const li = document.createElement('li');
     li.className = 'substituicao-cm__item';
@@ -161,14 +195,45 @@ export function montarSubstituicaoCaseManager(
       : painel.vigente?.id === item.id
         ? 'Vigente agora'
         : 'Programada';
-    li.append(texto, situacao);
+    const porque = document.createElement('p');
+    porque.className = 'substituicao-cm__motivo';
+    porque.textContent = `Motivo: ${item.motivo}`;
+    li.append(texto, situacao, porque);
+    if (item.motivo_encerramento) {
+      const porqueFim = document.createElement('p');
+      porqueFim.className = 'substituicao-cm__motivo';
+      porqueFim.textContent = `Motivo do encerramento: ${item.motivo_encerramento}`;
+      li.append(porqueFim);
+    }
     if (!item.encerrada_em) {
+      // Encerrar antes da hora também é alteração de acesso (FR-037), então também pede
+      // motivo. O campo fica na própria linha para não abrir caixa de diálogo do navegador.
+      const encerramento = document.createElement('form');
+      encerramento.className = 'substituicao-cm__encerramento';
+      encerramento.noValidate = true;
+      const campo = document.createElement('textarea');
+      campo.id = `substituicao-cm-encerrar-${item.id}`;
+      campo.required = true;
+      campo.maxLength = 500;
+      campo.rows = 2;
+      const rotuloCampo = document.createElement('label');
+      rotuloCampo.htmlFor = campo.id;
+      rotuloCampo.textContent = 'Motivo do encerramento';
       const encerrar = document.createElement('button');
-      encerrar.type = 'button';
+      encerrar.type = 'submit';
       encerrar.className = 'button-secondary';
       encerrar.textContent = 'Encerrar agora';
-      encerrar.addEventListener('click', () => aoEncerrar(item.id));
-      li.append(encerrar);
+      encerramento.append(rotuloCampo, campo, encerrar);
+      encerramento.addEventListener('submit', (evento) => {
+        evento.preventDefault();
+        if (campo.value.trim().length === 0) {
+          aviso.textContent = 'Informe o motivo do encerramento.';
+          campo.focus();
+          return;
+        }
+        aoEncerrar(item.id, campo.value.trim());
+      });
+      li.append(encerramento);
     }
     return li;
   };
@@ -219,10 +284,10 @@ export function montarSubstituicaoCaseManager(
     }
   };
 
-  function encerrarSubstituicao(substituicaoId: string): void {
+  function encerrarSubstituicao(substituicaoId: string, porque: string): void {
     aviso.textContent = 'Encerrando…';
     void servico
-      .encerrar(opcoes.paciente_id, { substituicao_id: substituicaoId })
+      .encerrar(opcoes.paciente_id, { substituicao_id: substituicaoId, motivo: porque })
       .then((painel) => {
         if (!ativa) return;
         aplicar(painel);
@@ -239,8 +304,9 @@ export function montarSubstituicaoCaseManager(
     if (registrar.disabled) return;
     const de = paraInstante(inicio.value);
     const ate = paraInstante(fim.value);
-    if (!escolha.value || !de || !ate) {
-      aviso.textContent = 'Escolha a pessoa e informe início e fim.';
+    const porque = motivo.value.trim();
+    if (!escolha.value || !de || !ate || porque.length === 0) {
+      aviso.textContent = 'Escolha a pessoa, informe início e fim e explique o motivo.';
       return;
     }
     if (Date.parse(ate) <= Date.parse(de)) {
@@ -255,6 +321,7 @@ export function montarSubstituicaoCaseManager(
         substituto_usuario_id: escolha.value,
         inicio: de,
         fim: ate,
+        motivo: porque,
       })
       .then((painel) => {
         if (!ativa) return;
@@ -278,4 +345,27 @@ export function montarSubstituicaoCaseManager(
     ativa = false;
     raiz.replaceChildren();
   };
+}
+
+/** Estado honesto de fatia desligada: a seção aparece, diz o que é e diz que ainda não está
+ * disponível neste ambiente. Sem formulário, sem botão que falharia e sem mensagem de erro —
+ * não houve falha, a funcionalidade é que não está ligada. */
+function montarIndisponivel(raiz: HTMLElement): () => void {
+  const secao = document.createElement('section');
+  secao.className = 'substituicao-cm substituicao-cm--indisponivel';
+  const titulo = document.createElement('h2');
+  titulo.textContent = 'Substituição temporária da case manager';
+  const explicacao = document.createElement('p');
+  explicacao.className = 'substituicao-cm__explicacao';
+  explicacao.textContent =
+    'Durante o período registrado, a substituta responde como case manager atual deste caso. A substituição não vale para outros casos nem para a carteira, e não concede acesso ao conteúdo do caso.';
+  const status = document.createElement('p');
+  status.className = 'substituicao-cm__status';
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
+  status.textContent =
+    'A substituição temporária ainda não está disponível neste ambiente. Quem lidera o caso continua sendo o responsável registrado no cadastro.';
+  secao.append(titulo, explicacao, status);
+  raiz.replaceChildren(secao);
+  return () => raiz.replaceChildren();
 }

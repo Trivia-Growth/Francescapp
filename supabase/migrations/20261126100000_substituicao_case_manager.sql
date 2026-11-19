@@ -3,6 +3,8 @@
 -- para agir (FR-020). Nunca alcança a carteira nem outro caso, e NÃO concede acesso:
 -- nenhuma regra de acesso lê esta tabela, como já valia para o responsável do caso.
 -- Fora do período o titular volta sozinho, sem ação manual.
+-- FR-037 exige data, responsável e MOTIVO em toda alteração de acesso: registrar e encerrar
+-- antes da hora guardam cada um o seu motivo cifrado, obrigatório nos dois casos.
 -- Migração ADITIVA: não reescreve 20261113100000 nem 20261125040000; só substitui a
 -- definição da policy e da função de aprovação para consultarem a fonte única da regra.
 -- Reversão funcional: restaurar policy/função de 20261125040000 e remover os objetos
@@ -20,6 +22,12 @@ create table cadastro.substituicao_case_manager (
   substituto_usuario_id uuid not null references public.usuario (id) on delete no action,
   inicio timestamptz not null,
   fim timestamptz not null,
+  -- FR-037: toda alteração de acesso mantém data, responsável e MOTIVO. Registrar e encerrar
+  -- antes da hora são duas alterações de acesso distintas, então cada uma guarda o seu motivo,
+  -- cifrado com AAD próprio (`campo` = 'motivo' / 'motivo_encerramento'). O banco nunca vê o
+  -- texto claro; aqui só se confere a forma do envelope.
+  motivo_cifrado jsonb not null,
+  motivo_encerramento_cifrado jsonb,
   encerrada_em timestamptz,
   encerrada_por_usuario_id uuid references public.usuario (id) on delete no action,
   encerramento_auditoria_id uuid unique references auditoria.evento (id) on delete no action,
@@ -32,8 +40,31 @@ create table cadastro.substituicao_case_manager (
   constraint substituicao_cm_encerramento_chk check (
     encerrada_em is null or (encerrada_em >= inicio and encerrada_em <= fim)
   ),
+  -- Encerrar sem motivo não é encerramento válido: as quatro colunas do encerramento andam
+  -- juntas, para que nenhuma alteração de acesso fique sem explicação.
   constraint substituicao_cm_encerramento_completo_chk check (
-    num_nonnulls(encerrada_em, encerrada_por_usuario_id, encerramento_auditoria_id) in (0, 3)
+    num_nonnulls(encerrada_em, encerrada_por_usuario_id, encerramento_auditoria_id,
+      motivo_encerramento_cifrado) in (0, 4)
+  ),
+  constraint substituicao_cm_motivo_cifrado_formato_chk check ((
+    jsonb_typeof(motivo_cifrado) = 'object'
+    and motivo_cifrado - array['formato', 'key_id', 'nonce', 'ciphertext', 'tag'] = '{}'::jsonb
+    and motivo_cifrado ->> 'formato' = '1'
+    and nullif(motivo_cifrado ->> 'key_id', '') is not null
+    and nullif(motivo_cifrado ->> 'nonce', '') is not null
+    and nullif(motivo_cifrado ->> 'ciphertext', '') is not null
+    and nullif(motivo_cifrado ->> 'tag', '') is not null
+  ) is true),
+  constraint substituicao_cm_motivo_encerramento_formato_chk check (
+    motivo_encerramento_cifrado is null or ((
+      jsonb_typeof(motivo_encerramento_cifrado) = 'object'
+      and motivo_encerramento_cifrado - array['formato', 'key_id', 'nonce', 'ciphertext', 'tag'] = '{}'::jsonb
+      and motivo_encerramento_cifrado ->> 'formato' = '1'
+      and nullif(motivo_encerramento_cifrado ->> 'key_id', '') is not null
+      and nullif(motivo_encerramento_cifrado ->> 'nonce', '') is not null
+      and nullif(motivo_encerramento_cifrado ->> 'ciphertext', '') is not null
+      and nullif(motivo_encerramento_cifrado ->> 'tag', '') is not null
+    ) is true)
   ),
   -- Sobreposição é impedida PELO BANCO, não pela aplicação: duas transações concorrentes
   -- não conseguem abrir janelas que se cruzem no mesmo caso. Encerrar encolhe o intervalo,
@@ -56,6 +87,8 @@ begin
   if tg_op = 'DELETE' then raise exception using errcode = '42501', message = 'REGISTRO_IMUTAVEL'; end if;
   if old.encerrada_em is not null or new.encerrada_em is null
     or new.encerrada_por_usuario_id is null or new.encerramento_auditoria_id is null
+    or new.motivo_encerramento_cifrado is null
+    or new.motivo_cifrado is distinct from old.motivo_cifrado
     or new.id is distinct from old.id or new.paciente_id is distinct from old.paciente_id
     or new.versao is distinct from old.versao
     or new.responsavel_usuario_id is distinct from old.responsavel_usuario_id
@@ -124,11 +157,13 @@ grant select, insert, delete on operacao.requisicao to ffcmapp_substituicao_cm_o
 grant insert (id, ator_usuario_id, ator_auth_id, acao, tipo_objeto, objeto_id, resultado, request_id)
   on auditoria.evento to ffcmapp_substituicao_cm_owner;
 grant select (id, paciente_id, versao, responsavel_usuario_id, substituto_usuario_id, inicio, fim,
+  motivo_cifrado, motivo_encerramento_cifrado,
   encerrada_em, encerrada_por_usuario_id, encerramento_auditoria_id, auditoria_id,
   registrada_por_usuario_id, criado_em),
   insert (id, paciente_id, versao, responsavel_usuario_id, substituto_usuario_id, inicio, fim,
-    auditoria_id, registrada_por_usuario_id),
-  update (encerrada_em, encerrada_por_usuario_id, encerramento_auditoria_id)
+    motivo_cifrado, auditoria_id, registrada_por_usuario_id),
+  update (encerrada_em, encerrada_por_usuario_id, encerramento_auditoria_id,
+    motivo_encerramento_cifrado)
   on cadastro.substituicao_case_manager to ffcmapp_substituicao_cm_owner;
 
 create policy substituicao_cm_config_select on identidade.configuracao_auth_nativo for select to ffcmapp_substituicao_cm_owner using (true);
@@ -174,13 +209,14 @@ declare
   concessao uuid; dominio text; sujeito text; google record;
   autorizado boolean := false; repeticao boolean := false;
   anterior operacao.requisicao; resultado jsonb; acao text; aud uuid;
-  titular uuid; nova_versao integer; encerrou timestamptz;
+  titular uuid; nova_versao integer; encerrou timestamptz; envelope jsonb;
 begin
   if jsonb_typeof(p_transporte) is distinct from 'object'
     or p_transporte - array['entrada', 'entrada_canonica', 'dados_canonicos'] <> '{}'::jsonb
     or jsonb_typeof(e) is distinct from 'object'
     or e - array['request_id', 'paciente_id', 'substituicao_id', 'substituto_usuario_id',
-      'inicio', 'fim', 'chave_idempotencia', 'digest_idempotencia', 'atestado'] <> '{}'::jsonb
+      'inicio', 'fim', 'motivo_cifrado', 'motivo_encerramento_cifrado',
+      'chave_idempotencia', 'digest_idempotencia', 'atestado'] <> '{}'::jsonb
     or jsonb_typeof(a) is distinct from 'object' then
     raise exception using errcode = '42501', message = 'SEM_PERMISSAO';
   end if;
@@ -259,12 +295,16 @@ begin
   if acao = 'api.registrar_substituicao_cm' then
     if alvo is null or substituto is null or p_inicio is null or p_fim is null
       or jsonb_typeof(e->'inicio') is distinct from 'string' or jsonb_typeof(e->'fim') is distinct from 'string'
+      -- O envelope do encerramento não entra no registro: cada alteração de acesso traz só o
+      -- motivo que lhe pertence, e os dois AAD são distintos por `campo`.
+      or e ? 'motivo_encerramento_cifrado'
       or coalesce(length(btrim(e->>'chave_idempotencia')) between 1 and 256, false) is not true
       or coalesce(e->>'digest_idempotencia', '') !~ '^[A-Za-z0-9_-]{43}$' then
       raise exception using errcode = '22023', message = 'ENTRADA_INVALIDA';
     end if;
   elsif acao = 'api.encerrar_substituicao_cm' then
-    if e - array['request_id', 'paciente_id', 'substituicao_id', 'chave_idempotencia', 'digest_idempotencia', 'atestado'] <> '{}'::jsonb
+    if e - array['request_id', 'paciente_id', 'substituicao_id', 'motivo_encerramento_cifrado',
+      'chave_idempotencia', 'digest_idempotencia', 'atestado'] <> '{}'::jsonb
       or alvo is null
       or coalesce(length(btrim(e->>'chave_idempotencia')) between 1 and 256, false) is not true
       or coalesce(e->>'digest_idempotencia', '') !~ '^[A-Za-z0-9_-]{43}$' then
@@ -272,6 +312,20 @@ begin
     end if;
   else
     if e - array['request_id', 'paciente_id', 'atestado'] <> '{}'::jsonb then
+      raise exception using errcode = '22023', message = 'ENTRADA_INVALIDA';
+    end if;
+  end if;
+  -- FR-037: registrar e encerrar são alterações de acesso e EXIGEM motivo. O banco não lê o
+  -- texto; confere a forma do envelope e recusa a escrita sem ele. O conteúdo está ligado ao
+  -- registro e ao campo pelo AAD, conferido na decifra, fora do banco.
+  if acao <> 'api.consultar_substituicao_cm' then
+    envelope := case when acao = 'api.registrar_substituicao_cm'
+      then e->'motivo_cifrado' else e->'motivo_encerramento_cifrado' end;
+    if envelope is null or jsonb_typeof(envelope) is distinct from 'object'
+      or envelope - array['formato', 'key_id', 'nonce', 'ciphertext', 'tag'] <> '{}'::jsonb
+      or envelope->>'formato' is distinct from '1'
+      or nullif(envelope->>'key_id', '') is null or nullif(envelope->>'nonce', '') is null
+      or nullif(envelope->>'ciphertext', '') is null or nullif(envelope->>'tag', '') is null then
       raise exception using errcode = '22023', message = 'ENTRADA_INVALIDA';
     end if;
   end if;
@@ -311,8 +365,8 @@ begin
           insert into auditoria.evento(id, ator_usuario_id, acao, tipo_objeto, objeto_id, resultado, request_id)
             values(aud, ator, acao, 'paciente', paciente, 'permitido', req);
           insert into cadastro.substituicao_case_manager(id, paciente_id, versao, responsavel_usuario_id,
-            substituto_usuario_id, inicio, fim, auditoria_id, registrada_por_usuario_id)
-            values(alvo, paciente, nova_versao, titular, substituto, p_inicio, p_fim, aud, ator);
+            substituto_usuario_id, inicio, fim, motivo_cifrado, auditoria_id, registrada_por_usuario_id)
+            values(alvo, paciente, nova_versao, titular, substituto, p_inicio, p_fim, envelope, aud, ator);
         exception when exclusion_violation or unique_violation then
           -- Período sobreposto é recusado pelo índice, não pela aplicação. O ledger da
           -- idempotência não pode ficar apontando para um registro que não existe.
@@ -356,7 +410,8 @@ begin
         insert into auditoria.evento(id, ator_usuario_id, acao, tipo_objeto, objeto_id, resultado, request_id)
           values(aud, ator, acao, 'paciente', paciente, 'permitido', req);
         update cadastro.substituicao_case_manager
-          set encerrada_em = encerrou, encerrada_por_usuario_id = ator, encerramento_auditoria_id = aud
+          set encerrada_em = encerrou, encerrada_por_usuario_id = ator, encerramento_auditoria_id = aud,
+            motivo_encerramento_cifrado = envelope
           where id = alvo and paciente_id = paciente and encerrada_em is null;
         if not found then raise exception using errcode = 'P0002', message = 'ENCERRAMENTO_NAO_GRAVADO'; end if;
       else
@@ -387,10 +442,13 @@ begin
       'substituicoes', coalesce((select jsonb_agg(jsonb_build_object(
             'id', q.id, 'versao', q.versao, 'substituto_usuario_id', q.substituto_usuario_id,
             'responsavel_usuario_id', q.responsavel_usuario_id, 'inicio', q.inicio, 'fim', q.fim,
-            'encerrada_em', q.encerrada_em, 'registrada_por_usuario_id', q.registrada_por_usuario_id,
+            'encerrada_em', q.encerrada_em, 'motivo_cifrado', q.motivo_cifrado,
+            'motivo_encerramento_cifrado', q.motivo_encerramento_cifrado,
+            'registrada_por_usuario_id', q.registrada_por_usuario_id,
             'criado_em', q.criado_em) order by q.versao desc)
         from (select s.id, s.versao, s.substituto_usuario_id, s.responsavel_usuario_id, s.inicio, s.fim,
-            s.encerrada_em, s.registrada_por_usuario_id, s.criado_em
+            s.encerrada_em, s.motivo_cifrado, s.motivo_encerramento_cifrado,
+            s.registrada_por_usuario_id, s.criado_em
           from cadastro.substituicao_case_manager s where s.paciente_id = paciente
           order by s.versao desc limit 50) q), '[]'::jsonb))
     into resultado;
