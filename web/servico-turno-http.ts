@@ -57,8 +57,14 @@ export function criarServicoTurnoHttp(identidadeAtual: () => Identidade | null) 
     let fluxo: string | null;
     try {
       const modo = sessionStorage.getItem('modo-acesso');
-      if (modo !== 'google' && modo !== 'tecnica') throw new Error();
-      fluxo = sessionStorage.getItem(modo === 'tecnica' ? 'fluxo-tecnico' : 'fluxo-google');
+      if (modo !== 'google' && modo !== 'interno' && modo !== 'tecnica') throw new Error();
+      fluxo = sessionStorage.getItem(
+        modo === 'interno'
+          ? 'fluxo-interno'
+          : modo === 'tecnica'
+            ? 'fluxo-tecnico'
+            : 'fluxo-google',
+      );
       if (!fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo)) throw new Error();
     } catch {
       throw new FalhaApi('nao_autenticado', 401);

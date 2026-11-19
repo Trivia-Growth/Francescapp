@@ -46,12 +46,9 @@ export function criarServicoConversaoDiarioHttp(identidadeAtual: () => Identidad
     const controle = new AbortController();
     controles.add(controle);
     try {
-      const fluxo = sessionStorage.getItem('fluxo-google');
-      if (
-        sessionStorage.getItem('modo-acesso') !== 'google' ||
-        !fluxo ||
-        !/^[A-Za-z0-9_-]{22}$/.test(fluxo)
-      )
+      const modo = sessionStorage.getItem('modo-acesso');
+      const fluxo = sessionStorage.getItem(modo === 'interno' ? 'fluxo-interno' : 'fluxo-google');
+      if ((modo !== 'google' && modo !== 'interno') || !fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo))
         throw new FalhaApi('nao_autenticado', 401);
       const sinal = AbortSignal.any([controle.signal, AbortSignal.timeout(25_000)]);
       const resposta = await fetch(

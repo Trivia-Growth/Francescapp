@@ -112,12 +112,9 @@ export async function comporConversaoDiarioNativa(
       )
         return { estado: 'nao_autenticado' as const };
       // Recusa auditada antes do Vault; esta RPC só registra resultado negado.
-      if (
-        sessao.data.usuario.perfil !== 'profissional' ||
-        usuario.data.user.app_metadata?.provider !== 'google' ||
-        usuario.data.user.identities?.filter((i) => i.provider === 'google').length !== 1
-      )
-        return registrarNegacao();
+      // Método aprovado pertence à admissão SQL vigente; provider não representa
+      // autorização e pode manter identidade Google em uma sessão por password.
+      if (sessao.data.usuario.perfil !== 'profissional') return registrarNegacao();
       return {
         estado: 'autorizado' as const,
         identidade: { usuario_id: sessao.data.usuario.id, session_id: sessao.data.session_id },

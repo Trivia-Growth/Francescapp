@@ -32,6 +32,90 @@ migrations novas estão somente no repositório: `20261125080000`,
 `20261125130000` e `20261125140000`; não fazem parte das oito
 versões remotas já aplicadas. Nenhuma dessas entregas é declarada ativada.
 
+## Nova solicitação: administração de acessos (DF-023)
+
+**Código preparado; ainda não ativado.** Pedido de 18/11/2026: Administrador cria
+nome, login, senha e função; entrada Google da organização ou conta interna.
+Mudança criada antes da implementação:
+[administrar-acessos-sistema](../../openspec/changes/administrar-acessos-sistema/proposal.md).
+Base exclusiva desta frente: `2f729b6b2b71371e1d4a8cc6598050221e58f391`.
+Três frentes Sol separadas: banco/contratos, servidor/Auth e interface; revisão
+cruzada em padrões e especificação, sem autoaprovação do próprio código crítico.
+
+- Administração > Acessos: nome, e-mail de login, função Administrador, Case
+  Manager, Familiar ou Profissional; método Google institucional ou interno;
+  senha inicial somente no método interno e motivo. Equipe existente permanece.
+- Supabase Auth administra a senha. Formulário descarta valor antes do envio;
+  SQL, cadastro, auditoria, consulta e recibos não recebem senha. Nome/e-mail/motivo
+  de negócio usam cifra e AAD; chave administrativa Auth fica somente no servidor.
+- Reserva administrativa auditada antecede a criação Auth. Resposta perdida
+  mantém operação pendente; conferência usa UUID e marcador confiável, sem
+  reenviar senha, atualizar credencial existente ou fundir contas por e-mail.
+  Recusa nativa comprovada de senha fraca encerra somente a operação sem conta;
+  permite novo cadastro manual, preservando histórico. Erro desconhecido continua
+  pendente, sem liberação presumida do e-mail.
+- Conta interna confirma endereço por código nativo e depois entra com senha.
+  Confirmação usa cliente transitório sem cookies; não abre sessão do produto.
+  Conta Google aguarda primeira entrada com identidade e domínio aprovados.
+- Método interno ganha admissão própria e reconhecimento nos consumidores
+  afetados, preservando vínculo, audiência, habilitação e responsabilidade no
+  caso. Case Manager mantém perfil-base clínico Profissional; função da conta
+  aparece separadamente e não concede carteira. Familiar sem vínculo entra vazio.
+- Novas migrations locais: `20261125150000_acessos_gerenciados.sql`,
+  `20261125160000_contexto_acessos_gerenciados.sql` e
+  `20261125170000_acessos_consumidores_autenticacao.sql`. Somadas às sete acima,
+  são dez versões locais pendentes desta continuação; nenhuma aplicada remotamente.
+
+Evidência e roteiro estão em
+[tasks.md](../../openspec/changes/administrar-acessos-sistema/tasks.md).
+Provas novas de servidor, interface e SQL são **preparação, não resultado de
+execução**. Testes anteriores não comprovam a nova admissão nem as novas RLS.
+O runner `scripts/testar-acessos-gerenciados-local.sh` prepara PostgreSQL efêmero,
+somente socket local; sua matriz distingue bootstrap de plataforma da bridge Auth
+e migrations de negócio com migrador sem superuser. Esse ambiente também não foi
+executado nesta retomada.
+Revisão de fonte encerrada nos dois eixos, sem P1/P2 concreto aberto. Ajustes
+incluem transporte OTP, recuperação sem logout, recusa nativa definitiva sem
+retry da operação, fallback legado fechado para conta gerenciada inválida e
+preservação do ramo Familiar válido. A matriz escrita inclui quatro funções,
+dois métodos, outro caso, vínculo revogado e acesso direto; sua execução continua
+obrigatória antes de ativar. Registro delimitado das revisões em `tasks.md`.
+Hooks Git existentes foram preservados. O primeiro pre-commit apontou concatenações
+de strings fora do padrão e aplicou formatação; correção equivalente de strings
+preparada, sem alterar regra de negócio. Hooks não substituem as provas adiadas.
+
+**SUPOSIÇÕES CONSERVADORAS:** login é e-mail; cada conta tem uma função e um método
+aprovado; criação não confirma artificialmente posse do e-mail; senha inicial com
+mínimo local de 12 caracteres e política nativa; conta não cria vínculo,
+responsabilidade ou habilitação; colisão nunca altera acesso existente. Detalhes
+e ameaças estão no design da mudança.
+
+**Configuração necessária, somente nomes:** `FFCM_ACESSOS_ATIVADOS` habilita a
+área administrativa no servidor; `FFCM_AUTH_INTERNO_ATIVADO` habilita entrada e
+confirmação internas; `FFCM_AUTH_ATIVADO` continua o interruptor geral existente.
+São variáveis do ambiente Netlify, desligadas por padrão nas novas rotas. Criação
+interna depende de `FFCM_SUPABASE_AUTH_SECRET_KEY`, exclusivamente no ambiente do
+servidor; não é PAT da CLI, não pertence ao formulário de integrações e nenhum
+valor foi lido ou cadastrado nesta frente. Google e consulta não exigem esse
+cliente privilegiado. Entrega de e-mail e templates nativos com código precisam
+de homologação no Supabase; pedido de envio não comprova entrega.
+No banco, `ffcm.acessos.ativo` nasce desligada e aparece em Administração >
+Configuração do sistema. Controla cadastro/lista/conferência administrativos;
+desligá-la não invalida contas nem bloqueia login, confirmação ou sessões.
+Carteira e ficha familiares continuam sujeitas aos interruptores existentes
+`FFCM_FAMILIAR_PACIENTES_ATIVO` e `FFCM_CONSULTA_PACIENTE_FAMILIAR`; a nova entrada
+não os liga nem remove seus gates. Convite/login familiar legado mantém suas
+próprias flags. Nenhum desses valores foi alterado remotamente.
+
+**NÃO realizado nesta solicitação:** criar usuário ou senha reais, ler credenciais,
+enviar e-mail real, consultar dados de pessoas, aplicar migrations remotas,
+homologar Google/SMTP, executar testes manuais/build/SQL, publicar ou ativar novas
+rotas. Também não foram adicionados alteração de senha existente, fusão de
+identidades, edição/exclusão/revogação de contas ou vínculos automáticos. A
+retomada das validações obrigatórias permanece pendente por instrução anterior
+do solicitante; publicação continua impedida pelas condições descritas neste
+relatório. O objetivo noturno original permanece não alcançado.
+
 ## Entregue, com evidência
 
 1. **Configuração:** navegação administrativa já estava fiada na base; conferida e

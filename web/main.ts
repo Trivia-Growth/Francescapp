@@ -1,3 +1,6 @@
+import { montarAcessosAdministracao } from './acessos-administracao.js';
+import { criarServicoAcessosHttp } from './servico-acessos-http.js';
+import { montarLoginInterno } from './login-interno.js';
 import { iniciarAcao } from './esqueleto.js';
 import { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.js';
 import { montarAgendaIndividual } from './agenda-individual.js';
@@ -148,6 +151,10 @@ const familiarSenha = elemento<HTMLInputElement>('familiar-senha');
 const familiarBotao = elemento<HTMLButtonElement>('familiar-login-submit');
 const googleForm = elemento<HTMLFormElement>('google-login-form');
 googleForm.addEventListener('submit', (evento) => {
+  if (loginOcupado) {
+    evento.preventDefault();
+    return;
+  }
   try {
     const bytes = crypto.getRandomValues(new Uint8Array(16));
     const fluxo = btoa(String.fromCharCode(...bytes))
@@ -172,6 +179,37 @@ const loginButton = elemento<HTMLButtonElement>('login-submit');
 const emailInput = elemento<HTMLInputElement>('email');
 const passwordInput = elemento<HTMLInputElement>('password');
 const togglePassword = elemento<HTMLButtonElement>('toggle-password');
+const loginInterno = montarLoginInterno(
+  elemento('acesso-interno'),
+  api,
+  async (atual) => {
+    aplicarSessao(atual);
+    loginView.hidden = true;
+    logoutView.hidden = true;
+    if (document.hidden) {
+      focoAposLoginOculto = true;
+      patientsView.hidden = true;
+      sessionActions.hidden = true;
+      revalidacaoStatus.hidden = false;
+      return;
+    }
+    patientsView.hidden = false;
+    sessionActions.hidden = false;
+    document.title = 'FFCMApp | Pacientes';
+    elemento('patients-title').focus();
+    if (await carregarPacientes()) await abrirFichaPelaRota();
+    navegarPelaRota();
+  },
+  {
+    podeIniciar: () => !loginOcupado,
+    ocupacao: (valor) => {
+      loginOcupado = valor;
+      loginFields.disabled = familiarFields.disabled = valor;
+      const botaoGoogle = googleForm.querySelector<HTMLButtonElement>('button[type=submit]');
+      if (botaoGoogle) botaoGoogle.disabled = valor;
+    },
+  },
+);
 const sessionActions = elemento('session-actions');
 const logoutButton = elemento<HTMLButtonElement>('logout');
 const retryLogout = elemento<HTMLButtonElement>('retry-logout');
@@ -518,7 +556,7 @@ function montarConversaoDaFicha(
     if (
       !identidade ||
       sessao?.usuario.perfil !== 'profissional' ||
-      sessionStorage.getItem('modo-acesso') !== 'google'
+      !['google', 'interno'].includes(sessionStorage.getItem('modo-acesso') ?? '')
     )
       return { desmontar: () => {}, invalidarOrigem: () => {} };
   } catch {
@@ -1343,6 +1381,7 @@ function mostrarAcesso(mensagem = '', tom: 'error' | 'success' | 'neutral' = 'ne
   fecharGavetaLateral();
   loginForm.reset();
   familiarForm.reset();
+  loginInterno.limpar();
   passwordInput.type = 'password';
   togglePassword.textContent = 'Mostrar senha';
   patientsView.hidden = true;
@@ -1383,6 +1422,7 @@ const perfis = {
   profissional: 'Profissional',
   familia: 'Família',
 };
+const funcoesConta = { ...perfis, familia: 'Familiar', case_manager: 'Case Manager' };
 
 let catalogoEquipePara: string | null = null;
 let catalogoEquipe: (() => Promise<ResponsavelOpcao[]>) | null = null;
@@ -1486,6 +1526,18 @@ const nomeDoUsuarioNaEquipe = (() => {
 })();
 
 const areasAdministracao: AreaAdministracao[] = [
+  {
+    id: 'acessos',
+    rotulo: 'Acessos',
+    disponivel: (atual) =>
+      atual.usuario.perfil === 'administrador' &&
+      atual.capacidades.includes('administrar_concessoes'),
+    montar: (raiz) =>
+      montarAcessosAdministracao(raiz, criarServicoAcessosHttp(identidadeAtual), {
+        identidadeAtual,
+        acessoPerdido,
+      }),
+  },
   {
     id: 'integracoes',
     rotulo: 'Credenciais das integrações',
@@ -1831,7 +1883,9 @@ function aplicarSessao(atual: Sessao): boolean {
   registration.hidden = !podeCadastrar;
   newPatientLink.hidden = !podeCadastrar;
   elemento('workspace').classList.toggle('with-registration', podeCadastrar);
-  elemento('session-role').textContent = perfis[atual.usuario.perfil];
+  elemento('session-role').textContent = atual.usuario.funcao
+    ? funcoesConta[atual.usuario.funcao]
+    : perfis[atual.usuario.perfil];
   elemento('scope-description').textContent = atual.capacidades.includes(
     'consultar_carteira_integral',
   )

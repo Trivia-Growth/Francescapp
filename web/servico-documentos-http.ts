@@ -61,17 +61,19 @@ export function criarServicoDocumentosHttp(
       // Leitura (`ler_documentos`) já tem a trilha familiar no banco (filtro por `audiencia`,
       // ver migration `20261124120000`); família também passa por aqui para consultar anexos.
       fluxo = sessionStorage.getItem(
-        modo === 'tecnica'
-          ? 'fluxo-tecnico'
-          : modo === 'familiar'
-            ? 'fluxo-familiar'
-            : 'fluxo-google',
+        modo === 'interno'
+          ? 'fluxo-interno'
+          : modo === 'tecnica'
+            ? 'fluxo-tecnico'
+            : modo === 'familiar'
+              ? 'fluxo-familiar'
+              : 'fluxo-google',
       );
     } catch {
       throw new FalhaApi('nao_autenticado', 401);
     }
     if (
-      (modo !== 'google' && modo !== 'tecnica' && modo !== 'familiar') ||
+      (modo !== 'google' && modo !== 'interno' && modo !== 'tecnica' && modo !== 'familiar') ||
       !fluxo ||
       !/^[A-Za-z0-9_-]{22}$/.test(fluxo)
     )
@@ -129,14 +131,16 @@ export function criarServicoDocumentosHttp(
         throw new FalhaApi('nao_autenticado', 401);
       try {
         const modo = sessionStorage.getItem('modo-acesso');
-        if (!['google', 'tecnica', 'familiar'].includes(modo ?? ''))
+        if (!['google', 'interno', 'tecnica', 'familiar'].includes(modo ?? ''))
           throw new FalhaApi('nao_autenticado', 401);
         const fluxo = sessionStorage.getItem(
-          modo === 'tecnica'
-            ? 'fluxo-tecnico'
-            : modo === 'familiar'
-              ? 'fluxo-familiar'
-              : 'fluxo-google',
+          modo === 'interno'
+            ? 'fluxo-interno'
+            : modo === 'tecnica'
+              ? 'fluxo-tecnico'
+              : modo === 'familiar'
+                ? 'fluxo-familiar'
+                : 'fluxo-google',
         );
         if (!fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo))
           throw new FalhaApi('nao_autenticado', 401);

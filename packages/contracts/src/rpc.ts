@@ -273,7 +273,17 @@ export const metadadosAadEscalaTurnoSchema = z
   })
   .strict();
 
+export const metadadosAadAcessoGerenciadoSchema = z
+  .object({
+    tabela: z.literal('identidade.acesso_gerenciado'),
+    registro_id: uuidSchema,
+    campo: z.enum(['nome', 'email', 'motivo']),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
 export const metadadosAadSchema = z.union([
+  metadadosAadAcessoGerenciadoSchema,
   metadadosAadEscalaTurnoSchema,
   metadadosAadExportacaoSchema,
   metadadosAadSolicitacaoTitularSchema,

@@ -1445,6 +1445,41 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   min-height: 96px;
   resize: vertical;
 }
+.acessos-administracao {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.acessos-lista {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.acessos-lista li {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.acessos-lista h3 {
+  margin: 0 0 8px;
+  font-family: inherit;
+  font-size: 1.125rem;
+}
+.acessos-lista p {
+  margin: 4px 0;
+}
+#acesso-interno {
+  margin-block: 28px;
+}
+#acesso-interno h3 {
+  margin-bottom: 8px;
+}
+#interno-confirmacao-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
 .administracao-conteudo input,
 .administracao-conteudo select,
 .administracao-conteudo textarea {

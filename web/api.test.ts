@@ -434,3 +434,79 @@ describe('falhas públicas do cliente', () => {
     expect(resultadoIncerto(new FalhaApi('conflito_idempotencia', 409))).toBe(false);
   });
 });
+
+// PREPARADO, NÃO EXECUTADO: FR035 preserva método e usa perfil revalidado no servidor.
+it.each(['interno', 'google'] as const)(
+  'Familiar %s recebe carteira vazia sem trocar método ou assumir vínculo',
+  async (modo) => {
+    vi.stubGlobal('window', { location: { origin: 'https://app.example.test' } });
+    const familiar = { ...sessao, usuario: { ...sessao.usuario, perfil: 'familia' } };
+    const chamadas: string[] = [];
+    let fluxo: string | null = null;
+    vi.stubGlobal('fetch', async (url: URL, init: RequestInit) => {
+      chamadas.push(url.pathname);
+      const atual = new Headers(init.headers).get('x-fluxo');
+      if (!fluxo) fluxo = atual;
+      expect(atual).toBe(fluxo);
+      expect(init.credentials).toBe('same-origin');
+      if (url.pathname === '/api/auth/interno') {
+        expect(JSON.parse(String(init.body))).toEqual({
+          email: 'familiar@example.test',
+          senha: 'senha-ficticia',
+        });
+        return envelope(familiar);
+      }
+      if (url.pathname === '/api/sessao') return envelope(familiar);
+      if (url.pathname === '/api/familiar/pacientes')
+        return envelope({ itens: [], proximo_cursor: null });
+      throw new Error('Rota inesperada');
+    });
+    const cliente = new ClienteFFCM();
+    if (modo === 'interno') await cliente.entrarInterno('familiar@example.test', 'senha-ficticia');
+    else {
+      sessionStorage.setItem('modo-acesso', 'google');
+      sessionStorage.setItem('fluxo-google', 'a'.repeat(22));
+      await cliente.consultarSessao();
+    }
+    await expect(cliente.listarPacientes()).resolves.toEqual({ itens: [], proximo_cursor: null });
+    expect(sessionStorage.getItem('modo-acesso')).toBe(modo);
+    expect(chamadas).toEqual([
+      ...(modo === 'interno' ? ['/api/auth/interno'] : []),
+      '/api/sessao',
+      '/api/familiar/pacientes',
+    ]);
+    expect(sessionStorage.getItem('fluxo-interno')).toBe(modo === 'interno' ? fluxo : null);
+  },
+);
+it('entrada interna exige confirmação independente e saída conserva rota nativa', async () => {
+  vi.stubGlobal('window', { location: { origin: 'https://app.example.test' } });
+  const caminhos: string[] = [];
+  vi.stubGlobal('fetch', async (url: URL) => {
+    caminhos.push(url.pathname);
+    return envelope(
+      url.pathname.endsWith('/sair')
+        ? { encerrada_localmente: true, pendencia_externa: false }
+        : sessao,
+    );
+  });
+  const cliente = new ClienteFFCM();
+  await cliente.entrarInterno('pessoa@example.test', 'senha-ficticia');
+  expect(sessionStorage.getItem('sessao-interno')).toBe(sessao.session_id);
+  await cliente.sair();
+  expect(caminhos).toEqual(['/api/auth/interno', '/api/sessao', '/api/sessao/sair']);
+  expect(sessionStorage.getItem('sessao-interno')).toBeNull();
+  expect(sessionStorage.getItem('fluxo-interno')).toBeNull();
+  await expect(cliente.listarPacientes()).rejects.toMatchObject({ status: 401 });
+});
+it('recusa troca de conta entre senha interna e autorização independente', async () => {
+  vi.stubGlobal('window', { location: { origin: 'https://app.example.test' } });
+  vi.stubGlobal('fetch', async (url: URL) =>
+    envelope(url.pathname === '/api/auth/interno' ? sessao : { ...sessao, session_id: id }),
+  );
+  const cliente = new ClienteFFCM();
+  await expect(
+    cliente.entrarInterno('pessoa@example.test', 'senha-ficticia'),
+  ).rejects.toMatchObject({ status: 401 });
+  await expect(cliente.listarPacientes()).rejects.toMatchObject({ status: 401 });
+  expect(sessionStorage.getItem('modo-acesso')).toBe('bloqueada');
+});

@@ -66,6 +66,22 @@ function keyIdValido(keyId: unknown): keyId is string {
 }
 
 function aadCanonico(aad: MetadadosAad): Uint8Array {
+  if (typeof aad === 'object' && aad !== null && aad.tabela === 'identidade.acesso_gerenciado') {
+    if (
+      !uuid.test(aad.registro_id) ||
+      !['nome', 'email', 'motivo'].includes(aad.campo) ||
+      aad.formato !== formatoAtual
+    )
+      throw new ErroCifraAutenticada();
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        registro_id: aad.registro_id,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
   if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.acesso_paciente') {
     if (
       !uuid.test(aad.registro_id) ||

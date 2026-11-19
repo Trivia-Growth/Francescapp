@@ -4,6 +4,7 @@ import type { Pool } from 'pg';
 const mocks = vi.hoisted(() => ({
   cofre: vi.fn(),
   auditoria: vi.fn(),
+  operar: vi.fn(),
   provider: 'google',
   semPerfil: false,
   perfil: 'familia',
@@ -11,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock('./configuracao-servidor.ts', () => ({ listaConfigurada: async () => ['Área fictícia'] }));
 vi.mock('./cofre-nativo.ts', () => ({ carregarCofreNativo: mocks.cofre }));
+vi.mock('./conversao-diario-nativa.ts', () => ({ operarConversaoDiarioNativa: mocks.operar }));
 vi.mock('./auth-nativo/cliente.ts', () => ({
   credencialAuthRejeitada: () => false,
   criarContextoAuthNativo: () => ({
@@ -62,6 +64,8 @@ beforeEach(() => {
   mocks.auditoria.mockResolvedValue({ error: null, data: true });
   mocks.provider = 'google';
   mocks.semPerfil = false;
+  mocks.cofre.mockResolvedValue({ cifra: {}, atestador: {} });
+  mocks.operar.mockResolvedValue({ ok: true, dados: null, request_id: mocks.usuario });
 });
 afterEach(() => vi.clearAllMocks());
 for (const perfil of ['familia', 'administrador']) {
@@ -83,9 +87,24 @@ for (const perfil of ['familia', 'administrador']) {
     expect(mocks.cofre).not.toHaveBeenCalled();
   });
 }
-it('nega profissional sem Google e falha fechado se auditoria não confirmar', async () => {
+it('aceita profissional interno já admitido sem inferir método pelo provider Google', async () => {
   mocks.perfil = 'profissional';
   mocks.provider = 'email';
+  const resultado = await comporConversaoDiarioNativa(
+    new Request('https://example.test', { headers: { 'x-sessao': mocks.usuario } }),
+    { operacao: 'consultar', paciente_id: mocks.usuario, origem_id: mocks.usuario },
+    dependencias,
+  );
+  expect(resultado).toMatchObject({ ok: true, dados: null });
+  expect(mocks.cofre).toHaveBeenCalledOnce();
+  expect(mocks.operar).toHaveBeenCalledOnce();
+  expect(mocks.auditoria).not.toHaveBeenCalled();
+});
+
+it('nega interno sem admissão e falha fechado se auditoria não confirmar', async () => {
+  mocks.perfil = 'profissional';
+  mocks.provider = 'email';
+  mocks.semPerfil = true;
   mocks.auditoria.mockResolvedValue({ error: null, data: false });
   const resultado = await comporConversaoDiarioNativa(
     new Request('https://example.test', { headers: { 'x-sessao': mocks.usuario } }),
@@ -94,6 +113,7 @@ it('nega profissional sem Google e falha fechado se auditoria não confirmar', a
   );
   expect(resultado).toMatchObject({ ok: false, erro: { codigo: 'servico_indisponivel' } });
   expect(mocks.cofre).not.toHaveBeenCalled();
+  expect(mocks.operar).not.toHaveBeenCalled();
 });
 
 it('recusa área não configurada antes de carregar cofre ou assinar', async () => {
