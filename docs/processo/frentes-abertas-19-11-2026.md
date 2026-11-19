@@ -279,3 +279,122 @@ produto: a prova recusa toda requisição que não seja para `127.0.0.1`.
   produz. Em máquina sem o navegador o Playwright falha com mensagem explícita — isso
   é bloqueio a registrar, não aprovação silenciosa, que é o comportamento que
   `AGENTS.md` pede.
+
+## Gate de ativação executado — 19/11/2026
+
+`pnpm run verificar:ativacao` executado **uma única vez**, saída **0**. Inclui o passo novo
+`verificar:celular`, confirmado na saída (10 testes do Playwright dentro da cadeia).
+
+| Etapa | Resultado |
+|---|---|
+| lint | `Checked 908 files in 265ms. No fixes applied.` |
+| typecheck (contratos, cadastro, funções, web, proxy) e `typecheck:deno` | sem erro |
+| `test:contratos` | 184 passando |
+| `test:cadastro` | 137 passando, 9 pulados |
+| `test:funcoes` | 321 passando, 6 pulados |
+| `test:proxy` | 700 passando, 15 pulados |
+| `test:web` | 652 passando |
+| `build:web` | `✓ built in 143ms` |
+| `validar:configuracao` | validado sem acessar serviço remoto |
+| `verificar:celular` | 10 testes, 360x640 e 390x844 |
+
+**Total: 1994 testes passando, 30 pulados, nenhuma falha.**
+
+### Autorização e RLS — obrigatórios na ativação, executados
+
+Dezesseis runners de PostgreSQL local, **todos com saída 0**, cobrindo as fatias desta
+entrega mais as migrations alteradas pela correção da cadeia:
+
+```
+cadeia-migrations-sem-superusuario   substituicao-case-manager        substituicao-case-manager-concorrencia
+plano-crise-case-manager             realizacao-compromisso           realizacao-compromisso-concorrencia
+financeiro-valor-acordado            financeiro-vigencia-concorrente  financeiro-despesa
+financeiro-apuracao                  financeiro-grant                 avisos
+acessos-gerenciados                  convite-familiar                 cancelar-preautorizacao
+materializar-familiar
+```
+
+### Segunda regressão encontrada pelo gate, e corrigida
+
+O gate pegou o que as frentes isoladas não podiam pegar. `testar-avisos-local` passou a
+falhar depois do fechamento de FR-037, em dois pontos:
+
+1. `null value in column "motivo_cifrado"` — a fixture dos avisos insere substituição
+   diretamente, e `motivo_cifrado` virou `not null`.
+2. `REGISTRO_IMUTAVEL` — o gatilho passou a exigir `motivo_encerramento_cifrado` no
+   encerramento antecipado, que a fixture também não informava.
+
+A frente de FR-037 estava proibida de tocar arquivos de aviso e as suítes dela passavam; a
+frente de avisos terminara antes da mudança. **Só a execução conjunta revelava.** Corrigido
+com envelopes fictícios que satisfazem os checks de formato, com comentário dizendo que a
+fixture não exercita a cifra — a ida e volta real é provada em
+`supabase/functions/_shared/cifra-substituicao-cm.test.ts`.
+
+Depois da correção, os 16 runners foram reexecutados juntos: **0 falhas de 16**.
+
+## Roteiro "Como testar" — PR 18
+
+Para colar no corpo do PR na retirada do draft. Tudo local; nada aqui autoriza operação
+remota.
+
+**Pré-requisitos.** Node 22, pnpm 9.15.9, Docker em execução, PostgreSQL de linha de comando
+no `PATH`. Neste ambiente os runners de PostgreSQL exigem `LC_ALL=C`.
+
+**1. Gate completo** — uma única vez:
+
+```
+pnpm run verificar:ativacao
+```
+Esperado: saída 0, com a linha `Checked N files` do lint presente. **Saída 0 sem essa linha
+não vale**: o Biome aborta sob pressão de memória e sai com 0 sem fazer nada.
+
+**2. Autorização e RLS** — obrigatórios, nunca puláveis:
+
+```
+for s in cadeia-migrations-sem-superusuario substituicao-case-manager \
+         substituicao-case-manager-concorrencia plano-crise-case-manager \
+         realizacao-compromisso realizacao-compromisso-concorrencia \
+         financeiro-valor-acordado financeiro-vigencia-concorrente \
+         financeiro-despesa financeiro-apuracao financeiro-grant avisos; do
+  LC_ALL=C sh scripts/testar-$s-local.sh || echo "FALHOU $s"
+done
+```
+Esperado: nenhuma linha `FALHOU`. Cada runner sobe PostgreSQL descartável, aplica as
+migrations reais e exercita positivo, negativo, acesso direto ao banco, outro perfil e
+revogação.
+
+**3. Cadeia de migrations sem superusuário** — é o que diz se a migration remota aplicaria:
+
+```
+LC_ALL=C sh scripts/testar-cadeia-migrations-sem-superusuario-local.sh
+```
+Esperado: `CADEIA_COMPLETA_SEM_SUPERUSUARIO_OK: 234 migrations`. Este runner recusa rodar se
+o papel for superusuário, porque superusuário ignora a checagem de ACL e dá falso verde.
+
+**4. Conforto no celular**:
+
+```
+pnpm run verificar:celular
+```
+Esperado: 10 testes, em 360x640 e 390x844, medindo rolagem horizontal, alvo de toque de
+44px, foco visível em toda a ordem de tabulação, `inputmode` e rótulo de campo.
+
+**5. Supabase local** (opcional, e é o que destrava a medição de Edge):
+
+```
+supabase start   # portas 554xx
+LC_ALL=C sh scripts/testar-regras-atendimento-supabase-local.sh
+sh scripts/medir-partida-frio-edge.sh
+supabase stop
+```
+
+**O que este roteiro NÃO prova**, e precisa de ambiente publicado: entrada autenticada no
+app publicado, reprodução do 503 da configuração, Google Drive, OAuth e Calendar reais,
+Vault e Storage reais, instalação do PWA em iPhone e Android, e a aplicação das migrations
+no projeto remoto.
+
+**Interruptores que seguem desligados**, por não terem sido ativados nesta entrega:
+`ffcm.financeiro.ativo`, `ffcm.avisos.ativos`, `ffcm.realizacao_compromisso.ativo`,
+`ffcm.turno.ativo`, `ffcm.documentos.ativo`, `ffcm.agenda_google.ativa` e o interruptor da
+substituição de case manager. Com eles desligados as telas mostram indisponibilidade
+honesta, não erro.

@@ -132,10 +132,16 @@ declare admin uuid := '10000000-0000-4000-8000-000000000001'; sa uuid := '200000
 begin
   insert into auditoria.evento(id, ator_usuario_id, acao, tipo_objeto, objeto_id, resultado, request_id)
     values(aud, admin, 'api.registrar_substituicao_cm', 'paciente', p1, 'permitido', gen_random_uuid());
+  -- `motivo_cifrado` é obrigatório desde o fechamento de FR-037 (motivo em toda alteração de
+  -- acesso). Esta fixture não exercita a cifra: grava um envelope fictício que só precisa
+  -- satisfazer `substituicao_cm_motivo_cifrado_formato_chk`. A ida e volta da cifra é provada
+  -- em `supabase/functions/_shared/cifra-substituicao-cm.test.ts`.
   insert into cadastro.substituicao_case_manager(id, paciente_id, versao, responsavel_usuario_id,
-    substituto_usuario_id, inicio, fim, auditoria_id, registrada_por_usuario_id)
+    substituto_usuario_id, inicio, fim, auditoria_id, registrada_por_usuario_id, motivo_cifrado)
     values(gen_random_uuid(), p1, 1, prof, admin, clock_timestamp() - interval '1 hour',
-      clock_timestamp() + interval '1 day', aud, admin);
+      clock_timestamp() + interval '1 day', aud, admin,
+      jsonb_build_object('formato', 1, 'key_id', 'teste', 'nonce', repeat('b', 16),
+        'ciphertext', 'YQ', 'tag', repeat('b', 22)));
   -- Substituir NÃO concede acesso: sem concessão vigente de acesso ao caso, nada aparece.
   r := public.avisos_fixture(admin, sa, 'api.listar_avisos', '{}'::jsonb);
   if r->>'ok' is distinct from 'true' then raise exception 'SUBSTITUTA_LISTAR_RECUSADO: %', r; end if;
@@ -233,8 +239,13 @@ begin
   if antes = 0 then raise exception 'SUBSTITUTA_SEM_AVISOS_ANTES_DO_FIM'; end if;
   insert into auditoria.evento(id, ator_usuario_id, acao, tipo_objeto, objeto_id, resultado, request_id)
     values(aud, admin, 'api.encerrar_substituicao_cm', 'paciente', '47000000-0000-4000-8000-000000000001', 'permitido', gen_random_uuid());
+  -- O encerramento também exige motivo desde o fechamento de FR-037: encerrar antes da hora
+  -- é alteração de acesso, e é a que devolve a alçada ao titular. Envelope fictício, pelo
+  -- mesmo motivo do registro acima.
   update cadastro.substituicao_case_manager
-    set encerrada_em = clock_timestamp(), encerrada_por_usuario_id = admin, encerramento_auditoria_id = aud
+    set encerrada_em = clock_timestamp(), encerrada_por_usuario_id = admin, encerramento_auditoria_id = aud,
+      motivo_encerramento_cifrado = jsonb_build_object('formato', 1, 'key_id', 'teste',
+        'nonce', repeat('c', 16), 'ciphertext', 'Yg', 'tag', repeat('c', 22))
     where paciente_id = '47000000-0000-4000-8000-000000000001' and encerrada_em is null;
   r := public.avisos_fixture(admin, sa, 'api.listar_avisos', '{}'::jsonb);
   if jsonb_array_length(r#>'{dados,itens}') <> 0 or (r#>>'{dados,nao_lidos}')::integer <> 0
