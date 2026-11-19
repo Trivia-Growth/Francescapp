@@ -16,7 +16,7 @@ matriz de autorização aprovada. A ordem posterior de adiar validações perman
 vigente. Nenhuma verificação manual de teste, lint, typecheck, build, Deno, SQL, navegador
 ou benchmark, nem operação remota de Supabase/Netlify, foi executada nesta
 continuação. Hooks Git existentes foram preservados; resultados de commit/push
-serão registrados separadamente.
+estão registrados separadamente abaixo.
 
 Três frentes Sol: documentos/BFF, plano/interface e persistência/contratos de
 turno. Coordenação faz integração, rastreabilidade e revisão de fronteiras.
@@ -248,3 +248,31 @@ Roteiro preparado, **não executado**; somente pessoas e casos fictícios:
    descrita no OpenSpec, incluindo duas conexões e instalação NOSUPER.
 8. Executar uma vez `pnpm run verificar:ativacao` na ativação, além do roteiro real.
    Gate indisponível mantém a fatia sem aceite; CI/draft não substituem a prova.
+
+
+## Registro Git e hooks preservados
+
+Fonte consolidada no commit `8d077ae`, com correções de integração em
+`217bea1`, `27ccc07`, `b4b78ec` e `f009026`, enviada à branch
+`fatia7/turno-execucao-cuidado`. Último push de código observado saiu **0**,
+`cc10aad..f009026`. O PR 18 permanece draft. Este fechamento documental é o
+último commit da entrega, sem reescrita de histórico.
+
+- **Pre-commit normal:** formatação dos arquivos staged e regras Biome. Bloqueios
+  de assertions não nulas, declarações e template literal foram corrigidos;
+  commits subsequentes saíram 0. Nenhum hook foi desligado ou alterado.
+- **Pre-push normal, saída 0:** lint sobre **829 arquivos**, sem correções;
+  typechecks de contratos, cadastro, funções compartilhadas, web e proxy
+  concluídos. Duração observada do hook de tipos: 8,60 s.
+- O compilador apontou casts inline inválidos após formatação, fluxo de foco,
+  seletores no helper de escrita em vez do operador de leitura, inferência
+  incidental do tipo UUID e fixtures. Correções foram feitas por Sol. Seletores
+  de Diário/Tarefa foram relidos independentemente e receberam prova nova
+  `turno-execucao-seletores-operadores.test.ts`, que chama os operadores e confere
+  transporte assinado; **essa prova não foi executada**.
+- **Não executados:** testes de comportamento/Vitest, SQL/RLS, concorrência,
+  build, verificação Deno, browser/celular/teclado, benchmark e roteiro conectado.
+  Sucesso de lint/tipos não comprova autorização, runtime, fornecedor ou aceite.
+- Nenhuma migration remota, deploy explícito, ativação de flag, limpeza,
+  concessão/revogação real ou credencial foi operada nesta continuação.
+  `.impeccable/` preexistente permaneceu fora dos commits.

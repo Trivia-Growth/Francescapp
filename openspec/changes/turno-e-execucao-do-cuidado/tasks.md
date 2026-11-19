@@ -331,3 +331,12 @@ Administrador exige vínculo de caso; nomes legados ausentes têm identificador
 persistido rotulado; anexos de 3 MiB, PDF de 4 MiB e glifo não suportado falham
 explicitamente. Flags de descarte/job novo de localização permanecem desligados.
 Detalhes e roteiro real pendente constam do relatório; financeiro/PWA/Edge excluídos.
+
+
+**Consolidação Git de 19/11/2026:** fonte `8d077ae` e correções até `f009026`
+enviadas à branch autorizada. Pre-commit normal preservado; pre-push saiu 0 com
+lint em 829 arquivos e todos os typechecks. Compilador levou à correção do ponto
+de inclusão dos seletores históricos de Diário/Tarefa; releitura independente
+e prova de transporte real do operador escritas, sem executar o teste. Nenhum
+gate de comportamento, SQL/RLS, concorrência, build, Deno ou browser executado.
+Isso não fecha 0.6.1, 0.6.2/14 nem 10.4; fatia continua sem ativação aprovada.
