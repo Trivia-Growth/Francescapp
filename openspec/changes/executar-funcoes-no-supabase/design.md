@@ -23,57 +23,60 @@ O ponto que torna esta migração barata, e que precisa ser preservado: **a cama
 
 ## Custo por rota
 
-Medido em 17/11/2026 sobre `origin/main`. "Param" conta caminhos com parâmetro no path, que é onde o roteamento declarativo da Netlify não tem equivalente direto no Supabase.
+Medido em 17/11/2026 sobre `origin/main` e **reconferido em 19/11/2026** depois das tarefas 2.1 e 2.2 (quadro abaixo). "Param" conta caminhos com parâmetro no path, que é onde o roteamento declarativo da Netlify não tem equivalente direto no Supabase.
 
-| Rota | Caminhos | Com param | Linhas |
-| --- | --- | --- | --- |
-| `agenda-google` | 13 | 0 | 40 |
-| `auth` | 9 | 0 | 85 |
-| `pacientes` | 7 | 0 | 64 |
-| `plano` | 7 | 3 | 51 |
-| `edicao-paciente` | 6 | 1 | 65 |
-| `pendencias` | 4 | 3 | 64 |
-| `barreira-tarefa` | 4 | 0 | 61 |
-| `barreira-acesso` | 4 | 0 | 55 |
-| `barreira-contato` | 4 | 0 | 51 |
-| `barreira-equipe` | 4 | 0 | 51 |
-| `anamnese` | 3 | 2 | 88 |
-| `plano-crise` | 3 | 2 | 63 |
-| `transcricao` | 3 | 2 | 57 |
-| `acesso-paciente` | 2 | 2 | 152 |
-| `documentos` | 2 | 1 | 70 |
-| `encaminhamento` | 2 | 1 | 63 |
-| `orientacao` | 2 | 1 | 63 |
-| `diario` | 2 | 1 | 60 |
-| `saude` | 2 | 1 | 58 |
-| `exportacoes` | 2 | 2 | 53 |
-| `concessoes-equipe` | 1 | 0 | 449 |
-| `cancelar-convite-familiar` | 1 | 0 | 127 |
-| `consulta-convite-familiar` | 1 | 0 | 107 |
-| `convites-familiares` | 1 | 0 | 99 |
-| `vinculos-profissionais` | 1 | 1 | 86 |
-| `contexto-cuidado` | 1 | 1 | 58 |
-| `rede-cuidado` | 1 | 1 | 58 |
-| `tarefas-cuidado` | 1 | 1 | 56 |
-| `linha-tempo` | 1 | 1 | 48 |
-| `solicitacoes-titular` | 1 | 0 | 44 |
-| `aprovar-objetivo` | 1 | 0 | 43 |
-| `auditoria` | 1 | 0 | 43 |
-| `regras-atendimento` | 1 | 0 | 43 |
-| `aprovador-plano` | 1 | 0 | 42 |
-| `habilitacao-plano-crise` | 1 | 0 | 42 |
-| `campo-extra-plano` | 1 | 0 | 41 |
-| `contato` | 1 | 1 | 40 |
-| `preautorizacoes-familiares` | 1 | 0 | 36 |
-| `configuracao-sistema` | 1 | 0 | 33 |
-| **Total** | **104** | **28** | **2.809** |
+A coluna "Linhas" traz a contagem de 19/11/2026; a coluna "17/11" preserva a medição original onde ela mudou. Para isolar o efeito de 2.1 e 2.2, a reconferência usa o mesmo conjunto de 39 rotas de `origin/main`: as rotas novas das fatias em andamento (turno, financeiro, substituição de case manager, realização de compromisso) ainda não estão em `origin/main` e entram na medição quando forem integradas.
+
+| Rota | Caminhos | Com param | Linhas | 17/11 |
+| --- | --- | --- | --- | --- |
+| `agenda-google` | 13 | 0 | 40 | — |
+| `auth` | 9 | 0 | 85 | — |
+| `pacientes` | 7 | 0 | 64 | — |
+| `plano` | 7 | 3 | 51 | — |
+| `edicao-paciente` | 6 | 1 | 65 | — |
+| `pendencias` | 4 | 3 | 64 | — |
+| `barreira-tarefa` | 4 | 0 | 61 | — |
+| `barreira-acesso` | 4 | 0 | 55 | — |
+| `barreira-contato` | 4 | 0 | 51 | — |
+| `barreira-equipe` | 4 | 0 | 51 | — |
+| `anamnese` | 3 | 2 | 88 | — |
+| `plano-crise` | 3 | 2 | 63 | — |
+| `transcricao` | 3 | 2 | 57 | — |
+| `acesso-paciente` | 2 | 2 | **37** | 152 |
+| `documentos` | 2 | 1 | 70 | — |
+| `encaminhamento` | 2 | 1 | 63 | — |
+| `orientacao` | 2 | 1 | 63 | — |
+| `diario` | 2 | 1 | 60 | — |
+| `saude` | 2 | 1 | 58 | — |
+| `exportacoes` | 2 | 2 | 53 | — |
+| `concessoes-equipe` | 1 | 0 | **33** | 449 |
+| `cancelar-convite-familiar` | 1 | 0 | 127 | — |
+| `consulta-convite-familiar` | 1 | 0 | 107 | — |
+| `convites-familiares` | 1 | 0 | 99 | — |
+| `vinculos-profissionais` | 1 | 1 | 86 | — |
+| `contexto-cuidado` | 1 | 1 | 58 | — |
+| `rede-cuidado` | 1 | 1 | 58 | — |
+| `tarefas-cuidado` | 1 | 1 | 56 | — |
+| `linha-tempo` | 1 | 1 | 48 | — |
+| `solicitacoes-titular` | 1 | 0 | 44 | — |
+| `aprovar-objetivo` | 1 | 0 | 43 | — |
+| `auditoria` | 1 | 0 | 43 | — |
+| `regras-atendimento` | 1 | 0 | 43 | — |
+| `aprovador-plano` | 1 | 0 | 42 | — |
+| `habilitacao-plano-crise` | 1 | 0 | 42 | — |
+| `campo-extra-plano` | 1 | 0 | 41 | — |
+| `contato` | 1 | 1 | 40 | — |
+| `preautorizacoes-familiares` | 1 | 0 | 36 | — |
+| `configuracao-sistema` | 1 | 0 | 33 | — |
+| **Total** | **104** | **28** | **2.278** | 2.809 |
 
 Leitura do quadro:
 
 - **28 dos 104 caminhos usam parâmetro no path.** Esse é o trabalho real de roteamento, concentrado em poucas rotas.
 - `agenda-google` tem 13 caminhos em 40 linhas: é um despachante puro. Migra praticamente por cópia.
-- `concessoes-equipe` tem 449 linhas para 1 caminho. É a exceção e merece inspeção: provavelmente contém composição que pertence a `_shared/`, e deveria ser aliviada **antes** da migração, não durante.
-- `acesso-paciente`, com 152 linhas para 2 caminhos, está na mesma situação em menor grau.
+- `concessoes-equipe` tinha 449 linhas para 1 caminho. Era a exceção. **Aliviada em 19/11/2026** (tarefa 2.1): a composição foi para o trio `entrada-concessoes-equipe-nativa.ts` (196), `compor-concessoes-equipe-nativo.ts` (357) e `executor-concessoes-equipe-nativo.ts` (27) em `_shared/`, e a rota ficou com 33 linhas. As duas verificações de autorização por caminho continuam no mesmo ponto do fluxo, agora com comentário explícito no `compor`.
+- `acesso-paciente`, com 152 linhas para 2 caminhos, estava na mesma situação em menor grau. **Aliviada em 19/11/2026** (tarefa 2.2): entrada, leitura de corpo e validação foram para `entrada-acesso-paciente-nativa.ts` (150); a composição já vivia em `compor-acesso-paciente-nativo.ts`. A rota ficou com 37 linhas.
+- Depois de 2.1 e 2.2 a camada de rota caiu de 2.809 para 2.278 linhas, e nenhuma rota passa de 127 linhas (`cancelar-convite-familiar`, próxima anomalia da lista). A mediana permanece em torno de 55 linhas.
 
 ## Decisions
 
@@ -97,7 +100,7 @@ Não criar adaptador, fachada ou "porta" para tornar o código agnóstico entre 
 
 A disciplina que substitui a abstração: **regra de negócio nunca entra no arquivo de rota**. É o que mantém a migração em 2.809 linhas em vez de 24.000.
 
-*Consequência:* `concessoes-equipe` (449 linhas) e `acesso-paciente` (152) violam essa disciplina hoje e devem ser aliviadas antes da migração.
+*Consequência:* `concessoes-equipe` (449 linhas) e `acesso-paciente` (152) violavam essa disciplina e foram aliviadas em 19/11/2026, antes da migração, pelas tarefas 2.1 e 2.2 — 33 e 37 linhas de rota, composição em `_shared/`.
 
 ### D4 — Transporte migra; protocolo de identidade não
 
