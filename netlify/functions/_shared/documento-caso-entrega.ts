@@ -13,7 +13,12 @@ export async function entregarDocumentoCaso(
     erro: { codigo },
     request_id: crypto.randomUUID(),
   });
-  const leitura = { operacao: 'ler' as const, ...comando };
+  // O chamador real traz operacao='entregar'; não transportar essa ação para a leitura.
+  const leitura = {
+    operacao: 'ler' as const,
+    paciente_id: comando.paciente_id,
+    documento_id: comando.documento_id,
+  };
   const inicial = await operarDocumentoCasoNativo(request, leitura, portas);
   if (!inicial.ok) return inicial;
   const documento = inicial.dados.documentos.find(

@@ -136,3 +136,20 @@ Provas: `google-drive.test.ts` 5 testes novos passaram (público, domínio, nomi
 paginação, erro); `scripts/testar-documento-caso-familia-local.sh` exit 0 inclui matriz
 SQL de documentos e família. Nenhuma chamada Google real ou ativação foi feita.
 Revisão independente e limite/conferência do Drive compartilhado continuam pendentes.
+
+
+### Revisão de fonte da entrega de bytes — continuação de 18/11
+
+Base fixa `abac1a6f2c7c3d68df52bfa4b8edf28e3c066b4a`, diff delimitado à entrega
+(`ef12071` e ajuste de tipos `8c9df6d`), conferido no HEAD `6715f6a` e no patch local.
+Dois revisores Sol, padrões/segurança e especificação, encontraram P1 na composição:
+`{operacao:'ler',...comando}` recebia comando real `operacao:'entregar'` e sobrescrevia
+a leitura antes de chegar ao banco. Corrigido por projeção explícita dos campos.
+Releituras independentes afetadas sem P1/P2 de fonte restante na entrega.
+
+`documento-entrega-composicao.test.ts` acrescenta três provas escritas atravessando
+handler, composição e operação reais, com Auth/cofre/Drive/RPC fictícios: entrega e
+ordem consulta/Drive/consulta; negativa antes do I/O sem buscar bytes; negativa após
+I/O sem emitir bytes/attachment. Expectativa antiga de query recusada alinhada à
+tabela HTTP vigente. Nenhum teste/check foi executado nesta revisão; gates de
+RLS/autorização, Google real e ativação continuam pendentes.

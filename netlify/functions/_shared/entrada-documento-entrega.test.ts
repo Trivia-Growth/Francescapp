@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
+import { statusErroHttp } from '../../../packages/contracts/src/erros.ts';
 import { criarEntradaDocumentoCasoNativa } from './entrada-documento-caso-nativa.ts';
 import { comporDocumentoCasoNativo } from './compor-documento-caso-nativo.ts';
 
@@ -56,7 +57,9 @@ it('negação conserva envelope público e não emite bytes', async () => {
 });
 
 it('recusa query e mutação na rota de entrega antes da composição', async () => {
-  expect((await entrada.atender(pedido('?drive_file_id=alheio'))).status).toBe(400);
+  expect((await entrada.atender(pedido('?drive_file_id=alheio'))).status).toBe(
+    statusErroHttp.entrada_invalida,
+  );
   expect((await entrada.atender(pedido('', 'POST'))).status).toBe(404);
   expect(compor).not.toHaveBeenCalled();
 });
