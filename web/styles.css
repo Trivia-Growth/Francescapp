@@ -2587,6 +2587,15 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
   border: 1px solid var(--line);
   border-radius: var(--radius-panel);
 }
+/* As dobras do acesso são controles de toque, não texto. Mediam 25,59px de altura em viewport
+   de celular (360x640 e 390x844), abaixo dos 44px exigidos; o mínimo aqui iguala o que o
+   painel de filtros da carteira já fazia. Medido por `pnpm run verificar:celular`. */
+.access-form-panel summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
 .ficha-secao form,
 .administracao-conteudo form {
   border: 1px solid var(--line);

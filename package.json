@@ -29,17 +29,19 @@
     "test:web": "vitest run web",
     "test:proxy": "vitest run netlify/functions/_shared",
     "validar:configuracao": "node scripts/validar-configuracao-local.mjs",
+    "verificar:celular": "playwright test --config playwright.config.ts",
     "preparar:bootstrap-tecnico": "node --experimental-strip-types scripts/preparar-bootstrap-tecnico.mjs",
     "prepare": "lefthook install",
     "verificar:rapido": "lefthook run pre-push --force",
     "verificar:ativacao": "pnpm run verificar:fundacao",
-    "lint": "biome check packages/contracts packages/cadastro supabase/functions/_shared netlify/functions web scripts/validar-configuracao-local.mjs",
-    "verificar:fundacao": "pnpm run lint && pnpm run typecheck && pnpm run typecheck:deno && pnpm run test:contratos && pnpm run test:cadastro && pnpm run test:funcoes && pnpm run test:proxy && pnpm run test:web && pnpm run build:web && pnpm run validar:configuracao"
+    "lint": "biome check packages/contracts packages/cadastro supabase/functions/_shared netlify/functions web scripts/validar-configuracao-local.mjs scripts/prova-celular scripts/prova-celular-vite.config.mjs playwright.config.ts",
+    "verificar:fundacao": "pnpm run lint && pnpm run typecheck && pnpm run typecheck:deno && pnpm run test:contratos && pnpm run test:cadastro && pnpm run test:funcoes && pnpm run test:proxy && pnpm run test:web && pnpm run build:web && pnpm run validar:configuracao && pnpm run verificar:celular"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@fission-ai/openspec": "1.14.1",
     "@iarna/toml": "2.2.5",
+    "@playwright/test": "1.65.1",
     "@types/node": "22.15.34",
     "@types/pg": "8.15.5",
     "jsdom": "26.1.0",

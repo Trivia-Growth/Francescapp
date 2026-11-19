@@ -245,3 +245,37 @@ para `set role`. A revogação dessa cadeia de privilégios continua pendente, c
   execução dos agentes o Biome funciona normalmente, o que indica limite de memória
   do sandbox e não defeito do projeto.
 - **`LC_ALL=C` é necessário** para os runners de PostgreSQL local neste ambiente.
+
+## Dependência nova: Playwright (autorizada em 19/11/2026)
+
+**O que entrou.** `@playwright/test` `1.65.1` em `devDependencies`, mais o navegador
+Chromium `159.0.8154.6` baixado por `pnpm exec playwright install chromium` no cache
+do próprio ambiente (`~/Library/Caches/ms-playwright`), fora do repositório.
+
+**Lacuna concreta que a justifica.** As tarefas 4.3 de `financeiro-despesa-e-repasse`
+e de `pwa-e-avisos-no-app` pedem conferência de uso confortável no celular: largura
+renderizada, ausência de rolagem horizontal, área de toque de 44px, foco visível e
+teclado do campo de valor. **jsdom não faz layout** — `getBoundingClientRect()` ali
+devolve zero e `getComputedStyle` não resolve a cascata da folha de estilo real.
+Afirmar essas medidas a partir de jsdom seria evidência falsa, e foi por isso que as
+duas tarefas ficaram abertas em vez de marcadas. Não há recurso nativo da stack que
+meça layout; o Vite do próprio repositório serve a aplicação, e só faltava o motor de
+layout. Reaproveitamento em vez de camada nova: o servidor é o Vite já instalado, a
+folha de estilo e o código medidos são os de produção, e o dublê de rede substitui
+qualquer chamada externa.
+
+**Custo e limite.** A dependência é de desenvolvimento; não entra no pacote do
+produto, não é importada por `web/`, `netlify/` ou `supabase/` e não toca autorização.
+O download do navegador é ferramenta de desenvolvimento, não operação remota do
+produto: a prova recusa toda requisição que não seja para `127.0.0.1`.
+
+**Onde roda.** Script próprio `pnpm run verificar:celular`
+(`playwright.config.ts`, `scripts/prova-celular/`, `scripts/prova-celular-vite.config.mjs`).
+
+- **Não entra em `verificar:rapido`**, que a política de execução enxuta reserva para
+  lint e typecheck. Subir navegador a cada `pre-push` contraria essa política.
+- **Entra em `verificar:ativacao`** (pela cadeia `verificar:fundacao`), porque a
+  evidência de 4.3 é exigida justamente na ativação e esta é a única verificação que a
+  produz. Em máquina sem o navegador o Playwright falha com mensagem explícita — isso
+  é bloqueio a registrar, não aprovação silenciosa, que é o comportamento que
+  `AGENTS.md` pede.

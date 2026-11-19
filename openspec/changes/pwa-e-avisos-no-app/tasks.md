@@ -80,15 +80,16 @@ Depende de 1.3.
 
 Depende de 2.4 e 3.9.
 
-> **Bloqueio registrado em 19/11/2026:** 4.1, 4.2 e 4.3 exigem aparelho real (iPhone e Android).
-> O ambiente de execução dos grupos 1 e 2 não tem nenhum dos dois, e navegador de mesa não serve
-> como prova para iOS (design D5). Nada deste grupo foi verificado; a instalação pedida como
-> evidência de 1.1 continua pendente aqui. 4.4 e 4.5 pertencem à ativação e à revisão
-> independente, fora do recorte dos grupos 1 e 2.
+> **Bloqueio registrado em 19/11/2026, revisto no mesmo dia:** 4.1 e 4.2 continuam exigindo
+> aparelho real (iPhone e Android). O ambiente não tem nenhum dos dois, e navegador de mesa não
+> serve como prova para iOS (design D5); a instalação pedida como evidência de 1.1 continua
+> pendente aqui. **4.3 saiu do bloqueio**: ela pede viewport de celular, não aparelho, e o
+> solicitante autorizou o Playwright em 19/11/2026 — a medição passou a ser possível e está
+> registrada abaixo. 4.4 e 4.5 pertencem à ativação e à revisão independente.
 
 - [ ] 4.1 Instalar e abrir no iPhone, verificando instalação, abertura da casca sem rede, atualização de versão e comportamento após período sem uso. Evidência: verificação registrada com o aparelho e a versão de sistema usados; nenhum comportamento de iOS presumido a partir de Android ou navegador de mesa (FR-071, design D5).
 - [ ] 4.2 Instalar e abrir no Android, com as mesmas verificações. Evidência: verificação registrada com aparelho e versão.
-- [ ] 4.3 Verificar uso confortável no celular — navegação, teclado, foco visível, áreas de toque e ausência de rolagem horizontal. Evidência: verificação registrada em viewport de celular, conforme `AGENTS.md — Qualidade e experiência` (FR-071).
+- [x] 4.3 Verificar uso confortável no celular — navegação, teclado, foco visível, áreas de toque e ausência de rolagem horizontal. Evidência: verificação registrada em viewport de celular, conforme `AGENTS.md — Qualidade e experiência` (FR-071). **(19/11/2026) Medido em navegador real, não em jsdom.** Comando: `pnpm run verificar:celular` (saída `10 passed`, código 0). Navegador: Chromium 159.0.8154.6 (Playwright 1.65.1, chromium-headless-shell). Viewports: **360x640** e **390x844**. Superfícies: a casca de `web/index.html` servida pelo Vite local, e a mesma casca no estado de indisponibilidade por falta de rede (`context.setOffline(true)`); API em dublê, nenhuma chamada sai de `127.0.0.1`, dados fictícios. Medido: **rolagem horizontal** — `documentElement.scrollWidth` 360 e 390 contra `innerWidth` 360 e 390, excesso **0px**, nenhum elemento com borda direita além da janela; **áreas de toque** por `getBoundingClientRect()` em 15 controles visíveis, menor alvo **270x44** (360x640) e **300x44** (390x844); **foco visível** em 7 paradas de tabulação, todas com `outline solid 3px rgb(71,84,54)`, nenhuma sem indicação; **rótulo associado** nos 6 campos visíveis, nenhum sem rótulo; **estado sem rede** — aviso visível, 360x96 e 390x96, dentro da largura da janela e sem rolagem horizontal. **Reprovação encontrada e corrigida:** os dois `<summary>` do painel de acesso (`Confirmar o e-mail da conta interna` e `Acesso técnico excepcional`) mediam **25,59px de altura**, abaixo dos 44px. Correção em `web/styles.css`, regra `.access-form-panel summary` com `min-height: 44px` e `display: flex`, no mesmo padrão que `.filtros-carteira-painel summary` já usava; depois da correção medem 44px. **Limite desta evidência:** é viewport de celular em Chromium de mesa, não aparelho — não substitui 4.1 e 4.2, que continuam abertas, nem prova comportamento de iOS.
 - [ ] 4.4 Executar `pnpm run verificar:ativacao` uma única vez e o roteiro "Como testar" do PR na retirada do draft. Evidência: saída registrada; se algum gate não executar, registrar o bloqueio aqui em vez de presumir sucesso.
 - [ ] 4.5 Solicitar revisão independente da fatia com `code-review`, informando a revisão-base, esta mudança OpenSpec e o diff exato, incluindo arquivos novos. Atenção específica ao service worker e ao que fica no aparelho. Evidência: achados registrados e tratados.
 
