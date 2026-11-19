@@ -27,7 +27,7 @@ Confirmadas pelo solicitante em 17/11/2026.
 - **Nível de PWA**: instalável com casca offline. Manifesto, ícones, service worker cacheando a casca e os recursos estáticos. Registro continua exigindo rede.
 - **Offline-first com fila foi descartado** nesta entrega. Registro clínico gravado offline e sincronizado depois exige idempotência por registro, resolução de conflito e instante confiável, enquanto o instante do servidor é justamente o que `turno-e-execucao-do-cuidado` adota como autoridade. O risco de duplicar ou antedatar administração de medicamento não compensa o ganho nesta fase.
 - **Sem notificação externa**: apenas o sino padrão dentro do aplicativo, com indicador de não lido.
-- **Eventos que geram aviso**: os quatro propostos, todos confirmados — passagem pendente de ciência (FR-057), pendência por atraso (FR-027), sinalização clínica do profissional (FR-028) e relato marcado como atenção (FR-014).
+- **Eventos que geram aviso**: os quatro propostos, todos confirmados — passagem pendente de ciência (FR-057), pendência por atraso (FR-027), sinalização operacional (FR-028, que é o requisito de separar situação operacional de sinalização clínica) e relato marcado como atenção (FR-014).
 - **Destinatário**: o aviso é da pessoa. Havendo substituição registrada de case manager, os avisos em aberto passam a aparecer também para quem substitui, enquanto a substituição vigorar.
 - **Permanência**: marcar como lido tira do indicador, mas o aviso só sai da lista quando a origem for resolvida ou a ciência registrada. Nada sai por decurso de prazo.
 

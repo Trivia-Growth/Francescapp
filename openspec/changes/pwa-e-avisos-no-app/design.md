@@ -57,7 +57,7 @@ Portanto: a verificação da fatia inclui instalar e abrir no iPhone. Nenhum com
 
 ### D6 — Aviso é projeção de evento existente, não entidade com conteúdo próprio
 
-O aviso deriva de pendência (FR-027), sinalização (FR-028), passagem pendente de ciência (FR-057) e marcação de atenção (FR-014). Guarda referência à origem, destinatário e situação de leitura. O texto exibido vem da origem.
+O aviso deriva de pendência (FR-027), sinalização operacional (FR-028), passagem pendente de ciência (FR-057) e marcação de atenção (FR-014). FR-028 é o requisito que separa situação operacional de sinalização clínica; o sinal que alimenta o aviso é o operacional, e nenhuma sinalização clínica entra nele. Guarda referência à origem, destinatário e situação de leitura. O texto exibido vem da origem.
 
 *Alternativa descartada:* tabela de notificação com título e corpo gravados na criação. Seria mais simples de listar, mas congela no aviso um texto que pode conter conteúdo cuja audiência muda depois — e aí a revogação não alcança o que já está escrito no aviso.
 

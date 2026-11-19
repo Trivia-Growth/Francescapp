@@ -10,7 +10,7 @@ Sinalizar dentro do aplicativo o que exige atenção da pessoa — pendências, 
 
 **Fase de origem**: Evolução.
 
-O produto SHALL apresentar, dentro do aplicativo, a lista de avisos dirigidos à pessoa autenticada, com indicador de quantidade não lida. Os avisos SHALL ser derivados dos quatro eventos confirmados em 17/11/2026 — passagem pendente de ciência de FR-057, pendências por atraso de FR-027, sinalizações clínicas de FR-028 e conteúdo marcado como necessitando atenção em FR-014 — e NÃO SHALL constituir uma fila de mensagens própria com conteúdo novo.
+O produto SHALL apresentar, dentro do aplicativo, a lista de avisos dirigidos à pessoa autenticada, com indicador de quantidade não lida. Os avisos SHALL ser derivados dos quatro eventos confirmados em 17/11/2026 — passagem pendente de ciência de FR-057, pendências por atraso de FR-027, sinalizações operacionais de FR-028 e conteúdo marcado como necessitando atenção em FR-014 — e NÃO SHALL constituir uma fila de mensagens própria com conteúdo novo.
 
 O aviso SHALL ser dirigido **à pessoa** responsável. Quando houver substituição registrada de case manager conforme FR-037, os avisos em aberto dirigidos a quem está ausente SHALL passar a ser apresentados também a quem substitui, enquanto a substituição vigorar, sem deixar de pertencer ao destinatário original.
 
