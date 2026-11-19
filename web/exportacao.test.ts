@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
 import type { RegistroExportacoes } from '../packages/contracts/src/exportacao.js';
+import { FalhaApi } from './api.js';
 import { montarExportacao } from './exportacao.js';
 
 const PACIENTE = '2c9e1e16-33d1-4740-b428-ab75a4c6c937';
@@ -79,4 +80,46 @@ it('oferece baixar o pacote de cada exportação registrada', async () => {
   const raiz = document.createElement('div');
   montarExportacao(raiz, PACIENTE, servicoCom(registroCom([])), vi.fn());
   await vi.waitFor(() => expect(raiz.textContent).toContain('Baixar índice dos registros'));
+});
+
+/** FR-033: montar o pacote agora faz N downloads. A tela precisa dizer que está reunindo,
+ *  e nunca anunciar sucesso limpo quando um anexo não veio. */
+function registroComAnexo() {
+  const registro = registroCom([]);
+  registro.exportacoes[0].itens = [
+    {
+      fonte: 'documento' as const,
+      registro_id: '33333333-3333-4333-8333-333333333333',
+      versao: 1,
+      tipo_evento: 'registro' as const,
+      autor_usuario_id: null,
+      registrado_em: '2026-11-11T09:00:00.000Z',
+      aconteceu_em: null,
+      disponibilidade: 'incluido' as const,
+      motivo_indisponibilidade: null,
+      arquivo: {
+        origem: 'documento' as const,
+        id: '33333333-3333-4333-8333-333333333333',
+        nome: null,
+        mime: null,
+        tamanho_bytes: null,
+      },
+    },
+  ];
+  return registro;
+}
+
+it('avisa que está reunindo os anexos e declara o que não veio', async () => {
+  const raiz = document.createElement('div');
+  URL.createObjectURL = vi.fn().mockReturnValue('blob:ficticio');
+  URL.revokeObjectURL = vi.fn();
+  const servico = {
+    ...servicoCom(registroComAnexo()),
+    baixarArquivo: vi.fn().mockRejectedValue(new FalhaApi('servico_indisponivel')),
+  };
+  montarExportacao(raiz, PACIENTE, servico, vi.fn());
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Baixar pacote com índice e anexos'));
+  raiz.querySelector<HTMLButtonElement>('.exportacao__baixar')?.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('não puderam ser recuperados'));
+  expect(servico.baixarArquivo).toHaveBeenCalledTimes(1);
 });

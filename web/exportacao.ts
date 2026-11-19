@@ -4,15 +4,26 @@ import type {
   RegistrarExportacao,
   RegistroExportacoes,
 } from '../packages/contracts/src/exportacao.js';
+import type { ArquivoItemExportacao } from '../packages/contracts/src/exportacao.js';
+import { arquivosDoManifesto, reunirAnexosDaExportacao } from './anexos-exportacao.js';
+import type { BytesDeArquivo } from './anexos-exportacao.js';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { dataDeInstante } from './datas.js';
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
-import { montarPacoteExportacao, nomeDoArquivoPacote } from './pacote-exportacao.js';
+import {
+  FalhaPacoteExportacao,
+  montarPacoteExportacao,
+  nomeDoArquivoPacote,
+  type AnexoPacote,
+} from './pacote-exportacao.js';
 
 export type ServicoExportacao = {
   consultar(pacienteId: string): Promise<RegistroExportacoes>;
   registrar(pacienteId: string, pedido: RegistrarExportacao): Promise<RegistroExportacoes>;
   confirmar(pacienteId: string, entrega: ConfirmarEntrega): Promise<RegistroExportacoes>;
+  /** FR-033: bytes de um anexo autorizado, uma chamada por arquivo. Opcional porque a tela
+   * continua entregando o índice quando a reunião de anexos não está disponível. */
+  baixarArquivo?(pacienteId: string, arquivo: ArquivoItemExportacao): Promise<BytesDeArquivo>;
 };
 
 const elemento = <K extends keyof HTMLElementTagNameMap>(
@@ -32,12 +43,14 @@ const ROTULOS_FINALIDADE: Record<RegistrarExportacao['finalidade'], string> = {
   encerramento_uso: 'Encerramento do uso',
 };
 
-/** Jornada legada de índice de exportação e registro humano de entrega.
- * Mostra o manifesto autorizado, destinatário, propósito e indisponibilidades.
- * O ZIP atual contém somente esse índice e o rótulo do caso; não reúne conteúdo
- * clínico nem bytes dos anexos. PDF de conteúdo persistido é operação separada
- * no servidor. A redução de terceiros do manifesto e o registro de entrega
- * permanecem; o índice não comprova recebimento. */
+/** Jornada de exportação do caso: índice do manifesto autorizado e registro humano de
+ * entrega. O ZIP traz `resumo.html`, `dados.json` e, quando o manifesto aponta arquivos e o
+ * serviço sabe baixá-los, os BYTES dos anexos autorizados em `anexos/` — reunidos aqui no
+ * navegador, um download autorizado por arquivo. O conteúdo clínico escrito dos registros
+ * continua fora do pacote; PDF de conteúdo persistido é operação separada no servidor.
+ * Anexo que não vier entra no pacote como indisponível, com motivo declarado. A redução de
+ * terceiros do manifesto e o registro de entrega permanecem; o índice não comprova
+ * recebimento. */
 export function montarExportacao(
   raiz: HTMLElement,
   pacienteId: string,
@@ -149,22 +162,77 @@ export function montarExportacao(
           'exportacao__terceiros',
         ),
       );
-    const baixar = elemento('button', 'Baixar índice dos registros', 'exportacao__baixar');
+    // Quantos itens do manifesto têm arquivo a buscar. Zero significa jornada de índice,
+    // e aí nem o rótulo nem o texto podem prometer anexos.
+    const comArquivo = arquivosDoManifesto(exportacao).length;
+    const baixarArquivo = servico.baixarArquivo;
+    const reuneAnexos = comArquivo > 0 && baixarArquivo !== undefined;
+    const baixar = elemento(
+      'button',
+      reuneAnexos ? 'Baixar pacote com índice e anexos' : 'Baixar índice dos registros',
+      'exportacao__baixar',
+    );
     baixar.type = 'button';
     baixar.addEventListener('click', () => {
-      // Jornada legada fornece somente manifesto/rótulo: não inclui clínica nem anexos.
-      const arquivo = montarPacoteExportacao({ exportacao, pacienteRotulo });
-      const endereco = URL.createObjectURL(arquivo);
-      const ligacao = elemento('a');
-      ligacao.href = endereco;
-      ligacao.download = nomeDoArquivoPacote(exportacao);
-      ligacao.click();
-      URL.revokeObjectURL(endereco);
+      baixar.disabled = true;
+      const terminarAcao = iniciarAcao(baixar);
+      void (async () => {
+        try {
+          let conteudo: { exportacao: Exportacao; anexos: AnexoPacote[]; naoRecuperados: number } =
+            { exportacao, anexos: [], naoRecuperados: 0 };
+          if (reuneAnexos && baixarArquivo) {
+            estado.textContent = `Reunindo os anexos do pacote… 0 de ${comArquivo}.`;
+            conteudo = await reunirAnexosDaExportacao(
+              pacienteId,
+              exportacao,
+              baixarArquivo,
+              (feitos, total) => {
+                if (vivo)
+                  estado.textContent = `Reunindo os anexos do pacote… ${feitos} de ${total}.`;
+              },
+            );
+          }
+          if (!vivo) return;
+          const arquivo = montarPacoteExportacao({
+            exportacao: conteudo.exportacao,
+            pacienteRotulo,
+            anexos: conteudo.anexos,
+          });
+          const endereco = URL.createObjectURL(arquivo);
+          const ligacao = elemento('a');
+          ligacao.href = endereco;
+          ligacao.download = nomeDoArquivoPacote(exportacao);
+          ligacao.click();
+          URL.revokeObjectURL(endereco);
+          // Sucesso com anexo faltando NÃO pode ser anunciado como sucesso limpo.
+          estado.textContent =
+            conteudo.naoRecuperados > 0
+              ? `Pacote gerado com ${conteudo.anexos.length} anexo(s). ${conteudo.naoRecuperados} anexo(s) não puderam ser recuperados e estão marcados como indisponíveis dentro do pacote.`
+              : reuneAnexos
+                ? `Pacote gerado com ${conteudo.anexos.length} anexo(s).`
+                : 'Índice gerado.';
+        } catch (erro) {
+          if (!vivo) return;
+          if (exigeNovoAcesso(erro)) {
+            acessoPerdido(erro);
+            return;
+          }
+          estado.textContent =
+            erro instanceof FalhaPacoteExportacao
+              ? `${erro.message} Nenhum arquivo foi gerado.`
+              : mensagemFalha(erro);
+        } finally {
+          terminarAcao();
+          if (vivo) baixar.disabled = false;
+        }
+      })();
     });
     item.append(
       elemento(
         'p',
-        'Este ZIP contém somente o índice dos registros. Não inclui conteúdo clínico nem arquivos anexos. Para conteúdo persistido em PDF, use Relatórios do cuidado quando autorizado.',
+        reuneAnexos
+          ? `Este ZIP traz o índice dos registros e os arquivos anexos que você já pode abrir (${comArquivo} no manifesto), na pasta anexos/. Não inclui o conteúdo clínico escrito dos registros. Para conteúdo persistido em PDF, use Relatórios do cuidado quando autorizado.`
+          : 'Este ZIP contém somente o índice dos registros. Não inclui conteúdo clínico nem arquivos anexos. Para conteúdo persistido em PDF, use Relatórios do cuidado quando autorizado.',
       ),
       baixar,
     );

@@ -182,7 +182,7 @@ export function criarServicoDocumentosHttp(
           depois.session_id !== identidade.session_id
         )
           throw new FalhaApi('nao_autenticado', 401);
-        if (!blob.size || blob.size > 8 * 1024 * 1024) throw new Error();
+        if (!blob.size || blob.size > TAMANHO_MAXIMO_DOCUMENTO) throw new Error();
         return blob;
       } catch (erro) {
         if (erro instanceof FalhaApi) throw erro;

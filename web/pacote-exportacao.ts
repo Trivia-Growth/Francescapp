@@ -1,13 +1,38 @@
 import type { Exportacao, ItemExportacao } from '../packages/contracts/src/exportacao.js';
 
-/** Monta no navegador o ZIP de índice/manifesto legado de exportação.
- * O chamador atual fornece somente metadados e rótulo do caso: nenhum conteúdo
- * clínico ou byte de anexo é reunido por esta jornada. O formato ZIP/JSON e o
- * registro humano de entrega permanecem preservados. A emissão de PDF com
- * conteúdo persistido é uma operação separada no servidor, quando autorizada.
- * Compressão store; não adiciona dependências nem concede acesso ao conteúdo. */
+/** Monta no navegador o ZIP de exportação: `resumo.html`, `dados.json` e, quando o chamador
+ * os reuniu, os bytes dos anexos autorizados em `anexos/`. O conteúdo clínico dos registros
+ * continua FORA do pacote: o que entra é o índice mais os arquivos que a pessoa já podia
+ * baixar um a um. A emissão de PDF com conteúdo persistido é operação separada no servidor.
+ * Compressão store; não adiciona dependências nem concede acesso novo a nada. */
 
 const TAMANHO_MAXIMO_NOME = 180;
+
+/** SUPOSIÇÃO CONSERVADORA (não decidida pelo solicitante): tetos do pacote.
+ *
+ * O escritor de ZIP aqui é 32-bit e NÃO emite ZIP64 — deslocamento, tamanho e contagem de
+ * entradas cabem em 4 GiB / 65535. Em vez de chegar perto dessa borda e gerar um arquivo
+ * silenciosamente corrompido, o pacote recusa honestamente bem antes: 64 MiB somados e 200
+ * arquivos, que já cobrem 16 anexos no teto de 4 MiB de documento com folga. Elevar isto é
+ * decisão de produto, não ajuste de implementação. */
+export const TAMANHO_MAXIMO_PACOTE_EXPORTACAO = 64 * 1024 * 1024;
+export const MAXIMO_ARQUIVOS_PACOTE_EXPORTACAO = 200;
+
+/** Margem reservada para `resumo.html` e `dados.json`, que entram no mesmo teto total do
+ * pacote. Quem reúne anexos orça contra o teto MENOS esta reserva: sem isso, um conjunto de
+ * anexos exatamente no teto seria inteiramente baixado e só então recusado na montagem. */
+export const RESERVA_INDICE_PACOTE_EXPORTACAO = 1024 * 1024;
+
+/** Recusa explícita do pacote, antes de escrever um único byte de ZIP. */
+export class FalhaPacoteExportacao extends Error {
+  constructor(readonly motivo: 'arquivos_demais' | 'tamanho_total') {
+    super(
+      motivo === 'arquivos_demais'
+        ? 'O pacote teria arquivos demais para o formato usado aqui.'
+        : 'O pacote ficaria maior do que o limite permitido aqui.',
+    );
+  }
+}
 
 export type AnexoPacote = {
   /** Nome como aparecerá dentro de `anexos/`. Sanitizado na montagem. */
@@ -85,8 +110,27 @@ const ROTULO_MOTIVO: Record<NonNullable<ItemExportacao['motivo_indisponibilidade
   anexo_nao_recuperado: 'anexo não recuperado',
 };
 
+/** Lista os anexos como eles aparecem dentro do ZIP; o mesmo cálculo de `arquivosDoPacote`,
+ * reusado para que o resumo não prometa um nome que o pacote não tem. */
+export function nomesDosAnexos(anexos: readonly AnexoPacote[]): string[] {
+  const usados = new Set<string>();
+  const nomes: string[] = [];
+  for (const anexo of anexos) {
+    let nome = nomeSeguro(anexo.nome);
+    let repeticao = 2;
+    while (usados.has(nome)) {
+      nome = `${repeticao}-${nomeSeguro(anexo.nome)}`;
+      repeticao += 1;
+    }
+    usados.add(nome);
+    nomes.push(nome);
+  }
+  return nomes;
+}
+
 export function montarResumoHtml(entrada: EntradaPacote): string {
   const { exportacao, pacienteRotulo } = entrada;
+  const anexos = entrada.anexos ?? [];
   const incluidos = exportacao.itens.filter((i) => i.disponibilidade === 'incluido');
   const indisponiveis = exportacao.itens.filter((i) => i.disponibilidade === 'indisponivel');
   const linhas = incluidos
@@ -112,6 +156,16 @@ export function montarResumoHtml(entrada: EntradaPacote): string {
           .join(
             '',
           )}</ul><p>Isto não significa que exista conteúdo que você não possa ver: o que a audiência exclui não entra neste pacote nem como contagem.</p></section>`;
+  // FR-032 pede a RELAÇÃO dos anexos, não só os arquivos soltos: quem abre o pacote precisa
+  // conferir o que deveria estar ali contra o que está.
+  const relacaoAnexos =
+    anexos.length === 0
+      ? ''
+      : `<section><h2>Anexos no pacote</h2><p>${anexos.length} arquivo(s) em <code>anexos/</code>:</p><ul>${nomesDosAnexos(
+          anexos,
+        )
+          .map((nome) => `<li><code>anexos/${escaparHtml(nome)}</code></li>`)
+          .join('')}</ul></section>`;
   const avisoTerceiros = exportacao.terceiros_reduzidos
     ? '<p><strong>Dados de outras pessoas</strong> entraram apenas como papel e primeiro nome, sem contato, anotação ou documento.</p>'
     : '';
@@ -144,9 +198,14 @@ ${linhas}
 </table>
 </section>
 ${avisoIndisponivel}
+${relacaoAnexos}
 <section>
 <h2>Sobre este pacote</h2>
-<p>O arquivo <code>dados.json</code> contém o índice de metadados em formato estruturado. Este índice não inclui o conteúdo clínico dos registros nem os arquivos anexos. Quando autorizado, consulte a emissão de PDF do caso na seção Relatórios do cuidado.</p>
+<p>O arquivo <code>dados.json</code> contém o índice de metadados em formato estruturado. ${
+    anexos.length === 0
+      ? 'Este índice não inclui o conteúdo clínico dos registros nem os arquivos anexos.'
+      : 'Este índice não inclui o conteúdo clínico dos registros; os arquivos anexos estão na pasta <code>anexos/</code>.'
+  } Quando autorizado, consulte a emissão de PDF do caso na seção Relatórios do cuidado.</p>
 <p>Este pacote registra o que foi entregue e por quem. <strong>Ele não comprova recebimento</strong>: quem recebe não tem conta no sistema e não confirma nada por lá.</p>
 </section>
 </body>
@@ -281,17 +340,18 @@ function arquivosDoPacote(entrada: EntradaPacote): ArquivoZip[] {
       dados: codificador.encode(montarDadosJson(entrada)) as Uint8Array<ArrayBuffer>,
     },
   ];
-  const usados = new Set<string>();
-  for (const anexo of entrada.anexos ?? []) {
-    let nome = nomeSeguro(anexo.nome);
-    let repeticao = 2;
-    while (usados.has(nome)) {
-      nome = `${repeticao}-${nomeSeguro(anexo.nome)}`;
-      repeticao += 1;
-    }
-    usados.add(nome);
-    arquivos.push({ nome: `anexos/${nome}`, dados: anexo.conteudo });
-  }
+  const anexos = entrada.anexos ?? [];
+  const nomes = nomesDosAnexos(anexos);
+  for (const [indice, anexo] of anexos.entries())
+    arquivos.push({ nome: `anexos/${nomes[indice] as string}`, dados: anexo.conteudo });
+  // Recusa ANTES de montar: um ZIP 32-bit estourado não falha, ele abre errado.
+  if (arquivos.length > MAXIMO_ARQUIVOS_PACOTE_EXPORTACAO)
+    throw new FalhaPacoteExportacao('arquivos_demais');
+  if (
+    arquivos.reduce((total, arquivo) => total + arquivo.dados.length, 0) >
+    TAMANHO_MAXIMO_PACOTE_EXPORTACAO
+  )
+    throw new FalhaPacoteExportacao('tamanho_total');
   return arquivos;
 }
 

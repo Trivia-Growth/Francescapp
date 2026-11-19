@@ -3,6 +3,7 @@ import {
   confirmarEntregaSchema,
   registrarExportacaoSchema,
   respostaExportacaoPrivadaSchema,
+  type RegistroExportacoes,
 } from '../../../packages/contracts/src/exportacao.ts';
 import {
   dadosAtestadoSchema,
@@ -36,6 +37,41 @@ const OPERACAO_RPC = {
  * conteúdo clínico. A emissão adicional FR-066 fica em turno-execucao-caso-pdf.ts,
  * que resolve no servidor as versões autorizadas sem alterar a entrega/conferência FR-033.
  */
+/** FR-033: completa o manifesto com a PONTE para os bytes de cada item que tem arquivo.
+ *
+ * É derivação, não transporte de dado novo: para `fonte='documento'` o `registro_id` do item
+ * JÁ É o `documento_id` que a rota autorizada de arquivo recebe (ver
+ * `cadastro.linha_tempo_caso`, que projeta `v.documento_id` nessa coluna). Por isso não há
+ * migração: nada precisa ser gravado no banco para que o navegador saiba o que pedir.
+ *
+ * Nome, mime e tamanho ficam nulos de propósito — vivem dentro do envelope cifrado do
+ * documento e esta composição não decifra nada. O navegador deriva o nome do identificador.
+ *
+ * Só item `incluido` ganha a ponte: o que a audiência não alcança não entra no manifesto, e
+ * o que já está `indisponivel` não tem byte a pedir. */
+export function manifestoComArquivos(dados: RegistroExportacoes): RegistroExportacoes {
+  return {
+    ...dados,
+    exportacoes: dados.exportacoes.map((exportacao) => ({
+      ...exportacao,
+      itens: exportacao.itens.map((item) =>
+        item.fonte === 'documento' && item.disponibilidade === 'incluido'
+          ? {
+              ...item,
+              arquivo: {
+                origem: 'documento' as const,
+                id: item.registro_id,
+                nome: null,
+                mime: null,
+                tamanho_bytes: null,
+              },
+            }
+          : item,
+      ),
+    })),
+  };
+}
+
 export async function operarExportacaoNativa(
   request: Request,
   comando: ComandoExportacao,
@@ -211,7 +247,11 @@ export async function operarExportacaoNativa(
       atual.identidade.session_id.toLowerCase() !== identidade.session_id
     )
       return erro(iniciada ? 'pendencia_externa' : 'nao_autenticado');
-    return { ok: true as const, dados: resposta.dados, request_id: requestId };
+    return {
+      ok: true as const,
+      dados: manifestoComArquivos(resposta.dados),
+      request_id: requestId,
+    };
   } catch {
     return erro(iniciada ? 'pendencia_externa' : 'servico_indisponivel');
   }
