@@ -35,3 +35,7 @@ O sistema SHALL criar nova versão a cada substituição aceita, preservando val
 #### Scenario: Segredo preexistente
 - **WHEN** existe segredo canônico criado antes da tela
 - **THEN** tela informa cadastrado sem inventar autoria e substituição preserva registro anterior
+
+#### Scenario: Resposta perdida durante cadastro
+- **WHEN** envio está em curso ou seu resultado não pôde ser confirmado
+- **THEN** tela MUST NOT permitir outra escrita com os metadados antigos; durante envio a recarga fica bloqueada, e após falha exige recarregar metadados antes de nova tentativa, sem guardar ou reenviar o valor

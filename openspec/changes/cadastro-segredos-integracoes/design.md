@@ -15,6 +15,7 @@ Reutilizar fluxo BFF cookie/x-sessao, autorização Google/técnica e atestado e
 - Versão começa em zero sem cadastro gerenciado. Segredos preexistentes são detectados por nome, sem inventar autoria. Ao substituir, renomear registro anterior com sufixo UUID e criar novo sob nome canônico na mesma transação. Nunca ler coluna secret/decrypted_secret.
 - Reusar protocolo atestado/idempotência HMAC e autorização admin existentes, com RPC e owner dedicados. Metadados separados de valor. Auditoria grava somente ator, ação, objeto, resultado e request ID.
 - Formulário envia valor uma vez; limpa campo antes da resposta e nunca persiste em storage. POST exige origem exata, cookie, sessão e idempotência.
+- Retomada 18/11/2026: uma escrita por vez na tela. Durante envio, recarga e demais escritas ficam indisponíveis. Resposta incerta exige nova leitura de metadados antes de outra tentativa; falha dessa leitura não libera formulário antigo. Resposta HTTP tem teto de 64 KiB e prazo de 20 segundos inclusive na leitura do corpo. Nenhum segredo é retido para repetição automática.
 - Suposição conservadora: nenhum segredo será validado contra provedor; status cadastrado não significa integração comprovada.
 
 ## Risks / Trade-offs

@@ -15,6 +15,9 @@ export function montarSegredosIntegracoes(
   opcoes: { nomeDoUsuario?: (id: string) => string | undefined } = {},
 ): () => void {
   let ativa = true;
+  let gravando = false;
+  let carregando = false;
+  let precisaConferir = false;
   const secao = document.createElement('section');
   secao.className = 'configuracao-sistema';
   const titulo = document.createElement('h2');
@@ -54,6 +57,14 @@ export function montarSegredosIntegracoes(
     }
   };
 
+  const atualizarControles = () => {
+    recarregar.disabled = carregando || gravando;
+    for (const controle of lista.querySelectorAll<HTMLInputElement | HTMLButtonElement>(
+      'input, button',
+    ))
+      controle.disabled = carregando || gravando || precisaConferir;
+  };
+
   const desenhar = (itens: SegredosIntegracoes[]) => {
     lista.replaceChildren();
     for (const item of itens) {
@@ -88,43 +99,49 @@ export function montarSegredosIntegracoes(
       aviso.setAttribute('aria-live', 'polite');
       formulario.append(rotulo, autoria, campo, salvar, aviso);
       lista.append(formulario);
-      formulario.addEventListener('submit', (evento) => {
+      formulario.addEventListener('submit', async (evento) => {
         evento.preventDefault();
-        if (salvar.disabled || !campo.value.trim()) return;
-        salvar.disabled = true;
-        campo.disabled = true;
-        const pedido = servico.gravar({
+        if (!ativa || gravando || carregando || precisaConferir || !campo.value.trim()) return;
+        const entrada = {
           segredo_chave: item.chave,
           valor: campo.value,
           versao_esperada: item.versao,
-        });
+        };
+        // Limpar antes de chamar o serviço também cobre uma recusa síncrona do adapter.
         campo.value = '';
+        gravando = true;
+        atualizarControles();
         aviso.textContent = 'Enviando credencial…';
-        void pedido
-          .then(() => {
-            if (ativa) void carregar('Credencial cadastrada. Valor não disponível para consulta.');
-          })
-          .catch((erro: unknown) => {
-            if (!ativa) return;
-            const codigo = erro && typeof erro === 'object' && 'codigo' in erro ? erro.codigo : '';
-            aviso.textContent =
-              codigo === 'conflito_versao'
-                ? 'Versão mudou. Recarregue antes de substituir.'
-                : 'Não foi possível confirmar o cadastro. Recarregue e confira a versão antes de tentar novamente.';
-            salvar.disabled = false;
-            campo.disabled = false;
-          });
+        try {
+          await servico.gravar(entrada);
+          if (!ativa) return;
+          gravando = false;
+          await carregar('Credencial cadastrada. Valor não disponível para consulta.');
+        } catch (erro: unknown) {
+          if (!ativa) return;
+          gravando = false;
+          precisaConferir = true;
+          const codigo = erro && typeof erro === 'object' && 'codigo' in erro ? erro.codigo : '';
+          aviso.textContent =
+            codigo === 'conflito_versao'
+              ? 'Versão mudou. Recarregue antes de substituir.'
+              : 'Não foi possível confirmar o cadastro. Recarregue e confira a versão antes de tentar novamente.';
+          atualizarControles();
+        }
       });
     }
   };
   const carregar = async (mensagem = 'Carregando credenciais…') => {
+    if (!ativa || gravando || carregando) return;
+    carregando = true;
+    atualizarControles();
     void carregarExpurgo();
     status.textContent = mensagem;
-    recarregar.disabled = true;
     lista.setAttribute('aria-busy', 'true');
     try {
       const itens = await servico.listar();
       if (!ativa) return;
+      precisaConferir = false;
       desenhar(itens);
       status.textContent = mensagem.startsWith('Credencial cadastrada')
         ? mensagem
@@ -136,8 +153,9 @@ export function montarSegredosIntegracoes(
           'Não foi possível carregar. Confira seu acesso de Administrador e tente recarregar.';
       }
     } finally {
+      carregando = false;
       lista.removeAttribute('aria-busy');
-      if (ativa) recarregar.disabled = false;
+      if (ativa) atualizarControles();
     }
   };
   recarregar.addEventListener('click', () => void carregar());

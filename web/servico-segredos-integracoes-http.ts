@@ -24,6 +24,43 @@ export type ServicoSegredosIntegracoes = {
   }): Promise<SegredosIntegracoes>;
 };
 
+/** Metadados de quatro credenciais: corpo limitado, inclusive se a origem não o encerrar. */
+async function lerMetadados(resposta: Response, sinal: AbortSignal): Promise<unknown> {
+  if (!resposta.body) throw new Error();
+  const leitor = resposta.body.getReader();
+  const partes: Uint8Array[] = [];
+  let tamanho = 0;
+  let abortar!: () => void;
+  const expiracao = new Promise<never>((_, rejeitar) => {
+    abortar = () => rejeitar(new Error());
+    sinal.addEventListener('abort', abortar, { once: true });
+  });
+  try {
+    if (sinal.aborted) throw new Error();
+    while (true) {
+      const parte = await Promise.race([leitor.read(), expiracao]);
+      if (sinal.aborted) throw new Error();
+      if (parte.done) break;
+      tamanho += parte.value.byteLength;
+      if (tamanho > 65_536) throw new Error();
+      partes.push(parte.value);
+    }
+    const bytes = new Uint8Array(tamanho);
+    let posicao = 0;
+    for (const parte of partes) {
+      bytes.set(parte, posicao);
+      posicao += parte.length;
+    }
+    return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+  } catch (erro) {
+    void leitor.cancel().catch(() => {});
+    throw erro;
+  } finally {
+    sinal.removeEventListener('abort', abortar);
+    leitor.releaseLock();
+  }
+}
+
 /** BFF com cookie e fluxo/sessão existentes; valor só segue no corpo POST. */
 export function criarServicoSegredosIntegracoesHttp(
   identidadeAtual: () => Identidade | null,
@@ -61,6 +98,7 @@ export function criarServicoSegredosIntegracoesHttp(
     if (chave) headers.set('x-chave-idempotencia', uuidSchema.parse(chave));
     if (rota.metodo !== 'GET') headers.set('Content-Type', 'application/json');
     let resposta: Response;
+    const sinal = AbortSignal.timeout(20_000);
     try {
       resposta = await fetch(rota.caminho, {
         method: rota.metodo,
@@ -70,11 +108,15 @@ export function criarServicoSegredosIntegracoesHttp(
         cache: 'no-store',
         redirect: 'error',
         referrerPolicy: 'no-referrer',
-        signal: AbortSignal.timeout(20_000),
+        signal: sinal,
       });
       if (rota.metodo !== 'GET' && resposta.status === 202) throw new Error();
-      if (!resposta.headers.get('content-type')?.includes('application/json')) throw new Error();
-      const envelope: unknown = await resposta.json();
+      if (
+        resposta.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() !==
+        'application/json'
+      )
+        throw new Error();
+      const envelope = await lerMetadados(resposta, sinal);
       const depois = identidadeAtual();
       if (
         !depois ||
@@ -94,7 +136,11 @@ export function criarServicoSegredosIntegracoesHttp(
       return sucessoRespostaSchema(rota.saida).parse(envelope).dados;
     } catch (erro) {
       if (erro instanceof FalhaApi) throw erro;
-      throw new FalhaApi('servico_indisponivel');
+      throw new FalhaApi(
+        rota.metodo === 'GET' ? 'servico_indisponivel' : 'pendencia_externa',
+        0,
+        rota.metodo !== 'GET',
+      );
     }
   };
   return {

@@ -38,3 +38,18 @@ Planejamento concluído antes implementação. Suposição: presença no Vault n
 - Nesta frente não houve operação remota, credencial real, commit, push ou deploy. Revisão de dois eixos local registrada acima; Vault real, navegação publicada e ativação permanecem pendentes. Coordenação versionou capturas e medidas do componente desktop/mobile no relatório noturno.
 
 Como testar após ativação: Administrador abre Administração > Credenciais das integrações, escolhe entrada e cadastra valor. Confira somente presença/versão/autoria/data; substitua e confirme incremento. Profissional/Família não podem listar/gravar, inclusive por HTTP e RPC direta. Segredos esperados: `ffcmapp.integracao.google_drive` (JSON conta serviço), `ffcmapp.integracao.openrouter` (chave API), `ffcmapp.integracao.google_calendar_client_id` e `ffcmapp.integracao.google_calendar_client_secret` (OAuth Calendar). Os valores serão cadastrados exclusivamente pelo solicitante. Rota segue interruptor operacional existente `FFCM_CONFIGURACAO_SISTEMA_ATIVO`.
+
+## Retomada local — preservação da escrita pendente (18/11/2026)
+
+- [ ] 2.5 Impedir nova escrita/recarga durante POST e exigir leitura de metadados após
+  falha ou resposta incerta, sem guardar valor para repetir; limitar leitura HTTP por
+  bytes/prazo e cancelar stream interrompido. **Código escrito:** `web/segredos-integracoes.ts`
+  bloqueia controles durante envio; limpa valor antes de chamar adapter, inclusive recusa
+  síncrona; após falha somente recarga de metadados libera novos formulários. Serviço
+  `web/servico-segredos-integracoes-http.ts` limita resposta a 64 KiB/20 segundos, cancela
+  leitura no erro e distingue escrita incerta de leitura indisponível. Nenhum erro devolve
+  corpo bruto ou valor. **Testes escritos, não executados:** regressão UI de POST pendente,
+  recarga e versão; HTTP de teto, corpo sem fim e resposta inválida na escrita. Validação,
+  revisão independente e integração Auth/Vault reais continuam pendentes por instrução.
+  **Suposição UX conservadora:** uma escrita administrativa por vez; toda falha exige
+  recarregar metadados antes de tentar novamente, sem tentativa automática nem valor retido.
