@@ -55,13 +55,17 @@ create function identidade.cadastro_gerenciado_proprio(p_google_pendente boolean
  select exists(select 1 from identidade.acesso_gerenciado g where g.usuario_id=auth_privado.uid()) or (p_google_pendente and exists(select 1 from identidade.acesso_gerenciado g where g.usuario_id is null and g.metodo='google_workspace' and g.estado='aguardando_google' and g.email_hmac=identidade.email_google_hmac_nativo()))
 $$;
 alter function identidade.cadastro_gerenciado_proprio(boolean) owner to ffcmapp_acessos_owner;
+-- Depois da troca de dono, só o próprio dono revoga/concede: a membership do migrador tem inherit false.
+set role ffcmapp_acessos_owner;
 revoke all on function identidade.cadastro_gerenciado_proprio(boolean) from public,anon,authenticated,service_role;
+reset role;
 create function identidade.concessao_interna_ativa(p_concessao uuid,p_usuario uuid) returns boolean language sql security definer set search_path='' set row_security=on as $$
  select exists(select 1 from identidade.acesso_gerenciado g join public.usuario u on u.id=g.usuario_id and u.ativo where g.usuario_id=p_usuario and g.concessao_id=p_concessao and g.metodo='interno' and g.estado='ativo' and g.funcao in ('administrador','case_manager','profissional') and u.perfil=case g.funcao when 'case_manager' then 'profissional' else g.funcao end)
 $$;
 alter function identidade.concessao_interna_ativa(uuid,uuid) owner to ffcmapp_acessos_owner;
-revoke all on function identidade.concessao_interna_ativa(uuid,uuid) from public,anon,authenticated,service_role;
+-- Depois da troca de dono, só o próprio dono revoga/concede: a membership do migrador tem inherit false.
 set role ffcmapp_acessos_owner;
+revoke all on function identidade.concessao_interna_ativa(uuid,uuid) from public,anon,authenticated,service_role;
 grant execute on function identidade.concessao_interna_ativa(uuid,uuid) to ffcmapp_turno_grupo3_owner;
 reset role;
 -- Helper lê somente metadados de autenticação. Nunca retorna nome, e-mail, casos ou conteúdo.
@@ -129,7 +133,10 @@ begin
  return jsonb_build_object('usuario_id',ator,'session_id',sid,'perfil',perfil_vigente,'versao',u.versao,'funcao',case when gerenciada then g.funcao else null end,'metodo',metodo_vigente,'concessao_id',c_id,'habilitado_plano_crise',c_habilitado);
 end $$;
 alter function identidade.contexto_acesso_vigente(boolean) owner to ffcmapp_acessos_owner;
+-- Depois da troca de dono, só o próprio dono revoga/concede: a membership do migrador tem inherit false.
+set role ffcmapp_acessos_owner;
 revoke all on function identidade.contexto_acesso_vigente(boolean) from public,anon,authenticated,service_role;
+reset role;
 
 create function api.acesso_gerenciado_privado(p_transporte jsonb) returns jsonb
 language plpgsql security definer set search_path='' set row_security=on as $$
@@ -213,8 +220,11 @@ begin
  return jsonb_build_object('ok',false,'erro',resposta,'request_id',req);
 end $$;
 alter function api.acesso_gerenciado_privado(jsonb) owner to ffcmapp_acessos_owner;
+-- Depois da troca de dono, só o próprio dono revoga/concede: a membership do migrador tem inherit false.
+set role ffcmapp_acessos_owner;
 revoke all on function api.acesso_gerenciado_privado(jsonb) from public,anon,authenticated,service_role;
 grant execute on function api.acesso_gerenciado_privado(jsonb) to authenticated;
+reset role;
 
 create function identidade.sessao_gerenciada_nativa(p_request_id uuid,p_admitir boolean) returns jsonb
 language plpgsql security definer set search_path='' set row_security=on as $$
@@ -234,14 +244,20 @@ begin
  return jsonb_build_object('session_id',sid,'usuario',jsonb_build_object('id',ator,'perfil',ctx->>'perfil','ativo',true,'versao',(ctx->>'versao')::integer)||case when ctx->>'funcao' is not null then jsonb_build_object('funcao',ctx->>'funcao') else '{}'::jsonb end,'capacidades',case when ctx->>'perfil'='administrador' then jsonb_build_array('administrar_concessoes','administrar_cadastro','consultar_carteira_integral','consultar_auditoria') else jsonb_build_array('consultar_pacientes_vinculados') end);
 end $$;
 alter function identidade.sessao_gerenciada_nativa(uuid,boolean) owner to ffcmapp_acessos_owner;
+-- Depois da troca de dono, só o próprio dono revoga/concede: a membership do migrador tem inherit false.
+set role ffcmapp_acessos_owner;
 revoke all on function identidade.sessao_gerenciada_nativa(uuid,boolean) from public,anon,authenticated,service_role;
+reset role;
 create function api.admitir_sessao_interna_nativa(p_request_id uuid) returns jsonb
 language sql security definer set search_path='' set row_security=on as $$
  select case when exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth_privado.jwt()->'amr')='array' then auth_privado.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='password') then identidade.sessao_gerenciada_nativa(p_request_id,true) else null::jsonb end
 $$;
 alter function api.admitir_sessao_interna_nativa(uuid) owner to ffcmapp_acessos_owner;
+-- Depois da troca de dono, só o próprio dono revoga/concede: a membership do migrador tem inherit false.
+set role ffcmapp_acessos_owner;
 revoke all on function api.admitir_sessao_interna_nativa(uuid) from public,anon,authenticated,service_role;
 grant execute on function api.admitir_sessao_interna_nativa(uuid) to authenticated;
+reset role;
 create function api.confirmar_email_acesso_interno_nativo(p_request_id uuid) returns jsonb
 language plpgsql security definer set search_path='' set row_security=on as $$
 declare ator uuid:=auth_privado.uid();sid uuid;g identidade.acesso_gerenciado;permitido boolean:=false;
@@ -266,8 +282,11 @@ begin
  return jsonb_build_object('ok',false,'request_id',p_request_id);
 end $$;
 alter function api.confirmar_email_acesso_interno_nativo(uuid) owner to ffcmapp_acessos_owner;
+-- Depois da troca de dono, só o próprio dono revoga/concede: a membership do migrador tem inherit false.
+set role ffcmapp_acessos_owner;
 revoke all on function api.confirmar_email_acesso_interno_nativo(uuid) from public,anon,authenticated,service_role;
 grant execute on function api.confirmar_email_acesso_interno_nativo(uuid) to authenticated;
+reset role;
 
 create function identidade.recusar_admissao_familiar_gerenciada(p_request_id uuid) returns jsonb language plpgsql security definer set search_path='' set row_security=on as $$
 declare ator uuid:=auth_privado.uid();begin
@@ -281,7 +300,10 @@ declare ator uuid:=auth_privado.uid();begin
  return null;
 end $$;
 alter function identidade.recusar_admissao_familiar_gerenciada(uuid) owner to ffcmapp_acessos_owner;
+-- Depois da troca de dono, só o próprio dono revoga/concede: a membership do migrador tem inherit false.
+set role ffcmapp_acessos_owner;
 revoke all on function identidade.recusar_admissao_familiar_gerenciada(uuid) from public,anon,authenticated,service_role;
+reset role;
 
 do $$ declare p record;begin select * into p from acessos_privilegios_migracao;
  if not p.tinha_api then revoke create on schema api from ffcmapp_acessos_owner;end if;

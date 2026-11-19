@@ -326,7 +326,7 @@ create role ffcmapp_convite_familiar_owner nologin nosuperuser nocreatedb nocrea
 grant ffcmapp_convite_familiar_owner to current_user with inherit false, set true;
 grant usage, create on schema api to ffcmapp_convite_familiar_owner;
 grant usage on schema identidade, cadastro, auditoria, public, auth_privado to ffcmapp_convite_familiar_owner;
-grant execute on function auth_privado.uid(), auth_privado.jwt(), api.consultar_sessao_nativa(uuid),
+grant execute on function auth_privado.uid(), auth_privado.jwt(),
   identidade.registrar_convite_familiar_privado(uuid, uuid, uuid, text, text, jsonb, jsonb),
   identidade.reservar_reenvio_familiar_privado(uuid, uuid, uuid),
   identidade.concluir_reenvio_familiar_privado(uuid, uuid, uuid, boolean),
@@ -334,6 +334,22 @@ grant execute on function auth_privado.uid(), auth_privado.jwt(), api.consultar_
   identidade.preautorizar_acesso_familiar_privado(uuid, uuid, jsonb, text, uuid),
   identidade.cancelar_preautorizacao_familiar_privado(uuid, uuid)
   to ffcmapp_convite_familiar_owner;
+-- Somente o owner pode conceder EXECUTE da sessão, inclusive com migrador restrito.
+select set_config('ffcmapp.convite_familiar_sessao_migrador',current_user,false);
+select set_config('ffcmapp.convite_familiar_tinha_owner_sessao',pg_has_role(current_user,'ffcmapp_auth_nativo_owner','SET')::text,false);
+do $$ begin
+ if current_setting('ffcmapp.convite_familiar_tinha_owner_sessao')='false' then
+  if exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member join pg_roles g on g.oid=m.grantor where r.rolname='ffcmapp_auth_nativo_owner' and u.rolname=current_user and g.rolname=current_user) then raise exception 'MEMBERSHIP_SESSAO_EXISTENTE_SEM_SET'; end if;
+  execute format('grant ffcmapp_auth_nativo_owner to %I with inherit false, set true granted by %I',current_user,current_user);
+ end if;
+end $$;
+set role ffcmapp_auth_nativo_owner;
+grant execute on function api.consultar_sessao_nativa(uuid) to ffcmapp_convite_familiar_owner;
+reset role;
+select set_config('role',current_setting('ffcmapp.convite_familiar_sessao_migrador'),false);
+do $$ begin
+ if current_setting('ffcmapp.convite_familiar_tinha_owner_sessao')='false' then execute format('revoke ffcmapp_auth_nativo_owner from %I granted by %I',current_user,current_user); end if;
+end $$;
 grant select (id), update (versao) on cadastro.paciente to ffcmapp_convite_familiar_owner;
 grant insert (id, paciente_id, email_hmac, digest_entrada, email_cifrado, motivo_cifrado, criado_por_usuario_id)
   on identidade.convite_familiar to ffcmapp_convite_familiar_owner;

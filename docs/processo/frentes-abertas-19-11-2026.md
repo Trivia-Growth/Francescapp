@@ -109,6 +109,81 @@ chamava `fetch` com string enquanto os dublês de `fluxo-caso-novo.test.ts` e
 `1ccbbf7` com `new URL(caminho, window.location.origin)`, como `api.ts` já fazia.
 As 28 telas que montam `main.js` voltaram a passar, 109/109.
 
+## Bloqueador de publicação: a cadeia de migrations não aplicava sem superusuário
+
+Achado mais importante desta entrega. Corrigido em 19/11/2026.
+
+**O que falhava.** A cadeia completa de migrations não aplicava num banco novo sob um
+papel com `CREATEROLE` e **sem** `SUPERUSER` — a condição do projeto remoto
+(PostgreSQL 17.11, registrado em `revisao-s02-fundacao-ffcmapp.md:61`). Quatro
+migrations abortavam:
+
+| Migration | Linha | Erro |
+|---|---|---|
+| `20261111240000_owner_vinculo_familiar_privado.sql` | 7 | `permission denied for function consultar_sessao_nativa` |
+| `20261119250000_convite_familiar.sql` | 336 | `permission denied for function consultar_sessao_nativa` |
+| `20261120430000_cancelar_preautorizacao_wrapper.sql` | 19 | `permission denied for function consultar_sessao_nativa` |
+| `20261125160000_contexto_acessos_gerenciados.sql` | 58 | `permission denied for function cadastro_gerenciado_proprio` |
+
+A causa é a mesma nas quatro: o migrador executa `grant`/`revoke` sobre uma função que
+**não é dele**. Em `20261125160000` a função acabara de mudar de dono na linha anterior
+(`alter function ... owner to ffcmapp_acessos_owner`); nas outras três a função
+`api.consultar_sessao_nativa(uuid)` pertence a `ffcmapp_auth_nativo_owner` desde
+`20261105130000`. Como o migrador só tem membership com `inherit false`, ele não herda
+os direitos do dono e o comando é recusado. Sob superusuário tudo passa, porque
+superusuário ignora a checagem e o PostgreSQL registra o próprio dono como concedente.
+
+Confirmado também que, com `CREATEROLE` sem superusuário, o PostgreSQL 17 concede
+automaticamente ao criador a membership com `admin` ligado e `inherit`/`set`
+desligados — exatamente o que `revisao-s02-fundacao-ffcmapp.md` observou no remoto — e
+que essa `admin` basta para `set role`. É isso que torna a correção possível sem
+conceder nada novo.
+
+**Por que ninguém viu.** `supabase/tests/cadeia_migrations_local.sql` cria o papel
+`postgres` como **SUPERUSER** e carrega apenas as ~20 primeiras migrations. O runner
+`scripts/testar-cadeia-migrations-local.sh` saía 0 enquanto um banco real recusaria a
+cadeia na metade. Todas as fixtures que encadeiam migrations descendem desse preâmbulo,
+então nenhuma delas exercia a condição do remoto.
+
+**O que foi corrigido.** Adotado o padrão já dominante no repositório — assumir o papel
+dono com `set role <dono>; ...; reset role;` — sem inventar um terceiro padrão:
+
+- `20261125160000`: cada `revoke`/`grant` que vem depois de um `alter function ... owner to
+  ffcmapp_acessos_owner` passou para dentro de um bloco `set role ffcmapp_acessos_owner`
+  (oito blocos). O `set role` que já existia para `identidade.concessao_interna_ativa` foi
+  apenas ampliado para cobrir também o `revoke`.
+- `20261111240000`, `20261119250000` e `20261120430000`: o `grant execute on function
+  api.consultar_sessao_nativa(uuid)` foi separado dos demais e envolvido no mesmo bloco de
+  delegação já usado por `20261112170000_listar_vinculos_profissionais_privado.sql`
+  (membership temporária condicional ao `pg_has_role(...,'SET')`, `set role
+  ffcmapp_auth_nativo_owner`, concessão, `reset role`, revogação da membership temporária).
+
+**Prova de que os privilégios finais não mudaram.** A cadeia completa foi aplicada duas
+vezes sob migrador **superusuário**, antes e depois das correções, com um dump ordenado de
+`pg_roles`, `pg_auth_members`, `pg_namespace`, `pg_class`, `pg_attribute.attacl`, `pg_proc`
+(dono, `security definer`, ACL, `proconfig`), `pg_policy` e `pg_default_acl`. Os dois dumps
+são byte a byte idênticos (`md5 82d55dc26b964645fee702f611538490`, 2.974 linhas). Nenhum
+dono, ACL, política ou grant mudou.
+
+Comparando o dump do migrador superusuário com o do migrador sem superusuário (ambos já
+corrigidos), divergem apenas: 79 memberships `admin` automáticas do `CREATEROLE` (inerentes
+ao papel, não às migrations) e 190 funções do schema `extensions` (quem instalou `pgcrypto`
+e `btree_gist` na fixture). **Zero** divergência em `api`, `identidade`, `cadastro`,
+`operacao`, `auditoria` e `public`.
+
+**Prova que passou a existir.** `scripts/testar-cadeia-migrations-sem-superusuario-local.sh`
+aplica as 234 migrations do diretório, na ordem do nome do arquivo, num PostgreSQL
+descartável, sob o papel `postgres` com `CREATEROLE login` e **sem** `SUPERUSER`; o
+preâmbulo `supabase/tests/cadeia_migrations_sem_superusuario_bootstrap_local.sql` recusa
+rodar se o migrador for superusuário, e o script reconfere isso no fim. Saída:
+`CADEIA_COMPLETA_SEM_SUPERUSUARIO_OK: 234 migrations`, código 0. O escopo e os limites de
+`cadeia_migrations_local.sql` ficaram registrados no próprio arquivo.
+
+**Continua em aberto.** No remoto o `postgres` permanece membro `admin` de todos os papéis
+`ffcmapp_*_owner` depois das migrations, mesmo com as revogações previstas, e `admin` basta
+para `set role`. A revogação dessa cadeia de privilégios continua pendente, como
+`revisao-s02-fundacao-ffcmapp.md` já registrava; esta correção não a resolve.
+
 ## Bloqueios preservados — não contornados
 
 - **Operação remota.** `SUPABASE_ACCESS_TOKEN` e `NETLIFY_AUTH_TOKEN` continuam
