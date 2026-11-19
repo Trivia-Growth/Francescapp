@@ -130,7 +130,7 @@ it('último turno encerrado é recuperado sem convertê-lo em turno aberto', asy
 });
 it('publicação envia modelo FR009 sem autoria ou relógio e 202 não confirma persistência', async () => {
   const servico = preparar();
-  const buscar = vi.fn(async () =>
+  const buscar = vi.fn(async (_url: string, _opcoes: RequestInit) =>
     Response.json({ dados: {}, request_id: usuario }, { status: 202 }),
   );
   vi.stubGlobal('fetch', buscar);
@@ -143,8 +143,10 @@ it('publicação envia modelo FR009 sem autoria ou relógio e 202 não confirma 
   );
   expect(buscar).toHaveBeenCalledWith(
     `/api/pacientes/${paciente}/turnos/${turnoId}/passagem`,
-    expect.objectContaining({ method: 'POST', body: JSON.stringify(entrada) }),
+    expect.objectContaining({ method: 'POST' }),
   );
+  expect(JSON.parse(buscar.mock.calls[0]?.[1]?.body as string)).toEqual(entrada);
+  expect(buscar).toHaveBeenCalledTimes(1);
 });
 
 it('consulta escala com cursor estrito e mantém rótulos históricos fora do catálogo elegível', async () => {

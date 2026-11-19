@@ -1,5 +1,5 @@
 \set ON_ERROR_STOP on
--- ESCRITO, NÃO EXECUTADO. Integração SQL real; Auth/Vault sintéticos da fixture.
+-- EXECUTADO LOCALMENTE em 19/11/2026: EXIT0 nos ramos SET false/true; Auth/Vault sintéticos.
 \ir turno_execucao_clinica_local.sql
 create temp table barreira_acl_antes as select oid,proowner,proacl,proconfig,prosecdef from pg_proc where oid='operacao.execucao_turno_privada(jsonb)'::regprocedure;
 create temp table barreira_members_antes as select * from pg_auth_members;
@@ -14,10 +14,13 @@ grant ffcmapp_turno_execucao_owner to turno_core_migrador_fixture with inherit f
 truncate barreira_members_antes;
 insert into barreira_members_antes select * from pg_auth_members;
 \endif
+create temp table barreira_set_esperado as select :'barreira_preexisting_set'::boolean valor;
+do $$begin if pg_has_role('turno_core_migrador_fixture','ffcmapp_turno_execucao_owner','SET') is distinct from (select valor from barreira_set_esperado) then raise exception 'RAMO_SET_FIXTURE_INCORRETO';end if;end $$;
 set role turno_core_migrador_fixture;
 \ir ../migrations/20261125260000_turno_execucao_reconciliacao.sql
 reset role;
 do $$declare tabela text;begin
+ if pg_has_role('turno_core_migrador_fixture','ffcmapp_turno_execucao_owner','SET') is distinct from (select valor from barreira_set_esperado) then raise exception 'RAMO_SET_NAO_PRESERVADO';end if;
  if exists(select * from barreira_acl_antes except select oid,proowner,proacl,proconfig,prosecdef from pg_proc) then raise exception 'PATCH_OWNER_ACL_CONFIG_ALTERADO';end if;
  if exists((select * from barreira_members_antes except select * from pg_auth_members) union all (select * from pg_auth_members except select * from barreira_members_antes)) then raise exception 'MEMBERSHIPS_NAO_RESTAURADAS';end if;
  if exists(select * from barreira_schema_antes except select oid,nspacl from pg_namespace) then raise exception 'CREATE_SCHEMA_NAO_RESTAURADO';end if;

@@ -92,6 +92,7 @@ function preparar() {
       }),
   };
   const raiz = document.createElement('div');
+  document.body.append(raiz);
   const montagem = montarConversaoDiario(raiz, paciente, origem, portas, pendente, concluido);
   desmontar = montagem.desmontar;
   return {

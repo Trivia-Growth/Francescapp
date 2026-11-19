@@ -1501,7 +1501,7 @@ $fragmento$,'depois',$fragmento$ end if;
  autorizado:=autorizado and found;
 $fragmento$)),'20261125080000_turno_execucao_privada.sql',array['api.turno_barreira_composicao(jsonb)']);
 -- operacao.turno_grupo3_privada: 20261125140000_turno_escala_passagem.sql
-select pg_temp.substituir_autenticador('operacao.turno_grupo3_privada(jsonb)','27e6d99f5bbd011f7b36d428cbe6d991','9ee83ac9799ab5942deff0c94a7ae017',jsonb_build_array(jsonb_build_object('antes',$fragmento$ or inicio>clock_timestamp() or fim<=clock_timestamp() or fim<=inicio or fim-inicio>interval '30 seconds'
+select pg_temp.substituir_autenticador('operacao.turno_grupo3_privada(jsonb)','78ee81f15a26c3396463c1bb94e4f247','3b62b96998ebea19884f438305339843',jsonb_build_array(jsonb_build_object('antes',$fragmento$ or inicio>clock_timestamp() or fim<=clock_timestamp() or fim<=inicio or fim-inicio>interval '30 seconds'
  or identidade.verificar_assinatura_atestado(p_transporte->>'entrada_canonica',p_transporte->>'dados_canonicos',e-'atestado',a-'mac',a->>'mac') is distinct from true then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
  if bloqueios_auth.travar(ator,sessao) is true then
  select dominio_workspace into dominio from identidade.configuracao_auth_nativo where google_unico_oauth_confirmado for share;
@@ -1542,12 +1542,12 @@ $fragmento$,'depois',$fragmento$    begin previsto:=(e->>'profissional_previsto_
     if not found then raise exception using errcode='PZ057',message='GRUPO3_RECUSADO',detail='sem_permissao';end if;
     insert into cadastro.turno_escala_versao(escala_id,paciente_id,versao,profissional_previsto_usuario_id,inicio_previsto,fim_previsto,tipo,autor_usuario_id) values(escala,paciente,1,previsto,janela_inicio,janela_fim,'previsto',ator) returning * into escala_atual;
 $fragmento$),
-jsonb_build_object('antes',$fragmento$     or e->'motivo'-array['formato','key_id','nonce','ciphertext','tag']<>'{}'::jsonb or e#>'{motivo,formato}' is distinct from '1'::jsonb or coalesce(e#>>'{motivo,ciphertext}','')=''
+jsonb_build_object('antes',$fragmento$     or (e->'motivo')-array['formato','key_id','nonce','ciphertext','tag']<>'{}'::jsonb or e#>'{motivo,formato}' is distinct from '1'::jsonb or coalesce(e#>>'{motivo,ciphertext}','')=''
      or e->'aad_motivo' is distinct from jsonb_build_object('tabela','cadastro.turno_escala_versao','paciente_id',paciente,'escala_id',escala,'versao',esperada+1,'campo','motivo','formato',1) then raise exception using errcode='22023',message='ENTRADA_INVALIDA';end if;
     perform 1 from cadastro.acesso_paciente ap join public.usuario u on u.id=ap.usuario_id join identidade.concessao_equipe c on c.usuario_id=u.id and c.perfil=u.perfil where ap.paciente_id=paciente and ap.usuario_id=assumiu and ap.revogada_em is null and u.ativo and u.perfil='profissional' and c.estado='vinculada' and c.metodo='google_workspace' for share of ap,u,c;
     if not found then raise exception using errcode='PZ057',message='GRUPO3_RECUSADO',detail='sem_permissao';end if;
     insert into cadastro.turno_escala_versao(escala_id,paciente_id,versao,anterior,profissional_previsto_usuario_id,profissional_assumiu_usuario_id,inicio_previsto,fim_previsto,tipo,motivo_cifrado,autor_usuario_id) values(escala,paciente,escala_atual.versao+1,escala_atual.versao,escala_atual.profissional_previsto_usuario_id,assumiu,escala_atual.inicio_previsto,escala_atual.fim_previsto,e->>'tipo',e->'motivo',ator) returning * into escala_atual;
-$fragmento$,'depois',$fragmento$     or e->'motivo'-array['formato','key_id','nonce','ciphertext','tag']<>'{}'::jsonb or e#>'{motivo,formato}' is distinct from '1'::jsonb or coalesce(e#>>'{motivo,ciphertext}','')=''
+$fragmento$,'depois',$fragmento$     or (e->'motivo')-array['formato','key_id','nonce','ciphertext','tag']<>'{}'::jsonb or e#>'{motivo,formato}' is distinct from '1'::jsonb or coalesce(e#>>'{motivo,ciphertext}','')=''
      or e->'aad_motivo' is distinct from jsonb_build_object('tabela','cadastro.turno_escala_versao','paciente_id',paciente,'escala_id',escala,'versao',esperada+1,'campo','motivo','formato',1) then raise exception using errcode='22023',message='ENTRADA_INVALIDA';end if;
     perform 1 from cadastro.acesso_paciente ap join public.usuario u on u.id=ap.usuario_id join identidade.concessao_equipe c on c.usuario_id=u.id and c.perfil=u.perfil where ap.paciente_id=paciente and ap.usuario_id=assumiu and ap.revogada_em is null and u.ativo and u.perfil='profissional' and c.estado='vinculada' and (c.metodo='google_workspace' or (c.metodo='interno' and identidade.concessao_interna_ativa(c.id,c.usuario_id))) for share of ap,u,c;
     if not found then raise exception using errcode='PZ057',message='GRUPO3_RECUSADO',detail='sem_permissao';end if;

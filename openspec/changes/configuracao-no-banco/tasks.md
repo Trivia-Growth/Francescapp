@@ -1,5 +1,12 @@
 # Tarefas
 
+**Atualização — 19/11/2026:** runner integrado HTTP/PostgreSQL reexecutado com
+saída 0, dados fictícios. Isso não fecha 6.7: a tentativa de leitura atual dos
+logs Netlify retornou 401, sem etapa/causa/request_id. Variável de acesso
+Supabase ausente; nenhuma consulta/migration remota ou correção especulativa.
+Roteiro autenticado publicado e prova remota de Administrador/Profissional/Família
+seguem pendentes. Demais frentes continuaram independentemente desse bloqueio.
+
 **Resumo operacional — 18/11/2026:** a falha 6.7 com sessão válida continua sem
 rastro atual de etapa/causa/request_id; o diagnóstico histórico de 13/11 abaixo
 não prova correção dessa ocorrência. Na retomada local, corrigido outro bloqueio:

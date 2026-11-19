@@ -192,30 +192,30 @@ revoke all on function operacao.contexto_execucao_turno(uuid) from public,anon,a
 grant execute on function operacao.contexto_execucao_turno(uuid) to ffcmapp_turno_execucao_owner;
 -- Every future operation shares this authority check; context helper has no technical bypass.
 create function operacao.autorizar_execucao_turno(p_transporte jsonb,p_acoes text[]) returns jsonb language plpgsql security invoker set search_path='' as $$
-declare e jsonb:=p_transporte->'entrada';a jsonb:=e->'atestado';ctx jsonb;ator uuid:=auth_privado.uid();sid uuid;req uuid;paciente uuid;inicio timestamptz;fim timestamptz;
+declare e jsonb:=p_transporte->'entrada';a jsonb:=e->'atestado';ctx jsonb;ator uuid:=auth_privado.uid();sid uuid;req uuid;paciente_alvo uuid;inicio timestamptz;fim timestamptz;
 begin
  if jsonb_typeof(p_transporte) is distinct from 'object' or p_transporte-array['entrada','entrada_canonica','dados_canonicos']<>'{}'::jsonb or jsonb_typeof(e) is distinct from 'object' or jsonb_typeof(a) is distinct from 'object' then raise insufficient_privilege;end if;
- sid:=(auth_privado.jwt()->>'session_id')::uuid;req:=(e->>'request_id')::uuid;paciente:=(e->>'paciente_id')::uuid;inicio:=(a->>'emitido_em')::timestamptz;fim:=(a->>'expira_em')::timestamptz;
- if ator is null or sid is null or req is null or paciente is null or inicio is null or fim is null
+ sid:=(auth_privado.jwt()->>'session_id')::uuid;req:=(e->>'request_id')::uuid;paciente_alvo:=(e->>'paciente_id')::uuid;inicio:=(a->>'emitido_em')::timestamptz;fim:=(a->>'expira_em')::timestamptz;
+ if ator is null or sid is null or req is null or paciente_alvo is null or inicio is null or fim is null
  or not coalesce(a->>'operacao'=any(p_acoes),false) or a->>'usuario_id' is distinct from ator::text or a->>'session_id' is distinct from sid::text or a->>'request_id' is distinct from req::text
  or inicio>clock_timestamp() or fim<=clock_timestamp() or fim<=inicio or fim-inicio>interval '30 seconds'
  or identidade.verificar_assinatura_atestado(p_transporte->>'entrada_canonica',p_transporte->>'dados_canonicos',e-'atestado',a-'mac',a->>'mac') is distinct from true then raise insufficient_privilege;end if;
  ctx:=operacao.contexto_execucao_turno(req);
  if ctx is null then raise insufficient_privilege;end if;
- perform 1 from cadastro.acesso_paciente where paciente_id=paciente and usuario_id=ator and revogada_em is null for share;
+ perform 1 from cadastro.acesso_paciente where paciente_id=paciente_alvo and usuario_id=ator and revogada_em is null for share;
  if not found then raise insufficient_privilege;end if;
  perform 1 from identidade.configuracao_sistema where chave='ffcm.turno.ativo' and tipo='booleano' and valor='true'::jsonb for share;
  if not found then raise insufficient_privilege;end if;
  -- Target access must precede patient lock, matching revocation order.
  if a->>'operacao' in ('api.gravar_fundamento_turno','api.consultar_fundamento_turno') and e ? 'familiar_usuario_id' then
-  perform 1 from cadastro.acesso_paciente where paciente_id=paciente and usuario_id=(e->>'familiar_usuario_id')::uuid and revogada_em is null for share;
+  perform 1 from cadastro.acesso_paciente where paciente_id=paciente_alvo and usuario_id=(e->>'familiar_usuario_id')::uuid and revogada_em is null for share;
   if not found then raise insufficient_privilege;end if;
  end if;
  if a->>'operacao'='api.conceder_medicacao_turno' then
-  perform 1 from cadastro.acesso_paciente where paciente_id=paciente and usuario_id=(e->>'usuario_id')::uuid and revogada_em is null for update;
+  perform 1 from cadastro.acesso_paciente where paciente_id=paciente_alvo and usuario_id=(e->>'usuario_id')::uuid and revogada_em is null for update;
   if not found then raise insufficient_privilege;end if;
  end if;
- perform 1 from cadastro.paciente where id=paciente for update;
+ perform 1 from cadastro.paciente where id=paciente_alvo for update;
  if not found or fim<=clock_timestamp() then raise insufficient_privilege;end if;
  return ctx;
 end $$;
@@ -283,7 +283,7 @@ begin
  elsif acao='api.consultar_conversao_ocorrencia_turno' then
   if e-array['request_id','paciente_id','registro_id','autorizacao_tarefa','atestado']<>'{}'::jsonb then raise invalid_parameter_value;end if;
   autorizacao:=e->'autorizacao_tarefa';
-  if autorizacao#>>'{entrada,paciente_id}' is distinct from paciente::text or autorizacao#>>'{entrada,request_id}' is distinct from req::text or autorizacao#>>'{entrada,atestado,usuario_id}' is distinct from ator::text or autorizacao#>>'{entrada,atestado,session_id}' is distinct from ctx->>'session_id' or autorizacao#>>'{entrada,atestado,operacao}' is distinct from 'api.ler_tarefas_cuidado' or autorizacao#>'{entrada,autorizacao_somente}' is distinct from 'true'::jsonb or autorizacao->'entrada'-array['request_id','paciente_id','autorizacao_somente','atestado']<>'{}'::jsonb then raise insufficient_privilege;end if;
+  if autorizacao#>>'{entrada,paciente_id}' is distinct from paciente::text or autorizacao#>>'{entrada,request_id}' is distinct from req::text or autorizacao#>>'{entrada,atestado,usuario_id}' is distinct from ator::text or autorizacao#>>'{entrada,atestado,session_id}' is distinct from ctx->>'session_id' or autorizacao#>>'{entrada,atestado,operacao}' is distinct from 'api.ler_tarefas_cuidado' or autorizacao#>'{entrada,autorizacao_somente}' is distinct from 'true'::jsonb or (autorizacao->'entrada')-array['request_id','paciente_id','autorizacao_somente','atestado']<>'{}'::jsonb then raise insufficient_privilege;end if;
   resposta:=api.ler_tarefas_cuidado_privado(autorizacao);
   if resposta->>'ok' is distinct from 'true' or resposta->'dados' is distinct from '[]'::jsonb then raise insufficient_privilege;end if;
   registro:=(e->>'registro_id')::uuid;
@@ -302,7 +302,7 @@ begin
     or filho.transporte#>>'{entrada,atestado,usuario_id}' is distinct from ator::text or filho.transporte#>>'{entrada,atestado,session_id}' is distinct from ctx->>'session_id'
     or filho.transporte#>>'{entrada,atestado,operacao}' is distinct from filho.acao_filha then raise insufficient_privilege;end if;
   end loop;
-  if autorizacao#>'{entrada,autorizacao_somente}' is distinct from 'true'::jsonb or autorizacao->'entrada'-array['request_id','paciente_id','autorizacao_somente','atestado']<>'{}'::jsonb then raise insufficient_privilege;end if;
+  if autorizacao#>'{entrada,autorizacao_somente}' is distinct from 'true'::jsonb or (autorizacao->'entrada')-array['request_id','paciente_id','autorizacao_somente','atestado']<>'{}'::jsonb then raise insufficient_privilege;end if;
   resposta:=api.ler_tarefas_cuidado_privado(autorizacao);
   if resposta->>'ok' is distinct from 'true' or resposta->'dados' is distinct from '[]'::jsonb then raise insufficient_privilege;end if;
   if length(coalesce(e->>'chave_idempotencia','')) not between 16 and 200 or coalesce(e->>'digest_idempotencia','')!~'^[A-Za-z0-9_-]{43}$' then raise invalid_parameter_value;end if;
@@ -327,7 +327,7 @@ begin
   resultado:=to_jsonb(conversao)-array['chave','digest'];
  else
   if e-array['request_id','paciente_id','registro_id','versao','versao_esperada','conteudo','motivo','aad','chave_idempotencia','digest_idempotencia','atestado']<>'{}'::jsonb or ctx->>'perfil'<>'profissional' then raise insufficient_privilege;end if;
-  if jsonb_typeof(e->'conteudo') is distinct from 'object' or e->'conteudo'-array['classe','dados']<>'{}'::jsonb then raise invalid_parameter_value;end if;
+  if jsonb_typeof(e->'conteudo') is distinct from 'object' or (e->'conteudo')-array['classe','dados']<>'{}'::jsonb then raise invalid_parameter_value;end if;
   classe:=e#>>'{conteudo,classe}';d:=e#>'{conteudo,dados}';registro:=(e->>'registro_id')::uuid;versao:=(e->>'versao')::integer;esperada:=(e->>'versao_esperada')::integer;
   if registro is null or esperada is null or esperada<0 or versao is null or versao<>esperada+1 or versao<1 or classe is null or classe not in ('afericao','prescricao','administracao','ocorrencia','rotina') or jsonb_typeof(d) is distinct from 'object'
    or length(coalesce(e->>'chave_idempotencia','')) not between 16 and 200 or coalesce(e->>'chave_idempotencia','')!~'^[A-Za-z0-9_-]+$' or coalesce(e->>'digest_idempotencia','')!~'^[A-Za-z0-9_-]{43}$'
@@ -384,7 +384,7 @@ begin
     if exists(select 1 from jsonb_array_elements_text(d->'horarios') v where v!~'^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$') then raise invalid_parameter_value;end if;
     campos:=campos||array['nome','dose','via','fonte_documental'];payload:=payload||d;
    elsif classe='administracao' then
-    if d-array['turno_id','item_id','versao','executor','situacao','motivo']<>'{}'::jsonb or jsonb_typeof(d->'executor') is distinct from 'object' or d->'executor'-array['nome','vinculo']<>'{}'::jsonb then raise invalid_parameter_value;end if;
+    if d-array['turno_id','item_id','versao','executor','situacao','motivo']<>'{}'::jsonb or jsonb_typeof(d->'executor') is distinct from 'object' or (d->'executor')-array['nome','vinculo']<>'{}'::jsonb then raise invalid_parameter_value;end if;
     if versao>1 then
      if not exists(select 1 from cadastro.turno_administracao_versao original join cadastro.turno_execucao_registro pr on pr.id=original.item_id where original.registro_id=registro and original.versao=1 and original.item_id=(d->>'item_id')::uuid and original.item_versao=(d->>'versao')::integer and pr.paciente_id=paciente and pr.classe='prescricao') then raise insufficient_privilege;end if;
     else

@@ -91,6 +91,7 @@ function servico() {
 }
 it('resposta perdida exige reconciliar; consulta anterior vazia não permite retry antigo nem nova intenção automática', async () => {
   const raiz = document.createElement('div');
+  document.body.append(raiz);
   const api = servico();
   api.gravar.mockRejectedValueOnce(new FalhaApi('pendencia_externa', 0, true));
   api.reconciliar
@@ -121,6 +122,7 @@ it('resposta perdida exige reconciliar; consulta anterior vazia não permite ret
 });
 it('reload preserva barreira durável de outro caso; somente reconhecimento explícito libera intenção', async () => {
   const raiz = document.createElement('div');
+  document.body.append(raiz);
   const api = servico();
   api.reconciliar.mockResolvedValue({
     epoca: 3,
@@ -153,6 +155,7 @@ it('reload preserva barreira durável de outro caso; somente reconhecimento expl
 });
 it('última versão2 continua retificável para versão3 e prescrição admite profissional distinto', async () => {
   const raiz = document.createElement('div');
+  document.body.append(raiz);
   const api = servico();
   const atual = { ...registro, versao: 2, retificada: true };
   api.consultar.mockResolvedValue({ itens: [atual], proximo_cursor: null });
@@ -175,6 +178,7 @@ it('última versão2 continua retificável para versão3 e prescrição admite p
 });
 it('sem turno aberto oferece séries/prescrição e mantém novas aferições indisponíveis', async () => {
   const raiz = document.createElement('div');
+  document.body.append(raiz);
   const api = servico();
   const desmontar = montarExecucaoTurno(raiz, paciente, null, api as ServicoTurnoExecucao, {
     usuarioId: usuario,
@@ -189,6 +193,7 @@ it('sem turno aberto oferece séries/prescrição e mantém novas aferições in
 });
 it('retificação de administração conserva prescrição histórica travada e executor declarado', () => {
   const raiz = document.createElement('div');
+  document.body.append(raiz);
   const enviar = vi.fn();
   const original: RegistroExecucaoPublico = {
     ...registro,
@@ -226,6 +231,7 @@ it('retificação de administração conserva prescrição histórica travada e 
 });
 it('registro de rotina não preenche valor a partir de histórico e rejeita conjunto adulterado', () => {
   const raiz = document.createElement('div');
+  document.body.append(raiz);
   const enviar = vi.fn();
   montarEditorExecucao(
     raiz,
@@ -243,6 +249,7 @@ it('registro de rotina não preenche valor a partir de histórico e rejeita conj
 });
 it('revogação na consulta limpa conteúdo, sem confundir falha com vazio', async () => {
   const raiz = document.createElement('div');
+  document.body.append(raiz);
   const api = servico();
   const perdido = vi.fn();
   api.consultar.mockRejectedValue(new FalhaApi('sem_permissao', 403));
@@ -261,6 +268,7 @@ it('revogação na consulta limpa conteúdo, sem confundir falha com vazio', asy
 
 it('conferência não apaga rascunho ainda não enviado', async () => {
   const raiz = document.createElement('div');
+  document.body.append(raiz);
   const api = servico();
   const desmontar = montarExecucaoTurno(raiz, paciente, turno, api as ServicoTurnoExecucao, {
     usuarioId: usuario,
@@ -281,6 +289,7 @@ it('conferência não apaga rascunho ainda não enviado', async () => {
 });
 it('prescrição externa corrente permite solicitar retificação por outro profissional vinculado', async () => {
   const raiz = document.createElement('div');
+  document.body.append(raiz);
   const api = servico();
   const prescricao: RegistroExecucaoPublico = {
     ...registro,

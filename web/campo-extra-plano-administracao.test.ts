@@ -41,6 +41,9 @@ it('cria campo global e indica aprovador selecionado pelo nome', async () => {
     ),
   );
   await vi.waitFor(() => expect(raiz.querySelector(`select option[value="${id}"]`)).not.toBeNull());
+  await vi.waitFor(() =>
+    expect(raiz.querySelectorAll('form')[1]?.querySelector('fieldset')?.disabled).toBe(false),
+  );
   const novoForm = raiz.querySelectorAll('form')[1];
   const select = novoForm?.querySelector('select');
   if (!select) throw new Error('Equipe ausente');

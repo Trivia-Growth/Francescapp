@@ -17,7 +17,7 @@ function preparar() {
   return criarServicoTurnoExecucaoHttp(id, () => ({ usuario_id: id, session_id: id }));
 }
 it('prescrição vigente usa rota própria e mantém corte retornado ao paginar', async () => {
-  const fetch = vi.fn().mockResolvedValue(
+  const fetch = vi.fn().mockImplementation(() =>
     Response.json({
       dados: { itens: [], proximo_cursor: null, vigente_em: '2026-11-19T12:00:00Z' },
       request_id: id,

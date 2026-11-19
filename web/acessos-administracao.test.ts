@@ -92,6 +92,7 @@ it('limpa senha antes da chamada e cerca resposta perdida sem repetir escrita, i
   const seguinte = preparar();
   seguinte.consultar.mockResolvedValue({ ...acesso, operacao_id: id });
   await vi.waitFor(() => expect(seguinte.raiz.textContent).toContain('cadastro pendente'));
+  await vi.waitFor(() => expect(seguinte.raiz.getAttribute('aria-busy')).toBe('false'));
   expect(campo(seguinte.raiz, 'Senha').value).toBe('');
   botao(seguinte.raiz, 'Conferir cadastro pendente').click();
   await vi.waitFor(() =>
@@ -180,6 +181,7 @@ it.each(['reservado', 'falha_confirmada'] as const)(
     const p = preparar();
     p.consultar.mockResolvedValueOnce({ ...acesso, estado });
     await vi.waitFor(() => expect(p.raiz.textContent).toContain('cadastro pendente'));
+    await vi.waitFor(() => expect(p.raiz.getAttribute('aria-busy')).toBe('false'));
     expect(p.raiz.querySelector('fieldset')?.disabled).toBe(true);
     botao(p.raiz, 'Conferir cadastro pendente').click();
     await vi.waitFor(() =>
@@ -204,6 +206,7 @@ it('recusa confirmada pela linha também encerra a pendência correspondente, se
   const p = preparar();
   p.consultar.mockResolvedValueOnce({ ...acesso, estado: 'falha_confirmada' });
   await vi.waitFor(() => expect(p.raiz.textContent).toContain('cadastro pendente'));
+  await vi.waitFor(() => expect(p.raiz.getAttribute('aria-busy')).toBe('false'));
   botao(p.raiz, 'Conferir situação').click();
   await vi.waitFor(() =>
     expect(p.raiz.textContent).toContain('Criação recusada; nenhuma conta criada'),
@@ -222,6 +225,7 @@ it('estado terminal de outra operação não descarta a pendência em recuperaç
     estado: 'falha_confirmada',
   });
   await vi.waitFor(() => expect(p.raiz.textContent).toContain('cadastro pendente'));
+  await vi.waitFor(() => expect(p.raiz.getAttribute('aria-busy')).toBe('false'));
   botao(p.raiz, 'Conferir cadastro pendente').click();
   await vi.waitFor(() => expect(p.raiz.textContent).toContain('Cadastro sem confirmação'));
   expect(p.raiz.querySelector('fieldset')?.disabled).toBe(true);

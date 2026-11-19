@@ -20,6 +20,10 @@
   line-height: 1.6;
 }
 .turno-proprio input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
   flex: none;
   margin-top: 6px;
   accent-color: #475436;

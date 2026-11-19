@@ -96,7 +96,8 @@
     flex-direction: column;
     align-items: stretch;
   }
-  .turno-execucao button {
+  .turno-execucao button,
+  .ficha-secao .turno-execucao button:not(.button-primary) {
     width: 100%;
     margin-inline: 0;
   }

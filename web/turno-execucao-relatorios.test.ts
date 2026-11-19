@@ -15,6 +15,7 @@ const botao = (raiz: HTMLElement, texto: string) => {
 };
 it('família dispõe de turno/diário/semanal e não recebe opção exportação de caso ou localização', () => {
   const raiz = document.createElement('div');
+  document.body.append(raiz);
   montarRelatoriosTurno(raiz, {} as ServicoTurnoExecucao, {
     familia: true,
     acessoPerdido: vi.fn(),
@@ -27,6 +28,7 @@ it('família dispõe de turno/diário/semanal e não recebe opção exportação
 });
 it('PDF usa somente seletores/metadados e resultado perdido exige conferência sem sucesso falso', async () => {
   const raiz = document.createElement('div');
+  document.body.append(raiz);
   const api = {
     relatorio: vi.fn<ServicoTurnoExecucao['relatorio']>().mockImplementation(async (entrada) => ({
       paciente_id: id,
@@ -74,6 +76,7 @@ it('PDF usa somente seletores/metadados e resultado perdido exige conferência s
 });
 it('fundamento revogado limpa relatório na negativa de acesso', async () => {
   const raiz = document.createElement('div');
+  document.body.append(raiz);
   const perdido = vi.fn();
   const api = { relatorio: vi.fn().mockRejectedValue(new FalhaApi('sem_permissao', 403)) };
   montarRelatoriosTurno(raiz, api as unknown as ServicoTurnoExecucao, {
@@ -87,6 +90,7 @@ it('fundamento revogado limpa relatório na negativa de acesso', async () => {
 
 it('novo filtro com erro remove consulta anterior e mantém PDF desabilitado', async () => {
   const raiz = document.createElement('div');
+  document.body.append(raiz);
   const api = {
     relatorio: vi
       .fn<ServicoTurnoExecucao['relatorio']>()

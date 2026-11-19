@@ -46,11 +46,11 @@ begin
    set local role authenticated; r:=api.campo_extra_plano_privado(t); reset role;
    if r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'NAO_ADMIN_EDITOU_CATALOGO';end if;
   end if;
-  update identidade.sessao set revogada_em=clock_timestamp() where session_id=c.sid;
+  update identidade.sessao set revogada_em=clock_timestamp(),revogada_por_usuario_id=c.usuario_id,motivo_revogacao_cifrado=public.acessos_envelope_fixture() where session_id=c.sid;
   t:=public.acessos_assinar_fixture(jsonb_build_object('request_id',gen_random_uuid()),'api.listar_campo_extra_plano');
   set local role authenticated; r:=api.campo_extra_plano_privado(t); reset role;
   if r#>>'{erro,codigo}' is distinct from 'sem_permissao' or r?'dados' then raise exception 'REVOGADO_LEU_CATALOGO';end if;
-  update identidade.sessao set revogada_em=null where session_id=c.sid;
+  update identidade.sessao set revogada_em=null,revogada_por_usuario_id=null,motivo_revogacao_cifrado=null where session_id=c.sid;
  end loop;
  -- Profissional admitido não precisa vínculo individual para plano no modelo vigente.
  select * into strict c from acessos_contas_fixture where funcao='profissional' and metodo='interno';

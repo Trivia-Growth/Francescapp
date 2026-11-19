@@ -65,6 +65,10 @@ function preparar(
       return envelope({ itens: [], proximo_cursor: null });
     if (caminho === `/api/pacientes/${A}/tarefas`) return envelope([tarefa('Tarefa de Helena')]);
     if (caminho === `/api/pacientes/${B}/tarefas`) return envelope([tarefa('Tarefa de Bruno')]);
+    if (caminho.endsWith('/execucao-turno/reconciliar'))
+      return envelope({ epoca: 1, resultado_pendente: null });
+    if (caminho.endsWith('/execucao-turno/catalogo')) return envelope([]);
+    if (caminho.endsWith('/execucao-turno/consentimento')) return envelope(null);
     if (caminho.endsWith('/anamnese')) return envelope(null);
     return new Response(null, { status: 404 });
   });
@@ -199,6 +203,7 @@ it.each([
       'Anamnese',
       'Saúde',
       'Plano de crise',
+      'Execução e relatórios',
       'Escala de turnos',
       'Cadastro',
       'Equipe com acesso',
@@ -285,6 +290,7 @@ it('mostra à família só os dados do paciente vinculado', async () => {
   expect([...document.querySelectorAll('[role="tab"]')].map((aba) => aba.textContent)).toEqual([
     'Dados do paciente',
     'Diário',
+    'Relatórios do cuidado',
     'Plano de cuidado',
     'Documentos',
     'Orientações',

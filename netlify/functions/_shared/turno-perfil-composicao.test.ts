@@ -43,7 +43,9 @@ const dependencias = {
   },
   keyIdAtestado: 'ficticia',
 };
-beforeEach(() => mocks.auditoria.mockResolvedValue({ error: null, data: true }));
+beforeEach(() => {
+  mocks.auditoria.mockResolvedValue({ error: null, data: true });
+});
 afterEach(() => vi.clearAllMocks());
 for (const perfil of ['familia', 'administrador']) {
   it(`nega perfil ${perfil} antes do cofre no turno e na barreira`, async () => {

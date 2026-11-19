@@ -111,7 +111,7 @@ begin
    or filho_atestado->>'usuario_id' is distinct from ator::text or filho_atestado->>'session_id' is distinct from sessao::text
    or filho_atestado->>'request_id' is distinct from req::text or filho_atestado->>'operacao' is distinct from filho.operacao then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
  end loop;
- if autorizacao->'entrada'-array['request_id','paciente_id','autorizacao_somente','atestado']<>'{}'::jsonb or autorizacao#>'{entrada,autorizacao_somente}' is distinct from 'true'::jsonb then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+ if (autorizacao->'entrada')-array['request_id','paciente_id','autorizacao_somente','atestado']<>'{}'::jsonb or autorizacao#>'{entrada,autorizacao_somente}' is distinct from 'true'::jsonb then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
  resposta:=api.ler_tarefas_cuidado_privado(autorizacao);
  if resposta->>'ok' is distinct from 'true' or resposta->'dados' is distinct from '[]'::jsonb then raise exception using errcode='PZ014',message='CONVERSAO_RECUSADA',detail='sem_permissao'; end if;
  -- Auth/concessão/vínculo foram travados pela filha de autorização. Trava exclusiva
@@ -121,7 +121,7 @@ begin
  perform 1 from identidade.configuracao_sistema where chave in ('ffcm.diario.conversao_tarefa_ativa','ffcm.diario.ativo','ffcm.diario.areas_sintese','ffcm.tarefas.ativas','ffcm.tarefas.escrita_ativa','ffcm.tarefas.barreira_ativa') order by chave for share;
  select count(*) into quantidade from identidade.configuracao_sistema where chave in ('ffcm.diario.conversao_tarefa_ativa','ffcm.diario.ativo','ffcm.tarefas.ativas','ffcm.tarefas.escrita_ativa','ffcm.tarefas.barreira_ativa') and tipo='booleano' and valor='true'::jsonb;
  if quantidade<>5 then raise exception using errcode='PZ014',message='CONVERSAO_RECUSADA',detail='sem_permissao'; end if;
- select v.versao,v.estado into origem_atual,origem_estado from cadastro.diario_registro r join lateral(select versao,estado from cadastro.diario_registro_versao x where x.diario_registro_id=r.id order by versao desc limit 1) v on true where r.id=origem and r.paciente_id=paciente;
+ select v.versao,v.estado into origem_atual,origem_estado from cadastro.diario_registro r join lateral(select x.versao,x.estado from cadastro.diario_registro_versao x where x.diario_registro_id=r.id order by x.versao desc limit 1) v on true where r.id=origem and r.paciente_id=paciente;
  if not found or origem_estado not in ('publicado','retificado') then raise exception using errcode='PZ014',message='CONVERSAO_RECUSADA',detail='sem_permissao'; end if;
  if acao='api.converter_diario_tarefa' then
   begin versao:=(e->>'origem_versao')::integer; exception when invalid_text_representation or numeric_value_out_of_range then raise exception using errcode='22023',message='ENTRADA_INVALIDA'; end;
@@ -182,6 +182,10 @@ begin
 end $$;
 revoke all on function operacao.conversao_diario_tarefa_operacao_privada(jsonb) from public,anon,authenticated,service_role;
 grant execute on function operacao.conversao_diario_tarefa_operacao_privada(jsonb) to ffcmapp_conversao_diario_tarefa_owner;
+-- Catalog guard runs as migrator; private owner does not need exposure-column access.
+do $$ begin
+ if not exists(select 1 from identidade.configuracao_sistema where chave='ffcm.diario.conversao_tarefa_ativa' and tipo='booleano' and valor='false'::jsonb and exposicao='servidor') then raise exception 'CONFIGURACAO_CONVERSAO_INESPERADA'; end if;
+end $$;
 set role ffcmapp_conversao_diario_tarefa_owner;
 create function api.conversao_diario_tarefa_privada(p_transporte jsonb) returns jsonb
 language plpgsql security definer set search_path='' set row_security=on as $$
@@ -232,7 +236,6 @@ revoke all on function api.registrar_negacao_conversao_diario_tarefa(uuid,text,u
 -- Caminho concreto para futura validação: novas wrappers somente, flag permanece
 -- false. ACL desconhecida provoca falha; nenhum grant de tabela/interna/Vault/role.
 do $$ declare alvo record; begin
- if not exists(select 1 from identidade.configuracao_sistema where chave='ffcm.diario.conversao_tarefa_ativa' and tipo='booleano' and valor='false'::jsonb and exposicao='servidor') then raise exception 'CONFIGURACAO_CONVERSAO_INESPERADA'; end if;
  for alvo in select * from (values('api.conversao_diario_tarefa_privada(jsonb)',false),('api.registrar_negacao_conversao_diario_tarefa(uuid,text,uuid,uuid)',true)) as alvos(assinatura,auditador) loop
   if not exists(select 1 from pg_proc p join pg_roles r on r.oid=p.proowner where p.oid=to_regprocedure(alvo.assinatura) and r.rolname='ffcmapp_conversao_diario_tarefa_owner'
    and not r.rolcanlogin and not r.rolsuper and not r.rolcreatedb and not r.rolcreaterole and not r.rolinherit and not r.rolbypassrls

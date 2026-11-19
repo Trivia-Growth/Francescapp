@@ -1,5 +1,12 @@
 # Tasks
 
+**Retomada em 19/11/2026 após “Siga”:** runner SQL de segredos reexecutado com
+saída 0; suíte servidor/HTTP/UI também exercitada. Vault e Auth continuam adapters
+locais, com valores fictícios. Isso não fecha 2.4 nem prova extensão Vault remota.
+Evidências atuais na
+[entrega complementar](../../../docs/processo/entrega-complementar-19-11-2026.md);
+menções posteriores a execução adiada descrevem o histórico anterior.
+
 ## 1. Contratos, Vault e servidor
 
 - [x] 1.1 Implementar catálogo/saída sem valor e RPC atestada admin-only com versões; provar cadastro, substituição, replay e negativas SQL/RLS/direto com dados fictícios.

@@ -222,7 +222,7 @@ begin
     begin esperada:=(e->>'versao_esperada')::integer;assumiu:=(e->>'profissional_assumiu_usuario_id')::uuid;exception when others then raise exception using errcode='22023',message='ENTRADA_INVALIDA';end;
     if escala_atual.escala_id is null or escala_atual.paciente_id<>paciente or esperada is null or esperada<>escala_atual.versao or esperada>=2147483647 then raise exception using errcode='PZ057',message='GRUPO3_RECUSADO',detail='conflito';end if;
     if assumiu is null or e->>'tipo' not in ('substituicao','cobertura') or jsonb_typeof(e->'motivo') is distinct from 'object'
-     or e->'motivo'-array['formato','key_id','nonce','ciphertext','tag']<>'{}'::jsonb or e#>'{motivo,formato}' is distinct from '1'::jsonb or coalesce(e#>>'{motivo,ciphertext}','')=''
+     or (e->'motivo')-array['formato','key_id','nonce','ciphertext','tag']<>'{}'::jsonb or e#>'{motivo,formato}' is distinct from '1'::jsonb or coalesce(e#>>'{motivo,ciphertext}','')=''
      or e->'aad_motivo' is distinct from jsonb_build_object('tabela','cadastro.turno_escala_versao','paciente_id',paciente,'escala_id',escala,'versao',esperada+1,'campo','motivo','formato',1) then raise exception using errcode='22023',message='ENTRADA_INVALIDA';end if;
     perform 1 from cadastro.acesso_paciente ap join public.usuario u on u.id=ap.usuario_id join identidade.concessao_equipe c on c.usuario_id=u.id and c.perfil=u.perfil where ap.paciente_id=paciente and ap.usuario_id=assumiu and ap.revogada_em is null and u.ativo and u.perfil='profissional' and c.estado='vinculada' and c.metodo='google_workspace' for share of ap,u,c;
     if not found then raise exception using errcode='PZ057',message='GRUPO3_RECUSADO',detail='sem_permissao';end if;

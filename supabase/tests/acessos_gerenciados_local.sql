@@ -176,9 +176,9 @@ create temp table acessos_members_antes as select * from pg_auth_members;
 \ir ../migrations/20261125150000_acessos_gerenciados.sql
 -- A etapa nativa Auth acima é explícita; negócio/contexto/consumidores abaixo NOSUPER.
 create role acessos_migrador_fixture nologin nosuperuser createrole inherit;
-grant acessos_migrador_fixture to current_user with inherit false,set true;
+-- Bootstrap SUPER may SET this NOSUPER role; avoid inverse membership cycle.
 do $$ declare dono text;begin
- for dono in select distinct r.rolname from pg_roles r where r.oid in (
+ for dono in select distinct r.rolname from pg_roles r where r.rolname<>'pg_database_owner' and r.oid in (
  select relowner from pg_class where relnamespace in ('public'::regnamespace,'identidade'::regnamespace,'cadastro'::regnamespace,'auditoria'::regnamespace,'operacao'::regnamespace)
  union select nspowner from pg_namespace where nspname in ('public','api','identidade','cadastro','operacao','auditoria')) loop
   execute format('grant %I to acessos_migrador_fixture with inherit true,set false',dono);
@@ -188,13 +188,20 @@ do $$ declare dono text;begin
   execute format('grant %I to acessos_migrador_fixture with admin true,inherit false,set false',dono);
  end loop;
 end $$;
+do $$begin if (select rolsuper or rolbypassrls from pg_roles where rolname='acessos_migrador_fixture') or pg_has_role('acessos_migrador_fixture',current_user,'SET') then raise exception 'MIGRADOR_FIXTURE_PRIVILEGIADO';end if;end $$;
 set role acessos_migrador_fixture;
 do $$ begin if (select rolsuper from pg_roles where rolname=current_user) then raise exception 'MIGRADOR_SUPERUSER';end if;end $$;
 \ir ../migrations/20261125160000_contexto_acessos_gerenciados.sql
 \ir ../migrations/20261125170000_acessos_consumidores_autenticacao.sql
 reset role;
 do $$ begin
- if exists(select * from acessos_acl_antes except select oid,proowner,proacl,proconfig,prosecdef,proargtypes,prorettype from pg_proc) then raise exception 'ACL_OWNER_CONFIG_LEGADOS_ALTERADOS';end if;
+ -- DF-023 deliberately delegates two helpers to its dedicated owner. No other ACL delta.
+ if exists(select 1 from acessos_acl_antes a join pg_proc p on p.oid=a.oid where row(a.proowner,a.proconfig,a.prosecdef,a.proargtypes,a.prorettype) is distinct from row(p.proowner,p.proconfig,p.prosecdef,p.proargtypes,p.prorettype)) then raise exception 'OWNER_CONFIG_LEGADOS_ALTERADOS';end if;
+ if exists(select a.oid,x.* from acessos_acl_antes a cross join lateral aclexplode(coalesce(a.proacl,acldefault('f',a.proowner))) x except select p.oid,x.* from pg_proc p cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) x) then raise exception 'ACL_LEGADO_REMOVIDO';end if;
+ if exists(select 1 from (select p.oid,x.* from pg_proc p join acessos_acl_antes a on a.oid=p.oid cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) x except select a.oid,x.* from acessos_acl_antes a cross join lateral aclexplode(coalesce(a.proacl,acldefault('f',a.proowner))) x) d join pg_proc p on p.oid=d.oid where not(d.oid in('identidade.email_google_hmac_nativo()'::regprocedure,'identidade.verificar_assinatura_atestado(text,text,jsonb,jsonb,text)'::regprocedure) and d.grantor=p.proowner and d.grantee='ffcmapp_acessos_owner'::regrole and d.privilege_type='EXECUTE' and not d.is_grantable)) then raise exception 'ACL_LEGADO_AMPLIADO';end if;
+ if exists(select 1 from acessos_acl_antes a join pg_proc p on p.oid=a.oid where a.oid not in('identidade.email_google_hmac_nativo()'::regprocedure,'identidade.verificar_assinatura_atestado(text,text,jsonb,jsonb,text)'::regprocedure) and a.proacl is distinct from p.proacl) then raise exception 'ACL_DEMAIS_FUNCOES_ALTERADA';end if;
+ if (select count(*) from (select p.oid,x.* from pg_proc p join acessos_acl_antes a on a.oid=p.oid cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) x except select a.oid,x.* from acessos_acl_antes a cross join lateral aclexplode(coalesce(a.proacl,acldefault('f',a.proowner))) x) d)<>2 then raise exception 'DELTA_HELPERS_DIFERENTE_DE_DOIS';end if;
+ if not has_function_privilege('ffcmapp_acessos_owner','identidade.email_google_hmac_nativo()','EXECUTE') or not has_function_privilege('ffcmapp_acessos_owner','identidade.verificar_assinatura_atestado(text,text,jsonb,jsonb,text)','EXECUTE') then raise exception 'DELEGACAO_HELPER_AUSENTE';end if;
  if exists(select * from acessos_members_antes except select * from pg_auth_members) then raise exception 'MEMBERSHIP_LEGADO_REMOVIDO';end if;
  if has_table_privilege('authenticated','identidade.acesso_gerenciado','SELECT,INSERT,UPDATE,DELETE') or has_function_privilege('authenticated','identidade.contexto_acesso_vigente(boolean)','EXECUTE') or has_function_privilege('authenticated','auth_privado.conta_gerenciada(uuid)','EXECUTE') or has_function_privilege('anon','api.acesso_gerenciado_privado(jsonb)','EXECUTE') or pg_has_role('authenticated','ffcmapp_acessos_owner','MEMBER') then raise exception 'ACESSO_DIRETO_NOVO';end if;
  if pg_has_role('acessos_migrador_fixture','ffcmapp_acessos_owner','SET') then raise exception 'SET_TEMPORARIO_PERSISTIU';end if;
@@ -226,6 +233,22 @@ insert into public.usuario(id,perfil) values('11000000-0000-4000-8000-0000000000
 insert into identidade.concessao_equipe(id,email_cifrado,email_hmac,perfil,metodo,estado,usuario_id,subject_google,motivo_cifrado,vinculada_em) values('33000000-0000-4000-8000-000000000001',public.acessos_envelope_fixture(),public.acessos_hmac_fixture('admin@example.test'),'administrador','google_workspace','vinculada','11000000-0000-4000-8000-000000000001','admin-google-fixture',public.acessos_envelope_fixture(),clock_timestamp());
 insert into identidade.sessao(session_id,usuario_id,concessao_id,concessao_versao_admissao,metodo) values('22000000-0000-4000-8000-000000000001','11000000-0000-4000-8000-000000000001','33000000-0000-4000-8000-000000000001',1,'google_workspace');
 create temp table acessos_contas_fixture(operacao_id uuid,usuario_id uuid,sid uuid,funcao text,metodo text,email text);
+-- Runtime uniqueness check requires only this metadata column on the private owner.
+set role ffcmapp_acessos_owner;
+do $$begin perform c.email_hmac from identidade.concessao_equipe c limit 0;end $$;
+reset role;
+do $$begin if not has_column_privilege('ffcmapp_acessos_owner','identidade.concessao_equipe','email_hmac','SELECT') or has_table_privilege('ffcmapp_acessos_owner','identidade.concessao_equipe','SELECT') then raise exception 'EMAIL_HMAC_GRANT_NAO_ESTREITO';end if;end $$;
+set role authenticated;
+do $$begin begin perform c.email_hmac from identidade.concessao_equipe c limit 0;raise exception 'EMAIL_HMAC_APP_DIRETO';exception when insufficient_privilege then null;end;end $$;
+reset role;
+set role anon;
+do $$begin begin perform c.email_hmac from identidade.concessao_equipe c limit 0;raise exception 'EMAIL_HMAC_ANON_DIRETO';exception when insufficient_privilege then null;end;end $$;
+reset role;
+set role service_role;
+do $$begin begin perform c.email_hmac from identidade.concessao_equipe c limit 0;raise exception 'EMAIL_HMAC_SERVICE_DIRETO';exception when insufficient_privilege then null;end;end $$;
+reset role;
+
+
 
 -- Matriz completa quatro funções × dois métodos. Exercita as RPCs reais, não aceita
 -- public.usuario como prova de Auth; assinatura/Vault e provedor são fictícios.
@@ -240,7 +263,7 @@ begin
    e:=jsonb_build_object('request_id',gen_random_uuid(),'operacao_id',op,'nome_cifrado',public.acessos_envelope_fixture(),'email_cifrado',public.acessos_envelope_fixture(),'motivo_cifrado',public.acessos_envelope_fixture(),'email_hmac',public.acessos_hmac_fixture(email),'funcao',funcao,'metodo',metodo,'chave_idempotencia',op::text,'digest_idempotencia',repeat('a',43),'email_concessao_cifrado',public.acessos_envelope_fixture(),'motivo_concessao_cifrado',public.acessos_envelope_fixture());
    if metodo='interno' then e:=e||jsonb_build_object('usuario_id',usuario);else e:=e||jsonb_build_object('dominio_email','example.test');end if;
    r:=public.acessos_pedir_fixture(e,'api.reservar_acesso_gerenciado');
-   if r->>'ok' is distinct from 'true' or r->>'repeticao' is distinct from 'false' then raise exception 'PRIMEIRA_RESERVA: % % %',funcao,metodo,r;end if;
+   if r->>'ok' is distinct from 'true' or r->>'repeticao' is distinct from 'false' then raise exception 'PRIMEIRA_RESERVA: % % %, contexto_perfil=%',funcao,metodo,r,identidade.contexto_acesso_vigente(false)->>'perfil';end if;
    r:=public.acessos_pedir_fixture(e,'api.reservar_acesso_gerenciado');if r->>'repeticao' is distinct from 'true' then raise exception 'RESERVA_DUPLICOU';end if;
    if exists(select 1 from cadastro.acesso_paciente where usuario_id=usuario) or exists(select 1 from public.usuario where id=usuario) then raise exception 'RESERVA_CONCEDEU_CASO_OU_PERFIL';end if;
    -- Efeito do provedor reproduzido no UUID reservado, sem chamada externa.
@@ -296,6 +319,9 @@ begin
 end $$;
 
 -- Caso A permitido, caso B negado para CM/Prof/Familiar dos dois métodos.
+-- Native provenance trigger remains enabled: explicitly configure the fictitious open lot.
+insert into operacao.lote_teste(id,identificacao,responsavel_usuario_id) values('45000000-0000-4000-8000-000000000001','lote-acessos-fixture','11000000-0000-4000-8000-000000000001');
+insert into operacao.configuracao_lote_teste(lote_teste_id) values('45000000-0000-4000-8000-000000000001');
 insert into cadastro.paciente(id,nome_cifrado,criado_por_usuario_id) values('44000000-0000-4000-8000-000000000001',public.acessos_envelope_fixture(),'11000000-0000-4000-8000-000000000001'),('44000000-0000-4000-8000-000000000002',public.acessos_envelope_fixture(),'11000000-0000-4000-8000-000000000001');
 insert into cadastro.acesso_paciente(id,paciente_id,usuario_id,concedido_por_usuario_id,motivo_concessao_cifrado) select gen_random_uuid(),'44000000-0000-4000-8000-000000000001',usuario_id,'11000000-0000-4000-8000-000000000001',public.acessos_envelope_fixture() from acessos_contas_fixture where funcao<>'administrador';
 update identidade.configuracao_sistema set valor='true' where chave in ('ffcm.turno.ativo','ffcm.diario.ativo');
@@ -317,7 +343,7 @@ do $$ declare c record;r jsonb;t jsonb;alvo uuid;acao text;begin
    foreach acao in array array['api.ler_diario','api.ler_linha_tempo','api.ler_documentos','api.ler_orientacoes','api.ler_plano_cuidado'] loop
     t:=public.acessos_assinar_fixture(jsonb_build_object('request_id',gen_random_uuid(),'paciente_id','44000000-0000-4000-8000-000000000001')||case when acao='api.ler_plano_cuidado' then jsonb_build_object('limite',20,'cursor',null) else '{}'::jsonb end,acao);
     set local role authenticated;
-    case acao when 'api.ler_diario' then r:=api.diario_privado(t);when 'api.ler_linha_tempo' then r:=api.linha_tempo_privado(t);when 'api.ler_documentos' then r:=api.documento_privado(t);when 'api.ler_orientacoes' then r:=api.orientacao_privado(t);else r:=api.plano_cuidado_privado(t);end case;
+    case acao when 'api.ler_diario' then r:=api.diario_privado(t);when 'api.ler_linha_tempo' then r:=api.linha_tempo_operacao_privada(t);when 'api.ler_documentos' then r:=api.documento_operacao_privada(t);when 'api.ler_orientacoes' then r:=api.orientacao_privada(t);else r:=api.plano_cuidado_privado(t);end case;
     reset role;
     if r->>'ok' is distinct from 'true' then raise exception 'FAMILIA_GERENCIADA_RLS: % % %',c.metodo,acao,r;end if;
    end loop;

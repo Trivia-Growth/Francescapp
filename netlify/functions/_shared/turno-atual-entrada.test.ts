@@ -1,3 +1,4 @@
+import { statusErroHttp } from '../../../packages/contracts/src/erros.ts';
 import { expect, it, vi } from 'vitest';
 import { criarEntradaTurnoNativa } from './turno-entrada-nativa.ts';
 
@@ -36,7 +37,9 @@ it('consulta UUID existente permanece distinta', async () => {
 it('query forjada e sessão ausente são recusadas sem consultar', async () => {
   const executar = operar();
   const entrada = criarEntradaTurnoNativa(dependencias, executar);
-  expect((await entrada.atender(pedido(`atual?profissional_usuario_id=${id}`))).status).toBe(400);
+  const forjada = await entrada.atender(pedido(`atual?profissional_usuario_id=${id}`));
+  expect(forjada.status).toBe(statusErroHttp.entrada_invalida);
+  expect(await forjada.json()).toMatchObject({ erro: { codigo: 'entrada_invalida' } });
   expect(
     (await entrada.atender(new Request(`https://example.test/api/pacientes/${id}/turnos/atual`)))
       .status,

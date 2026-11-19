@@ -24,11 +24,16 @@ const request = () =>
   });
 function portas() {
   const identidade = { usuario_id, session_id };
-  const cifra = criarCifraAutenticada({
+  const adaptadorCifra = criarCifraAutenticada({
     keyIdAtiva: 'teste',
     chavesDeCifra: { teste: new Uint8Array(32).fill(2) },
     chaveHmac: new Uint8Array(32).fill(4),
   });
+  const cifra = {
+    ...adaptadorCifra,
+    cifrar: vi.fn(adaptadorCifra.cifrar),
+    decifrar: vi.fn(adaptadorCifra.decifrar),
+  };
   return {
     autorizar: async () => ({ estado: 'autorizado' as const, identidade }),
     revalidar: async () => ({ estado: 'autorizado' as const, identidade }),
@@ -348,7 +353,7 @@ it.each([
   ['desconhecido', { [campoExtraId]: '42' }, []],
 ])('nega extra %s sem cifra ou RPC de gravação', async (_nome, valores, catalogo) => {
   const deps = portas();
-  const cifrar = vi.spyOn(deps.cifra, 'cifrar');
+  const cifrar = deps.cifra.cifrar;
   const resultado = await operarPlanoCuidadoNativo(
     request(),
     { ...comando, objetivo: { ...objetivo, camposExtras: valores } },
@@ -361,7 +366,7 @@ it.each([
 
 it('catálogo indisponível falha fechado antes da cifra', async () => {
   const deps = portas();
-  const cifrar = vi.spyOn(deps.cifra, 'cifrar');
+  const cifrar = deps.cifra.cifrar;
   const resultado = await operarPlanoCuidadoNativo(
     request(),
     { ...comando, objetivo: { ...objetivo, camposExtras: { [campoExtraId]: '42' } } },
@@ -380,7 +385,7 @@ it('catálogo indisponível falha fechado antes da cifra', async () => {
 it('perfil ou sessão sem autorização não consulta catálogo nem cifra valores', async () => {
   const deps = portas();
   const consultarCatalogo = vi.fn();
-  const cifrar = vi.spyOn(deps.cifra, 'cifrar');
+  const cifrar = deps.cifra.cifrar;
   const resultado = await operarPlanoCuidadoNativo(
     request(),
     { ...comando, objetivo: { ...objetivo, camposExtras: { [campoExtraId]: '42' } } },

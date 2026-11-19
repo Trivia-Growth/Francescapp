@@ -4,6 +4,21 @@ Cada tarefa indica requisito/cenário, dependência e evidência de aceite. A po
 
 Nenhuma tarefa autoriza deploy, migração remota, concessão de acesso ou uso de dados reais. Todos os dados de teste são fictícios.
 
+**Retomada de validações — 19/11/2026, após “Siga”:** as anotações abaixo sobre
+execução adiada descrevem a entrega até `0174144`. Verificações locais foram
+retomadas em Node 22.23.2 e PostgreSQL 17.11, com fixtures fictícias. Tipos,
+Deno, build e configuração local passaram. Falhas da primeira suíte foram
+tratadas com reexecução somente dos arquivos afetados; skips de PostgreSQL
+exigem runners próprios e não contam como prova de autorização. Matrizes de
+Anamnese, configuração, segredos, acessos, Documentos, Plano 1900 nas duas
+variantes e Plano de crise DF-021 passaram localmente. Os seis runners SQL de
+execução/recuperação de turno passaram; segunda chamada completa do gate saiu 0
+após mudanças de contrato/permissão/migration, com 1.787 testes e limites dos
+skips registrados no relatório. 0.6.1 e 10.4 continuam abertos. Rastro remoto 503 não
+obtido (logs 401, variável Supabase ausente); nenhuma ativação remota presumida.
+Evidências atuais e limites na
+[entrega complementar](../../../docs/processo/entrega-complementar-19-11-2026.md).
+
 **Suspensão histórica de 17/11/2026:** a implementação aguardava liberação da frente de frontend. **Retomada autorizada em 18/11/2026:** o solicitante determinou seguir nas features não impedidas, com agentes Sol em paralelo, deixando as validações para depois. O recorte retomado alcança os grupos 1 e 2, conforme ordem do briefing; grupo 3 não iniciado naquela retomada (registro histórico superado pela preparação integral abaixo). As provas de autorização/RLS permanecem obrigatórias antes da ativação. A autorização DF-022 para operações externas não alcança dados reais nem operações destrutivas; esta retomada prepara código e migration local, sem presumir ativação remota.
 
 ## 0. Pré-condições
@@ -60,7 +75,7 @@ Depende da auditoria 0.6; integração/ativação permanecem bloqueadas por 0.6.
 - [ ] 1.3 Criar `packages/contracts/src/sinal-vital.ts` com tipo, valor numérico, unidade compatível com o tipo, instante de aferição e vínculo de turno. Evidência: teste cobrindo valor não numérico e unidade incompatível rejeitados (FR-058, cenário "Medida fora do formato é recusada").
 - [ ] 1.4 Criar `packages/contracts/src/medicacao.ts` com item prescrito (nome, dose, via, horários, vigência, fonte documental) e administração (referência a `item_id`+`versao`, situação, motivo condicional). Evidência: teste cobrindo item sem fonte documental rejeitado e situação diferente de administrado sem motivo rejeitada (FR-059, FR-060).
 - [ ] 1.5 Criar `packages/contracts/src/ocorrencia-turno.ts` com descrição, instante, providência e anexo opcional. Evidência: teste cobrindo criação válida e rejeição de campo extra (FR-061).
-- [ ] 1.6 Registrar os contratos novos em `packages/contracts/src/index.ts` e as rotas em `rotas.ts`, seguindo o padrão existente. Evidência: `pnpm run verificar:rapido` sem erro de lint ou tipo.
+- [ ] 1.6 Registrar/exportar contratos de domínio e conferir os catálogos HTTP nativos vigentes (`turno-http.ts`, `turno-passagem.ts`, `turno-execucao-http.ts`, barreiras e conversão atômica). Removidas de `rotas.ts` 12 declarações genéricas órfãs/preparadas: seus handlers usam composição assinada nativa, e quatro caminhos clínicos antigos não tinham handler. Não inventar RPC simples nem ampliar allowlist D-09. Evidência: provas de contratos e parser nativo, além de lint/tipos na ativação.
 
 **Implementação local do grupo 1 — 18/11/2026:** os cinco contratos, exports,
 rotas e `packages/contracts/test/turno-execucao.test.ts` foram escritos por Sol.
@@ -340,3 +355,9 @@ de inclusão dos seletores históricos de Diário/Tarefa; releitura independente
 e prova de transporte real do operador escritas, sem executar o teste. Nenhum
 gate de comportamento, SQL/RLS, concorrência, build, Deno ou browser executado.
 Isso não fecha 0.6.1, 0.6.2/14 nem 10.4; fatia continua sem ativação aprovada.
+
+
+**Validação local em andamento — 19/11/2026:** runner clínico completo saiu 0 em PostgreSQL descartável, após corrigir falhas reais de fonte/fixtures. Inclui cadeia NOSUPER, matriz positiva/negativa Auth/RLS, ACL exata, retificação, família, Storage sintético, manifesto acima de 200 itens, recibo PDF e leitura histórica. Migração aditiva 2450 restaura apenas EXECUTE authenticated no wrapper público perdido em 203900; ordem histórica preservada. Concorrência/reconciliação têm resultados próprios pendentes nesta etapa. Isso não comprova Auth/Vault/Storage remotos nem encerra os gates externos 0.6.1/10.4.
+
+
+**Resultado DB Turno local — 19/11/2026:** seis alvos saíram 0: clínico; clínico concorrente; reconciliação SET false/true; reconciliação concorrente SET false/true. Últimas duas variantes carregaram novamente toda a matriz clínica final, com 2450 e negativas de exportação. Dados e adapters Auth/Vault/Storage são fictícios, PostgreSQL/locks/ACL/RLS reais em clusters descartáveis sem TCP; jobs pg_cron desativados. Corridas incluem revogação antes/depois do commit, epoch/recibo atômico e expiração de atestado durante espera na auditoria com rollback. Logs locais preservados em `/tmp/turno-*-validacao.log`. Fonte congelada para revisão independente; nenhuma ativação ou migração remota realizada.

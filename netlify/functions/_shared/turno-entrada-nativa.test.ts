@@ -44,3 +44,39 @@ it('não apresenta sucesso quando composição informa persistência incerta', a
   const resposta = await criarEntradaTurnoNativa(dependencias, operar).atender(pedido(corpo));
   expect((await resposta.json()).erro.codigo).toBe('pendencia_externa');
 });
+
+it('parser HTTP nativo recusa sessão ou idempotência ausente antes da composição', async () => {
+  // Somente parser real; composição simulada não comprova autorização SQL/Auth.
+  const dependencias = {} as Parameters<typeof criarEntradaTurnoNativa>[0];
+  const operar = vi.fn(async () => ({
+    ok: false as const,
+    erro: { codigo: 'sem_permissao' },
+    request_id: crypto.randomUUID(),
+  }));
+  const entrada = criarEntradaTurnoNativa(dependencias, operar);
+  const corpo = { turno_id: id, reserva_id: id, geracao_reserva: 1 };
+  const pedido = (cabecalhos: Record<string, string>) =>
+    new Request(`https://example.test/api/pacientes/${id}/turnos/abrir`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...cabecalhos },
+      body: JSON.stringify(corpo),
+    });
+  expect(
+    (await entrada.atender(pedido({ 'x-chave-idempotencia': 'ficticio-1234567890' }))).status,
+  ).toBe(401);
+  expect((await entrada.atender(pedido({ 'x-sessao': id }))).status).toBe(422);
+  expect(operar).not.toHaveBeenCalled();
+  expect(
+    (
+      await entrada.atender(
+        pedido({ 'x-sessao': id, 'x-chave-idempotencia': 'ficticio-1234567890' }),
+      )
+    ).status,
+  ).toBe(403);
+  expect(operar).toHaveBeenCalledOnce();
+  expect(operar).toHaveBeenCalledWith(
+    expect.any(Request),
+    { ...corpo, operacao: 'abrir', paciente_id: id },
+    dependencias,
+  );
+});

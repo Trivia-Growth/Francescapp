@@ -1,6 +1,7 @@
 -- PREPARADO, NÃO EXECUTADO. Auditoria de recusa não exige cofre nem concede operação.
 -- Chamada direta pode registrar só tentativa negada do próprio Auth; isso é permitido.
 do $$
+#variable_conflict use_variable
 declare ator uuid:='10000000-0000-4000-8000-000000000002'; sessao uuid:='20000000-0000-4000-8000-000000000002'; acao text; req uuid; antes bigint; reservas bigint;
 begin
  perform set_config('request.jwt.claims',jsonb_build_object('sub',ator,'session_id',sessao,'amr',jsonb_build_array(jsonb_build_object('method','oauth')))::text,true);
@@ -29,7 +30,8 @@ begin
  -- Conta Auth sem public.usuario pode auditar a própria negativa sem inventar admissão.
  ator:='10000000-0000-4000-8000-000000000099'; sessao:='20000000-0000-4000-8000-000000000099';
  perform set_config('request.jwt.claims',jsonb_build_object('sub',ator,'session_id',sessao)::text,true); req:=gen_random_uuid();
- if api.registrar_negacao_turno(req,'api.abrir_turno') is distinct from true or not exists(select 1 from auditoria.evento where request_id=req and ator_auth_id=ator and ator_usuario_id is null and resultado='negado') or exists(select 1 from public.usuario where id=ator) then raise exception 'NEGACAO_AUTH_NAO_ADMITIDO_FALHOU'; end if;
+ if api.registrar_negacao_turno(req,'api.abrir_turno') is distinct from true then raise exception 'NEGACAO_AUTH_NAO_ADMITIDO_RETORNO_FALHOU';end if;
+ if not exists(select 1 from auditoria.evento where request_id=req and ator_auth_id=ator and ator_usuario_id is null and resultado='negado') or exists(select 1 from public.usuario where id=ator) then raise exception 'NEGACAO_AUTH_NAO_ADMITIDO_FALHOU'; end if;
  update auth.sessions set not_after=clock_timestamp()-interval '1 second' where id=sessao;
  begin perform api.registrar_negacao_turno(gen_random_uuid(),'api.abrir_turno'); raise exception 'SESSAO_AUTH_EXPIRADA_ACEITA'; exception when insufficient_privilege then null; end;
  update auth.sessions set not_after=null where id=sessao;

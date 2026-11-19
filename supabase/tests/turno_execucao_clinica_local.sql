@@ -1,5 +1,5 @@
 \set ON_ERROR_STOP on
--- WRITTEN, NOT EXECUTED. Full real SQL authority helper; synthetic Auth/Vault/Storage.
+-- EXECUTADO LOCALMENTE em 19/11/2026: runner clínico EXIT0. Auth/Vault/Storage sintéticos.
 -- Loading prior fixture preserves both authentication methods and existing regressions.
 \ir acessos_gerenciados_local.sql
 update identidade.sessao set encerrada_em=null,revogada_em=null,revogada_por_usuario_id=null,motivo_revogacao_cifrado=null where usuario_id in(select usuario_id from acessos_contas_fixture);
@@ -12,16 +12,37 @@ grant usage on schema storage to authenticated;
 grant select,insert,update,delete on storage.objects to authenticated;
 -- Mimic an unrelated permissive policy: new restrictive policies must still isolate bucket.
 create policy fixture_storage_ampla on storage.objects to authenticated using(true) with check(true);
-create temp table turno_core_acl_antes as select oid,proowner,proacl,prosecdef,proconfig from pg_proc where pronamespace in('api'::regnamespace,'identidade'::regnamespace,'operacao'::regnamespace);
+create temp table turno_core_acl_antes as select oid,proowner,proacl,prosecdef,proconfig,prosrc from pg_proc where pronamespace in('api'::regnamespace,'identidade'::regnamespace,'operacao'::regnamespace);
 create temp table turno_core_members_antes as select * from pg_auth_members;
+create temp table turno_core_delegacoes_esperadas as select assinatura::regprocedure::oid oid from(values('identidade.contexto_acesso_vigente(boolean)'),('api.consultar_sessao_familiar_nativa(uuid)'),('identidade.verificar_assinatura_atestado(text,text,jsonb,jsonb,text)'),('api.tarefa_cuidado_privado(jsonb)'),('api.ler_tarefas_cuidado_privado(jsonb)'),('api.diario_privado(jsonb)'))v(assinatura);
+
+create temp table turno_core_corpos_esperados as select assinatura::regprocedure::oid oid,hash_final from(values
+('api.saude_operacao_privada(jsonb)','d7e4113b74ee313a17fb27ba513a9fd3'),
+('api.contexto_cuidado_operacao_privada(jsonb)','efcc3e79bb89b219c0c565b69324decf'),
+('api.rede_cuidado_operacao_privada(jsonb)','fbe468e4d5e8bf10848b0e0e4ffd6e24'),
+('api.tarefa_cuidado_operacao_privada(jsonb)','8957135dd8c357590fa2632a9bfd8374'),
+('api.encaminhamento_operacao_privada(jsonb)','8587623e87d1b4e3a9e18cc47f1c2632'),
+('api.orientacao_operacao_privada(jsonb)','b6b01407ddfcfb2a90288f9930ba3063'),
+('api.documento_operacao_privada(jsonb)','022f2c9bc250c1af769e1a32bb7bbe64'),
+('api.plano_cuidado_operacao_privada(jsonb)','299e9bff61bfd9bfcf44055b9c42713f'),
+('api.diario_operacao_privada(jsonb)','8c00005ac10203a5bc71d24e3c80fc06'),
+('operacao.campo_extra_plano_operacao_privada(jsonb)','c322dd0a3e5a5319067adb6047348ebe'),
+('api.exportacao_operacao_privada(jsonb)','cf4567d18f8d56f4008f39ef0a20055e'))v(assinatura,hash_final);
+
 -- Installation without SUPERUSER; explicit table/schema ownership inherited only in fixture.
 create role turno_core_migrador_fixture nologin nosuperuser createrole inherit;
-grant turno_core_migrador_fixture to current_user with inherit false,set true;
+-- Bootstrap SUPER may SET this NOSUPER role; avoid inverse membership cycle.
 do $$ declare dono text;begin
- for dono in select distinct r.rolname from pg_roles r where r.oid in(select relowner from pg_class where relnamespace in('public'::regnamespace,'cadastro'::regnamespace,'identidade'::regnamespace,'operacao'::regnamespace,'auditoria'::regnamespace,'storage'::regnamespace) union select nspowner from pg_namespace where nspname in('api','public','cadastro','identidade','operacao','auditoria','storage')) loop execute format('grant %I to turno_core_migrador_fixture with inherit true,set false',dono);end loop;
+ for dono in select distinct r.rolname from pg_roles r where r.rolname<>'pg_database_owner' and r.oid in(select relowner from pg_class where relnamespace in('public'::regnamespace,'cadastro'::regnamespace,'identidade'::regnamespace,'operacao'::regnamespace,'auditoria'::regnamespace,'storage'::regnamespace) union select nspowner from pg_namespace where nspname in('api','public','cadastro','identidade','operacao','auditoria','storage')) loop execute format('grant %I to turno_core_migrador_fixture with inherit true,set false',dono);end loop;
  for dono in select rolname from pg_roles where rolname like 'ffcmapp_%' and not rolsuper and not rolbypassrls loop execute format('grant %I to turno_core_migrador_fixture with admin true,inherit false,set false',dono);end loop;
 end $$;
+do $$begin if (select rolsuper or rolbypassrls from pg_roles where rolname='turno_core_migrador_fixture') or pg_has_role('turno_core_migrador_fixture',current_user,'SET') then raise exception 'MIGRADOR_FIXTURE_PRIVILEGIADO';end if;end $$;
 set role turno_core_migrador_fixture;
+-- Migration251200 catalog guard needs migrator visibility, never owner exposure-column grant.
+do $$begin
+ if not exists(select 1 from identidade.configuracao_sistema where chave='ffcm.diario.conversao_tarefa_ativa' and tipo='booleano' and exposicao='servidor') then raise exception 'GUARD_CONFIGURACAO_NOSUPER_INVISIVEL';end if;
+ if has_column_privilege('ffcmapp_conversao_diario_tarefa_owner','identidade.configuracao_sistema','exposicao','SELECT') then raise exception 'EXPOSICAO_OWNER_AMPLIADA';end if;
+end $$;
 \ir ../migrations/20261125180000_documentos_preautorizacao.sql
 \ir ../migrations/20261125185000_documentos_pastas.sql
 \ir ../migrations/20261125190000_plano_campos_extras.sql
@@ -34,10 +55,20 @@ set role turno_core_migrador_fixture;
 \ir ../migrations/20261125220000_turno_localizacao.sql
 \ir ../migrations/20261125230000_turno_anexos.sql
 \ir ../migrations/20261125240000_exportacao_metadata_manifesto.sql
+\ir ../migrations/20261125245000_exportacao_wrapper_autenticado.sql
 \ir ../migrations/20261125250000_exportacao_leitura_versionada.sql
 reset role;
 do $$ declare t text;begin
- if exists(select * from turno_core_acl_antes except select oid,proowner,proacl,prosecdef,proconfig from pg_proc) then raise exception 'LEGACY_FUNCTION_CHANGED';end if;
+ if exists(select 1 from turno_core_corpos_esperados e join pg_proc p on p.oid=e.oid where md5(p.prosrc)<>e.hash_final) then raise exception 'LEGACY_PATCH_HASH_FINAL_INESPERADO';end if;
+ if exists(select 1 from turno_core_acl_antes a join pg_proc p on p.oid=a.oid where a.prosrc is distinct from p.prosrc and not exists(select 1 from turno_core_corpos_esperados e where e.oid=p.oid)) then raise exception 'LEGACY_BODY_FORA_ALLOWLIST';end if;
+ if (select count(*) from turno_core_acl_antes a join pg_proc p on p.oid=a.oid where a.prosrc is distinct from p.prosrc)<>11 then raise exception 'DELTA_CORPOS_DIFERENTE_DE_ONZE';end if;
+ -- Six narrow helper delegations are explicit migration2000 changes, never app grants.
+ if exists(select 1 from turno_core_acl_antes a join pg_proc p on p.oid=a.oid where row(a.proowner,a.prosecdef,a.proconfig) is distinct from row(p.proowner,p.prosecdef,p.proconfig)) then raise exception 'LEGACY_OWNER_CONFIG_CHANGED';end if;
+ if exists(select a.oid,x.* from turno_core_acl_antes a cross join lateral aclexplode(coalesce(a.proacl,acldefault('f',a.proowner))) x except select p.oid,x.* from pg_proc p cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) x) then raise exception 'LEGACY_ACL_REMOVED';end if;
+ if exists(select 1 from (select p.oid,x.* from pg_proc p join turno_core_acl_antes a on a.oid=p.oid cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) x except select a.oid,x.* from turno_core_acl_antes a cross join lateral aclexplode(coalesce(a.proacl,acldefault('f',a.proowner))) x) d join pg_proc p on p.oid=d.oid where not(d.grantor=p.proowner and d.privilege_type='EXECUTE' and not d.is_grantable and ((d.oid in(select oid from turno_core_delegacoes_esperadas) and d.grantee='ffcmapp_turno_execucao_owner'::regrole) or (d.oid='api.exportacao_operacao_privada(jsonb)'::regprocedure and d.grantee='authenticated'::regrole)))) then raise exception 'LEGACY_ACL_AMPLIADA';end if;
+ if (select count(*) from (select p.oid,x.* from pg_proc p join turno_core_acl_antes a on a.oid=p.oid cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) x except select a.oid,x.* from turno_core_acl_antes a cross join lateral aclexplode(coalesce(a.proacl,acldefault('f',a.proowner))) x) d)<>7 then raise exception 'DELTA_ACL_DIFERENTE_DE_SETE';end if;
+ if exists(select 1 from turno_core_acl_antes a join pg_proc p on p.oid=a.oid where a.oid not in(select oid from turno_core_delegacoes_esperadas) and a.oid<>'api.exportacao_operacao_privada(jsonb)'::regprocedure and a.proacl is distinct from p.proacl) then raise exception 'LEGACY_OUTRAS_ACLS_ALTERADAS';end if;
+
  if exists(select * from turno_core_members_antes except select * from pg_auth_members) then raise exception 'LEGACY_MEMBERSHIP_REMOVED';end if;
  foreach t in array array['cadastro.turno_execucao_registro','cadastro.turno_medida_versao','cadastro.turno_prescricao_versao','cadastro.turno_administracao_versao','cadastro.turno_ocorrencia_versao','cadastro.turno_fundamento_familiar_versao','cadastro.turno_consentimento_localizacao','cadastro.turno_localizacao','cadastro.turno_anexo'] loop
   if has_table_privilege('authenticated',t,'SELECT,INSERT,UPDATE,DELETE') or has_table_privilege('anon',t,'SELECT,INSERT,UPDATE,DELETE') or has_table_privilege('service_role',t,'SELECT,INSERT,UPDATE,DELETE') then raise exception 'DIRECT_CLINICAL_GRANT: %',t;end if;
@@ -50,7 +81,7 @@ create function public.turno_core_pedir_fixture(e jsonb,acao text) returns jsonb
 declare transporte jsonb;r jsonb;begin
  transporte:=public.acessos_assinar_fixture(e,acao);set local role authenticated;
  if acao in('api.gravar_execucao_turno','api.consultar_execucao_turno','api.consultar_catalogo_turno','api.configurar_catalogo_turno','api.conceder_medicacao_turno','api.consultar_concessoes_medicacao_turno','api.consultar_conversao_ocorrencia_turno','api.converter_ocorrencia_turno') then r:=api.turno_execucao(transporte);
- elsif acao in('api.gravar_fundamento_turno','api.consultar_fundamento_turno','api.consultar_relatorio_turno','api.registrar_exportacao_turno') then r:=api.turno_relatorio(transporte);
+ elsif acao in('api.gravar_fundamento_turno','api.consultar_fundamento_turno','api.consultar_relatorio_turno','api.consultar_exportacao_turno','api.registrar_exportacao_turno') then r:=api.turno_relatorio(transporte);
  elsif acao in('api.reservar_anexo_turno','api.confirmar_anexo_turno','api.consultar_anexo_turno','api.listar_anexos_turno') then r:=api.turno_anexo(transporte);
  else r:=api.turno_localizacao(transporte);end if;
  reset role;return r;
@@ -75,6 +106,23 @@ insert into turno_core_estado select p.usuario_id,p.sid,c.usuario_id,c.sid,f.usu
 with evento as(insert into auditoria.evento(id,ator_usuario_id,acao,tipo_objeto,objeto_id,resultado,request_id) select gen_random_uuid(),cm,'fixture_case_manager','paciente',paciente,'permitido',gen_random_uuid() from turno_core_estado returning id)
 insert into cadastro.acompanhamento_caso(id,paciente_id,versao,responsavel_usuario_id,auditoria_id,ator_usuario_id) select gen_random_uuid(),x.paciente,coalesce((select max(a.versao) from cadastro.acompanhamento_caso a where a.paciente_id=x.paciente),0)+1,x.cm,evento.id,x.cm from turno_core_estado x,evento;
 insert into cadastro.turno(id,paciente_id,profissional_usuario_id,aberto_em,parametros) select turno,paciente,profissional,clock_timestamp()-interval '30 minutes','{"duracao_padrao_minutos":480,"tolerancia_atraso_minutos":15,"tratamento_nao_encerrado":"sinalizar_pendencia"}' from turno_core_estado;
+-- DF-023 regression: first helper invocation in a fresh backend is INTERNAL, before Google.
+create extension if not exists dblink;
+create function public.turno_contexto_interno_frio_fixture(ator uuid,sid uuid) returns boolean language plpgsql as $$declare ctx jsonb;begin
+ perform public.acessos_claims_fixture(ator,sid,'password');
+ set local role ffcmapp_turno_execucao_owner;
+ ctx:=identidade.contexto_acesso_vigente(false);
+ reset role;
+ return ctx->>'perfil'='profissional' and ctx->>'metodo'='interno';
+end $$;
+revoke all on function public.turno_contexto_interno_frio_fixture(uuid,uuid) from public,anon,authenticated,service_role;
+select dblink_connect('turno_interno_frio',format('dbname=%L host=%L user=%L application_name=turno_interno_frio',current_database(),split_part(current_setting('unix_socket_directories'),',',1),current_user));
+do $$declare x turno_core_estado;valido boolean;begin
+ select * into x from turno_core_estado;
+ select r.ok into valido from dblink('turno_interno_frio',format('select public.turno_contexto_interno_frio_fixture(%L::uuid,%L::uuid)',x.profissional,x.sid)) as r(ok boolean);
+ if valido is distinct from true then raise exception 'CONTEXTO_INTERNO_PRIMEIRA_CHAMADA_NEGADO';end if;
+end $$;
+select dblink_disconnect('turno_interno_frio');
 -- Structured observations, immutable correction, cursor and chronology moved by correction.
 do $$ declare x turno_core_estado;e jsonb;r jsonb;d jsonb;rotina text;antes bigint;begin
  select * into x from turno_core_estado;perform public.acessos_claims_fixture(x.profissional,x.sid,'password');
@@ -191,9 +239,9 @@ end $$;
 -- Storage RLS uses requester authority again, even under an existing permissive policy.
 do $$ declare x turno_core_estado;id uuid:=gen_random_uuid();e jsonb;r jsonb;nome text;quantidade integer;begin
  select * into x from turno_core_estado;perform public.acessos_claims_fixture(x.profissional,x.sid,'password');
- e:=jsonb_build_object('request_id',gen_random_uuid(),'paciente_id',x.paciente,'anexo_id',id,'ocorrencia_id',x.ocorrencia,'ocorrencia_versao',1,'classificacao','execucao_turno','audiencia','equipe_e_familia','mime_type','image/png','tamanho_bytes',12,'chave_idempotencia','anexo-fixture-1','digest_idempotencia',repeat('f',43));
+ e:=jsonb_build_object('request_id',gen_random_uuid(),'paciente_id',x.paciente,'anexo_id',id,'ocorrencia_id',x.ocorrencia,'ocorrencia_versao',1,'classificacao','execucao_turno','audiencia','equipe_e_familia','mime_type','image/png','tamanho_bytes',12,'chave_idempotencia','anexo-fixture-001','digest_idempotencia',repeat('f',43));
  -- Same 3 MiB boundary at metadata/Storage and HTTP; actual Storage I/O remains separate.
- if (select file_size_limit from storage.buckets where id='turno-ocorrencias') is distinct from 3145728::bigint then raise exception 'BUCKET_LIMITE_DIVERGENTE';end if;
+ if (select bucket.file_size_limit from storage.buckets bucket where bucket.id='turno-ocorrencias') is distinct from 3145728::bigint then raise exception 'BUCKET_LIMITE_DIVERGENTE';end if;
  begin
   r:=public.turno_core_pedir_fixture(e||jsonb_build_object('anexo_id',gen_random_uuid(),'chave_idempotencia','anexo-boundary-fixture','tamanho_bytes',3145728),'api.reservar_anexo_turno');
   if r->>'ok' is distinct from 'true' then raise exception 'ANEXO_LIMITE_EXATO_NEGADO: %',r;end if;
@@ -296,7 +344,7 @@ do $$ declare x turno_core_estado;tarefa uuid:=gen_random_uuid();evolucao uuid:=
  antes_tarefa:=(select count(*) from cadastro.tarefa_cuidado);antes_diario:=(select count(*) from cadastro.diario_registro);
  r:=public.turno_core_pedir_fixture(jsonb_set(e,'{diario,entrada,atestado,mac}',to_jsonb(repeat('z',43))),'api.converter_ocorrencia_turno');
  if r->>'ok' is distinct from 'false' or r#>>'{erro,codigo}' not in ('sem_permissao','conflito') or r ? 'dados' then raise exception 'CONVERSAO_FALHA_NAO_NEGADA: %',r;end if;
- if (select count(*) from cadastro.tarefa_cuidado)<>antes_tarefa or (select count(*) from cadastro.diario_registro)<>antes_diario or exists(select 1 from operacao.turno_ocorrencia_conversao where ocorrencia_id=x.ocorrencia) or (select estado from operacao.reserva_tarefa_cuidado where id=reserva)<>'aberta' then raise exception 'CONVERSAO_PARCIAL_OU_RESERVA_CONFIRMADA';end if;
+ if (select count(*) from cadastro.tarefa_cuidado)<>antes_tarefa or (select count(*) from cadastro.diario_registro)<>antes_diario or exists(select 1 from operacao.turno_ocorrencia_conversao where ocorrencia_id=x.ocorrencia) or (select reserva_atual.estado from operacao.reserva_tarefa_cuidado reserva_atual where reserva_atual.id=reserva)<>'aberta' then raise exception 'CONVERSAO_PARCIAL_OU_RESERVA_CONFIRMADA';end if;
  r:=public.turno_core_pedir_fixture(e,'api.converter_ocorrencia_turno');if r->>'ok' is distinct from 'true' or r#>>'{dados,tarefa_id}' is distinct from tarefa::text or r#>>'{dados,evolucao_id}' is distinct from evolucao::text then raise exception 'CONVERSAO_POSITIVA: %',r;end if;
  r:=public.turno_core_pedir_fixture(e,'api.converter_ocorrencia_turno');if r->>'repeticao' is distinct from 'true' or (select count(*) from cadastro.tarefa_cuidado where id=tarefa)<>1 or (select count(*) from cadastro.diario_registro where id=evolucao)<>1 then raise exception 'CONVERSAO_REPLAY_DUPLICOU';end if;
  update cadastro.acesso_paciente set revogada_em=clock_timestamp(),revogado_por_usuario_id=(select cm from turno_core_estado),motivo_revogacao_cifrado=public.acessos_envelope_fixture() where paciente_id=x.paciente and usuario_id=x.profissional;
@@ -338,6 +386,27 @@ do $$ declare x turno_core_estado;origem uuid;exportacao uuid:=gen_random_uuid()
  if r->>'resultado_id' is distinct from exportacao::text or r->>'repeticao' is distinct from 'true' or (select count(*) from cadastro.exportacao_caso where id in(exportacao,outra))<>2 then raise exception 'REPLAY_ESCOLHEU_PRIMEIRA_LISTA_OU_DUPLICOU';end if;
 end $$;
 
+-- Restored wrapper remains a live-authorized staff boundary, never direct data access.
+do $$declare x turno_core_estado;e jsonb;t jsonb;r jsonb;antes bigint;caso_alheio uuid:=gen_random_uuid();begin
+ select * into x from turno_core_estado;antes:=(select count(*) from cadastro.exportacao_caso);
+ e:=jsonb_build_object('request_id',gen_random_uuid(),'paciente_id',x.paciente);
+ perform public.acessos_claims_fixture(x.familiar,x.familiar_sid,'password');
+ t:=public.acessos_assinar_fixture(e,'api.listar_exportacoes');set local role authenticated;r:=api.exportacao_operacao_privada(t);reset role;
+ if r#>>'{erro,codigo}' is distinct from 'sem_permissao' or r ? 'dados' then raise exception 'EXPORTACAO_FAMILIA_PERMITIDA: %',r;end if;
+ perform public.acessos_claims_fixture(x.profissional,x.sid,'password');
+ t:=public.acessos_assinar_fixture(e||jsonb_build_object('paciente_id',caso_alheio),'api.listar_exportacoes');set local role authenticated;r:=api.exportacao_operacao_privada(t);reset role;
+ if r#>>'{erro,codigo}' is distinct from 'sem_permissao' or r ? 'dados' then raise exception 'EXPORTACAO_OUTRO_CASO: %',r;end if;
+ update cadastro.acesso_paciente set revogada_em=clock_timestamp(),revogado_por_usuario_id=x.cm,motivo_revogacao_cifrado=public.acessos_envelope_fixture(),versao=versao+1 where paciente_id=x.paciente and usuario_id=x.profissional;
+ t:=public.acessos_assinar_fixture(e,'api.listar_exportacoes');set local role authenticated;r:=api.exportacao_operacao_privada(t);reset role;
+ if r#>>'{erro,codigo}' is distinct from 'sem_permissao' or r ? 'dados' or (select count(*) from cadastro.exportacao_caso)<>antes then raise exception 'EXPORTACAO_REVOGADA: %',r;end if;
+ update cadastro.acesso_paciente set revogada_em=null,revogado_por_usuario_id=null,motivo_revogacao_cifrado=null,versao=versao+1 where paciente_id=x.paciente and usuario_id=x.profissional;
+ if not exists(select 1 from auditoria.evento where request_id=(e->>'request_id')::uuid and resultado='negado') then raise exception 'EXPORTACAO_NEGACAO_SEM_AUDITORIA';end if;
+ set local role authenticated;
+ begin perform 1 from cadastro.exportacao_caso limit 1;raise exception 'EXPORTACAO_DIRETA_PERMITIDA';exception when insufficient_privilege then null;end;
+ reset role;
+ if has_function_privilege('anon','api.exportacao_operacao_privada(jsonb)','EXECUTE') or has_function_privilege('service_role','api.exportacao_operacao_privada(jsonb)','EXECUTE') then raise exception 'EXPORTACAO_EXECUTOR_AMPLIADO';end if;
+end $$;
+
 -- Final PDF receipt is written only for the exact snapshot and digest of generated bytes.
 do $$ declare x turno_core_estado;e jsonb;r jsonb;token uuid;id uuid:=gen_random_uuid();antes bigint;begin
  select * into x from turno_core_estado;perform public.acessos_claims_fixture(x.profissional,x.sid,'password');
@@ -353,7 +422,7 @@ end $$;
 -- Exact historical reads use each domain's own wrapper. Latest default is unchanged.
 create function public.exportacao_versionada_pedir_fixture(e jsonb,acao text) returns jsonb language plpgsql as $$declare t jsonb;r jsonb;begin
  t:=public.acessos_assinar_fixture(e,acao);set local role authenticated;
- case acao when 'api.ler_diario' then r:=api.diario_operacao_privada(t);when 'api.ler_saude' then r:=api.saude_operacao_privada(t);when 'api.ler_contexto_cuidado' then r:=api.contexto_cuidado_privado(t);when 'api.ler_rede_cuidado' then r:=api.rede_cuidado_privado(t);when 'api.ler_tarefas_cuidado' then r:=api.ler_tarefas_cuidado_privado(t);when 'api.ler_encaminhamentos' then r:=api.encaminhamento_privado(t);when 'api.ler_orientacoes' then r:=api.orientacao_privada(t);when 'api.ler_documentos' then r:=api.documento_operacao_privada(t);when 'api.ler_plano_cuidado' then r:=api.plano_cuidado_privado(t);end case;
+ case acao when 'api.ler_diario' then r:=api.diario_privado(t);when 'api.ler_saude' then r:=api.saude_operacao_privada(t);when 'api.ler_contexto_cuidado' then r:=api.contexto_cuidado_privado(t);when 'api.ler_rede_cuidado' then r:=api.rede_cuidado_privado(t);when 'api.ler_tarefas_cuidado' then r:=api.ler_tarefas_cuidado_privado(t);when 'api.ler_encaminhamentos' then r:=api.encaminhamento_privado(t);when 'api.ler_orientacoes' then r:=api.orientacao_privada(t);when 'api.ler_documentos' then r:=api.documento_operacao_privada(t);when 'api.ler_plano_cuidado' then r:=api.plano_cuidado_privado(t);end case;
  reset role;return r;
 end $$;
 revoke all on function public.exportacao_versionada_pedir_fixture(jsonb,text) from public,anon,authenticated,service_role;

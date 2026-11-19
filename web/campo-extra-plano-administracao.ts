@@ -1,7 +1,7 @@
 import type { CampoExtraCatalogo } from '../packages/contracts/src/plano-cuidado.ts';
 import { contratosRotas } from '../packages/contracts/src/rotas.ts';
 import type { ServicoPlanoCuidado } from './plano-cuidado.ts';
-import { exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
+import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
 
 /** Metadados globais. Cada escrita é reautorizada pelo servidor e pelo banco. */
 export function montarAdministracaoPlano(
@@ -70,7 +70,10 @@ export function montarAdministracaoPlano(
   );
   const falha = (erro: unknown) => {
     if (!ativa) return;
-    if (exigeNovoAcesso(erro)) {
+    if (
+      exigeNovoAcesso(erro) &&
+      !(erro instanceof FalhaApi && erro.codigo === 'pendencia_externa')
+    ) {
       ativa = false;
       raiz.replaceChildren();
       acessoPerdido(erro);

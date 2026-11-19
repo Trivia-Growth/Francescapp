@@ -1,16 +1,3 @@
-import {
-  converterDiarioTarefaSchema,
-  reciboConversaoDiarioTarefaSchema,
-} from './conversao-diario-tarefa.ts';
-import { aberturaTurnoSchema, encerramentoTurnoSchema, turnoSchema } from './turno.ts';
-import {
-  criacaoTurnoPrevistoSchema,
-  substituicaoTurnoSchema,
-  turnoPrevistoSchema,
-} from './turno-escala.ts';
-import { criacaoSinalVitalSchema } from './sinal-vital.ts';
-import { criacaoItemMedicacaoSchema, criacaoAdministracaoMedicacaoSchema } from './medicacao.ts';
-import { criacaoOcorrenciaTurnoSchema } from './ocorrencia-turno.ts';
 import { z } from 'zod';
 import { eventoAuditoriaSchema } from './auditoria.ts';
 import { anamneseSchema, salvarAnamneseSchema } from './anamnese.ts';
@@ -298,90 +285,11 @@ const operacaoConcluidaSchema = z
   .object({ id: uuidSchema, versao: z.number().int().positive() })
   .strict();
 
-/** Catálogo completo das rotas D-09; handlers não devem declarar DTOs próprios. */
+/** Catálogo D-09 ligado às assinaturas RPC desse protocolo.
+ * Turno e conversão atômica usam contratos/compositores nativos próprios; não declarar
+ * aqui endpoints preparados órfãos nem fingir uma RPC simples para esses protocolos.
+ */
 export const contratosRotas = {
-  consultarConversaoDiarioTarefa: consulta(
-    '/api/pacientes/:paciente_id/diario/:origem_id/conversao-tarefa',
-    vazioSchema,
-    reciboConversaoDiarioTarefaSchema.nullable(),
-    pacienteParametrosSchema.extend({ origem_id: uuidSchema }).strict(),
-  ),
-  converterDiarioTarefa: mutacaoIdempotente(
-    'POST',
-    '/api/pacientes/:paciente_id/diario/:origem_id/conversao-tarefa',
-    converterDiarioTarefaSchema,
-    reciboConversaoDiarioTarefaSchema,
-    pacienteParametrosSchema.extend({ origem_id: uuidSchema }).strict(),
-  ),
-  // Contratos preparados; exposição exige barreiras, auditoria e gates da fatia.
-  abrirTurno: mutacaoIdempotente(
-    'POST',
-    '/api/pacientes/:paciente_id/turnos/abrir',
-    aberturaTurnoSchema,
-    turnoSchema,
-    pacienteParametrosSchema,
-  ),
-  encerrarTurno: mutacaoIdempotente(
-    'POST',
-    '/api/pacientes/:paciente_id/turnos/encerrar',
-    encerramentoTurnoSchema,
-    turnoSchema,
-    pacienteParametrosSchema,
-  ),
-  consultarTurno: consulta(
-    '/api/pacientes/:paciente_id/turnos/:turno_id',
-    vazioSchema,
-    turnoSchema.nullable(),
-    pacienteParametrosSchema.extend({ turno_id: uuidSchema }).strict(),
-  ),
-  consultarTurnoAtual: consulta(
-    '/api/pacientes/:paciente_id/turnos/atual',
-    vazioSchema,
-    turnoSchema.nullable(),
-    pacienteParametrosSchema,
-  ),
-  criarTurnoPrevisto: mutacaoIdempotente(
-    'POST',
-    '/api/pacientes/:paciente_id/escala',
-    criacaoTurnoPrevistoSchema,
-    turnoPrevistoSchema,
-    pacienteParametrosSchema,
-  ),
-  substituirTurnoPrevisto: mutacaoIdempotente(
-    'POST',
-    '/api/pacientes/:paciente_id/escala/substituir',
-    substituicaoTurnoSchema,
-    operacaoConcluidaSchema,
-    pacienteParametrosSchema,
-  ),
-  registrarSinalVital: mutacaoIdempotente(
-    'POST',
-    '/api/pacientes/:paciente_id/sinais-vitais',
-    criacaoSinalVitalSchema,
-    operacaoConcluidaSchema,
-    pacienteParametrosSchema,
-  ),
-  registrarItemMedicacao: mutacaoIdempotente(
-    'POST',
-    '/api/pacientes/:paciente_id/medicacao-prescrita',
-    criacaoItemMedicacaoSchema,
-    operacaoConcluidaSchema,
-    pacienteParametrosSchema,
-  ),
-  registrarAdministracaoMedicacao: mutacaoIdempotente(
-    'POST',
-    '/api/pacientes/:paciente_id/administracoes-medicacao',
-    criacaoAdministracaoMedicacaoSchema,
-    operacaoConcluidaSchema,
-    pacienteParametrosSchema,
-  ),
-  registrarOcorrenciaTurno: mutacaoIdempotente(
-    'POST',
-    '/api/pacientes/:paciente_id/ocorrencias-turno',
-    criacaoOcorrenciaTurnoSchema,
-    operacaoConcluidaSchema,
-    pacienteParametrosSchema,
-  ),
   desafioTecnico: comandoDeSessao(
     '/api/sessao/desafio-tecnico',
     vazioSchema,

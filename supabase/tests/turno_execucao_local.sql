@@ -1,5 +1,5 @@
 \set ON_ERROR_STOP on
--- PREPARADO, NÃO EXECUTADO (validações adiadas pelo solicitante).
+-- EXECUTADO LOCALMENTE em 19/11/2026: runner predecessor EXIT0; Auth/Vault sintéticos.
 -- Matriz FR-055/FR-063: profissional+vínculo, outro caso, familiar/admin isolado,
 -- revogação de vínculo/sessão/concessão, replay/alteração, acesso direto, auditoria.
 -- Concorrência real em duas conexões e Auth real permanecem gates pendentes.

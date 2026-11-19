@@ -67,7 +67,7 @@ reset role;
 -- Helper lê somente metadados de autenticação. Nunca retorna nome, e-mail, casos ou conteúdo.
 create function identidade.contexto_acesso_vigente(p_admitir boolean default false) returns jsonb
 language plpgsql security definer set search_path='' set row_security=on as $$
-declare ator uuid:=auth_privado.uid(); sid uuid; g identidade.acesso_gerenciado; c record; u record; s record; google record; dominio text; metodo text; perfil text; hmac text; gerenciada boolean:=false; c_id uuid; c_versao integer; c_habilitado boolean:=false;
+declare ator uuid:=auth_privado.uid(); sid uuid; g identidade.acesso_gerenciado; c record; u record; s record; google record; dominio text; metodo_vigente text; perfil_vigente text; subject_google_vigente text; hmac text; gerenciada boolean:=false; c_id uuid; c_versao integer; c_habilitado boolean:=false;
 begin
  begin sid:=(auth_privado.jwt()->>'session_id')::uuid;exception when invalid_text_representation then return null;end;
  if ator is null or sid is null or bloqueios_auth.travar(ator,sid) is distinct from true then return null;end if;
@@ -82,7 +82,7 @@ begin
   select i.provider_id,i.identity_data into google from auth_privado.identidades() i where i.user_id=ator and i.provider='google';
   if not found or (select count(*) from auth_privado.identidades() i where i.user_id=ator and i.provider='google')<>1
    or google.identity_data->>'sub' is distinct from google.provider_id or google.identity_data->>'email_verified' is distinct from 'true' or google.identity_data#>>'{custom_claims,hd}' is distinct from dominio then return null;end if;
-  metodo:='google_workspace';
+  metodo_vigente:='google_workspace';subject_google_vigente:=google.provider_id;
   if not gerenciada and p_admitir then
    hmac:=identidade.email_google_hmac_nativo();
    select * into g from identidade.acesso_gerenciado x where x.email_hmac=hmac and x.metodo='google_workspace' and x.estado='aguardando_google' and x.usuario_id is null for update;
@@ -92,41 +92,41 @@ begin
     g.usuario_id:=ator;g.subject_google:=google.provider_id;gerenciada:=true;
    end if;
   end if;
-  if gerenciada and (g.metodo<>metodo or g.subject_google is distinct from google.provider_id or g.estado not in ('aguardando_google','ativo') or identidade.email_google_hmac_nativo() is distinct from g.email_hmac) then return null;end if;
+  if gerenciada and (g.metodo<>metodo_vigente or g.subject_google is distinct from google.provider_id or g.estado not in ('aguardando_google','ativo') or identidade.email_google_hmac_nativo() is distinct from g.email_hmac) then return null;end if;
  elsif exists(select 1 from jsonb_array_elements(case when jsonb_typeof(auth_privado.jwt()->'amr')='array' then auth_privado.jwt()->'amr' else '[]'::jsonb end) m where m->>'method'='password') then
   if not gerenciada or g.metodo<>'interno' or g.estado<>'ativo' or not exists(select 1 from auth_privado.conta_propria() a where a.id=ator and a.email_confirmado and a.operacao_id=g.operacao_id::text and identidade.email_auth_hmac_nativo(ator)=g.email_hmac) then return null;end if;
-  metodo:='interno';
+  metodo_vigente:='interno';
  else return null;end if;
  if gerenciada then
-  perfil:=case g.funcao when 'case_manager' then 'profissional' else g.funcao end;
+  perfil_vigente:=case g.funcao when 'case_manager' then 'profissional' else g.funcao end;
   if p_admitir and g.metodo='google_workspace' and g.estado='aguardando_google' then
-   if perfil<>'familia' then
+   if perfil_vigente<>'familia' then
     update identidade.concessao_equipe set usuario_id=ator,subject_google=google.provider_id,estado='vinculada',vinculada_em=clock_timestamp(),atualizada_em=clock_timestamp(),versao=versao+1 where id=g.concessao_id and estado='pendente' and usuario_id is null;
     if not found then raise exception 'CONCESSAO_GERENCIADA_INCONSISTENTE';end if;
    end if;
-   insert into public.usuario(id,perfil) values(ator,perfil);
+   insert into public.usuario(id,perfil) values(ator,perfil_vigente);
    update identidade.acesso_gerenciado set estado='ativo' where operacao_id=g.operacao_id;g.estado:='ativo';
   end if;
  else
-  select x.perfil into perfil from identidade.concessao_equipe x where x.usuario_id=ator and x.estado='vinculada' and x.metodo='google_workspace' and x.subject_google=google.provider_id for share;
+  select x.perfil into perfil_vigente from identidade.concessao_equipe x where x.usuario_id=ator and x.estado='vinculada' and x.metodo='google_workspace' and x.subject_google=google.provider_id for share;
   if not found then return null;end if;
  end if;
- if perfil<>'familia' then
-  select x.id,x.versao,x.habilitado_plano_crise into c from identidade.concessao_equipe x where x.usuario_id=ator and x.perfil=perfil and x.estado='vinculada' and x.metodo=metodo and (metodo<>'google_workspace' or x.subject_google=google.provider_id) for share;
+ if perfil_vigente<>'familia' then
+  select x.id,x.versao,x.habilitado_plano_crise into c from identidade.concessao_equipe x where x.usuario_id=ator and x.perfil=perfil_vigente and x.estado='vinculada' and x.metodo=metodo_vigente and (metodo_vigente<>'google_workspace' or x.subject_google=subject_google_vigente) for share;
   if not found or (gerenciada and c.id is distinct from g.concessao_id) then return null;end if;
   c_id:=c.id;c_versao:=c.versao;c_habilitado:=c.habilitado_plano_crise;
  end if;
  select x.id,x.perfil,x.ativo,x.versao into u from public.usuario x where x.id=ator for share;
- if not found or not u.ativo or u.perfil is distinct from perfil then return null;end if;
+ if not found or not u.ativo or u.perfil is distinct from perfil_vigente then return null;end if;
  -- Tombstone conferido antes da inserção; ON CONFLICT jamais reabre sessão encerrada.
  select x.usuario_id,x.concessao_id,x.metodo,x.revogada_em,x.encerrada_em into s from identidade.sessao x where x.session_id=sid for share;
- if found and (s.usuario_id<>ator or s.metodo<>metodo or s.revogada_em is not null or s.encerrada_em is not null or s.concessao_id is distinct from c_id) then return null;end if;
+ if found and (s.usuario_id<>ator or s.metodo<>metodo_vigente or s.revogada_em is not null or s.encerrada_em is not null or s.concessao_id is distinct from c_id) then return null;end if;
  if p_admitir then
-  insert into identidade.sessao(session_id,usuario_id,concessao_id,concessao_versao_admissao,metodo) values(sid,ator,c_id,c_versao,metodo) on conflict(session_id) do nothing;
+  insert into identidade.sessao(session_id,usuario_id,concessao_id,concessao_versao_admissao,metodo) values(sid,ator,c_id,c_versao,metodo_vigente) on conflict(session_id) do nothing;
  end if;
- perform 1 from identidade.sessao x where x.session_id=sid and x.usuario_id=ator and x.metodo=metodo and x.revogada_em is null and x.encerrada_em is null for share;
+ perform 1 from identidade.sessao x where x.session_id=sid and x.usuario_id=ator and x.metodo=metodo_vigente and x.revogada_em is null and x.encerrada_em is null for share;
  if not found or not exists(select 1 from auth_privado.sessoes() a where a.id=sid and a.user_id=ator and (a.not_after is null or a.not_after>clock_timestamp())) then return null;end if;
- return jsonb_build_object('usuario_id',ator,'session_id',sid,'perfil',perfil,'versao',u.versao,'funcao',case when gerenciada then g.funcao else null end,'metodo',metodo,'concessao_id',c_id,'habilitado_plano_crise',c_habilitado);
+ return jsonb_build_object('usuario_id',ator,'session_id',sid,'perfil',perfil_vigente,'versao',u.versao,'funcao',case when gerenciada then g.funcao else null end,'metodo',metodo_vigente,'concessao_id',c_id,'habilitado_plano_crise',c_habilitado);
 end $$;
 alter function identidade.contexto_acesso_vigente(boolean) owner to ffcmapp_acessos_owner;
 revoke all on function identidade.contexto_acesso_vigente(boolean) from public,anon,authenticated,service_role;

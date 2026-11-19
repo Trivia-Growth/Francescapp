@@ -8,7 +8,6 @@ import {
 import { sinalVitalSchema } from '../src/sinal-vital.ts';
 import { administracaoMedicacaoSchema, itemMedicacaoPrescritaSchema } from '../src/medicacao.ts';
 import { ocorrenciaTurnoSchema } from '../src/ocorrencia-turno.ts';
-import { contratosRotas } from '../src/rotas.ts';
 
 const id = '00000000-0000-4000-8000-000000000001';
 const cifra = {
@@ -166,12 +165,5 @@ describe('contratos do turno — fronteiras de entrada', () => {
         .success,
     ).toBe(false);
     expect(ocorrenciaTurnoSchema.safeParse({ ...ocorrencia, extra: true }).success).toBe(false);
-  });
-  it('mantém prova de sessão e chave idempotente nas rotas de mutação', () => {
-    const rota = contratosRotas.abrirTurno;
-    expect(
-      rota.cabecalhos.safeParse({ 'x-chave-idempotencia': 'ficticio-1234567890' }).success,
-    ).toBe(false);
-    expect(rota.parametros.safeParse({ paciente_id: id }).success).toBe(true);
   });
 });

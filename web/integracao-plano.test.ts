@@ -32,6 +32,7 @@ it('abre plano do paciente pela rota HTTP e trata dispatcher inativo sem simular
         itens: [{ id, nome: 'Paciente fictício', nome_preferencia: null, versao: 1 }],
         proximo_cursor: null,
       });
+    if (caminho === '/api/admin/campo-extra-plano') return envelope([]);
     if (caminho === `/api/pacientes/${id}/plano`) return new Response(null, { status: 404 });
     throw new Error('Rota inesperada');
   });
@@ -80,6 +81,7 @@ it('encerra acesso e limpa plano quando permissão é revogada após retorno à 
         itens: [{ id, nome: 'Paciente fictício', nome_preferencia: null, versao: 1 }],
         proximo_cursor: null,
       });
+    if (caminho === '/api/admin/campo-extra-plano') return envelope([]);
     if (caminho === `/api/pacientes/${id}/plano`) {
       consultasPlano++;
       // Visão do caso e Plano consultam uma vez cada; a terceira é a revalidação.

@@ -20,7 +20,7 @@ afterEach(() => {
  * `servico-regras-atendimento-http.ts`. A ficha some sem "Mais seções": as 3 seções da
  * família (dados, diário, plano) aparecem direto, sem dividir em faixa primária/secundária
  * (`destinosPrimarios` exige "visao" para dividir e família não tem). */
-it('família abre o Diário na própria ficha (5 seções, sem "Mais seções")', async () => {
+it('família abre o Diário na própria ficha (6 seções, sem "Mais seções")', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   sessionStorage.setItem('modo-acesso', 'familiar');
   sessionStorage.setItem('fluxo-familiar', 'AAAAAAAAAAAAAAAAAAAAAA');
@@ -55,6 +55,7 @@ it('família abre o Diário na própria ficha (5 seções, sem "Mais seções")'
   expect([...abas].map((aba) => aba.textContent)).toEqual([
     'Dados do paciente',
     'Diário',
+    'Relatórios do cuidado',
     'Plano de cuidado',
     'Documentos',
     'Orientações',

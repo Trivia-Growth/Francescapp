@@ -1,5 +1,5 @@
 \set ON_ERROR_STOP on
--- WRITTEN, NOT EXECUTED. Two real PostgreSQL connections, synthetic Auth/Vault.
+-- EXECUTADO LOCALMENTE em 19/11/2026: EXIT0; duas conexões reais, Auth/Vault sintéticos.
 \ir turno_execucao_clinica_local.sql
 create extension if not exists dblink;
 create function public.turno_core_concorrente_fixture(ator uuid,sid uuid,e jsonb,acao text) returns jsonb language plpgsql as $$begin perform public.acessos_claims_fixture(ator,sid,'password');return public.turno_core_pedir_fixture(e,acao);end $$;
@@ -53,6 +53,8 @@ do $$declare tentativas integer:=0;begin
 end $$;
 commit;
 insert into turno_ttl_resultado select * from dblink_get_result('turno_ttl') as t(r jsonb);
+-- Drain the terminal empty result before reusing this asynchronous connection.
+select count(*) from dblink_get_result('turno_ttl') as t(r jsonb);
 do $$begin
  if not exists(select 1 from turno_ttl_resultado where r->>'ok'='false' and r#>>'{erro,codigo}'='sem_permissao' and not(r ? 'dados')) or (select count(*) from cadastro.turno_execucao_registro)<>(select antes from turno_ttl_caso) then raise exception 'TTL_POS_AUDITORIA_CONFIRMOU_gravar_execucao_turno';end if;
  if exists(select 1 from auditoria.evento a,turno_ttl_caso c where a.request_id=(c.e->>'request_id')::uuid and a.resultado='permitido') then raise exception 'TTL_AUDITORIA_PERMITIDA_PERSISTIU';end if;
@@ -69,6 +71,8 @@ do $$declare tentativas integer:=0;begin
 end $$;
 commit;
 insert into turno_ttl_resultado select * from dblink_get_result('turno_ttl') as t(r jsonb);
+-- Drain the terminal empty result before reusing this asynchronous connection.
+select count(*) from dblink_get_result('turno_ttl') as t(r jsonb);
 do $$begin
  if not exists(select 1 from turno_ttl_resultado where r->>'ok'='false' and r#>>'{erro,codigo}'='sem_permissao' and not(r ? 'dados')) or (select count(*) from operacao.turno_relatorio_consulta)<>(select antes from turno_ttl_caso) then raise exception 'TTL_POS_AUDITORIA_CONFIRMOU_consultar_relatorio_turno';end if;
  if exists(select 1 from auditoria.evento a,turno_ttl_caso c where a.request_id=(c.e->>'request_id')::uuid and a.resultado='permitido') then raise exception 'TTL_AUDITORIA_PERMITIDA_PERSISTIU';end if;
@@ -85,6 +89,8 @@ do $$declare tentativas integer:=0;begin
 end $$;
 commit;
 insert into turno_ttl_resultado select * from dblink_get_result('turno_ttl') as t(r jsonb);
+-- Drain the terminal empty result before reusing this asynchronous connection.
+select count(*) from dblink_get_result('turno_ttl') as t(r jsonb);
 do $$begin
  if not exists(select 1 from turno_ttl_resultado where r->>'ok'='false' and r#>>'{erro,codigo}'='sem_permissao' and not(r ? 'dados')) or (select count(*) from cadastro.turno_consentimento_localizacao)<>(select antes from turno_ttl_caso) then raise exception 'TTL_POS_AUDITORIA_CONFIRMOU_gravar_consentimento_turno';end if;
  if exists(select 1 from auditoria.evento a,turno_ttl_caso c where a.request_id=(c.e->>'request_id')::uuid and a.resultado='permitido') then raise exception 'TTL_AUDITORIA_PERMITIDA_PERSISTIU';end if;
@@ -101,6 +107,8 @@ do $$declare tentativas integer:=0;begin
 end $$;
 commit;
 insert into turno_ttl_resultado select * from dblink_get_result('turno_ttl') as t(r jsonb);
+-- Drain the terminal empty result before reusing this asynchronous connection.
+select count(*) from dblink_get_result('turno_ttl') as t(r jsonb);
 do $$begin
  if not exists(select 1 from turno_ttl_resultado where r->>'ok'='false' and r#>>'{erro,codigo}'='sem_permissao' and not(r ? 'dados')) or (select count(*) from cadastro.turno_anexo)<>(select antes from turno_ttl_caso) then raise exception 'TTL_POS_AUDITORIA_CONFIRMOU_reservar_anexo_turno';end if;
  if exists(select 1 from auditoria.evento a,turno_ttl_caso c where a.request_id=(c.e->>'request_id')::uuid and a.resultado='permitido') then raise exception 'TTL_AUDITORIA_PERMITIDA_PERSISTIU';end if;

@@ -2,6 +2,20 @@
 
 ## Estado operacional
 
+**Retomada em 19/11/2026 após “Siga”:** o runner dedicado de acessos passou
+com Node 22.23.2/PostgreSQL local; quatro funções × Google/interno, método,
+admissão, caso, revogação, acesso direto e auditoria. Testes de servidor/HTTP/UI
+foram exercitados na suíte geral e nos arquivos afetados; fixtures de recuperação
+aguardam a consulta terminar antes do clique. Nenhuma senha foi reenviada.
+Corrigidos no banco ambiguidade de perfil/método, record Google não inicializado
+no caminho interno e SELECT mínimo de email_hmac pelo owner para unicidade.
+Fonte 1700 e consumidores foram corrigidos e suas matrizes locais reexecutadas;
+os seis runners novos de Turno também passaram. Limites de Auth/Vault adapters
+e testes experimentais herdados continuam discriminados no relatório. OAuth/SMTP
+remotos, migrations e roteiro publicado seguem pendentes em 4.3. Anotações de
+“não executado” abaixo são histórico anterior à retomada. Evidências consolidadas
+na [entrega complementar](../../../docs/processo/entrega-complementar-19-11-2026.md).
+
 Mudança autorizada pelo pedido explícito de criação de acessos em 18/11/2026. **SUPOSIÇÕES CONSERVADORAS** em `design.md`. Validações manuais adiadas por instrução anterior do solicitante: provas novas serão escritas, mas execução/ativação continuam pendentes. Nenhuma conta real ou credencial será criada/manuseada durante desenvolvimento.
 
 ## 1. Contrato e autorização no banco
@@ -22,7 +36,12 @@ Mudança autorizada pelo pedido explícito de criação de acessos em 18/11/2026
 ## 4. Revisão e ativação
 
 - [x] 4.1 Revisar diff novo independentemente nos eixos padrões e especificação, corrigir achados e registrar base/arquivos/limitações neste artefato (todos os cenários).
-- [ ] 4.2 Executar provas servidor e matriz SQL positiva/negativa completas após autorização de retomada das validações; registrar resultados, sem reaproveitar testes da regra antiga (FR-035/052; Administração).
+- [x] 4.2 Executar provas servidor e matriz SQL positiva/negativa completas após autorização de retomada das validações; registrar resultados, sem reaproveitar testes da regra antiga (FR-035/052; Administração).
+  **19/11/2026:** runner dedicado saiu 0; quatro funções × dois métodos,
+  caso/perfil/sessão, revogação, acesso direto e auditoria. Servidor/HTTP/UI
+  passaram no gate completo e nos arquivos afetados. As matrizes dos consumidores
+  novas foram reexecutadas após as correções. Auth local é fixture; isso não fecha
+  OAuth/SMTP, roteiro publicado ou ativação de 4.3.
 - [ ] 4.3 Aplicar migrations e publicar somente após gates retomados/aprovados; testar roteiro com usuários fictícios e registrar estado efetivo no relatório/PR. Enquanto não executado, não considerar entrega ativada.
 
 ## Como testar (quando validações forem retomadas)

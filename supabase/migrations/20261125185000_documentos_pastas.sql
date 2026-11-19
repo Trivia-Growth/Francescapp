@@ -20,8 +20,8 @@ grant select on documento_pasta_migrador to ffcmapp_documento_owner;
 set local role ffcmapp_documento_owner;
 create table cadastro.documento_pasta (
  paciente_id uuid not null references cadastro.paciente(id),
- raiz text not null check (raiz ~ '^[A-Za-z0-9_-]{1,256}$'),
- pasta_id text not null unique check (pasta_id ~ '^[A-Za-z0-9_-]{1,256}$'),
+ raiz text not null check (length(raiz) between 1 and 256 and raiz ~ '^[A-Za-z0-9_-]+$'),
+ pasta_id text not null unique check (length(pasta_id) between 1 and 256 and pasta_id ~ '^[A-Za-z0-9_-]+$'),
  marcador text not null check (marcador ~ '^[A-Za-z0-9_-]{43}$'),
  primary key (paciente_id,raiz)
 );
@@ -55,7 +55,7 @@ begin
   or a->>'operacao' is distinct from 'api.gravar_documento'
   or inicio>clock_timestamp() or fim<=clock_timestamp() or fim<=inicio or fim-inicio>interval '30 seconds'
   or identidade.verificar_assinatura_atestado(p_transporte->>'entrada_canonica',p_transporte->>'dados_canonicos',e-'atestado',a-'mac',a->>'mac') is distinct from true
-  or coalesce(e->>'raiz','') !~ '^[A-Za-z0-9_-]{1,256}$' or coalesce(e->>'candidata','') !~ '^[A-Za-z0-9_-]{1,256}$'
+  or length(coalesce(e->>'raiz','')) not between 1 and 256 or coalesce(e->>'raiz','') !~ '^[A-Za-z0-9_-]+$' or length(coalesce(e->>'candidata','')) not between 1 and 256 or coalesce(e->>'candidata','') !~ '^[A-Za-z0-9_-]+$'
   or coalesce(e->>'marcador','') !~ '^[A-Za-z0-9_-]{43}$' then raise exception using errcode='42501',message='SEM_PERMISSAO';end if;
  -- PK serializa concorrentes; perdedor lê o ID já reservado, nunca cria outra pasta.
  insert into cadastro.documento_pasta(paciente_id,raiz,pasta_id,marcador)

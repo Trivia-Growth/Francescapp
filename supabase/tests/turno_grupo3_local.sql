@@ -15,9 +15,9 @@ revoke all on cadastro.acompanhamento_caso from public,anon,authenticated,servic
 
 -- Migrador sem SUPERUSER, herdando somente ownership da fixture descartável.
 create role turno_grupo3_migrador_fixture nologin nosuperuser createrole inherit;
-grant turno_grupo3_migrador_fixture to current_user with inherit false,set true;
+-- Bootstrap SUPER may SET this NOSUPER role without inverse membership.
 do $$ declare dono text;begin
- for dono in select distinct r.rolname from pg_roles r where r.oid in (
+ for dono in select distinct r.rolname from pg_roles r where r.rolname<>'pg_database_owner' and r.oid in (
  select relowner from pg_class where relnamespace in ('cadastro'::regnamespace,'identidade'::regnamespace,'auditoria'::regnamespace,'operacao'::regnamespace)
  union select nspowner from pg_namespace where nspname in ('api','cadastro','identidade','operacao','public')
  union select proowner from pg_proc where oid='operacao.turno_operacao_privada(jsonb)'::regprocedure) loop
@@ -33,7 +33,8 @@ reset role;
 do $$ begin
  if exists(select * from grupo3_members_antes except select * from pg_auth_members)
  or exists(select * from pg_auth_members where roleid in (select roleid from grupo3_members_antes) and member in (select member from grupo3_members_antes) except select * from grupo3_members_antes)
- or exists(select * from grupo3_wrapper_antes except select oid,proowner,proacl,prosecdef,proconfig from pg_proc where oid in (select oid from grupo3_wrapper_antes)) then raise exception 'PRIVILEGIO_PREEXISTENTE_ALTERADO';end if;
+ or exists(select oid,proowner,prosecdef,proconfig from grupo3_wrapper_antes except select oid,proowner,prosecdef,proconfig from pg_proc where oid in (select oid from grupo3_wrapper_antes))
+ or exists(select 1 from grupo3_wrapper_antes b join pg_proc p on p.oid=b.oid where p.proacl is distinct from case when b.oid='api.diario_privado(jsonb)'::regprocedure then coalesce(b.proacl,acldefault('f',b.proowner))||makeaclitem('ffcmapp_turno_grupo3_owner'::regrole,b.proowner,'EXECUTE',false) else b.proacl end) then raise exception 'PRIVILEGIO_PREEXISTENTE_ALTERADO';end if;
  if has_table_privilege('authenticated','cadastro.turno_escala_versao','SELECT,INSERT,UPDATE,DELETE') or has_table_privilege('authenticated','cadastro.diario_turno_passagem','SELECT,INSERT,UPDATE,DELETE')
  or has_function_privilege('anon','api.turno_grupo3_privado(jsonb)','EXECUTE') or has_function_privilege('service_role','api.turno_grupo3_privado(jsonb)','EXECUTE')
  or pg_has_role('authenticated','ffcmapp_turno_grupo3_owner','MEMBER') then raise exception 'GRANT_GRUPO3_AMPLO';end if;
@@ -49,13 +50,14 @@ update identidade.concessao_equipe set perfil='profissional',estado='vinculada',
 update identidade.sessao set encerrada_em=null,revogada_em=null,revogada_por_usuario_id=null,motivo_revogacao_cifrado=null where usuario_id='10000000-0000-4000-8000-000000000002';
 update cadastro.acesso_paciente set revogada_em=null,revogado_por_usuario_id=null,motivo_revogacao_cifrado=null where usuario_id='10000000-0000-4000-8000-000000000002';
 insert into cadastro.acesso_paciente(id,paciente_id,usuario_id,concedido_por_usuario_id,motivo_concessao_cifrado)
- select gen_random_uuid(),'40000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001',public.envelope_diario_fixture('a') where not exists(select 1 from cadastro.acesso_paciente where paciente_id='40000000-0000-4000-8000-000000000001' and usuario_id='10000000-0000-4000-8000-000000000001');
+ select gen_random_uuid(),'40000000-0000-4000-8000-000000000001',u.id,'10000000-0000-4000-8000-000000000001',public.envelope_diario_fixture('a') from public.usuario u where u.id in ('10000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000002') and not exists(select 1 from cadastro.acesso_paciente ap where ap.paciente_id='40000000-0000-4000-8000-000000000001' and ap.usuario_id=u.id);
 insert into cadastro.acompanhamento_caso values(gen_random_uuid(),'40000000-0000-4000-8000-000000000001',1,'10000000-0000-4000-8000-000000000001');
 -- Auth/request são fornecidos pelo assinador sintético somente na fixture privilegiada.
 create function public.grupo3_pedir_fixture(e jsonb,acao text) returns jsonb language plpgsql as $$
 declare transporte jsonb;r jsonb;begin
  transporte:=public.assinar_diario_fixture(e,acao,auth_privado.uid(),(auth_privado.jwt()->>'session_id')::uuid);
- set local role authenticated;r:=api.turno_grupo3_privado(transporte);reset role;return r;
+ set local role authenticated;r:=api.turno_grupo3_privado(transporte);reset role;
+ return r;
 end $$;
 revoke all on function public.grupo3_pedir_fixture(jsonb,text) from public,anon,authenticated,service_role;
 
@@ -124,6 +126,7 @@ declare paciente uuid:='40000000-0000-4000-8000-000000000001';ator uuid:='100000
  turno uuid;registro uuid;diario uuid;reserva uuid:=gen_random_uuid();comando uuid:=gen_random_uuid();seguinte uuid:=gen_random_uuid();reserva_seguinte uuid:=gen_random_uuid();
  r jsonb;e jsonb;epoca bigint;anterior timestamptz;
 begin
+ perform public.claims_diario_fixture(ator,'20000000-0000-4000-8000-000000000002','oauth');
  select turno_id,registro_id,diario_id into turno,registro,diario from grupo3_estado_fixture;
  -- Fixture insere retificação na mesma tabela imutável utilizada pelo Diário real.
  insert into cadastro.diario_registro_versao(id,diario_registro_id,versao,versao_esperada,estado,audiencia,atencao,retorno_solicitado,origem_conteudo,conteudo_cifrado,justificativa_cifrada,criado_por_usuario_id,aconteceu_em,area)
@@ -162,6 +165,7 @@ do $$
 #variable_conflict use_variable
 declare paciente uuid:='40000000-0000-4000-8000-000000000001';turno uuid;seguinte uuid;r jsonb;e jsonb;
 begin
+ perform public.claims_diario_fixture('10000000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000002','oauth');
  select turno_id,turno_seguinte into turno,seguinte from grupo3_estado_fixture;
  e:=jsonb_build_object('request_id',gen_random_uuid(),'paciente_id',paciente,'turno_id',seguinte);
  r:=public.grupo3_pedir_fixture(e,'api.consultar_passagem_turno');

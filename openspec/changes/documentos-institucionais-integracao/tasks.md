@@ -216,3 +216,15 @@ limites no [relatório complementar](../../../docs/processo/entrega-complementar
 Nenhum P1/P2 confirmado restante no recorte relido; não é aceite em runtime.
 Nenhum teste manual/SQL/build/Deno/browser executado; hooks Git preservados.
 Provas positivas e negativas permanecem obrigatórias antes da ativação.
+
+**Retomada de validação autorizada — 19/11/2026:** os registros acima preservam o
+estado anterior à autorização. Agora executados: testes nativos Documento e Drive,
+AAD e BFF Turno afetados (ver resumo operacional da entrega); Documento entrega
+5/5; runner `testar-documentos-preautorizacao-concorrencia-local.sh` exit0, com
+matriz prévia, migrations1800/1850 e duas conexões reais expirando após o gate
+inicial, sem sucesso nem reserva persistida. Corrigidos limite ARE inválido
+`{1,256}` por comprimento1..256+charset equivalente e drenagem dblink/lock do
+próprio teste. Runner Plano1900 false e true exit0 em clusters distintos.
+Somente dados fictícios, Auth/Vault locais e pg_cron carregado com jobs desativados.
+Isso não prova integração Google real, ACL externa, cron em execução nem ativação
+completa. Nenhum teste verde foi repetido; sem suíte completa/build/Deno/remoto.

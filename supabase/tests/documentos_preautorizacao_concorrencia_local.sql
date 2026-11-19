@@ -1,5 +1,5 @@
 \set ON_ERROR_STOP on
--- ESCRITO, NÃO EXECUTADO. Duas conexões reais; Auth/Vault/conteúdo somente fictícios.
+-- Duas conexões reais; Auth/Vault/conteúdo somente fictícios.
 \ir documentos_preautorizacao_local.sql
 create extension if not exists dblink;
 update identidade.sessao set encerrada_em=null where session_id='22000000-0000-4000-8000-000000000001';
@@ -31,9 +31,13 @@ end $$;
 commit;
 create temp table documento_ttl_resultado as select * from dblink_get_result('documento_ttl') as t(resultado jsonb);
 do $$begin if not exists(select 1 from documento_ttl_resultado where resultado='{"expirou":true}'::jsonb) then raise exception 'PREVIA_AUTORIZOU_APOS_TTL';end if;end $$;
--- Reserva bloqueia só depois da prévia/assinatura atuais, no INSERT da tabela de pastas.
+-- Drena o resultado terminal antes de reutilizar a conexão assíncrona.
+select * from dblink_get_result('documento_ttl') as t(resultado jsonb);
+-- Trigger fictício bloqueia no INSERT, sem bloquear a inicialização do tipo composto.
+create function public.documento_pasta_espera_fixture() returns trigger language plpgsql as $$begin perform pg_advisory_xact_lock(1850);return new;end $$;
+create trigger documento_pasta_espera_fixture before insert on cadastro.documento_pasta for each row execute function public.documento_pasta_espera_fixture();
 begin;
-lock table cadastro.documento_pasta in access exclusive mode;
+select pg_advisory_xact_lock(1850);
 select dblink_send_query('documento_ttl','select public.documento_ttl_concorrente_fixture(true)');
 do $$ declare tentativas integer:=0;begin
  while not exists(select 1 from pg_stat_activity where application_name='documento_ttl' and wait_event_type='Lock') loop

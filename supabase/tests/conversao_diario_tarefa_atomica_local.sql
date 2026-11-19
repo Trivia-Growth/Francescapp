@@ -6,7 +6,9 @@
 create function public.falha_conversao_fixture() returns trigger language plpgsql as $$ begin
  if tg_table_schema='cadastro' and tg_table_name='diario_registro_versao' and current_setting('fixture.conversao_falha_diario',true)='sim' then raise exception 'FALHA_SEGUNDA_ESCRITA_FIXTURE'; end if;
  if tg_table_schema='operacao' and current_setting('fixture.conversao_falha_ledger',true)='sim' then raise unique_violation using message='COLISAO_LEDGER_FIXTURE'; end if;
- if tg_table_schema='auditoria' and new.acao in ('api.converter_diario_tarefa','api.consultar_conversao_diario_tarefa') and current_setting('fixture.conversao_suprimir_auditoria',true)='sim' then return null; end if;
+ if tg_table_schema='auditoria' then
+  if new.acao in ('api.converter_diario_tarefa','api.consultar_conversao_diario_tarefa') and current_setting('fixture.conversao_suprimir_auditoria',true)='sim' then return null;end if;
+ end if;
  return new; end $$;
 create trigger conversao_falha_diario_fixture before insert on cadastro.diario_registro_versao for each row execute function public.falha_conversao_fixture();
 create trigger conversao_falha_ledger_fixture before insert on operacao.conversao_diario_tarefa for each row execute function public.falha_conversao_fixture();
@@ -35,7 +37,7 @@ begin
  consulta:=public.transporte_conversao_fixture(ator,paciente,origem,1,tarefa,evolucao,reserva,geracao,chave,repeat('c',43),true);
  r:=api.conversao_diario_tarefa_privada(consulta);
  if r#>>'{erro,codigo}' is distinct from 'sem_permissao' or r?'dados' then raise exception 'FLAG_INICIAL_DESLIGADA_IGNORADA'; end if;
- update identidade.configuracao_sistema set valor='true' where chave='ffcm.diario.conversao_tarefa_ativa';
+ update identidade.configuracao_sistema configuracao_fixture set valor='true' where configuracao_fixture.chave='ffcm.diario.conversao_tarefa_ativa';
  r:=api.conversao_diario_tarefa_privada(consulta);
  if r->>'ok' is distinct from 'true' or r->'dados' is distinct from 'null'::jsonb then raise exception 'CONSULTA_VAZIA_DESONESTA'; end if;
  t:=public.transporte_conversao_fixture(ator,paciente,origem,1,tarefa,evolucao,reserva,geracao,chave,repeat('c',43));

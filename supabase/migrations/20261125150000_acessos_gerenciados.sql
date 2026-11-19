@@ -32,7 +32,8 @@ grant select(id,perfil,ativo,versao),insert(id,perfil),update(versao) on public.
 create policy acessos_usuario_select on public.usuario for select to ffcmapp_acessos_owner using(true);
 create policy acessos_usuario_insert on public.usuario for insert to ffcmapp_acessos_owner with check(exists(select 1 from identidade.acesso_gerenciado g where g.usuario_id=usuario.id and g.estado in ('aguardando_confirmacao_email','aguardando_google','ativo')));
 create policy acessos_usuario_lock on public.usuario for update to ffcmapp_acessos_owner using(true) with check(false);
-grant select(id,usuario_id,perfil,estado,metodo,subject_google,versao,habilitado_plano_crise),insert(id,email_cifrado,email_hmac,perfil,metodo,estado,usuario_id,subject_google,criado_por_usuario_id,motivo_cifrado,vinculada_em),update(versao) on identidade.concessao_equipe to ffcmapp_acessos_owner;
+-- Private access administration checks concession-email uniqueness; no application grant.
+grant select(id,usuario_id,perfil,estado,metodo,subject_google,versao,habilitado_plano_crise,email_hmac),insert(id,email_cifrado,email_hmac,perfil,metodo,estado,usuario_id,subject_google,criado_por_usuario_id,motivo_cifrado,vinculada_em),update(versao) on identidade.concessao_equipe to ffcmapp_acessos_owner;
 create policy acessos_concessao_select on identidade.concessao_equipe for select to ffcmapp_acessos_owner using(true);
 create policy acessos_concessao_insert on identidade.concessao_equipe for insert to ffcmapp_acessos_owner with check(exists(select 1 from identidade.acesso_gerenciado g where g.operacao_id=concessao_equipe.id and g.criado_por_usuario_id=(select auth_privado.uid())));
 create policy acessos_concessao_lock on identidade.concessao_equipe for update to ffcmapp_acessos_owner using(true) with check(false);

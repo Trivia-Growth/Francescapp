@@ -71,7 +71,7 @@ create trigger turno_localizacao_exportacao_imutavel before update or delete on 
 create function operacao.localizacao_turno_privada(p_transporte jsonb) returns jsonb language plpgsql security invoker set search_path='' as $$
 #variable_conflict use_variable
 declare e jsonb:=p_transporte->'entrada';a jsonb:=e->'atestado';ctx jsonb;ator uuid:=auth_privado.uid();paciente uuid;req uuid;acao text;gestor boolean;alvo uuid;turno uuid;momento text;
- c cadastro.turno_consentimento_localizacao;t cadastro.turno;esperada integer;atual integer;resultado jsonb;l cadastro.turno_localizacao;repeticao boolean:=false;motivo text;x cadastro.turno_localizacao_exportacao;
+ c cadastro.turno_consentimento_localizacao;t cadastro.turno;esperada integer;atual integer;resultado jsonb;l cadastro.turno_localizacao;repeticao boolean:=false;motivo text;recibo_exportacao cadastro.turno_localizacao_exportacao;
 begin
  ctx:=operacao.autorizar_execucao_turno(p_transporte,array['api.gravar_consentimento_turno','api.consultar_consentimento_turno','api.registrar_localizacao_turno','api.consultar_localizacao_turno','api.consultar_exportacao_localizacao_turno','api.exportar_localizacao_turno']);
  paciente:=(e->>'paciente_id')::uuid;req:=(e->>'request_id')::uuid;acao:=a->>'operacao';
@@ -112,13 +112,13 @@ begin
    if not gestor or t.aberto_em+interval '90 days'<=clock_timestamp() or e-array['request_id','paciente_id','turno_id','exportacao_id','destinatario','proposito','aad_destinatario','aad_proposito','digest_pdf','chave_idempotencia','digest_idempotencia','atestado']<>'{}'::jsonb then raise insufficient_privilege;end if;
    if not operacao.validar_cifra_execucao(e->'destinatario',e->'aad_destinatario',paciente,turno,(e->>'exportacao_id')::uuid,1,'cadastro.turno_localizacao_exportacao','destinatario') or not operacao.validar_cifra_execucao(e->'proposito',e->'aad_proposito',paciente,turno,(e->>'exportacao_id')::uuid,1,'cadastro.turno_localizacao_exportacao','proposito')
     or length(coalesce(e->>'chave_idempotencia','')) not between 16 and 200 or coalesce(e->>'digest_idempotencia','')!~'^[A-Za-z0-9_-]{43}$' then raise invalid_parameter_value;end if;
-   select * into x from cadastro.turno_localizacao_exportacao where solicitante_usuario_id=ator and chave=e->>'chave_idempotencia';
+   select * into recibo_exportacao from cadastro.turno_localizacao_exportacao where solicitante_usuario_id=ator and chave=e->>'chave_idempotencia';
    if found then
-    if x.turno_id<>turno or x.id is distinct from (e->>'exportacao_id')::uuid or x.digest_pdf is distinct from e->>'digest_pdf' or x.digest is distinct from e->>'digest_idempotencia' then raise exception using errcode='PZ064',message='conflito_idempotencia';end if;repeticao:=true;
+    if recibo_exportacao.turno_id<>turno or recibo_exportacao.id is distinct from (e->>'exportacao_id')::uuid or recibo_exportacao.digest_pdf is distinct from e->>'digest_pdf' or recibo_exportacao.digest is distinct from e->>'digest_idempotencia' then raise exception using errcode='PZ064',message='conflito_idempotencia';end if;repeticao:=true;
    else
-    insert into cadastro.turno_localizacao_exportacao(id,turno_id,solicitante_usuario_id,destinatario,proposito,digest_pdf,chave,digest) values((e->>'exportacao_id')::uuid,turno,ator,e->'destinatario',e->'proposito',e->>'digest_pdf',e->>'chave_idempotencia',e->>'digest_idempotencia') returning * into x;
+    insert into cadastro.turno_localizacao_exportacao(id,turno_id,solicitante_usuario_id,destinatario,proposito,digest_pdf,chave,digest) values((e->>'exportacao_id')::uuid,turno,ator,e->'destinatario',e->'proposito',e->>'digest_pdf',e->>'chave_idempotencia',e->>'digest_idempotencia') returning * into recibo_exportacao;
    end if;
-   resultado:=jsonb_build_object('exportacao_id',x.id,'registrado_em',x.registrado_em);
+   resultado:=jsonb_build_object('exportacao_id',recibo_exportacao.id,'registrado_em',recibo_exportacao.registrado_em);
   elsif acao='api.consultar_localizacao_turno' then
    if not gestor or e-array['request_id','paciente_id','turno_id','atestado']<>'{}'::jsonb then raise insufficient_privilege;end if;
    if t.aberto_em+interval '90 days'<=clock_timestamp() then resultado:=jsonb_build_object('itens','[]'::jsonb,'ausencia','retencao_expirada');

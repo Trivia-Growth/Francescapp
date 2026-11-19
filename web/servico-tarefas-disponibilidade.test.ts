@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
+import { criarErroPublicoSemCampos } from '../packages/contracts/src/erros.ts';
 import { criarServicoTarefasHttp } from './servico-tarefas-http.ts';
 
 const paciente = 'c0000000-0000-4000-8000-000000000003';
@@ -65,10 +66,7 @@ it.each([{}, { escrita_disponivel: 'true' }, { escrita_disponivel: true, tarefas
 it('acesso negado continua erro, sem inventar capability positiva', async () => {
   const fetch = preparar();
   fetch.mockResolvedValue(
-    Response.json(
-      { erro: { codigo: 'sem_permissao', mensagem: 'Acesso negado.' }, request_id },
-      { status: 403 },
-    ),
+    Response.json(criarErroPublicoSemCampos('sem_permissao', request_id), { status: 403 }),
   );
   await expect(
     criarServicoTarefasHttp(() => identidade).consultarDisponibilidade(paciente),
