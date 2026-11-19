@@ -68,6 +68,40 @@ begin
  if r#>>'{erro,codigo}' is distinct from 'sem_permissao' or r?'dados' then raise exception 'RECIBO_REVELOU_APOS_REVOGACAO'; end if;
  update cadastro.acesso_paciente set revogada_em=null,revogado_por_usuario_id=null,motivo_revogacao_cifrado=null where paciente_id=paciente and usuario_id=ator;
 end $$;
+-- Proveniência das filhas: um primeiro ledger não adota tarefa/publicação antigas.
+-- Mesmo registro_id, chave, reserva e digest exatos devem ser recusados; não depende
+-- de o BFF ter sorteado outro UUID. Somente wrappers reais em fixture descartável.
+do $$
+declare ator uuid:='10000000-0000-4000-8000-000000000002';paciente uuid:='40000000-0000-4000-8000-000000000001';origem uuid;tarefa uuid;evolucao uuid;reserva uuid;geracao bigint;chave text;t jsonb;r jsonb;registro_antigo uuid;
+begin
+ -- Criação normal anterior, sem ledger. Reusar inclusive o transporte filho exato.
+ origem:=public.origem_conversao_fixture(paciente);tarefa:=gen_random_uuid();evolucao:=gen_random_uuid();reserva:=gen_random_uuid();chave:=gen_random_uuid()::text;
+ geracao:=public.reserva_conversao_fixture(ator,paciente,tarefa,reserva);
+ t:=public.transporte_conversao_fixture(ator,paciente,origem,1,tarefa,evolucao,reserva,geracao,chave,repeat('u',43));
+ r:=api.tarefa_cuidado_privado(t#>'{entrada,tarefa}');
+ registro_antigo:=(r#>>'{dados,registro_id}')::uuid;
+ if r->>'ok' is distinct from 'true' or registro_antigo::text is distinct from t#>>'{entrada,tarefa,entrada,registro_id}' then raise exception 'SETUP_TAREFA_PREEXISTENTE_FALHOU';end if;
+ execute 'set local role authenticated';r:=api.conversao_diario_tarefa_privada(t);execute 'reset role';
+ if r#>>'{erro,codigo}' is distinct from 'conflito_idempotencia' or r?'dados'
+ or exists(select 1 from operacao.conversao_diario_tarefa where origem_id=origem)
+ or exists(select 1 from cadastro.diario_registro where id=evolucao)
+ or (select count(*) from cadastro.tarefa_cuidado_versao where tarefa_id=tarefa)<>1
+ or not exists(select 1 from cadastro.tarefa_cuidado_versao where id=registro_antigo and tarefa_id=tarefa)
+ or (select estado from operacao.reserva_tarefa_cuidado where id=reserva)<>'confirmada' then raise exception 'CONVERSAO_ADOTOU_TAREFA_ANTIGA_OU_ALTEROU_ORIGINAL';end if;
+ -- Diário anterior sem ledger: tarefa nova intermediária precisa ser revertida.
+ origem:=public.origem_conversao_fixture(paciente);tarefa:=gen_random_uuid();evolucao:=gen_random_uuid();reserva:=gen_random_uuid();chave:=gen_random_uuid()::text;
+ geracao:=public.reserva_conversao_fixture(ator,paciente,tarefa,reserva);
+ t:=public.transporte_conversao_fixture(ator,paciente,origem,1,tarefa,evolucao,reserva,geracao,chave,repeat('v',43));
+ r:=api.diario_privado(t#>'{entrada,diario}');registro_antigo:=(r#>>'{dados,registro_id}')::uuid;
+ if r->>'ok' is distinct from 'true' or r->'repeticao' is distinct from 'false'::jsonb or registro_antigo::text is distinct from t#>>'{entrada,diario,entrada,registro_id}' then raise exception 'SETUP_DIARIO_PREEXISTENTE_FALHOU';end if;
+ execute 'set local role authenticated';r:=api.conversao_diario_tarefa_privada(t);execute 'reset role';
+ if r#>>'{erro,codigo}' is distinct from 'conflito_idempotencia' or r?'dados'
+ or exists(select 1 from operacao.conversao_diario_tarefa where origem_id=origem)
+ or exists(select 1 from cadastro.tarefa_cuidado where id=tarefa)
+ or (select estado from operacao.reserva_tarefa_cuidado where id=reserva)<>'aberta'
+ or not exists(select 1 from cadastro.diario_registro_versao where id=registro_antigo and diario_registro_id=evolucao)
+ or (select count(*) from cadastro.diario_registro_versao where diario_registro_id=evolucao)<>1 then raise exception 'CONVERSAO_ADOTOU_DIARIO_ANTIGO_OU_NAO_REVERTEU_TAREFA';end if;
+end $$;
 -- Auditoria anterior ao cofre: só a própria negativa, sem domínio/recibo/HMAC.
 do $$
 declare ator uuid:='10000000-0000-4000-8000-000000000004'; sessao uuid:='20000000-0000-4000-8000-000000000004'; req uuid:=gen_random_uuid(); antes bigint; acao text;

@@ -43,3 +43,23 @@ sem descarte silencioso de campos. Nenhuma persistência clínica no navegador.
 ## Workflow follow-up
 
 - Sincronizar/arquivar somente depois de validação e aceite reais; manter fase Inicial e histórico das mudanças anteriores.
+
+**Correção de fonte — proveniência das filhas:** migration1200 local exige ausência de
+tarefa antes da filha sob lock, por SELECT mínimo com RLS somente da nova role; confere
+registro atestado em ambas e `repeticao=false` apenas no Diário, cujo contrato expõe campo.
+Replay agregado não executa filhas. Negativas escritas em
+`supabase/tests/conversao_diario_tarefa_negativas_local.sql` precriam tarefa/Diário pelas
+wrappers e reutilizam transportes exatos sem ledger: negar adoção, preservar original e
+reverter tarefa nova intermediária. Positiva primeira/replay e provas NOSUPER/ACL existentes
+permanecem; nenhuma prova executada nesta correção e nenhum gate concluído por arquivo.
+
+
+### Revisão independente de fonte — continuação de 18/11
+
+Dois eixos em Sol, base fixa `abac1a6f2c7c3d68df52bfa4b8edf28e3c066b4a`, diff
+FR-014 delimitado aos commits `b56e90c`, `df01629`, `346d94c`, `e8da0f6` até HEAD
+`6715f6a`, mais patch corretivo local. Identificado P2 de adoção de tarefa antiga
+como criação nova antes do primeiro ledger. Correção e negativas escritas constam
+acima; releituras independentes afetadas sem P1/P2 de fonte restante. Revisores não
+implementaram o patch. A parte executável de 4.1 continua adiada, inclusive matriz
+inteira de autorização/RLS; leitura não comprova runtime nem autoriza ativação.

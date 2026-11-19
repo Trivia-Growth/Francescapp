@@ -60,6 +60,10 @@ create policy conversao_acesso on cadastro.acesso_paciente for select to ffcmapp
 grant select(id),update(versao) on cadastro.paciente to ffcmapp_conversao_diario_tarefa_owner;
 create policy conversao_paciente on cadastro.paciente for select to ffcmapp_conversao_diario_tarefa_owner using(exists(select 1 from cadastro.acesso_paciente ap where ap.paciente_id=cadastro.paciente.id and ap.usuario_id=(select auth_privado.uid()) and ap.revogada_em is null));
 create policy conversao_paciente_lock on cadastro.paciente for update to ffcmapp_conversao_diario_tarefa_owner using(exists(select 1 from cadastro.acesso_paciente ap where ap.paciente_id=cadastro.paciente.id and ap.usuario_id=(select auth_privado.uid()) and ap.revogada_em is null)) with check(false);
+-- Provar novidade antes de chamar filha; não basta confiar em UUID recém-gerado.
+-- Somente metadados da tarefa em caso com vínculo vigente, nunca conteúdo ou escrita.
+grant select(id,paciente_id) on cadastro.tarefa_cuidado to ffcmapp_conversao_diario_tarefa_owner;
+create policy conversao_tarefa_novidade on cadastro.tarefa_cuidado for select to ffcmapp_conversao_diario_tarefa_owner using(exists(select 1 from cadastro.paciente p where p.id=tarefa_cuidado.paciente_id));
 grant select(id,paciente_id,tipo,autor_usuario_id) on cadastro.diario_registro to ffcmapp_conversao_diario_tarefa_owner;
 grant select(diario_registro_id,versao,estado,audiencia) on cadastro.diario_registro_versao to ffcmapp_conversao_diario_tarefa_owner;
 create policy conversao_origem on cadastro.diario_registro for select to ffcmapp_conversao_diario_tarefa_owner using(exists(select 1 from cadastro.paciente p where p.id=paciente_id));
@@ -144,17 +148,27 @@ begin
     or diario#>'{entrada,atencao}' is distinct from 'true'::jsonb or diario#>'{entrada,retorno_solicitado}' is distinct from 'false'::jsonb or diario#>>'{entrada,origem_conteudo}' is distinct from 'texto'
     or diario#>>'{entrada,tarefa_id}' is distinct from tarefa_id::text or (diario->'entrada') ?| array['responde_registro_id','justificativa','aad_justificativa']
     or area is null or not exists(select 1 from identidade.configuracao_sistema c where c.chave='ffcm.diario.areas_sintese' and c.tipo='lista' and c.valor @> jsonb_build_array(area)) then raise exception using errcode='22023',message='ENTRADA_INVALIDA'; end if;
+   -- Paciente já está travado: criação normal e conversão serializam no mesmo lock.
+   -- Ledger ausente exige tarefa nova, inclusive transporte com registro antigo exato.
+   if exists(select 1 from cadastro.tarefa_cuidado t where t.id=tarefa_id) then
+    raise exception using errcode='PZ014',message='CONVERSAO_RECUSADA',detail='conflito_idempotencia';
+   end if;
    resposta:=api.tarefa_cuidado_privado(tarefa);
    if resposta->>'ok' is distinct from 'true' then
     codigo:=resposta#>>'{erro,codigo}'; if codigo not in ('sem_permissao','conflito','conflito_idempotencia') or codigo is null then codigo:='servico_indisponivel'; end if;
     raise exception using errcode='PZ014',message='CONVERSAO_RECUSADA',detail=codigo;
    end if;
+   -- A wrapper de tarefa NÃO expõe repeticao: conferir registro exato atestado,
+   -- além da ausência comprovada antes da filha. Não inventar contrato de resposta.
+   if resposta#>>'{dados,registro_id}' is distinct from tarefa#>>'{entrada,registro_id}' then raise exception using errcode='PZ014',message='CONVERSAO_RECUSADA',detail='conflito_idempotencia';end if;
    if resposta#>>'{dados,paciente_id}' is distinct from paciente::text or resposta#>>'{dados,tarefa_id}' is distinct from tarefa_id::text or resposta#>'{dados,versao}' is distinct from '1'::jsonb then raise exception using errcode='PZ014',message='CONVERSAO_RECUSADA',detail='servico_indisponivel'; end if;
    resposta:=api.diario_privado(diario);
    if resposta->>'ok' is distinct from 'true' then
     codigo:=resposta#>>'{erro,codigo}'; if codigo not in ('sem_permissao','conflito','conflito_idempotencia') or codigo is null then codigo:='servico_indisponivel'; end if;
     raise exception using errcode='PZ014',message='CONVERSAO_RECUSADA',detail=codigo;
    end if;
+   -- Diário expõe repeticao; primeiro ledger não pode adotar publicação anterior.
+   if resposta->'repeticao' is distinct from 'false'::jsonb or resposta#>>'{dados,registro_id}' is distinct from diario#>>'{entrada,registro_id}' then raise exception using errcode='PZ014',message='CONVERSAO_RECUSADA',detail='conflito_idempotencia';end if;
    if resposta#>>'{dados,paciente_id}' is distinct from paciente::text or resposta#>>'{dados,diario_registro_id}' is distinct from evolucao_id::text or resposta#>'{dados,versao}' is distinct from '1'::jsonb then raise exception using errcode='PZ014',message='CONVERSAO_RECUSADA',detail='servico_indisponivel'; end if;
    insert into operacao.conversao_diario_tarefa(id,paciente_id,origem_id,origem_versao,tarefa_id,evolucao_id,ator_usuario_id,chave_idempotencia,digest_idempotencia)
     values(gen_random_uuid(),paciente,origem,versao,tarefa_id,evolucao_id,ator,e->>'chave_idempotencia',e->>'digest_idempotencia') returning * into recibo;

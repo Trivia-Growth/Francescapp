@@ -31,3 +31,22 @@ Ver `proposal.md`. A porta opcional atual em `web/diario.ts` encadeia criação 
 ## Migration Plan
 
 Adicionar migration `20261125120000_conversao_diario_tarefa_atomica.sql`, após 1100, sem remover dados, tabelas ou privilégios existentes. Aplicação da migration e ativação da flag dependem das provas obrigatórias futuras. Rollback operacional: manter nova flag desligada; preservar ledger e histórico. Não executar rollback destrutivo. Publicação e autenticação remotas continuam pendentes separadamente.
+
+## Correção de proveniência das filhas — preparação local
+
+Primeiro ledger exige tarefa inexistente antes da filha, conferida sob a trava do paciente
+já mantida pela composição. Necessidade concreta: criação normal com chave/reserva/tarefa
+prévia podia devolver sucesso idempotente e ser adotada como ação nova. Nova role da
+conversão recebe somente SELECT `(id,paciente_id)` em tarefa com RLS pelo caso acessível;
+nenhum conteúdo, escrita, membership ou privilégio antigo é ampliado. Suposição técnica:
+criação normal e conversão seguem a mesma ordem e lock de paciente; unicidade da tarefa
+continua impedindo criação com ID global já existente em caso invisível.
+
+Resposta de Tarefas não possui `repeticao`; não exigir campo inexistente. Conferir
+`dados.registro_id` contra registro atestado da filha, além da prova de ausência anterior.
+Diário possui `repeticao`: exigir literalmente false e registro exato antes do primeiro
+ledger. Qualquer divergência aborta subtransação completa e preserva registros anteriores.
+Replay agregado com ledger existente continua reautorizado, devolve recibo e não executa
+filhas; rollback real não deixa tarefa/ledger e permite recuperação normal. Provas
+negativas reutilizam inclusive registro/chave/reserva exatos, não somente novo UUID.
+Código/provas locais, sem execução ou aplicação desta migration.
