@@ -136,6 +136,29 @@ export async function comporDocumentoCasoNativo(
       idempotencia: criarIdempotenciaNativa(cofre.cifra),
       atestador: cofre.atestador,
       ...(drive ? { drive } : {}),
+      reservarPasta: async (_request, entrada) => {
+        verificarCancelamento();
+        const resultado = await contexto.cliente
+          .schema('api')
+          .rpc('documento_pasta_reservar_privada', entrada);
+        verificarCancelamento();
+        if (resultado.error || contexto.cookiesAlterados)
+          throw new Error('Reserva de pasta indisponível.');
+        return resultado.data;
+      },
+      marcarEfeitoExterno: () => {
+        mutacaoIniciada = true;
+      },
+      preautorizar: async (_request, transporte) => {
+        verificarCancelamento();
+        const resultado = await contexto.cliente
+          .schema('api')
+          .rpc('documento_preautorizar_privada', transporte);
+        verificarCancelamento();
+        if (resultado.error || contexto.cookiesAlterados)
+          throw new Error('Pré-autorização indisponível.');
+        return resultado.data;
+      },
       executar: (_request, transporte) => {
         verificarCancelamento();
         mutacaoIniciada = comando.operacao === 'gravar';

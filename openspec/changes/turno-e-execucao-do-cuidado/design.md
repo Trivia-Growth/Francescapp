@@ -16,6 +16,23 @@ Diferença relevante deste domínio: até aqui o conteúdo clínico era texto li
 
 ## Goals / Non-Goals
 
+**Retomada de implementação — 19/11/2026:** pedido posterior do solicitante
+autoriza desenvolver as lacunas da revisão adversarial, incluindo grupos 4–13,
+mantendo decisões confirmadas e validações adiadas. Os bloqueios 0.6.1 e provas
+de 0.6.2 continuam impedindo ativação; não impedem preparar código que implemente
+explicitamente os controles faltantes. A menção histórica a grupos não iniciados
+abaixo preserva o rastro, não reduz esta autorização posterior.
+
+**SUPOSIÇÕES CONSERVADORAS desta retomada:** executor externo é texto declarado
+(nome e vínculo), sem cadastro ou verificação profissional automática; valores de
+referência não confirmados ficam ausentes, sem intervalos clínicos inventados;
+fundamento familiar exige registro próprio vigente e revogável, nunca é inferido
+de parentesco ou de motivo genérico de vínculo. Consentimento de localização é
+separado desse fundamento e não impede o turno quando ausente. Novas flags e
+agendamentos de descarte nascem desligados; nenhum descarte será executado nesta
+retomada. Medição e homologação de PDF/Storage/cron continuam pendentes, mesmo
+com adapters e provas escritos.
+
 **Goals**
 - Modelar turno como fronteira temporal de autoria: todo registro de execução nasce dentro de um turno aberto, de um profissional identificado.
 - Tornar a habilitação do executor um controle verificado no servidor **e** no banco, não uma condição de interface.
@@ -247,6 +264,117 @@ mas somente com dados fictícios; publicação não equivale a go-live nem a apr
 Base reaproveitável identificada, integração/ativação de turno ainda bloqueadas pelos itens
 0.6.1/0.6.2 pertinentes. Nenhum grupo de implementação foi iniciado nesta passagem.
 
+## Fronteiras e ameaças incrementais dos grupos 4–13 — 19/11/2026
+
+Complemento delimitado de D1–D13 para a retomada, sem substituir a auditoria 0.6.
+Stack existente: TypeScript/Zod, BFF Netlify, Auth/Vault/PostgreSQL Supabase;
+evidências em `turno-grupo3-nativo.ts`, `turno-compor-nativo.ts`, `rpc.ts` e
+migrations de turno 0800/1400. `turno-execucao.ts` inicia o contrato privado dos
+novos filhos. As medidas abaixo são **exigências de implementação e prova**, não
+controles certificados em execução.
+
+**SUPOSIÇÃO de exposição:** aplicativo web acessível pela internet, com acesso de
+negócio restrito; atacante pode enviar HTTP arbitrário, adulterar UUID, período,
+versão, conteúdo e coordenadas, ou possuir sessão sem vínculo/sem fundamento ou
+revogada. Não possui owners, chave de atestado/cifra ou controle do serviço Storage.
+Autorizações e ambiente foram definidos pelo solicitante; nenhuma pergunta nova
+é necessária para repetir essas premissas. Escala e consumo reais permanecem
+desconhecidos, portanto páginas, tamanhos de arquivo e geração serão limitados.
+
+```mermaid
+flowchart LR
+  N["Navegador"] --> B["BFF autenticado"]
+  B --> A["Auth"]
+  B --> V["Vault"]
+  B --> D["RPC e RLS"]
+  B --> S["Storage privado"]
+  B --> P["PDF em memória"]
+```
+
+Ativos: conteúdo de saúde cifrado/estruturado, autoria e versões, vínculo e fundamento
+familiar, consentimento/coordenadas, fotos privadas e registros de exportação.
+Navegador/BFF cruza DTO não confiável por HTTP; BFF/RPC cruza conteúdo cifrado e
+atestado, com Auth e autorização transacional; BFF/Storage cruza bytes somente após
+autorizar caso/operação; BFF/PDF usa apenas projeção persistida autorizada. CI e
+fixtures locais não recebem dados de pessoas nem autoridade de aplicação.
+
+| Ameaça | Probabilidade/impacto/prioridade | Controle e prova exigidos |
+| --- | --- | --- |
+| TM-T01: profissional forja caso, turno ou prescrição para registrar ato alheio | média/alto/high | Identidade/relógio derivados, vínculo/concessão/turno sob locks antes de replay; FK da versão prescrita; negativas HTTP/SQL e revogação concorrente. |
+| TM-T02: parentesco/vínculo genérico concede saúde ou coordenada ao familiar | média/alto/high | Fundamento próprio versionado, vigente e revogável; localização em operação/retorno separados; negativas nas consultas, anexos, relatório e PDF. |
+| TM-T03: upload/PDF faz efeito externo ou entrega conteúdo antes de autorizar | média/alto/high | Autorizar antes de Storage/renderização; revalidar antes de entrega e confirmar auditoria de exportação; testes com zero chamada nas negativas. |
+| TM-T04: resposta perdida/repetição duplica administração, ocorrência ou tarefa | média/alto/high | Chave/digest e consulta operacional durável; versão esperada, ledger e atomicidade da conversão; sem retry silencioso ou conteúdo clínico em storage do navegador. |
+| TM-T05: coerção/forja de coordenada vira prova de presença ou bloqueia turno | média/alto/high | Consentimento prévio próprio, dado declarado, ausência com motivo, caminho sem localização e nenhum cálculo de conformidade. |
+| TM-T06: arquivo privado/link sobrevive à revogação ou período omite páginas | média/alto/high | Storage privado/RLS e entrega autenticada por leitura, sem URL pública/assinada longa; paginação estável e nenhuma exportação truncada silenciosamente. |
+| TM-T07: descarte de localização atinge outros registros ou executa sem revisão | baixa/alto/high | Executor de expurgo mínimo, somente coordenadas vencidas após 90 dias, flag desligada, auditoria transacional e prova de preservação do turno; não executar nesta retomada. |
+
+Risco residual: Auth/SMTP/Storage/cron reais, instalação e grants do migrador e
+limites de runtime do PDF não foram exercidos. Escrever adapters/provas não fecha
+esses gates. Revisão independente deve focar nova migration clínica, dispatcher
+de execução, download, emissão PDF, retenção e montagem/desmontagem das telas.
+
+Referências primárias de capacidade, não prova da integração:
+[Storage e RLS](https://supabase.com/docs/guides/storage/security/access-control),
+[buckets privados](https://supabase.com/docs/guides/storage/buckets/fundamentals),
+[PDF-LIB](https://pdf-lib.js.org/) e
+[releases](https://github.com/Hopding/pdf-lib/releases).
+
+Disponibilidade sem contratar recurso novo: a documentação pública lista Storage
+no plano Free, com 1 GB de armazenamento e cotas de tráfego próprias
+([preços](https://supabase.com/docs/guides/storage/pricing),
+[tráfego](https://supabase.com/docs/guides/storage/serving/bandwidth)). Plano,
+consumo e saldo efetivos do projeto não foram consultados; ativação deve conferi-los
+antes de tráfego real. Nenhum upgrade, add-on ou excedente pago está autorizado.
+PDF-LIB é opção de implementação JavaScript no servidor; versão e lock serão
+fixados pelo executor. A escolha só será comprovada para runtime após a medição
+de 10.4. Fonte sem glifo não autoriza substituir conteúdo clínico silenciosamente.
+
+### Contrato complementar de integração — 19/11/2026
+
+Decisões de implementação para FR-032/058–067, sob autorização de concluir as
+lacunas e sem executar validações:
+
+- Concessão de medicação fica no vínculo com o caso, inicialmente concedida;
+  gestão exige Administrador ou responsável atual do caso com vínculo ativo.
+  Não se reutiliza concessão global da equipe nem habilitação de crise.
+- **SUPOSIÇÃO CONSERVADORA:** retificar filho de execução exige autor original e
+  turno ainda aberto. Correção após encerramento não foi liberada por inferência.
+  Prescrição não é filho do turno: outro profissional com vínculo/concessão pode
+  revisá-la, preservando autor original e autor de cada versão. Retificar
+  administração mantém a versão prescrita referenciada originalmente, inclusive
+  após expiração ou nova transcrição; nunca troca automaticamente pelo item atual.
+- Relatório paginado usa consulta opaca de 15 minutos, gerada pelo banco, com corte
+  de versões e contexto de autoridade. Sessão, perfil, concessão, vínculo e
+  fundamento familiar continuam atuais: alteração invalida consulta/PDF. Não há
+  materialização de conteúdo clínico nem job para calcular consolidados.
+- A geração de PDF é adicional ao ZIP legado. Releitura mostrou que o ZIP recebia
+  apenas manifesto/rótulo, sem conteúdo clínico ou anexos; texto/comentários serão
+  corrigidos. PDF usa conteúdo persistido, com versões exatas e redução de dados
+  de terceiros. Manifesto paginado não pode parar silenciosamente em 200 itens.
+- O recibo privado de exportação identificará o resultado da operação, inclusive
+  replay, sem escolher a primeira linha de uma lista concorrente. Registro da
+  emissão deve corresponder ao digest dos bytes efetivamente entregues; mudança
+  de snapshot, audiência ou bytes exige recusa ou nova emissão explícita.
+- Leituras exatas de Saúde, Contexto, Rede, Diário, Plano, Tarefas, Encaminhamentos,
+  Orientações e Documentos recebem apenas no contrato privado o par `registro_id_exportacao` /
+  `versao_exportacao`. Cada domínio conserva seu próprio owner, autorização,
+  audiência da versão e auditoria. Não se cria owner com leitura clínica global;
+  DTOs HTTP legados e leitura sem seletor conservam seu comportamento. Anamnese
+  reutiliza seu histórico existente; Diário e Plano têm seletor privado próprio. Fonte de cada patch deve ser fixada e
+  atributos/ACL/memberships preservados, com prova NOSUPER escrita.
+- Novos anexos são limitados a 3 MiB; PDFs em memória a 4 MiB e limites explícitos
+  de conteúdo/páginas. Excesso falha sem arquivo parcial. A margem considera o
+  [payload da Netlify](https://docs.netlify.com/build/functions/configuration/),
+  sem alegar medição nem aumentar capacidade contratada.
+- Localização é coletada somente após confirmação de abertura/encerramento,
+  complementar e com prazos JavaScript próprios. O timeout nativo não limita a
+  espera de permissão, conforme [Geolocation](https://www.w3.org/TR/geolocation/).
+  Consulta/exportação de coordenadas permanecem separadas e negadas à família;
+  seu descarte de 90 dias nasce com flag e job desligados, sem limpeza executada.
+
+Essas medidas estão em implementação/revisão de fonte. Provas escritas, benchmark,
+matriz executada e integração real continuam pendentes; não constituem aceite.
+
 
 ## Grupo 3 — contrato de implementação local (18/11/2026)
 
@@ -333,3 +461,9 @@ rascunho, audiência e ciclo do áudio permanecem no Diário. Prova de regressã
 escrita, não executada. Recusa definitiva de publicação/escala permite descarte
 explícito após consulta, preservando texto para correção humana; resultado incerto
 mantém chave e comando originais, sem inferir rollback nem trocar versão sozinho.
+
+### Recuperação durável da execução clínica (2600)
+
+Recarregar a interface não autoriza nova intenção quando uma gravação anterior pode ter confirmado. Antes de editar execução, POST `/execucao-turno/reconciliar` com `comando_id` estável incrementa época própria do ator e devolve somente época e recibo pendente (paciente, classe, registro, versão, data). Retry do comando conserva resultado. POST `/execucao-turno/reconhecer` usa CAS época/recibo após conferência explícita; resposta de gravação conhecida permite reconhecer o próprio recibo. Nenhum conteúdo clínico persiste no navegador.
+
+`api.turno_execucao_barreira` despacha `api.reconciliar_execucao_turno` e `api.reconhecer_execucao_turno`. Autenticação staff vigente própria, sem exigir vínculo ao caso do recibo revogado; família e técnico recusados. POST clínico exige `epoca` assinada e retorna `recibo_id`. Sob lock próprio do ator, depois das autorizações e locks clínicos existentes, época antiga ou recibo pendente impede nova intenção; replay autorizado da mesma chave conserva recibo. Commit clínico e recibo são atômicos. Duas tabelas privadas de metadados; sem grants diretos de aplicação, cache clínico, jobs ou retentativa automática. SQL 2600 modifica fonte congelada por âncoras únicas e hashes, preservando owner, ACL e proconfig. Provas concorrentes e gates permanecem não executados.

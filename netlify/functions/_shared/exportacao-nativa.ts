@@ -32,11 +32,10 @@ const OPERACAO_RPC = {
 /** Composição interna da exportação de caso (FR-032/FR-033), sem rota ou privilégio de
  * banco. Autorização, audiência e auditoria pertencem ao banco.
  *
- * O QUE ESTA CAMADA NÃO FAZ: decifrar conteúdo de fatia alguma. Ela cifra apenas o
- * destinatário, o propósito e a observação de entrega — dados que ela mesma recebeu da
- * tela — e repassa o manifesto que o banco derivou. O conteúdo do caso continua sendo lido
- * item a item pelos serviços de cada fatia e montado no navegador. É isso que impede a
- * exportação de virar um ponto único capaz de ler o caso inteiro. */
+ * Este fluxo legado guarda manifesto/entrega humana e cifra seus metadados; não monta
+ * conteúdo clínico. A emissão adicional FR-066 fica em turno-execucao-caso-pdf.ts,
+ * que resolve no servidor as versões autorizadas sem alterar a entrega/conferência FR-033.
+ */
 export async function operarExportacaoNativa(
   request: Request,
   comando: ComandoExportacao,
@@ -91,7 +90,8 @@ export async function operarExportacaoNativa(
       if (!chave.success) return erro('entrada_invalida');
       const registroId = crypto.randomUUID();
       if (comando.operacao === 'registrar') {
-        const corpo = registrarExportacaoSchema.safeParse(comando);
+        const { operacao: _operacao, paciente_id: _paciente, ...campos } = comando;
+        const corpo = registrarExportacaoSchema.safeParse(campos);
         if (!corpo.success) return erro('entrada_invalida');
         if (
           (corpo.data.periodo_de === undefined) !== (corpo.data.periodo_ate === undefined) ||
@@ -121,7 +121,8 @@ export async function operarExportacaoNativa(
             : { periodo_de: corpo.data.periodo_de, periodo_ate: corpo.data.periodo_ate }),
         });
       } else {
-        const corpo = confirmarEntregaSchema.safeParse(comando);
+        const { operacao: _operacao, paciente_id: _paciente, ...campos } = comando;
+        const corpo = confirmarEntregaSchema.safeParse(campos);
         if (!corpo.success) return erro('entrada_invalida');
         corpoLogico = { ...corpo.data };
         Object.assign(entrada, {

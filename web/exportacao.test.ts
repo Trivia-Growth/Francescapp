@@ -78,5 +78,5 @@ it('rotula os botões como ato de quem entrega, não do destinatário', async ()
 it('oferece baixar o pacote de cada exportação registrada', async () => {
   const raiz = document.createElement('div');
   montarExportacao(raiz, PACIENTE, servicoCom(registroCom([])), vi.fn());
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Baixar pacote'));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Baixar índice dos registros'));
 });

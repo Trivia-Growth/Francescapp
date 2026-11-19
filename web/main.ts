@@ -17,6 +17,7 @@ import { lerCadastro } from './cadastro.js';
 import { montarCamposCasoNovo } from './campos-caso-novo.js';
 import { montarAnamnese } from './anamnese.js';
 import { criarCicloCadastro } from './ciclo-cadastro.js';
+import { montarAdministracaoPlano } from './campo-extra-plano-administracao.js';
 import { montarPlanoCuidado } from './plano-cuidado.js';
 import { criarServicoPlanoHttp } from './servico-plano-http.js';
 import { criarServicoEdicaoPacienteHttp } from './servico-edicao-paciente-http.js';
@@ -51,10 +52,14 @@ import { criarServicoPlanoCriseHttp } from './servico-plano-crise-http.js';
 import { montarHabilitacaoPlanoCrise } from './habilitacao-plano-crise.js';
 import { criarServicoHabilitacaoPlanoCriseHttp } from './servico-habilitacao-plano-crise-http.js';
 import { montarDiario } from './diario.js';
-import { montarTurnoProprio } from './turno-proprio.js';
+import { montarTurnoComExecucao } from './turno-execucao-integracao.js';
+import { montarExecucaoTurno } from './turno-execucao.js';
+import { montarRelatoriosTurno } from './turno-execucao-relatorios.js';
+import { criarServicoTurnoExecucaoHttp } from './servico-turno-execucao-http.js';
 import { montarEscalaTurno } from './escala-turno.js';
 import { criarServicoTurnoHttp } from './servico-turno-http.js';
 import './turno-proprio.css';
+import './turno-execucao.css';
 import { montarConversaoDiario } from './conversao-diario.js';
 import { criarServicoConversaoDiarioHttp } from './servico-conversao-diario-http.js';
 import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
@@ -730,6 +735,74 @@ function montarSecaoCadastro(
   };
 }
 
+function montarSecaoExecucaoTurno(
+  raiz: HTMLElement,
+  pacienteId: string,
+  atual: Sessao,
+  pendente: (valor: boolean) => void,
+  comTurno: boolean,
+): () => void {
+  const identidade = identidadeAtual();
+  let ativa = true;
+  const identidadeDaSecao = () => {
+    const corrente = identidadeAtual();
+    return ativa &&
+      identidade &&
+      corrente &&
+      fichaPaciente?.id === pacienteId &&
+      corrente.usuario_id === identidade.usuario_id &&
+      corrente.session_id === identidade.session_id
+      ? corrente
+      : null;
+  };
+  const servico = criarServicoTurnoExecucaoHttp(pacienteId, identidadeDaSecao);
+  const tarefas = criarServicoTarefasHttp(identidadeDaSecao);
+  const conversao = {
+    consultar: (registroId: string) =>
+      servico.consultarConversaoOcorrencia({ registro_id: registroId }),
+    contexto: async () => {
+      const [capacidade, diario] = await Promise.all([
+        tarefas.consultarDisponibilidade(pacienteId),
+        consultarDisponibilidadeDiario(),
+      ]);
+      return {
+        escrita_disponivel: capacidade.escrita_disponivel && diario.disponivel,
+        areas: diario.areas,
+      };
+    },
+    criarCiclo: (gravar: Parameters<typeof criarCicloTarefaCuidado>[0]['gravar']) =>
+      criarCicloTarefaCuidado({
+        identidadeAtual: identidadeDaSecao,
+        consultar: () => api.consultarBarreiraTarefa(),
+        reservar: async (entrada) => (await api.reservarBarreiraTarefa(entrada)).estado,
+        encerrar: async (entrada) => (await api.encerrarBarreiraTarefa(entrada)).estado,
+        reconhecer: async (entrada) => (await api.reconhecerBarreiraTarefa(entrada)).estado,
+        gravar,
+      }),
+  };
+  const opcoes = {
+    usuarioId: atual.usuario.id,
+    administrador: atual.usuario.perfil === 'administrador',
+    acessoPerdido: (erro?: unknown) => acessoPerdido(erro ?? new FalhaApi('nao_autenticado', 401)),
+    alteracaoPendente: pendente,
+    conversao,
+  };
+  const desmontar = comTurno
+    ? montarTurnoComExecucao(
+        raiz,
+        pacienteId,
+        criarServicoTurnoHttp(identidadeDaSecao),
+        servico,
+        opcoes,
+      )
+    : montarExecucaoTurno(raiz, pacienteId, null, servico, opcoes);
+  return () => {
+    ativa = false;
+    desmontar();
+    servico.desmontar();
+  };
+}
+
 function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
   if (atual.usuario.perfil === 'familia')
     return [
@@ -758,6 +831,22 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
             undefined,
             true,
           );
+        },
+      },
+      {
+        id: 'relatorios-turno',
+        rotulo: 'Relatórios do cuidado',
+        montar: (raiz, pendente) => {
+          const servico = criarServicoTurnoExecucaoHttp(paciente.id, identidadeAtual);
+          const desmontar = montarRelatoriosTurno(raiz, servico, {
+            familia: true,
+            acessoPerdido,
+            alteracaoPendente: pendente,
+          });
+          return () => {
+            desmontar();
+            servico.desmontar();
+          };
         },
       },
       {
@@ -895,7 +984,15 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       montar: (raiz, pendente) => {
         const servico = criarServicoPlanoHttp(identidadeAtual);
         planoAberto = { pacienteId: paciente.id, servico };
-        const desmontar = montarPlanoCuidado(raiz, paciente.id, servico, acessoPerdido, pendente);
+        const desmontar = montarPlanoCuidado(
+          raiz,
+          paciente.id,
+          servico,
+          acessoPerdido,
+          pendente,
+          false,
+          nomeDoUsuarioNaEquipe.consultar,
+        );
         return () => {
           desmontar();
           planoAberto = null;
@@ -929,10 +1026,14 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       rotulo: 'Meu turno',
       // Visibilidade organiza a ficha; autorização continua no servidor e banco.
       montar: (raiz, pendente) =>
-        montarTurnoProprio(raiz, paciente.id, criarServicoTurnoHttp(identidadeAtual), {
-          acessoPerdido: () => acessoPerdido(new FalhaApi('nao_autenticado', 401)),
-          alteracaoPendente: pendente,
-        }),
+        montarSecaoExecucaoTurno(raiz, paciente.id, atual, pendente, true),
+    });
+  if (atual.usuario.perfil === 'administrador')
+    secoes.push({
+      id: 'execucao-cuidado',
+      rotulo: 'Execução e relatórios',
+      montar: (raiz, pendente) =>
+        montarSecaoExecucaoTurno(raiz, paciente.id, atual, pendente, false),
     });
   secoes.push({
     id: 'escala-turnos',
@@ -1526,6 +1627,23 @@ const nomeDoUsuarioNaEquipe = (() => {
 })();
 
 const areasAdministracao: AreaAdministracao[] = [
+  {
+    id: 'plano-cuidado',
+    rotulo: 'Plano de cuidado',
+    disponivel: (atual) => atual.usuario.perfil === 'administrador',
+    montar: (raiz) =>
+      montarAdministracaoPlano(
+        raiz,
+        criarServicoPlanoHttp(identidadeAtual),
+        acessoPerdido,
+        async () => {
+          if (!sessao) throw new FalhaApi('nao_autenticado', 401);
+          const catalogo = catalogoDaEquipe(sessao);
+          if (!catalogo) throw new Error('Catálogo da equipe indisponível.');
+          return catalogo();
+        },
+      ),
+  },
   {
     id: 'acessos',
     rotulo: 'Acessos',

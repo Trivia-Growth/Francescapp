@@ -1,3 +1,4 @@
+import { metadadosAadExecucaoTurnoSchema } from './turno-execucao.ts';
 import { z } from 'zod';
 import { eventoAuditoriaSchema } from './auditoria.ts';
 
@@ -283,6 +284,7 @@ export const metadadosAadAcessoGerenciadoSchema = z
   .strict();
 
 export const metadadosAadSchema = z.union([
+  metadadosAadExecucaoTurnoSchema,
   metadadosAadAcessoGerenciadoSchema,
   metadadosAadEscalaTurnoSchema,
   metadadosAadExportacaoSchema,

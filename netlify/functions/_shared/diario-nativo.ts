@@ -1,3 +1,8 @@
+import {
+  incluirSeletorExportacao,
+  conferirVersaoExportacao,
+  type SeletorVersaoExportacao,
+} from './turno-execucao-seletor-exportacao.ts';
 import { prepararAtestadoConversao } from './conversao-diario-atestado.ts';
 import { chaveIdempotenciaSchema, uuidSchema } from '../../../packages/contracts/src/comum.ts';
 import {
@@ -31,7 +36,7 @@ type Autorizacao =
   | { estado: 'autorizado'; identidade: Identidade }
   | { estado: 'nao_autenticado' | 'sem_permissao' | 'servico_indisponivel' };
 type Comando =
-  | { operacao: 'ler'; paciente_id: string }
+  | ({ operacao: 'ler'; paciente_id: string } & SeletorVersaoExportacao)
   | ({ operacao: 'gravar'; paciente_id: string } & Record<string, unknown>);
 
 /** Composição interna da fatia de diário (FR-008, FR-009, FR-012, FR-013, FR-014), sem rota
@@ -183,6 +188,7 @@ export async function operarDiarioNativo(
       );
     // Forma da resposta é parte do contrato: lista devolve coleção, gravação devolve um registro.
     if ((comando.operacao === 'ler') !== Array.isArray(resposta.dados)) throw new Error();
+    if (comando.operacao === 'ler') conferirVersaoExportacao(comando, resposta.dados);
     const registros = Array.isArray(resposta.dados) ? resposta.dados : [resposta.dados];
     // Na repetição de uma chave de idempotência o banco devolve o registro já gravado; o
     // identificador recém-sorteado não vale como confirmação, só o que voltou do banco vale.
@@ -276,6 +282,7 @@ async function prepararEntradaGravacaoDiarioNativa(
   const { requestId, pacienteId, diarioId, registroId, chaveIdempotencia } = parametros;
   const salvar = salvarRegistroDiarioSchema.parse(parametros.salvar);
   const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+  if (comando.operacao === 'ler') incluirSeletorExportacao(comando, entrada);
   const versao = salvar.versao_esperada + 1;
   const aad = (campo: Aad['campo']): Aad => ({
     tabela: 'cadastro.diario_registro_versao',

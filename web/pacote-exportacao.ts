@@ -1,20 +1,11 @@
 import type { Exportacao, ItemExportacao } from '../packages/contracts/src/exportacao.js';
 
-/** Monta o pacote de exportação (FR-032/FR-033) no NAVEGADOR.
- *
- * Decisão de 13/11/2026 sobre o formato: um ZIP com `resumo.html`, `dados.json` e a pasta
- * `anexos/`. HTML porque "consultável" para uma família significa abrir e ler sem instalar
- * nada; JSON porque outro serviço precisa ler sem raspar HTML. PDF foi descartado: perde
- * estrutura e não ajuda ninguém.
- *
- * O ZIP é montado aqui, no cliente, e isso não é detalhe de implementação: o servidor não
- * decifra nada, e o dono da operação não tem privilégio sobre `conteudo_cifrado` de nenhuma
- * tabela de versão. Montar o pacote no servidor exigiria reunir o caso decifrado num só
- * lugar, que é exatamente o que a fatia foi desenhada para não fazer.
- *
- * Compressão: nenhuma (método `store`). Evita acrescentar dependência de terceiro a uma
- * fatia que carrega dado clínico, e o ganho seria marginal — os anexos já chegam em formatos
- * comprimidos. O arquivo abre em qualquer sistema operacional sem ferramenta extra. */
+/** Monta no navegador o ZIP de índice/manifesto legado de exportação.
+ * O chamador atual fornece somente metadados e rótulo do caso: nenhum conteúdo
+ * clínico ou byte de anexo é reunido por esta jornada. O formato ZIP/JSON e o
+ * registro humano de entrega permanecem preservados. A emissão de PDF com
+ * conteúdo persistido é uma operação separada no servidor, quando autorizada.
+ * Compressão store; não adiciona dependências nem concede acesso ao conteúdo. */
 
 const TAMANHO_MAXIMO_NOME = 180;
 
@@ -145,7 +136,7 @@ caption{text-align:left;font-weight:600;padding-bottom:8px}
 ${avisoTerceiros}
 <section>
 <table>
-<caption>${incluidos.length} registro(s) incluído(s)</caption>
+<caption>${incluidos.length} referência(s) no índice</caption>
 <thead><tr><th>Origem</th><th>Tipo</th><th>Aconteceu em</th><th>Registrado em</th></tr></thead>
 <tbody>
 ${linhas}
@@ -155,7 +146,7 @@ ${linhas}
 ${avisoIndisponivel}
 <section>
 <h2>Sobre este pacote</h2>
-<p>O arquivo <code>dados.json</code> traz a mesma informação em formato estruturado, para quem precisar lê-la em outro sistema. Os anexos, quando existem, estão na pasta <code>anexos/</code>.</p>
+<p>O arquivo <code>dados.json</code> contém o índice de metadados em formato estruturado. Este índice não inclui o conteúdo clínico dos registros nem os arquivos anexos. Quando autorizado, consulte a emissão de PDF do caso na seção Relatórios do cuidado.</p>
 <p>Este pacote registra o que foi entregue e por quem. <strong>Ele não comprova recebimento</strong>: quem recebe não tem conta no sistema e não confirma nada por lá.</p>
 </section>
 </body>

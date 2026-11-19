@@ -55,3 +55,48 @@ it('envia cursor e limite em cada consulta paginada', async () => {
   expect(url.searchParams.get('limite')).toBe('20');
   expect(url.searchParams.get('cursor')).toBe('cursor-ficticio');
 });
+
+it('consulta catálogo e aprovadores pelas APIs nativas com sessão vigente', async () => {
+  vi.stubGlobal('sessionStorage', {
+    getItem: (chave: string) =>
+      chave === 'modo-acesso'
+        ? 'interno'
+        : chave === 'fluxo-interno'
+          ? 'AAAAAAAAAAAAAAAAAAAAAA'
+          : null,
+  });
+  const fetch = vi
+    .fn()
+    .mockImplementation(async () => Response.json({ dados: [], request_id: id }));
+  vi.stubGlobal('fetch', fetch);
+  const servico = criarServicoPlanoHttp(() => ({ usuario_id: id, session_id: id }));
+  await servico.consultarCatalogo?.();
+  await servico.consultarAprovadores?.();
+  expect(fetch.mock.calls.map((item) => item[0])).toEqual([
+    '/api/admin/campo-extra-plano',
+    '/api/admin/aprovador-plano',
+  ]);
+  expect(new Headers(fetch.mock.calls[0]?.[1].headers).get('x-sessao')).toBe(id);
+});
+
+it('carimba registro específico sem reenviar conteúdo clínico', async () => {
+  vi.stubGlobal('sessionStorage', {
+    getItem: (chave: string) =>
+      chave === 'modo-acesso'
+        ? 'interno'
+        : chave === 'fluxo-interno'
+          ? 'AAAAAAAAAAAAAAAAAAAAAA'
+          : null,
+  });
+  const fetch = vi.fn().mockResolvedValue(
+    Response.json({
+      dados: { registro_id: id, aprovador_usuario_id: id, aprovado_em: '2026-11-19T12:00:00Z' },
+      request_id: id,
+    }),
+  );
+  vi.stubGlobal('fetch', fetch);
+  const servico = criarServicoPlanoHttp(() => ({ usuario_id: id, session_id: id }));
+  await servico.aprovarObjetivo?.(id);
+  expect(fetch.mock.calls[0]?.[0]).toBe('/api/plano/aprovar-objetivo');
+  expect(JSON.parse(fetch.mock.calls[0]?.[1].body)).toEqual({ registro_id: id });
+});

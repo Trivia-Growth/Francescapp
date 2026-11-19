@@ -1,0 +1,103 @@
+.turno-execucao {
+  margin-block: 24px;
+  padding-block: 16px;
+  border-top: 1px solid var(--line, #dfe5d4);
+  color: var(--ink, #273123);
+  min-width: 0;
+}
+.turno-execucao :is(p, small, summary, legend, h3, h4) {
+  overflow-wrap: anywhere;
+}
+.turno-execucao p {
+  max-width: 70ch;
+}
+.turno-execucao :is(form, fieldset) {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.turno-execucao fieldset {
+  margin-block: 20px;
+  padding: 16px;
+  border: 1px solid var(--line, #dfe5d4);
+  border-radius: 7px;
+}
+.turno-execucao label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+  line-height: 1.5;
+}
+.turno-execucao :is(input, textarea, select) {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 11px 12px;
+  font: inherit;
+  font-size: 16px;
+  border: 1px solid var(--line, #dfe5d4);
+  border-radius: 7px;
+  color: var(--ink, #273123);
+  background: var(--white, #fff);
+}
+.turno-execucao textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+.turno-execucao input[type="checkbox"] {
+  width: 24px;
+  min-height: 24px;
+  accent-color: var(--primary, #475436);
+}
+.turno-execucao :is(button, summary) {
+  min-height: 44px;
+  white-space: normal;
+  max-width: 100%;
+}
+.turno-execucao summary {
+  display: list-item;
+  padding-block: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.turno-execucao button {
+  margin: 4px 8px 4px 0;
+}
+.turno-execucao :focus-visible {
+  outline: 3px solid var(--primary, #475436);
+  outline-offset: 4px;
+}
+.turno-execucao [hidden] {
+  display: none;
+}
+.turno-execucao__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.turno-execucao__registro {
+  border-bottom: 1px solid var(--line, #dfe5d4);
+  padding-block: 20px;
+}
+.turno-execucao__registro h4 {
+  margin-block: 0 12px;
+}
+.turno-execucao small {
+  line-height: 1.5;
+  color: var(--muted, #65705f);
+}
+@media (max-width: 560px) {
+  .turno-execucao fieldset {
+    padding: 12px;
+  }
+  .turno-execucao__acoes {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .turno-execucao button {
+    width: 100%;
+    margin-inline: 0;
+  }
+}

@@ -25,3 +25,8 @@ Nenhuma.
 ## Impact
 
 Futuras alterações em contratos, servidor, persistência Supabase e interface; integração e migração remota não estão autorizadas por esta proposta. Depende da fundação de identidade, autorização e caso, cujas evidências devem ser verificadas no momento da implementação.
+
+
+## Continuação aprovada ESP-05/06 (19/11/2026)
+
+Completar a jornada web dos recursos já decididos: administração global de campos/aprovadores, valores adicionais preservados na revisão e carimbo por versão. A leitura de metadados do catálogo por colaborador admitido foi confirmada pela coordenação, com escrita somente Administrador e família negada ao catálogo. Validação dinâmica passa também pelo servidor; banco confere snapshot assinado do catálogo na gravação. Matriz clínica e aprovação sem portão permanecem. Fonte e provas serão preparadas, sem executar verificações/SQL/navegador nem ativar ou operar remotamente nesta continuação; gates explícitos em tasks.md 3.5.

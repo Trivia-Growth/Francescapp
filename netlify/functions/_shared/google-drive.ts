@@ -133,6 +133,8 @@ export type PortaDrive = {
     tipo: string;
     bytes: Uint8Array;
     pastaRaiz: string;
+    pastaPaciente?: string;
+    reservarPasta?: (raiz: string, candidata: string) => Promise<{ id: string; marcador: string }>;
   }): Promise<{ file_id: string }>;
   consultarCompartilhamento?(
     fileId: string,
@@ -181,12 +183,93 @@ export function criarPortaDrive(segredoJson: string, sinal: AbortSignal): PortaD
         leitor.releaseLock();
       }
     },
-    async enviar({ nome, tipo, bytes, pastaRaiz }) {
+    async enviar({ nome, tipo, bytes, pastaRaiz, pastaPaciente, reservarPasta }) {
       if (typeof pastaRaiz !== 'string' || pastaRaiz.trim().length === 0)
         throw new ErroDriveIndisponivel();
       const token = await autenticar();
+      let pastaDestino = pastaRaiz.trim();
+      if (pastaPaciente !== undefined) {
+        if (!/^[A-Za-z0-9_-]{43}$/.test(pastaPaciente) || !reservarPasta)
+          throw new ErroDriveIndisponivel();
+        // Google admite ID pré-gerado para folders. Reserva DB única precede criação.
+        const gerados = await fetch(
+          `${ENDERECO_ARQUIVOS}/generateIds?count=1&space=drive&type=files`,
+          {
+            headers: { authorization: `Bearer ${token}` },
+            signal: sinal,
+            redirect: 'error',
+          },
+        );
+        if (!gerados.ok) throw new ErroDriveIndisponivel();
+        const ids: unknown = await gerados.json();
+        if (
+          !ids ||
+          typeof ids !== 'object' ||
+          !('ids' in ids) ||
+          !Array.isArray(ids.ids) ||
+          ids.ids.length !== 1 ||
+          typeof ids.ids[0] !== 'string' ||
+          !/^[A-Za-z0-9_-]{1,256}$/.test(ids.ids[0])
+        )
+          throw new ErroDriveIndisponivel();
+        const reserva = await reservarPasta(pastaRaiz.trim(), ids.ids[0]);
+        if (
+          !/^[A-Za-z0-9_-]{1,256}$/.test(reserva.id) ||
+          !/^[A-Za-z0-9_-]{43}$/.test(reserva.marcador)
+        )
+          throw new ErroDriveIndisponivel();
+        pastaDestino = reserva.id;
+        const endereco = `${ENDERECO_ARQUIVOS}/${encodeURIComponent(pastaDestino)}?supportsAllDrives=true&fields=id,mimeType,parents,appProperties,trashed`;
+        const consultar = () =>
+          fetch(endereco, {
+            headers: { authorization: `Bearer ${token}` },
+            signal: sinal,
+            redirect: 'error',
+          });
+        let respostaPasta = await consultar();
+        if (respostaPasta.status === 404) {
+          const criada = await fetch(`${ENDERECO_ARQUIVOS}?supportsAllDrives=true&fields=id`, {
+            method: 'POST',
+            headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+            body: JSON.stringify({
+              id: pastaDestino,
+              name: `caso-${reserva.marcador}`,
+              mimeType: 'application/vnd.google-apps.folder',
+              parents: [pastaRaiz.trim()],
+              appProperties: { ffcm_paciente: reserva.marcador },
+            }),
+            signal: sinal,
+            redirect: 'error',
+          });
+          if (!criada.ok && criada.status !== 409) throw new ErroDriveIndisponivel();
+          // Inclui recovery de timeout anterior e 409 concorrente: não adota por nome.
+          respostaPasta = await consultar();
+        }
+        if (!respostaPasta.ok) throw new ErroDriveIndisponivel();
+        const pasta: unknown = await respostaPasta.json();
+        if (
+          !pasta ||
+          typeof pasta !== 'object' ||
+          !('id' in pasta) ||
+          pasta.id !== pastaDestino ||
+          !('mimeType' in pasta) ||
+          pasta.mimeType !== 'application/vnd.google-apps.folder' ||
+          !('parents' in pasta) ||
+          !Array.isArray(pasta.parents) ||
+          pasta.parents.length !== 1 ||
+          pasta.parents[0] !== pastaRaiz.trim() ||
+          !('trashed' in pasta) ||
+          pasta.trashed !== false ||
+          !('appProperties' in pasta) ||
+          !pasta.appProperties ||
+          typeof pasta.appProperties !== 'object' ||
+          !('ffcm_paciente' in pasta.appProperties) ||
+          pasta.appProperties.ffcm_paciente !== reserva.marcador
+        )
+          throw new ErroDriveIndisponivel();
+      }
       const limite = `ffcm${crypto.randomUUID().replace(/-/g, '')}`;
-      const metadado = JSON.stringify({ name: nome, parents: [pastaRaiz.trim()] });
+      const metadado = JSON.stringify({ name: nome, parents: [pastaDestino] });
       const cabecalho = new TextEncoder().encode(
         `--${limite}\r\ncontent-type: application/json; charset=UTF-8\r\n\r\n${metadado}\r\n--${limite}\r\ncontent-type: ${tipo}\r\n\r\n`,
       );

@@ -32,19 +32,12 @@ const ROTULOS_FINALIDADE: Record<RegistrarExportacao['finalidade'], string> = {
   encerramento_uso: 'Encerramento do uso',
 };
 
-/** Exportação do caso (FR-032/FR-033).
- *
- * O que esta tela mostra é o REGISTRO da exportação: quem exportou, para quem, com qual
- * propósito, o que entrou e o que estava indisponível. O arquivo em si é montado com o
- * conteúdo que as outras telas já carregaram para esta pessoa — nenhum servidor reúne o
- * caso decifrado num só lugar.
- *
- * "Conteúdo indisponível" aqui nunca quer dizer "existe algo que você não pode ver": o que
- * a audiência exclui não chega a esta tela nem como contagem.
- *
- * Decisão de 12/11/2026: dados de terceiros entram no pacote com o mínimo identificável —
- * papel e primeiro nome, sem contato, anotação, documento ou campo livre. A redução é feita
- * na montagem do pacote, aqui no navegador, porque o servidor não decifra nada. */
+/** Jornada legada de índice de exportação e registro humano de entrega.
+ * Mostra o manifesto autorizado, destinatário, propósito e indisponibilidades.
+ * O ZIP atual contém somente esse índice e o rótulo do caso; não reúne conteúdo
+ * clínico nem bytes dos anexos. PDF de conteúdo persistido é operação separada
+ * no servidor. A redução de terceiros do manifesto e o registro de entrega
+ * permanecem; o índice não comprova recebimento. */
 export function montarExportacao(
   raiz: HTMLElement,
   pacienteId: string,
@@ -141,8 +134,8 @@ export function montarExportacao(
       elemento(
         'p',
         indisponiveis === 0
-          ? `${incluidos} registros incluídos.`
-          : `${incluidos} registros incluídos e ${indisponiveis} com conteúdo indisponível.`,
+          ? `${incluidos} referências no índice.`
+          : `${incluidos} referências no índice e ${indisponiveis} com conteúdo indisponível.`,
         'exportacao__contagem',
       ),
     );
@@ -156,11 +149,10 @@ export function montarExportacao(
           'exportacao__terceiros',
         ),
       );
-    const baixar = elemento('button', 'Baixar pacote', 'exportacao__baixar');
+    const baixar = elemento('button', 'Baixar índice dos registros', 'exportacao__baixar');
     baixar.type = 'button';
     baixar.addEventListener('click', () => {
-      // O pacote é montado aqui, no navegador, com o conteúdo que as outras telas já
-      // carregaram. Nenhum servidor reúne o caso decifrado num só lugar.
+      // Jornada legada fornece somente manifesto/rótulo: não inclui clínica nem anexos.
       const arquivo = montarPacoteExportacao({ exportacao, pacienteRotulo });
       const endereco = URL.createObjectURL(arquivo);
       const ligacao = elemento('a');
@@ -169,7 +161,13 @@ export function montarExportacao(
       ligacao.click();
       URL.revokeObjectURL(endereco);
     });
-    item.append(baixar);
+    item.append(
+      elemento(
+        'p',
+        'Este ZIP contém somente o índice dos registros. Não inclui conteúdo clínico nem arquivos anexos. Para conteúdo persistido em PDF, use Relatórios do cuidado quando autorizado.',
+      ),
+      baixar,
+    );
 
     const atos = new Set(exportacao.entregas.map((e) => e.ato));
     const estados = elemento('p', undefined, 'exportacao__entrega');

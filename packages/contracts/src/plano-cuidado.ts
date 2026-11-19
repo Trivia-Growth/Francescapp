@@ -120,6 +120,13 @@ export const conteudoPlanoSchema = z
     data: z.iso.datetime(),
   })
   .strict();
+export const aprovacaoObjetivoPlanoSchema = z
+  .object({
+    registro_id: uuidSchema,
+    aprovador_usuario_id: uuidSchema,
+    aprovado_em: z.iso.datetime({ offset: true }),
+  })
+  .strict();
 const registroPlanoSchema = z
   .object({
     registro_id: uuidSchema,
@@ -127,6 +134,7 @@ const registroPlanoSchema = z
     paciente_id: uuidSchema,
     versao: z.number().int().min(1).max(2147483647),
     conteudo: campoCifradoSchema,
+    aprovacoes: z.array(aprovacaoObjetivoPlanoSchema).optional(),
     visibilidade: visibilidadeObjetivoSchema,
   })
   .strict();
@@ -212,13 +220,6 @@ export const respostaAprovadorPlanoPrivadaSchema = z.discriminatedUnion('ok', [
 
 /** Espelha `api.aprovar_objetivo_plano_privado`, migration `20261116170000`.
  * Carimbo sem portão: sem idempotência por chave, sem conteúdo cifrado. */
-export const aprovacaoObjetivoPlanoSchema = z
-  .object({
-    registro_id: uuidSchema,
-    aprovador_usuario_id: uuidSchema,
-    aprovado_em: z.iso.datetime({ offset: true }),
-  })
-  .strict();
 export const respostaAprovarObjetivoPlanoPrivadaSchema = z.discriminatedUnion('ok', [
   z
     .object({ ok: z.literal(true), dados: aprovacaoObjetivoPlanoSchema, request_id: uuidSchema })

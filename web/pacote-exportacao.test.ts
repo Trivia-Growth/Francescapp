@@ -114,3 +114,11 @@ it('monta um ZIP que o descompactador do sistema abre e lê', () => {
     rmSync(pasta, { recursive: true, force: true });
   }
 });
+
+it('índice legado declara ausência de conteúdo clínico e arquivos anexos', () => {
+  const html = montarResumoHtml(entrada);
+  expect(html).toContain(
+    'Este índice não inclui o conteúdo clínico dos registros nem os arquivos anexos.',
+  );
+  expect(html).not.toContain('traz a mesma informação');
+});

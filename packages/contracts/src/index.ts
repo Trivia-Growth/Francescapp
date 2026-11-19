@@ -40,3 +40,5 @@ export * from './conversao-diario-tarefa.ts';
 export * from './turno-passagem.ts';
 
 export * from './acessos.ts';
+
+export * from './turno-execucao.ts';

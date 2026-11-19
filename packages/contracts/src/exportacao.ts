@@ -90,6 +90,7 @@ export const respostaExportacaoPrivadaSchema = z.discriminatedUnion('ok', [
       dados: registroExportacoesSchema,
       request_id: uuidSchema,
       repeticao: z.boolean().optional(),
+      resultado_id: uuidSchema.nullable().optional(),
     })
     .strict(),
   z

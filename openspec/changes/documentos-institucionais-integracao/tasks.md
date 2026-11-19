@@ -14,7 +14,7 @@
 
   **Continua pendente de decisão**, e por isso não foi implementado: a política de revogação de audiência individual, os limites de tipo de arquivo além do teto de tamanho, e o tratamento de mudanças feitas diretamente no Drive (ver 1.3).
 
-- [x] 1.2 Implementar FR-029 a FR-031 com cenários de acesso autorizado, outro paciente/perfil, audiência, revogação, acesso direto e falha do Drive.
+- [ ] 1.2 Implementar FR-029 a FR-031 com cenários de acesso autorizado, outro paciente/perfil, audiência, revogação, acesso direto e falha do Drive.
 
   **Banco** (faixa `20261120100000`–`20261120130000`, **nenhuma aplicada remotamente**):
 
@@ -153,3 +153,66 @@ ordem consulta/Drive/consulta; negativa antes do I/O sem buscar bytes; negativa 
 I/O sem emitir bytes/attachment. Expectativa antiga de query recusada alinhada à
 tabela HTTP vigente. Nenhum teste/check foi executado nesta revisão; gates de
 RLS/autorização, Google real e ativação continuam pendentes.
+
+
+## Correções adversariais de 19/11/2026 — PAD-01 e ESP-01/02/03
+
+Tarefa 1.2 reaberta: implementação anterior não comprovava autorização antes do Drive,
+organização por paciente nem edição de metadados existentes. Correções de fonte escritas:
+
+- Prévia assinada `api.documento_preautorizar_privada`, autorizando **gravação e paciente**,
+  com auditoria obrigatória antes de qualquer busca/criação de pasta ou upload. Sem persistir
+  conteúdo/versão ou sucesso antecipado. RPC final reautoriza e audita atomicamente;
+  profissional exige vínculo vigente também em leitura e escrita. Administrador conserva
+  alçada existente. Ambos métodos DF-023 e legado são preservados pelo hash da função.
+- Pasta por paciente com chave opaca HMAC e `appProperties`; arquivo novo usa identificador
+  opaco como título. Nome visível permanece cifrado no banco. Consulta/reutilização da pasta
+  só ocorre depois da prévia. Nenhum conteúdo/pasta preexistente é movido ou excluído.
+  Reserva DB única por paciente+raiz precede criação com ID pré-gerado Google. Recovery/409
+  conferem ID, MIME, parent, marcador e lixeira; nunca há adoção por nome/listagem.
+- UI da equipe edita categoria/origem/data/audiência/estado do documento existente, preserva
+  conteúdo e histórico, usa versão esperada e mesma chave/comando no replay. Incerteza oferece
+  conferir resultado e repetir mesma alteração, sem reenviar arquivo. Família não recebe editor.
+- Digest de upload é calculado antes do ID Drive e inclui hash dos bytes; replay já confirmado
+  pela prévia não reenvia. Resposta final perdida não dispara exclusão de arquivo potencialmente
+  vinculado. Nenhuma exclusão compensatória automática permanece, mesmo após recusa confirmada.
+  Metadados sem arquivo consultam versão autorizada e preservam ID Drive; nova criação sem arquivo
+  e troca de capacidade por payload são recusadas antes da RPC de gravação.
+
+**Provas escritas, NÃO EXECUTADAS:** `documento-caso-nativo.test.ts` (ordem prévia/auditoria,
+zero uploads nas negativas, auditoria indisponível, resposta final perdida),
+`google-drive.test.ts` (reserva, pasta nova/reutilizada, recovery de timeout/409,
+parent/marcador/MIME/lixeira divergentes, sem mover/apagar),
+`web/documentos-caso-edicao.test.ts` (edição sem arquivo, família, replay, perda de acesso,
+chave HTTP) e `supabase/tests/documentos_preautorizacao_local.sql` (matriz profissional A/B,
+família, revogação, leitura/escrita/prévia, auditoria, replay, grants diretos).
+
+Migrations preparadas `20261125180000_documentos_preautorizacao.sql` e
+`20261125185000_documentos_pastas.sql`, não aplicadas.
+Validações, lint/typecheck, SQL, browser e operações externas **adiados expressamente** pelo
+solicitante. Nenhum gate executado nesta passagem; não ativar nem marcar 1.2 concluída.
+Revisão independente de fonte ainda necessária. Testes existentes antigos não comprovam
+estado novo. Provas reais Google/ACL e concorrência distribuída continuam pendentes.
+
+**Limites:** provas reais Google/ACL, concorrência SQL com processos simultâneos e cadeia de
+migrations continuam não executadas. Unicidade por paciente+raiz é imposta pela PK e ID de pasta
+reservado antes de criar no Google; candidatos concorrentes reutilizam mesmo ID. Upload cujo
+registro falhe pode ficar pendente no Drive: sem exclusão/reconciliação automática e sem mover
+conteúdo preexistente. Retry após commit confirmado pela prévia não envia arquivo novamente.
+
+Correções da revisão independente de fonte (19/11, ainda sem execução): a prévia e a reserva
+revalidam expiração e sessão depois dos locks/INSERTs/auditoria, imediatamente antes de retornar
+sucesso; expiração desfaz a reserva na transação. Prova preparada em
+`supabase/tests/documentos_preautorizacao_concorrencia_local.sql` e runner local correspondente:
+duas conexões, bloqueio posterior ao gate inicial e espera além do TTL fictício, sem autorização
+nem reserva confirmada. O editor de metadados reutiliza o catálogo administrado; categoria histórica
+retirada permanece opção explicitamente preservada. Prova UI ajustada para catálogo/histórico.
+
+
+**Releitura cruzada de fonte em 19/11/2026:** base `cc10aad`, diff desta
+continuação incluindo novos arquivos; revisor Sol de outra frente. Eixos padrões
+e especificação conferidos sem aceitar a própria implementação. Correções e
+limites no [relatório complementar](../../../docs/processo/entrega-complementar-19-11-2026.md).
+Nenhum P1/P2 confirmado restante no recorte relido; não é aceite em runtime.
+Nenhum teste manual/SQL/build/Deno/browser executado; hooks Git preservados.
+Provas positivas e negativas permanecem obrigatórias antes da ativação.

@@ -106,3 +106,30 @@ export const respostaDocumentoPrivadaSchema = z.discriminatedUnion('ok', [
     })
     .strict(),
 ]);
+
+/** Prévia privada: audita a autorização, sem persistir versão nem reservar sucesso. */
+export const respostaPreautorizacaoDocumentoSchema = z.discriminatedUnion('ok', [
+  z.object({ ok: z.literal(true), repeticao: z.boolean(), request_id: uuidSchema }).strict(),
+  z
+    .object({
+      ok: z.literal(false),
+      erro: z
+        .object({ codigo: z.enum(['sem_permissao', 'conflito', 'conflito_idempotencia']) })
+        .strict(),
+      request_id: uuidSchema,
+    })
+    .strict(),
+]);
+
+export const respostaPastaDocumentoSchema = z
+  .object({
+    ok: z.literal(true),
+    dados: z
+      .object({
+        pasta_id: z.string().regex(/^[A-Za-z0-9_-]{1,256}$/),
+        marcador: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+      })
+      .strict(),
+    request_id: uuidSchema,
+  })
+  .strict();

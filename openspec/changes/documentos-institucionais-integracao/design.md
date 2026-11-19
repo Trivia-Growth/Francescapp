@@ -84,3 +84,55 @@ Revogação após a autorização final não recolhe bytes já emitidos. Auditor
 autorização para entregar, nunca recebimento ou salvamento pelo destinatário.
 Implementação não equivale a prova dessas mitigações; testes positivos/negativos,
 revisão e integração real permanecem pendentes nesta retomada.
+
+
+## Correções adversariais — 19/11/2026
+
+PAD-01/ESP-01: fluxo passa a validar entrada, autenticar, cifrar comando provisório,
+assinar prévia e executar `api.documento_preautorizar_privada` antes do primeiro efeito
+Drive. Migration deriva corpo pós-DF-023 com hash esperado, preservando autenticadores,
+owner, ACL e configuração. Prévia executa autorização da operação de escrita e existência
+visível do paciente, mais identidade/propriedade/versão do documento e idempotência;
+auditoria da prévia é obrigatória. Não cria versão nem reserva uma gravação concluída.
+RPC final permanece transacional e repete autorização depois do I/O. Profissional exige
+vínculo ativo por paciente também na leitura/escrita final; conta Administrador conserva
+alçada preexistente. Família nunca passa pela prévia de escrita.
+
+Digest de upload inclui conteúdo lógico anterior ao identificador Drive, tipo e SHA-256 dos
+bytes; ID recebido do Google não muda o comando idempotente. Prévia detecta repetição já
+concluída e evita reenvio. Resposta final perdida conserva arquivo que pode já estar vinculado,
+retorna pendência e permite conferir. Nenhuma exclusão compensatória automática permanece,
+mesmo após recusa confirmada; conteúdo preexistente e eventualmente comprometido é preservado.
+
+ESP-02: raiz administrada continua inalterada. `cadastro.documento_pasta` guarda reserva privada
+por `(paciente_id, raiz)` com ID Drive único e marcador opaco. RLS forçada, sem grants de tabela
+aos papéis PostgREST; única RPC acessível exige duas provas assinadas e reexecuta pré-autorização
+vigente do comando original, auditando na mesma transação da reserva. Candidatas concorrentes
+retornam mesmo ID/marcador, sem transação DB aberta durante I/O Google.
+
+Google [suporta IDs pré-gerados para folders](https://developers.google.com/workspace/drive/api/guides/create-file).
+Adapter chama `files.generateIds`, reserva ID no banco, consulta esse ID exato e só cria se 404.
+Timeout/retry e 409 recuperam mesmo ID; antes do upload confere ID, MIME de pasta, parent raiz,
+`appProperties.ffcm_paciente` e `trashed=false`. Nenhuma adoção por nome ou deduplicação por
+listagem. Título é `caso-<marcador opaco>` e arquivo novo recebe UUID do documento; nome original
+permanece no conteúdo cifrado. Reserva existente preserva marcador mesmo com rotação HMAC.
+Nenhuma pasta/arquivo antigo é importado, movido ou excluído; nenhuma ACL é escrita.
+Prova real Google e concorrência SQL simultânea continuam adiadas, não presumidas.
+
+ESP-03: edição inline nativa (`details`/`form`) só na superfície da equipe; labels, status e
+bloqueio de submissão repetida preservam padrões existentes. Metadados mudam por nova versão,
+sem alterar arquivo. Servidor consulta versão autorizada e preserva o `drive_file_id` dessa
+versão; divergência do ID enviado é entrada inválida, criação sem arquivo é recusada. RPC final
+confere a versão novamente. Comando e chave idempotente ficam na memória enquanto resultado estiver
+incerto; campos ficam bloqueados, conferir consulta versão atual e replay usa mesmos dados.
+Dados não são persistidos em armazenamento do navegador. Família não recebe editor e servidor
+continua responsável por recusar escrita. Validação visual/teclado/celular foi adiada.
+
+Ameaças delimitadas deste recorte: profissional tenta caso alheio ou revogado (impacto alto,
+gate SQL em prévia e final); família tenta escrita direta (gate de operação/papel); auditoria
+indisponível (exceção impede sucesso/prévia); timeout final induz remoção de arquivo válido
+(preservar em incerteza); nomes externos revelam conteúdo clínico (títulos opacos); ACL externa
+continua somente detecção/revisão, sem mudança automática. Fronteiras navegador/BFF,
+BFF/RPC/Vault e BFF/Drive já descritas acima. Hipóteses do briefing permanecem: somente dados
+fictícios, sem chamadas Google, credenciais, migração remota ou ativação nesta passagem.
+Nenhuma hipótese material nova foi promovida a controle comprovado.

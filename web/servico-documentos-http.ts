@@ -25,6 +25,7 @@ export type ServicoDocumentos = {
       metadado: MetadadoDocumento;
       conteudo: ConteudoDocumento;
       arquivo?: File;
+      chave_idempotencia?: string;
     },
   ): Promise<DocumentoCaso[]>;
 };
@@ -40,6 +41,7 @@ export function criarServicoDocumentosHttp(
     nome: 'consultar' | 'gravar',
     paciente: string,
     corpo?: { json: unknown } | { formulario: FormData },
+    chaveIdempotencia?: string,
   ) => {
     const rota = documentoCasoHttp[nome];
     const atual = identidadeAtual();
@@ -79,7 +81,8 @@ export function criarServicoDocumentosHttp(
     )
       throw new FalhaApi('nao_autenticado', 401);
     headers.set('x-fluxo', fluxo);
-    if (rota.metodo !== 'GET') headers.set('x-chave-idempotencia', crypto.randomUUID());
+    if (rota.metodo !== 'GET')
+      headers.set('x-chave-idempotencia', chaveIdempotencia ?? crypto.randomUUID());
     // `FormData` define o próprio `content-type` com o limite do multipart; defini-lo à mão
     // quebraria o corpo.
     if (corpo && 'json' in corpo) headers.set('Content-Type', 'application/json');
@@ -193,14 +196,17 @@ export function criarServicoDocumentosHttp(
         metadado: entrada.metadado,
         conteudo: entrada.conteudo,
       };
-      if (!entrada.arquivo) return (await enviar('gravar', paciente, { json: base })).documentos;
+      if (!entrada.arquivo)
+        return (await enviar('gravar', paciente, { json: base }, entrada.chave_idempotencia))
+          .documentos;
       const formulario = new FormData();
       formulario.set('documento_id', base.documento_id);
       formulario.set('versao_esperada', String(base.versao_esperada));
       formulario.set('metadado', JSON.stringify(base.metadado));
       formulario.set('conteudo', JSON.stringify(base.conteudo));
       formulario.set('arquivo', entrada.arquivo, entrada.arquivo.name);
-      return (await enviar('gravar', paciente, { formulario })).documentos;
+      return (await enviar('gravar', paciente, { formulario }, entrada.chave_idempotencia))
+        .documentos;
     },
   };
 }

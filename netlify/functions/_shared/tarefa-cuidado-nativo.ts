@@ -1,3 +1,8 @@
+import {
+  incluirSeletorExportacao,
+  conferirVersaoExportacao,
+  type SeletorVersaoExportacao,
+} from './turno-execucao-seletor-exportacao.ts';
 import { prepararAtestadoConversao } from './conversao-diario-atestado.ts';
 import { chaveIdempotenciaSchema, uuidSchema } from '../../../packages/contracts/src/comum.ts';
 import {
@@ -19,7 +24,7 @@ type Autorizacao =
   | { estado: 'autorizado'; identidade: Identidade }
   | { estado: 'nao_autenticado' | 'sem_permissao' | 'servico_indisponivel' };
 export type ComandoTarefa =
-  | { operacao: 'ler'; paciente_id: string; autorizacao_somente?: true }
+  | ({ operacao: 'ler'; paciente_id: string; autorizacao_somente?: true } & SeletorVersaoExportacao)
   | {
       operacao: 'gravar';
       paciente_id: string;
@@ -158,6 +163,7 @@ export async function operarTarefaCuidadoNativo(
     );
     if (request.signal.aborted || resposta.request_id !== requestId) throw new Error();
     if (!resposta.ok) return erro(resposta.erro.codigo);
+    if (comando.operacao === 'ler') conferirVersaoExportacao(comando, resposta.dados);
     const registros = Array.isArray(resposta.dados) ? resposta.dados : [resposta.dados];
     if ((comando.operacao === 'ler') !== Array.isArray(resposta.dados)) throw new Error();
     // A migration de capability confirma autorização sem selecionar conteúdo de tarefas.
@@ -235,6 +241,7 @@ async function prepararEntradaGravacaoTarefaNativa(
   if (!chave.success || !tarefa.success || !id.success || !reserva.success)
     throw new Error('Entrada inválida.');
   const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+  if (comando.operacao === 'ler') incluirSeletorExportacao(comando, entrada);
 
   const aad: Aad = {
     tabela: 'cadastro.tarefa_cuidado_versao',

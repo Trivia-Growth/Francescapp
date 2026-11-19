@@ -8,6 +8,16 @@ Nenhuma tarefa autoriza deploy, migração remota, concessão de acesso ou uso d
 
 ## 0. Pré-condições
 
+**Retomada autorizada em 19/11/2026:** após a revisão adversarial da base
+`cc10aad1aeac9ebac3e805ae44fda7cccce25726`, o solicitante determinou implementar
+as lacunas encontradas. O recorte de código passa a incluir os grupos 4–13,
+além dos controles pertinentes de 0.6.2/14. Não transforma prova operacional
+pendente em aprovação. Validações manuais, aplicação remota e ativação continuam
+adiadas; escrever provas positivas/negativas sem alegar execução. Implementação
+Sol em frentes com contratos e arquivos exclusivos. Financeiro, PWA e migração
+Edge continuam excluídos da autorização noturna. A tarefa 10.4 mantém a medição
+de PDF pendente enquanto verificações estiverem adiadas.
+
 Decisões 0.1 a 0.5 e 0.7 confirmadas pelo solicitante em 11/11/2026 e registradas em `proposal.md — Decisões aplicadas`. Permanecem aqui como marcadas para preservar o rastro.
 
 - [x] 0.1 ~~Perfis habilitados: Administrador e grupo de case managers.~~ **Revisado em 17/11/2026**: qualquer profissional autenticado com vínculo ativo no caso registra medicação prescrita e administrada. A concessão continua modelada e nasce concedida a todo profissional com vínculo, como ponto de aperto futuro (FR-059, FR-060, design D4).
@@ -278,3 +288,46 @@ literal de teste, corrigido; pre-push apontou campo `repeticao` ausente na fixtu
 corrigido em commit próprio. Novo push saiu 0 com lint (759 arquivos) e typechecks.
 Nenhum teste de comportamento/SQL/build/Deno/manual foi executado. Esse resultado
 dos hooks não fecha autorização/RLS, critérios de aceite ou ativação.
+
+
+### Correção de recuperação durável da execução (2600) — fonte preparada, gates abertos
+
+- [ ] Validar contrato público `turno-execucao-barreira.ts`, BFF nativo e UI com época obrigatória na gravação, recibo persistente e reconhecimento CAS; sem conteúdo clínico no navegador.
+- [ ] Executar `scripts/testar-turno-execucao-reconciliacao-local.sh false` e `scripts/testar-turno-execucao-reconciliacao-local.sh true`: instalação NOSUPER, preservação exata de owner/ACL/proconfig/memberships/schema CREATE, acesso direto/privilegiado negado, staff Google/interno, família/técnico, revogação de sessão/concessão/vínculo e próprio recibo de outro caso. A matriz até2500 roda antes2600; os comandos de barreira/época são exercitados depois2600.
+- [ ] Executar `scripts/testar-turno-execucao-reconciliacao-concorrencia-local.sh false` e variante `true`: duas conexões reais, commit antes de reconcile retorna recibo; consulta anterior vazia seguida de bump impede AJAX atrasado e multiaba antiga; nenhum registro ou recibo duplicado.
+- [ ] Executar provas UI afetadas `web/turno-execucao.test.ts`, `web/turno-execucao-relatorios.test.ts`, serviço HTTP e native BFF: reload/timeout/reconcile idempotente, novo comando só por ato explícito, rascunho não enviado preservado, versão2 retificável para3, novo filtro falho remove PDF antigo e emissão pendente mantém período próprio.
+
+Nenhum teste, lint, typecheck, build, SQL ou browser executado nesta correção. Código e provas escritos não comprovam integração, desempenho ou autorização em runtime. Recuperação usa POSTs autenticados com Origin; nenhum GET altera estado. Comando/chave de reconcile ficam estáveis em RAM durante timeout; reload inicia outro comando, incrementando época e bloqueando requisição antiga. Próprio recibo operacional permanece consultável com vínculo de caso revogado; não concede leitura clínica. Após conferência explícita e reconhecimento, nova intenção exige novo formulário/chave e época vigente. Replay clínico da chave antiga com época antiga é recusado, sem atualizar digest silenciosamente.
+
+
+### Resumo operacional dos grupos 4–13 — 19/11/2026
+
+Fonte preparada em contratos, SQL privado 2000–2600, BFF nativo e interfaces de
+execução/relatórios/fotos/localização. FR-058–067 incluem retificação, conversão
+atômica em Tarefa/Diário, fundamento familiar distinto de vínculo, concessão de
+medicação por caso, snapshots de relatório e PDF servidor. Check-in/check-out
+consentidos são complementares ao turno; ausência nunca bloqueia cuidado.
+Barreira persistente impede nova intenção clínica após resposta incerta/recarga.
+
+Revisão cruzada Sol sobre base `cc10aad1aeac9ebac3e805ae44fda7cccce25726` e diff
+local mais novos arquivos, excluindo `.impeccable/` preexistente. Persistência
+revisou Documentos/Plano/BFF/2600; Documentos/BFF revisou SQL 2000–2600 e interface
+revisou BFF/contratos. Achados e limites nos dois eixos em
+[entrega complementar](../../../docs/processo/entrega-complementar-19-11-2026.md).
+Corrigidos na fonte: autorização antes de upload, validade após esperas/auditoria,
+ACL sob owner e restauração de privilégios temporários, versões exatas (inclusive
+Diário), omissões de projeção PDF e autoria da versão, digest/contratos binários,
+período antigo após falha e recuperação durável. Nenhum gate de execução presumido.
+
+**Validações adiadas pelo solicitante:** nenhum teste manual, SQL, lint/typecheck
+manual, build, Deno, browser ou benchmark executado. Hooks Git normais são
+preservados e têm resultado separado no relatório. Provas positivas/negativas
+escritas não constituem matriz aprovada; nenhum checkbox de aceite foi fechado.
+0.6.1, provas pertinentes de 0.6.2/14 e medição 10.4 continuam bloqueando ativação.
+Nenhuma migration remota, deploy, dado real, segredo ou limpeza nesta continuação.
+
+**SUPOSIÇÕES CONSERVADORAS:** retificação de filho exige autor e turno aberto;
+Administrador exige vínculo de caso; nomes legados ausentes têm identificador
+persistido rotulado; anexos de 3 MiB, PDF de 4 MiB e glifo não suportado falham
+explicitamente. Flags de descarte/job novo de localização permanecem desligados.
+Detalhes e roteiro real pendente constam do relatório; financeiro/PWA/Edge excluídos.

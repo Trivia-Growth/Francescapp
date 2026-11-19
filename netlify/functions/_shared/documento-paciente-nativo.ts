@@ -1,4 +1,9 @@
 import {
+  incluirSeletorExportacao,
+  conferirVersaoExportacao,
+  type SeletorVersaoExportacao,
+} from './turno-execucao-seletor-exportacao.ts';
+import {
   campoCifradoSchema,
   dadosAtestadoSchema,
   resultadoAtestacaoSchema,
@@ -36,7 +41,7 @@ type Autorizacao =
   | { estado: 'autorizado'; identidade: Identidade }
   | { estado: 'nao_autenticado' | 'sem_permissao' | 'servico_indisponivel' };
 export type ComandoDocumentoPaciente =
-  | { operacao: 'ler'; paciente_id: string }
+  | ({ operacao: 'ler'; paciente_id: string } & SeletorVersaoExportacao)
   | { operacao: 'gravar'; paciente_id: string; versao_esperada: number; conteudo: unknown };
 
 export type PortasDocumentoPaciente = {
@@ -125,6 +130,7 @@ export async function operarDocumentoPacienteNativo<T>(
     if (request.headers.get('x-sessao')?.toLowerCase() !== identidade.session_id)
       return erro('nao_autenticado');
     const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+    if (comando.operacao === 'ler') incluirSeletorExportacao(comando, entrada);
     if (comando.operacao === 'gravar') {
       const registroId = crypto.randomUUID();
       const aad: Aad = {
@@ -204,6 +210,7 @@ export async function operarDocumentoPacienteNativo<T>(
         resposta.dados.versao !== comando.versao_esperada + 1)
     )
       throw new Error();
+    if (comando.operacao === 'ler') conferirVersaoExportacao(comando, resposta.dados);
     let resultado: { versao: number; conteudo: T } | null = null;
     if (resposta.dados) {
       const registro = resposta.dados;

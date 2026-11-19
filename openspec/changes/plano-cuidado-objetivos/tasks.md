@@ -207,3 +207,29 @@ ajuste de fixture em `plano-http-postgres-local.test.ts` (corpo HTTP sem `visibi
 campo obrigatório no contrato).
 
 **Deploy no projeto Supabase de teste (11/11/2026).** Autorização explícita do solicitante pra subir o schema das 3 operações pro Supabase de teste e destravar as demais frentes. `supabase migration list --linked` confirmou que até `20261116100000` já estava aplicado remotamente; as 7 migrations desta mudança (`20261116130000` a `20261116190000`) estavam pendentes. `supabase db push` aplicou as 5 primeiras (schema + operações das 3 funções) sem erro; as duas últimas (`grant_campo_extra_plano_teste`/`grant_aprovador_plano_teste`) falharam na primeira tentativa com `permission denied` — o grant tentava `grant execute ... to authenticated` direto como migrador, sem antes assumir o papel dono da função (só o dono pode conceder EXECUTE na própria função). Essas duas migrations tinham, inclusive, um comentário meu avisando "NUNCA aplicar remotamente sem antes decidir ativar" — perguntei ao solicitante antes de corrigir e reaplicar, já que isso expõe de verdade as 3 operações pra `authenticated`; autorizado explicitamente ("libera as 3 agora"). Corrigido o grant pra seguir o mesmo padrão já usado em `grant_plano_cuidado_teste.sql` (assume temporariamente o papel dono via `SET ROLE` antes de conceder, com as mesmas checagens defensivas `WRAPPER_INESPERADO`/`ACL_INICIAL_INESPERADA`); testado em PostgreSQL descartável reproduzindo a cadeia completa das 7 migrations antes de reaplicar. `supabase db push` aplicou as duas sem erro. Verificação por catálogo (só leitura) após o deploy: `api.campo_extra_plano_privado`, `api.aprovador_plano_privado` e `api.aprovar_objetivo_plano_privado` com EXECUTE só para `authenticated` — `anon`/`service_role`/`public` confirmados sem acesso. `pnpm run verificar:rapido` limpo depois. Isso comprova que o schema foi aplicado como desenhado — não substitui S-02 (prova real de Profissional/Família, jornada HTTP real contra o projeto de teste com conta Google real), que continua pendente.
+
+
+## 3. Jornada conectada de campos extras e carimbo — ESP-05/06 (19/11/2026)
+
+- [ ] 3.1 Entregar administração global de campos texto/número/data/lista (1–20 opções), criação/edição/desativação e indicação/remoção de aprovadores, usando as três APIs nativas existentes e versão esperada.
+- [ ] 3.2 Apresentar/preencher campos extras no objetivo e preservar seus valores na revisão e histórico; recusar tipo/opção/campo inativo sem apagar silenciosamente valores legados.
+- [ ] 3.3 Validar catálogo corrente no servidor antes da cifra, consultar catálogo com autorização vigente no banco e manter a autorização transacional de objetivo; não mudar a matriz clínica.
+- [ ] 3.4 Permitir carimbo por versão específica com permissão vigente, exibindo confirmação/erro sem tornar aprovação portão.
+- [ ] 3.5 Escrever provas UI/HTTP/servidor/SQL positivas e negativas para extras, inatividade, perfil, revogação e matriz vigente; executar somente quando liberado. Revisão independente e gates de ativação pendentes.
+
+Validação explicitamente adiada: nesta continuação não executar testes, lint, typecheck, build, SQL, navegador ou operação remota. Código/testes escritos não equivalem a aceite ou sucesso.
+
+### Resumo operacional ESP-05/06 — 19/11/2026
+
+Fonte preparada para 3.1–3.4: administração nominal de campos/aprovadores, preenchimento/preservação de extras e carimbo persistido por versão. Contratos/cliente nativos reutilizados. Servidor valida catálogo autorizado antes da cifra; migration 1900 confere snapshot assinado sob locks e consulta carimbos persistidos, com guards de fonte e preservação de privilégios.
+
+3.5 tem provas escritas nos arquivos citados no design, inclusive migração NOSUPER com/sem SET prévio. **Nenhuma prova executada, nenhum item novo marcado concluído.** Próximo gate: revisão independente do diff exato, correções afetadas e execução autorizada dos arquivos novos/alterados; SQL em dois bancos descartáveis (`plano_preexisting_set=false/true`) antes de qualquer ativação. Confirmar locks concorrentes/expiração e matriz de acesso vigente; preservação de histórico não equivale a validação de Auth real. Typecheck/lint/visual/teclado ainda ausentes. Não há autorização remota, stage, commit, push ou alteração de flags.
+
+
+**Releitura cruzada de fonte em 19/11/2026:** base `cc10aad`, diff desta
+continuação incluindo novos arquivos; revisor Sol de outra frente. Eixos padrões
+e especificação conferidos sem aceitar a própria implementação. Correções e
+limites no [relatório complementar](../../../docs/processo/entrega-complementar-19-11-2026.md).
+Nenhum P1/P2 confirmado restante no recorte relido; não é aceite em runtime.
+Nenhum teste manual/SQL/build/Deno/browser executado; hooks Git preservados.
+Provas positivas e negativas permanecem obrigatórias antes da ativação.

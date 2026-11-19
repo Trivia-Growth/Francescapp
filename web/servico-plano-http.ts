@@ -1,3 +1,4 @@
+import { contratosRotas } from '../packages/contracts/src/rotas.ts';
 import { planoHttp } from '../packages/contracts/src/plano-http.ts';
 import {
   sucessoRespostaSchema,
@@ -10,7 +11,15 @@ import { statusErroHttp } from '../packages/contracts/src/erros.ts';
 import type { ServicoPlanoCuidado } from './plano-cuidado.ts';
 
 type Identidade = { usuario_id: string; session_id: string };
-type Nome = keyof typeof planoHttp;
+const rotasPlano = {
+  ...planoHttp,
+  listarCampoExtraPlano: contratosRotas.listarCampoExtraPlano,
+  gravarCampoExtraPlano: contratosRotas.gravarCampoExtraPlano,
+  listarAprovadorPlano: contratosRotas.listarAprovadorPlano,
+  gravarAprovadorPlano: contratosRotas.gravarAprovadorPlano,
+  aprovarObjetivoPlano: contratosRotas.aprovarObjetivoPlano,
+};
+type Nome = keyof typeof rotasPlano;
 /** Serviço isolado para montagem futura. A sessão e autorização são verificadas no servidor. */
 export function criarServicoPlanoHttp(
   identidadeAtual: () => Identidade | null,
@@ -24,7 +33,7 @@ export function criarServicoPlanoHttp(
     objetivo?: string,
     chave?: string,
   ) => {
-    const rota = planoHttp[nome];
+    const rota = rotasPlano[nome];
     const corpo = rota.entrada.parse(entrada);
     const atual = identidadeAtual();
     if (
@@ -158,6 +167,30 @@ export function criarServicoPlanoHttp(
   });
   return {
     ciclo,
+    consultarCatalogo: async () =>
+      (await enviar('listarCampoExtraPlano', {})) as import(
+        '../packages/contracts/src/plano-cuidado.ts',
+      ).CampoExtraCatalogo[],
+    gravarCampoExtra: async (entrada, chave) => {
+      await enviar('gravarCampoExtraPlano', entrada, undefined, undefined, chave);
+    },
+    consultarAprovadores: async () =>
+      (await enviar('listarAprovadorPlano', {})) as import(
+        '../packages/contracts/src/plano-cuidado.ts',
+      ).AprovadorPlano[],
+    gravarAprovador: async (entrada, chave) => {
+      await enviar('gravarAprovadorPlano', entrada, undefined, undefined, chave);
+    },
+    aprovarObjetivo: async (registro_id) =>
+      (await enviar(
+        'aprovarObjetivoPlano',
+        { registro_id },
+        undefined,
+        undefined,
+        crypto.randomUUID(),
+      )) as import('zod').output<
+        typeof import('../packages/contracts/src/plano-cuidado.ts').aprovacaoObjetivoPlanoSchema
+      >,
     consultarObjetivos: async (paciente, cursor) =>
       (await enviar(
         'consultar',

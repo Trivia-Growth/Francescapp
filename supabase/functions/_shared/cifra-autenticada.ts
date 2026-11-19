@@ -66,6 +66,65 @@ function keyIdValido(keyId: unknown): keyId is string {
 }
 
 function aadCanonico(aad: MetadadosAad): Uint8Array {
+  if (
+    typeof aad === 'object' &&
+    aad !== null &&
+    [
+      'cadastro.turno_medida_versao',
+      'cadastro.turno_prescricao_versao',
+      'cadastro.turno_administracao_versao',
+      'cadastro.turno_ocorrencia_versao',
+      'cadastro.turno_fundamento_familiar_versao',
+      'cadastro.turno_exportacao_pdf',
+      'cadastro.turno_localizacao_exportacao',
+    ].includes(aad.tabela)
+  ) {
+    const valor = aad as {
+      tabela: string;
+      paciente_id: string;
+      turno_id: string | null;
+      registro_id: string;
+      versao: number;
+      campo: string;
+      formato: number;
+    };
+    const campos: Record<string, readonly string[]> = {
+      'cadastro.turno_medida_versao': ['observacao', 'motivo'],
+      'cadastro.turno_prescricao_versao': ['nome', 'dose', 'via', 'fonte_documental', 'motivo'],
+      'cadastro.turno_administracao_versao': [
+        'executor_nome',
+        'executor_vinculo',
+        'motivo_situacao',
+        'motivo',
+      ],
+      'cadastro.turno_ocorrencia_versao': ['descricao', 'providencia', 'motivo'],
+      'cadastro.turno_fundamento_familiar_versao': ['fundamento'],
+      'cadastro.turno_exportacao_pdf': ['destinatario', 'proposito'],
+      'cadastro.turno_localizacao_exportacao': ['destinatario', 'proposito'],
+    };
+    if (
+      !uuid.test(valor.paciente_id) ||
+      !uuid.test(valor.registro_id) ||
+      (valor.turno_id !== null && !uuid.test(valor.turno_id)) ||
+      !Number.isInteger(valor.versao) ||
+      valor.versao < 1 ||
+      valor.versao > 2147483647 ||
+      !campos[valor.tabela]?.includes(valor.campo) ||
+      valor.formato !== formatoAtual
+    )
+      throw new ErroCifraAutenticada();
+    return codificador.encode(
+      JSON.stringify({
+        tabela: valor.tabela,
+        paciente_id: valor.paciente_id,
+        turno_id: valor.turno_id,
+        registro_id: valor.registro_id,
+        versao: valor.versao,
+        campo: valor.campo,
+        formato: valor.formato,
+      }),
+    );
+  }
   if (typeof aad === 'object' && aad !== null && aad.tabela === 'identidade.acesso_gerenciado') {
     if (
       !uuid.test(aad.registro_id) ||
