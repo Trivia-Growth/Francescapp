@@ -53,6 +53,18 @@ Essa medição é de outro runtime. No isolate, o ciclo de vida do cache é outr
 
 *Regra:* nenhuma falha de leitura de configuração pode **ligar** um serviço. O comportamento atual — falha mantém o que o ambiente já dizia — é preservado literalmente.
 
+### E6 — O que a execução de 19/11/2026 apurou, e onde o desenho precisou ser corrigido
+
+Grupos 1 e 2 executados no que não depende de operação remota. Três coisas mudaram de entendimento.
+
+**O cookie selado não é o que atravessa o proxy nas 38 rotas.** `supabase/functions/_shared/sessao/nucleo.ts` emite o cookie de sessão com `Path=/api/sessao`. O navegador só o envia para `/api/sessao/*`. Nas outras rotas a identidade que viaja é o cabeçalho `x-sessao`, mais `x-csrf` nos comandos. A conclusão de E2 — uma só autoridade de sessão durante a transição — continua de pé, mas o mecanismo é o cabeçalho, não o cookie. Quem for executar o lote 7 precisa saber disso: é na rota `auth` que o cookie realmente atravessa.
+
+**O caminho é derivado da URL, nunca de um cabeçalho.** A Edge Function reconstrói `/api/*` removendo o prefixo `/functions/v1/<nome>` do próprio `pathname`. A alternativa — o proxy informar o caminho original num cabeçalho — foi recusada: cabeçalho é entrada controlável pelo cliente, e aceitar um viraria desvio de roteamento por requisição. Pelo mesmo motivo o proxy descarta `authorization` e `apikey` vindos do cliente antes de acrescentar os seus.
+
+**O cache de 30 segundos vira estado por isolate.** `cache` e `emVoo` de `configuracao-servidor.ts` são estado de módulo. No processo Netlify a janela de 30 s cobre muitas requisições; no isolate, efêmero e numeroso, ela tende a cobrir pouquíssimas, e a retentativa de 150 ms do caminho frio passa a ser exercitada com muito mais frequência. Nada foi alterado: mexer nisso antes da medição na plataforma real repetiria exatamente o erro que E5 descreve. A decisão fica para 3.4, com o número em mãos.
+
+*Limite desta passagem:* o módulo de encaminhamento existe (`netlify/functions/_shared/encaminhamento-api.ts`), mas não há arquivo de função registrando o proxy em `/api/*`, e `netlify.toml` não foi alterado. A ligação é o primeiro passo de quem retomar. Nenhuma Edge Function de domínio foi criada — isso é o grupo 3.
+
 ## Riscos
 
 - **Barreiras migradas cedo (lote 2).** É deliberado: elas são o controle, e migrar com volume pequeno dá atenção total. Mas um erro aqui é o pior erro possível. A matriz deste lote é a mais exigente, com prova de acesso direto ao servidor e ao banco.
