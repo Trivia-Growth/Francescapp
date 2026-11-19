@@ -20,8 +20,12 @@ import { criarCifraAutenticada, ErroCifraAutenticada, type AadCifra } from './ci
 /** Dados fictícios. */
 const valorId = 'f0000000-0000-4000-8000-000000000006';
 const outroValorId = 'f0000000-0000-4000-8000-000000000007';
+/** Linha da versão 1 de um lançamento: o banco grava `id = despesa_id`. */
 const despesaId = 'd0000000-0000-4000-8000-000000000004';
+/** Linha de OUTRO lançamento. */
 const outraDespesaId = 'd0000000-0000-4000-8000-000000000005';
+/** Linha da versão 2 do MESMO lançamento `despesaId`: o banco grava `id = retificacao_id`. */
+const retificacaoId = 'd0000000-0000-4000-8000-00000000000a';
 
 function criarCifra() {
   return criarCifraAutenticada({
@@ -40,7 +44,7 @@ const aadValor = {
 
 const aadDespesa = {
   tabela: 'financeiro.despesa_lancamento',
-  despesa_id: despesaId,
+  registro_id: despesaId,
   campo: 'descricao',
   formato: 1,
 } as const satisfies MetadadosAadFinanceiro;
@@ -84,9 +88,33 @@ describe('cifra do financeiro: ida e volta pelo caminho de produção', () => {
     const cifra = criarCifra();
     const envelope = await cifra.cifrar('Transporte fictício', aadDespesa);
     await expect(
-      cifra.decifrar(envelope, { ...aadDespesa, despesa_id: outraDespesaId }),
+      cifra.decifrar(envelope, { ...aadDespesa, registro_id: outraDespesaId }),
     ).rejects.toThrow(ErroCifraAutenticada);
   });
+
+  // O caso que a forma anterior do AAD não cobria: ela amarrava o `despesa_id` do lançamento,
+  // igual nas duas versões, então o envelope da versão 1 era aceito como o da versão 2 do
+  // mesmo campo. Com `registro_id` na chave primária da LINHA — `despesa_id` na versão 1,
+  // `retificacao_id` na retificação — as duas versões deixam de ser intercambiáveis.
+  it.each(CAMPOS_DESPESA)(
+    'o envelope de uma versão não decifra no contexto de outra versão do mesmo lançamento (%s)',
+    async (campo) => {
+      const cifra = criarCifra();
+      const versao1 = { ...aadDespesa, registro_id: despesaId, campo };
+      const versao2 = { ...aadDespesa, registro_id: retificacaoId, campo };
+      const daVersao1 = await cifra.cifrar(`Texto fictício v1 de ${campo}`, versao1);
+      const daVersao2 = await cifra.cifrar(`Texto fictício v2 de ${campo}`, versao2);
+      await expect(cifra.decifrar(daVersao1, versao2)).rejects.toThrow(ErroCifraAutenticada);
+      await expect(cifra.decifrar(daVersao2, versao1)).rejects.toThrow(ErroCifraAutenticada);
+      // E cada uma continua decifrável no seu próprio contexto.
+      await expect(cifra.decifrar(daVersao1, versao1)).resolves.toBe(
+        `Texto fictício v1 de ${campo}`,
+      );
+      await expect(cifra.decifrar(daVersao2, versao2)).resolves.toBe(
+        `Texto fictício v2 de ${campo}`,
+      );
+    },
+  );
 
   it('o envelope de um valor acordado não decifra no contexto de outro', async () => {
     const cifra = criarCifra();
@@ -102,12 +130,12 @@ describe('cifra do financeiro: AAD adulterado é recusado', () => {
     const cifra = criarCifra();
     const doValor = await cifra.cifrar('Motivo fictício', aadValor);
     const daDespesa = await cifra.cifrar('Transporte fictício', aadDespesa);
-    // O AAD do valor usa `registro_id`; o da despesa usa `despesa_id`. Trocar só o rótulo da
-    // tabela não produz nem AAD válido nem decifra.
+    // As duas tabelas financeiras usam a MESMA forma — tabela, registro_id, campo, formato.
+    // É a tabela, que entra na ligação, que impede trocar um envelope pelo outro.
     await expect(
       cifra.decifrar(doValor, {
         tabela: 'financeiro.despesa_lancamento',
-        despesa_id: valorId,
+        registro_id: valorId,
         campo: 'descricao',
         formato: 1,
       }),
@@ -147,9 +175,9 @@ describe('cifra do financeiro: AAD adulterado é recusado', () => {
       formato: 1,
     });
     await expect(cifra.decifrar(doCuidado, aadValor)).rejects.toThrow(ErroCifraAutenticada);
-    await expect(cifra.decifrar(doCuidado, { ...aadDespesa, despesa_id: valorId })).rejects.toThrow(
-      ErroCifraAutenticada,
-    );
+    await expect(
+      cifra.decifrar(doCuidado, { ...aadDespesa, registro_id: valorId }),
+    ).rejects.toThrow(ErroCifraAutenticada);
   });
 
   it('campo inexistente na tabela é recusado antes de qualquer operação criptográfica', async () => {
@@ -176,7 +204,7 @@ describe('cifra do financeiro: AAD adulterado é recusado', () => {
   it('identificador que não é UUID é recusado', async () => {
     const cifra = criarCifra();
     await expect(
-      cifra.cifrar('Texto fictício', { ...aadDespesa, despesa_id: 'despesa-1' } as never),
+      cifra.cifrar('Texto fictício', { ...aadDespesa, registro_id: 'despesa-1' } as never),
     ).rejects.toThrow(ErroCifraAutenticada);
     await expect(
       cifra.cifrar('Texto fictício', { ...aadValor, registro_id: 'valor-1' } as never),
@@ -185,10 +213,11 @@ describe('cifra do financeiro: AAD adulterado é recusado', () => {
 
   it('o AAD financeiro não tem versão, e o contrato é quem impede contrabandeá-la', () => {
     // A forma canônica do financeiro não carrega `versao`: a versão da retificação é decidida
-    // pelo banco depois da cifra, e amarrá-la tornaria a listagem indecifrável. O
-    // canonicalizador ignora chave desconhecida, então quem recusa um AAD com `versao` é o
-    // schema `.strict()` do contrato, aplicado na fronteira por `compor-financeiro-nativo.ts`.
-    // Sem esta recusa, duas convenções de AAD poderiam conviver para a mesma tabela.
+    // pelo banco depois da cifra. Ela também é redundante — `registro_id` já é único por
+    // versão. O canonicalizador ignora chave desconhecida, então quem recusa um AAD com
+    // `versao` é o schema `.strict()` do contrato, aplicado na fronteira por
+    // `compor-financeiro-nativo.ts`. Sem esta recusa, duas convenções de AAD poderiam
+    // conviver para a mesma tabela.
     expect(metadadosAadFinanceiroSchema.safeParse(aadDespesa).success).toBe(true);
     expect(metadadosAadFinanceiroSchema.safeParse({ ...aadDespesa, versao: 2 }).success).toBe(
       false,

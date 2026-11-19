@@ -100,7 +100,12 @@ begin
     exception when invalid_text_representation then
       raise exception using errcode = '22023', message = 'ENTRADA_INVALIDA'; end;
     if paciente is null then raise exception using errcode = '22023', message = 'ENTRADA_INVALIDA'; end if;
+    -- `id` (chave primária da linha) entra na projeção de propósito: é ele que o AAD da
+    -- despesa amarra como `registro_id`, e sem ele na listagem o texto cifrado seria
+    -- indecifrável na leitura. Não é segredo — é o identificador que a própria aplicação
+    -- escolheu ao gravar (`despesa_id` na versão 1, `retificacao_id` na retificação).
     select coalesce(jsonb_agg(jsonb_build_object(
+        'id', d.id,
         'despesa_id', d.despesa_id, 'versao', d.versao, 'paciente_id', d.paciente_id,
         'descricao_cifrada', d.descricao_cifrada, 'valor_centavos', d.valor_centavos,
         'data', d.data, 'responsavel_usuario_id', d.responsavel_usuario_id,
@@ -214,6 +219,7 @@ begin
     raise exception using errcode = 'PZ001', message = 'EXPIRACAO_INTERNA';
   end if;
   select jsonb_build_object(
+      'id', d.id,
       'despesa_id', d.despesa_id, 'versao', d.versao, 'paciente_id', d.paciente_id,
       'descricao_cifrada', d.descricao_cifrada, 'valor_centavos', d.valor_centavos,
       'data', d.data, 'responsavel_usuario_id', d.responsavel_usuario_id,

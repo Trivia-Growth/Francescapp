@@ -70,6 +70,21 @@ do $$ declare r jsonb; begin
  begin update financeiro.despesa_lancamento set valor_centavos=1; raise exception 'UPDATE_ACEITO'; exception when feature_not_supported then null; end;
 end $$;
 
+-- 2.6 — a listagem projeta a chave primária da linha. É ela que o AAD da despesa amarra como
+-- `registro_id`; sem ela na projeção o texto cifrado seria indecifrável, e duas versões do
+-- mesmo lançamento voltariam a compartilhar o mesmo dado autenticado.
+do $$ declare r jsonb; n int; begin
+ r:=public.financeiro_despesa_fixture('api.consultar_despesas',jsonb_build_object('paciente_id','40000000-0000-4000-8000-000000000001'),'10000000-0000-4000-8000-000000000003','20000000-0000-4000-8000-000000000003');
+ if r->>'ok' is distinct from 'true' then raise exception 'CONSULTA_DESPESAS_FALHOU: %',r; end if;
+ select count(*) into n from jsonb_array_elements(r->'dados') l
+  where not exists(select 1 from financeiro.despesa_lancamento d
+   where d.id=(l->>'id')::uuid and d.despesa_id=(l->>'despesa_id')::uuid and d.versao=(l->>'versao')::integer);
+ if n<>0 then raise exception 'LISTAGEM_SEM_ID_DA_LINHA: %',r; end if;
+ if (select count(distinct l->>'id') from jsonb_array_elements(r->'dados') l
+   where l->>'despesa_id'='70000000-0000-4000-8000-000000000001')<>2
+  then raise exception 'VERSOES_COM_MESMO_ID: %',r; end if;
+end $$;
+
 -- 2.5 — audiência de cuidado não alcança despesa, nem pelo profissional com vínculo ativo,
 -- nem pelo familiar com fundamento de autorização vigente.
 do $$ declare r jsonb; begin

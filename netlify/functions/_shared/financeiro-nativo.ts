@@ -26,8 +26,9 @@ import {
 /** AAD do financeiro: o tipo do contrato, não uma cópia local. Nenhuma tabela de cuidado
  * aparece aqui, e nenhum campo de cuidado é cifrado por esta composição — a separação do
  * design D1 vale também para a chave. A canonicalização é a de produção, em
- * `supabase/functions/_shared/cifra-autenticada.ts`, que ganhou o ramo das duas tabelas
- * financeiras; a justificativa de cada amarração e de cada ausência está lá. */
+ * `supabase/functions/_shared/cifra-autenticada.ts`, e as duas tabelas financeiras usam a
+ * forma genérica do repositório, `{tabela, registro_id, campo, formato}`. Na despesa o
+ * `registro_id` é o `id` da LINHA (uma por versão), nunca o `despesa_id` do lançamento. */
 export type AadFinanceiro = MetadadosAadFinanceiro;
 
 type Identidade = { usuario_id: string; session_id: string };
@@ -256,7 +257,7 @@ export async function operarFinanceiroNativo(
     ): Promise<DespesaVersao> => {
       const base = {
         tabela: 'financeiro.despesa_lancamento' as const,
-        despesa_id: linha.despesa_id.toLowerCase(),
+        registro_id: linha.id.toLowerCase(),
         formato: 1 as const,
       };
       return {
@@ -391,9 +392,11 @@ export async function operarFinanceiroNativo(
         const despesaId = dados.despesa_id.toLowerCase();
         if (dados.comprovante.objeto_nome !== nomeObjetoComprovante(despesaId))
           return erro('entrada_invalida');
+        // Versão 1: a linha gravada recebe `id = despesa_id` (`coalesce(retificacao_id,
+        // despesa_id)` na RPC), então o `registro_id` do AAD é conhecido antes da cifra.
         const aad = {
           tabela: 'financeiro.despesa_lancamento' as const,
-          despesa_id: despesaId,
+          registro_id: despesaId,
           formato: 1 as const,
         };
         const digest = await digestDe({
@@ -427,6 +430,7 @@ export async function operarFinanceiroNativo(
         );
         if (!r.ok) return erro(r.codigo);
         if (
+          r.dados.id.toLowerCase() !== despesaId ||
           r.dados.despesa_id.toLowerCase() !== despesaId ||
           r.dados.versao !== 1 ||
           r.dados.comprovante_objeto_nome !== dados.comprovante.objeto_nome
@@ -453,9 +457,11 @@ export async function operarFinanceiroNativo(
         const dados = retificarDespesaSchema.parse(semOperacao(comando));
         const despesaId = dados.despesa_id.toLowerCase();
         const lancamento = dados.retificacao_id.toLowerCase();
+        // A linha da retificação recebe `id = retificacao_id`, escolhido pelo cliente e
+        // conferido na volta: o `registro_id` do AAD é o da versão nova, não o do lançamento.
         const aad = {
           tabela: 'financeiro.despesa_lancamento' as const,
-          despesa_id: despesaId,
+          registro_id: lancamento,
           formato: 1 as const,
         };
         const digest = await digestDe({
@@ -491,7 +497,12 @@ export async function operarFinanceiroNativo(
           financeiroDespesaSaidaSchema,
         );
         if (!r.ok) return erro(r.codigo);
-        if (r.dados.despesa_id.toLowerCase() !== despesaId || r.dados.versao < 2) throw new Error();
+        if (
+          r.dados.id.toLowerCase() !== lancamento ||
+          r.dados.despesa_id.toLowerCase() !== despesaId ||
+          r.dados.versao < 2
+        )
+          throw new Error();
         resultado = await abrirDespesa(r.dados);
         break;
       }
@@ -626,6 +637,7 @@ async function entregarComprovante(
   if (
     request.signal.aborted ||
     !atual ||
+    atual.id !== origem.id ||
     atual.comprovante_objeto_nome !== origem.comprovante_objeto_nome ||
     atual.registrado_em !== origem.registrado_em ||
     atual.versao !== origem.versao

@@ -90,6 +90,8 @@ function preparar(opcoes: {
 }
 
 const linhaDespesa = (cifrado: unknown, extra: Record<string, unknown> = {}) => ({
+  // `id` é a chave primária da linha; na versão 1 o banco grava `id = despesa_id`.
+  id: despesa_id,
   despesa_id,
   versao: 1,
   paciente_id,
@@ -330,7 +332,7 @@ describe('entrega do comprovante por fluxo autorizado (tarefa 2.4)', () => {
   ) => {
     const aad = {
       tabela: 'financeiro.despesa_lancamento',
-      despesa_id,
+      registro_id: despesa_id,
       campo: 'descricao',
       formato: 1,
     } as const;
