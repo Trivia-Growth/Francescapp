@@ -16,7 +16,8 @@ const ENDERECO_TOKEN = 'https://oauth2.googleapis.com/token';
 const ENDERECO_UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
 const ENDERECO_ARQUIVOS = 'https://www.googleapis.com/drive/v3/files';
 const ESCOPO = 'https://www.googleapis.com/auth/drive';
-export const TAMANHO_MAXIMO_DOCUMENTO = 8 * 1024 * 1024;
+import { TAMANHO_MAXIMO_DOCUMENTO } from '../../../packages/contracts/src/documento-caso.ts';
+export { TAMANHO_MAXIMO_DOCUMENTO } from '../../../packages/contracts/src/documento-caso.ts';
 
 /** Não inclui causa nem resposta do provedor: a topologia do cofre e o conteúdo do erro
  * remoto não descem ao navegador. */
@@ -184,6 +185,8 @@ export function criarPortaDrive(segredoJson: string, sinal: AbortSignal): PortaD
       }
     },
     async enviar({ nome, tipo, bytes, pastaRaiz, pastaPaciente, reservarPasta }) {
+      if (!bytes.byteLength || bytes.byteLength > TAMANHO_MAXIMO_DOCUMENTO)
+        throw new ErroDriveIndisponivel();
       if (typeof pastaRaiz !== 'string' || pastaRaiz.trim().length === 0)
         throw new ErroDriveIndisponivel();
       const token = await autenticar();

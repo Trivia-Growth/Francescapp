@@ -70,3 +70,30 @@ it('trata resposta inválida de escrita como pendência sem devolver valor', asy
     }),
   ).rejects.toMatchObject({ codigo: 'pendencia_externa', status: 0 });
 });
+
+// Uma resposta recusada antes do leitor também pode deixar corpo sem fim: não basta
+// classificar resultado incerto; é preciso encerrar esse stream sem ler/ecoar valor.
+it.each([
+  { status: 202, tipo: 'application/json' },
+  { status: 200, tipo: 'text/html' },
+])('cancela corpo recusado antes da leitura ($status/$tipo)', async ({ status, tipo }) => {
+  const cancelar = vi.fn();
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () =>
+        new Response(new ReadableStream({ cancel: cancelar }), {
+          status,
+          headers: { 'Content-Type': tipo },
+        }),
+    ),
+  );
+  await expect(
+    servico().gravar({
+      segredo_chave: 'ffcmapp.integracao.openrouter',
+      valor: 'valor-ficticio-invalido',
+      versao_esperada: 0,
+    }),
+  ).rejects.toMatchObject({ codigo: 'pendencia_externa', status: 0 });
+  expect(cancelar).toHaveBeenCalledOnce();
+});

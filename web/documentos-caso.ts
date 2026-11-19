@@ -1,3 +1,4 @@
+import { TAMANHO_MAXIMO_DOCUMENTO } from '../packages/contracts/src/documento-caso.ts';
 import type {
   AudienciaDocumento,
   DocumentoCaso,
@@ -162,6 +163,10 @@ export function montarDocumentosCaso(
       const escolhido = arquivo.files?.[0];
       if (!escolhido) {
         aviso.textContent = 'Escolha um arquivo para anexar.';
+        return;
+      }
+      if (escolhido.size === 0 || escolhido.size > TAMANHO_MAXIMO_DOCUMENTO) {
+        aviso.textContent = 'Escolha um arquivo de até 4 MiB.';
         return;
       }
       if (!categoria.value || !audiencia.value) {

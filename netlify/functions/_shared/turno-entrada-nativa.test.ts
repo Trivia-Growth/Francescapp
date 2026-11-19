@@ -3,8 +3,8 @@ import { criarEntradaTurnoNativa } from './turno-entrada-nativa.ts';
 const id = 'a0000000-0000-4000-8000-000000000001';
 const corpo = { turno_id: id, reserva_id: id, geracao_reserva: 1 };
 const dependencias = {} as Parameters<typeof criarEntradaTurnoNativa>[0];
-function pedido(entrada: unknown) {
-  return new Request(`https://example.test/api/pacientes/${id}/turnos/abrir`, {
+function pedido(entrada: unknown, operacao: 'abrir' | 'encerrar' = 'abrir') {
+  return new Request(`https://example.test/api/pacientes/${id}/turnos/${operacao}`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -14,25 +14,48 @@ function pedido(entrada: unknown) {
     body: JSON.stringify(entrada),
   });
 }
-it('descarta relógio forjado e recusa autoria forjada antes da composição', async () => {
-  const operar = vi.fn(
-    async (
-      _request: Request,
-      _comando: import('./turno-nativo.ts').ComandoTurno,
-      _dependencias: typeof dependencias,
-    ) => ({ ok: false as const, erro: { codigo: 'sem_permissao' }, request_id: id }) as const,
-  );
-  const entrada = criarEntradaTurnoNativa(dependencias, operar);
-  expect(
-    (await entrada.atender(pedido({ ...corpo, aberto_em: '1900-01-01T00:00:00Z' }))).status,
-  ).toBe(403);
-  expect(operar.mock.calls[0]?.[1]).not.toHaveProperty('aberto_em');
-  operar.mockClear();
-  expect((await entrada.atender(pedido({ ...corpo, profissional_usuario_id: id }))).status).toBe(
-    422,
-  );
-  expect(operar).not.toHaveBeenCalled();
-});
+it.each(['abrir', 'encerrar'] as const)(
+  'descarta os dois carimbos conhecidos em %s e mantém autoria/extras recusados',
+  async (operacao) => {
+    const operar = vi.fn(
+      async (
+        _request: Request,
+        _comando: import('./turno-nativo.ts').ComandoTurno,
+        _dependencias: typeof dependencias,
+      ) => ({ ok: false as const, erro: { codigo: 'sem_permissao' }, request_id: id }) as const,
+    );
+    const entrada = criarEntradaTurnoNativa(dependencias, operar);
+    const valido = {
+      ...corpo,
+      ...(operacao === 'encerrar' ? { versao_esperada: 1, sintese_registro_id: id } : {}),
+    };
+    // Prova somente normalização HTTP; mock não comprova instante persistido pelo banco.
+    expect(
+      (
+        await entrada.atender(
+          pedido(
+            { ...valido, aberto_em: '1900-01-01T00:00:00Z', encerrado_em: '1900-01-02T00:00:00Z' },
+            operacao,
+          ),
+        )
+      ).status,
+    ).toBe(403);
+    expect(operar).toHaveBeenCalledWith(
+      expect.any(Request),
+      { ...valido, operacao, paciente_id: id },
+      dependencias,
+    );
+    for (const extra of [
+      { profissional_usuario_id: id },
+      { instante: '1900-01-01T00:00:00Z' },
+      { atestado: {} },
+    ]) {
+      operar.mockClear();
+      expect((await entrada.atender(pedido({ ...valido, ...extra }, operacao))).status).toBe(422);
+      expect(operar).not.toHaveBeenCalled();
+    }
+  },
+);
 it('não apresenta sucesso quando composição informa persistência incerta', async () => {
   const operar = vi.fn(
     async (

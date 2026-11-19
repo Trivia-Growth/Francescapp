@@ -1,3 +1,4 @@
+import { TAMANHO_MAXIMO_DOCUMENTO } from '../packages/contracts/src/documento-caso.ts';
 import { documentoCasoHttp } from '../packages/contracts/src/documento-caso-http.ts';
 import type {
   ConteudoDocumento,
@@ -199,6 +200,8 @@ export function criarServicoDocumentosHttp(
       if (!entrada.arquivo)
         return (await enviar('gravar', paciente, { json: base }, entrada.chave_idempotencia))
           .documentos;
+      if (entrada.arquivo.size === 0 || entrada.arquivo.size > TAMANHO_MAXIMO_DOCUMENTO)
+        throw new FalhaApi('entrada_invalida');
       const formulario = new FormData();
       formulario.set('documento_id', base.documento_id);
       formulario.set('versao_esperada', String(base.versao_esperada));

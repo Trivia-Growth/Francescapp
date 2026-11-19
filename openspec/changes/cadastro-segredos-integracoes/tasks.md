@@ -15,7 +15,13 @@ menções posteriores a execução adiada descrevem o histórico anterior.
 ## 2. Interface e integração
 
 - [x] 2.1 Entregar montarSegredosIntegracoes e serviço HTTP no padrão existente; provar limpeza do campo, estados e metadados no teste da tela.
-- [ ] 2.2 Coordenação fiar navegação administrativa e conferir visual desktop/mobile sem credenciais reais.
+- [x] 2.2 Coordenação fiar navegação administrativa e conferir visual desktop/mobile sem credenciais reais.
+  **Fechamento local em 19/11/2026:** `segredos-integracoes-navegacao.test.ts`,
+  2/2, importa `main.ts` real: Administrador abre Credenciais, sai para carteira e
+  retorna; campo é limpo e só metadados são relidos. Profissional com rota forçada
+  não monta nem consulta a área. Visual desktop/mobile do componente/CSS real
+  registrado nas evidências de 19/11. Revisão independente de padrões/spec sem
+  P1/P2 confirmado. Auth/fetch são fictícios; navegação publicada permanece em 2.4.
   **Parcial em 18/11/2026:** fiação implementada em `#administracao/integracoes`;
   componente real/CSS real conferidos em Chrome headless isolado, desktop 1366×900
   e celular 390×844, serviço fictício: sem overflow; Tab com foco de 3px; Enter envia;
@@ -48,7 +54,7 @@ Como testar após ativação: Administrador abre Administração > Credenciais d
 
 ## Retomada local — preservação da escrita pendente (18/11/2026)
 
-- [ ] 2.5 Impedir nova escrita/recarga durante POST e exigir leitura de metadados após
+- [x] 2.5 Impedir nova escrita/recarga durante POST e exigir leitura de metadados após
   falha ou resposta incerta, sem guardar valor para repetir; limitar leitura HTTP por
   bytes/prazo e cancelar stream interrompido. **Código escrito:** `web/segredos-integracoes.ts`
   bloqueia controles durante envio; limpa valor antes de chamar adapter, inclusive recusa
@@ -60,3 +66,10 @@ Como testar após ativação: Administrador abre Administração > Credenciais d
   revisão independente e integração Auth/Vault reais continuam pendentes por instrução.
   **Suposição UX conservadora:** uma escrita administrativa por vez; toda falha exige
   recarregar metadados antes de tentar novamente, sem tentativa automática nem valor retido.
+  **Fechamento local em 19/11/2026:** UI 4/4 e HTTP 5/5 passaram. Regressões novas
+  detectaram stream aberto quando status/MIME era recusado antes do leitor;
+  cancelamento agora também cobre esse caminho. Falha da conferência GET mantém
+  bloqueio; próxima intenção usa somente a versão da leitura concluída e valor
+  novamente informado. Revisão independente de padrões/spec sobre base `c99b890`
+  sem P1/P2 confirmado. A indicação anterior de testes não executados é histórica;
+  Auth/Vault reais e ativação continuam pendentes em 2.4.

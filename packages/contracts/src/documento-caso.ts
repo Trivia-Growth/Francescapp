@@ -2,6 +2,10 @@ import { z } from 'zod';
 import { uuidSchema } from './comum.ts';
 import { campoCifradoSchema } from './rpc.ts';
 
+// Limite operacional conservador para funções bufferizadas (inclui margem multipart).
+export const TAMANHO_MAXIMO_DOCUMENTO = 4 * 1024 * 1024;
+export const TAMANHO_MAXIMO_CORPO_DOCUMENTO = TAMANHO_MAXIMO_DOCUMENTO + 64 * 1024;
+
 /** FR-029 a FR-031: anexos do caso guardados no Google Drive institucional.
  *
  * Três decisões do requisito estão no modelo, não na interface:

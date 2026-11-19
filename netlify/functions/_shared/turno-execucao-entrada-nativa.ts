@@ -126,6 +126,33 @@ export function criarEntradaExecucaoTurno(
             rota.operacao === 'enviarAnexo' ? 4 * 1024 * 1024 + 32_768 : 131_072,
           );
         }
+        // Só o identificador conhecido do registrador é descartado; autoria vem do servidor.
+        // Demais extras continuam visíveis ao schema strict, inclusive em retificações.
+        if (
+          rota.operacao === 'gravar' &&
+          entrada &&
+          typeof entrada === 'object' &&
+          !Array.isArray(entrada)
+        ) {
+          const corpo = entrada as Record<string, unknown>;
+          const conteudo = corpo.conteudo;
+          if (conteudo && typeof conteudo === 'object' && !Array.isArray(conteudo)) {
+            const registro = conteudo as Record<string, unknown>;
+            const dados = registro.dados;
+            if (
+              registro.classe === 'administracao' &&
+              dados &&
+              typeof dados === 'object' &&
+              !Array.isArray(dados)
+            ) {
+              const { registrador_usuario_id: _registrador, ...restante } = dados as Record<
+                string,
+                unknown
+              >;
+              entrada = { ...corpo, conteudo: { ...registro, dados: restante } };
+            }
+          }
+        }
         const validada = contrato.entrada.safeParse(entrada);
         if (!validada.success) return erro('entrada_invalida');
         const comando = { ...rota, entrada: validada.data } as ComandoExecucaoTurno;

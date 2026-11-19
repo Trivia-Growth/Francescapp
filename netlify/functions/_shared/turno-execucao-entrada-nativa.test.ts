@@ -90,3 +90,89 @@ describe('fronteira HTTP execução', () => {
     expect(await r.json()).toMatchObject({ request_id: id });
   });
 });
+
+// Exercita o handler real; composição simulada não prova persistência nem autorização SQL.
+const administracao = {
+  turno_id: id,
+  item_id: id,
+  versao: 1,
+  executor: { nome: 'Executor fictício', vinculo: 'Equipe externa fictícia' },
+  situacao: 'administrado' as const,
+};
+function pedidoAdministracao(entrada: unknown) {
+  return new Request(base, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-sessao': sessao,
+      'x-chave-idempotencia': 'chave_ficticia_123456',
+    },
+    body: JSON.stringify(entrada),
+  });
+}
+it.each([0, 1])(
+  'descarta somente registrador conhecido na administração, versão esperada %s',
+  async (versaoEsperada) => {
+    const entrada = {
+      epoca: 1,
+      registro_id: id,
+      versao_esperada: versaoEsperada,
+      conteudo: { classe: 'administracao' as const, dados: administracao },
+      ...(versaoEsperada ? { motivo: 'Correção fictícia' } : {}),
+    };
+    const operar = vi.fn(async () => ({
+      ok: true as const,
+      request_id: id,
+      dados: {
+        paciente_id: paciente,
+        turno_id: id,
+        registro_id: id,
+        versao: versaoEsperada + 1,
+        conteudo: entrada.conteudo,
+        ...(versaoEsperada ? { motivo: 'Correção fictícia' } : {}),
+        registrador_usuario_id: paciente,
+        registrador_nome: null,
+        criado_em: '2026-11-19T12:00:00Z',
+        instante_ocorrencia: '2026-11-19T12:00:00Z',
+        retificada: versaoEsperada > 0,
+        recibo_id: id,
+      },
+    }));
+    const r = await criarEntradaExecucaoTurno(deps, operar).atender(
+      pedidoAdministracao({
+        ...entrada,
+        conteudo: { ...entrada.conteudo, dados: { ...administracao, registrador_usuario_id: id } },
+      }),
+    );
+    expect(r.status).toBe(200);
+    expect(operar).toHaveBeenCalledWith(
+      expect.any(Request),
+      { operacao: 'gravar', paciente_id: paciente, entrada },
+      deps,
+    );
+    expect((await r.json()).dados.registrador_usuario_id).toBe(paciente);
+  },
+);
+it.each([
+  { dados: { ...administracao, executor: undefined, registrador_usuario_id: id }, extra: {} },
+  { dados: { ...administracao, registrador_usuario_id: id, arbitrario: 'extra' }, extra: {} },
+  { dados: { ...administracao, registrador_usuario_id: id, autor_usuario_id: id }, extra: {} },
+  { dados: { ...administracao, registrador_usuario_id: id, atestado: {} }, extra: {} },
+  { dados: administracao, extra: { registrador_usuario_id: id } },
+])(
+  'recusa executor ausente e extras que não são o registrador conhecido: %j',
+  async ({ dados, extra }) => {
+    const operar = vi.fn();
+    const r = await criarEntradaExecucaoTurno(deps, operar).atender(
+      pedidoAdministracao({
+        epoca: 1,
+        registro_id: id,
+        versao_esperada: 0,
+        conteudo: { classe: 'administracao', dados },
+        ...extra,
+      }),
+    );
+    expect(r.status).toBe(422);
+    expect(operar).not.toHaveBeenCalled();
+  },
+);

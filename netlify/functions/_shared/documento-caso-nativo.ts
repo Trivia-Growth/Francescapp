@@ -1,3 +1,4 @@
+import { TAMANHO_MAXIMO_DOCUMENTO } from '../../../packages/contracts/src/documento-caso.ts';
 import {
   incluirSeletorExportacao,
   conferirVersaoExportacao,
@@ -150,6 +151,12 @@ export async function operarDocumentoCasoNativo(
     let documentoId: string | undefined;
     let chaveIdempotencia: string | undefined;
     if (comando.operacao === 'gravar') {
+      if (
+        comando.arquivo &&
+        (!comando.arquivo.bytes.byteLength ||
+          comando.arquivo.bytes.byteLength > TAMANHO_MAXIMO_DOCUMENTO)
+      )
+        return erro('entrada_invalida');
       const chave = chaveIdempotenciaSchema.safeParse(request.headers.get('x-chave-idempotencia'));
       const documento = uuidSchema.safeParse(comando.documento_id);
       if (!chave.success || !documento.success) return erro('entrada_invalida');

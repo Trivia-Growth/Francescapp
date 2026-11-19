@@ -230,3 +230,32 @@ it('timeout ao criar pasta é recuperável usando mesma reserva, sem segundo cre
     ),
   ).toHaveLength(1);
 });
+
+it('entrega exatamente o teto sem truncar, sem depender de Content-Length', async () => {
+  const { porta, fetch } = preparar({});
+  const bytes = new Uint8Array(TAMANHO_MAXIMO_DOCUMENTO);
+  bytes[bytes.length - 1] = 73;
+  fetch
+    .mockReset()
+    .mockResolvedValueOnce(Response.json({ access_token: 'ficticio' }))
+    .mockResolvedValueOnce(new Response(bytes));
+  const obtido = await porta.obter?.('arquivo-ficticio');
+  expect(obtido?.byteLength).toBe(TAMANHO_MAXIMO_DOCUMENTO);
+  expect(obtido?.at(-1)).toBe(73);
+});
+
+it('upload acima do teto é recusado antes de autenticar ou chamar Google', async () => {
+  const { porta, fetch } = preparar({});
+  fetch.mockClear();
+  await expect(
+    porta.enviar({
+      nome: 'ficticio.pdf',
+      tipo: 'application/pdf',
+      bytes: new Uint8Array(TAMANHO_MAXIMO_DOCUMENTO + 1),
+      pastaRaiz: 'raiz-ficticia',
+      pastaPaciente: 'paciente-ficticio',
+      reservarPasta: vi.fn(),
+    }),
+  ).rejects.toThrow('Guarda de documentos indisponível.');
+  expect(fetch).not.toHaveBeenCalled();
+});

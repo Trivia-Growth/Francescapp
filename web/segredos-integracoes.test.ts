@@ -104,3 +104,55 @@ it('bloqueia recarga e novas escritas até conferir metadados após resposta inc
   expect(gravar).toHaveBeenCalledOnce();
   desmontar();
 });
+
+// Ler metadados também pode falhar: uma resposta incerta não libera o formulário
+// antigo só porque a pessoa tentou conferir. Nenhum valor fica disponível para retry.
+it('mantém bloqueio após falha ao conferir e só usa versão da leitura concluída', async () => {
+  const raiz = document.createElement('div');
+  const item = {
+    chave: 'ffcmapp.integracao.openrouter' as const,
+    cadastrado: false,
+    versao: 0,
+    atualizado_por_usuario_id: null,
+    atualizado_em: null,
+  };
+  const listar = vi
+    .fn()
+    .mockResolvedValueOnce([item])
+    .mockRejectedValueOnce(new Error('rede'))
+    .mockResolvedValueOnce([{ ...item, cadastrado: true, versao: 1 }]);
+  const gravar = vi.fn().mockRejectedValue(new Error('resultado incerto'));
+  const desmontar = montarSegredosIntegracoes(raiz, { listar, gravar });
+  try {
+    await vi.waitFor(() => expect(raiz.querySelector('input')?.disabled).toBe(false));
+    const antigo = raiz.querySelector('input');
+    if (!antigo) throw new Error('Campo ausente');
+    antigo.value = 'valor-ficticio-invalido';
+    raiz.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+    await vi.waitFor(() => expect(raiz.textContent).toContain('confira a versão'));
+    expect(antigo.value).toBe('');
+    expect(antigo.disabled).toBe(true);
+    const recarregar = [...raiz.querySelectorAll('button')].find(
+      (e) => e.textContent === 'Recarregar integrações',
+    );
+    recarregar?.click();
+    await vi.waitFor(() => expect(raiz.textContent).toContain('Não foi possível carregar'));
+    expect(raiz.querySelector('form')).toBeNull();
+    expect(gravar).toHaveBeenCalledOnce();
+    recarregar?.click();
+    await vi.waitFor(() => expect(raiz.textContent).toContain('Versão 1'));
+    const novo = raiz.querySelector('input');
+    expect(novo?.value).toBe('');
+    expect(novo?.disabled).toBe(false);
+    if (!novo) throw new Error('Campo ausente');
+    novo.value = 'outro-valor-ficticio-invalido';
+    raiz.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+    expect(gravar).toHaveBeenLastCalledWith({
+      segredo_chave: item.chave,
+      valor: 'outro-valor-ficticio-invalido',
+      versao_esperada: 1,
+    });
+  } finally {
+    desmontar();
+  }
+});

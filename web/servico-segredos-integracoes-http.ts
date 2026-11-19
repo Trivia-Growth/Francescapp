@@ -107,7 +107,7 @@ export function criarServicoSegredosIntegracoesHttp(
     headers.set('x-fluxo', fluxo);
     if (chave) headers.set('x-chave-idempotencia', uuidSchema.parse(chave));
     if (rota.metodo !== 'GET') headers.set('Content-Type', 'application/json');
-    let resposta: Response;
+    let resposta: Response | undefined;
     const sinal = AbortSignal.timeout(20_000);
     try {
       resposta = await fetch(rota.caminho, {
@@ -145,6 +145,8 @@ export function criarServicoSegredosIntegracoesHttp(
       }
       return sucessoRespostaSchema(rota.saida).parse(envelope).dados;
     } catch (erro) {
+      // Status/MIME recusados antes do leitor também devem encerrar o corpo.
+      if (resposta?.body && !resposta.body.locked) void resposta.body.cancel().catch(() => {});
       if (erro instanceof FalhaApi) throw erro;
       throw new FalhaApi(
         rota.metodo === 'GET' ? 'servico_indisponivel' : 'pendencia_externa',

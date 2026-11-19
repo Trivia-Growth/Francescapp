@@ -11,7 +11,10 @@ import {
 import { comporDocumentoCasoNativo } from './compor-documento-caso-nativo.ts';
 import type { ComandoDocumento } from './documento-caso-nativo.ts';
 import { registrarFalhaDeResposta } from './falha-operacional.ts';
-import { TAMANHO_MAXIMO_DOCUMENTO } from './google-drive.ts';
+import {
+  TAMANHO_MAXIMO_DOCUMENTO,
+  TAMANHO_MAXIMO_CORPO_DOCUMENTO,
+} from '../../../packages/contracts/src/documento-caso.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -20,8 +23,7 @@ const headers = {
 };
 type Dependencias = Parameters<typeof comporDocumentoCasoNativo>[2];
 
-/** Teto do arquivo enviado. Exame e laudo cabem folgado; o limite existe para que um envio
- * absurdo não ocupe memória da função nem espaço do Drive institucional por engano. */
+/** Arquivo limitado e margem multipart separada antes de parsear ou chamar o provider. */
 const TAMANHO_MAXIMO_ARQUIVO = TAMANHO_MAXIMO_DOCUMENTO;
 const NOME_ARQUIVO = /^[^\p{C}/\\]{1,240}$/u;
 const TIPO_ARQUIVO = /^[a-z0-9][a-z0-9!#$&^_.+-]{0,126}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,126}$/;
@@ -67,13 +69,17 @@ export function criarEntradaDocumentoCasoNativa(dependencias: Dependencias) {
           return erro('entrada_invalida');
         const tipo = request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
         try {
+          const bytesCorpo = await lerCorpoLimitado(request);
+          const corpoLimitado = new Response(bytesCorpo, {
+            headers: { 'content-type': request.headers.get('content-type') ?? '' },
+          });
           if (tipo === 'application/json') {
-            const bruto: unknown = await request.json();
+            const bruto: unknown = await corpoLimitado.json();
             const corpo = gravarDocumentoSchema.safeParse(bruto);
             if (!corpo.success) return erro('entrada_invalida');
             comando = { operacao: 'gravar', paciente_id: paciente.data, ...corpo.data };
           } else if (tipo === 'multipart/form-data') {
-            const formulario = await request.formData();
+            const formulario = await corpoLimitado.formData();
             const arquivo = formulario.get('arquivo');
             const metadadoBruto = formulario.get('metadado');
             const conteudoBruto = formulario.get('conteudo');
@@ -159,4 +165,49 @@ export function criarEntradaDocumentoCasoNativa(dependencias: Dependencias) {
       }
     },
   };
+}
+
+async function lerCorpoLimitado(request: Request): Promise<Uint8Array<ArrayBuffer>> {
+  const declarado = request.headers.get('content-length');
+  if (
+    declarado !== null &&
+    (!/^\d+$/.test(declarado) || Number(declarado) > TAMANHO_MAXIMO_CORPO_DOCUMENTO)
+  ) {
+    void request.body?.cancel().catch(() => undefined);
+    throw new Error('Corpo inválido.');
+  }
+  const leitor = request.body?.getReader();
+  if (!leitor) throw new Error('Corpo ausente.');
+  const partes: Uint8Array[] = [];
+  let total = 0;
+  const sinal = AbortSignal.any([request.signal, AbortSignal.timeout(15_000)]);
+  const cancelar = () => {
+    void leitor.cancel().catch(() => undefined);
+  };
+  sinal.addEventListener('abort', cancelar, { once: true });
+  try {
+    while (true) {
+      if (sinal.aborted) throw new Error('Pedido cancelado.');
+      const parte = await leitor.read();
+      if (sinal.aborted) throw new Error('Pedido cancelado.');
+      if (parte.done) break;
+      total += parte.value.byteLength;
+      if (total > TAMANHO_MAXIMO_CORPO_DOCUMENTO || request.signal.aborted)
+        throw new Error('Corpo inválido.');
+      partes.push(parte.value);
+    }
+  } catch (erro) {
+    void leitor.cancel().catch(() => undefined);
+    throw erro;
+  } finally {
+    sinal.removeEventListener('abort', cancelar);
+    leitor.releaseLock();
+  }
+  const bytes = new Uint8Array(new ArrayBuffer(total));
+  let posicao = 0;
+  for (const parte of partes) {
+    bytes.set(parte, posicao);
+    posicao += parte.byteLength;
+  }
+  return bytes;
 }

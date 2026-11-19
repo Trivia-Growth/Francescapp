@@ -3,6 +3,94 @@
 Branch: `fatia7/turno-execucao-cuidado`. PR: [18](https://github.com/Trivia-Growth/Francescapp/pull/18).
 Base desta continuação: `cc10aad1aeac9ebac3e805ae44fda7cccce25726`.
 
+## Continuação de implementação após novo “Siga” — base c99b890
+
+Base fixa: `c99b890ded224579b6c911cfb8f8cec966e2fde1`, mesma branch e PR 18
+draft. Três frentes Sol reutilizadas em paralelo, com arquivos exclusivos e
+revisão cruzada; nenhuma credencial ou dado real manuseado.
+
+- **Segredos:** corrigido cancelamento do corpo quando status/MIME da resposta é
+  recusado antes do leitor. Duas regressões falharam antes da correção e HTTP
+  terminou 5/5; UI 4/4 cobre POST pendente, conferência falha sem liberar formulário
+  e próxima intenção com versão atual, sem valor antigo. Nova navegação integrada
+  importa `main.ts` real, passa 2/2 e comprova Administração/Credenciais/carteira/
+  retorno, limpeza do campo e negativa de rota forçada do Profissional. Somente
+  fetch/Auth fictícios; isso fecha 2.2/2.5 locais, não a ativação 2.4.
+- **Documentos:** encontrada incompatibilidade entre teto anterior de 8 MiB e
+  transporte binário bufferizado da Netlify. Teto de arquivo agora compartilhado
+  em 4 MiB na UI, serviço, parser, operação e Drive; corpo tem margem de 64 KiB,
+  contagem efetiva de bytes e prazo de 15 segundos. Excesso é recusado antes do
+  provider; download maior falha sem entregar conteúdo parcial. Não há remoção,
+  truncamento ou alteração de arquivo legado.
+  Testes afetados de UI/HTTP/Drive passaram; leitor final 10/10. Revisão encontrou
+  P2: aguardar `cancel()` podia prender a resposta com cancelador pendente. Corrigido
+  disparando cancelamento sem aguardá-lo; regressões com promessa que nunca termina
+  cobrem Content-Length, excesso observado, abort e prazo, todos com 422 e nenhuma
+  composição/provider. As duas negativas de excesso falharam antes da correção.
+- **Turno 6.2:** somente `conteudo.dados.registrador_usuario_id` informado pelo
+  cliente é descartado na gravação/retificação de administração. Executor segue
+  obrigatório, demais extras continuam recusados e SQL deriva autoria do ator
+  autenticado, sem mudança. Dois arquivos HTTP afetados: 18 testes passaram.
+  Prova de 2.4 agora cobre abertura e encerramento com ambos os carimbos conhecidos;
+  a tarefa continua aberta porque handler com composição simulada não comprova
+  persistência integrada. Schemas, migrations e permissões não mudaram neste delta.
+
+**SUPOSIÇÃO CONSERVADORA — tamanho de Documentos:** adotar 4 MiB por arquivo e
+64 KiB adicionais para o corpo multipart, abaixo do limite documentado de 6 MB
+bufferizados e aproximadamente 4,5 MB binários. É limite operacional, não nova
+política clínica de formato. Arquivo legado maior permanece intacto e sua entrega
+pelo app fica indisponível; não se tenta contornar autorização com URL direta.
+[Fonte primária Netlify](https://docs.netlify.com/build/functions/configuration/).
+
+**SUPOSIÇÃO CONSERVADORA — autoria:** descartar apenas a chave conhecida de
+registrador na administração HTTP, conforme tarefa 6.2. Não aceitar autoria,
+atestado ou outros campos privados do cliente. Nenhuma alteração da matriz de
+  autorização ou da derivação SQL do ator.
+
+Revisão independente do delta contra `c99b890`, incluindo novos testes:
+Core conferiu Segredos, Plano conferiu Documentos e Documentos conferiu Turno,
+sempre padrões e aderência à spec. Após correção e releitura pontual do P2 de
+Documentos, nenhum P1/P2 pendente confirmado nesse delta. Sem alegar revisão
+universal do repositório ou integração real. Os testes executados são evidência
+local; autorização/RLS SQL da retomada anterior não mudou nem foi rebatizada como
+novo teste. `verificar:rapido` final saiu **0**, Node 22.23.2, lint de 831 arquivos
+e todos os typechecks. Antes disso houve duas falhas de formato do mesmo arquivo
+novo de teste, corrigidas; tipos passaram nessas chamadas. `git diff --check`,
+OpenSpec strict Segredos e Documentos também saíram 0. Suíte completa, Deno e
+build não foram repetidos; o gate de 1.787 testes abaixo pertence à base anterior.
+
+**Evidência remota nova, sem aceite de publicação:** check GitHub de `c99b890`
+informa `netlify/ffcmapp/deploy-preview=success`, atualizado em
+`2026-11-19T05:10:35Z`, com alvo
+[preview 18](https://deploy-preview-18--ffcmapp.netlify.app). GET sem credencial de
+`/`, `/api/admin/configuracao-sistema` e `/api/admin/segredos-integracoes` devolveu
+401 HTML `Login Redirect`, servidor Netlify, sem raiz da aplicação nem assets.
+Essa proteção precede o app; não equivale a teste de login ou autorização dele.
+O estado histórico de créditos esgotados não foi reconsultado e não é usado para
+negar a existência desse preview. Não se desativou proteção nem se criou token.
+
+**Bloqueios preservados:** variáveis `SUPABASE_ACCESS_TOKEN` e
+`NETLIFY_AUTH_TOKEN` novamente ausentes, conferida somente presença. Sem migrations
+remotas, logs autenticados ou reprodução do 503; nenhuma correção especulativa da
+tarefa 6.7. O check de ativação GitHub está `skipping` por PR draft; não representa
+aprovação. Os 12 testes experimentais sem prova nova, PDF 10.4, Auth/Vault/Storage
+reais, OAuth/SMTP, ativação de flags e fornecedores continuam pendentes conforme
+seção anterior. Não se repetiu suíte completa por rotina.
+
+**O que NÃO foi feito nesta continuação:** nenhuma migration, escrita de configuração,
+cadastro de segredo/conta, acesso a conteúdo real, envio a provedor, alteração de ACL,
+expurgo, limpeza, merge ou deploy explícito. O push pode disparar preview automático;
+o status do serviço não comprova versão autenticada funcionando. Nenhuma frente de
+financeiro, PWA ou migração Edge foi iniciada.
+
+**Chaves a cadastrar pelo solicitante:** em **Administração > Credenciais das
+integrações**, rota `#administracao/integracoes`, cadastrar somente pela interface:
+`ffcmapp.integracao.google_drive` (JSON da conta de serviço),
+`ffcmapp.integracao.openrouter` (chave API),
+`ffcmapp.integracao.google_calendar_client_id` e
+`ffcmapp.integracao.google_calendar_client_secret` (OAuth Calendar).
+Configurações e roteiro completo de ativação continuam abaixo, sem valor secreto.
+
 ## Retomada das validações após “Siga” — 19/11/2026
 
 Base fixa desta retomada: `0174144cfb686f4702bbc11e7bc354677e33c384`.

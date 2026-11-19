@@ -162,3 +162,17 @@ it('categoria do editor vem do catálogo e preserva categoria histórica retirad
   expect(raiz.querySelector('details form input[required]')).toBeNull();
   desmontar();
 });
+
+it('upload acima de4MiB é recusado na interface antes do serviço', async () => {
+  const gravar = vi.fn<ServicoDocumentos['gravar']>();
+  const { raiz, desmontar } = await montar(gravar);
+  const arquivo = exigir(raiz.querySelector<HTMLInputElement>('input[type="file"]'));
+  Object.defineProperty(arquivo, 'files', {
+    value: [new File([new Uint8Array(4 * 1024 * 1024 + 1)], 'ficticio.pdf')],
+  });
+  const form = exigir(arquivo.closest('form'));
+  form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  expect(raiz.textContent).toContain('até 4 MiB');
+  expect(gravar).not.toHaveBeenCalled();
+  desmontar();
+});

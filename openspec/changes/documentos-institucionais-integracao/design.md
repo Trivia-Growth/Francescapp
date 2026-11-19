@@ -136,3 +136,14 @@ continua somente detecção/revisão, sem mudança automática. Fronteiras naveg
 BFF/RPC/Vault e BFF/Drive já descritas acima. Hipóteses do briefing permanecem: somente dados
 fictícios, sem chamadas Google, credenciais, migração remota ou ativação nesta passagem.
 Nenhuma hipótese material nova foi promovida a controle comprovado.
+
+### Limite operacional bufferizado — retomada após c99b890
+
+SUPOSIÇÃO conservadora adotada: arquivo até4MiB (antes8MiB), compartilhado em
+`documento-caso.ts` por UI, parser, operação e Drive. Corpo HTTP até4MiB+64KiB
+para multipart/metadados, medido no stream mesmo sem Content-Length; cancelar em
+excesso/abort e prazo15s. A plataforma limita funções bufferizadas a6MB e reduz
+binário efetivo a~4.5MB: [Netlify](https://docs.netlify.com/build/functions/configuration/).
+O teto não altera autorização, audiência ou arquivos existentes. Legado maior
+falha fechado na entrega sem truncar, mover ou excluir. Upload é recusado antes
+do provider. Nenhuma integração Google real executada.
