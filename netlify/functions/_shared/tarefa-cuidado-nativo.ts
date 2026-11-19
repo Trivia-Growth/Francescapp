@@ -95,6 +95,7 @@ export async function operarTarefaCuidadoNativo(
     )
       return erro('nao_autenticado');
     let entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+    if (comando.operacao === 'ler') incluirSeletorExportacao(comando, entrada);
     if (comando.operacao === 'ler' && comando.autorizacao_somente === true)
       entrada.autorizacao_somente = true;
     if (comando.operacao === 'gravar') {
@@ -241,7 +242,6 @@ async function prepararEntradaGravacaoTarefaNativa(
   if (!chave.success || !tarefa.success || !id.success || !reserva.success)
     throw new Error('Entrada inválida.');
   const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
-  if (comando.operacao === 'ler') incluirSeletorExportacao(comando, entrada);
 
   const aad: Aad = {
     tabela: 'cadastro.tarefa_cuidado_versao',

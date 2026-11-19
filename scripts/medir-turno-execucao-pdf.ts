@@ -1,5 +1,7 @@
 /** Medição local preparada para tarefa 10.4; não executada nesta entrega.
- * Uso futuro autorizado: pnpm exec tsx scripts/medir-turno-execucao-pdf.ts
+ * Uso futuro autorizado (Node 22): node --experimental-strip-types scripts/medir-turno-execucao-pdf.ts
+ * Mede renderização local com a biblioteca já importada. Não mede tempo frio da Netlify
+ * nem tamanho do pacote final; a tarefa 10.4 continua como gate pendente.
  * Somente dados fictícios; não escreve PDFs nem conteúdo clínico no disco/log. */
 import { performance } from 'node:perf_hooks';
 import { gerarPdfExecucao } from '../netlify/functions/_shared/turno-execucao-pdf.ts';

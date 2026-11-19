@@ -395,9 +395,15 @@ it('commit com resposta perdida e replay conserva arquivo e faz somente um uploa
     request_id: p_transporte.entrada.request_id,
   }));
   p.executar.mockImplementation(async (...args) => {
-    if (salvo)
+    if (salvo) {
+      if ('erro' in salvo && salvo.erro !== undefined) {
+        return { ...salvo, request_id: args[1].p_transporte.entrada.request_id };
+      }
       return { ...salvo, request_id: args[1].p_transporte.entrada.request_id, repeticao: true };
-    salvo = await original(...args);
+    }
+    const resultado = await original(...args);
+    if ('erro' in resultado && resultado.erro !== undefined) return resultado;
+    salvo = resultado;
     throw new Error('COMMIT confirmado, resposta perdida');
   });
   const comando = gravar({

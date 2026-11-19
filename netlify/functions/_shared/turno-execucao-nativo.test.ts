@@ -92,7 +92,7 @@ describe('BFF execução: reserva, recuperação e fronteiras', () => {
     });
     p.storage.enviar = vi.fn(async () => {
       ordem.push('upload');
-      return 'criado';
+      return 'criado' as const;
     });
     const r = await operarExecucaoTurno(
       pedido(),
@@ -128,7 +128,9 @@ describe('BFF execução: reserva, recuperação e fronteiras', () => {
         audiencia: 'equipe',
       };
     });
-    p.storage.enviar = vi.fn(async () => (++uploads === 1 ? 'criado' : 'existente'));
+    p.storage.enviar = vi.fn(
+      async (): Promise<'criado' | 'existente'> => (++uploads === 1 ? 'criado' : 'existente'),
+    );
     const comando = { operacao: 'enviarAnexo' as const, paciente_id: paciente, entrada: anexo };
     expect(await operarExecucaoTurno(pedido(), comando, p)).toMatchObject({
       ok: false,

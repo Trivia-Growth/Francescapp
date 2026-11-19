@@ -42,10 +42,12 @@ export function conferirVersaoExportacao(comando: SeletorVersaoExportacao, valor
     }
   };
   percorrer(valor);
+  const registro = rows[0];
   if (
     rows.length !== 1 ||
-    rows[0].registro_id !== esperado.registro_id_exportacao ||
-    rows[0].versao !== esperado.versao_exportacao
+    registro === undefined ||
+    registro.registro_id !== esperado.registro_id_exportacao ||
+    registro.versao !== esperado.versao_exportacao
   )
     throw new Error('Versão de exportação incompatível.');
 }

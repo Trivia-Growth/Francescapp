@@ -32,7 +32,7 @@ export async function comporExecucaoTurno(
   else request.signal.addEventListener('abort', cancelar, { once: true });
   const temporizador = setTimeout(cancelar, 25_000);
   let iniciada = false;
-  let requestId = crypto.randomUUID();
+  let requestId: string = crypto.randomUUID();
   const verificar = () => {
     if (controle.signal.aborted) throw new Error('Pedido cancelado.');
   };

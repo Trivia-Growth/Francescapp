@@ -3,7 +3,7 @@ import { criarEntradaExecucaoTurno } from './turno-execucao-entrada-nativa.ts';
 import type { DependenciasExecucaoTurno } from './turno-execucao-compor-nativo.ts';
 const paciente = 'c0000000-0000-4000-8000-000000000003';
 const sessao = 'b0000000-0000-4000-8000-000000000002';
-const id = 'd0000000-0000-4000-8000-000000000004';
+const id: ReturnType<Crypto['randomUUID']> = 'd0000000-0000-4000-8000-000000000004';
 const base = `https://exemplo.test/api/pacientes/${paciente}/execucao-turno`;
 const deps = {} as DependenciasExecucaoTurno;
 describe('fronteira HTTP execução', () => {

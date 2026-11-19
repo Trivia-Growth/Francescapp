@@ -129,6 +129,7 @@ export async function operarDiarioNativo(
     if (request.headers.get('x-sessao')?.toLowerCase() !== identidade.session_id)
       return erro('nao_autenticado');
     let entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+    if (comando.operacao === 'ler') incluirSeletorExportacao(comando, entrada);
     let registroId: string | undefined;
     if (comando.operacao === 'gravar' && salvar && diarioId) {
       registroId = crypto.randomUUID();
@@ -282,7 +283,6 @@ async function prepararEntradaGravacaoDiarioNativa(
   const { requestId, pacienteId, diarioId, registroId, chaveIdempotencia } = parametros;
   const salvar = salvarRegistroDiarioSchema.parse(parametros.salvar);
   const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
-  if (comando.operacao === 'ler') incluirSeletorExportacao(comando, entrada);
   const versao = salvar.versao_esperada + 1;
   const aad = (campo: Aad['campo']): Aad => ({
     tabela: 'cadastro.diario_registro_versao',

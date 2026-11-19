@@ -122,8 +122,10 @@ interface, SQL direto e duas conexões. Arquivos principais:
 e runners correspondentes em `scripts/`. A matriz escrita inclui positivos e
 negativos de perfil, método, caso B, revogação, concessão, fundamento, acesso direto,
 NOSUPER e caminhos privilegiados. **Nenhum desses arquivos foi executado nesta
-continuação; sua existência não prova que passam.** Medição preparada em
-`scripts/medir-turno-execucao-pdf.ts`, sem benchmark executado.
+continuação; sua existência não prova que passam.** Apoio de medição local em
+`scripts/medir-turno-execucao-pdf.ts`, sem benchmark executado. Esse script mede
+renderização com a biblioteca já carregada; não comprova tempo frio Netlify nem
+tamanho do pacote final exigidos em 10.4.
 
 ## Lista exata das chaves e caminho na aplicação
 
@@ -198,7 +200,7 @@ callback correspondente no provedor. Consentimento OAuth real permanece pendente
   documentação da [Netlify](https://docs.netlify.com/build/functions/configuration/)
   informa limite de payload e expansão de binário, motivando margem conservadora.
   Isso não é medição do runtime nem autorização para contratar capacidade.
-- **SUPOSIÇÃO CONSERVADORA — PDF:** biblioteca `pdf-lib@1.17.1`, geração no
+- **SUPOSIÇÃO CONSERVADORA — PDF:** biblioteca provisória `pdf-lib@1.17.1`, sujeita ao gate 10.4; geração no
   servidor. Glifo não suportado falha explicitamente, sem substituir texto clínico.
   O caso é identificado por identificador opaco rotulado; nenhum nome é inventado.
   Metadados de autoria atuais não certificam nomes na data histórica. PDF adicional
