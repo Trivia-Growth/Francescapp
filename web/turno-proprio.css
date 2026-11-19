@@ -55,6 +55,42 @@
 .turno-proprio [hidden] {
   display: none;
 }
+.turno-proprio .modelo-sintese-campo,
+.escala-turno label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+.turno-proprio .modelo-sintese-campo :is(input, textarea, select),
+.escala-turno :is(input, textarea, select) {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  font: inherit;
+  padding: 10px;
+}
+.escala-turno form {
+  display: grid;
+  gap: 16px;
+  margin-block: 20px;
+}
+.escala-turno article {
+  border-bottom: 1px solid #dfe5d4;
+  padding-block: 20px;
+}
+.escala-turno button {
+  min-height: 44px;
+  white-space: normal;
+}
+.escala-turno :focus-visible {
+  outline: 3px solid #475436;
+  outline-offset: 4px;
+}
+.turno-proprio :is(p, dd),
+.escala-turno p {
+  overflow-wrap: anywhere;
+}
 @media (max-width: 560px) {
   .turno-proprio__acoes {
     flex-direction: column;

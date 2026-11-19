@@ -169,6 +169,28 @@ function aadCanonico(aad: MetadadosAad): Uint8Array {
   }
   // FR-012: a versão do diário tem dois textos cifrados. `campo` faz parte da ligação, logo
   // o envelope da justificativa não decifra no lugar do conteúdo nem o contrário.
+  if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.turno_escala_versao') {
+    if (
+      !uuid.test(aad.paciente_id) ||
+      !uuid.test(aad.escala_id) ||
+      !Number.isInteger(aad.versao) ||
+      aad.versao < 1 ||
+      aad.versao > 2147483647 ||
+      aad.campo !== 'motivo' ||
+      aad.formato !== formatoAtual
+    )
+      throw new ErroCifraAutenticada();
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        paciente_id: aad.paciente_id,
+        escala_id: aad.escala_id,
+        versao: aad.versao,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
   if (typeof aad === 'object' && aad !== null && aad.tabela === 'cadastro.diario_registro_versao') {
     if (
       typeof aad.paciente_id !== 'string' ||

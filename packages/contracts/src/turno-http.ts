@@ -10,3 +10,9 @@ export const consultaTurnoAtualHttp = {
   entrada: z.object({}).strict(),
   saida: sucessoRespostaSchema(turnoSchema.nullable()),
 } as const;
+
+/** Último turno próprio do caso; recupera recebimento após encerramento/recarga. */
+export const consultaTurnoUltimoHttp = {
+  ...consultaTurnoAtualHttp,
+  caminho: '/api/pacientes/:paciente_id/turnos/ultimo',
+} as const;

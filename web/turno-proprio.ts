@@ -1,17 +1,19 @@
 import type { Turno } from '../packages/contracts/src/turno.ts';
 import type { ServicoTurnoHttp } from './servico-turno-http.ts';
+import { montarPassagemTurno } from './passagem-turno.js';
 
 /** Seção da ficha da equipe. Regras de autorização continuam no servidor e banco. */
 export function montarTurnoProprio(
   raiz: HTMLElement,
   pacienteId: string,
   servico: ServicoTurnoHttp,
-  opcoes: { acessoPerdido(): void },
+  opcoes: { acessoPerdido(): void; alteracaoPendente?(valor: boolean): void },
 ): () => void {
   let ativa = true;
   let ocupada = false;
   let permiteAbrir = false;
   let pendente = false;
+  let desmontarPassagem = () => {};
   const secao = document.createElement('section');
   secao.className = 'turno-proprio';
   const titulo = document.createElement('h3');
@@ -48,8 +50,7 @@ export function montarTurnoProprio(
   acoes.append(abrir, atualizar, recuperar);
   formulario.append(rotulo, acoes);
   const limite = document.createElement('p');
-  limite.textContent =
-    'Encerramento de turno ainda indisponível. A passagem de turno será necessária para encerrar.';
+  limite.textContent = 'Encerrar exige síntese de passagem publicada e vinculada ao turno.';
   secao.append(titulo, explicacao, status, conteudo, formulario, limite);
   raiz.replaceChildren(secao);
 
@@ -64,8 +65,9 @@ export function montarTurnoProprio(
     recuperar.hidden = !pendente;
   }
   function mostrar(turno: Turno | null) {
+    desmontarPassagem();
     conteudo.replaceChildren();
-    permiteAbrir = !turno;
+    permiteAbrir = !turno || turno.situacao === 'encerrado';
     if (!turno) {
       const vazio = document.createElement('p');
       vazio.textContent = 'Você não tem turno aberto neste caso.';
@@ -87,6 +89,54 @@ export function montarTurnoProprio(
       lista.append(termo, valorElemento);
     }
     conteudo.append(lista);
+    const passagemRaiz = document.createElement('div');
+    conteudo.append(passagemRaiz);
+    desmontarPassagem = montarPassagemTurno(passagemRaiz, pacienteId, turno, servico, {
+      acessoPerdido: opcoes.acessoPerdido,
+      alteracaoPendente: opcoes.alteracaoPendente,
+      encerrar: async (registroId) => {
+        if (!ativa || turno.situacao !== 'aberto') return;
+        const barreira = await servico.consultarBarreira();
+        if (!ativa) return;
+        if (barreira.reserva || barreira.resultado_pendente) {
+          pendente = true;
+          controles();
+          throw new Error('Recupere operação pendente');
+        }
+        pendente = true;
+        opcoes.alteracaoPendente?.(true);
+        controles();
+        const reservaId = crypto.randomUUID();
+        const reserva = await servico.reservar({
+          epoca: barreira.epoca,
+          reserva_id: reservaId,
+          paciente_id: pacienteId,
+          turno_id: turno.turno_id,
+          versao_esperada: turno.versao,
+        });
+        if (!ativa) return;
+        if (reserva.estado !== 'aberta') throw new Error('Reserva não confirmada');
+        const fechado = await servico.encerrar(
+          pacienteId,
+          {
+            turno_id: turno.turno_id,
+            reserva_id: reservaId,
+            geracao_reserva: barreira.epoca,
+            versao_esperada: turno.versao,
+            sintese_registro_id: registroId,
+          },
+          crypto.randomUUID(),
+        );
+        if (!ativa) return;
+        await reconciliar();
+        if (!ativa) return;
+        if (pendente) throw new Error('Encerramento ainda exige reconciliação');
+        mostrar(fechado);
+        status.textContent = 'Turno encerrado com síntese publicada.';
+        opcoes.alteracaoPendente?.(false);
+        controles();
+      },
+    });
   }
   function falhou(erro: unknown) {
     if (!ativa) return;
@@ -96,6 +146,7 @@ export function montarTurnoProprio(
     const codigo = erro && typeof erro === 'object' && 'codigo' in erro ? String(erro.codigo) : '';
     if (codigo === 'nao_autenticado' || codigo === 'sem_permissao') {
       ativa = false;
+      desmontarPassagem();
       raiz.replaceChildren();
       opcoes.acessoPerdido();
       return;
@@ -125,7 +176,9 @@ export function montarTurnoProprio(
     const barreira = await servico.consultarBarreira();
     if (!ativa) return;
     pendente = Boolean(barreira.reserva || barreira.resultado_pendente);
-    const turno = await servico.consultarAtual(pacienteId);
+    const atual = await servico.consultarAtual(pacienteId);
+    if (!ativa) return;
+    const turno = atual ?? (await servico.consultarUltimo(pacienteId));
     if (!ativa) return;
     mostrar(turno);
     status.textContent = pendente
@@ -217,6 +270,7 @@ export function montarTurnoProprio(
   void executar('Consultando seu turno…', carregar);
   return () => {
     ativa = false;
+    desmontarPassagem();
     raiz.replaceChildren();
   };
 }

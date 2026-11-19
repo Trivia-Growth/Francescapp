@@ -13,6 +13,7 @@ import type { operarTarefaCuidadoNativo } from './tarefa-cuidado-nativo.ts';
 type Portas = Omit<Parameters<typeof operarTarefaCuidadoNativo>[2], 'cifra'>;
 export type ComandoTurno =
   | { operacao: 'consultar_atual'; paciente_id: string }
+  | { operacao: 'consultar_ultimo'; paciente_id: string }
   | { operacao: 'consultar'; paciente_id: string; turno_id: string }
   | {
       operacao: 'abrir';
@@ -43,9 +44,17 @@ export async function operarTurnoNativo(request: Request, comando: ComandoTurno,
   try {
     const pacienteId = uuidSchema.parse(comando.paciente_id).toLowerCase();
     const consultaAtual = comando.operacao === 'consultar_atual';
-    const leitura = consultaAtual || comando.operacao === 'consultar';
-    const turnoId = consultaAtual ? undefined : uuidSchema.parse(comando.turno_id).toLowerCase();
-    if (!['consultar', 'consultar_atual', 'abrir', 'encerrar'].includes(comando.operacao))
+    const consultaUltimo = comando.operacao === 'consultar_ultimo';
+    const leitura = consultaAtual || consultaUltimo || comando.operacao === 'consultar';
+    const turnoId =
+      comando.operacao === 'consultar_atual' || comando.operacao === 'consultar_ultimo'
+        ? undefined
+        : uuidSchema.parse(comando.turno_id).toLowerCase();
+    if (
+      !['consultar', 'consultar_atual', 'consultar_ultimo', 'abrir', 'encerrar'].includes(
+        comando.operacao,
+      )
+    )
       return erro('entrada_invalida');
     const autorizacao = await portas.autorizar(request);
     if (autorizacao.estado !== 'autorizado') return erro(autorizacao.estado);
@@ -62,6 +71,7 @@ export async function operarTurnoNativo(request: Request, comando: ComandoTurno,
       request_id: requestId,
       paciente_id: pacienteId,
       ...(turnoId ? { turno_id: turnoId } : {}),
+      ...(consultaUltimo ? { modo: 'ultimo' } : {}),
     };
     if (comando.operacao === 'abrir' || comando.operacao === 'encerrar') {
       const { operacao: _operacao, paciente_id: _paciente, ...dados } = comando;
@@ -74,9 +84,18 @@ export async function operarTurnoNativo(request: Request, comando: ComandoTurno,
         turno_id: turnoId,
         reserva_id: validada.data.reserva_id.toLowerCase(),
       });
-      if (comando.operacao === 'abrir') {
+      {
         const digest = await portas.idempotencia.calcularDigestIdempotencia(
-          portas.atestador.canonicalizar({ paciente_id: pacienteId, turno_id: turnoId }),
+          portas.atestador.canonicalizar({
+            paciente_id: pacienteId,
+            turno_id: turnoId,
+            ...(comando.operacao === 'encerrar'
+              ? {
+                  versao_esperada: comando.versao_esperada,
+                  sintese_registro_id: comando.sintese_registro_id,
+                }
+              : {}),
+          }),
         );
         if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) throw new Error();
         Object.assign(entrada, { chave_idempotencia: chave.data, digest_idempotencia: digest });
@@ -87,6 +106,7 @@ export async function operarTurnoNativo(request: Request, comando: ComandoTurno,
       encerrar: 'api.encerrar_turno',
       consultar: 'api.consultar_turno',
       consultar_atual: 'api.consultar_turno',
+      consultar_ultimo: 'api.consultar_turno',
     } as const;
     const metadados = dadosAtestadoSchema.omit({ digest_entrada: true }).parse({
       ...portas.metadados(requestId),
@@ -125,13 +145,16 @@ export async function operarTurnoNativo(request: Request, comando: ComandoTurno,
     );
     if (request.signal.aborted || resposta.request_id !== requestId) throw new Error();
     if (!resposta.ok) return erro(resposta.erro.codigo);
-    // Grupo 3 ainda não prova a síntese; nem adapter incorreto pode confirmar encerramento.
-    if (comando.operacao === 'encerrar') return erro('conflito');
+    if (comando.operacao === 'encerrar' && resposta.dados?.situacao !== 'encerrado')
+      return erro('conflito');
     if (
-      (!resposta.dados && comando.operacao === 'abrir') ||
+      (!resposta.dados && !leitura) ||
       (resposta.dados &&
-        ((!consultaAtual && resposta.dados.turno_id.toLowerCase() !== turnoId) ||
+        ((!consultaAtual && !consultaUltimo && resposta.dados.turno_id.toLowerCase() !== turnoId) ||
           (consultaAtual && resposta.dados.situacao !== 'aberto') ||
+          (comando.operacao === 'encerrar' &&
+            (resposta.dados.situacao !== 'encerrado' ||
+              resposta.dados.versao !== comando.versao_esperada + 1)) ||
           resposta.dados.paciente_id.toLowerCase() !== pacienteId ||
           resposta.dados.profissional_usuario_id.toLowerCase() !== identidade.usuario_id))
     )

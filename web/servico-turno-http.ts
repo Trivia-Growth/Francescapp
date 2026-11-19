@@ -17,7 +17,18 @@ import {
   encerrarTurnoSchema,
   reconhecerTurnoSchema,
 } from '../packages/contracts/src/turno-barreira.ts';
+import { statusErroHttp } from '../packages/contracts/src/erros.ts';
 import { FalhaApi } from './api.ts';
+import {
+  turnoGrupo3Http,
+  type CriarEscala,
+  type AlterarEscala,
+  type PublicarPassagem,
+} from '../packages/contracts/src/turno-passagem.ts';
+import {
+  encerramentoTurnoSchema,
+  type EncerramentoTurno,
+} from '../packages/contracts/src/turno.ts';
 
 type Identidade = { usuario_id: string; session_id: string };
 
@@ -30,6 +41,7 @@ export function criarServicoTurnoHttp(identidadeAtual: () => Identidade | null) 
     saida: z.ZodType<T>,
     corpo?: unknown,
     chave?: string,
+    metodo?: 'GET' | 'POST' | 'PATCH',
   ): Promise<T> {
     const sessao = identidadeAtual();
     if (
@@ -57,7 +69,7 @@ export function criarServicoTurnoHttp(identidadeAtual: () => Identidade | null) 
       const sinal = AbortSignal.timeout(20_000);
       enviada = mutacao;
       const resposta = await fetch(caminho, {
-        method: mutacao ? 'POST' : 'GET',
+        method: metodo ?? (mutacao ? 'POST' : 'GET'),
         headers: {
           Accept: 'application/json',
           'x-sessao': identidade.session_id,
@@ -93,7 +105,7 @@ export function criarServicoTurnoHttp(identidadeAtual: () => Identidade | null) 
           if (sinal.aborted) throw new Error();
           if (parte.done) break;
           tamanho += parte.value.byteLength;
-          if (tamanho > 65_536) throw new Error();
+          if (tamanho > 1_048_576) throw new Error();
           partes.push(parte.value);
         }
       } catch (erro) {
@@ -110,6 +122,7 @@ export function criarServicoTurnoHttp(identidadeAtual: () => Identidade | null) 
         posicao += parte.length;
       }
       const envelope: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+      if (mutacao && resposta.status === 202) throw new Error();
       const atual = identidadeAtual();
       if (
         !atual ||
@@ -123,6 +136,7 @@ export function criarServicoTurnoHttp(identidadeAtual: () => Identidade | null) 
         );
       if (!resposta.ok) {
         const erro = erroRespostaSchema.parse(envelope).erro;
+        if (resposta.status !== statusErroHttp[erro.codigo]) throw new Error();
         throw new FalhaApi(
           erro.codigo,
           resposta.status,
@@ -160,7 +174,161 @@ export function criarServicoTurnoHttp(identidadeAtual: () => Identidade | null) 
     return dados;
   }
   return {
+    async consultarEscala(pacienteId: string, cursor?: { escala_id: string; versao: number }) {
+      const entrada = turnoGrupo3Http.escala.entrada.parse(
+        cursor ? { cursor_escala_id: cursor.escala_id, cursor_versao: cursor.versao } : {},
+      );
+      const parametros = new URLSearchParams(
+        Object.entries(entrada).map(([chave, valor]) => [chave, String(valor)]),
+      );
+      const caminho =
+        turnoGrupo3Http.escala.caminho.replace(':paciente_id', paciente(pacienteId)) +
+        (parametros.size ? `?${parametros}` : '');
+      const { dados } = await solicitar(
+        caminho,
+        sucessoRespostaSchema(turnoGrupo3Http.escala.saida),
+      );
+      if (dados.itens.some((item) => item.paciente_id.toLowerCase() !== paciente(pacienteId)))
+        throw new FalhaApi('servico_indisponivel');
+      return dados;
+    },
+    async criarEscala(pacienteId: string, entrada: CriarEscala, chave: string) {
+      const corpo = turnoGrupo3Http.criarEscala.entrada.parse(entrada);
+      chaveIdempotenciaSchema.parse(chave);
+      const { dados } = await solicitar(
+        turnoGrupo3Http.criarEscala.caminho.replace(':paciente_id', paciente(pacienteId)),
+        sucessoRespostaSchema(turnoGrupo3Http.criarEscala.saida),
+        corpo,
+        chave,
+      );
+      if (
+        dados.paciente_id.toLowerCase() !== paciente(pacienteId) ||
+        dados.escala_id !== entrada.escala_id ||
+        dados.versao !== 1
+      )
+        throw new FalhaApi('pendencia_externa', 0, true);
+      return dados;
+    },
+    async alterarEscala(
+      pacienteId: string,
+      escalaId: string,
+      entrada: AlterarEscala,
+      chave: string,
+    ) {
+      const corpo = turnoGrupo3Http.alterarEscala.entrada.parse(entrada);
+      chaveIdempotenciaSchema.parse(chave);
+      const caminho = turnoGrupo3Http.alterarEscala.caminho
+        .replace(':paciente_id', paciente(pacienteId))
+        .replace(':escala_id', paciente(escalaId));
+      const { dados } = await solicitar(
+        caminho,
+        sucessoRespostaSchema(turnoGrupo3Http.alterarEscala.saida),
+        corpo,
+        chave,
+        'PATCH',
+      );
+      if (
+        dados.paciente_id.toLowerCase() !== paciente(pacienteId) ||
+        dados.escala_id.toLowerCase() !== paciente(escalaId) ||
+        dados.versao !== entrada.versao_esperada + 1
+      )
+        throw new FalhaApi('pendencia_externa', 0, true);
+      return dados;
+    },
+    async consultarPassagem(pacienteId: string, turnoId: string) {
+      const caminho = turnoGrupo3Http.passagem.caminho
+        .replace(':paciente_id', paciente(pacienteId))
+        .replace(':turno_id', paciente(turnoId));
+      const { dados } = await solicitar(
+        caminho,
+        sucessoRespostaSchema(turnoGrupo3Http.passagem.saida),
+      );
+      if (
+        dados.propria &&
+        (dados.propria.turno_id.toLowerCase() !== paciente(turnoId) ||
+          dados.propria.autor_usuario_id !== identidadeMontagem?.usuario_id)
+      )
+        throw new FalhaApi('servico_indisponivel');
+      if (
+        dados.anterior &&
+        dados.anterior.turno_destinatario_id.toLowerCase() !== paciente(turnoId)
+      )
+        throw new FalhaApi('servico_indisponivel');
+      return dados;
+    },
+    async publicarPassagem(
+      pacienteId: string,
+      turnoId: string,
+      entrada: PublicarPassagem,
+      chave: string,
+    ) {
+      chaveIdempotenciaSchema.parse(chave);
+      const corpo = turnoGrupo3Http.publicar.entrada.parse(entrada);
+      const caminho = turnoGrupo3Http.publicar.caminho
+        .replace(':paciente_id', paciente(pacienteId))
+        .replace(':turno_id', paciente(turnoId));
+      const { dados } = await solicitar(
+        caminho,
+        sucessoRespostaSchema(turnoGrupo3Http.publicar.saida),
+        corpo,
+        chave,
+      );
+      if (
+        dados.turno_id.toLowerCase() !== paciente(turnoId) ||
+        dados.autor_usuario_id !== identidadeMontagem?.usuario_id ||
+        dados.versao_passagem !== entrada.versao_esperada + 1
+      )
+        throw new FalhaApi('pendencia_externa', 0, true);
+      return dados;
+    },
+    async registrarCiencia(pacienteId: string, turnoId: string, chave: string) {
+      chaveIdempotenciaSchema.parse(chave);
+      const caminho = turnoGrupo3Http.ciencia.caminho
+        .replace(':paciente_id', paciente(pacienteId))
+        .replace(':turno_id', paciente(turnoId));
+      const { dados } = await solicitar(
+        caminho,
+        sucessoRespostaSchema(turnoGrupo3Http.ciencia.saida),
+        {},
+        chave,
+      );
+      if (dados.usuario_id !== identidadeMontagem?.usuario_id)
+        throw new FalhaApi('pendencia_externa', 0, true);
+      return dados;
+    },
+    async encerrar(pacienteId: string, entrada: EncerramentoTurno, chave: string) {
+      const corpo = encerramentoTurnoSchema.parse(entrada);
+      chaveIdempotenciaSchema.parse(chave);
+      const { dados } = await solicitar(
+        `/api/pacientes/${paciente(pacienteId)}/turnos/encerrar`,
+        sucessoRespostaSchema(turnoSchema),
+        corpo,
+        chave,
+      );
+      if (
+        dados.turno_id !== entrada.turno_id ||
+        dados.paciente_id.toLowerCase() !== paciente(pacienteId) ||
+        dados.profissional_usuario_id !== identidadeMontagem?.usuario_id ||
+        dados.situacao !== 'encerrado'
+      )
+        throw new FalhaApi('pendencia_externa', 0, true);
+      return dados;
+    },
     consultarAtual: (pacienteId: string) => consultar(pacienteId),
+    async consultarUltimo(pacienteId: string) {
+      const id = paciente(pacienteId);
+      const { dados } = await solicitar(
+        `/api/pacientes/${id}/turnos/ultimo`,
+        sucessoRespostaSchema(turnoSchema.nullable()),
+      );
+      if (
+        dados &&
+        (dados.paciente_id.toLowerCase() !== id ||
+          dados.profissional_usuario_id !== identidadeMontagem?.usuario_id)
+      )
+        throw new FalhaApi('servico_indisponivel');
+      return dados;
+    },
     consultar: (pacienteId: string, turnoId: string) => consultar(pacienteId, turnoId),
     async abrir(pacienteId: string, entrada: AberturaTurno, chave: string) {
       const id = paciente(pacienteId);

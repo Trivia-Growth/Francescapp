@@ -115,3 +115,84 @@ it('instância antiga não inicia segunda chamada com sessão nova', async () =>
   ).rejects.toMatchObject({ codigo: 'nao_autenticado' });
   expect(buscar).toHaveBeenCalledTimes(1);
 });
+it('último turno encerrado é recuperado sem convertê-lo em turno aberto', async () => {
+  const servico = preparar();
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () =>
+      Response.json({
+        dados: { ...turno, situacao: 'encerrado', encerrado_em: '2026-11-18T13:00:00Z' },
+        request_id: usuario,
+      }),
+    ),
+  );
+  await expect(servico.consultarUltimo(paciente)).resolves.toMatchObject({ situacao: 'encerrado' });
+});
+it('publicação envia modelo FR009 sem autoria ou relógio e 202 não confirma persistência', async () => {
+  const servico = preparar();
+  const buscar = vi.fn(async () =>
+    Response.json({ dados: {}, request_id: usuario }, { status: 202 }),
+  );
+  vi.stubGlobal('fetch', buscar);
+  const entrada = {
+    versao_esperada: 0,
+    conteudo: { data: '2026-11-18', area: 'Área configurada', atividade: 'Síntese fictícia' },
+  };
+  await expect(servico.publicarPassagem(paciente, turnoId, entrada, usuario)).rejects.toMatchObject(
+    { codigo: 'pendencia_externa' },
+  );
+  expect(buscar).toHaveBeenCalledWith(
+    `/api/pacientes/${paciente}/turnos/${turnoId}/passagem`,
+    expect.objectContaining({ method: 'POST', body: JSON.stringify(entrada) }),
+  );
+});
+
+it('consulta escala com cursor estrito e mantém rótulos históricos fora do catálogo elegível', async () => {
+  const servico = preparar();
+  const buscar = vi.fn(async () =>
+    Response.json({
+      dados: {
+        identidades: [{ usuario_id: usuario, rotulo: 'Autor fictício anterior' }],
+        pode_gerir: false,
+        profissionais: [],
+        itens: [],
+        proximo_cursor: null,
+      },
+      request_id: usuario,
+    }),
+  );
+  vi.stubGlobal('fetch', buscar);
+  const resultado = await servico.consultarEscala(paciente, { escala_id: turnoId, versao: 50 });
+  expect(buscar).toHaveBeenCalledWith(
+    `/api/pacientes/${paciente}/turnos/escala?cursor_escala_id=${turnoId}&cursor_versao=50`,
+    expect.objectContaining({ method: 'GET' }),
+  );
+  expect(resultado.profissionais).toEqual([]);
+  expect(resultado.identidades[0]?.rotulo).toBe('Autor fictício anterior');
+  await expect(
+    servico.consultarEscala(paciente, { escala_id: turnoId, versao: 0 }),
+  ).rejects.toBeDefined();
+  expect(buscar).toHaveBeenCalledTimes(1);
+});
+
+it('erro HTTP contraditório não transforma mutação incerta em recusa definitiva', async () => {
+  const servico = preparar();
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () =>
+      Response.json({ erro: { codigo: 'conflito_versao' }, request_id: usuario }, { status: 500 }),
+    ),
+  );
+  await expect(
+    servico.criarEscala(
+      paciente,
+      {
+        escala_id: turnoId,
+        profissional_previsto_usuario_id: usuario,
+        inicio_previsto: '2026-11-18T10:00:00Z',
+        fim_previsto: '2026-11-18T12:00:00Z',
+      },
+      usuario,
+    ),
+  ).rejects.toMatchObject({ codigo: 'pendencia_externa' });
+});

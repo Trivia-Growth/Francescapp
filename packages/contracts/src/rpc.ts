@@ -262,7 +262,19 @@ const metadadosAadExportacaoSchema = z
   })
   .strict();
 
+export const metadadosAadEscalaTurnoSchema = z
+  .object({
+    tabela: z.literal('cadastro.turno_escala_versao'),
+    paciente_id: uuidSchema,
+    escala_id: uuidSchema,
+    versao: z.number().int().positive(),
+    campo: z.literal('motivo'),
+    formato: z.literal(1),
+  })
+  .strict();
+
 export const metadadosAadSchema = z.union([
+  metadadosAadEscalaTurnoSchema,
   metadadosAadExportacaoSchema,
   metadadosAadSolicitacaoTitularSchema,
   metadadosAadCamposSchema,

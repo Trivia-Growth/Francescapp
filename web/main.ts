@@ -49,6 +49,7 @@ import { montarHabilitacaoPlanoCrise } from './habilitacao-plano-crise.js';
 import { criarServicoHabilitacaoPlanoCriseHttp } from './servico-habilitacao-plano-crise-http.js';
 import { montarDiario } from './diario.js';
 import { montarTurnoProprio } from './turno-proprio.js';
+import { montarEscalaTurno } from './escala-turno.js';
 import { criarServicoTurnoHttp } from './servico-turno-http.js';
 import './turno-proprio.css';
 import { montarConversaoDiario } from './conversao-diario.js';
@@ -889,11 +890,21 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'meu-turno',
       rotulo: 'Meu turno',
       // Visibilidade organiza a ficha; autorização continua no servidor e banco.
-      montar: (raiz) =>
+      montar: (raiz, pendente) =>
         montarTurnoProprio(raiz, paciente.id, criarServicoTurnoHttp(identidadeAtual), {
           acessoPerdido: () => acessoPerdido(new FalhaApi('nao_autenticado', 401)),
+          alteracaoPendente: pendente,
         }),
     });
+  secoes.push({
+    id: 'escala-turnos',
+    rotulo: 'Escala de turnos',
+    montar: (raiz, pendente) =>
+      montarEscalaTurno(raiz, paciente.id, criarServicoTurnoHttp(identidadeAtual), {
+        acessoPerdido: () => acessoPerdido(new FalhaApi('nao_autenticado', 401)),
+        alteracaoPendente: pendente,
+      }),
+  });
   if (administraCadastro)
     secoes.push({
       id: 'cadastro',

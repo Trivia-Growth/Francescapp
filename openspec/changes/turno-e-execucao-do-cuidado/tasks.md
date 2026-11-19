@@ -4,7 +4,7 @@ Cada tarefa indica requisito/cenário, dependência e evidência de aceite. A po
 
 Nenhuma tarefa autoriza deploy, migração remota, concessão de acesso ou uso de dados reais. Todos os dados de teste são fictícios.
 
-**Suspensão histórica de 17/11/2026:** a implementação aguardava liberação da frente de frontend. **Retomada autorizada em 18/11/2026:** o solicitante determinou seguir nas features não impedidas, com agentes Sol em paralelo, deixando as validações para depois. O recorte retomado alcança os grupos 1 e 2, conforme ordem do briefing; grupo 3 não iniciado. As provas de autorização/RLS permanecem obrigatórias antes da ativação. A autorização DF-022 para operações externas não alcança dados reais nem operações destrutivas; esta retomada prepara código e migration local, sem presumir ativação remota.
+**Suspensão histórica de 17/11/2026:** a implementação aguardava liberação da frente de frontend. **Retomada autorizada em 18/11/2026:** o solicitante determinou seguir nas features não impedidas, com agentes Sol em paralelo, deixando as validações para depois. O recorte retomado alcança os grupos 1 e 2, conforme ordem do briefing; grupo 3 não iniciado naquela retomada (registro histórico superado pela preparação integral abaixo). As provas de autorização/RLS permanecem obrigatórias antes da ativação. A autorização DF-022 para operações externas não alcança dados reais nem operações destrutivas; esta retomada prepara código e migration local, sem presumir ativação remota.
 
 ## 0. Pré-condições
 
@@ -97,6 +97,13 @@ Depende de 2.6.
 - [ ] 3.3 Exigir síntese de passagem para encerrar o turno. Evidência: teste cobrindo encerramento sem síntese recusado e turno permanecendo aberto (FR-057, cenário "Encerramento sem síntese é recusado").
 - [ ] 3.4 Estender o mecanismo de FR-013 com ciência registrada, distinta de consulta, preservando quem registrou e quando. Evidência: testes cobrindo ciência registrada, consulta que não registra ciência, tentativa de ciência por não destinatário negada e falha de persistência mantendo a situação como consultado (FR-013 modificado, FR-057).
 - [ ] 3.5 Apresentar ao profissional que abre turno a passagem anterior pendente de ciência. Evidência: teste cobrindo abertura de turno em caso com passagem sem ciência e a pendência apresentada com autor e instante do turno anterior (FR-057).
+
+**Retomada grupo 3 — 18/11/2026:** solicitante autorizou preparar 3.1–3.5 integralmente
+em código, com validações adiadas. Contrato e SUPOSIÇÕES CONSERVADORAS constam do design:
+gestão por Administrador Google + vínculo + case manager atual; ciência pelo profissional
+do turno sucessor efetivamente aberto. Não constituem ratificação clínica. Preparadas
+migration 1400, contratos/rotas, servidor, interface e provas SQL/NOSUPER/concorrência.
+Checkboxes ficam abertas até executar evidência; sem ativação ou operação remota.
 
 ## 4. Sinais vitais
 
@@ -221,3 +228,45 @@ Depende de 13.3.
 
 - Sincronizar os deltas com `openspec/specs/` e arquivar a mudança somente após a revisão independente e os critérios de aceite atendidos. Conferir que as seções "Jornadas e testes independentes preservados" (User Stories 13 a 15) e "Rastreabilidade com as metas SC" chegaram à spec principal de `turno-e-execucao`; se o arquivamento não as copiar, transcrevê-las à mão, como nas demais capacidades.
 - Atualizar `docs/projeto/roteiro-especificacoes.md` com a posição desta capacidade entre as fatias, sem marcar fatias alheias como concluídas.
+
+
+### Resumo operacional grupo 3 — preparação local, 18/11/2026
+
+Código de 3.1–3.5 preparado: contratos `turno-passagem.ts`, publicação filha do Diário
+atômica com vínculo versionado append-only, escala versionada, encerramento com reserva
+existente/resultado recuperável e ciência explícita distinta de consulta. `turnos/ultimo`
+recupera o próprio turno encerrado após recarga para remetente consultar recebimento.
+Nova migration única `20261125140000_turno_escala_passagem.sql`; nenhuma aplicada.
+
+BFF: `turno-grupo3-{nativo,compor-nativo,entrada-nativa,executor-nativo}.ts`, dispatch
+único `turnos.ts`, ramo de cifra para AAD de motivo e testes novos de BFF/cifra. UI de
+escala/passagem e serviço próprios, sem entidade clínica paralela. Republicação exige
+versão de vínculo esperada e ato explícito; filha sempre nova evolução no Diário.
+
+Provas SQL escritas: `supabase/tests/turno_grupo3_local.sql` (wrapper authenticated,
+escala/versão/stale/motivo, publicação atômica/replay, retificação/republicação, fechamento
+com reserva não zero/recibo perdido/consulta UUID e ultimo, consulta vs ciência/revogação,
+ACL/owner/membership em migração NOSUPERUSER) e
+`supabase/tests/turno_grupo3_concorrencia_local.sql` (duas conexões: retificação e
+revogação antes do fechamento). Runner `scripts/testar-turno-grupo3-local.sh` escrito.
+Novo teste servidor `turno-grupo3-encerramento.test.ts` prende versão fechada/digest e
+consulta ultimo. Nenhum desses comandos/testes foi executado; não declarar aprovação.
+
+Revisão de fonte identificou/corrigiu grant insuficiente para SELECT completo na passagem
+(projeção curta só onde necessária) e policy de requisição que só admitia abertura
+(policy aditiva específica de encerramento, preservando abertura). Revisão Spec levou a
+paginação por cursor estável e rótulos de identidades efetivamente presentes nos registros,
+separados do catálogo de profissionais elegíveis. Rótulo atual de concessão histórica
+não prova nome à época. Matriz operacional real, verificações executáveis e ativação
+continuam pendentes; checkboxes de aceite permanecem abertas.
+
+
+Releitura independente de fonte concluída em dois eixos, base fixa
+`eb494f2dbc014e8e23bcf31b4bbeb26b6a404eef`, diff `git diff eb494f2` mais arquivos
+novos pertinentes (sem `.impeccable` preexistente). Padrões/segurança identificou
+os bloqueios SQL acima; Spec identificou nomes, período real do turno, paginação e
+recuperação de recusa definitiva. Revisão cruzada UI/BFF cobriu ainda rascunho
+incompleto, projeção de identidades antes da cifra e coerência HTTP. Executor das
+correções não aprovou o próprio código: releitura Spec e cruzada vieram de outros
+Sol. Nenhum P1/P2 de fonte remanescente nos deltas relidos. Isso não comprova
+runtime: nenhum teste, SQL, build ou gate foi executado; aceite continua aberto.

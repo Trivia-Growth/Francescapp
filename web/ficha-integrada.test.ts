@@ -182,6 +182,7 @@ it.each([
       'Plano de crise',
       'Tarefas',
       'Meu turno',
+      'Escala de turnos',
       'Encaminhamentos',
       'Orientações',
       'Rotina e recursos',
@@ -198,6 +199,7 @@ it.each([
       'Anamnese',
       'Saúde',
       'Plano de crise',
+      'Escala de turnos',
       'Cadastro',
       'Equipe com acesso',
       'Exportação',
@@ -229,7 +231,8 @@ it('monta Meu turno no caso atual e desmonta ao sair da seção', async () => {
   const caminhos = preparar('profissional', [], (caminho) =>
     caminho === '/api/turnos/barreira'
       ? envelope({ epoca: 1, reserva: null, resultado_pendente: null })
-      : caminho === `/api/pacientes/${A}/turnos/atual`
+      : caminho === `/api/pacientes/${A}/turnos/atual` ||
+          caminho === `/api/pacientes/${A}/turnos/ultimo`
         ? envelope(null)
         : undefined,
   );
@@ -240,7 +243,7 @@ it('monta Meu turno no caso atual e desmonta ao sair da seção', async () => {
   await vi.waitFor(() => expect(painel()).toContain('Você não tem turno aberto neste caso.'));
   expect(caminhos).toContain(`/api/pacientes/${A}/turnos/atual`);
   expect(caminhos).not.toContain(`/api/pacientes/${B}/turnos/atual`);
-  expect(painel()).toContain('Encerramento de turno ainda indisponível.');
+  expect(painel()).toContain('Encerrar exige síntese de passagem publicada');
   el('ficha-aba-visao').click();
   expect(document.querySelector('.turno-proprio')).toBeNull();
 });

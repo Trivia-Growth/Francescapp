@@ -36,3 +36,5 @@ export * from './ocorrencia-turno.ts';
 export * from './turno-barreira.ts';
 export * from './turno-barreira-servidor.ts';
 export * from './conversao-diario-tarefa.ts';
+
+export * from './turno-passagem.ts';

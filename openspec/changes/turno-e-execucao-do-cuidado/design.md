@@ -246,3 +246,90 @@ mas somente com dados fictícios; publicação não equivale a go-live nem a apr
 **Conclusão de 0.6:** inventário e lacunas estão registrados; auditoria concluída.
 Base reaproveitável identificada, integração/ativação de turno ainda bloqueadas pelos itens
 0.6.1/0.6.2 pertinentes. Nenhum grupo de implementação foi iniciado nesta passagem.
+
+
+## Grupo 3 — contrato de implementação local (18/11/2026)
+
+Autorizado preparar integralmente 3.1–3.5 em código, com provas escritas sem execução.
+Não representa ativação, conformidade comprovada nem decisões clínicas ratificadas.
+
+**SUPOSIÇÕES CONSERVADORAS autorizadas para implementação:** gerir escala exige
+Administrador autenticado pelo Google Workspace, vínculo vigente no caso e ser seu
+case manager atual. Ler escala exige equipe autenticada pelo Google e vínculo vigente;
+não há exposição familiar neste recorte. Destinatário de ciência é o profissional que
+abre efetivamente o turno seguinte do mesmo caso, derivado de Auth e da abertura
+persistida; o cliente nunca escolhe destinatário. Ausência de responsável nega gestão.
+
+Escala é histórico append-only: primeira versão fixa o previsto original e janela;
+versões seguintes conservam original e guardam substituto/cobertura, motivo cifrado,
+autor e instante servidor. Versão esperada e idempotência impedem sobrescrita/replay
+com comando diferente. Nenhuma escala cria vínculo, concessão ou abertura automática.
+
+Passagem reutiliza **evolução profissional publicada do Diário** (FR-009). A tabela de
+vínculo contém apenas turno, identidade do registro/versão publicada e metadados; não
+contém outra cópia de síntese. O modelo é a área configurada em
+`ffcm.turno.area_passagem`, que deve existir em `ffcm.diario.areas_sintese`.
+Nenhum rótulo clínico é semeado como decisão de equipe. Publicação e vínculo ocorrem na mesma RPC/transação, reutilizando transporte filho
+assinado de `prepararGravacaoDiarioNativa` e `api.diario_privado`, como conversão
+Diário/Tarefa. Resposta perdida é recuperável pelo GET da própria passagem. Vínculo exige mesmo caso, autor, turno aberto,
+estado publicado/retificado e área configurada; data/síntese são validadas na publicação
+existente. Encerramento confere vínculo e versão sob trava do próprio turno e audita
+na mesma transação. Não altera conteúdo publicado nem retifica automaticamente.
+
+Consulta de passagem retorna própria e anterior do mesmo caso, com autor e instante.
+Ao abrir turno sucessor, referência anterior mais recente é fixada em tabela operacional
+sem conteúdo clínico. Ciência é evento imutável explícito no mecanismo do Diário,
+referenciado pelo registro publicado e turno destinatário, preservando ator/instante;
+consulta não insere ciência. Revogação é revalidada antes de replay/consulta/ciência.
+
+Rotas novas por caso: GET/POST `/turnos/escala`, PATCH `/turnos/escala/:escala_id`;
+GET/POST `/turnos/:turno_id/passagem`; POST
+`/turnos/:turno_id/passagem/ciencia`. Identidade e relógio nunca vêm do corpo.
+Mutação usa chave idempotente; resposta perdida exige consulta antes de nova tentativa.
+
+### Recorte de ameaças do grupo 3
+
+Ativos: integridade da escala, síntese clínica cifrada do Diário, autoria, destinatário e
+ciência. Navegador/HTTP são não confiáveis; servidor cifra/atesta, RPC autoriza e audita.
+Atacante autenticado pode forjar caso/autor/versão, repetir pedido e tentar acesso direto;
+não recebe owner, chave de atestado ou permissão direta nas tabelas.
+
+- Alta (probabilidade média, impacto alto): forjar vínculo para fechar turno com síntese
+  alheia/de outro caso. Mitigação exigida: validação SQL cumulativa autor/caso/turno/versão,
+  modelo configurado, acesso vigente e trava antes da decisão.
+- Alta (média/alta): registrar ciência por terceiro ou inferir ciência da consulta.
+  Mitigação exigida: destinatário derivado de abertura persistida, ação explícita,
+  escrita insert-only, reautorização antes de replay e auditoria obrigatória.
+- Alta (média/alta): gestão de escala por perfil isolado, ou perda de histórico em corrida.
+  Mitigação exigida: Google+vínculo+responsável atual sob locks, versão esperada,
+  append-only e motivo cifrado. Escala não concede identidade nem vínculo.
+- Alta (média/alta): lookup sem filtro expõe outros casos ou conteúdo familiar não
+  autorizado. Mitigação exigida: servidor/banco filtram caso/equipe e RLS/ACL estreitas.
+
+Provas SQL/servidor/NOSUPER e concorrência foram escritas; **não executadas** nesta
+passagem. Gates Auth/Vault/RLS reais e verificações executáveis permanecem
+pendentes; revisão de fonte e releituras afetadas estão registradas em tasks.md. Configuração ausente recusa vínculo/encerramento; não inventa modelo.
+
+Suposição conservadora adicional do grupo 3: vínculo da passagem é versionado append-only.
+Publicação exige `versao_esperada` do vínculo (0 inicial); cada ato explícito publica nova
+evolução no Diário e novo vínculo, preservando ambos históricos. Encerrar exige vínculo
+mais recente e versão exata do Diário ainda corrente; retificação anterior ao fechamento
+recusa versão antiga e pede nova publicação explícita. Nunca republicar automaticamente.
+GET `turnos/ultimo` recupera último turno próprio do caso após encerramento/recarga, para
+remetente consultar consulta e ciência futuras; não é lista de histórico nem amplia audiência.
+
+Paginação da escala: cursor composto `escala_id,versao`, página de 50 versões imutáveis,
+com `proximo_cursor`; crescimento não torna histórico indisponível nem o trunca em 500.
+Rótulos autorizados são projeção apenas de identidades presentes na página/passagem,
+separada do catálogo elegível para gestão. Fonte é e-mail cifrado de concessão existente;
+BFF decifra com AAD original, sem logs. Ausência de identidade é `null`, não nome inventado.
+Suposição conservadora: rótulo atual de concessão histórica não prova nome na época do ato.
+Revisão e provas foram preparadas sem execução. Gates reais permanecem obrigatórios.
+
+
+A interface compartilha campos/leitura do modelo FR-009 em `web/modelo-sintese.ts`
+entre Diário e passagem; dois consumidores reais, sem criar novo domínio. Envio,
+rascunho, audiência e ciclo do áudio permanecem no Diário. Prova de regressão foi
+escrita, não executada. Recusa definitiva de publicação/escala permite descarte
+explícito após consulta, preservando texto para correção humana; resultado incerto
+mantém chave e comando originais, sem inferir rollback nem trocar versão sozinho.

@@ -33,6 +33,20 @@ const recibo = {
 };
 function preparar() {
   const servico = {
+    consultarUltimo: vi.fn<ServicoTurnoHttp['consultarUltimo']>().mockResolvedValue(null),
+    consultarEscala: vi.fn<ServicoTurnoHttp['consultarEscala']>(),
+    criarEscala: vi.fn<ServicoTurnoHttp['criarEscala']>(),
+    alterarEscala: vi.fn<ServicoTurnoHttp['alterarEscala']>(),
+    consultarPassagem: vi.fn<ServicoTurnoHttp['consultarPassagem']>().mockResolvedValue({
+      identidades: [],
+      propria: null,
+      anterior: null,
+      recebimento: null,
+      area_passagem: null,
+    }),
+    publicarPassagem: vi.fn<ServicoTurnoHttp['publicarPassagem']>(),
+    registrarCiencia: vi.fn<ServicoTurnoHttp['registrarCiencia']>(),
+    encerrar: vi.fn<ServicoTurnoHttp['encerrar']>(),
     consultarAtual: vi.fn<ServicoTurnoHttp['consultarAtual']>().mockResolvedValue(null),
     consultar: vi.fn<ServicoTurnoHttp['consultar']>().mockResolvedValue(turno),
     consultarBarreira: vi.fn<ServicoTurnoHttp['consultarBarreira']>().mockResolvedValue(barreira),
@@ -137,7 +151,7 @@ it('consulta turno próprio real e mantém encerramento indisponível', async ()
   await aguardar();
   expect(raiz.textContent).toContain('Aberto');
   expect(raiz.textContent).toContain('60 minutos');
-  expect(raiz.textContent).toContain('Encerramento de turno ainda indisponível');
+  expect(raiz.textContent).toContain('Encerrar exige síntese de passagem publicada');
   expect(botao(raiz, 'Abrir meu turno').hidden).toBe(true);
 });
 it('recuperação confirmada consulta antes de reconhecer e recarrega turno atual', async () => {
@@ -203,4 +217,20 @@ it('usa geração recebida do servidor e não repete abertura após resposta per
   botao(raiz, 'Abrir meu turno').click();
   await aguardar();
   expect(servico.abrir).toHaveBeenCalledTimes(1);
+});
+it('recarga recupera passagem do último turno encerrado e mantém abertura separada', async () => {
+  const { raiz, servico, acessoPerdido } = preparar();
+  servico.consultarUltimo.mockResolvedValue({
+    ...turno,
+    situacao: 'encerrado',
+    encerrado_em: '2026-11-18T13:00:00Z',
+  });
+  montarTurnoProprio(raiz, paciente, servico, { acessoPerdido });
+  await aguardar();
+  expect(servico.consultarAtual).toHaveBeenCalledWith(paciente);
+  expect(servico.consultarUltimo).toHaveBeenCalledWith(paciente);
+  expect(servico.consultarPassagem).toHaveBeenCalledWith(paciente, turnoId);
+  expect(raiz.textContent).toContain('Encerrado');
+  expect(botao(raiz, 'Abrir meu turno').hidden).toBe(false);
+  expect(botao(raiz, 'Abrir meu turno').disabled).toBe(true);
 });

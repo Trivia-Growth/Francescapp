@@ -1,3 +1,4 @@
+import { montarCamposSintese } from './modelo-sintese.js';
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import type {
   AudienciaDiario,
@@ -295,19 +296,12 @@ export function montarDiario(
         responde ? 'Responder ao relato da família' : 'Registrar evolução profissional',
       ),
     );
-    const listaAreas = obterAreas();
-    const area = listaAreas.length
-      ? campo(form, 'Área (obrigatória)', elemento('select'))
-      : campo(form, 'Área (obrigatória)', elemento('input'));
-    if (area instanceof HTMLSelectElement)
-      for (const nome of listaAreas) {
-        const opcao = elemento('option', nome);
-        opcao.value = nome;
-        area.append(opcao);
-      }
-    const data = campo(form, 'Data do atendimento (obrigatória)', elemento('input'));
-    data.type = 'date';
-    const atividade = campo(form, 'Atividade (obrigatória para publicar)', elemento('textarea'));
+    const camposSintese = montarCamposSintese(
+      form,
+      obterAreas(),
+      `diario-sintese-${crypto.randomUUID()}`,
+    );
+    const { area, data, atividade } = camposSintese;
     // FR-010: ditar é atalho para preencher a atividade, nunca requisito — o campo acima
     // continua inteiro para quem prefere ou precisa digitar.
     let origemAtividade: OrigemConteudoDiario = 'texto';
@@ -328,11 +322,6 @@ export function montarDiario(
         if (!atividade.value.trim()) origemAtividade = 'texto';
       });
     }
-    const observacoes = campo(form, 'Observações compartilháveis', elemento('textarea'));
-    const progresso = campo(form, 'Progresso', elemento('textarea'));
-    const orientacao = campo(form, 'Orientação', elemento('textarea'));
-    const proximo = campo(form, 'Próximo passo', elemento('textarea'));
-    const objetivo = campo(form, 'Objetivo relacionado', elemento('input'));
     const audiencia = campo(form, 'Quem verá este registro', elemento('select'));
     for (const valor of ['equipe', 'equipe_e_familia'] as AudienciaDiario[]) {
       const opcao = elemento('option', rotuloAudiencia[valor]);
@@ -372,22 +361,7 @@ export function montarDiario(
       registrarPendencia(true);
       aviso.textContent = '';
     });
-    const montarConteudo = (): ConteudoEvolucaoDiario | undefined => {
-      const valores = {
-        data: data.value,
-        area: area.value.trim(),
-        ...(atividade.value.trim() ? { atividade: atividade.value.trim() } : {}),
-        ...(observacoes.value.trim()
-          ? { observacoesCompartilhaveis: observacoes.value.trim() }
-          : {}),
-        ...(progresso.value.trim() ? { progresso: progresso.value.trim() } : {}),
-        ...(orientacao.value.trim() ? { orientacao: orientacao.value.trim() } : {}),
-        ...(proximo.value.trim() ? { proximoPasso: proximo.value.trim() } : {}),
-        ...(objetivo.value.trim() ? { objetivoRelacionado: objetivo.value.trim() } : {}),
-      };
-      if (!valores.data || !valores.area) return undefined;
-      return valores as ConteudoEvolucaoDiario;
-    };
+    const montarConteudo = camposSintese.ler;
     const enviar = async (estado: 'rascunho' | 'publicado') => {
       const conteudo = montarConteudo();
       if (!conteudo) {
