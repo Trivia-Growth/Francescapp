@@ -232,7 +232,13 @@ Depende de 2.5.
 Depende de 8.2.
 
 - [ ] 13.1 Implementar as telas de abrir turno, registrar aferição, registrar administração, registrar ocorrência e encerrar turno com passagem, em `web/`, com estados de carregamento, vazio, erro e sucesso. Evidência: teste de interface cobrindo os quatro estados sem fallback de dados de exemplo em erro.
-- [ ] 13.2 Garantir uso confortável no celular, com teclado, foco visível e alternativa ao áudio quando houver. Evidência: verificação registrada em viewport de celular, conforme `AGENTS.md — Qualidade e experiência`.
+- [x] 13.2 Garantir uso confortável no celular, com teclado, foco visível e alternativa ao áudio quando houver. Evidência: verificação registrada em viewport de celular, conforme `AGENTS.md — Qualidade e experiência`.
+  **19/11/2026:** componentes/CSS reais com portas fictícias em Chrome isolado,
+  390×844 e 1440×1000; estados e percurso inicial Tab, foco e Espaço no checkbox.
+  Corrigidos checkbox ampliado e margem que causava 8 px de overflow mobile.
+  Retestes somente dos componentes afetados e build saíram 0; métricas/PNG em
+  `docs/processo/evidencias-noturnas-19-11-2026/`. Não é prova de dispositivo
+  físico/Safari, acessibilidade integral, navegação autenticada ou permissões reais.
 - [ ] 13.3 Apresentar a passagem pendente de ciência na abertura de turno, com ato explícito de ciência. Evidência: teste de interface comprovando que consultar não registra ciência (FR-057, FR-013 modificado).
 - [ ] 13.4 Implementar as telas de rotina do turno, consolidado semanal e emissão de PDF, com os quatro estados. Evidência: teste de interface sem fallback de dados de exemplo em erro (FR-064, FR-065, FR-066).
 - [ ] 13.5 Implementar o check-in e o check-out com o aviso de consentimento e o caminho sem localização. Evidência: teste de interface cobrindo aceite, recusa e turno aberto sem localização (FR-067).
@@ -247,7 +253,13 @@ Depende de 13.3.
 - [ ] 14.3.1 Provar que perfil familiar não obtém localização em nenhuma superfície — leitura, relatório, consolidado, PDF e acesso direto ao banco — ainda que tenha fundamento de autorização vigente. Evidência: testes negativos nas cinco superfícies (FR-067).
 - [ ] 14.4 Provar que registros permanecem com o autor original após encerramento do vínculo, sem anonimizar ou reatribuir. Evidência: teste de leitura de relatório anterior (FR-063).
 - [ ] 14.5 Executar `pnpm run verificar:ativacao` uma única vez e o roteiro "Como testar" do PR na retirada do draft, com os testes positivos e negativos de autorização e RLS obrigatórios. Evidência: saída registrada; se algum gate não executar, registrar o bloqueio aqui em vez de presumir sucesso.
-- [ ] 14.6 Solicitar revisão independente da fatia com `code-review`, informando a revisão-base, esta mudança OpenSpec e o diff exato, incluindo arquivos novos. Evidência: achados registrados e tratados; correções seguidas apenas pelos testes afetados pelo diff.
+- [x] 14.6 Solicitar revisão independente da fatia com `code-review`, informando a revisão-base, esta mudança OpenSpec e o diff exato, incluindo arquivos novos. Evidência: achados registrados e tratados; correções seguidas apenas pelos testes afetados pelo diff.
+  **19/11/2026:** revisão cruzada Sol nos eixos padrões/spec sobre base
+  `0174144`, fonte final `47f6e39` e novos arquivos (incluindo 2450), complementar
+  à leitura anterior desde `cc10aad`. Autor não aprovou o próprio código crítico.
+  Achados e correções, seis runners SQL, gate completo e limites externos
+  discriminados na entrega complementar. Nenhum P1/P2 confirmado restante nos
+  recortes relidos; isso não fecha 0.6.1, 10.4 ou 14.5/roteiro publicado.
 
 ## Workflow follow-up
 

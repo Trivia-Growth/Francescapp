@@ -3,6 +3,230 @@
 Branch: `fatia7/turno-execucao-cuidado`. PR: [18](https://github.com/Trivia-Growth/Francescapp/pull/18).
 Base desta continuação: `cc10aad1aeac9ebac3e805ae44fda7cccce25726`.
 
+## Retomada das validações após “Siga” — 19/11/2026
+
+Base fixa desta retomada: `0174144cfb686f4702bbc11e7bc354677e33c384`.
+O pedido posterior “Siga” retomou as verificações antes adiadas. O registro abaixo
+de implementação e hooks descreve a entrega até essa base; suas indicações de
+“não executado” são históricas. Resultados atuais ficam nesta seção, sem converter
+prova local em ativação remota. PR 18 continua draft.
+
+**Estado atual:** correções de execução implementadas, gate completo local com
+saída 0 e seis runners SQL novos de Turno com saída 0. Entrada publicada, 503,
+Auth/Vault reais, migrations remotas, integrações externas e publicação continuam
+sem aceite; objetivo de entrar na aplicação publicada ainda não está entregue.
+
+**SUPOSIÇÃO CONSERVADORA — ambiente:** validar somente instâncias PostgreSQL
+locais descartáveis e identidades/conteúdos fictícios. Nenhuma credencial foi
+solicitada, impressa, gravada ou copiada da conversa. `SUPABASE_ACCESS_TOKEN` e
+`NETLIFY_AUTH_TOKEN` estavam ausentes; nenhum valor foi inspecionado.
+
+Resultados confirmados até este registro:
+
+- Anamnese: `testar-anamnese-vinculo-caso-local.sh`, saída 0, matriz completa
+  posterior à migration 250100, incluindo outro caso, vínculo, concessão,
+  perfil/sessão, leitura/histórico/escrita, revogação e concorrência real entre
+  duas conexões. Evidência da regra antiga não foi reutilizada como prova da nova.
+- Anamnese integrada: `testar-anamnese-integrada-local.sh`, saída 0, um teste
+  HTTP/PostgreSQL posterior à 250100. Inclui escrita/leitura/replay e negativas de
+  outro caso, vínculo revogado e sessão encerrada apesar do adapter permissivo.
+- Segredos: `testar-segredos-integracoes-local.sh`, saída 0, SQL/ACL/transação
+  com adapter local fictício de Vault. Não comprova a extensão Vault remota.
+- Configuração integrada: `testar-configuracao-sistema-integrada-local.sh`, saída
+  0, um teste HTTP/PostgreSQL. Não comprova autenticação DF-023 nem o 503 publicado.
+- Turno predecessor: `testar-turno-execucao-local.sh`, saída 0, autorização,
+  negações auditadas, revogação e concorrência. Matrizes novas continuam separadas.
+- UI/Plano e serviços: 21 arquivos distintos / 131 testes finais verdes. Corrigido
+  descarte de comando pendente no timeout da Administração do Plano; mantém chave,
+  consulta de recuperação e repetição exata. Revisão independente do diff não
+  encontrou P1/P2 confirmados; limites de adapters fictícios permanecem.
+- BFF/Documentos/Drive/AAD: alvos específicos executados; correção de fixture do
+  Plano nativo foi reexecutada com 15/15 verdes. Entrega de documento: mais um
+  arquivo específico com 5/5 verdes. Contagem consolidada e gates SQL serão
+  registrados ao concluir as frentes, sem somar reexecuções como testes distintos.
+- PDF: medição local aquecida com Node 24, somente dados fictícios: 25/100/500
+  seções em 25/33/153 ms, 2.455/6.729/29.842 bytes. Não mede cold start, pacote
+  final, Node 22 canônico ou runtime Netlify e **não fecha a tarefa 10.4**.
+- Primeira chamada de `pnpm run verificar:ativacao`, Node 22.23.2: saída 1 no lint
+  por formatação de três arquivos alterados. As etapas seguintes não rodaram
+  nessa chamada. Execução separada após corrigir o formato registrada abaixo,
+  sem apresentar essa primeira chamada como aprovada.
+- Continuação das etapas sem repetir a chamada completa: `typecheck`,
+  `typecheck:deno`, `build:web` e `validar:configuracao` saíram 0. Build produziu
+  JavaScript de 598,94 kB (154,11 kB gzip), com aviso de chunk acima de 500 kB;
+  isso não comprova experiência de celular nem cold start da função PDF.
+- Suítes gerais, primeira execução: contratos 155/156 (1 falha), cadastro 137
+  aprovados/9 pulados, compartilhadas 274 aprovados/6 pulados, BFF 628
+  aprovados/3 falhas/15 pulados, web 575/589 (14 falhas). Os 30 pulados dependem
+  de ambiente PostgreSQL e **não foram contados como autorização aprovada**.
+  Após correções, somente os arquivos afetados foram reexecutados: todos os
+  alvos de contratos/BFF/web que falharam têm resultado final verde. Não se
+  apresenta a primeira suíte como aprovação integral.
+- Corrigidos 12 endpoints preparados órfãos no catálogo D-09; mantidos contratos
+  e compositores HTTP nativos efetivamente usados. Nenhuma RPC fictícia nem nova
+  exceção à allowlist. Prova do parser real fica no BFF, preservando o pacote de
+  contratos sem dependência do backend; typecheck do pacote saiu 0 após esse ajuste.
+- `testar-acessos-gerenciados-local.sh`, saída 0: matriz local de quatro funções,
+  Google/interno, admissão, caso, perfil, revogação, acesso direto e auditoria.
+  Auth é fixture local, sem conta real nem prova de OAuth externo.
+- `testar-documentos-preautorizacao-concorrencia-local.sh`, saída 0: matrizes
+  1800/1850 e concorrência entre duas conexões, incluindo validade após espera.
+- `testar-plano-campos-extras-local.sh false` e `true`, saídas 0 em clusters
+  diferentes: migration 1900, privilégios mínimos, versões, campos e aprovadores.
+- Plano de crise DF-021: `testar-plano-crise-case-manager-local.sh`, saída 0.
+  Case manager atual e habilitado aprova; outro responsável, familiar, habilitação,
+  concessão/sessão revogadas e replay após troca são negados. RLS direta e
+  preservação de memberships temporários também exercitadas.
+- Runners HTTP/PostgreSQL dedicados de cofre, Plano de cuidado, Orientações,
+  Encaminhamentos, edição de paciente e acompanhamento do caso: seis saídas 0,
+  cada qual com um arquivo/um teste realmente executado, sem skip. São recortes
+  locais dos respectivos runners, não prova do ambiente publicado.
+- Mais sete runners dedicados HTTP/PostgreSQL, Node 22.23.2, saíram 0 sem skip:
+  aprovação de objetivo, catálogo de campo extra, composição/barreira do Plano,
+  catálogo de aprovadores, Plano HTTP, Plano de crise e pacientes nativos. Cada
+  runner executou um arquivo/um teste. São protocolos locais herdados, sem
+  declaração de DF-023 universal nem homologação Google/SMTP.
+- Após mudanças efetivas de contrato, permissão e migrations, uma segunda chamada
+  completa de `verificar:ativacao` saiu **0**: **1.787 testes passaram**, 30 ficaram
+  condicionados ao ambiente; lint, todos os tipos, Deno, build e configuração local
+  passaram. Repetição justificada pela exceção de contrato/permissão/migration do
+  `AGENTS.md`, não por rotina a cada edição. Dos 30 condicionados, 13 testes BFF,
+  três de cadastro e dois compartilhados passaram nos runners dedicados; os 12
+  restantes de protocolos experimentais herdados não têm aprovação nesta retomada. Eles permanecem
+  explicitamente sem evidência nova, sem infraestrutura experimental adicional.
+  Build final: 597,75 kB de JavaScript / 153,78 kB gzip, mantendo o aviso de chunk.
+- Runners existentes de carteira/cadastro com os dois executores ativados para a
+  fixture e de autorização curta também saíram 0: três testes PostgreSQL reais,
+  sem skip. Instâncias locais exclusivas, dados fictícios; sem alegar homologação
+  do protocolo experimental como Auth nativo atual.
+- Conversão Diário→Tarefa e escala/passagem de turno: runners integrais saíram 0,
+  incluindo positivas, negativas e concorrência. Encontrado e corrigido **P1 de
+  CAS da origem**: variável PL/pgSQL `versao` era escolhida em vez da coluna no
+  SELECT/ORDER BY; versão antiga podia ser convertida após retificação concorrente.
+  Colunas agora qualificadas; as três corridas reais do runner passaram.
+- Matriz clínica completa de 2000–2500 saiu 0: aferições, rotina,
+  retificação, prescrição/administração, concessão, fundamento familiar,
+  consentimento/localização, anexos, relatório e exportação paginada.
+- **Seis runners SQL de Turno, todos saída 0:** clínico; clínico-concorrência;
+  reconciliação `false`/`true`; reconciliação-concorrência `false`/`true`.
+  Instalação NOSUPER, papéis/métodos distintos, outro caso, revogação, caminhos
+  diretos/privilegiados, audiência, histórico, epoch/recibo e duas conexões reais.
+  Expiração durante espera de auditoria (21 segundos) aborta transação. Preservados
+  owner/configurações, corpos e ACLs fora dos deltas explícitos (seis helpers e
+  um wrapper). As duas últimas variantes carregaram a fonte clínica final inteira.
+  Logs fictícios: `/tmp/turno-*-validacao.log`. Auth/Vault/Storage continuam adapters.
+- OpenSpec `validate --strict`: acessos, documentos, segredos e Plano de cuidado
+  saíram 0. Dois resultados não foram mascarados: configuração saiu 1 por pacote
+  histórico sem delta spec; Turno saiu 1 pelos avisos de texto normativo com mais
+  de 500 caracteres em FR-064/067. Os arquivos de requisitos de Turno não têm diff
+  contra `0174144`. Não se ativou `skip_specs`, não se removeu cenário/FR nem se
+  refez o planejamento para contornar os validadores. Pendências documentais
+  preservadas, sem apresentá-las como verificação aprovada.
+- Conferência visual com Chrome isolado, componentes/CSS reais e portas fictícias:
+  390×844 e 1440×1000, seis componentes e quatro estados (48 combinações iniciais).
+  Corrigido checkbox Turno, antes 356/639 px de largura, para 24×24. Tab preserva
+  foco de 3 px; Espaço marca e habilita abertura nos dois tamanhos.
+  A métrica inicial usava `innerWidth` e mascarou overflow de margem de 8 px em
+  quatro estados da Execução a 390. Evidência foi corrigida sem apagar o histórico;
+  seletor mobile resolve a margem herdada. Reteste dirigido da Execução passou:
+  `clientWidth`, viewport visual, `innerWidth` e `scrollWidth` iguais a 390,
+  sem controles cortados e com foco preservado. Não se repetiram 48 combinações
+  nem suíte inteira por alteração CSS. Build afetado final saiu 0.
+  [Métricas](evidencias-noturnas-19-11-2026/viewport-componentes-reais.json),
+  [Turno mobile](evidencias-noturnas-19-11-2026/turno-real-390.png),
+  [Turno desktop](evidencias-noturnas-19-11-2026/turno-real-1440.png),
+  [Execução antes](evidencias-noturnas-19-11-2026/execucao-390-antes.png) e
+  [depois](evidencias-noturnas-19-11-2026/execucao-390-depois.png).
+  Limites: emulação Chrome, percurso inicial de seis Tab, sem Safari/dispositivo
+  físico, auditoria WCAG integral ou Auth real. Harness temporário preservado em
+  `/tmp/ffcm-viewport-sol`; Vite/Chrome isolados encerrados.
+
+Revisão final do delta: base fixa `0174144`, `git diff 0174144 --` e arquivos
+novos 2450/runner/artefatos, sem `.impeccable/` preexistente. As frentes Sol foram
+reutilizadas em revisão cruzada, sem aceitar a própria implementação crítica.
+**Padrões:** Plano revisou o delta Core 2000/2200 e nova 2450; Documentos revisou
+2600 (autoria anterior de Plano), predecessores e controles das fixtures.
+**Especificação:** Documentos conferiu CAS 1200, JSON 1400, hashes 1700/2600,
+autoridade 2000/2200 e grant único 2450; UI Administração do Plano e contratos
+nativos também receberam leitura independente. Nenhum P1/P2 confirmado restante
+nos recortes relidos. Essa conclusão é de fonte; seis SQL vieram da execução Core,
+sem repetição pelo revisor, e integração externa permanece sem comprovação.
+Coordenação conferiu o diff CSS dirigido e as métricas/captura de interface;
+nenhum gate adicional por função ou repetição de teste verde foi criado.
+
+Os 12 testes condicionados sem prova nova são destes oito arquivos, explicitamente:
+`packages/cadastro/test/{contato-postgres-experimental,contrato-postgres-experimental}.test.ts`;
+`supabase/functions/_shared/identidade/{desafio-postgres-integracao,admissao-postgres-integracao,admissao-google-postgres-integracao,google-vinculo-concorrencia}.test.ts`;
+`netlify/functions/_shared/sessao/{google-http-postgres-integracao,tecnica-http-postgres-integracao}.test.ts`.
+Exigem configuração do cluster/protocolo experimental próprio; não foram habilitados
+por apontamento genérico ao banco, nem houve teste de autorização removido/desativado.
+
+Falhas reais encontradas e corrigidas, com as provas acima:
+
+- Migration 1200 consultava `exposicao` após assumir owner sem permissão dessa
+  coluna. A guarda passa a executar antes do `SET ROLE`, sem ampliar grants.
+- Migration 1600: variáveis PL/pgSQL `perfil`/`metodo` colidiam com colunas no
+  helper `contexto_acesso_vigente`. Métodos e negativas foram preservados e
+  reexecutados; conexão nova com método interno como primeira chamada passou.
+- A execução exigiu SELECT de `email_hmac` exclusivamente ao owner privado de
+  acessos para a verificação de unicidade. Nenhum grant à aplicação. Variável
+  escalar Google permite conta interna como primeira chamada de uma conexão,
+  sem acessar record Google não inicializado e sem relaxar a validação Google.
+- Documentos 1850: quantificador regex inválido no PostgreSQL foi substituído por
+  validação explícita de comprimento e mesmo charset, sem mudar a faixa 1–256.
+- Turno 2000/2200: colisões de variáveis com tabelas/aliases e precedência incorreta
+  em subtrações JSON interrompiam caminhos reais. Matrizes novas passaram; guards
+  de transformação conferem exatamente o corpo corrigido antes e depois do patch.
+- Exportação: na ordem real, 203500 concedia EXECUTE do wrapper público e 203900
+  o retirava. Fixture antiga reaplicava o grant depois, ocultando o defeito. Nova
+  migration **aditiva 2450** restaura somente EXECUTE não delegável de
+  `api.exportacao_operacao_privada(jsonb)` para `authenticated`, sob owner
+  conferido; não altera função histórica, corpo, grants de tabela ou permissão
+  anônima/service-role. Matriz usa ordem cronológica real, migrador NOSUPER,
+  deltas exatos de ACL e preservação de memberships/owners/configurações.
+- Runners novos precisavam inicializar `pg_cron` localmente, com execução de jobs
+  desativada. Fixtures tinham ciclo de memberships, tentativa de conceder papel
+  implícito `pg_database_owner`, comparação de ACL incompatível com dois grants
+  explícitos de migrations anteriores e condição que testava existência em vez
+  de valor do parâmetro. Corrigir fixtures não autoriza relaxar os privilégios
+  esperados; delta de ACL fica restrito aos dois EXECUTE previstos em 1500/1600.
+
+**SUPOSIÇÃO CONSERVADORA — migrations locais:** os arquivos 1200–2600 alterados
+são tratados como pendentes conforme o último histórico disponível. O estado
+remoto não foi consultado agora. Se algum já tiver sido aplicado fora desta
+sessão, conferir estado e preparar correção aditiva; não resetar banco, reaplicar
+à força nem reescrever histórico remoto.
+
+A entrega anterior tinha dez migrations novas (1800–2600). A adição de
+`20261125245000_exportacao_wrapper_autenticado.sql` eleva esse conjunto para
+**onze**, aplicadas somente em clusters de teste locais nesta retomada. As dez
+migrations anteriores 0800–1700 continuam como pendência do último histórico;
+estado remoto atual desconhecido, sem supor aplicação nem ausência de aplicação.
+
+**Bloqueios externos atuais:** tentativa de leitura dos logs de
+`configuracao-sistema` pela CLI Netlify retornou **401**; nenhum evento sanitizado
+de etapa/causa/request_id foi obtido. Não foi feita correção especulativa do 503.
+Sem variável Supabase, não houve inspeção/aplicação remota. Não houve deploy,
+login real, credencial cadastrada, flag ligada ou integração Google/OpenRouter
+executada. Gate local aprovado não substitui roteiro publicado nem autorização
+positiva/negativa no ambiente remoto; 0.6.1 e medição PDF 10.4 permanecem abertos.
+
+**Não realizado nesta retomada:** produção, migration/deploy remoto, limpeza ou
+expurgo, revogação/concessão real, geração de credencial, consentimento OAuth,
+alteração de permissão Drive, evento Calendar real, chamada OpenRouter real,
+homologação SMTP, testes experimentais herdados indicados acima, sincronização/
+arquivamento OpenSpec, merge ou retirada do PR de draft. Financeiro/PWA/Edge não
+foram iniciados. `.impeccable/` preexistente permanece fora da entrega.
+
+**Git desta retomada:** fonte e evidências em `47f6e39`, enviada para
+`origin/fatia7/turno-execucao-cuidado`; push saiu 0. Revisão final equivalente a
+`git diff 0174144...47f6e39`, incluindo runner/migration/artefatos novos; relatório
+final atualizado no commit documental posterior. Pre-commit normal saiu 0,
+Biome conferiu 21 arquivos e formatou um. Pre-push normal saiu 0: lint em 829
+arquivos e todos os typechecks, 8,39 s no hook de tipos. Hooks não foram
+desabilitados/alterados. Push não comprova deploy; publicação permanece sem
+validação. Os registros abaixo preservam a entrega anterior até `0174144`.
+
 ## Escopo e estado
 
 O pedido “Caso falte algo a desenvolver desenvolva” autoriza implementar as
