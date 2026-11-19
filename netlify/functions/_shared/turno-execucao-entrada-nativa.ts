@@ -78,7 +78,7 @@ export function criarEntradaExecucaoTurno(
 ) {
   return {
     async atender(request: Request): Promise<Response> {
-      const erro = (codigo: CodigoErro, id = crypto.randomUUID()) =>
+      const erro = (codigo: CodigoErro, id: string = crypto.randomUUID()) =>
         Response.json(criarErroPublicoSemCampos(codigo, id), {
           status: statusErroHttp[codigo],
           headers: headersExecucaoTurno,
