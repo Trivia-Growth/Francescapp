@@ -242,6 +242,16 @@ p {
 .service-status[data-tone="error"] {
   color: var(--error);
 }
+/* Estado do aparelho, não de um pedido: fica acima de tudo e usa a régua lateral para não se
+   confundir com os avisos de serviço (.service-status) nem com erro de requisição. */
+.estado-rede {
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border-left: 3px solid var(--muted);
+  background: var(--soft);
+  color: var(--ink);
+  font-size: .9375rem;
+}
 #retry-availability {
   margin-bottom: 20px;
 }

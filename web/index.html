@@ -2,11 +2,17 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self' https://drdpuxcllpymtoskmuqv.supabase.co https://accounts.google.com; object-src 'none'; require-trusted-types-for 'script'; trusted-types 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'self' https://drdpuxcllpymtoskmuqv.supabase.co https://accounts.google.com; object-src 'none'; require-trusted-types-for 'script'; trusted-types 'none'">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="referrer" content="same-origin">
     <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#839352">
     <title>FFCMApp | Acesso</title>
+    <!-- Instalação na tela inicial (FR-071). O ícone é provisório: recorte proporcional do logo
+         recebido, sem redesenho. Trocar quando chegar o material vetorial do marketing. -->
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icones/ffcm-192.png" sizes="192x192" type="image/png">
+    <link rel="apple-touch-icon" href="/icones/ffcm-180.png">
     <link rel="stylesheet" href="./styles.css">
     <!-- Abre e fecha o diálogo de cadastro. Carregado antes de main.ts para que o
          diálogo já esteja aberto quando main.ts põe o foco no título do formulário. -->
@@ -33,6 +39,7 @@
       </div>
     </header>
     <main id="conteudo" tabindex="-1">
+      <p id="estado-rede" class="estado-rede" role="status" aria-live="polite" hidden></p>
       <p id="revalidacao-status" class="service-status" role="status" aria-live="polite" hidden>Verificando seu acesso…</p>
       <section id="login-view" class="access-layout" aria-labelledby="login-title">
         <div class="access-context">

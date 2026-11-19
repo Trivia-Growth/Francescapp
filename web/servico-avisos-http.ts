@@ -58,7 +58,7 @@ export function criarServicoAvisosHttp(identidadeAtual: () => Identidade | null)
     if (rota.metodo !== 'GET') headers.set('Content-Type', 'application/json');
     let resposta: Response;
     try {
-      resposta = await fetch(caminho, {
+      resposta = await fetch(new URL(caminho, window.location.origin), {
         method: rota.metodo,
         headers,
         ...(rota.metodo === 'GET' ? {} : { body: JSON.stringify(corpo) }),

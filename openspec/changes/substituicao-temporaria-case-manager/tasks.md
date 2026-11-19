@@ -92,3 +92,20 @@
   disponibilidade como a de `plano-crise`, para a tela saber distinguir fatia desligada de
   serviço fora do ar.
 - [ ] 7.3 Ativação remota: migrações não aplicadas, flag desligada, nada comitado.
+
+## Achado de padrão — 19/11/2026
+
+`cadastro.case_manager_atual(uuid)` é criada pelo papel migrador, não por um papel
+`ffcmapp_*`, diferente de funções vizinhas como `cadastro.sinal_operacional_caso`, que nasce
+sob `set role ffcmapp_sinal_operacional_owner`. Consequência: conceder `execute` sobre ela é
+um `grant` direto do migrador — é o que esta migração faz na linha 110 para
+`ffcmapp_plano_crise_owner`, e o que `20261126300000_avisos_no_app.sql` faz na linha 70 para
+`ffcmapp_avisos_owner`.
+
+Uma revisão independente apontou a segunda como divergência de padrão (P2). **Não procede**:
+as duas formas de `grant` convivendo naquela migração refletem donos diferentes, e cada uma
+está correta para o seu. O resíduo real é que esta fatia deixou a função sob o migrador em
+vez de um papel próprio. Funciona porque o conjunto de migrações é aplicado por um único
+papel, e mudar o dono agora exigiria refazer o `grant` do plano de crise e reprovar a policy
+`crise_aprovacao_responsavel_atual`, que é trilha de cuidado já provada. Alinhar o dono fica
+para quando essa trilha for tocada por outro motivo.

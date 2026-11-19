@@ -22,22 +22,41 @@ Nenhuma tarefa autoriza deploy, migração remota, concessão de acesso, registr
 
 Depende de 0.4.
 
-- [ ] 1.1 Criar o manifesto com nome, nome curto, ícones nas resoluções necessárias, cor de tema e modo de exibição em janela de aplicativo, usando a identidade de `docs/projeto/identidade-visual.md` sem fixar tipografia ou componente final. Evidência: instalação real concluída em aparelho, com nome e ícone corretos na tela inicial (FR-071, cenário "Instalação na tela inicial").
-- [ ] 1.2 Implementar o service worker com **lista fechada** de recursos estáticos — documento da casca, scripts, estilos, fontes e ícones. Rotas de API passam direto para a rede, sem interceptação e sem resposta de reserva. Evidência: teste comprovando que requisição a rota de API não é interceptada nem respondida pelo cache (FR-071, design D1).
-- [ ] 1.3 Implementar o estado de indisponibilidade por falta de rede em cada área de conteúdo, sem conteúdo anterior e sem dado de exemplo. Evidência: teste de interface cobrindo "Casca disponível sem rede" e "Conteúdo de caso não é servido do aparelho" (FR-071, design D2).
-- [ ] 1.4 Implementar ativação imediata da versão nova, assumindo o controle das páginas abertas. Evidência: teste cobrindo "Versão nova substitui a instalada" (FR-071, design D4).
-- [ ] 1.5 Garantir que o produto continue utilizável pelo navegador quando a instalação não for possível, sem mensagem que condicione o uso à instalação. Evidência: teste de interface cobrindo "Falha ao instalar não bloqueia o uso" (FR-071).
-- [ ] 1.6 Documentar e implementar a reversão: publicar versão que desregistre o service worker anterior, já que retirar o código não remove um worker instalado. Evidência: procedimento registrado aqui e testado localmente (design — Migration Plan).
+- [x] 1.1 (19/11/2026) Manifesto em `web/public/manifest.webmanifest`: `name`/`short_name` `FFCMApp`, `display: standalone`, `theme_color` `#839352` (oliva da marca, `docs/projeto/identidade-visual.md`), `background_color` branco, ícones 192 e 512, mais `apple-touch-icon` 180 e `theme-color` em `web/index.html`. Os ícones (`web/public/icones/`) são recorte proporcional de `assets/brand/francescato/ffcm-logo-branco.jpg`, sem redesenho, sem transparência simulada e sem assinatura FFCMApp nova; nenhuma tipografia ou componente foi fixado. **Provisórios até o material vetorial do marketing.** Evidência de empacotamento: `pnpm run build:web` (código 0) publica `dist/manifest.webmanifest`, `dist/icones/*` e o `<link rel="manifest">` no documento. **Bloqueio registrado:** a evidência pedida é instalação real em aparelho; não há iPhone nem Android neste ambiente, então a instalação **não foi verificada**. Ver tarefas 4.1 e 4.2.
+- [x] 1.2 (19/11/2026) Lista fechada em `web/public/casca-regras.js`, worker casca fina em `web/public/sw.js` (script clássico com `importScripts`, para não depender de worker de módulo no Safari do iPhone). Guardáveis: `/` e `/index.html` como documento, e `.js .mjs .css .woff2 .ttf .png .jpg .jpeg .svg .ico .webmanifest` da mesma origem, sem parâmetro de consulta. Todo o resto — e explicitamente todo `/api/` e todo método diferente de `GET` — recebe a decisão `ignorar`: `respondWith` não é chamado, o cache não é aberto e não há resposta de reserva. Evidência: `web/casca-offline.test.ts`, "não intercepta rota de API: sem respondWith, sem abrir cache e sem resposta de reserva" (inclui rota de API ainda inexistente) e "guarda só documento da casca, scripts, estilos, fontes e ícones da mesma origem". Executado com `npx vitest run web/casca-offline.test.ts` (11 passaram, código 0).
+- [x] 1.3 (19/11/2026) Estado de indisponibilidade por falta de rede em `web/casca-offline.ts` (`montarEstadoDeRede`), montado por `web/main.ts` no topo de `<main>` (`#estado-rede`, `role="status"`), com estilo próprio em `web/styles.css`. O estado vale para todas as áreas de conteúdo porque nenhuma resposta de API é guardada no aparelho: não existe conteúdo anterior nem dado de exemplo a servir. Evidência: `web/casca-offline.test.ts`, "serve a casca sem rede e não serve conteúdo de caso do aparelho" (casca servida do cache sem rede, consulta de caso não respondida, nome fictício ausente do armazenamento) e "mostra indisponibilidade por falta de rede e nada além disso". Mesma execução de 1.2.
+- [x] 1.4 (19/11/2026) `instalar` chama `skipWaiting` e `ativar` chama `clients.claim` depois de apagar todo cache de versão anterior (`web/public/casca-regras.js`); o documento é sempre buscado na rede primeiro, então a versão nova chega sem desinstalar nada. Evidência: `web/casca-offline.test.ts`, "ativa a versão nova de imediato, assume as páginas abertas e descarta a versão anterior". Mesma execução de 1.2.
+- [x] 1.5 (19/11/2026) `registrarCascaOffline` devolve `sem-suporte` quando não há `navigator.serviceWorker` e `falhou` quando o registro é recusado, sem lançar erro, sem escrever na tela e sem condicionar o uso à instalação; `web/main.ts` chama com `void`. Não há mensagem sobre instalar em `web/index.html`. Evidência: `web/casca-offline.test.ts`, "não bloqueia o uso quando o aparelho não registra o service worker". Mesma execução de 1.2.
+- [x] 1.6 (19/11/2026) Reversão implementada em `web/public/sw-reversao.js` e documentada abaixo. Evidência local: `web/casca-offline.test.ts`, "a versão de reversão apaga os caches e cancela o registro instalado" — apaga todos os caches da origem, chama `registration.unregister()` e manda as páginas abertas recarregarem. Mesma execução de 1.2. **Limite:** provado com dublês de `caches`/`clients`/`registration`; a reversão em navegador real não foi executada aqui.
+
+### Procedimento de reversão do service worker (tarefa 1.6)
+
+Retirar o código **não** remove um worker já instalado: o que está no aparelho continua
+respondendo até ser substituído no mesmo endereço. Para reverter:
+
+1. Substituir o conteúdo de `web/public/sw.js` pelo conteúdo de `web/public/sw-reversao.js`.
+   O nome do arquivo publicado **tem de continuar `sw.js`**: é o endereço que os aparelhos já
+   registraram, e é por ele que o navegador busca a versão nova.
+2. Em `web/main.ts`, remover a chamada `void registrarCascaOffline();`. Aparelho novo deixa de
+   registrar qualquer worker; aparelho antigo continua indo buscar `sw.js` por conta própria.
+3. Manter `Cache-Control: no-cache` para `/sw.js` em `netlify.toml`, senão o navegador pode
+   continuar servindo o worker antigo do seu próprio cache.
+4. Publicar (operação remota: exige autorização explícita do solicitante).
+5. Conferir em um aparelho que tinha o aplicativo instalado: abrir o aplicativo, esperar a
+   recarga automática e verificar em Aplicativo → Armazenamento/Service Workers que não há mais
+   worker registrado nem caches `ffcm-casca-*`. Em iPhone, conferir também pelo Safari.
+6. Enquanto a reversão não for publicada, não remover `web/public/casca-regras.js`: o worker
+   instalado ainda o importa.
 
 ## 2. Limpeza do aparelho e prova de que nada sensível fica
 
 Depende de 1.2.
 
-- [ ] 2.1 Implementar a limpeza dos armazenamentos e caches do aplicativo no encerramento de sessão. Evidência: teste cobrindo "Encerramento de sessão limpa o aparelho" (FR-071, design D3).
-- [ ] 2.2 Provar, por inspeção do armazenamento do navegador após uma sessão com consulta de caso, que nenhuma resposta autenticada, identificador de sessão ou conteúdo de caso ficou guardado. Evidência: teste observável sobre o armazenamento, **não** leitura do código do worker (FR-071, cenário "Resposta autenticada não entra em cache", design D1).
-- [ ] 2.3 Provar que revogação de acesso não é contornada pelo aparelho, com e sem rede. Evidência: teste cobrindo "Revogação não é contornada pelo aparelho" (FR-071, FR-037).
-- [ ] 2.4 Provar o caso do aparelho compartilhado: outra pessoa entra depois de uma sessão anterior e não vê nada da anterior. Evidência: teste cobrindo "Segunda pessoa no mesmo aparelho" (FR-071, design D3).
-
+- [x] 2.1 (19/11/2026) `limparAparelho` em `web/casca-offline.ts` apaga `sessionStorage` inteiro, todas as chaves de `localStorage` fora de `PREFIXOS_PRESERVADOS`, todos os caches da origem e todos os bancos IndexedDB; cada parte falha fechada e isolada. Chamada por `web/main.ts` em `sair()`, **depois** de `api.sair()` confirmar o encerramento — antes disso as marcas de sessão ainda são necessárias para a chamada e para a nova tentativa. Evidência: `web/casca-offline.test.ts`, "encerramento de sessão apaga armazenamentos, caches e bancos do aplicativo". Mesma execução de 1.2.
+  - **SUPOSIÇÃO CONSERVADORA, confirmar com o solicitante:** sobrevivem ao encerramento apenas `ffcm-agenda-operacao-incerta:<usuario>` e `ffcm-agenda-desconexao-incerta:<usuario>`, marcadores existentes de operação no Google Calendar sem confirmação. Apagá-los removeria um aviso de segurança já implantado. Não contêm conteúdo de caso nem identificador de sessão, e só são lidos por quem os gravou. O marcador antigo **sem** usuário (`ffcm-agenda-operacao-incerta`) **é** apagado, porque apareceria para a próxima pessoa no mesmo aparelho.
+- [x] 2.2 (19/11/2026) Evidência por inspeção do armazenamento, não por leitura do worker: `web/casca-offline.test.ts`, "depois de uma sessão com consulta de caso, o armazenamento não guarda resposta autenticada". O teste encena a sessão inteira (instalação, ativação, documento, script com nome com resumo, `GET /api/sessao` e `GET /api/pacientes/<id>` devolvendo de fato o corpo autenticado com nome fictício, identificador de paciente e identificador de sessão), depois despeja **todo** o conteúdo dos caches e do `localStorage` e exige que ali não apareça o nome fictício, o identificador de paciente, o identificador de sessão nem qualquer endereço `/api/`. O conjunto de endereços guardados é comparado item a item com a lista estática esperada. O identificador de sessão vive em `sessionStorage` e some na limpeza de 2.1, conferido no mesmo teste. Mesma execução de 1.2.
+- [x] 2.3 (19/11/2026) `web/casca-offline.test.ts`, "revogação não é contornada pelo aparelho, com ou sem rede": depois de uma sessão que consultou o caso, com o acesso revogado, o pedido à rota de caso recebe `ignorar` com rede (o servidor recusa, o worker não se mete) e **também** sem rede — sem resposta de reserva, sem nada servido do aparelho, e o conteúdo do caso ausente do armazenamento. Mesma execução de 1.2.
+- [x] 2.4 (19/11/2026) `web/casca-offline.test.ts`, "segunda pessoa no mesmo aparelho não encontra nada da sessão anterior": após o encerramento, `sessionStorage` vazio, caches vazios, nenhum identificador de paciente ou de sessão legível, e a leitura feita com o identificador da segunda pessoa não encontra marcador algum. O único resíduo é o marcador da primeira pessoa, com a chave dela — ver a suposição em 2.1. Mesma execução de 1.2.
 ## 3. Avisos no aplicativo
 
 Depende de 1.3.
@@ -59,6 +78,12 @@ Depende de 1.3.
 ## 4. Verificação em aparelho real
 
 Depende de 2.4 e 3.9.
+
+> **Bloqueio registrado em 19/11/2026:** 4.1, 4.2 e 4.3 exigem aparelho real (iPhone e Android).
+> O ambiente de execução dos grupos 1 e 2 não tem nenhum dos dois, e navegador de mesa não serve
+> como prova para iOS (design D5). Nada deste grupo foi verificado; a instalação pedida como
+> evidência de 1.1 continua pendente aqui. 4.4 e 4.5 pertencem à ativação e à revisão
+> independente, fora do recorte dos grupos 1 e 2.
 
 - [ ] 4.1 Instalar e abrir no iPhone, verificando instalação, abertura da casca sem rede, atualização de versão e comportamento após período sem uso. Evidência: verificação registrada com o aparelho e a versão de sistema usados; nenhum comportamento de iOS presumido a partir de Android ou navegador de mesa (FR-071, design D5).
 - [ ] 4.2 Instalar e abrir no Android, com as mesmas verificações. Evidência: verificação registrada com aparelho e versão.

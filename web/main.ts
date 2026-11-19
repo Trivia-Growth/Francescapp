@@ -80,6 +80,7 @@ import {
 import { montarPendenciasCaso } from './pendencias-caso.js';
 import { criarServicoPendenciasHttp } from './servico-pendencias-http.js';
 import { montarAvisos } from './avisos.js';
+import { limparAparelho, montarEstadoDeRede, registrarCascaOffline } from './casca-offline.js';
 import { criarServicoAvisosHttp } from './servico-avisos-http.js';
 import { montarAuditoria } from './auditoria.js';
 import { criarServicoAuditoriaHttp } from './servico-auditoria-http.js';
@@ -2568,6 +2569,10 @@ async function sair(): Promise<void> {
   aviso('logout-feedback', 'Encerrando sessão no serviço…');
   try {
     const resultado = await api.sair();
+    // Só depois do encerramento confirmado: `api.sair()` e a nova tentativa dependem das marcas
+    // de sessão. Sem `await` de propósito — a parte síncrona (armazenamentos) já terminou aqui, e
+    // os caches não podem atrasar a tela de saída.
+    void limparAparelho();
     mostrarAcesso(
       (resultado.pendencia_externa
         ? 'Sessão local encerrada. O encerramento no serviço externo permanece pendente.'
@@ -2878,4 +2883,11 @@ async function restaurarSessao(): Promise<void> {
 window.addEventListener('pageshow', (evento) => {
   if (evento.persisted) void restaurarSessao();
 });
+
+// Casca offline (FR-071). O aviso de falta de rede é estado da casca; nenhuma área mostra dado
+// anterior porque nenhuma resposta de API é guardada no aparelho. O registro do worker não
+// bloqueia nada: sem suporte ou com falha, o produto segue igual pelo navegador.
+montarEstadoDeRede(elemento('estado-rede'));
+void registrarCascaOffline();
+
 void restaurarSessao();
