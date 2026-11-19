@@ -111,3 +111,13 @@
 - [ ] 7.3 Ativação remota: migrations não aplicadas, flag desligada, nada comitado.
 - [ ] 7.4 O destino da remarcação não é verificado no Google: o produto não é dono do
   compromisso e não pode afirmar, no banco, o que existe na agenda alheia.
+- [ ] 7.5 Ciclo entre dois eventos não é impedido pelo banco. Achado da revisão independente
+  de 19/11/2026: os CHECKs cobrem destino fora de remarcação, remarcação sem destino e
+  destino igual à origem, mas não a contradição A remarcado para B com B remarcado para A.
+  A correção sugerida na revisão — um `CHECK` com subconsulta — **não é válida no
+  PostgreSQL**, que proíbe subconsulta em `CHECK`; o caminho real seria gatilho de
+  validação. Não implementado de propósito: nenhum consumidor percorre a cadeia
+  recursivamente (`web/realizacao-compromisso.ts:41-44` lê um nível só, imprimindo destino e
+  origens), então não há laço nem estado inconsistente observável hoje, e `AGENTS.md` pede
+  ameaça concreta antes de acrescentar camada. Reabrir se algum consumidor passar a
+  percorrer a cadeia ou se a operação relatar remarcação circular.

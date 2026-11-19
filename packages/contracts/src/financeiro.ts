@@ -232,3 +232,39 @@ export const apuracaoRepasseSchema = z.discriminatedUnion('origem', [
     .strict(),
 ]);
 export type ApuracaoRepasse = z.infer<typeof apuracaoRepasseSchema>;
+
+// --- Superfície HTTP: listagem e audiência --------------------------------------------------
+
+/** Uma versão da despesa como ela sai da listagem. Difere de `despesaSchema` porque a
+ * retificação (versão > 1) NÃO carrega comprovante — o CHECK
+ * `despesa_original_tem_comprovante_chk` prende o comprovante à versão 1 —, e porque a
+ * listagem devolve apenas o nome do objeto, sem mime, tamanho nem digest. Em vez de
+ * inventar metadados que o banco não devolveu, a listagem informa somente se existe
+ * comprovante a buscar; os bytes continuam vindo por leitura autorizada própria. */
+export const despesaVersaoSchema = despesaSchema
+  .omit({ comprovante: true })
+  .extend({ tem_comprovante: z.boolean() })
+  .strict();
+export type DespesaVersao = z.infer<typeof despesaVersaoSchema>;
+
+/** Resposta da sondagem de audiência. Booleano e nada mais: a tela usa isto apenas para não
+ * apresentar superfície financeira a quem não tem audiência. Esconder não é autorizar — cada
+ * operação financeira continua sendo autorizada no servidor e no banco. */
+export const audienciaFinanceiraSchema = z.object({ permitida: z.boolean() }).strict();
+export type AudienciaFinanceira = z.infer<typeof audienciaFinanceiraSchema>;
+
+/** Bytes do comprovante em base64, enviados depois que o lançamento já existe: a política do
+ * repositório confere o nome do objeto contra a despesa gravada. O limite é o mesmo do balde
+ * e do CHECK da tabela, conferido aqui só para recusar o corpo antes de decodificá-lo. */
+export const envioComprovanteSchema = z
+  .object({
+    arquivo_base64: z
+      .string()
+      .min(1)
+      .max(Math.ceil(TAMANHO_MAXIMO_COMPROVANTE_BYTES / 3) * 4)
+      .regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/),
+    mime_type: z.enum(MIMES_COMPROVANTE),
+    tamanho_bytes: z.number().int().positive().max(TAMANHO_MAXIMO_COMPROVANTE_BYTES),
+  })
+  .strict();
+export type EnvioComprovante = z.infer<typeof envioComprovanteSchema>;

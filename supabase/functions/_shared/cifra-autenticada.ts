@@ -1,6 +1,18 @@
-import type { CampoCifrado, MetadadosAad } from '../../../packages/contracts/src/rpc.ts';
+import type {
+  CampoCifrado,
+  MetadadosAad,
+  MetadadosAadFinanceiro,
+} from '../../../packages/contracts/src/rpc.ts';
 
-export type { CampoCifrado, MetadadosAad };
+export type { CampoCifrado, MetadadosAad, MetadadosAadFinanceiro };
+
+/** Todo AAD que este canonicalizador aceita. Existe um único mecanismo de AAD no repositório:
+ * esta função. A união continua escrita em duas partes em `packages/contracts/src/rpc.ts`
+ * (`metadadosAadSchema` e `metadadosAadFinanceiroSchema`) apenas porque aquele arquivo está
+ * fora do recorte desta frente; o ramo de canonicalização que faltava — o motivo técnico
+ * original da separação — passou a existir aqui, então juntar as duas uniões em rpc.ts é
+ * mudança de uma linha, sem efeito sobre a forma de nenhum AAD. */
+export type AadCifra = MetadadosAad | MetadadosAadFinanceiro;
 
 export type ConfiguracaoCifraAutenticada = Readonly<{
   keyIdAtiva: string;
@@ -9,8 +21,8 @@ export type ConfiguracaoCifraAutenticada = Readonly<{
 }>;
 
 export type CifraAutenticada = Readonly<{
-  cifrar(valor: string, aad: MetadadosAad): Promise<CampoCifrado>;
-  decifrar(campo: CampoCifrado, aad: MetadadosAad): Promise<string>;
+  cifrar(valor: string, aad: AadCifra): Promise<CampoCifrado>;
+  decifrar(campo: CampoCifrado, aad: AadCifra): Promise<string>;
   calcularHmac(comandoLogico: string): Promise<string>;
 }>;
 
@@ -65,7 +77,7 @@ function keyIdValido(keyId: unknown): keyId is string {
   );
 }
 
-function aadCanonico(aad: MetadadosAad): Uint8Array {
+function aadCanonico(aad: AadCifra): Uint8Array {
   if (
     typeof aad === 'object' &&
     aad !== null &&
@@ -529,6 +541,64 @@ function aadCanonico(aad: MetadadosAad): Uint8Array {
         tabela: aad.tabela,
         registro_id: aad.registro_id,
         usuario_id: aad.usuario_id,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
+  // FR-068. Valor acordado de repasse por turno. `api.consultar_valor_acordado` devolve
+  // `valor_id`, que é a chave primária da linha, então a ligação usa `registro_id` como
+  // qualquer registro não versionado. O ramo é próprio, e não o genérico do fim, porque o
+  // genérico aceita qualquer nome de campo com até 80 caracteres; a tabela tem exatamente um
+  // campo cifrado, e é esse que entra na ligação.
+  if (typeof aad === 'object' && aad !== null && aad.tabela === 'financeiro.valor_acordado_turno') {
+    if (
+      typeof aad.registro_id !== 'string' ||
+      !uuid.test(aad.registro_id) ||
+      aad.campo !== 'motivo' ||
+      aad.formato !== formatoAtual
+    ) {
+      throw new ErroCifraAutenticada();
+    }
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        registro_id: aad.registro_id,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
+  // FR-069. Despesa do cuidado. Três campos cifrados na mesma linha, então `campo` é conferido
+  // contra a lista própria e entra na ligação: sem isso o envelope da descrição seria aceito no
+  // lugar do da autorização ou do motivo da retificação.
+  //
+  // A AUSÊNCIA de `registro_id` e de `versao` é deliberada, e é o que mantém a listagem
+  // decifrável. A tabela é append-only por `(despesa_id, versao)`; `api.consultar_despesas`
+  // devolve `despesa_id` e `versao`, nunca a chave primária `id`; e a `versao` da retificação é
+  // decidida pelo banco DEPOIS que a cifra já foi montada (`versao := corrente.versao + 1`).
+  // Amarrar qualquer um dos dois tornaria o texto gravado impossível de decifrar na leitura.
+  //
+  // O que isso deixa aberto é reusar o envelope entre duas VERSÕES do mesmo lançamento e do
+  // mesmo campo. Não é alcançável pela aplicação: o gatilho `financeiro.despesa_imutavel`
+  // recusa UPDATE e DELETE, o papel dono só tem SELECT e INSERT, e todo INSERT passa pela RPC
+  // atestada. Fechar isso no AAD exige que `api.consultar_despesas` devolva `d.id` — mudança de
+  // migração, fora deste recorte e descrita no relatório da tarefa.
+  if (typeof aad === 'object' && aad !== null && aad.tabela === 'financeiro.despesa_lancamento') {
+    if (
+      typeof aad.despesa_id !== 'string' ||
+      !uuid.test(aad.despesa_id) ||
+      (aad.campo !== 'descricao' &&
+        aad.campo !== 'autorizacao' &&
+        aad.campo !== 'motivo_retificacao') ||
+      aad.formato !== formatoAtual
+    ) {
+      throw new ErroCifraAutenticada();
+    }
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        despesa_id: aad.despesa_id,
         campo: aad.campo,
         formato: aad.formato,
       }),

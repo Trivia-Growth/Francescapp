@@ -51,6 +51,9 @@ import { montarPlanoCrise } from './plano-crise.js';
 import { criarServicoPlanoCriseHttp } from './servico-plano-crise-http.js';
 import { montarHabilitacaoPlanoCrise } from './habilitacao-plano-crise.js';
 import { criarServicoHabilitacaoPlanoCriseHttp } from './servico-habilitacao-plano-crise-http.js';
+import { montarFinanceiro } from './financeiro.js';
+import { criarServicoFinanceiroHttp } from './servico-financeiro-http.js';
+import { criarAudienciaFinanceira } from './financeiro-audiencia.js';
 import { montarDiario } from './diario.js';
 import { montarTurnoComExecucao } from './turno-execucao-integracao.js';
 import { montarExecucaoTurno } from './turno-execucao.js';
@@ -76,6 +79,8 @@ import {
 } from './servico-documentos-http.js';
 import { montarPendenciasCaso } from './pendencias-caso.js';
 import { criarServicoPendenciasHttp } from './servico-pendencias-http.js';
+import { montarAvisos } from './avisos.js';
+import { criarServicoAvisosHttp } from './servico-avisos-http.js';
 import { montarAuditoria } from './auditoria.js';
 import { criarServicoAuditoriaHttp } from './servico-auditoria-http.js';
 import { montarRegrasAtendimento } from './regras-atendimento.js';
@@ -281,6 +286,30 @@ closeSidebar.className = 'sidebar-close';
 closeSidebar.type = 'button';
 closeSidebar.textContent = 'Fechar menu';
 patientsSidebar.prepend(closeSidebar);
+// FR-072: sino de avisos na barra superior, ao lado do botão da gaveta. Fica FORA da
+// gaveta de propósito: a gaveta é navegação com armadilha de foco própria, e um painel
+// transitório dentro dela mudaria essa ordem de foco. Aqui o sino continua ao alcance do
+// polegar no celular, e o painel abre abaixo dele.
+const avisosRaiz = document.createElement('div');
+avisosRaiz.id = 'avisos';
+avisosRaiz.hidden = true;
+toggleSidebar.insertAdjacentElement('afterend', avisosRaiz);
+let avisos: ReturnType<typeof montarAvisos> | null = null;
+
+/** Liga o sino à sessão vigente. A família não recebe avisos de equipe, e sem sessão o
+ * sino some — nunca mostra contagem de uma sessão anterior. */
+function ajustarAvisos(atual: Sessao | null): void {
+  const disponivel = atual !== null && atual.usuario.perfil !== 'familia';
+  avisosRaiz.hidden = !disponivel;
+  if (!disponivel) {
+    avisos = null;
+    avisosRaiz.replaceChildren();
+    return;
+  }
+  avisos ??= montarAvisos(avisosRaiz, criarServicoAvisosHttp(identidadeAtual));
+  void avisos.atualizar();
+}
+
 const mobileSidebar = () => window.innerWidth <= 760;
 let elementosInertes: { elemento: HTMLElement; anterior: boolean }[] = [];
 
@@ -1474,6 +1503,7 @@ function mostrarAcesso(mensagem = '', tom: 'error' | 'success' | 'neutral' = 'ne
     usuariosComCadastroIncerto.add(sessao.usuario.id);
   }
   api.limpar();
+  audienciaFinanceira.esquecer();
   sessao = null;
   revalidacaoPendente = false;
   focoAposLoginOculto = false;
@@ -1626,6 +1656,15 @@ const nomeDoUsuarioNaEquipe = (() => {
   };
 })();
 
+const audienciaFinanceira = criarAudienciaFinanceira(
+  async () => criarServicoFinanceiroHttp(identidadeAtual).consultarAudiencia(),
+  () => {
+    const atual = sessao;
+    if (!atual) return;
+    elemento('nav-administracao').hidden = areasDisponiveis(atual).length === 0;
+  },
+);
+
 const areasAdministracao: AreaAdministracao[] = [
   {
     id: 'plano-cuidado',
@@ -1690,6 +1729,16 @@ const areasAdministracao: AreaAdministracao[] = [
       atual.capacidades.includes('administrar_concessoes'),
     montar: (raiz) =>
       montarHabilitacaoPlanoCrise(raiz, criarServicoHabilitacaoPlanoCriseHttp(identidadeAtual)),
+  },
+  {
+    id: 'financeiro',
+    rotulo: 'Financeiro',
+    // Esconder não é autorizar: a sondagem só evita apresentar a área a quem o servidor já
+    // disse que não tem audiência financeira. Família nunca chega a perguntar, e qualquer
+    // chamada financeira continua sendo autorizada no servidor e no banco.
+    disponivel: (atual) =>
+      atual.usuario.perfil !== 'familia' && audienciaFinanceira.permitidaPara(atual.session_id),
+    montar: (raiz) => montarFinanceiro(raiz, criarServicoFinanceiroHttp(identidadeAtual)),
   },
   {
     id: 'auditoria',
@@ -1920,6 +1969,10 @@ function aplicarSessao(atual: Sessao): boolean {
     aviso('workspace-feedback', 'Seu acesso foi atualizado. Abra a ficha novamente.');
   }
   sessao = atual;
+  audienciaFinanceira.sondar({
+    session_id: atual.session_id,
+    perfil: atual.usuario.perfil,
+  });
   let acessoGoogle = false;
   try {
     acessoGoogle = sessionStorage.getItem('modo-acesso') === 'google';
@@ -1992,6 +2045,7 @@ function aplicarSessao(atual: Sessao): boolean {
     fecharHome();
     mostrarCarteira();
   }
+  ajustarAvisos(atual);
   const temAdministracao = areasDisponiveis(atual).length > 0;
   elemento('nav-administracao').hidden = !temAdministracao;
   if (!temAdministracao && painelAdministracao) {
@@ -2498,6 +2552,7 @@ async function sair(): Promise<void> {
     ? ' Um cadastro pode estar sem confirmação; não o recrie antes de consultar sua situação no aplicativo ou por canal autorizado.'
     : '';
   cadastroEmRevalidacao = null;
+  audienciaFinanceira.esquecer();
   sessao = null;
   revisao += 1;
   apagarPacientes();

@@ -45,3 +45,9 @@ export * from './turno-execucao.ts';
 
 export * from './realizacao-compromisso.ts';
 export * from './realizacao-compromisso-http.ts';
+
+export * from './financeiro.ts';
+export * from './financeiro-http.ts';
+
+export * from './aviso.ts';
+export * from './aviso-http.ts';

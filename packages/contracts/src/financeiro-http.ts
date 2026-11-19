@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import {
   apuracaoRepasseSchema,
+  audienciaFinanceiraSchema,
+  despesaVersaoSchema,
+  envioComprovanteSchema,
   consultarApuracaoSchema,
   despesaSchema,
   registrarDespesaSchema,
@@ -46,13 +49,39 @@ export const financeiroHttp = {
     metodo: 'POST',
     caminho: '/api/financeiro/despesas/:despesa_id/retificacoes',
     entrada: retificarDespesaSchema,
-    saida: despesaSchema,
+    // A retificação não tem comprovante próprio: ver `despesaVersaoSchema`.
+    saida: despesaVersaoSchema,
   },
+  consultarDespesas: {
+    metodo: 'GET',
+    caminho: '/api/financeiro/casos/:paciente_id/despesas',
+    entrada: vazio,
+    saida: z.array(despesaVersaoSchema),
+  },
+  /** Sondagem de audiência para a interface. Não concede nada e não devolve valor algum. */
+  consultarAudiencia: {
+    metodo: 'GET',
+    caminho: '/api/financeiro/audiencia',
+    entrada: vazio,
+    saida: audienciaFinanceiraSchema,
+  },
+  /** O caminho leva o caso porque a única leitura de despesa que o banco oferece é por caso
+   * (`api.consultar_despesas` recebe `paciente_id`). Levar o caso no caminho não torna a
+   * autorização do caso aplicável: continua valendo a concessão financeira, e um profissional
+   * com vínculo naquele caso recebe `sem_permissao`. */
   consultarComprovante: {
     metodo: 'GET',
-    caminho: '/api/financeiro/despesas/:despesa_id/comprovante',
+    caminho: '/api/financeiro/casos/:paciente_id/despesas/:despesa_id/comprovante',
     entrada: vazio,
     saida: z.instanceof(Uint8Array),
+  },
+  /** Envio dos bytes, uma vez só: a política do repositório recusa sobrescrita e só admite
+   * quem lançou a despesa, enquanto o objeto ainda não existe. */
+  enviarComprovante: {
+    metodo: 'POST',
+    caminho: '/api/financeiro/casos/:paciente_id/despesas/:despesa_id/comprovante',
+    entrada: envioComprovanteSchema,
+    saida: z.object({ enviado: z.literal(true) }).strict(),
   },
   consultarApuracao: {
     metodo: 'GET',
