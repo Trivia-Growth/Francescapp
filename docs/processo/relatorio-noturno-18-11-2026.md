@@ -80,9 +80,12 @@ retry da operação, fallback legado fechado para conta gerenciada inválida e
 preservação do ramo Familiar válido. A matriz escrita inclui quatro funções,
 dois métodos, outro caso, vínculo revogado e acesso direto; sua execução continua
 obrigatória antes de ativar. Registro delimitado das revisões em `tasks.md`.
-Hooks Git existentes foram preservados. O primeiro pre-commit apontou concatenações
-de strings fora do padrão e aplicou formatação; correção equivalente de strings
-preparada, sem alterar regra de negócio. Hooks não substituem as provas adiadas.
+Código registrado e enviado no commit `704487f`. Hooks Git existentes preservados:
+o primeiro pre-commit apontou concatenações de strings fora do padrão e aplicou
+formatação; strings equivalentes corrigidas, novo pre-commit concluído. No push,
+lint (781 arquivos) e typecheck dos contratos, cadastro, funções, web e proxy
+concluíram com saída 0. Não houve execução manual dessas verificações. Hooks não
+substituem testes de comportamento, SQL ou provas de autorização/RLS adiadas.
 
 **SUPOSIÇÕES CONSERVADORAS:** login é e-mail; cada conta tem uma função e um método
 aprovado; criação não confirma artificialmente posse do e-mail; senha inicial com

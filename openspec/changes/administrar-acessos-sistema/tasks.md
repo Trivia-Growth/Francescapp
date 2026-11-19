@@ -71,3 +71,8 @@ do ramo Familiar válido. Provas escritas incluem serviço real/interface com HT
 fictício e SDK Auth real com HTTP fictício; não equivalem a Auth remoto. Removida
 inclusão duplicada de migration no harness; mantidos método/perfil/vínculo/audiência
 separados. Sem P1/P2 concreto aberto por fonte, com gates 4.2/4.3 ainda pendentes.
+
+Commit de código enviado: `704487f`. Hooks existentes concluídos: pre-commit
+Biome; pre-push lint (781 arquivos) e typecheck de contratos/cadastro/funções/web/
+proxy, saída 0. Sem execução manual de checker, teste, SQL, build ou browser.
+Esses hooks não alteram o estado pendente dos gates 4.2/4.3.
