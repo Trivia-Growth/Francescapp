@@ -269,4 +269,12 @@ recuperação de recusa definitiva. Revisão cruzada UI/BFF cobriu ainda rascunh
 incompleto, projeção de identidades antes da cifra e coerência HTTP. Executor das
 correções não aprovou o próprio código: releitura Spec e cruzada vieram de outros
 Sol. Nenhum P1/P2 de fonte remanescente nos deltas relidos. Isso não comprova
-runtime: nenhum teste, SQL, build ou gate foi executado; aceite continua aberto.
+runtime: nenhum teste, SQL, build ou gate de ativação foi executado; aceite continua aberto.
+
+
+Consolidação da preparação: código em `f1b4de0`, fixture em `6b59e64`, enviados à
+branch autorizada. Hooks existentes preservados: pre-commit formatou e apontou
+literal de teste, corrigido; pre-push apontou campo `repeticao` ausente na fixture,
+corrigido em commit próprio. Novo push saiu 0 com lint (759 arquivos) e typechecks.
+Nenhum teste de comportamento/SQL/build/Deno/manual foi executado. Esse resultado
+dos hooks não fecha autorização/RLS, critérios de aceite ou ativação.

@@ -22,12 +22,14 @@ consentimento incompleto da Agenda; depois, objetivos no contexto, escrita de
 Tarefas por capacidade autorizada e conversão atômica Diário/Tarefa.
 Nova retomada por pedido explícito de continuar nos outros blocos acrescentou
 proteção de ciclo de vida do áudio e a seção **Meu turno**, com consulta após
-recarga, abertura e recuperação da operação. São entregas locais independentes
+recarga, abertura e recuperação da operação. A continuação preparou também o
+grupo 3 completo em código (escala, passagem, ciência e encerramento) e proteção
+adicional do cadastro de segredos. São entregas locais independentes
 do bloqueio da publicação; não houve nova tentativa de ativação.
-**Validações desta retomada foram adiadas por pedido do solicitante.** Seis
+**Validações desta retomada foram adiadas por pedido do solicitante.** Sete
 migrations novas estão somente no repositório: `20261125080000`,
-`20261125090000`, `20261125100000`, `20261125110000`, `20261125120000` e
-`20261125130000`; não fazem parte das oito
+`20261125090000`, `20261125100000`, `20261125110000`, `20261125120000`,
+`20261125130000` e `20261125140000`; não fazem parte das oito
 versões remotas já aplicadas. Nenhuma dessas entregas é declarada ativada.
 
 ## Entregue, com evidência
@@ -128,6 +130,14 @@ Isso não certifica integração externa nem substitui roteiro publicado.
 
 ### Features locais acrescentadas após a retomada
 
+- **Cadastro de segredos, proteção adicional:** em `72cd532`, envio pendente
+  bloqueia todos os formulários e recarga; falha exige consulta dos metadados e
+  nova digitação explícita antes de outra escrita. Campo é limpo antes da chamada,
+  inclusive se o adapter lançar erro síncrono. Cliente HTTP limita resposta a
+  64 KiB e 20 segundos, incluindo leitura do stream, cancelando-o em falha/prazo.
+  Resposta inválida ou resultado incerto não confirmam cadastro. Quatro testes
+  novos escritos, **não executados**; leitura independente da nova proteção sem
+  achado P1/P2, com execução e gates pendentes.
 - **Download Drive pelo app:** GET autenticado
   `/api/pacientes/:paciente_id/documentos/:documento_id/arquivo` e botão
   “Baixar arquivo”. O servidor resolve o arquivo após a consulta privada de
@@ -188,7 +198,8 @@ Isso não certifica integração externa nem substitui roteiro publicado.
 - **Turno, grupo 2:** migrations `25080000`/`25100000`, abertura/consulta própria,
   reserva/idempotência, unicidade de turno aberto, RLS, auditoria e configuração
   administrada preparados. Flag `ffcm.turno.ativo=false`; parâmetros nascem vazios.
-  O encerramento exige referência à síntese e permanece recusado até grupo 3.
+  Na primeira retomada, o encerramento permaneceu recusado até o grupo 3;
+  a continuação abaixo prepara essa operação sem declarar ativação.
   Recusa de perfil no servidor precede o cofre e usa caminho restrito de auditoria
   negativa, sem capacidade de operação. Matrizes SQL, concorrência `dblink`,
   instalação NOSUPER/ACL e testes HTTP/composição escritos, **não executados**.
@@ -212,7 +223,36 @@ Isso não certifica integração externa nem substitui roteiro publicado.
   turno clínico. Sem dados de turno em storage. Servidor, HTTP, UI, composição e
   matriz SQL/NOSUPER têm provas escritas, **não executadas**; runner
   `scripts/testar-turno-atual-local.sh` é para banco local descartável. Flag continua
-  `false`, migration não aplicada, grupo 3 e tarefa 13.1 integral não concluídos.
+  `false`, migration não aplicada e tarefa 13.1 integral não concluída. O grupo 3
+  recebeu continuação de código, descrita abaixo, sem aceite executado.
+
+
+- **Turno, grupo 3 — código preparado:** contratos, migration `25140000`, BFF e
+  interface para escala prevista, substituição/cobertura e histórico append-only;
+  motivo cifrado, autor/data e versão esperada. Publicação de passagem reaproveita
+  síntese profissional FR-009 do Diário: filha preparada no servidor e publicação
+  mais vínculo na mesma transação. Não existe cópia clínica paralela.
+  Vínculo tem versão própria; republicação exige comando explícito e preserva
+  vínculos anteriores. Encerramento confere síntese vigente publicada, caso,
+  autor, turno, reserva e versão sob locks, com auditoria e relógio do servidor.
+  Resposta incerta exige recuperação; não é tratada como rollback.
+  Passagem apresenta abertura/encerramento reais do turno, separados do carimbo
+  de publicação. Consulta preserva síntese ainda não enviada no editor.
+  Ciência é ato explícito do profissional do turno sucessor, distinto de consulta;
+  remetente consulta os dois estados após encerramento/recarga pelo último turno
+  próprio do caso. Interface inclui **Escala da equipe** e passagem em **Meu turno**,
+  com campos FR-009 compartilhados com Diário; envio/audiência/áudio do Diário
+  permanecem nos componentes existentes. Campo novo `ffcm.turno.area_passagem`
+  nasce vazio e precisa pertencer ao catálogo `ffcm.diario.areas_sintese`.
+  **Código não validado nem ativado.** Provas de contrato, servidor, UI, SQL,
+  privilégios NOSUPER e concorrência foram escritas; execução adiada. Revisão
+  independente de fonte distingue padrões/segurança de aderência à especificação;
+  seu resultado final é registrado abaixo, sem equivaler à matriz executada.
+  Código enviado em `f1b4de0`, com fixture de recibo completada em `6b59e64`.
+  Runner escrito: `scripts/testar-turno-grupo3-local.sh`, com
+  `supabase/tests/turno_grupo3_local.sql` e
+  `supabase/tests/turno_grupo3_concorrencia_local.sql`; teste servidor focado
+  `netlify/functions/_shared/turno-grupo3-encerramento.test.ts`.
 
 Confirmado por fonte, sem conceder acesso: a habilitação do aprovador de crise já
 tem interface em **Administração > Quem aprova plano de crise**
@@ -224,7 +264,8 @@ Os resultados verdes registrados acima pertencem à versão anterior a essas
 alterações. Não cobrem download, contratos/execução de turno, aviso da Agenda,
 campo de configuração, objetivos do contexto, capacidade de escrita de Tarefas ou
 conversão Diário/Tarefa, proteção adicional do áudio ou seção Meu turno/consulta
-atual. Testes positivos/negativos de autorização e RLS continuam obrigatórios
+atual, grupo 3 de turno ou proteção adicional do cadastro de segredos. Testes
+positivos/negativos de autorização e RLS continuam obrigatórios
 antes da ativação; adiamento não significa aprovação nem dispensa.
 
 Nenhum gate foi disparado manualmente nesta retomada. O push preserva o hook
@@ -247,8 +288,47 @@ em `e2868b0` foram acrescentados com agentes Sol. Hook de commit corrigiu format
 e apontou dois acessos de teste sem guarda; substituídos por guardas explícitas.
 Hook de push apontou apenas tipo UUID de fixture, corrigido em `abf6b0f`.
 Novo push passou lint (743 arquivos) e todos os projetos de typecheck. Esses
-hooks não executaram testes, build ou matriz SQL; revisão independente e todas
-as provas novas continuam pendentes. Isso não altera o adiamento solicitado.
+hooks não executaram testes, build ou matriz SQL. Naquele push, revisão
+independente e todas as provas novas continuavam pendentes; a leitura de fonte
+da continuação do grupo 3 é registrada adiante. Isso não altera o adiamento solicitado.
+
+
+### Revisão de fonte da continuação — base `eb494f2`
+
+**Padrões/segurança:** revisão independente encontrou grant colunar incompatível
+com `SELECT *` e política de requisição que admitia abertura mas bloqueava
+encerramento. A primeira correção ainda afetou projeções de consulta/replay;
+projeção restrita pertence somente ao owner restrito do grupo 3. Correções e
+releitura afetada estão registradas nas tarefas; não são resultado de SQL executado.
+
+**Especificação:** revisão independente encontrou quatro P2: identidades de
+escala não resolvidas fora do catálogo elegível; autoria/ciência apresentadas por
+texto genérico; recusa definitiva prendendo tentativa para sempre; e corte em
+500 versões tornando escala indisponível após crescimento. Tratamento envolve
+identidades autorizadas separadas, saída explícita de recusas definitivas e
+paginação preservando histórico. Releitura exigiu também período real do turno
+anterior, separado de publicação; revisão cruzada identificou preservação do
+rascunho ainda não submetido, projeção de identidades conferida antes de decifrar
+e coerência entre status HTTP/código antes de tratar recusa como definitiva.
+Incerteza continua exigindo a mesma chave de repetição, sem presumir rollback.
+Releituras independentes afetadas
+concluídas após as correções, sem P1/P2 de fonte remanescente nos deltas conferidos.
+Esse resultado é somente leitura, não comportamento comprovado em execução.
+
+Testes de comportamento, autorização/RLS, concorrência e instalação continuam
+adiados. Os revisores não executaram comandos de validação. O executor das
+correções de interface/BFF é Sol e não aprova sua própria alteração; releitura de
+aderência foi realizada por outro Sol.
+
+
+Continuação enviada: `72cd532` (proteção do cadastro), `f1b4de0` (grupo 3) e
+`6b59e64` (fixture de recibo). O hook de commit formatou os arquivos e apontou
+um template literal sem interpolação; corrigido sem mudança de comportamento.
+O primeiro push apontou somente `repeticao` ausente numa fixture, completada em
+`6b59e64`. Novo push: **saída 0**, lint em **759 arquivos** e typecheck de todos
+os projetos passaram. Nenhum teste de comportamento, SQL, build, Deno ou jornada
+manual foi disparado nesta continuação. Os hooks existentes foram preservados;
+seus resultados não substituem as provas de autorização/RLS ainda adiadas.
 
 ## Lista exata do que cadastrar e onde
 
@@ -525,10 +605,11 @@ aprovada antes da implementação, conforme evidência do bloco 2.
 - **SUPOSIÇÃO UX CONSERVADORA — áudio:** uma gravação pendente por montagem,
   até revisão e descarte confirmado do original. Preserva texto humano e não
   exige publicação; não altera a política de retenção.
-- **SUPOSIÇÃO CONSERVADORA — Meu turno:** recorte limitado à abertura e consulta
-  do turno aberto próprio. Não exibe lista de colegas, histórico ou encerramento
-  sem passagem. É uma interface do grupo 2, não conclusão parcial disfarçada da
-  tarefa 13.1 inteira. A geração vem da barreira do servidor, nunca do relógio local.
+- **SUPOSIÇÃO CONSERVADORA — Meu turno:** consulta atual própria decide abertura;
+  consulta de último turno próprio, aberto ou encerrado, permite recuperar o
+  recebimento após recarga. Não cria lista de colegas nem histórico geral. A
+  geração vem da barreira do servidor, nunca do relógio local. Interface preparada
+  para abertura/passagem/encerramento não conclui a tarefa 13.1 inteira.
 - **SUPOSIÇÃO CONSERVADORA — escrita de tarefas:** disponibilidade é informativa,
   por caso e falsa por padrão; não abre exceção para Administrador. Autorização
   da gravação permanece no servidor/banco. Não carregar conteúdo clínico apenas
@@ -540,6 +621,26 @@ aprovada antes da implementação, conforme evidência do bloco 2.
   ao cofre só registra tentativa negada do próprio ator Auth, em duas ações
   fechadas; não autoriza leitura/conversão. São escolhas conservadoras desta
   execução autônoma, não regras clínicas ratificadas.
+
+
+- **SUPOSIÇÕES CONSERVADORAS — grupo 3:** gestão de escala exige Administrador
+  Google Workspace, vínculo ativo e ser case manager atual do caso; ausência de
+  responsável nega. Consulta de escala exige equipe Google com vínculo ativo.
+  Destinatário de ciência é quem efetivamente abre o turno sucessor no mesmo caso,
+  derivado no banco; cliente não escolhe destinatário. Passagem permanece interna
+  à equipe, sem inferir fundamento familiar. Vínculo versionado conserva todas
+  as publicações; retificação exige nova publicação explícita antes de encerrar.
+  Área começa vazia para não inventar modelo clínico. Identidades exibidas vêm
+  somente dos atores referenciados nos registros autorizados do caso; rótulo de
+  concessão atual/histórica não afirma o nome usado à época do ato. Ausência é
+  informada, sem identidade inventada. Catálogo de opções para gestão permanece
+  separado. Histórico de escala é paginado por cursor estável, sem cortar versões
+  antigas. São escolhas conservadoras autônomas, não ratificação clínica nem
+  autorização para ativar sem provas.
+- **SUPOSIÇÃO DE REVISÃO — continuação:** base fixa `eb494f2`, incluindo o commit
+  `72cd532`, alterações locais e arquivos novos do grupo 3. Dois revisores Sol,
+  padrões/segurança e especificação, fazem leitura de fonte; esse exame não
+  substitui testes adiados nem comprova SQL, Auth, Vault ou provedor reais.
 
 Hipóteses anteriores preservadas, sem nova decisão silenciosa: diário considera
 coordenação colaboradores vinculados; saúde não proíbe combinação `relato_leigo` +
@@ -556,7 +657,8 @@ operação atômica e nascimento não futuro em UTC). Isso não dispensa S-02.
    guardas. `25090000` é entrega de documento, independente do turno;
    `25080000`/`25100000` são preparação/grant do turno; `25110000` é a consulta
    somente de autorização de tarefas; `25120000` é a conversão atômica, dependente
-   de `25110000`; `25130000` acrescenta consulta atual própria ao turno. Um bloqueio do turno não
+   de `25110000`; `25130000` acrescenta consulta atual própria ao turno e `25140000`
+   prepara escala/passagem/ciência/encerramento. Um bloqueio do turno não
    impede a validação/entrega de documentos. Flags de turno e expurgo ficam falsas.
 2. Após restabelecer a capacidade de deploy da Netlify, gerar artefato do commit
    revisado com contexto `production` e publicá-lo sem desbloquear globalmente
@@ -586,12 +688,20 @@ operação atômica e nascimento não futuro em UTC). Isso não dispensa S-02.
    case manager pela interface existente. Não retirar habilitações de terceiros.
    Provar que a marca sozinha não aprova fora do caso liderado.
 9. Quando os gates do turno forem liberados, executar as provas novas antes de
-   aplicar `25130000` ou ligar flag. Configurar os três parâmetros explicitamente;
-   como Profissional vinculado ao caso fictício, abrir **Meu turno**, confirmar
-   abertura, recarregar e conferir consulta. Simular resposta perdida e recuperar
-   recibo, sem abrir segundo turno. Conferir negativas de outro caso/perfil,
-   vínculo/sessão revogados e acesso direto. Encerramento continua indisponível;
-   não usar esse roteiro para presumir grupo 3 entregue.
+   aplicar `25130000`/`25140000` ou ligar flag. Configurar duração, tolerância e
+   tratamento explicitamente, além de `ffcm.turno.area_passagem` com área presente
+   em `ffcm.diario.areas_sintese`. Como Profissional vinculado ao caso fictício,
+   abrir **Meu turno**, confirmar abertura, recarregar e conferir consulta.
+   Publicar síntese de passagem, consultar confirmação e encerrar explicitamente.
+   Simular resposta perdida e recuperar recibo sem abrir segundo turno nem
+   publicar outra síntese automaticamente. Provar síntese ausente/retificada,
+   outro caso/perfil, vínculo/sessão revogados e acesso direto negativos.
+   Como Administrador que também seja case manager vinculado, usar **Escala da
+   equipe** para previsão/substituição/cobertura, conferir histórico e conflito
+   de versão. Outro profissional vinculado abre turno sucessor: passagem anterior
+   aparece; consultar não registra ciência. Registrar ciência explicitamente e
+   conferir remetente após recarga do último turno encerrado. Falha de persistência
+   não pode informar ciência/encerramento confirmados. Nada disso foi executado.
 10. Registrar evidências reais e só então retirar PR de draft/fechar gates.
 
 ## Explicitamente não feito
@@ -608,9 +718,12 @@ cadastro/manuseio manual de segredo, merge ou reescrita de histórico.
 
 Turno 0.6 concluído como auditoria documental, com inventário em seu `design.md` e
 lacunas explícitas 0.6.1/0.6.2; isso não aprova a base remota nem libera integração.
-Grupos 1/2 receberam implementação local após nova autorização; não foram validados
-nem ativados. Encerramento permanece indisponível; grupo 3 não iniciado. As seis
-migrations da retomada não foram aplicadas remotamente. Não houve nova execução de
+Grupos 1/2/3 receberam implementação local após nova autorização; não foram validados
+nem ativados. Encerramento foi preparado com síntese vinculada; não está disponível
+na aplicação principal publicada. As sete migrations da retomada não foram aplicadas
+remotamente. Grupos 4 a 14 de execução do cuidado não foram implementados nesta
+retomada; contratos iniciais não representam telas/RPCs desses grupos. Não houve
+nova execução de
 testes, build ou prova remota dessas features nesta passagem. Conversão FR-014 não
 foi declarada aprovada apenas por código, testes escritos ou flag presente. Financeiro,
 PWA, migração Edge, recorrência, agenda global e lembretes não iniciados. Arquivos
