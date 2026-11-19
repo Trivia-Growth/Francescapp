@@ -2651,3 +2651,103 @@ label > .loading-indicator {
     width: 100%;
   }
 }
+
+/* ---- Substituição temporária da case manager (FR-037) ------------------- */
+.substituicao-cm {
+  display: grid;
+  gap: 16px;
+}
+.substituicao-cm__explicacao,
+.substituicao-cm__status,
+.substituicao-cm__situacao,
+.substituicao-cm__aviso {
+  margin: 0;
+  color: var(--muted);
+  font-size: .9375rem;
+}
+.substituicao-cm__resumo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px 16px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--soft);
+}
+.substituicao-cm__resumo dt {
+  color: var(--muted);
+  font-size: .8125rem;
+}
+.substituicao-cm__resumo dd {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.substituicao-cm__formulario {
+  display: grid;
+  gap: 8px;
+}
+.substituicao-cm__formulario select,
+.substituicao-cm__formulario input {
+  width: 100%;
+  min-height: 44px;
+}
+.substituicao-cm__vazio {
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  color: var(--muted);
+  background: var(--soft);
+}
+.substituicao-cm__lista {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.substituicao-cm__item {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+.substituicao-cm__item p {
+  margin: 0;
+}
+@media (min-width: 640px) {
+  .substituicao-cm__resumo {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  }
+  .substituicao-cm__resumo dd {
+    margin-bottom: 0;
+  }
+}
+@media (max-width: 480px) {
+  .substituicao-cm__formulario .button-primary,
+  .substituicao-cm__item .button-secondary {
+    width: 100%;
+  }
+}
+
+/* FR-024: a situação de realização ocupa a linha inteira para ser lida de relance no
+   celular, e o formulário empilha em coluna com alvos de toque confortáveis. */
+.agenda-realizacao {
+  flex-basis: 100%;
+  color: #4a5240;
+}
+.realizacao-compromisso form {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  max-width: 34rem;
+}
+.realizacao-compromisso select,
+.realizacao-compromisso input,
+.realizacao-compromisso textarea {
+  min-height: 2.75rem;
+  width: 100%;
+}

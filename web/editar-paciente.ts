@@ -9,6 +9,8 @@ import {
   type ResponsavelOpcao,
 } from './acompanhamento-caso.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
+import { montarSubstituicaoCaseManager } from './substituicao-case-manager.js';
+import type { ServicoSubstituicaoCaseManager } from './servico-substituicao-cm-http.js';
 import type { criarCicloEdicaoPaciente } from './ciclo-edicao-paciente.js';
 import { dataDeInstante } from './datas.js';
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
@@ -17,6 +19,9 @@ export type ServicoEdicaoPaciente = {
   consultarPaciente(pacienteId: string): Promise<PacienteEdicao>;
   /** Ausente quando o perfil não pode listar a equipe: a situação segue editável, o responsável não. */
   listarResponsaveis?: () => Promise<ResponsavelOpcao[]>;
+  /** FR-037: ausente enquanto a fatia da substituição temporária está desligada. A seção
+   *  só aparece quando o serviço é passado; a autorização continua no servidor e no banco. */
+  substituicao?: ServicoSubstituicaoCaseManager;
   ciclo: ReturnType<typeof criarCicloEdicaoPaciente>;
 };
 
@@ -229,7 +234,20 @@ export function montarEdicaoPaciente(
     desenharResumo();
     status.textContent = '';
     raiz.replaceChildren(resumo, form, recuperar, status);
+    desmontarSubstituicao?.();
+    desmontarSubstituicao = null;
+    if (servico.substituicao) {
+      const substituicaoRaiz = elemento('div');
+      substituicaoRaiz.className = 'ficha-subsecao';
+      raiz.append(substituicaoRaiz);
+      desmontarSubstituicao = montarSubstituicaoCaseManager(
+        substituicaoRaiz,
+        servico.substituicao,
+        { paciente_id: pacienteId, equipe },
+      );
+    }
   };
+  let desmontarSubstituicao: (() => void) | null = null;
   const consultar = () => {
     status.textContent = 'Carregando cadastro…';
     raiz.replaceChildren(esqueletoCarregando(3, true), status);
@@ -367,6 +385,8 @@ export function montarEdicaoPaciente(
   raiz.replaceChildren(status, recuperar);
   return () => {
     ativa = false;
+    desmontarSubstituicao?.();
+    desmontarSubstituicao = null;
     raiz.replaceChildren();
   };
 }
