@@ -14,6 +14,12 @@ import {
   type PapelDeclarado,
 } from '../packages/contracts/src/papel-declarado.ts';
 import {
+  estadoEmocionalSchema,
+  gravarEstadoEmocionalSchema,
+  type EstadoEmocional,
+  type GravarEstadoEmocional,
+} from '../packages/contracts/src/estado-emocional.ts';
+import {
   erroRespostaSchema,
   sucessoRespostaSchema,
   uuidSchema,
@@ -23,9 +29,10 @@ import { FalhaApi } from './api.ts';
 
 type Identidade = { usuario_id: string; session_id: string };
 
-/** Catálogos administrados pelo Administrador: o modelo da ficha de plantão (FR-078) e
- * os papéis declarados (FR-079). Os dois têm a mesma forma — ler a lista, gravar um item
- * sob versão esperada —, por isso um módulo só. A autorização continua sendo decidida no
+/** Catálogos administrados pelo Administrador: o modelo da ficha de plantão (FR-078), os
+ * papéis declarados (FR-079) e os termos de estado emocional observado (FR-076/FR-081). Os
+ * três têm a mesma forma — ler a lista, gravar um item sob versão esperada —, por isso um
+ * módulo só. A autorização continua sendo decidida no
  * servidor e no banco; aqui não há nenhuma decisão de acesso. */
 async function enviar(
   identidadeAtual: () => Identidade | null,
@@ -191,6 +198,41 @@ export function criarServicoPapelDeclaradoHttp(
         caminho: '/api/admin/papel-declarado',
         saida: papelDeclaradoSchema,
         corpo: gravarPapelDeclaradoSchema.parse(entrada),
+        chave,
+      });
+    },
+  };
+}
+
+export type ServicoEstadoEmocional = {
+  consultar(): Promise<EstadoEmocional[]>;
+  gravar(entrada: GravarEstadoEmocional, chave: string): Promise<void>;
+};
+
+/** Ordenação alfabética, JAMAIS por gravidade: a lista é vocabulário de observação e não
+ * admite escala (FR-076/FR-081). */
+export function criarServicoEstadoEmocionalHttp(
+  identidadeAtual: () => Identidade | null,
+): ServicoEstadoEmocional {
+  const identidade = identidadeAtual();
+  if (!identidade) throw new FalhaApi('nao_autenticado', 401);
+  return {
+    consultar: async () =>
+      (
+        (await enviar(identidadeAtual, identidade, {
+          metodo: 'GET',
+          caminho: '/api/admin/estado-emocional',
+          saida: z.array(estadoEmocionalSchema),
+        })) as EstadoEmocional[]
+      )
+        .slice()
+        .sort((a, b) => a.estado.localeCompare(b.estado, 'pt-BR')),
+    gravar: async (entrada, chave) => {
+      await enviar(identidadeAtual, identidade, {
+        metodo: 'POST',
+        caminho: '/api/admin/estado-emocional',
+        saida: estadoEmocionalSchema,
+        corpo: gravarEstadoEmocionalSchema.parse(entrada),
         chave,
       });
     },

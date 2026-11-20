@@ -18,32 +18,34 @@ import { apresentarRegistroExecucao } from './turno-execucao-apresentacao.ts';
 
 const TURNO = 'b0000000-0000-4000-8000-000000000001';
 
-const base = {
-  paciente_id: 'c0000000-0000-4000-8000-000000000003',
-  turno_id: TURNO,
-  registro_id: 'd0000000-0000-4000-8000-000000000004',
-  versao: 1,
-  registrador_usuario_id: 'a0000000-0000-4000-8000-000000000001',
-  registrador_nome: null,
-  criado_em: '2026-11-20T12:00:00Z',
-  instante_ocorrencia: '2026-11-20T12:00:00Z',
-  retificada: false,
-  motivo: null,
-} as const;
+/** Monta um registro público de rotina sem conversão forçada: o conteúdo entra tipado, e é
+ * o compilador que confere a variante. Se a união perder `estado_emocional`, este arquivo
+ * deixa de compilar — o que é exatamente o alarme que faltava. */
+function registroDeRotina(dados: RegistroExecucaoPublico['conteudo']): RegistroExecucaoPublico {
+  return {
+    paciente_id: 'c0000000-0000-4000-8000-000000000003',
+    turno_id: TURNO,
+    registro_id: 'd0000000-0000-4000-8000-000000000004',
+    versao: 1,
+    registrador_usuario_id: 'a0000000-0000-4000-8000-000000000001',
+    registrador_nome: null,
+    criado_em: '2026-11-20T12:00:00Z',
+    instante_ocorrencia: '2026-11-20T12:00:00Z',
+    retificada: false,
+    conteudo: dados,
+  };
+}
 
 function registroComEstado(qualidade: string): RegistroExecucaoPublico {
-  return {
-    ...base,
-    conteudo: {
-      classe: 'rotina',
-      dados: {
-        tipo: 'estado_emocional',
-        turno_id: TURNO,
-        instante_ocorrencia: '2026-11-20T12:00:00Z',
-        qualidade,
-      },
+  return registroDeRotina({
+    classe: 'rotina',
+    dados: {
+      tipo: 'estado_emocional',
+      turno_id: TURNO,
+      instante_ocorrencia: '2026-11-20T12:00:00Z',
+      qualidade,
     },
-  } as RegistroExecucaoPublico;
+  });
 }
 
 describe('estado emocional na rotina do turno', () => {
@@ -103,9 +105,8 @@ describe('estado emocional na rotina do turno', () => {
   it('as demais rotinas continuam apresentadas como antes', () => {
     // Guarda de regressão da variante vizinha: ao acrescentar `estado_emocional` à união,
     // o ramo final de `eliminacao` deixou de ser o `else` e precisou de condição própria.
-    const eliminacao = {
-      ...base,
-      conteudo: {
+    const texto = apresentarRegistroExecucao(
+      registroDeRotina({
         classe: 'rotina',
         dados: {
           tipo: 'eliminacao',
@@ -114,9 +115,8 @@ describe('estado emocional na rotina do turno', () => {
           eliminacao: 'urina',
           contagem: 2,
         },
-      },
-    } as RegistroExecucaoPublico;
-    const texto = apresentarRegistroExecucao(eliminacao);
+      }),
+    );
     expect(texto).toContain('Eliminação observada');
     expect(texto).toContain('Contagem: 2');
   });

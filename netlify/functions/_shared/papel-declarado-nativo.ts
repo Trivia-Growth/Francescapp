@@ -80,7 +80,7 @@ export async function operarPapelDeclaradoNativo(
         !chave.success ||
         !id.success ||
         nomeValidado.length === 0 ||
-        nomeValidado.length > 120 ||
+        nomeValidado.length > 80 ||
         typeof comando.ativo !== 'boolean' ||
         !Number.isInteger(comando.versao_esperada) ||
         comando.versao_esperada < 0 ||

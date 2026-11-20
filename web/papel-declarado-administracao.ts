@@ -75,7 +75,7 @@ export function montarPapelDeclaradoAdministracao(
     if (ocupado || tentativa) return;
     const dados = gravarPapelDeclaradoSchema.safeParse(entrada);
     if (!dados.success) {
-      status.textContent = 'Informe um nome de papel com 1 a 120 caracteres.';
+      status.textContent = 'Informe um nome de papel com 1 a 80 caracteres.';
       return;
     }
     tentativa = {
@@ -93,7 +93,7 @@ export function montarPapelDeclaradoAdministracao(
     const nome = el('input');
     nome.value = papel?.nome ?? '';
     nome.required = true;
-    nome.maxLength = 120;
+    nome.maxLength = 80;
     label.append(nome);
     grupo.append(label);
     const salvar = el('button', papel ? 'Salvar nome' : 'Criar papel');

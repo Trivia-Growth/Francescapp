@@ -6,6 +6,9 @@ import {
   envioComprovanteSchema,
   consultarApuracaoSchema,
   despesaSchema,
+  concessaoFinanceiraSchema,
+  gravarConcessaoFinanceiraSchema,
+  listaConcessaoFinanceiraSchema,
   registrarDespesaSchema,
   registrarValorAcordadoSchema,
   retificarDespesaSchema,
@@ -27,6 +30,27 @@ const vazio = z.object({}).strict();
  * O comprovante não tem rota de URL: a entrega é por fluxo autorizado a cada leitura
  * (FR-069), portanto a rota devolve os bytes sob a política do repositório privado. */
 export const financeiroHttp = {
+  /** FR-068: administração da audiência financeira. Caminho próprio, fora de
+   * `/api/financeiro/casos/...`, porque a audiência não decorre de caso nenhum (design D1):
+   * não há `paciente_id` aqui, e o servidor não lê vínculo de caso para atender estas duas.
+   *
+   * Conceder é ato de Administrador — `api.listar_concessao_financeira` e
+   * `api.gravar_concessao_financeira` exigem administrador no banco, e quem já tem a
+   * audiência financeira não ganha com isso o direito de concedê-la a ninguém. */
+  listarConcessoes: {
+    metodo: 'GET',
+    caminho: '/api/financeiro/concessoes',
+    entrada: vazio,
+    saida: listaConcessaoFinanceiraSchema,
+  },
+  /** Conceder e revogar pela mesma rota: `habilitado: false` revoga, e a leitura seguinte
+   * já nega, porque a marca lida pelas demais rotas é a coluna atualizada aqui. */
+  gravarConcessao: {
+    metodo: 'POST',
+    caminho: '/api/financeiro/concessoes',
+    entrada: gravarConcessaoFinanceiraSchema,
+    saida: concessaoFinanceiraSchema,
+  },
   registrarValorAcordado: {
     metodo: 'POST',
     caminho: '/api/financeiro/valores-acordados',

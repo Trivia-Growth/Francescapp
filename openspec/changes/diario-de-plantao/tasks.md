@@ -357,3 +357,67 @@ remotamente e nenhuma flag foi ligada.
 - [ ] 9.4 Registrar resultados, achados e **limitações** — incluindo o que as provas locais
   **não** comprovam: integração remota, Auth real, Vault e qualquer ativação publicada.
   Nenhuma migração aplicada remotamente, nenhuma flag ligada por este recorte.
+
+### Registro do fechamento de A3, A4 e da pendência escrita na carteira — 20/11/2026
+
+**A4 resolvida (buraco principal).** Campo acrescentado pelo Administrador passa a ter onde
+gravar a resposta. `supabase/migrations/20261128200000_ficha_plantao_respostas_campos.sql`
+cria `cadastro.turno_plantao_resposta_versao` — append-only, RLS forçada, `revoke all` dos
+quatro papéis de aplicação, trigger bloqueando UPDATE/DELETE, FK composta para
+`turno_plantao_versao(registro_id, versao)` — e estende por substituição de âncora única o
+corpo de `operacao.ficha_plantao_operacao_privada` e a projeção. Cada resposta tem envelope
+cifrado PRÓPRIO, com AAD na forma genérica `{tabela, registro_id, campo, formato}`, e `fonte`
+e `visibilidade` próprias (FR-081). A gravação manda o retrato id->versão do catálogo e o
+banco revalida por `operacao.campo_extra_revalidar_snapshot('ficha_plantao', …)`, a MESMA
+função do Plano, sob o mesmo `for share`, recusando com `conflito`. O owner da ficha recebe
+no catálogo apenas `select(id,escopo,nome,tipo,ativo,ordem,versao)` e `update(versao)`, com as
+duas policies restritas a `escopo='ficha_plantao'`: a fatia não enxerga nem trava linha do
+Plano de cuidado. Isso desbloqueia a parte de 5.2 que dependia de resposta e fecha 5.4 no
+escopo da ficha. Contratos, composição HTTP e a tela (`web/ficha-plantao.ts`) passaram a
+oferecer o campo de verdade, com o limite de 4000 caracteres aplicado no próprio controle.
+
+**A3 encaminhada em outra frente.** Catálogo de estados emocionais semeado e administrado em
+`20261128210000`..`20261128230000`, com rota e tela próprias. Ver o relatório daquela frente.
+
+**Pendência escrita na carteira (0.5 / 4.3).** `fichaPlantaoHttp.listarPendencias`
+(`GET /api/pacientes/:paciente_id/ficha-plantao/pendencias`) reusa a MESMA projeção autorizada
+da ficha, sem consulta nova; `web/pendencias-caso.ts` mostra as pendências escritas em seção
+própria — "Escritas no plantão" — com origem declarada, autor e plantão identificados. As
+quatro derivadas não mudam de comportamento: a chamada é opcional, falha fechada e degrada
+para lista vazia quando o interruptor da ficha está desligado. Não gera aviso no sino.
+
+**Decisão desta passagem, para revisão.** `registroPlantaoSchema.respostas` tem
+`.default([])` na projeção PRIVADA do banco. É tolerância de leitura, não permissão: a
+projeção sempre devolve a lista (com `coalesce` para `[]`), e sem o default toda projeção
+anterior a esta passagem viraria ilegível. A projeção HTTP mantém o campo obrigatório.
+
+**Evidências, executadas uma vez cada.** `LC_ALL=C sh scripts/testar-ficha-plantao-respostas-local.sh`
+(`FICHA_PLANTAO_RESPOSTAS_LOCAL_OK`, saída 0; prova nova em
+`supabase/tests/ficha_plantao_respostas_local.sql`, com ACL exata, matriz negativa de
+autorização auditada, recusa com `conflito` sob modelo alterado e preservação de resposta sob
+campo desativado); `LC_ALL=C sh scripts/testar-ficha-plantao-local.sh` (saída 0);
+`LC_ALL=C sh scripts/testar-cadeia-migrations-sem-superusuario-local.sh`
+(`CADEIA_COMPLETA_SEM_SUPERUSUARIO_OK: 250 migrations`, saída 0);
+`pnpm exec vitest run netlify/functions/_shared/ficha-plantao-respostas-nativa.test.ts`
+(4 testes); `pnpm exec vitest run $(grep -ln "main.js" web/*.test.ts)` (28 arquivos, 109
+testes); `pnpm run verificar:celular` (14 cenários); `pnpm run verificar:rapido`
+(lint `Checked 954 files`, typecheck limpo).
+
+**Limitações e o que fica aberto.**
+
+- O PDF do consolidado (8.3, achado A5) continua pendente, e a resposta de campo acrescentado
+  **ainda não aparece no PDF nem no consolidado diário** — a montagem está em
+  `netlify/functions/_shared/turno-execucao-nativo.ts` e em `web/consolidado-ficha-plantao.ts`,
+  fora do recorte desta passagem.
+- A segregação de `visibilidade` das respostas é **declarada e gravada**, mas a projeção
+  familiar de FR-062 (7.3) continua sem consumir a tabela nova: nenhuma resposta de campo
+  acrescentado chega à audiência familiar hoje, em nenhuma forma. Isso é fechado por omissão,
+  não por controle provado; 7.3 segue pendente.
+- A recusa atômica agora traz texto explicando a causa provável (modelo alterado, estado
+  emocional fora do catálogo, campo obrigatório vazio), mas a ficha **ainda não aponta o campo
+  exato** que o banco recusou: a RPC devolve `entrada_invalida` sem identificar o campo.
+  Apontar exigiria mudar o retorno da RPC, que é outra fatia.
+- A2 (estado emocional derrubando a projeção de FR-062) permanece aberta: `rotinaTurnoPublicaSchema`
+  e `turno-execucao-projecao.ts` são de outra frente e não foram tocados.
+- As provas aqui são locais e com dublês de Auth/Vault. Nenhuma migração foi aplicada
+  remotamente e nenhuma flag foi ligada.

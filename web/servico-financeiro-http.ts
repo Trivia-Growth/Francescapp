@@ -1,10 +1,12 @@
 import {
   financeiroHttp,
   type ApuracaoRepasse,
+  type ConcessaoFinanceira,
   type ConsultarApuracao,
   type Despesa,
   type DespesaVersao,
   type EnvioComprovante,
+  type GravarConcessaoFinanceira,
   type RegistrarDespesa,
   type RegistrarValorAcordado,
   type ValorAcordado,
@@ -21,6 +23,8 @@ type Identidade = { usuario_id: string; session_id: string };
 
 export type ServicoFinanceiro = {
   consultarAudiencia(): Promise<boolean>;
+  listarConcessoes(): Promise<ConcessaoFinanceira[]>;
+  gravarConcessao(entrada: GravarConcessaoFinanceira, chave: string): Promise<ConcessaoFinanceira>;
   listarValores(profissionalId: string): Promise<ValorAcordado[]>;
   registrarValor(entrada: RegistrarValorAcordado, chave: string): Promise<ValorAcordado>;
   listarDespesas(pacienteId: string): Promise<DespesaVersao[]>;
@@ -160,6 +164,17 @@ export function criarServicoFinanceiroHttp(
       );
       return dados.permitida;
     },
+    // Administração da audiência financeira (FR-068). Esconder a área não autoriza nada: as
+    // duas chamadas abaixo podem voltar `sem_permissao` do banco a quem não é Administrador.
+    listarConcessoes: async () =>
+      enviar(financeiroHttp.listarConcessoes, financeiroHttp.listarConcessoes.caminho),
+    gravarConcessao: async (entrada, chave) =>
+      enviar(
+        financeiroHttp.gravarConcessao,
+        financeiroHttp.gravarConcessao.caminho,
+        financeiroHttp.gravarConcessao.entrada.parse(entrada),
+        chave,
+      ),
     listarValores: async (profissionalId) =>
       enviar(
         financeiroHttp.consultarValoresAcordados,

@@ -376,6 +376,18 @@ export const metadadosAadPlantaoPendenciaSchema = z
   })
   .strict();
 
+/** FR-078/FR-081. Resposta de campo acrescentado ao modelo da ficha. Mesma forma genérica,
+ * mesma regra: `registro_id` é o `id` da LINHA da resposta, uma por (ficha, versão, campo),
+ * de modo que o envelope de uma versão não serve para outra nem para outro campo. */
+export const metadadosAadPlantaoRespostaSchema = z
+  .object({
+    tabela: z.literal('cadastro.turno_plantao_resposta_versao'),
+    registro_id: uuidSchema,
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
 export const metadadosAadFichaPlantaoRascunhoSchema = z
   .object({
     tabela: z.literal('cadastro.ficha_plantao_rascunho'),
@@ -398,6 +410,7 @@ export const metadadosAadSchema = z.union([
   metadadosAadSubstituicaoCmSchema,
   metadadosAadPlantaoVersaoSchema,
   metadadosAadPlantaoPendenciaSchema,
+  metadadosAadPlantaoRespostaSchema,
   metadadosAadFichaPlantaoRascunhoSchema,
   metadadosAadExecucaoTurnoSchema,
   metadadosAadAcessoGerenciadoSchema,
@@ -808,15 +821,23 @@ const assinatura = <E extends z.ZodType, S extends z.ZodType>(
 // AÇÃO atestada, não o wrapper: é a ação que viaja em `atestado.operacao`, é ela que o
 // `array[...]` de cada `operacao.financeiro_*_privada` aceita, e é ela que o `superRefine`
 // de `assinatura` confere. O mapeamento ação -> wrapper está em `wrapperFinanceiro` abaixo.
+/** `habilitacao_financeira_versao` nasce em 0 (default da coluna em
+ * `20261126200000_financeiro_concessao.sql`) e só cresce a cada gravação, então NÃO é
+ * `versaoSchema`, que é `positive()` e recusaria toda concessão nunca marcada. O teto é o
+ * do CHECK da coluna. `usuario_id` é nulo enquanto a concessão está `pendente` — a coluna
+ * é anulável desde `20261017113000_fundacao_identidade_cadastro.sql` —, como já descreve
+ * `itemHabilitacaoSchema` para a mesma tabela. */
+export const versaoHabilitacaoFinanceiraSchema = z.number().int().min(0).max(2_147_483_647);
+
 export const financeiroConcessaoSaidaSchema = z
   .object({
     concessao_id: uuidSchema,
-    usuario_id: uuidSchema,
+    usuario_id: uuidSchema.nullable(),
     email: campoCifradoSchema,
     perfil: perfilSchema,
     estado: estadoConcessaoSchema,
     habilitado: z.boolean(),
-    versao: versaoSchema,
+    versao: versaoHabilitacaoFinanceiraSchema,
   })
   .strict();
 
@@ -1229,7 +1250,7 @@ export const assinaturasFinanceiroRpc = {
       .extend({
         concessao_id: uuidSchema,
         habilitado: z.boolean(),
-        versao_esperada: z.number().int().min(0).max(2147483646),
+        versao_esperada: versaoHabilitacaoFinanceiraSchema.max(2_147_483_646),
       })
       .strict(),
     financeiroConcessaoSaidaSchema,

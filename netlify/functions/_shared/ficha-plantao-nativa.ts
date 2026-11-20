@@ -28,6 +28,7 @@ import {
 
 const TABELA_FICHA = 'cadastro.turno_plantao_versao' as const;
 const TABELA_PENDENCIA = 'cadastro.turno_plantao_pendencia_versao' as const;
+const TABELA_RESPOSTA = 'cadastro.turno_plantao_resposta_versao' as const;
 const TABELA_RASCUNHO = 'cadastro.ficha_plantao_rascunho' as const;
 
 type AadFicha = {
@@ -42,13 +43,19 @@ type AadPendencia = {
   campo: 'conteudo' | 'motivo';
   formato: 1;
 };
+type AadResposta = {
+  tabela: typeof TABELA_RESPOSTA;
+  registro_id: string;
+  campo: 'conteudo';
+  formato: 1;
+};
 type AadRascunho = {
   tabela: typeof TABELA_RASCUNHO;
   registro_id: string;
   campo: 'conteudo';
   formato: 1;
 };
-type Aad = AadFicha | AadPendencia | AadRascunho;
+type Aad = AadFicha | AadPendencia | AadResposta | AadRascunho;
 
 type Identidade = { usuario_id: string; session_id: string };
 type Autorizacao =
@@ -57,6 +64,7 @@ type Autorizacao =
 
 export type ComandoFichaPlantao =
   | { operacao: 'consultar'; paciente_id: string; turno_id: string }
+  | { operacao: 'pendencias'; paciente_id: string }
   | { operacao: 'rascunho_ler'; paciente_id: string; turno_id: string }
   | { operacao: 'rascunho_salvar'; paciente_id: string; corpo: unknown }
   | { operacao: 'submeter'; paciente_id: string; corpo: unknown }
@@ -64,6 +72,7 @@ export type ComandoFichaPlantao =
 
 const ACOES = {
   consultar: 'api.consultar_ficha_plantao',
+  pendencias: 'api.consultar_ficha_plantao',
   rascunho_ler: 'api.consultar_rascunho_ficha_plantao',
   rascunho_salvar: 'api.salvar_rascunho_ficha_plantao',
   submeter: 'api.gravar_ficha_plantao',
@@ -165,7 +174,10 @@ export async function operarFichaPlantaoNativa(
     let registroId: string | undefined;
     let turnoId: string | undefined;
 
-    if (comando.operacao === 'consultar' || comando.operacao === 'rascunho_ler') {
+    if (comando.operacao === 'pendencias') {
+      // Sem turno e sem registro: a MESMA consulta autorizada devolve a ficha nula e as
+      // pendências escritas do caso inteiro. Nenhum caminho de leitura novo é criado.
+    } else if (comando.operacao === 'consultar' || comando.operacao === 'rascunho_ler') {
       const turno = uuidSchema.safeParse(comando.turno_id);
       if (!turno.success) return erro('entrada_invalida');
       turnoId = turno.data.toLowerCase();
@@ -245,6 +257,33 @@ export async function operarFichaPlantaoNativa(
           estado: c.estado_emocional.estado,
           instante_ocorrencia: c.estado_emocional.instante_ocorrencia,
         };
+      // FR-078/FR-081. Cada resposta de campo acrescentado tem envelope PRÓPRIO, derivado
+      // de (tabela:campo, registro, versão) — um envelope por campo e por versão da ficha,
+      // de modo que o de uma versão não decifra no lugar da outra nem de outro campo.
+      const respostas: Record<string, unknown>[] = [];
+      for (const item of c.respostas ?? []) {
+        const campoId = item.campo_id.toLowerCase();
+        const linhaResposta = await idLinhaFichaPlantao(
+          `${TABELA_RESPOSTA}:${campoId}`,
+          registroId,
+          versao,
+        );
+        const aadResposta: AadResposta = {
+          tabela: TABELA_RESPOSTA,
+          registro_id: linhaResposta,
+          campo: 'conteudo',
+          formato: 1,
+        };
+        respostas.push({
+          campo_id: campoId,
+          id: linhaResposta,
+          conteudo: campoCifradoSchema.parse(await portas.cifra.cifrar(item.texto, aadResposta)),
+          fonte: item.fonte,
+          visibilidade: item.visibilidade,
+          aad: aadResposta,
+        });
+      }
+      if (respostas.length) conteudo.respostas = respostas;
       const pendencias: Record<string, unknown>[] = [];
       for (const pendencia of c.pendencias ?? []) {
         const linhaPendencia = await idLinhaFichaPlantao(
@@ -280,6 +319,7 @@ export async function operarFichaPlantaoNativa(
           registro_id: registroId,
           versao_esperada: dados.versao_esperada,
           conteudo: dados.conteudo,
+          campos_extras_catalogo: dados.campos_extras_catalogo ?? null,
           motivo: dados.motivo ?? null,
         }),
       );
@@ -292,6 +332,18 @@ export async function operarFichaPlantaoNativa(
         versao_esperada: dados.versao_esperada,
         conteudo,
         ...(pendencias.length ? { pendencias } : {}),
+        // Retrato id->versão do modelo: o banco o revalida sob `for share` e recusa com
+        // conflito quando o catálogo mudou. Vai só quando há resposta a revalidar.
+        ...(respostas.length
+          ? {
+              campos_extras_catalogo: Object.fromEntries(
+                Object.entries(dados.campos_extras_catalogo ?? {}).map(([id, v]) => [
+                  id.toLowerCase(),
+                  v,
+                ]),
+              ),
+            }
+          : {}),
         ...(dados.motivo === undefined
           ? {}
           : {
@@ -411,6 +463,27 @@ export async function operarFichaPlantaoNativa(
           visibilidade,
         };
       };
+      const respostasAbertas = [];
+      for (const item of f.respostas) {
+        const linhaResposta = await idLinhaFichaPlantao(
+          `${TABELA_RESPOSTA}:${item.campo_id.toLowerCase()}`,
+          f.registro_id,
+          f.versao,
+        );
+        respostasAbertas.push({
+          campo_id: item.campo_id,
+          campo_nome: item.campo_nome,
+          campo_ativo: item.campo_ativo,
+          texto: await portas.cifra.decifrar(item.conteudo, {
+            tabela: TABELA_RESPOSTA,
+            registro_id: linhaResposta,
+            campo: 'conteudo',
+            formato: 1,
+          }),
+          fonte: item.fonte,
+          visibilidade: item.visibilidade,
+        });
+      }
       ficha = {
         registro_id: f.registro_id,
         turno_id: f.turno_id,
@@ -429,6 +502,7 @@ export async function operarFichaPlantaoNativa(
           f.observacoes_fonte,
           f.observacoes_visibilidade,
         ),
+        respostas: respostasAbertas,
         autor_usuario_id: f.autor_usuario_id,
         registrado_em: f.registrado_em,
         retroativo: f.retroativo,

@@ -9,6 +9,7 @@ import type {
   FonteInformacao,
   PeriodoPlantao,
   RespostaPlantao,
+  SnapshotModeloFicha,
 } from '../packages/contracts/src/ficha-plantao.ts';
 import type {
   FichaPlantaoProjetada,
@@ -111,6 +112,12 @@ type Controles = {
   visibilidade?: HTMLSelectElement;
 };
 
+/** Limites do contrato, aplicados no próprio controle: a tela não pode aceitar — nem
+ * oferecer — valor que ela mesma vai recusar depois, porque a recusa chegaria à pessoa como
+ * um "serviço indisponível" enganoso em vez de um erro legível. */
+const LIMITE_TEXTO = 4000;
+const LIMITE_ROTULO = 80;
+
 export function montarFichaPlantao(
   raiz: HTMLElement,
   servicos: ServicosFichaPlantao,
@@ -131,6 +138,10 @@ export function montarFichaPlantao(
   const controles: Controles[] = [];
   /** Leitura única do DOM, usada pelo rascunho e pela publicação. */
   let coletar: () => ConteudoFichaPlantao = () => ({});
+  /** Retrato id->versão do modelo que esta tela está mostrando. Vai junto da publicação e o
+   * banco o revalida sob lock: se o Administrador mexeu no modelo enquanto a ficha era
+   * preenchida, a publicação é recusada com conflito em vez de gravar contra outro modelo. */
+  let retratoModelo: SnapshotModeloFicha = {};
   const secao = el('section');
   secao.className = 'turno-execucao';
   const status = estadoTurno('Carregando a ficha do plantão…');
@@ -201,6 +212,7 @@ export function montarFichaPlantao(
         ajuda: 'Registre o que foi observado ou feito. Nada aqui é interpretado pelo sistema.',
       },
     );
+    texto.maxLength = LIMITE_TEXTO;
     if (!longo && texto instanceof HTMLInputElement) texto.inputMode = 'text';
     const fonte = selecaoTurno(
       grupo,
@@ -220,6 +232,9 @@ export function montarFichaPlantao(
 
   function montarFormulario(modelo: CampoExtraCatalogoGeneralizado[], papeis: PapelDeclarado[]) {
     controles.length = 0;
+    retratoModelo = Object.fromEntries(
+      modelo.map((campo) => [campo.campo_id.toLowerCase(), campo.versao]),
+    );
     corpo.replaceChildren();
     const turno = opcoes.turno;
     if (!turno) return semTurno();
@@ -240,10 +255,18 @@ export function montarFichaPlantao(
       (publicada?.periodo ?? undefined) as PeriodoPlantao | undefined,
     );
     periodo.required = false;
+    // O catálogo e a ficha já estão alinhados no mesmo limite; o filtro aqui é a garantia de
+    // que um rótulo longo herdado nunca seja oferecido só para ser recusado na publicação.
+    const papeisOferecidos = papeis.filter(
+      (item) => item.ativo && item.nome.trim().length <= LIMITE_ROTULO,
+    );
+    const papeisLongos = papeis.filter(
+      (item) => item.ativo && item.nome.trim().length > LIMITE_ROTULO,
+    );
     const papel = selecaoTurno(
       identificacao,
       'Seu papel neste plantão',
-      papeis.filter((item) => item.ativo).map((item) => ({ valor: item.nome, rotulo: item.nome })),
+      papeisOferecidos.map((item) => ({ valor: item.nome, rotulo: item.nome })),
       publicada?.papel_declarado ?? undefined,
     );
     papel.required = false;
@@ -256,6 +279,13 @@ export function montarFichaPlantao(
     if (!papeis.some((item) => item.ativo))
       identificacao.append(
         el('p', 'Nenhum papel no catálogo. O Administrador precisa cadastrá-los primeiro.'),
+      );
+    if (papeisLongos.length)
+      identificacao.append(
+        el(
+          'p',
+          `${papeisLongos.length} papel(éis) do catálogo passam de ${LIMITE_ROTULO} caracteres e não cabem no registro da ficha. O Administrador precisa encurtá-los para que apareçam aqui.`,
+        ),
       );
     form.append(identificacao);
 
@@ -323,6 +353,7 @@ export function montarFichaPlantao(
             'Use um termo do catálogo administrado. Observação declarada, sem nota e sem escala.',
         });
         texto.required = campo.obrigatorio;
+        texto.maxLength = LIMITE_ROTULO;
         form.append(grupo);
         controles.push({ campo, chave, texto });
         continue;
@@ -341,18 +372,18 @@ export function montarFichaPlantao(
         controles.push(resposta(form, campo, chave, valor, true));
         continue;
       }
-      // Campo acrescentado pelo Administrador: o modelo já o conhece, mas o registro do
-      // plantão ainda não tem onde guardar a resposta. Apresentar um campo que não grava
-      // seria sucesso falso; apresentar o limite é honesto.
-      const grupo = el('fieldset');
-      grupo.append(
-        el('legend', campo.nome),
-        el(
-          'p',
-          'Campo acrescentado ao modelo. Ainda não é possível responder por aqui: o registro do plantão não tem onde guardar respostas de campos acrescentados.',
+      // Campo acrescentado pelo Administrador: a resposta tem lugar próprio, cifrada e com
+      // fonte e visibilidade próprias, amarrada à versão desta ficha e à versão do campo no
+      // modelo que está na tela.
+      controles.push(
+        resposta(
+          form,
+          campo,
+          null,
+          publicada?.respostas.find((item) => item.campo_id === campo.campo_id) ?? null,
+          campo.tipo === 'texto_longo',
         ),
       );
-      form.append(grupo);
     }
 
     const desativados = modelo.filter((campo) => !campo.ativo);
@@ -365,7 +396,21 @@ export function montarFichaPlantao(
           'Não são oferecidos em ficha nova. As respostas já gravadas continuam legíveis nas fichas antigas.',
         ),
       );
-      for (const campo of desativados) grupo.append(el('p', campo.nome));
+      for (const campo of desativados) {
+        grupo.append(el('p', campo.nome));
+        const antiga = publicada?.respostas.find((item) => item.campo_id === campo.campo_id);
+        if (antiga) {
+          grupo.append(el('p', antiga.texto));
+          grupo.append(el('p', rotuloVisibilidade(antiga.visibilidade)));
+        }
+      }
+      // Resposta de campo que saiu do modelo continua legível mesmo quando o catálogo já
+      // não devolve a definição: ela não depende do estado corrente do modelo.
+      for (const antiga of publicada?.respostas ?? [])
+        if (!antiga.campo_ativo && !desativados.some((campo) => campo.campo_id === antiga.campo_id))
+          grupo.append(
+            el('p', `${antiga.campo_nome ?? 'Campo removido do modelo'}: ${antiga.texto}`),
+          );
       form.append(grupo);
     }
 
@@ -450,6 +495,7 @@ export function montarFichaPlantao(
         };
       }
       const escritas: NonNullable<ConteudoFichaPlantao['pendencias']> = [];
+      const acrescentadas: NonNullable<ConteudoFichaPlantao['respostas']> = [];
       for (const controle of controles) {
         const texto = controle.texto?.value.trim() ?? '';
         if (controle.campo.obrigatorio && controle.texto && !texto)
@@ -472,8 +518,11 @@ export function montarFichaPlantao(
         else if (controle.chave === 'observacoes') conteudo.observacoes = detalhe;
         else if (controle.chave === 'pendencias')
           escritas.push({ pendencia_id: crypto.randomUUID(), conteudo: detalhe });
+        else if (controle.chave === null)
+          acrescentadas.push({ campo_id: controle.campo.campo_id, ...detalhe });
       }
       if (escritas.length) conteudo.pendencias = escritas;
+      if (acrescentadas.length) conteudo.respostas = acrescentadas;
       return conteudo;
     };
     status.textContent = publicada
@@ -497,6 +546,16 @@ export function montarFichaPlantao(
       }
       if (controle.chave === 'estado_emocional' && conteudo.estado_emocional)
         controle.texto.value = conteudo.estado_emocional.estado;
+      if (controle.chave === null) {
+        const guardada = conteudo.respostas?.find(
+          (item) => item.campo_id === controle.campo.campo_id,
+        );
+        if (guardada) {
+          controle.texto.value = guardada.texto;
+          if (controle.fonte) controle.fonte.value = guardada.fonte;
+          if (controle.visibilidade) controle.visibilidade.value = guardada.visibilidade;
+        }
+      }
       if (controle.chave === 'pendencias' && conteudo.pendencias?.length) {
         const primeira = conteudo.pendencias[0];
         if (primeira) {
@@ -609,6 +668,16 @@ export function montarFichaPlantao(
         return;
       }
     }
+    const retrato: SnapshotModeloFicha = {};
+    for (const { campo_id } of conteudo.respostas ?? []) {
+      const versaoCampo = retratoModelo[campo_id.toLowerCase()];
+      if (versaoCampo === undefined) {
+        status.textContent =
+          'O modelo da ficha mudou desde que esta tela carregou. Recarregue a ficha antes de publicar; nada foi alterado.';
+        return;
+      }
+      retrato[campo_id.toLowerCase()] = versaoCampo;
+    }
     const versaoEsperada = publicada?.versao ?? 0;
     const texto = (motivo ?? '').trim();
     if (versaoEsperada > 0 && !texto && !repetindo) {
@@ -631,6 +700,7 @@ export function montarFichaPlantao(
           registro_id: opcoes.turno.turno_id,
           versao_esperada: versaoEsperada,
           conteudo,
+          ...(conteudo.respostas?.length ? { campos_extras_catalogo: retrato } : {}),
           ...(versaoEsperada > 0 ? { motivo: texto } : {}),
         },
         pendente.chave,
@@ -647,6 +717,15 @@ export function montarFichaPlantao(
     } catch (erro) {
       if (!resultadoIncerto(erro)) tentativa = null;
       falha(erro);
+      // A submissão é atômica: ou toda a ficha grava, ou nada grava. Quando o servidor
+      // recusa, dizer o que provavelmente causou a recusa vale mais do que repetir o
+      // código — e o texto não afirma o que a tela não tem como conferir sozinha.
+      if (ativa && erro instanceof FalhaApi) {
+        if (erro.codigo === 'conflito_versao')
+          status.textContent = `${status.textContent} O modelo da ficha ou a versão publicada mudou desde que esta tela carregou. Recarregue a ficha: nada foi gravado.`;
+        else if (erro.codigo === 'entrada_invalida')
+          status.textContent = `${status.textContent} Nada foi gravado. Confira o estado emocional — ele precisa ser um termo do catálogo administrado — e os campos obrigatórios do modelo.`;
+      }
     } finally {
       ocupada = false;
       if (ativa) estadoTentativa();

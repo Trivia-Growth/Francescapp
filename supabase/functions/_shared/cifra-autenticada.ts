@@ -590,12 +590,14 @@ function aadCanonico(aad: AadCifra): Uint8Array {
     [
       'cadastro.turno_plantao_versao',
       'cadastro.turno_plantao_pendencia_versao',
+      'cadastro.turno_plantao_resposta_versao',
       'cadastro.ficha_plantao_rascunho',
     ].includes(aad.tabela)
   ) {
     const camposPlantao: Record<string, readonly string[]> = {
       'cadastro.turno_plantao_versao': ['atividades', 'observacoes', 'motivo'],
       'cadastro.turno_plantao_pendencia_versao': ['conteudo', 'motivo'],
+      'cadastro.turno_plantao_resposta_versao': ['conteudo'],
       'cadastro.ficha_plantao_rascunho': ['conteudo'],
     };
     if (

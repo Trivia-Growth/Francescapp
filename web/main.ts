@@ -21,11 +21,13 @@ import { montarAdministracaoPlano } from './campo-extra-plano-administracao.js';
 import { montarPlanoCuidado } from './plano-cuidado.js';
 import { criarServicoPlanoHttp } from './servico-plano-http.js';
 import {
+  criarServicoEstadoEmocionalHttp,
   criarServicoModeloFormularioHttp,
   criarServicoPapelDeclaradoHttp,
 } from './servico-catalogo-administrado-http.js';
 import { montarModeloFichaPlantao } from './modelo-ficha-plantao-administracao.js';
 import { montarPapelDeclaradoAdministracao } from './papel-declarado-administracao.js';
+import { montarEstadoEmocionalAdministracao } from './estado-emocional-administracao.js';
 import { criarServicoEdicaoPacienteHttp } from './servico-edicao-paciente-http.js';
 import { montarTarefasCuidado } from './tarefas-cuidado.js';
 import { criarServicoTarefasHttp } from './servico-tarefas-http.js';
@@ -61,6 +63,7 @@ import { criarServicoSubstituicaoCmHttp } from './servico-substituicao-cm-http.j
 import { montarFinanceiro } from './financeiro.js';
 import { criarServicoFinanceiroHttp } from './servico-financeiro-http.js';
 import { criarAudienciaFinanceira } from './financeiro-audiencia.js';
+import { montarFinanceiroConcessaoAdministracao } from './financeiro-concessao-administracao.js';
 import { montarDiario } from './diario.js';
 import { montarTurnoComExecucao } from './turno-execucao-integracao.js';
 import { montarExecucaoTurno } from './turno-execucao.js';
@@ -1170,6 +1173,9 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
           criarServicoPendenciasHttp(identidadeAtual),
           acessoPerdido,
           catalogoResponsaveis,
+          // Decisão 0.5: a pendência escrita no plantão aparece na carteira ao lado das
+          // quatro derivadas, com origem visível. Não gera aviso no sino.
+          () => criarServicoFichaPlantaoHttp(identidadeAtual).listarPendencias(paciente.id),
         ),
     },
     {
@@ -1752,6 +1758,19 @@ const areasAdministracao: AreaAdministracao[] = [
       ),
   },
   {
+    // FR-076/FR-081. Vocabulário de observação, sem nota nem escala; nenhuma decisão de
+    // acesso passa por aqui. Esconder a área não é autorizar: servidor e banco decidem.
+    id: 'estado-emocional',
+    rotulo: 'Estado emocional observado',
+    disponivel: (atual) => atual.usuario.perfil === 'administrador',
+    montar: (raiz) =>
+      montarEstadoEmocionalAdministracao(
+        raiz,
+        criarServicoEstadoEmocionalHttp(identidadeAtual),
+        acessoPerdido,
+      ),
+  },
+  {
     id: 'acessos',
     rotulo: 'Acessos',
     disponivel: (atual) =>
@@ -1797,6 +1816,19 @@ const areasAdministracao: AreaAdministracao[] = [
       atual.capacidades.includes('administrar_concessoes'),
     montar: (raiz) =>
       montarHabilitacaoPlanoCrise(raiz, criarServicoHabilitacaoPlanoCriseHttp(identidadeAtual)),
+  },
+  {
+    // FR-068. Conceder a audiência financeira é ato de Administrador, e não decorre de
+    // vínculo com caso (design D1). Esconder a área não é autorizar: `api.listar_
+    // concessao_financeira` e `api.gravar_concessao_financeira` exigem Administrador no
+    // banco, e a autoconcessão é recusada lá, não aqui.
+    id: 'financeiro-concessao',
+    rotulo: 'Quem vê o financeiro',
+    disponivel: (atual) =>
+      atual.usuario.perfil === 'administrador' &&
+      atual.capacidades.includes('administrar_concessoes'),
+    montar: (raiz) =>
+      montarFinanceiroConcessaoAdministracao(raiz, criarServicoFinanceiroHttp(identidadeAtual)),
   },
   {
     id: 'financeiro',

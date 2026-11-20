@@ -7,6 +7,7 @@ export const config = {
   path: [
     '/api/financeiro/disponibilidade',
     '/api/financeiro/audiencia',
+    '/api/financeiro/concessoes',
     '/api/financeiro/valores-acordados',
     '/api/financeiro/profissionais/:profissional_usuario_id/valores-acordados',
     '/api/financeiro/despesas',

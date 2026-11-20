@@ -24,7 +24,7 @@ acrescentam função e sim prova.
 Nenhuma tarefa dos grupos 1 a 7 começa antes de 0.1. As pendências P1 a P5 **bloqueiam** a
 tarefa indicada; não são supostas pelo executor.
 
-- [ ] 0.1 Conferir que `identidade.configuracao_sistema`, a operação
+- [x] 0.1 Conferir que `identidade.configuracao_sistema`, a operação
   `api.configuracao_sistema_privado`, o leitor `identidade.ler_configuracao_sistema_publica`
   e o catálogo `cadastro.turno_catalogo_medida` existem no esquema local com o comportamento
   descrito no `design.md`. **Evidência:** consulta de esquema local registrada; divergência
@@ -52,7 +52,7 @@ tarefa indicada; não são supostas pelo executor.
 
 Depende de 0.1.
 
-- [ ] 1.1 Estender `packages/contracts/src/configuracao-sistema.ts` com `minimo` e `maximo`
+- [x] 1.1 Estender `packages/contracts/src/configuracao-sistema.ts` com `minimo` e `maximo`
   anuláveis em `configuracaoSistemaSchema`, mantendo `.strict()` e sem alterar o significado
   das chaves existentes. `gravarConfiguracaoSistemaSchema` **não** recebe os dois campos: a
   faixa não é editável pela tela. **Evidência:** teste novo executado uma vez, cobrindo
@@ -67,7 +67,7 @@ Depende de 0.1.
 
 Depende de 0.1. É o grupo de maior valor por menor risco; não depende do grupo 3.
 
-- [ ] 2.1 Migration corrigindo a `exposicao` de `ffcm.financeiro.ativo` e
+- [x] 2.1 Migration corrigindo a `exposicao` de `ffcm.financeiro.ativo` e
   `ffcm.avisos.ativos` de `administracao` para `servidor`
   (`20261127300000_configuracao_financeiro_avisos.sql:16-23`), para que
   `identidade.ler_configuracao_sistema_publica` as enxergue
@@ -75,19 +75,19 @@ Depende de 0.1. É o grupo de maior valor por menor risco; não depende do grupo
   local mostrando que o leitor do servidor devolve as duas chaves depois da migration e não
   devolvia antes; e que alterar o valor pela operação administrativa muda o que
   `servicoAtivo` lê (FR-086, cenário "Interruptor alterado na tela tem efeito observável").
-- [ ] 2.2 Migration semeando `ffcm.papel_declarado.ativo` e `ffcm.substituicao_cm.ativo` com
+- [x] 2.2 Migration semeando `ffcm.papel_declarado.ativo` e `ffcm.substituicao_cm.ativo` com
   `exposicao='servidor'` e valor `false`, no padrão de `20261127300000`
   (`on conflict (chave) do nothing`). Valor semeado desligado porque as duas fatias seguem a
   regra já registrada: ligar só após provas e revisão independentes. **Evidência:** prova SQL
   local; e teste confirmando que `netlify/functions/papel-declarado.ts:25` e
   `substituicao-case-manager.ts:38` passam a enxergar a chave (FR-086, cenário "Fatia com
   leitor e sem chave passa a ser administrável").
-- [ ] 2.3 Teste de integridade do catálogo que **falhe** quando existir chave semeada sem
+- [x] 2.3 Teste de integridade do catálogo que **falhe** quando existir chave semeada sem
   leitor, leitor sem chave semeada, ou chave cuja `exposicao` o seu leitor não alcança.
   Este é o teste que detecta a classe inteira de defeito, não cada caso. **Evidência:** o
   teste roda contra o esquema local e aponta nominalmente as divergências; executado uma vez
   (FR-086, cenário "Chave cuja exposição o leitor não alcança é tratada como defeito").
-- [ ] 2.4 **BLOQUEADA — P2 (0.3).** Resolver `ffcm.equipe.vinculos_ativa`: migrar o leitor
+- [x] 2.4 **BLOQUEADA — P2 (0.3).** Resolver `ffcm.equipe.vinculos_ativa`: migrar o leitor
   em `netlify/functions/vinculos-profissionais.ts:35` ou remover a chave. **Evidência:** 2.3
   deixa de apontar essa chave.
 
@@ -96,7 +96,7 @@ Depende de 0.1. É o grupo de maior valor por menor risco; não depende do grupo
 Depende de 1.1. Nenhum limite de tamanho de arquivo entra antes deste grupo estar provado
 (S5).
 
-- [ ] 3.1 Migration aditiva acrescentando `minimo` e `maximo` a
+- [x] 3.1 Migration aditiva acrescentando `minimo` e `maximo` a
   `identidade.configuracao_sistema`, com CHECK recusando `valor` fora da faixa quando
   `tipo='numero'`, **sem** incluir as colunas no grant de coluna do owner administrativo —
   mesmo desenho de `opcoes` em `20261119110000_configuracao_sistema_opcoes.sql:9-12,31-40`.
@@ -113,12 +113,12 @@ Depende de 1.1. Nenhum limite de tamanho de arquivo entra antes deste grupo esta
   (`20261125130000_turno_consulta_atual.sql:132`), e que turnos já abertos mantêm os
   parâmetros congelados em `cadastro.turno.parametros` (FR-085, cenário "Registro antigo
   permanece julgado pela regra da sua época").
-- [ ] 3.3 Conferir, para toda chave numérica do catálogo, que o `maximo` semeado não excede
+- [x] 3.3 Conferir, para toda chave numérica do catálogo, que o `maximo` semeado não excede
   o teto definido em código — começando por `ffcm.transcricao.duracao_maxima_segundos`
   contra `AUDIO_SEGUNDOS_MAXIMO` (`packages/contracts/src/transcricao.ts:31`).
   **Evidência:** teste que falha se alguma faixa admitir valor mais permissivo que o teto do
   código (FR-085, cenário "Configuração não ultrapassa o teto do código"). Implementa S2.
-- [ ] 3.4 Fazer `numeroConfigurado`
+- [x] 3.4 Fazer `numeroConfigurado`
   (`netlify/functions/_shared/configuracao-servidor.ts:149-166`) usar a faixa que agora vem
   do banco, mantendo o comportamento de falha-fechada: leitura que falha continua caindo no
   padrão, nunca em "sem limite". **Evidência:** `configuracao-servidor-falha.test.ts`
@@ -151,7 +151,7 @@ Depende de 0.1. 4.1 depende de 0.5.
 
 Depende de 1.2.
 
-- [ ] 5.1 Rota e tela de administração do catálogo de medidas do turno, reusando
+- [x] 5.1 Rota e tela de administração do catálogo de medidas do turno, reusando
   `web/servico-catalogo-administrado-http.ts`, que já serve o modelo da ficha e o catálogo
   de papéis. A tela oferece **somente** `ativo` e `referencia_informativa` — o que
   `api.configurar_catalogo_turno` admite —, sem campo para o que ela não admite.
@@ -172,7 +172,7 @@ Depende de 1.2.
   passar a lê-las. **Evidência:** alterar o texto pela tela muda o apresentado, sem deploy
   (FR-084, cenário 1). **Não** inclui os textos de `web/pacote-exportacao.ts` nem de
   `_shared/turno-execucao-caso-pdf.ts`, que ficam fixos por S3.
-- [ ] 5.5 Teste que falhe se alguma das ressalvas obrigatórias deixar de ser constante de
+- [x] 5.5 Teste que falhe se alguma das ressalvas obrigatórias deixar de ser constante de
   código: avisos de FR-020 (`web/plano-crise.ts:22,24`), ressalvas de "sem interpretação
   clínica automática" (`web/turno-execucao-editor.ts:105,123,389`,
   `_shared/turno-execucao-pdf.ts:53`), avisos de audiência (`web/diario.ts:338,345`) e texto
@@ -217,3 +217,77 @@ Depende dos grupos 2 a 5. Não acrescentam função; acrescentam prova.
 - [ ] 7.3 Registrar no `proposal.md` as pendências que permanecerem abertas e as limitações
   conhecidas. Não declarar conclusão por checkbox: conferir os critérios de aceite de cada
   requisito e registrar resultados, achados e limitações.
+
+
+## Registro de execução — 20/11/2026
+
+Executado nesta passagem (grupos 1 a 3 e parte do 5). O que não foi feito está abaixo, com
+o motivo; nenhuma tarefa é dada por concluída por checkbox.
+
+**Concluídas.** 0.1, 1.1, 2.1 (já estava, por `20261127320000`), 2.2, 2.3, 2.4, 3.1, 3.3,
+3.4, 5.1 (já estava — ver achado abaixo) e 5.5.
+
+**Decisões da coordenação aplicadas.** P1 respondida com faixa 0–120 (tolerância) e
+60–1440 (duração padrão), marcadas na migration como **SUPOSIÇÃO CONSERVADORA DA
+COORDENAÇÃO**, não decisão do cliente: trocar a faixa é uma linha. P2 respondida migrando o
+leitor de `vinculos-profissionais.ts`. P5 mantida (parâmetros globais).
+
+**3.2 — parcialmente feita, e o resto não deve ser feito assim.** A faixa das duas chaves de
+turno foi semeada e é recusada pelo banco. A troca de `tipo` de `texto` para `numero` NÃO foi
+feita: `''` é a sentinela de "ainda não configurado — abertura de turno indisponível"
+(`20261125080000:22-24`), e `jsonb` numérico não tem equivalente. Trocar o tipo obrigaria a
+semear um número concreto, o que LIGARIA a abertura de turno com um valor suposto. A faixa
+foi desenhada para valer também sobre `tipo='texto'`, preservando a sentinela, e o defeito
+("a tela aceita 999999999") está corrigido sem essa troca.
+
+**Abertas, com motivo.**
+
+- 4.1 — segue bloqueada por P4 para os vocabulários sem demanda escrita. A coordenação
+  confirmou necessidade real apenas para **campo de formulário**, que M2 já atende.
+- 4.2, 4.3 — não executadas nesta passagem (escopo; prioridade da coordenação era 1 a 3).
+- 5.2 — a matriz negativa de acesso ao catálogo do turno depende do grupo de provas de
+  autorização do turno, não executada aqui.
+- 5.3 — **não executada de propósito.** Trocar o `<input type="text">` por `<textarea>` em
+  `web/configuracao-sistema.ts` quebra `web/configuracao-sistema.test.ts`, que consulta
+  `raiz.querySelector('input')` para uma chave `tipo='texto'`. Alterar teste existente para
+  fazer passar não é permitido nesta passagem; a troca precisa vir junto da revisão desse
+  teste, em uma passagem que possa tocá-lo.
+- 5.4 — segue bloqueada por P3 (S3) para texto dentro de pacote emitido. Os textos de marca
+  não foram semeados nesta passagem.
+- 6.1 a 6.5 — não executadas; dependem dos grupos 4 e 5.
+- 7.1 a 7.3 — ativação, revisão independente e fechamento pela coordenação.
+
+**Achados que corrigem a proposta.**
+
+1. São **quatro** chaves com leitor e sem semente, não duas: `ffcm.papel_declarado.ativo`,
+   `ffcm.substituicao_cm.ativo` e, novas, `ffcm.ficha_plantao.ativo`
+   (`netlify/functions/ficha-plantao.ts:33`). Semeadas em `20261128110000`.
+2. `ffcm.documentos.categorias` nasceu `exposicao='publica'`
+   (`20261120110000:131,136`) e é lida pelo leitor do SERVIDOR
+   (`netlify/functions/documentos.ts:34`): a lista editada na tela nunca chegava, e
+   `web/documentos-caso.ts:131-133` informava "Nenhuma categoria de anexo está configurada"
+   para sempre. Pior, `api.consultar_regras_atendimento` devolve TODAS as chaves `'publica'`
+   (`20261119320000:122`) e `regraAtendimentoSchema` exige texto
+   (`packages/contracts/src/regras-atendimento.ts:13`): uma chave `lista` com exposição
+   pública derruba a tela inteira de Regras (FR-041). Corrigido em `20261128120000`, com
+   CHECK impedindo a recorrência.
+3. **FR-083 já está entregue para o catálogo de medidas do turno.** A proposta diz que
+   `api.configurar_catalogo_turno` "não tem rota nem tela". Tem: rota
+   `packages/contracts/src/turno-execucao-http.ts:364`, servidor
+   `netlify/functions/_shared/turno-execucao-nativo.ts:337`, serviço
+   `web/servico-turno-execucao-http.ts:248` e formulário com `ativo` e
+   `referencia_informativa` em `web/turno-execucao-gestao.ts:355-385`, montado por
+   `web/turno-execucao.ts:252`. Construir uma segunda tela seria duplicação.
+4. A operação administrativa **já recusava texto vazio** antes desta fatia
+   (`20261119110000`: `length(e->>'valor') between 1 and 600`), embora
+   `valorConfiguracaoSchema` e `web/configuracao-sistema.ts` tratem vazio como valor
+   legítimo. Divergência pré-existente, registrada em `supabase/tests/configuracao_faixa_local.sql`.
+5. `FFCM_CONVITE_FAMILIAR_ATIVO` e `FFCM_CANCELAR_PREAUTORIZACAO_ATIVO` **não** foram
+   migrados para o banco, de propósito: as rotas que os leem têm `integracaoComprovada =
+   false` fixo no código (`convites-familiares.ts:22`, `consulta-convite-familiar.ts:23`,
+   `cancelar-convite-familiar.ts:23`, `preautorizacoes-familiares.ts:15` e
+   `supabase/functions/preautorizacoes-familiares/index.ts:23`), então nenhum valor da chave
+   pode ligar a rota — criar a chave fabricaria exatamente o interruptor que mente que esta
+   fatia remove. Além disso, `FFCM_CONVITE_FAMILIAR_ATIVO` também é lida por
+   `netlify/functions/auth.ts:49`, que por decisão de 13/11/2026 não pode ler configuração
+   do banco. A migração correta acontece junto com a retirada do gate fixo.

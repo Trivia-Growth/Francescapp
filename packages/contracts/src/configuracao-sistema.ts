@@ -50,6 +50,15 @@ export const configuracaoSistemaSchema = z
     // Valores aceitos quando a chave é escolhida numa lista (migration `20261119110000`).
     // Vem do catálogo, não da tela: a tela escolhe entre eles. `null` = campo livre.
     opcoes: z.array(z.string().trim().min(1).max(200)).min(1).max(50).nullable(),
+    // Faixa aceita de uma chave numérica (migration `20261128100000`). Vem do catálogo, não
+    // da tela: `gravarConfiguracaoSistemaSchema` é `.strict()` e NÃO os aceita, de propósito
+    // — a tela não altera a própria faixa (FR-085). `null` = sem limite declarado.
+    //
+    // Opcionais, e não obrigatórios, porque a listagem de um banco ainda sem esta migration
+    // não traz os campos: exigi-los derrubaria a tela inteira por `.strict()`, que é o
+    // defeito já registrado em `valorConfiguracaoSchema` (13/11/2026).
+    minimo: z.number().int().min(-999999999999999).max(999999999999999).nullish(),
+    maximo: z.number().int().min(-999999999999999).max(999999999999999).nullish(),
     atualizado_por_usuario_id: uuidSchema.nullable(),
     atualizado_em: z.iso.datetime({ offset: true }),
   })

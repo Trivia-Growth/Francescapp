@@ -50,6 +50,29 @@ export const respostaPlantaoSchema = z
   .strict();
 export type RespostaPlantao = z.infer<typeof respostaPlantaoSchema>;
 
+/** FR-078/FR-081 (achado A4). Resposta de um campo ACRESCENTADO pelo Administrador ao
+ * modelo da ficha. Carrega `fonte` e `visibilidade` próprios, como `atividades` e
+ * `observacoes` já carregam: a segregação de FR-081 é por resposta, não por formulário.
+ * `campo_id` identifica o campo no catálogo administrado de escopo `ficha_plantao`. */
+export const respostaCampoPlantaoSchema = z
+  .object({
+    campo_id: uuidSchema,
+    texto,
+    fonte: fonteInformacaoSchema,
+    visibilidade: visibilidadeRespostaSchema,
+  })
+  .strict();
+export type RespostaCampoPlantao = z.infer<typeof respostaCampoPlantaoSchema>;
+
+/** Retrato id->versão do modelo que o cliente tinha na tela. O banco o revalida sob
+ * `for share` e recusa com `conflito` quando o modelo mudou — nunca ajusta em silêncio.
+ * É o mesmo mecanismo já provado no catálogo de campos extras do Plano de cuidado. */
+export const snapshotModeloFichaSchema = z.record(
+  uuidSchema,
+  z.number().int().min(1).max(2147483647),
+);
+export type SnapshotModeloFicha = z.infer<typeof snapshotModeloFichaSchema>;
+
 /** FR-076. Observação declarada, não medida clínica: há rótulo de estado, instante e autor,
  * e NÃO há valor, nota, escala ou classificação. O conjunto de estados é administrado no
  * banco; aqui o termo é apenas texto curto conferido contra o catálogo pelo servidor. */
@@ -101,9 +124,16 @@ export const conteudoFichaPlantaoSchema = z
     atividades: respostaPlantaoSchema.optional(),
     observacoes: respostaPlantaoSchema.optional(),
     estado_emocional: estadoEmocionalObservadoSchema.optional(),
+    respostas: z.array(respostaCampoPlantaoSchema).max(50).optional(),
     pendencias: z.array(pendenciaEscritaSchema).max(20).optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    ({ respostas }) =>
+      respostas === undefined ||
+      new Set(respostas.map(({ campo_id }) => campo_id.toLowerCase())).size === respostas.length,
+    { message: 'Há mais de uma resposta para o mesmo campo do modelo.' },
+  );
 export type ConteudoFichaPlantao = z.infer<typeof conteudoFichaPlantaoSchema>;
 
 /** Submissão única (FR-073). As gravações canônicas — refeição, hidratação, administração
@@ -117,9 +147,19 @@ export const submissaoFichaPlantaoSchema = z
     registro_id: uuidSchema,
     versao_esperada: z.number().int().min(0).max(2147483646),
     conteudo: conteudoFichaPlantaoSchema,
+    /** Obrigatório sempre que houver resposta de campo acrescentado: é contra ele que o
+     * banco revalida o modelo sob lock, e sem ele a gravação da resposta é recusada. */
+    campos_extras_catalogo: snapshotModeloFichaSchema.optional(),
     motivo: texto.optional(),
   })
   .strict()
+  .refine(
+    ({ conteudo, campos_extras_catalogo: snapshot }) =>
+      (conteudo.respostas ?? []).every(
+        ({ campo_id }) => snapshot?.[campo_id.toLowerCase()] !== undefined,
+      ),
+    { message: 'Toda resposta de campo acrescentado exige o retrato do modelo.' },
+  )
   .refine(({ versao_esperada, motivo }) => versao_esperada === 0 || !!motivo, {
     message: 'A correção de ficha publicada exige motivo.',
   })
@@ -149,6 +189,28 @@ const registroPlantaoSchema = z
     observacoes: campoCifradoSchema.nullable(),
     observacoes_fonte: fonteInformacaoSchema.nullable(),
     observacoes_visibilidade: visibilidadeRespostaSchema.nullable(),
+    /** Respostas da MESMA versão da ficha. `campo_ativo` é o estado corrente do campo no
+     * modelo: resposta de campo desativado continua vindo, legível e marcada como tal.
+     * O `default` é tolerância de leitura, não permissão: a projeção do banco sempre devolve
+     * a lista (com `coalesce` para `[]`), e ficha sem resposta nenhuma é lista vazia — não
+     * ausência de chave. Sem ele, toda projeção gravada antes desta passagem passaria a ser
+     * ilegível, o que é regressão de leitura de registro já publicado. */
+    respostas: z
+      .array(
+        z
+          .object({
+            campo_id: uuidSchema,
+            campo_nome: z.string().trim().min(1).max(120).nullable(),
+            campo_tipo: z.string().trim().min(1).max(40).nullable(),
+            campo_ativo: z.boolean(),
+            campo_versao: z.number().int().min(1).max(2147483647),
+            conteudo: campoCifradoSchema,
+            fonte: fonteInformacaoSchema,
+            visibilidade: visibilidadeRespostaSchema,
+          })
+          .strict(),
+      )
+      .default([]),
     autor_usuario_id: uuidSchema,
     registrado_em: instante,
     retroativo: z.boolean(),

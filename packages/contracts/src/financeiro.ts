@@ -253,6 +253,48 @@ export type DespesaVersao = z.infer<typeof despesaVersaoSchema>;
 export const audienciaFinanceiraSchema = z.object({ permitida: z.boolean() }).strict();
 export type AudienciaFinanceira = z.infer<typeof audienciaFinanceiraSchema>;
 
+// --- FR-068: concessão da audiência financeira (ato de Administrador) ----------------------
+
+/** A marca `habilitado_financeiro` nasce em 0 de versão e só cresce; não é `versaoSchema`.
+ * Mesmo intervalo do CHECK de `identidade.concessao_equipe.habilitacao_financeira_versao`. */
+const versaoConcessaoFinanceiraSchema = z.number().int().min(0).max(2_147_483_647);
+
+/** Uma linha da tela de concessão da audiência financeira.
+ *
+ * Nenhum campo financeiro aparece aqui de propósito: esta superfície CONCEDE audiência, não
+ * exerce nenhuma. Não há valor acordado, despesa, apuração nem total — quem tem a marca lê
+ * conteúdo pelas rotas de `financeiroHttp`, que o banco autoriza de novo a cada chamada.
+ *
+ * `usuario_id` é nulo enquanto a concessão está `pendente`; o e-mail chega decifrado pelo
+ * servidor, nunca pelo navegador (design D1: a cifra do cuidado e a da identidade são
+ * separadas, e a decifragem acontece com o cofre do servidor). */
+export const concessaoFinanceiraSchema = z
+  .object({
+    concessao_id: uuidSchema,
+    usuario_id: uuidSchema.nullable(),
+    email: z.string().min(1).max(254),
+    perfil: z.enum(['profissional', 'administrador']),
+    estado: z.enum(['pendente', 'vinculada', 'revogada']),
+    habilitado: z.boolean(),
+    versao: versaoConcessaoFinanceiraSchema,
+  })
+  .strict();
+export type ConcessaoFinanceira = z.infer<typeof concessaoFinanceiraSchema>;
+
+/** Teto igual ao da RPC (`limit 500` em `api.listar_concessao_financeira`). */
+export const listaConcessaoFinanceiraSchema = z.array(concessaoFinanceiraSchema).max(500);
+
+/** Conceder e revogar são a MESMA operação, com `habilitado` true ou false: revogar não é
+ * caminho secundário, e por isso não tem rota, idempotência nem auditoria próprias. */
+export const gravarConcessaoFinanceiraSchema = z
+  .object({
+    concessao_id: uuidSchema,
+    habilitado: z.boolean(),
+    versao_esperada: versaoConcessaoFinanceiraSchema.max(2_147_483_646),
+  })
+  .strict();
+export type GravarConcessaoFinanceira = z.infer<typeof gravarConcessaoFinanceiraSchema>;
+
 /** Bytes do comprovante em base64, enviados depois que o lançamento já existe: a política do
  * repositório confere o nome do objeto contra a despesa gravada. O limite é o mesmo do balde
  * e do CHECK da tabela, conferido aqui só para recusar o corpo antes de decodificá-lo. */

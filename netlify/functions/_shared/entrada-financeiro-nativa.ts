@@ -74,6 +74,8 @@ const LIMITE_CORPO_COMPROVANTE = Math.ceil(TAMANHO_MAXIMO_COMPROVANTE_BYTES / 3)
 
 type Rota =
   | { tipo: 'audiencia' }
+  | { tipo: 'listarConcessoes' }
+  | { tipo: 'gravarConcessao' }
   | { tipo: 'valores'; profissional_usuario_id: string }
   | { tipo: 'registrarValor' }
   | { tipo: 'despesas'; paciente_id: string }
@@ -86,6 +88,8 @@ type Rota =
  * casar exatamente é `nao_encontrado`, não cai em outra rota. */
 function reconhecer(pathname: string): Rota | null {
   if (pathname === '/api/financeiro/audiencia') return { tipo: 'audiencia' };
+  // Mesmo caminho para ler e gravar; o método decide, e `reconhecer` não enxerga método.
+  if (pathname === '/api/financeiro/concessoes') return { tipo: 'listarConcessoes' };
   if (pathname === '/api/financeiro/valores-acordados') return { tipo: 'registrarValor' };
   if (pathname === '/api/financeiro/despesas') return { tipo: 'registrarDespesa' };
   if (pathname === '/api/financeiro/apuracoes') return { tipo: 'apuracao' };
@@ -111,10 +115,13 @@ export function criarEntradaFinanceiraNativa(dependencias: Dependencias) {
           headers,
         });
       const url = new URL(request.url);
-      const rota = reconhecer(url.pathname);
+      let rota = reconhecer(url.pathname);
       if (!rota) return erro('nao_encontrado');
       const metodo = request.method;
+      // A concessão usa um caminho só: GET lista, POST grava (conceder e revogar).
+      if (rota.tipo === 'listarConcessoes' && metodo === 'POST') rota = { tipo: 'gravarConcessao' };
       const escrita =
+        rota.tipo === 'gravarConcessao' ||
         rota.tipo === 'registrarValor' ||
         rota.tipo === 'registrarDespesa' ||
         rota.tipo === 'retificarDespesa' ||
@@ -140,6 +147,20 @@ export function criarEntradaFinanceiraNativa(dependencias: Dependencias) {
           case 'audiencia': {
             contrato = financeiroHttp.consultarAudiencia;
             comando = { operacao: 'consultarAudiencia' };
+            break;
+          }
+          case 'listarConcessoes': {
+            contrato = financeiroHttp.listarConcessoes;
+            comando = { operacao: 'listarConcessoes' };
+            break;
+          }
+          case 'gravarConcessao': {
+            const corpo = financeiroHttp.gravarConcessao.entrada.safeParse(
+              await lerCorpo(request, LIMITE_CORPO_PADRAO),
+            );
+            if (!corpo.success) return erro('entrada_invalida');
+            contrato = financeiroHttp.gravarConcessao;
+            comando = { operacao: 'gravarConcessao', ...corpo.data };
             break;
           }
           case 'valores': {

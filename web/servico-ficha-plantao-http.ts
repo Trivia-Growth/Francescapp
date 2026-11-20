@@ -1,5 +1,6 @@
 import { fichaPlantaoHttp } from '../packages/contracts/src/ficha-plantao-http.ts';
 import type {
+  PendenciaPlantaoHttp,
   RascunhoFichaPlantaoProjetado,
   ResultadoFichaPlantao,
 } from '../packages/contracts/src/ficha-plantao-http.ts';
@@ -21,6 +22,9 @@ type Nome = keyof typeof fichaPlantaoHttp;
 
 export type ServicoFichaPlantao = {
   consultar(paciente: string, turno: string): Promise<ResultadoFichaPlantao>;
+  /** FR-077 / decisão 0.5: pendências ESCRITAS do caso, de todos os plantões, para a
+   * carteira mostrá-las ao lado das quatro derivadas com a origem visível. */
+  listarPendencias(paciente: string): Promise<PendenciaPlantaoHttp[]>;
   consultarRascunho(paciente: string, turno: string): Promise<RascunhoFichaPlantaoProjetado>;
   salvarRascunho(
     paciente: string,
@@ -54,7 +58,12 @@ export function criarServicoFichaPlantaoHttp(
     chave?: string,
   ) => {
     const rota = fichaPlantaoHttp[nome];
-    const corpo = rota.entrada.parse(entrada);
+    // Recusa do próprio contrato é ENTRADA INVÁLIDA, não serviço fora do ar: deixar o
+    // ZodError cair no `catch` genérico lá embaixo devolvia `servico_indisponivel` para um
+    // dado que o aplicativo deixou digitar, e a pessoa lia uma mensagem enganosa.
+    const lido = rota.entrada.safeParse(entrada);
+    if (!lido.success) throw new FalhaApi('entrada_invalida', statusErroHttp.entrada_invalida);
+    const corpo = lido.data;
     const atual = identidadeAtual();
     if (
       !atual ||
@@ -159,6 +168,12 @@ export function criarServicoFichaPlantaoHttp(
   return {
     consultar: async (paciente, turno) =>
       (await enviar('consultar', {}, { paciente, turno })) as ResultadoFichaPlantao,
+    listarPendencias: async (paciente) =>
+      (
+        (await enviar('listarPendencias', {}, { paciente })) as {
+          pendencias: PendenciaPlantaoHttp[];
+        }
+      ).pendencias,
     consultarRascunho: async (paciente, turno) =>
       (await enviar('consultarRascunho', {}, { paciente, turno })) as RascunhoFichaPlantaoProjetado,
     salvarRascunho: async (paciente, turno, conteudo) =>

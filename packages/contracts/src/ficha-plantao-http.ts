@@ -12,6 +12,21 @@ import {
   visibilidadeRespostaSchema,
 } from './ficha-plantao.ts';
 
+/** FR-078/FR-081. Resposta JÁ DECIFRADA de campo acrescentado pelo Administrador. O nome e
+ * o estado do campo vêm junto porque a resposta precisa ser legível mesmo depois de o campo
+ * ser desativado: a ficha antiga continua mostrando o que foi respondido, e a quem. */
+export const respostaCampoPlantaoProjetadaSchema = z
+  .object({
+    campo_id: uuidSchema,
+    campo_nome: z.string().trim().min(1).max(120).nullable(),
+    campo_ativo: z.boolean(),
+    texto: z.string().min(1).max(4000),
+    fonte: fonteInformacaoSchema,
+    visibilidade: visibilidadeRespostaSchema,
+  })
+  .strict();
+export type RespostaCampoPlantaoProjetada = z.infer<typeof respostaCampoPlantaoProjetadaSchema>;
+
 const vazio = z.object({}).strict();
 const instante = z.iso.datetime({ offset: true });
 
@@ -27,6 +42,7 @@ export const fichaPlantaoProjetadaSchema = z
     papel_declarado: papelDeclaradoSchema.nullable(),
     atividades: respostaPlantaoSchema.nullable(),
     observacoes: respostaPlantaoSchema.nullable(),
+    respostas: z.array(respostaCampoPlantaoProjetadaSchema).max(50),
     autor_usuario_id: uuidSchema,
     registrado_em: instante,
     /** Abertura retroativa declarada (0.7): visível para quem lê o relatório. */
@@ -105,6 +121,16 @@ export const fichaPlantaoHttp = {
     caminho: '/api/pacientes/:paciente_id/turnos/:turno_id/ficha-plantao/rascunho',
     entrada: rascunhoFichaPlantaoSchema,
     saida: rascunhoFichaPlantaoProjetadoSchema,
+  },
+  /** FR-077 / decisão 0.5 de 20/11/2026. Pendências ESCRITAS do caso, de todos os plantões,
+   * para que a carteira as mostre ao lado das quatro derivadas com a origem visível. Reusa a
+   * MESMA projeção autorizada da ficha, sem consulta nova e sem caminho de leitura próprio:
+   * é a rota de consulta com o turno em aberto, não um segundo acesso ao conteúdo. */
+  listarPendencias: {
+    metodo: 'GET',
+    caminho: '/api/pacientes/:paciente_id/ficha-plantao/pendencias',
+    entrada: vazio,
+    saida: z.object({ pendencias: z.array(pendenciaPlantaoHttpSchema).max(200) }).strict(),
   },
   resolverPendencia: {
     metodo: 'POST',

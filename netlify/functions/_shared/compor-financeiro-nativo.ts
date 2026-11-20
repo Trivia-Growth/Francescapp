@@ -3,7 +3,10 @@ import { sessaoNativaSchema } from '../../../packages/contracts/src/identidade.t
 import { TAMANHO_MAXIMO_COMPROVANTE_BYTES } from '../../../packages/contracts/src/financeiro.ts';
 import type { FonteDeConfiguracao } from '../../../supabase/functions/_shared/configuracao.ts';
 import type { ReferenciasCifraCofre } from '../../../supabase/functions/_shared/cofre-vault.ts';
-import { metadadosAadFinanceiroSchema } from '../../../packages/contracts/src/rpc.ts';
+import {
+  metadadosAadConcessaoSchema,
+  metadadosAadFinanceiroSchema,
+} from '../../../packages/contracts/src/rpc.ts';
 import {
   operarFinanceiroNativo,
   type ComandoFinanceiro,
@@ -37,6 +40,7 @@ function cifraFinanceira(cifra: CifraDoCofre): PortasFinanceiras['cifra'] {
 
 const LEITURAS = new Set<ComandoFinanceiro['operacao']>([
   'consultarAudiencia',
+  'listarConcessoes',
   'consultarValores',
   'consultarDespesas',
   'consultarApuracao',
@@ -139,6 +143,22 @@ export async function comporFinanceiroNativo(
           metadadosAtestadoNativo(dependencias.keyIdAtestado, requestId, Date.now()),
         cifra: cifraFinanceira(cofre.cifra),
         idempotencia: criarIdempotenciaNativa(cofre.cifra),
+        // Porta estreita para o e-mail da concessão de equipe: a tela de concessão precisa
+        // identificar a pessoa, e o AAD de `identidade.concessao_equipe` não pertence ao
+        // recorte financeiro (design D1). O AAD é montado AQUI, com `campo: 'email'` fixo, e
+        // validado pelo schema do contrato: a composição não aceita AAD vindo de fora.
+        identidade: {
+          decifrarEmailConcessao: (valor, concessaoId) =>
+            cofre.cifra.decifrar(
+              valor,
+              metadadosAadConcessaoSchema.parse({
+                tabela: 'identidade.concessao_equipe',
+                registro_id: concessaoId,
+                campo: 'email',
+                formato: 1,
+              }),
+            ),
+        },
         atestador: cofre.atestador,
         executar: (wrapper, transporte) => {
           verificarCancelamento();

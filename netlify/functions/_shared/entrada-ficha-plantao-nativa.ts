@@ -63,8 +63,9 @@ async function lerCorpo(request: Request): Promise<unknown> {
 }
 
 /** Entrada interna da ficha de plantão; não registra rota no catálogo público nem concede
- * privilégio nenhum. Quatro superfícies: consultar a ficha do plantão, publicá-la, guardar e
- * recuperar o rascunho do próprio autor, e resolver pendência escrita. */
+ * privilégio nenhum. Cinco superfícies: consultar a ficha do plantão, publicá-la, guardar e
+ * recuperar o rascunho do próprio autor, resolver pendência escrita e listar as pendências
+ * escritas do caso para a carteira — esta última pela MESMA projeção autorizada. */
 export function criarEntradaFichaPlantaoNativa(dependencias: Dependencias) {
   return {
     async atender(request: Request): Promise<Response> {
@@ -79,9 +80,10 @@ export function criarEntradaFichaPlantaoNativa(dependencias: Dependencias) {
         /^\/api\/pacientes\/([^/]+)\/turnos\/([^/]+)\/ficha-plantao(\/rascunho)?$/.exec(
           url.pathname,
         );
-      const porCaso = /^\/api\/pacientes\/([^/]+)\/ficha-plantao(\/pendencias\/resolucao)?$/.exec(
-        url.pathname,
-      );
+      const porCaso =
+        /^\/api\/pacientes\/([^/]+)\/ficha-plantao(\/pendencias\/resolucao|\/pendencias)?$/.exec(
+          url.pathname,
+        );
       const caminho = porTurno ?? porCaso;
       if (!caminho) return erro('nao_encontrado');
       const paciente = uuidSchema.safeParse(caminho[1]);
@@ -97,10 +99,16 @@ export function criarEntradaFichaPlantaoNativa(dependencias: Dependencias) {
           tipo =
             metodo === 'GET' ? 'rascunho_ler' : metodo === 'PUT' ? 'rascunho_salvar' : undefined;
         else tipo = metodo === 'GET' ? 'consultar' : undefined;
-      } else if (metodo === 'POST') tipo = porCaso?.[2] === undefined ? 'submeter' : 'resolver';
+      } else if (metodo === 'GET' && porCaso?.[2] === '/pendencias') tipo = 'pendencias';
+      else if (metodo === 'POST' && porCaso?.[2] !== '/pendencias')
+        tipo = porCaso?.[2] === undefined ? 'submeter' : 'resolver';
       if (!tipo) return erro('nao_encontrado');
-      const saida: 'resultado' | 'rascunho' =
-        tipo === 'rascunho_ler' || tipo === 'rascunho_salvar' ? 'rascunho' : 'resultado';
+      const saida: 'resultado' | 'rascunho' | 'pendencias' =
+        tipo === 'rascunho_ler' || tipo === 'rascunho_salvar'
+          ? 'rascunho'
+          : tipo === 'pendencias'
+            ? 'pendencias'
+            : 'resultado';
       let corpo: unknown;
       if (metodo !== 'GET') {
         if (
@@ -134,7 +142,9 @@ export function criarEntradaFichaPlantaoNativa(dependencias: Dependencias) {
       const comando: Parameters<typeof comporFichaPlantaoNativo>[1] =
         tipo === 'consultar' || tipo === 'rascunho_ler'
           ? { operacao: tipo, paciente_id: paciente.data, turno_id: turnoId ?? '' }
-          : { operacao: tipo, paciente_id: paciente.data, corpo };
+          : tipo === 'pendencias'
+            ? { operacao: tipo, paciente_id: paciente.data }
+            : { operacao: tipo, paciente_id: paciente.data, corpo };
       if (!uuidSchema.safeParse(request.headers.get('x-sessao')).success)
         return erro('nao_autenticado');
       try {
@@ -148,10 +158,14 @@ export function criarEntradaFichaPlantaoNativa(dependencias: Dependencias) {
         const dados =
           saida === 'rascunho'
             ? fichaPlantaoHttp.consultarRascunho.saida.parse(resultado.dados.rascunho)
-            : fichaPlantaoHttp.consultar.saida.parse({
-                ficha: resultado.dados.ficha,
-                pendencias: resultado.dados.pendencias,
-              });
+            : saida === 'pendencias'
+              ? fichaPlantaoHttp.listarPendencias.saida.parse({
+                  pendencias: resultado.dados.pendencias,
+                })
+              : fichaPlantaoHttp.consultar.saida.parse({
+                  ficha: resultado.dados.ficha,
+                  pendencias: resultado.dados.pendencias,
+                });
         return Response.json({ dados, request_id: resultado.request_id }, { headers });
       } catch (erroResposta) {
         return erro(

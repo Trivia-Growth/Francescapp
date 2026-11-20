@@ -7,12 +7,14 @@ import {
   registrarValorAcordadoSchema,
   retificarDespesaSchema,
   consultarApuracaoSchema,
+  gravarConcessaoFinanceiraSchema,
   type DespesaVersao,
 } from '../../../packages/contracts/src/financeiro.ts';
 import {
   campoCifradoSchema,
   dadosAtestadoSchema,
   financeiroApuracaoSaidaSchema,
+  financeiroConcessaoSaidaSchema,
   financeiroDespesaSaidaSchema,
   financeiroValorSaidaSchema,
   respostaFinanceiraPrivadaSchema,
@@ -38,6 +40,8 @@ type Autorizacao =
 
 export type ComandoFinanceiro =
   | { operacao: 'consultarAudiencia' }
+  | { operacao: 'listarConcessoes' }
+  | ({ operacao: 'gravarConcessao' } & z.infer<typeof gravarConcessaoFinanceiraSchema>)
   | { operacao: 'consultarValores'; profissional_usuario_id: string }
   | ({ operacao: 'registrarValor' } & z.infer<typeof registrarValorAcordadoSchema>)
   | { operacao: 'consultarDespesas'; paciente_id: string }
@@ -77,6 +81,17 @@ export type PortasFinanceiras = {
     decifrar(valor: CampoCifrado, aad: AadFinanceiro): Promise<string>;
   };
   idempotencia: { calcularDigestIdempotencia(comandoLogico: string): Promise<string> };
+  /** Decifra o e-mail de uma concessão de equipe, para a tela de concessão da audiência
+   * financeira. Porta separada de propósito: `cifra` só admite AAD das duas tabelas
+   * financeiras (design D1), e `identidade.concessao_equipe` não é uma delas. Só o
+   * `registro_id` atravessa, então esta porta não consegue produzir AAD de outro campo
+   * nem de outra tabela.
+   *
+   * Opcional na forma, obrigatória no uso: sem ela as duas operações de concessão falham
+   * fechado (`servico_indisponivel`) em vez de devolverem e-mail cifrado para a tela. */
+  identidade?: {
+    decifrarEmailConcessao(valor: CampoCifrado, concessaoId: string): Promise<string>;
+  };
   atestador: {
     canonicalizar(valor: unknown): string;
     atestarEntrada(dados: unknown, entrada: Record<string, unknown>): Promise<unknown>;
@@ -102,6 +117,8 @@ const ACOES: Record<ComandoFinanceiro['operacao'], AcaoFinanceira> = {
   // acordado do próprio solicitante e descarta os dados, devolvendo só o booleano. Não há
   // caminho para a interface aprender o valor de ninguém por aqui.
   consultarAudiencia: 'api.consultar_valor_acordado',
+  listarConcessoes: 'api.listar_concessao_financeira',
+  gravarConcessao: 'api.gravar_concessao_financeira',
   consultarValores: 'api.consultar_valor_acordado',
   registrarValor: 'api.registrar_valor_acordado',
   consultarDespesas: 'api.consultar_despesas',
@@ -120,6 +137,7 @@ function semOperacao(comando: ComandoFinanceiro): Record<string, unknown> {
 }
 
 const MUTACOES = new Set<ComandoFinanceiro['operacao']>([
+  'gravarConcessao',
   'registrarValor',
   'registrarDespesa',
   'retificarDespesa',
@@ -251,6 +269,26 @@ export async function operarFinanceiroNativo(
       if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) throw new Error();
       return digest;
     };
+    /** Linha de concessão apresentável. Só identidade e marca atravessam: nenhum campo
+     * financeiro é lido, buscado ou devolvido por esta superfície. */
+    const abrirConcessao = async (
+      linha: z.infer<typeof financeiroConcessaoSaidaSchema>,
+      decifrar: (valor: CampoCifrado, concessaoId: string) => Promise<string>,
+    ) => {
+      // `identidade.concessao_equipe` só admite 'administrador' ou 'profissional' por CHECK;
+      // 'familia' vindo daqui significa banco fora do contrato, e a resposta falha fechada em
+      // vez de reclassificar a pessoa silenciosamente.
+      if (linha.perfil === 'familia') throw new Error();
+      return {
+        concessao_id: linha.concessao_id,
+        usuario_id: linha.usuario_id,
+        email: await decifrar(linha.email, linha.concessao_id.toLowerCase()),
+        perfil: linha.perfil,
+        estado: linha.estado,
+        habilitado: linha.habilitado,
+        versao: linha.versao,
+      };
+    };
     /** Converte uma linha do banco em versão de despesa apresentável. */
     const abrirDespesa = async (
       linha: z.infer<typeof financeiroDespesaSaidaSchema>,
@@ -303,6 +341,54 @@ export async function operarFinanceiroNativo(
           break;
         }
         resultado = { permitida: true };
+        break;
+      }
+      case 'listarConcessoes': {
+        // Nenhuma leitura de vínculo de caso acontece aqui (design D1): a lista é da equipe,
+        // e quem pode vê-la é decidido pelo banco, que exige Administrador.
+        const abrirEmail = portas.identidade?.decifrarEmailConcessao;
+        if (!abrirEmail) throw new Error();
+        const r = await chamar(
+          ACOES.listarConcessoes,
+          {},
+          z.array(financeiroConcessaoSaidaSchema).max(500),
+        );
+        if (!r.ok) return erro(r.codigo);
+        resultado = await Promise.all(r.dados.map((linha) => abrirConcessao(linha, abrirEmail)));
+        break;
+      }
+      case 'gravarConcessao': {
+        const abrirEmail = portas.identidade?.decifrarEmailConcessao;
+        if (!abrirEmail) throw new Error();
+        const dados = gravarConcessaoFinanceiraSchema.parse(semOperacao(comando));
+        const concessaoId = dados.concessao_id.toLowerCase();
+        const digest = await digestDe({
+          operacao: ACOES.gravarConcessao,
+          concessao_id: concessaoId,
+          habilitado: dados.habilitado,
+          versao_esperada: dados.versao_esperada,
+        });
+        iniciada = true;
+        const r = await chamar(
+          ACOES.gravarConcessao,
+          {
+            concessao_id: concessaoId,
+            habilitado: dados.habilitado,
+            versao_esperada: dados.versao_esperada,
+            chave_idempotencia: chaveIdempotencia,
+            digest_idempotencia: digest,
+            auditoria_id: crypto.randomUUID(),
+          },
+          financeiroConcessaoSaidaSchema,
+        );
+        // A negativa vem inteira do banco: `sem_permissao` quando quem chama não é
+        // Administrador, `conflito` quando o alvo não é profissional vinculado — o caso da
+        // autoconcessão, já que a concessão de quem concede tem perfil `administrador`.
+        if (!r.ok) return erro(r.codigo);
+        if (r.dados.concessao_id.toLowerCase() !== concessaoId) throw new Error();
+        // A resposta é a linha relida DEPOIS da gravação: `habilitado` aqui é o estado que a
+        // leitura seguinte vai encontrar, não o que a tela pediu.
+        resultado = await abrirConcessao(r.dados, abrirEmail);
         break;
       }
       case 'consultarValores': {
