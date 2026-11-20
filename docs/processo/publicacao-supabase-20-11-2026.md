@@ -95,3 +95,91 @@ Por decisão do solicitante, ela será criada **pela tela de Administração**, 
 `ffcm.acessos.ativo` está ligado, vinculando uma conta Google Workspace real do domínio.
 Não foi provisionada por SQL de propósito: o caminho pela tela deixa a trilha de auditoria
 correta e exercita o próprio fluxo de concessão, que é o que se quer testar.
+
+## Fechamento do dia — 20/11/2026
+
+### Estado publicado
+
+**Backend:** 250 migrations aplicadas, última `20261128230000`. Dados preservados em todas
+as passagens.
+
+**Frontend:** branch `fatia7/turno-execucao-cuidado` empurrada (`e07daaa..ce9130e`), em
+sincronia com `origin`. **A produção ainda serve um build de 17/11** — o Netlify publica a
+branch de produção, e o PR 18 segue em draft. Tirar de draft e integrar à `main` é decisão
+e ato do solicitante.
+
+### Interruptores no publicado
+
+Ligados: `ffcm.turno.ativo`, `ffcm.documentos.ativo`, `ffcm.acessos.ativo`,
+`ffcm.realizacao_compromisso.ativo`, `ffcm.agenda_google.ativa`, `ffcm.transcricao.ativa`.
+
+Desligados, nascidos assim de propósito: `ffcm.financeiro.ativo`, `ffcm.avisos.ativos`,
+`ffcm.ficha_plantao.ativo`, `ffcm.papel_declarado.ativo`, `ffcm.substituicao_cm.ativo`,
+`ffcm.estado_emocional.ativo`. Ligar é ato do Administrador, pela tela, com auditoria.
+
+### Variáveis que dependem do solicitante
+
+Cinco precisam existir no painel do Netlify da conta `agenda-francescato`, à qual esta
+máquina não tem acesso: `FFCM_AUTH_INTERNO_ATIVADO`, `FFCM_FICHA_PLANTAO_ATIVO`,
+`FFCM_PAPEL_DECLARADO_ATIVO`, `FFCM_SUBSTITUICAO_CM_ATIVO` e `FFCM_CONSULTA_VINCULOS_ATIVA`.
+
+`FFCM_AUTH_INTERNO_ATIVADO` **deve continuar sendo variável de ambiente**, não chave de
+banco: ler do banco para decidir se a autenticação funciona cria impasse sem saída — se o
+banco não responde, ninguém entra para consertar.
+
+### Dois defeitos que teriam aparecido no teste e foram corrigidos antes
+
+**A tela de Regras caía inteira.** `ffcm.documentos.categorias` tinha `exposicao='publica'`
+sendo lida pelo leitor do servidor, e `api.consultar_regras_atendimento` devolve todas as
+chaves públicas — uma chave do tipo `lista` fazia o parse de `regraAtendimentoSchema`
+lançar e derrubava FR-041 por completo. Um CHECK novo trava a recorrência.
+
+**O relatório de turno cairia na primeira ficha com estado emocional.**
+`rotinaTurnoPublicaSchema` não tinha a variante, enquanto a projeção já a emitia; como o
+relatório valida o lote, o período inteiro ia junto.
+
+Nenhum dos dois era alcançável por teste existente. O primeiro veio do levantamento de
+customização, o segundo da implementação da ficha.
+
+### Achado de método, repetido duas vezes em dois dias
+
+`force row level security` faz o dono nem escrever nem ler sem policy, e **fixture que roda
+como superusuário ignora RLS**. Uma semeadura quebrou a cadeia completa de migrations, e a
+guarda que deveria pegar contava zero linhas e passaria verde falso.
+
+É o mesmo tipo de falso verde que escondeu, até 19/11, o fato de a cadeia não aplicar sem
+superusuário. A conclusão operacional: **o runner que vale é
+`scripts/testar-cadeia-migrations-sem-superusuario-local.sh`**, e runner de fatia isolada
+não substitui ele.
+
+### O que impede o teste funcional completo, em ordem
+
+1. **Publicar o frontend.** Sem isso, nada do trabalho novo existe no ar.
+2. **Ligar as cinco variáveis** no painel do Netlify.
+3. **Criar a conta com perfil `profissional`** pela tela de Acessos, e **depois conceder
+   acesso ao caso**. Sem o vínculo, toda operação de turno é negada pelo banco — e
+   pareceria defeito de tela.
+4. **Ligar `ffcm.financeiro.ativo`** se o financeiro entrar no teste; a tela de concessão
+   da audiência existe agora, mas fica sob esse interruptor.
+
+### Avisos para quem for testar
+
+O método de login do profissional importa: com `interno`, a agenda e a realização de
+compromisso **não aparecem** — exigem `google_workspace`. Decidir na criação da conta.
+
+A ficha do plantão não tem aba própria: aparece ao expandir "Ficha do plantão" dentro de
+"Meu turno".
+
+O administrador **lê** a ficha e não escreve, por projeto.
+
+### Aberto, sem fingimento
+
+PDF do consolidado ainda no layout anterior. Resposta de campo acrescentado não sai no PDF
+nem no consolidado. A `visibilidade` das respostas é gravada, mas a projeção familiar não
+consome a tabela nova — hoje nenhuma resposta chega à família, **fechado por omissão e não
+por controle provado**, e isso precisa de prova antes de a família ser habilitada. A ficha
+explica a causa de uma recusa atômica mas não aponta o campo exato. As matrizes de
+autorização e RLS da ativação da ficha continuam pendentes.
+
+Backup do projeto continua **não configurado**. O instantâneo lógico tirado hoje é rede de
+uma vez só, não substitui backup, e não inclui material de chave do Vault.
