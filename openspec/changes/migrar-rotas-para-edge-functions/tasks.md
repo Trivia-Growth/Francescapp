@@ -84,7 +84,18 @@ Depende de 1.6. É o mecanismo que torna a migração reversível (design E1).
   - Teste `reverter um caminho é trocar a linha da tabela, sem tocar no cliente`: a mesma chamada do cliente, com `destino` trocado para `netlify`, deixa de alcançar a Edge Function e volta a ser respondida pela função Netlify. Nenhuma função é republicada e nenhuma linha do cliente muda.
 - [ ] 2.5 Mover os segredos das variáveis da Netlify para os segredos do projeto Supabase, mantendo no Vault o que já está lá, e conferir a fronteira nova. Evidência: lista do que foi movido e do que permaneceu; nenhuma credencial no repositório e nenhuma em log.
   - **Continua bloqueada em 20/11/2026, por motivo diferente do anterior — e o motivo é um achado.**
-  - **Não existe projeto deste repositório na Netlify.** Com a sessão da CLI da Netlify de pé (`netlify status` autentica o solicitante), `netlify sites:list` devolve 12 projetos em três equipes (Trívia, Sinergica, heziom's team) e **nenhum** é o FFCMApp; os três com repositório apontam para `Trivia-Growth/Atendimento`, `Trivia-Growth/WEGAPAR` e `Trivia-Growth/LeandroSola_LP`. Logo **não há variável de ambiente da Netlify para mover**: a premissa da tarefa — "mover das variáveis da Netlify" — não se sustenta hoje.
+  - **CORRIGIDO PELA COORDENAÇÃO EM 20/11/2026.** A execução desta tarefa concluiu que "não
+    existe projeto deste repositório na Netlify", porque `netlify sites:list` devolve 12
+    projetos em três equipes (Trívia, Sinergica, heziom's team) e nenhum é o FFCMApp. **A
+    conclusão não procede.** O site existe e está no ar: `https://ffcmapp.netlify.app/`
+    responde `200`, e o preview do PR 18 responde `401` por proteção de senha — que é
+    "preciso de credencial", não "não existe".
+    O que há é o **mesmo problema de conta já conhecido do Supabase**: a CLI está autenticada
+    em `lucas@triviastudio.com.br`, e o site vive na conta `agenda-francescato`. É exatamente
+    o que `ambiente-provas-locais-e-navegador` já registrava para o Netlify.
+    Portanto **há variáveis de ambiente para mover**, e a premissa da tarefa se sustenta: o
+    que falta é acesso à conta correta, não o projeto. Esta tarefa continua **bloqueada**, mas
+    por credencial, e não por inexistência.
   - **Consequência de desenho, não só de execução.** O "estado anterior" com que o lote 1 teria de provar paridade não é uma implantação servindo tráfego: é o módulo de rota. A migração continua sendo migração de código, mas a reversão por tabela (E4) hoje reverte para um destino que não está publicado em lugar nenhum.
   - **O que existe no projeto Supabase** (`drdpuxcllpymtoskmuqv`, "FFCM App", us-west-2, PostgreSQL 17, ACTIVE_HEALTHY), conferido pela API de gestão: **um** segredo, `FFCM_VAULT_DB_PASSWORD`. Nome lido, valor **não** lido, não impresso e não registrado. Nenhum outro segredo foi criado nesta passagem.
   - **Por que nada foi criado:** sem a Netlify e sem `.env`, não há fonte de verdade para os valores. Criar `FFCM_COOKIE_SEALING_KEY`, `FFCM_APP_ORIGIN`, `FFCM_ALLOWED_ORIGINS`, as credenciais do cofre ou as chaves de integração a partir de um palpite seria inventar segredo de produção — inclusive uma chave de selo de cookie nova, que invalidaria qualquer sessão selada existente. **SUPOSIÇÃO CONSERVADORA:** nada foi definido; a fronteira fica onde está até o solicitante fornecer os valores ou autorizar a geração de cada um, nominalmente.
