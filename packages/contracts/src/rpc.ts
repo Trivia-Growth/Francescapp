@@ -348,6 +348,43 @@ export const metadadosAadFinanceiroDespesaSchema = z
  * para que a composição do financeiro (`compor-financeiro-nativo.ts`) possa recusar na
  * fronteira qualquer AAD de tabela de cuidado. Não é uma segunda convenção — é um
  * subconjunto da única união, e a separação de chaves do design D1 depende dele. */
+
+/** FR-073/FR-074/FR-076/FR-077. Ficha de plantão. As três tabelas usam a MESMA forma
+ * genérica do repositório — `{tabela, registro_id, campo, formato}` —, a que as tabelas
+ * financeiras e a substituição de case manager já adotam. Como nas despesas, `registro_id`
+ * é o `id` da LINHA, não o identificador lógico do plantão, da pendência ou do rascunho:
+ * as duas primeiras são append-only por `(registro_id, versao)`, com uma linha por versão,
+ * e é amarrar o `id` que impede reaproveitar o envelope de uma versão como se fosse o de
+ * outra. O rascunho é mutável, e por isso recebe um `id` novo a cada gravação, o que tira
+ * do envelope antigo qualquer serventia. `campo` entra na ligação porque a mesma linha
+ * guarda mais de um texto cifrado. Nenhuma convenção nova de AAD é criada aqui. */
+export const metadadosAadPlantaoVersaoSchema = z
+  .object({
+    tabela: z.literal('cadastro.turno_plantao_versao'),
+    registro_id: uuidSchema,
+    campo: z.enum(['atividades', 'observacoes', 'motivo']),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+export const metadadosAadPlantaoPendenciaSchema = z
+  .object({
+    tabela: z.literal('cadastro.turno_plantao_pendencia_versao'),
+    registro_id: uuidSchema,
+    campo: z.enum(['conteudo', 'motivo']),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+export const metadadosAadFichaPlantaoRascunhoSchema = z
+  .object({
+    tabela: z.literal('cadastro.ficha_plantao_rascunho'),
+    registro_id: uuidSchema,
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
 export const metadadosAadFinanceiroSchema = z.union([
   metadadosAadFinanceiroValorSchema,
   metadadosAadFinanceiroDespesaSchema,
@@ -359,6 +396,9 @@ export const metadadosAadSchema = z.union([
   metadadosAadFinanceiroDespesaSchema,
   metadadosAadRealizacaoCompromissoSchema,
   metadadosAadSubstituicaoCmSchema,
+  metadadosAadPlantaoVersaoSchema,
+  metadadosAadPlantaoPendenciaSchema,
+  metadadosAadFichaPlantaoRascunhoSchema,
   metadadosAadExecucaoTurnoSchema,
   metadadosAadAcessoGerenciadoSchema,
   metadadosAadEscalaTurnoSchema,

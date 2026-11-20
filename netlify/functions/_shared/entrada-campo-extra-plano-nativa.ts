@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { contratosRotas } from '../../../packages/contracts/src/rotas.ts';
 import { chaveIdempotenciaSchema, uuidSchema } from '../../../packages/contracts/src/comum.ts';
 import {
@@ -5,6 +6,11 @@ import {
   statusErroHttp,
   type CodigoErro,
 } from '../../../packages/contracts/src/erros.ts';
+import {
+  campoExtraCatalogoGeneralizadoSchema,
+  escopoCampoExtraSchema,
+  gravarCampoExtraEscopoSchema,
+} from '../../../packages/contracts/src/campo-extra-catalogo.ts';
 import { comporCampoExtraPlanoNativo } from './compor-campo-extra-plano-nativo.ts';
 import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
@@ -25,18 +31,28 @@ export function criarEntradaCampoExtraPlanoNativa(dependencias: Dependencias) {
           headers,
         });
       const url = new URL(request.url);
+      // `?escopo=` é a única busca aceita: sem ela, a rota continua significando
+      // exatamente o catálogo do Plano de cuidado, como antes de FR-078.
+      const parametros = [...url.searchParams.keys()];
+      const escopoBuscado = url.searchParams.get('escopo');
       if (
         url.pathname !== '/api/admin/campo-extra-plano' ||
         (request.method !== 'GET' && request.method !== 'POST') ||
         url.hash ||
-        (request.method === 'GET' && url.search)
+        (url.search &&
+          (request.method !== 'GET' ||
+            parametros.length !== 1 ||
+            parametros[0] !== 'escopo' ||
+            !escopoCampoExtraSchema.safeParse(escopoBuscado).success))
       )
         return erro('nao_encontrado');
       if (!uuidSchema.safeParse(request.headers.get('x-sessao')).success)
         return erro('nao_autenticado');
       let comando: Parameters<typeof comporCampoExtraPlanoNativo>[1];
       if (request.method === 'GET') {
-        comando = { operacao: 'listar' };
+        comando = escopoBuscado
+          ? { operacao: 'listar', escopo: escopoBuscado }
+          : { operacao: 'listar' };
       } else {
         // x-chave-idempotencia flui até virar chave_idempotencia na entrada da RPC,
         // comparada no banco a cada replay (ver operacao.campo_extra_plano_operacao_privada).
@@ -83,9 +99,14 @@ export function criarEntradaCampoExtraPlanoNativa(dependencias: Dependencias) {
             bytes.set(parte, posicao);
             posicao += parte.length;
           }
-          const corpo = contratosRotas.gravarCampoExtraPlano.entrada.safeParse(
-            JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)),
+          const recebido: unknown = JSON.parse(
+            new TextDecoder('utf-8', { fatal: true }).decode(bytes),
           );
+          const comEscopo =
+            typeof recebido === 'object' && recebido !== null && 'escopo' in recebido;
+          const corpo = comEscopo
+            ? gravarCampoExtraEscopoSchema.safeParse(recebido)
+            : contratosRotas.gravarCampoExtraPlano.entrada.safeParse(recebido);
           if (!corpo.success) return erro('entrada_invalida');
           comando = { operacao: 'gravar', ...corpo.data };
         } catch {
@@ -105,9 +126,13 @@ export function criarEntradaCampoExtraPlanoNativa(dependencias: Dependencias) {
         const resultado = await comporCampoExtraPlanoNativo(pedido, comando, dependencias);
         if (!resultado.ok) return erro(resultado.erro.codigo, resultado.request_id);
         const schema =
-          request.method === 'GET'
-            ? contratosRotas.listarCampoExtraPlano.saida
-            : contratosRotas.gravarCampoExtraPlano.saida;
+          comando.escopo === undefined
+            ? request.method === 'GET'
+              ? contratosRotas.listarCampoExtraPlano.saida
+              : contratosRotas.gravarCampoExtraPlano.saida
+            : request.method === 'GET'
+              ? z.array(campoExtraCatalogoGeneralizadoSchema)
+              : campoExtraCatalogoGeneralizadoSchema;
         const dados = schema.parse(resultado.dados);
         return Response.json({ dados, request_id: resultado.request_id }, { headers });
       } catch (erroResposta) {

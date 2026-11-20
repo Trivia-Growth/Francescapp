@@ -20,6 +20,12 @@ import { criarCicloCadastro } from './ciclo-cadastro.js';
 import { montarAdministracaoPlano } from './campo-extra-plano-administracao.js';
 import { montarPlanoCuidado } from './plano-cuidado.js';
 import { criarServicoPlanoHttp } from './servico-plano-http.js';
+import {
+  criarServicoModeloFormularioHttp,
+  criarServicoPapelDeclaradoHttp,
+} from './servico-catalogo-administrado-http.js';
+import { montarModeloFichaPlantao } from './modelo-ficha-plantao-administracao.js';
+import { montarPapelDeclaradoAdministracao } from './papel-declarado-administracao.js';
 import { criarServicoEdicaoPacienteHttp } from './servico-edicao-paciente-http.js';
 import { montarTarefasCuidado } from './tarefas-cuidado.js';
 import { criarServicoTarefasHttp } from './servico-tarefas-http.js';
@@ -1711,6 +1717,30 @@ const areasAdministracao: AreaAdministracao[] = [
           if (!catalogo) throw new Error('Catálogo da equipe indisponível.');
           return catalogo();
         },
+      ),
+  },
+  {
+    // FR-078. Esconder a área não é autorizar: o servidor e o banco decidem a cada escrita.
+    id: 'modelo-ficha-plantao',
+    rotulo: 'Ficha de plantão — modelo',
+    disponivel: (atual) => atual.usuario.perfil === 'administrador',
+    montar: (raiz) =>
+      montarModeloFichaPlantao(
+        raiz,
+        criarServicoModeloFormularioHttp(identidadeAtual, 'ficha_plantao'),
+        acessoPerdido,
+      ),
+  },
+  {
+    // FR-079. Rótulo de registro; não participa de nenhuma decisão de acesso.
+    id: 'papel-declarado',
+    rotulo: 'Papéis declarados',
+    disponivel: (atual) => atual.usuario.perfil === 'administrador',
+    montar: (raiz) =>
+      montarPapelDeclaradoAdministracao(
+        raiz,
+        criarServicoPapelDeclaradoHttp(identidadeAtual),
+        acessoPerdido,
       ),
   },
   {

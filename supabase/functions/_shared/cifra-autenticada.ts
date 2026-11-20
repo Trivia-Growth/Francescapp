@@ -575,6 +575,47 @@ function aadCanonico(aad: AadCifra): Uint8Array {
       }),
     );
   }
+  // FR-073/FR-074/FR-076/FR-077. Ficha de plantão. Mesma forma genérica do repositório —
+  // `{tabela, registro_id, campo, formato}` —, com `registro_id` no `id` da LINHA, como no
+  // lançamento de despesa: as duas tabelas versionadas têm uma linha por versão, e amarrar
+  // o `id` é o que impede reaproveitar o envelope de uma versão como se fosse o de outra do
+  // mesmo plantão ou da mesma pendência; o rascunho é mutável e recebe `id` novo a cada
+  // gravação. O ramo é próprio, e não o genérico do fim, porque o genérico aceita qualquer
+  // nome de campo com até 80 caracteres: aqui cada tabela tem a sua lista fechada, e `campo`
+  // entra na ligação para que o envelope das atividades não decifre no lugar das observações
+  // nem no lugar do motivo da retificação. Não há convenção nova.
+  if (
+    typeof aad === 'object' &&
+    aad !== null &&
+    [
+      'cadastro.turno_plantao_versao',
+      'cadastro.turno_plantao_pendencia_versao',
+      'cadastro.ficha_plantao_rascunho',
+    ].includes(aad.tabela)
+  ) {
+    const camposPlantao: Record<string, readonly string[]> = {
+      'cadastro.turno_plantao_versao': ['atividades', 'observacoes', 'motivo'],
+      'cadastro.turno_plantao_pendencia_versao': ['conteudo', 'motivo'],
+      'cadastro.ficha_plantao_rascunho': ['conteudo'],
+    };
+    if (
+      typeof aad.registro_id !== 'string' ||
+      !uuid.test(aad.registro_id) ||
+      typeof aad.campo !== 'string' ||
+      !camposPlantao[aad.tabela]?.includes(aad.campo) ||
+      aad.formato !== formatoAtual
+    ) {
+      throw new ErroCifraAutenticada();
+    }
+    return codificador.encode(
+      JSON.stringify({
+        tabela: aad.tabela,
+        registro_id: aad.registro_id,
+        campo: aad.campo,
+        formato: aad.formato,
+      }),
+    );
+  }
   // FR-068. Valor acordado de repasse por turno. `api.consultar_valor_acordado` devolve
   // `valor_id`, que é a chave primária da linha, então a ligação usa `registro_id` como
   // qualquer registro não versionado. O ramo é próprio, e não o genérico do fim, porque o

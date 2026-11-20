@@ -51,3 +51,6 @@ export * from './financeiro-http.ts';
 
 export * from './aviso.ts';
 export * from './aviso-http.ts';
+
+export * from './ficha-plantao.ts';
+export * from './ficha-plantao-http.ts';
