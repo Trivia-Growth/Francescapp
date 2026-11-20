@@ -125,10 +125,25 @@
   **Evidência:** `web/configuracao-sistema.ts` — chave de texto com `opcoes` vira `select`;
   valor fora da lista atual aparece marcado como "(fora da lista atual)" em vez de sumir.
 - [ ] 4.3 Ligar o componente em `web/main.ts` / na tela de diário.
-  **Bloqueio operacional:** o arquivo está sob edição simultânea de outras frentes; a
-  coordenação pediu para não editá-lo. O trecho exato foi entregue no resumo final, junto do
-  CSS sugerido. O componente foi desenhado para ser montado pela fatia de diário
-  (FR-008/012), que está em andamento em paralelo.
+  **Código conferido em 18/11/2026:** `web/main.ts`, seção Diário da ficha da equipe,
+  já monta `montarDiario` com `montarTranscricaoAudio`, paciente atual e
+  `criarServicoTranscricaoHttp(identidadeAtual)`. O Diário recebe somente texto revisado;
+  publicação e audiência continuam ações próprias. Família permanece por texto: autorização
+  de áudio familiar não integra este recorte. Bloqueio antigo por edição simultânea removido.
+  **Correção de ciclo de vida:** sair da montagem encerra o gravador e tracks; callback
+  `stop` e leitura assíncrona do Blob conferem montagem ativa antes de iniciar envio.
+  Respostas tardias não invalidam acesso de uma montagem seguinte.
+  **Evidência pendente:** dois testes de regressão escritos em `web/transcricao-audio.test.ts`
+  (saída durante gravação e durante leitura do arquivo), **não executados** por instrução
+  do solicitante. Navegador e leitor de tela igualmente adiados nesta passagem;
+  hooks existentes de commit/push são preservados.
+  **Suposição UX conservadora:** somente uma gravação pendente por montagem. Nova gravação
+  fica bloqueada até revisão humana e descarte confirmado do original atual, incluindo
+  regularização de pendência/falha. Texto humano continua editável e preservado; essa trava
+  não publica nem exige publicação. Botão de revisão volta utilizável na gravação seguinte.
+  Terceiro teste escrito, **não executado**, cobre preservação do original/revisão,
+  bloqueio durante descarte pendente e liberação após regularização, sem apagar texto humano.
+  4.3 permanece aberta até validação; existência da fiação não comprova aceite.
 - [ ] 4.4 Verificação visual real no navegador e passagem de leitor de tela.
   **Pendente:** depende de 4.3 e da ativação da flag.
 
@@ -164,13 +179,106 @@
 
 ## 6. Limitações registradas
 
-- [ ] 6.1 Prazo de 30 dias do áudio abandonado: a coluna `expira_em` é gravada e há índice
-  parcial para a varredura, mas **não existe rotina que apague e avise**. O requisito pede
-  "prazo de 30 dias com aviso"; hoje só o prazo está registrado. Precisa de uma tarefa
-  agendada, que não existe na plataforma ainda.
+- [ ] 6.1 Prazo de 30 dias do áudio abandonado com aviso: rotina privada, scheduler e
+  aviso administrativo implementados; falta comprovar o aviso na jornada autenticada
+  publicada. **Expurgo desligado** preserva a trava não destrutiva desta execução.
+
+  **Decidido em 17/11/2026: o expurgo roda em `pg_cron`, no próprio Supabase.** É o recurso
+  nativo que a diretriz de 01/11/2026 manda preferir, roda perto do dado e mantém o expurgo
+  na mesma transação auditada das demais operações. Descartadas: varredura na leitura (o
+  áudio só sumiria quando alguém abrisse a tela, deixando dado pessoal além do prazo) e
+  rotina externa agendada (acrescenta serviço, segredo e mais uma superfície a autorizar).
+
+  Evidência: job criado em migração, teste cobrindo áudio vencido apagado com aviso
+  registrado, áudio dentro do prazo preservado, e falha de expurgo virando pendência
+  explícita em vez de descarte presumido.
+**Aviso administrativo preparado em 18/11/2026 (P2):** migration aditiva
+`20261125070000_audio_expurgo_aviso_admin.sql` expõe somente flag ativa e último recibo
+(data, falhas, apagados), sem identificadores de áudio/pessoa, conteúdo, causa bruta ou segredo.
+Consulta própria `api.consultar_expurgo_audio`, com atestado vinculado à operação,
+autorização Admin/sessão e auditoria; nenhuma permissão para executar limpeza. Reusa owner
+e controles Admin existentes. BFF existente atende GET `?operacao=expurgo`; tela Integrações
+mostra pendência operacional, última execução, ausência de recibo e flag desligada honestamente.
+Leitura não ativa flag nem executa job. `scripts/testar-audio-expurgo-aviso-admin-local.sh`:
+exit 0 / `AUDIO_EXPURGO_AVISO_ADMIN_OK`, PostgreSQL descartável, Admin positivo,
+Profissional/Família e Admin revogado negativos, recibo direto e RPC sem atestado negados. UI: 2 testes;
+BFF/entrada: 11 testes focais, todos aprovados. Lint/typecheck em `verificar:rapido` conferidos.
+Revisão SPEC P2 corrigida: migration preserva membership preexistente (concedente/opções)
+e CREATE preexistente no schema; remove somente concessões temporárias próprias.
+Prova focal com migrador NOSUPERUSER, sem SET/CREATE prévios e com SET/CREATE prévios,
+compara snapshot integral de pg_auth_members e ACL do schema antes/depois: exit 0 /
+`AUDIO_EXPURGO_AVISO_ADMIN_OK`. Sem TypeScript alterado nesta correção; quick não repetido.
+Revisão independente dos dois eixos concluída; P2 de grants resolvido e runner SQL
+reexecutado pelo revisor, saída 0. Migration `25070000` aplicada e registrada no remoto,
+owner esperado, EXECUTE `authenticated` e negativas `anon`/`service_role` conferidos.
+Isso não prova autorização funcional por identidade. **6.1 permanece aberta:** aviso
+na jornada autenticada publicada e ativação funcional ainda pendentes.
+
 - [ ] 6.2 Estado `falha` da exclusão não é alcançável nesta fatia. Ver `design.md`, seção
   "Estado `falha` da exclusão". O que o requisito exige de fato — não apresentar
   indisponibilidade como descarte concluído — está coberto por `pendente`, provado no SQL e
   no teste de tela.
 - [ ] 6.3 Revisão de audiência antes de publicar pertence à fatia de diário. Ver
   `design.md`, seção "Audiência: o que ficou para o diário".
+
+
+## Retomada 18/11/2026 — expurgo preparado
+
+`20261125030000_audio_expurgo_privado.sql` adiciona job privado sob owner sem login/bypass,
+RLS por vencimento e revisão ausente, marcador `exclusao_por_expiracao` não gravável pelo owner
+da API e função sem EXECUTE para papéis da aplicação. Lote de até 500 com `SKIP LOCKED`,
+sem conteúdo clínico em auditoria. Apaga somente áudio abandonado vencido; conserva textos,
+autor e histórico. Auditoria `audio_expirado` registra aviso; falha desfaz descarte daquela
+linha e recibo em `operacao.audio_expurgo_execucao` registra contagem de pendências.
+`20261125030100_audio_expurgo_cron.sql` instala `pg_cron` e agenda a cada 15 minutos.
+
+Prova `scripts/testar-audio-expurgo-local.sh`: exit 0 / `AUDIO_EXPURGO_OK`, incluindo matriz
+existente de autorização da transcrição; vencido excluído com aviso, vigente preservado,
+papéis da aplicação sem execução/marcador, falha de auditoria preserva áudio e registra falha.
+Teste local comprova função/RLS. Na retomada, `25030000`/`25030100` aplicadas no remoto,
+job único/ativo confirmado e execução de 18/11/2026 10:30 UTC `succeeded`, com flag false
+e saída antes de tocar áudios. Prova scheduler real, sem descarte; aviso publicado pendente.
+
+Cadastrar em **Configuração do sistema / Segredos das integrações** o nome
+`ffcmapp.integracao.openrouter`. Depois ligar `ffcm.transcricao.ativa`, escolher
+`ffcm.transcricao.modelo` e teto `ffcm.transcricao.duracao_maxima_segundos` na configuração.
+Flag e leitor Vault já estavam funcionais. Nenhuma requisição paga/externa realizada.
+**Suposição conservadora:** aviso nesta passagem é registro auditado e recibo operacional;
+notificação externa não foi implementada. Backlog acima de 500 será processado em lotes
+subsequentes; execução pode acrescentar até intervalo do job ao prazo nominal de 30 dias.
+
+### Correções após revisão independente — 18/11/2026
+
+- Usuário operacional que aplica migration/agendará cron recebe EXECUTE explícito somente em
+  `operacao.expurgar_audio_abandonado()`, mais USAGE em `operacao`. Grant sobrevive à retirada
+  da membership temporária no owner. Papéis da aplicação continuam sem acesso.
+- Scheduler valida privilégios de quem agenda antes de registrar job; se as migrations forem
+  executadas por usuários diferentes, ausência de privilégio bloqueia instalação.
+- **SUPOSIÇÃO CONSERVADORA / TRAVA NÃO DESTRUTIVA:** cron pode ser instalado nesta noite,
+  mas `ffcm.transcricao.expurgo_ativo` nasce **false** no catálogo editável. Função retorna
+  antes de tocar áudios enquanto desligada. Somente Administrador deve habilitar explicitamente
+  após conferir dados e autorizar limpeza; instalação não descarta dados existentes.
+- Owner restrito lê somente chave/valor dessa configuração por policy específica.
+- `scripts/testar-audio-expurgo-local.sh`: exit 0 / AUDIO_EXPURGO_OK. Usuário real da migration
+  é rebaixado para NOSUPERUSER antes de executar função, sem membership owner. Flag false
+  preserva fictício vencido; true expurga somente vencido; vigente permanece; falha de auditoria
+  reverte descarte e registra pendência; perfis app seguem negados.
+- pg_cron real/scheduler remoto não exercitados. Sem limpeza remota, segredo real, commit ou push.
+
+### Catálogo publicado OpenRouter — 18/11/2026
+
+- Nova migration aditiva `20261125060000_configuracao_transcricao_catalogo.sql`: catálogo
+  limitado aos IDs publicados `openai/whisper-large-v3` e `openai/whisper-large-v3-turbo`.
+  Não altera migration histórica, modelo escolhido, flags ou segredos. Preflight `FOR UPDATE`
+  exige catálogo original e modelo já publicado; erro estável orienta correção explícita,
+  em vez de substituir silenciosamente escolha ou aceitar catálogo divergente.
+- **SUPOSIÇÃO conservadora:** os três aliases `groq/*` semeados não são tratados como válidos
+  por estarem ausentes do catálogo público. Não houve inferência de equivalência/fornecedor.
+  Fontes primárias e limites constam em design, seção de 18/11/2026.
+- `rtk proxy sh scripts/testar-configuracao-transcricao-catalogo-local.sh`: exit 0,
+  `CATALOGO_TRANSCRICAO_OK`. Teste executa SQL real da nova migration contra PostgreSQL
+  descartável: positivo para ambos modelos publicados; negativo para valor legado e catálogo
+  divergente, conferindo snapshot integral do catálogo antes/depois e preservação de estado.
+- Sem TypeScript alterado; nenhum gate amplo repetido. Revisão independente e aplicação
+  ficam com coordenação. Nenhuma credencial/áudio/custo/consulta paga/operação remota;
+  preparo documental e teste SQL não comprovam API real.

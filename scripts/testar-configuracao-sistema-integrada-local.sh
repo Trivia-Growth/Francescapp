@@ -21,7 +21,8 @@ for arquivo in \
   "$projeto/supabase/migrations/20261117400000_configuracao_sistema.sql" \
   "$projeto/supabase/migrations/20261117410000_configuracao_sistema_operacoes_privadas.sql" \
   "$projeto/supabase/migrations/20261117420000_configuracao_sistema_leitor_servidor.sql" \
-  "$projeto/supabase/migrations/20261117430000_grant_configuracao_sistema_teste.sql"; do
+  "$projeto/supabase/migrations/20261117430000_grant_configuracao_sistema_teste.sql" \
+  "$projeto/supabase/migrations/20261119110000_configuracao_sistema_opcoes.sql"; do
   rtk proxy psql -X -h "$temporario" -p 55448 -U configuracao_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$arquivo"
 done
 cd "$projeto"

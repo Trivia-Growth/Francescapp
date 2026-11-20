@@ -33,17 +33,19 @@ export function criarServicoRegrasAtendimentoHttp(
         // sessão autenticada", e o comentário acima promete "profissional, paciente e
         // familiar") — por isso, diferente das demais, também aceita o fluxo familiar.
         fluxo = sessionStorage.getItem(
-          modo === 'tecnica'
-            ? 'fluxo-tecnico'
-            : modo === 'familiar'
-              ? 'fluxo-familiar'
-              : 'fluxo-google',
+          modo === 'interno'
+            ? 'fluxo-interno'
+            : modo === 'tecnica'
+              ? 'fluxo-tecnico'
+              : modo === 'familiar'
+                ? 'fluxo-familiar'
+                : 'fluxo-google',
         );
       } catch {
         throw new FalhaApi('nao_autenticado', 401);
       }
       if (
-        (modo !== 'google' && modo !== 'tecnica' && modo !== 'familiar') ||
+        (modo !== 'google' && modo !== 'interno' && modo !== 'tecnica' && modo !== 'familiar') ||
         !fluxo ||
         !/^[A-Za-z0-9_-]{22}$/.test(fluxo)
       )

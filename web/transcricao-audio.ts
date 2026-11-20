@@ -181,6 +181,9 @@ export function montarTranscricaoAudio(
   };
 
   function limpar() {
+    // `stop` pode chegar depois de sair do caso. A montagem já está inativa,
+    // então seu callback não deve transcrever nem tocar a próxima tela.
+    if (gravador?.state === 'recording') gravador.stop();
     soltarMicrofone();
     soltarUrl();
   }
@@ -202,6 +205,10 @@ export function montarTranscricaoAudio(
     }
   };
 
+  // Uma gravação de cada vez: preservar referência ao original até concluir
+  // revisão e descarte. Publicar o relato continua sendo decisão do Diário.
+  const temAudioPendente = () => registro !== null && registro.exclusao_estado !== 'confirmada';
+
   const descreverExclusao = (atual: Transcricao) => {
     if (atual.exclusao_estado === 'confirmada') {
       destino.textContent =
@@ -209,8 +216,10 @@ export function montarTranscricaoAudio(
       regularizar.hidden = true;
       original.hidden = true;
       soltarUrl();
+      gravar.disabled = false;
       return;
     }
+    gravar.disabled = true;
     // Indisponibilidade de armazenamento nunca é apresentada como exclusão concluída.
     destino.textContent =
       atual.exclusao_estado === 'falha'
@@ -226,7 +235,8 @@ export function montarTranscricaoAudio(
   }
 
   gravar.addEventListener('click', async () => {
-    if (!ativa || !midia || typeof Gravador !== 'function') return;
+    if (!ativa || gravar.disabled || temAudioPendente() || !midia || typeof Gravador !== 'function')
+      return;
     gravar.disabled = true;
     estado.textContent = 'Pedindo acesso ao microfone…';
     let fluxo: MediaStream;
@@ -258,6 +268,7 @@ export function montarTranscricaoAudio(
       if (evento.data.size > 0) pedacos.push(evento.data);
     });
     gravador.addEventListener('stop', async () => {
+      if (!ativa) return;
       const segundos = Math.max(1, Math.round((Date.now() - inicio) / 1000));
       const tipo = gravador?.mimeType ?? pedacos[0]?.type ?? '';
       soltarMicrofone();
@@ -283,6 +294,9 @@ export function montarTranscricaoAudio(
       gravar.disabled = true;
       try {
         const base64 = bytesParaBase64(await bytesDoBlob(blob));
+        // A leitura do Blob também é assíncrona: sair do caso durante ela
+        // deve impedir o início de uma requisição com o áudio abandonado.
+        if (!ativa) return;
         const resultado = await servico.registrar(pacienteId, {
           audio_base64: base64,
           mime,
@@ -297,16 +311,20 @@ export function montarTranscricaoAudio(
           : resultado.transcricao;
         const ouvivel = mostrarOriginal(base64, mime);
         confirmar.hidden = false;
+        confirmar.disabled = false;
+        destino.textContent =
+          'Conclua a revisão e o descarte deste original antes de gravar outro áudio. Você pode continuar editando o texto.';
         estado.textContent = ouvivel
           ? 'Rascunho transcrito automaticamente. Ouça o original, corrija o que estiver errado e confirme a revisão — a transcrição sozinha não conta como revisada.'
           : 'Rascunho transcrito automaticamente. Este navegador não conseguiu reproduzir o original aqui; corrija o que estiver errado e confirme a revisão — a transcrição sozinha não conta como revisada.';
       } catch (erro) {
+        if (!ativa) return;
         if (descartarAcesso(erro)) return;
         estado.textContent = resultadoIncerto(erro)
           ? 'Não foi possível confirmar se a transcrição foi registrada. Seu texto continua aqui; escreva o relato se preferir não esperar.'
           : `Não foi possível transcrever: ${mensagemFalha(erro)} Escreva o relato no campo abaixo.`;
       } finally {
-        if (ativa) gravar.disabled = false;
+        if (ativa) gravar.disabled = temAudioPendente();
       }
     });
     gravador.start();
@@ -351,10 +369,12 @@ export function montarTranscricaoAudio(
         registro = depois;
         descreverExclusao(depois);
       } catch (erro) {
+        if (!ativa) return;
         if (descartarAcesso(erro)) return;
         descreverExclusao({ ...atual, exclusao_estado: 'pendente' });
       }
     } catch (erro) {
+      if (!ativa) return;
       if (descartarAcesso(erro)) return;
       confirmar.disabled = false;
       estado.textContent = resultadoIncerto(erro)
@@ -374,6 +394,7 @@ export function montarTranscricaoAudio(
       registro = depois;
       descreverExclusao(depois);
     } catch (erro) {
+      if (!ativa) return;
       if (descartarAcesso(erro)) return;
       destino.textContent = `A exclusão continua pendente: ${mensagemFalha(erro)} O texto revisado segue salvo.`;
     } finally {

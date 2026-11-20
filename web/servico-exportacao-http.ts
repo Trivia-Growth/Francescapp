@@ -1,5 +1,6 @@
 import { exportacaoHttp } from '../packages/contracts/src/exportacao-http.ts';
 import type {
+  ArquivoItemExportacao,
   ConfirmarEntrega,
   RegistrarExportacao,
   RegistroExportacoes,
@@ -12,6 +13,7 @@ import {
 import { FalhaApi } from './api.ts';
 import { statusErroHttp } from '../packages/contracts/src/erros.ts';
 import type { ServicoExportacao } from './exportacao.ts';
+import { criarServicoDocumentosHttp } from './servico-documentos-http.ts';
 
 type Identidade = { usuario_id: string; session_id: string };
 type Nome = keyof typeof exportacaoHttp;
@@ -42,11 +44,21 @@ export function criarServicoExportacaoHttp(
     let fluxo: string | null;
     try {
       modo = sessionStorage.getItem('modo-acesso');
-      fluxo = sessionStorage.getItem(modo === 'tecnica' ? 'fluxo-tecnico' : 'fluxo-google');
+      fluxo = sessionStorage.getItem(
+        modo === 'interno'
+          ? 'fluxo-interno'
+          : modo === 'tecnica'
+            ? 'fluxo-tecnico'
+            : 'fluxo-google',
+      );
     } catch {
       throw new FalhaApi('nao_autenticado', 401);
     }
-    if ((modo !== 'google' && modo !== 'tecnica') || !fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo))
+    if (
+      (modo !== 'google' && modo !== 'interno' && modo !== 'tecnica') ||
+      !fluxo ||
+      !/^[A-Za-z0-9_-]{22}$/.test(fluxo)
+    )
       throw new FalhaApi('nao_autenticado', 401);
     headers.set('x-fluxo', fluxo);
     if (chave) headers.set('x-chave-idempotencia', uuidSchema.parse(chave));
@@ -118,5 +130,22 @@ export function criarServicoExportacaoHttp(
       (await enviar('registrar', pedido, paciente, crypto.randomUUID())) as RegistroExportacoes,
     confirmar: async (paciente, entrega: ConfirmarEntrega) =>
       (await enviar('confirmar', entrega, paciente, crypto.randomUUID())) as RegistroExportacoes,
+    // FR-033: os bytes do anexo vêm da MESMA rota autorizada de download que a pessoa usaria
+    // à mão, uma chamada por arquivo. Não existe terceiro caminho de leitura, nem URL
+    // pública, nem URL assinada guardada para depois. O serviço de documentos revalida a
+    // identidade antes e depois de cada download e já aplica o teto da sua fatia.
+    baixarArquivo: async (paciente, arquivo: ArquivoItemExportacao) => {
+      // `anexo_turno` existe no contrato, mas a linha do tempo que alimenta o manifesto
+      // ainda não publica essa fonte; recusar é mais honesto que inventar uma rota.
+      if (arquivo.origem !== 'documento') throw new FalhaApi('servico_indisponivel');
+      const documentos = criarServicoDocumentosHttp(identidadeAtual);
+      if (!documentos.baixar) throw new FalhaApi('servico_indisponivel');
+      const blob = await documentos.baixar(paciente, arquivo.id);
+      const bytes = new Uint8Array(await blob.arrayBuffer()) as Uint8Array<ArrayBuffer>;
+      // A rota entrega `application/octet-stream` de propósito; isso não é o tipo real do
+      // arquivo, então não serve para nomear nada.
+      const tipo = blob.type && blob.type !== 'application/octet-stream' ? blob.type : null;
+      return { bytes, mime: tipo };
+    },
   };
 }

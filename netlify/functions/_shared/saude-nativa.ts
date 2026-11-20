@@ -1,4 +1,9 @@
 import {
+  incluirSeletorExportacao,
+  conferirVersaoExportacao,
+  type SeletorVersaoExportacao,
+} from './turno-execucao-seletor-exportacao.ts';
+import {
   respostaSaudePrivadaSchema,
   validarRegistrosSaude,
 } from '../../../packages/contracts/src/saude.ts';
@@ -23,7 +28,7 @@ type Autorizacao =
   | { estado: 'autorizado'; identidade: Identidade }
   | { estado: 'nao_autenticado' | 'sem_permissao' | 'servico_indisponivel' };
 type Comando =
-  | { operacao: 'ler'; paciente_id: string }
+  | ({ operacao: 'ler'; paciente_id: string } & SeletorVersaoExportacao)
   | { operacao: 'gravar'; paciente_id: string; versao_esperada: number; registros: unknown };
 
 /** Composição interna da fatia de saúde (FR-004), sem rota ou privilégio de banco.
@@ -111,6 +116,7 @@ export async function operarSaudeNativa(
     if (request.headers.get('x-sessao')?.toLowerCase() !== identidade.session_id)
       return erro('nao_autenticado');
     const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+    if (comando.operacao === 'ler') incluirSeletorExportacao(comando, entrada);
     if (comando.operacao === 'gravar') {
       const registroId = crypto.randomUUID();
       const aad: Aad = {
@@ -188,6 +194,7 @@ export async function operarSaudeNativa(
         resposta.dados.versao !== comando.versao_esperada + 1)
     )
       throw new Error();
+    if (comando.operacao === 'ler') conferirVersaoExportacao(comando, resposta.dados);
     let resultado = null;
     if (resposta.dados) {
       const registro = resposta.dados;

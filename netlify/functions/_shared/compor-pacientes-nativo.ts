@@ -88,7 +88,7 @@ export async function comporPacientesNativo(
             : ('servico_indisponivel' as const),
         };
       if (!usuario.data.user) return { estado: 'nao_autenticado' as const };
-      const resultado = await contexto.cliente
+      let resultado = await contexto.cliente
         .schema('api')
         .rpc(
           rota === 'carteira-familiar' || rota === 'paciente-familiar'
@@ -98,6 +98,16 @@ export async function comporPacientesNativo(
             p_request_id: crypto.randomUUID(),
           },
         );
+      // Família interna usa sessão geral; convite familiar legado conserva
+      // admissão própria. Fallback somente na ausência, jamais após erro.
+      if (
+        !resultado.error &&
+        resultado.data === null &&
+        (rota === 'carteira-familiar' || rota === 'paciente-familiar')
+      )
+        resultado = await contexto.cliente
+          .schema('api')
+          .rpc('consultar_sessao_nativa', { p_request_id: crypto.randomUUID() });
       verificarCancelamento();
       if (contexto.cookiesAlterados) return { estado: 'nao_autenticado' as const };
       if (resultado.error) return { estado: 'servico_indisponivel' as const };

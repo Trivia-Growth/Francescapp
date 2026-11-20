@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { campoCifradoSchema, perfilSchema, uuidSchema, versaoSchema } from './comum.ts';
+import { funcaoContaSchema } from './acessos.ts';
 
 const emailSchema = z.string().trim().email().max(254);
 const motivoSchema = z.string().trim().min(1).max(500);
@@ -159,6 +160,7 @@ export const usuarioSessaoSchema = z
   .object({
     id: uuidSchema,
     perfil: perfilSchema,
+    funcao: funcaoContaSchema.optional(),
     ativo: z.boolean(),
     versao: versaoSchema,
   })

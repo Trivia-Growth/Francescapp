@@ -1,3 +1,6 @@
+import { montarAcessosAdministracao } from './acessos-administracao.js';
+import { criarServicoAcessosHttp } from './servico-acessos-http.js';
+import { montarLoginInterno } from './login-interno.js';
 import { iniciarAcao } from './esqueleto.js';
 import { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.js';
 import { montarAgendaIndividual } from './agenda-individual.js';
@@ -14,11 +17,21 @@ import { lerCadastro } from './cadastro.js';
 import { montarCamposCasoNovo } from './campos-caso-novo.js';
 import { montarAnamnese } from './anamnese.js';
 import { criarCicloCadastro } from './ciclo-cadastro.js';
+import { montarAdministracaoPlano } from './campo-extra-plano-administracao.js';
 import { montarPlanoCuidado } from './plano-cuidado.js';
 import { criarServicoPlanoHttp } from './servico-plano-http.js';
+import {
+  criarServicoEstadoEmocionalHttp,
+  criarServicoModeloFormularioHttp,
+  criarServicoPapelDeclaradoHttp,
+} from './servico-catalogo-administrado-http.js';
+import { montarModeloFichaPlantao } from './modelo-ficha-plantao-administracao.js';
+import { montarPapelDeclaradoAdministracao } from './papel-declarado-administracao.js';
+import { montarEstadoEmocionalAdministracao } from './estado-emocional-administracao.js';
 import { criarServicoEdicaoPacienteHttp } from './servico-edicao-paciente-http.js';
 import { montarTarefasCuidado } from './tarefas-cuidado.js';
 import { criarServicoTarefasHttp } from './servico-tarefas-http.js';
+import { montarTarefasComDisponibilidade } from './integracao-tarefas-disponibilidade.js';
 import { correspondeBuscaPacienteLocal } from './busca-pacientes-local.js';
 import {
   criarAvatar,
@@ -46,7 +59,23 @@ import { montarPlanoCrise } from './plano-crise.js';
 import { criarServicoPlanoCriseHttp } from './servico-plano-crise-http.js';
 import { montarHabilitacaoPlanoCrise } from './habilitacao-plano-crise.js';
 import { criarServicoHabilitacaoPlanoCriseHttp } from './servico-habilitacao-plano-crise-http.js';
+import { criarServicoSubstituicaoCmHttp } from './servico-substituicao-cm-http.js';
+import { montarFinanceiro } from './financeiro.js';
+import { criarServicoFinanceiroHttp } from './servico-financeiro-http.js';
+import { criarAudienciaFinanceira } from './financeiro-audiencia.js';
+import { montarFinanceiroConcessaoAdministracao } from './financeiro-concessao-administracao.js';
 import { montarDiario } from './diario.js';
+import { montarTurnoComExecucao } from './turno-execucao-integracao.js';
+import { montarExecucaoTurno } from './turno-execucao.js';
+import { montarRelatoriosTurno } from './turno-execucao-relatorios.js';
+import { criarServicoTurnoExecucaoHttp } from './servico-turno-execucao-http.js';
+import { criarServicoFichaPlantaoHttp } from './servico-ficha-plantao-http.js';
+import { montarEscalaTurno } from './escala-turno.js';
+import { criarServicoTurnoHttp } from './servico-turno-http.js';
+import './turno-proprio.css';
+import './turno-execucao.css';
+import { montarConversaoDiario } from './conversao-diario.js';
+import { criarServicoConversaoDiarioHttp } from './servico-conversao-diario-http.js';
 import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
 import { montarLinhaTempo } from './linha-tempo.js';
 import { criarServicoLinhaTempoHttp } from './servico-linha-tempo-http.js';
@@ -61,6 +90,9 @@ import {
 } from './servico-documentos-http.js';
 import { montarPendenciasCaso } from './pendencias-caso.js';
 import { criarServicoPendenciasHttp } from './servico-pendencias-http.js';
+import { montarAvisos } from './avisos.js';
+import { limparAparelho, montarEstadoDeRede, registrarCascaOffline } from './casca-offline.js';
+import { criarServicoAvisosHttp } from './servico-avisos-http.js';
 import { montarAuditoria } from './auditoria.js';
 import { criarServicoAuditoriaHttp } from './servico-auditoria-http.js';
 import { montarRegrasAtendimento } from './regras-atendimento.js';
@@ -69,6 +101,8 @@ import { montarHomeProfissional } from './home-profissional.js';
 import { montarSolicitacoesTitular } from './solicitacoes-titular.js';
 import { criarServicoSolicitacaoTitularHttp } from './servico-solicitacao-titular-http.js';
 import { montarConfiguracaoSistema } from './configuracao-sistema.js';
+import { montarSegredosIntegracoes } from './segredos-integracoes.js';
+import { criarServicoSegredosIntegracoesHttp } from './servico-segredos-integracoes-http.js';
 import { criarServicoConfiguracaoSistemaHttp } from './servico-configuracao-sistema-http.js';
 import { montarConcessaoEquipe } from './concessao-equipe.js';
 import { montarFiltrosCarteira, montarSinalCarteira } from './filtros-carteira.js';
@@ -139,6 +173,10 @@ const familiarSenha = elemento<HTMLInputElement>('familiar-senha');
 const familiarBotao = elemento<HTMLButtonElement>('familiar-login-submit');
 const googleForm = elemento<HTMLFormElement>('google-login-form');
 googleForm.addEventListener('submit', (evento) => {
+  if (loginOcupado) {
+    evento.preventDefault();
+    return;
+  }
   try {
     const bytes = crypto.getRandomValues(new Uint8Array(16));
     const fluxo = btoa(String.fromCharCode(...bytes))
@@ -163,6 +201,37 @@ const loginButton = elemento<HTMLButtonElement>('login-submit');
 const emailInput = elemento<HTMLInputElement>('email');
 const passwordInput = elemento<HTMLInputElement>('password');
 const togglePassword = elemento<HTMLButtonElement>('toggle-password');
+const loginInterno = montarLoginInterno(
+  elemento('acesso-interno'),
+  api,
+  async (atual) => {
+    aplicarSessao(atual);
+    loginView.hidden = true;
+    logoutView.hidden = true;
+    if (document.hidden) {
+      focoAposLoginOculto = true;
+      patientsView.hidden = true;
+      sessionActions.hidden = true;
+      revalidacaoStatus.hidden = false;
+      return;
+    }
+    patientsView.hidden = false;
+    sessionActions.hidden = false;
+    document.title = 'FFCMApp | Pacientes';
+    elemento('patients-title').focus();
+    if (await carregarPacientes()) await abrirFichaPelaRota();
+    navegarPelaRota();
+  },
+  {
+    podeIniciar: () => !loginOcupado,
+    ocupacao: (valor) => {
+      loginOcupado = valor;
+      loginFields.disabled = familiarFields.disabled = valor;
+      const botaoGoogle = googleForm.querySelector<HTMLButtonElement>('button[type=submit]');
+      if (botaoGoogle) botaoGoogle.disabled = valor;
+    },
+  },
+);
 const sessionActions = elemento('session-actions');
 const logoutButton = elemento<HTMLButtonElement>('logout');
 const retryLogout = elemento<HTMLButtonElement>('retry-logout');
@@ -229,6 +298,30 @@ closeSidebar.className = 'sidebar-close';
 closeSidebar.type = 'button';
 closeSidebar.textContent = 'Fechar menu';
 patientsSidebar.prepend(closeSidebar);
+// FR-072: sino de avisos na barra superior, ao lado do botão da gaveta. Fica FORA da
+// gaveta de propósito: a gaveta é navegação com armadilha de foco própria, e um painel
+// transitório dentro dela mudaria essa ordem de foco. Aqui o sino continua ao alcance do
+// polegar no celular, e o painel abre abaixo dele.
+const avisosRaiz = document.createElement('div');
+avisosRaiz.id = 'avisos';
+avisosRaiz.hidden = true;
+toggleSidebar.insertAdjacentElement('afterend', avisosRaiz);
+let avisos: ReturnType<typeof montarAvisos> | null = null;
+
+/** Liga o sino à sessão vigente. A família não recebe avisos de equipe, e sem sessão o
+ * sino some — nunca mostra contagem de uma sessão anterior. */
+function ajustarAvisos(atual: Sessao | null): void {
+  const disponivel = atual !== null && atual.usuario.perfil !== 'familia';
+  avisosRaiz.hidden = !disponivel;
+  if (!disponivel) {
+    avisos = null;
+    avisosRaiz.replaceChildren();
+    return;
+  }
+  avisos ??= montarAvisos(avisosRaiz, criarServicoAvisosHttp(identidadeAtual));
+  void avisos.atualizar();
+}
+
 const mobileSidebar = () => window.innerWidth <= 760;
 let elementosInertes: { elemento: HTMLElement; anterior: boolean }[] = [];
 
@@ -437,6 +530,9 @@ let consultaFicha = 0;
 let planoAberto: { pacienteId: string; servico: ReturnType<typeof criarServicoPlanoHttp> } | null =
   null;
 let edicaoDisponivel = false;
+/** FR-037: sondagem da fatia de substituição temporária. Falsa por padrão; com a flag
+ * desligada a seção é desenhada em estado honesto de indisponibilidade, não com erro. */
+let substituicaoCmDisponivel = false;
 let pacientesDaPagina: PacienteLista[] = [];
 let buscaTexto = '';
 
@@ -497,65 +593,163 @@ function voltarParaLista(): void {
   (linha ?? elemento('patients-title')).focus();
 }
 
+function montarConversaoDaFicha(
+  raiz: HTMLElement,
+  pacienteId: string,
+  origem: Parameters<typeof montarConversaoDiario>[2],
+  pendente: (valor: boolean) => void,
+  aoConcluir: () => void,
+): ReturnType<typeof montarConversaoDiario> {
+  const identidade = identidadeAtual();
+  try {
+    if (
+      !identidade ||
+      sessao?.usuario.perfil !== 'profissional' ||
+      !['google', 'interno'].includes(sessionStorage.getItem('modo-acesso') ?? '')
+    )
+      return { desmontar: () => {}, invalidarOrigem: () => {} };
+  } catch {
+    return { desmontar: () => {}, invalidarOrigem: () => {} };
+  }
+  if (!identidade) return { desmontar: () => {}, invalidarOrigem: () => {} };
+  let ativa = true;
+  const identidadeDaConversao = () => {
+    const atual = identidadeAtual();
+    return ativa &&
+      sessao?.usuario.perfil === 'profissional' &&
+      fichaPaciente?.id === pacienteId &&
+      atual?.usuario_id === identidade.usuario_id &&
+      atual.session_id === identidade.session_id
+      ? atual
+      : null;
+  };
+  const servico = criarServicoConversaoDiarioHttp(identidadeDaConversao);
+  const tarefas = criarServicoTarefasHttp(identidadeDaConversao);
+  return montarConversaoDiario(
+    raiz,
+    pacienteId,
+    origem,
+    {
+      atual: () => identidadeDaConversao() !== null,
+      acessoPerdido,
+      consultar: () => servico.consultar(pacienteId, origem.diario_registro_id),
+      converter: (entrada, chave) =>
+        servico.converter(pacienteId, origem.diario_registro_id, entrada, chave),
+      contexto: async () => {
+        const [capacidade, diario] = await Promise.all([
+          tarefas.consultarDisponibilidade(pacienteId),
+          consultarDisponibilidadeDiario(),
+        ]);
+        return {
+          escrita_disponivel: capacidade.escrita_disponivel && diario.disponivel,
+          areas: diario.areas,
+        };
+      },
+      criarCiclo: (gravar) =>
+        criarCicloTarefaCuidado({
+          identidadeAtual: identidadeDaConversao,
+          consultar: () => api.consultarBarreiraTarefa(),
+          reservar: async (entrada) => (await api.reservarBarreiraTarefa(entrada)).estado,
+          encerrar: async (entrada) => (await api.encerrarBarreiraTarefa(entrada)).estado,
+          reconhecer: async (entrada) => (await api.reconhecerBarreiraTarefa(entrada)).estado,
+          gravar,
+        }),
+      desmontar: () => {
+        ativa = false;
+        servico.desmontar();
+      },
+    },
+    pendente,
+    aoConcluir,
+  );
+}
+
 function montarSecaoTarefas(
   raiz: HTMLElement,
   pacienteId: string,
   pendente: (valor: boolean) => void,
 ): () => void {
   const servicoTarefas = criarServicoTarefasHttp(identidadeAtual);
-  // Escrita permanece indisponível até existir capability validada no servidor.
-  const escritaDisponivel = false;
-  const cicloTarefas = escritaDisponivel
-    ? criarCicloTarefaCuidado({
-        identidadeAtual,
-        consultar: () => api.consultarBarreiraTarefa(),
-        reservar: async (entrada) => (await api.reservarBarreiraTarefa(entrada)).estado,
-        encerrar: async (entrada) => (await api.encerrarBarreiraTarefa(entrada)).estado,
-        reconhecer: async (entrada) => (await api.reconhecerBarreiraTarefa(entrada)).estado,
-        gravar: async ({
-          paciente_id,
-          tarefa_id,
-          versao_esperada,
-          tarefa,
-          chave,
-          reserva_id,
-          epoca,
-        }) => {
-          const reserva = { reserva_id, geracao_reserva: epoca };
-          if (versao_esperada === 0)
-            await servicoTarefas.criarTarefa(paciente_id, tarefa_id, chave, tarefa, reserva);
-          else
-            await servicoTarefas.atualizarTarefa(
+  return montarTarefasComDisponibilidade(raiz, pacienteId, {
+    identidadeAtual,
+    casoAtual: () => fichaPaciente?.id ?? null,
+    consultarDisponibilidade: servicoTarefas.consultarDisponibilidade,
+    acessoPerdido,
+    montar: (destino, escritaDisponivel, identidadeDaSecao) => {
+      const cicloTarefas = escritaDisponivel
+        ? criarCicloTarefaCuidado({
+            identidadeAtual: identidadeDaSecao,
+            consultar: () => api.consultarBarreiraTarefa(),
+            reservar: async (entrada) => (await api.reservarBarreiraTarefa(entrada)).estado,
+            encerrar: async (entrada) => (await api.encerrarBarreiraTarefa(entrada)).estado,
+            reconhecer: async (entrada) => (await api.reconhecerBarreiraTarefa(entrada)).estado,
+            gravar: async ({
               paciente_id,
               tarefa_id,
               versao_esperada,
-              chave,
               tarefa,
-              reserva,
-            );
+              chave,
+              reserva_id,
+              epoca,
+            }) => {
+              const reserva = { reserva_id, geracao_reserva: epoca };
+              if (versao_esperada === 0)
+                await servicoTarefas.criarTarefa(paciente_id, tarefa_id, chave, tarefa, reserva);
+              else
+                await servicoTarefas.atualizarTarefa(
+                  paciente_id,
+                  tarefa_id,
+                  versao_esperada,
+                  chave,
+                  tarefa,
+                  reserva,
+                );
+            },
+          })
+        : null;
+      return montarTarefasCuidado(
+        destino,
+        pacienteId,
+        {
+          consultarTarefas: servicoTarefas.consultarTarefas,
+          ...(cicloTarefas
+            ? {
+                ciclo: cicloTarefas,
+                criarTarefa: async (paciente, tarefa, _chave, dados) => {
+                  await cicloTarefas.gravar(paciente, tarefa, 0, dados);
+                },
+                atualizarTarefa: async (paciente, tarefa, versao, _chave, dados) => {
+                  await cicloTarefas.gravar(paciente, tarefa, versao, dados);
+                },
+              }
+            : {}),
         },
-      })
-    : null;
-  return montarTarefasCuidado(
-    raiz,
-    pacienteId,
-    {
-      consultarTarefas: servicoTarefas.consultarTarefas,
-      ...(cicloTarefas
-        ? {
-            ciclo: cicloTarefas,
-            criarTarefa: async (paciente, tarefa, _chave, dados) => {
-              await cicloTarefas.gravar(paciente, tarefa, 0, dados);
-            },
-            atualizarTarefa: async (paciente, tarefa, versao, _chave, dados) => {
-              await cicloTarefas.gravar(paciente, tarefa, versao, dados);
-            },
-          }
-        : {}),
+        acessoPerdido,
+        pendente,
+      );
     },
-    acessoPerdido,
-    pendente,
-  );
+  });
+}
+
+/** Sondagem da fatia de substituição (FR-037). Falha fechada: qualquer erro vira
+ * indisponível, nunca erro de carregamento na ficha. */
+async function sondarSubstituicaoCm(): Promise<{ disponivel: boolean }> {
+  try {
+    return await criarServicoSubstituicaoCmHttp(identidadeAtual).disponibilidade();
+  } catch {
+    return { disponivel: false };
+  }
+}
+
+/** `null` quando a fatia está desligada ou a sessão não serve: a seção é desenhada em estado
+ * honesto de indisponibilidade em vez de falhar ao carregar. */
+function servicoSubstituicaoCm(): ReturnType<typeof criarServicoSubstituicaoCmHttp> | null {
+  if (!substituicaoCmDisponivel) return null;
+  try {
+    return criarServicoSubstituicaoCmHttp(identidadeAtual);
+  } catch {
+    return null;
+  }
 }
 
 function montarSecaoCadastro(
@@ -578,6 +772,10 @@ function montarSecaoCadastro(
       {
         ...criarServicoEdicaoPacienteHttp(identidadeAtual),
         ...(listarResponsaveis ? { listarResponsaveis } : {}),
+        // Chave sempre presente para quem administra o cadastro: com a fatia desligada vai
+        // `null`, e a seção aparece dizendo que ainda não está disponível. Visibilidade não é
+        // autorização — o servidor e o banco continuam decidindo cada operação.
+        substituicao: servicoSubstituicaoCm(),
       },
       acessoPerdido,
       (valor) => {
@@ -603,6 +801,81 @@ function montarSecaoCadastro(
   return () => {
     desmontarEdicao?.();
     desmontarContato();
+  };
+}
+
+function montarSecaoExecucaoTurno(
+  raiz: HTMLElement,
+  pacienteId: string,
+  atual: Sessao,
+  pendente: (valor: boolean) => void,
+  comTurno: boolean,
+): () => void {
+  const identidade = identidadeAtual();
+  let ativa = true;
+  const identidadeDaSecao = () => {
+    const corrente = identidadeAtual();
+    return ativa &&
+      identidade &&
+      corrente &&
+      fichaPaciente?.id === pacienteId &&
+      corrente.usuario_id === identidade.usuario_id &&
+      corrente.session_id === identidade.session_id
+      ? corrente
+      : null;
+  };
+  const servico = criarServicoTurnoExecucaoHttp(pacienteId, identidadeDaSecao);
+  const tarefas = criarServicoTarefasHttp(identidadeDaSecao);
+  const conversao = {
+    consultar: (registroId: string) =>
+      servico.consultarConversaoOcorrencia({ registro_id: registroId }),
+    contexto: async () => {
+      const [capacidade, diario] = await Promise.all([
+        tarefas.consultarDisponibilidade(pacienteId),
+        consultarDisponibilidadeDiario(),
+      ]);
+      return {
+        escrita_disponivel: capacidade.escrita_disponivel && diario.disponivel,
+        areas: diario.areas,
+      };
+    },
+    criarCiclo: (gravar: Parameters<typeof criarCicloTarefaCuidado>[0]['gravar']) =>
+      criarCicloTarefaCuidado({
+        identidadeAtual: identidadeDaSecao,
+        consultar: () => api.consultarBarreiraTarefa(),
+        reservar: async (entrada) => (await api.reservarBarreiraTarefa(entrada)).estado,
+        encerrar: async (entrada) => (await api.encerrarBarreiraTarefa(entrada)).estado,
+        reconhecer: async (entrada) => (await api.reconhecerBarreiraTarefa(entrada)).estado,
+        gravar,
+      }),
+  };
+  const opcoes = {
+    usuarioId: atual.usuario.id,
+    administrador: atual.usuario.perfil === 'administrador',
+    acessoPerdido: (erro?: unknown) => acessoPerdido(erro ?? new FalhaApi('nao_autenticado', 401)),
+    alteracaoPendente: pendente,
+    conversao,
+    // FR-073/FR-078/FR-079. Criados sob demanda: a seção da ficha não faz pedido nenhum
+    // antes de ser aberta. Esconder a seção não autoriza nada — servidor e banco decidem.
+    criarServicosFicha: () => ({
+      ficha: criarServicoFichaPlantaoHttp(identidadeDaSecao),
+      modelo: criarServicoModeloFormularioHttp(identidadeDaSecao, 'ficha_plantao'),
+      papeis: criarServicoPapelDeclaradoHttp(identidadeDaSecao),
+    }),
+  };
+  const desmontar = comTurno
+    ? montarTurnoComExecucao(
+        raiz,
+        pacienteId,
+        criarServicoTurnoHttp(identidadeDaSecao),
+        servico,
+        opcoes,
+      )
+    : montarExecucaoTurno(raiz, pacienteId, null, servico, opcoes);
+  return () => {
+    ativa = false;
+    desmontar();
+    servico.desmontar();
   };
 }
 
@@ -634,6 +907,22 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
             undefined,
             true,
           );
+        },
+      },
+      {
+        id: 'relatorios-turno',
+        rotulo: 'Relatórios do cuidado',
+        montar: (raiz, pendente) => {
+          const servico = criarServicoTurnoExecucaoHttp(paciente.id, identidadeAtual);
+          const desmontar = montarRelatoriosTurno(raiz, servico, {
+            familia: true,
+            acessoPerdido,
+            alteracaoPendente: pendente,
+          });
+          return () => {
+            desmontar();
+            servico.desmontar();
+          };
         },
       },
       {
@@ -771,7 +1060,15 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       montar: (raiz, pendente) => {
         const servico = criarServicoPlanoHttp(identidadeAtual);
         planoAberto = { pacienteId: paciente.id, servico };
-        const desmontar = montarPlanoCuidado(raiz, paciente.id, servico, acessoPerdido, pendente);
+        const desmontar = montarPlanoCuidado(
+          raiz,
+          paciente.id,
+          servico,
+          acessoPerdido,
+          pendente,
+          false,
+          nomeDoUsuarioNaEquipe.consultar,
+        );
         return () => {
           desmontar();
           planoAberto = null;
@@ -799,6 +1096,30 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       descarte: descarteTarefa,
       montar: (raiz, pendente) => montarSecaoTarefas(raiz, paciente.id, pendente),
     });
+  if (atual.usuario.perfil === 'profissional')
+    secoes.push({
+      id: 'meu-turno',
+      rotulo: 'Meu turno',
+      // Visibilidade organiza a ficha; autorização continua no servidor e banco.
+      montar: (raiz, pendente) =>
+        montarSecaoExecucaoTurno(raiz, paciente.id, atual, pendente, true),
+    });
+  if (atual.usuario.perfil === 'administrador')
+    secoes.push({
+      id: 'execucao-cuidado',
+      rotulo: 'Execução e relatórios',
+      montar: (raiz, pendente) =>
+        montarSecaoExecucaoTurno(raiz, paciente.id, atual, pendente, false),
+    });
+  secoes.push({
+    id: 'escala-turnos',
+    rotulo: 'Escala de turnos',
+    montar: (raiz, pendente) =>
+      montarEscalaTurno(raiz, paciente.id, criarServicoTurnoHttp(identidadeAtual), {
+        acessoPerdido: () => acessoPerdido(new FalhaApi('nao_autenticado', 401)),
+        alteracaoPendente: pendente,
+      }),
+  });
   if (administraCadastro)
     secoes.push({
       id: 'cadastro',
@@ -852,6 +1173,9 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
           criarServicoPendenciasHttp(identidadeAtual),
           acessoPerdido,
           catalogoResponsaveis,
+          // Decisão 0.5: a pendência escrita no plantão aparece na carteira ao lado das
+          // quatro derivadas, com origem visível. Não gera aviso no sino.
+          () => criarServicoFichaPlantaoHttp(identidadeAtual).listarPendencias(paciente.id),
         ),
     },
     {
@@ -893,6 +1217,20 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
           ),
           acessoPerdido,
           pendente,
+          [],
+          async (pacienteId, cursor) => {
+            const pagina = await criarServicoPlanoHttp(identidadeAtual).consultarObjetivos(
+              pacienteId,
+              cursor,
+            );
+            return {
+              itens: pagina.itens.map((registro) => ({
+                id: registro.objetivo_id,
+                titulo: registro.objetivo.descricao,
+              })),
+              proximo_cursor: pagina.proximo_cursor,
+            };
+          },
         ),
     },
     {
@@ -942,7 +1280,10 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         () => areasDiario,
         acessoPerdido,
         pendente,
-        undefined,
+        atual.usuario.perfil === 'profissional'
+          ? (destino, origem, alteracao, concluido) =>
+              montarConversaoDaFicha(destino, paciente.id, origem, alteracao, concluido)
+          : undefined,
         (destino, aoConfirmar) =>
           montarTranscricaoAudio(
             destino,
@@ -1212,6 +1553,7 @@ function mostrarAcesso(mensagem = '', tom: 'error' | 'success' | 'neutral' = 'ne
     usuariosComCadastroIncerto.add(sessao.usuario.id);
   }
   api.limpar();
+  audienciaFinanceira.esquecer();
   sessao = null;
   revalidacaoPendente = false;
   focoAposLoginOculto = false;
@@ -1220,6 +1562,7 @@ function mostrarAcesso(mensagem = '', tom: 'error' | 'success' | 'neutral' = 'ne
   fecharGavetaLateral();
   loginForm.reset();
   familiarForm.reset();
+  loginInterno.limpar();
   passwordInput.type = 'password';
   togglePassword.textContent = 'Mostrar senha';
   patientsView.hidden = true;
@@ -1260,6 +1603,7 @@ const perfis = {
   profissional: 'Profissional',
   familia: 'Família',
 };
+const funcoesConta = { ...perfis, familia: 'Familiar', case_manager: 'Case Manager' };
 
 let catalogoEquipePara: string | null = null;
 let catalogoEquipe: (() => Promise<ResponsavelOpcao[]>) | null = null;
@@ -1362,7 +1706,91 @@ const nomeDoUsuarioNaEquipe = (() => {
   };
 })();
 
+const audienciaFinanceira = criarAudienciaFinanceira(
+  async () => criarServicoFinanceiroHttp(identidadeAtual).consultarAudiencia(),
+  () => {
+    const atual = sessao;
+    if (!atual) return;
+    elemento('nav-administracao').hidden = areasDisponiveis(atual).length === 0;
+  },
+);
+
 const areasAdministracao: AreaAdministracao[] = [
+  {
+    id: 'plano-cuidado',
+    rotulo: 'Plano de cuidado',
+    disponivel: (atual) => atual.usuario.perfil === 'administrador',
+    montar: (raiz) =>
+      montarAdministracaoPlano(
+        raiz,
+        criarServicoPlanoHttp(identidadeAtual),
+        acessoPerdido,
+        async () => {
+          if (!sessao) throw new FalhaApi('nao_autenticado', 401);
+          const catalogo = catalogoDaEquipe(sessao);
+          if (!catalogo) throw new Error('Catálogo da equipe indisponível.');
+          return catalogo();
+        },
+      ),
+  },
+  {
+    // FR-078. Esconder a área não é autorizar: o servidor e o banco decidem a cada escrita.
+    id: 'modelo-ficha-plantao',
+    rotulo: 'Ficha de plantão — modelo',
+    disponivel: (atual) => atual.usuario.perfil === 'administrador',
+    montar: (raiz) =>
+      montarModeloFichaPlantao(
+        raiz,
+        criarServicoModeloFormularioHttp(identidadeAtual, 'ficha_plantao'),
+        acessoPerdido,
+      ),
+  },
+  {
+    // FR-079. Rótulo de registro; não participa de nenhuma decisão de acesso.
+    id: 'papel-declarado',
+    rotulo: 'Papéis declarados',
+    disponivel: (atual) => atual.usuario.perfil === 'administrador',
+    montar: (raiz) =>
+      montarPapelDeclaradoAdministracao(
+        raiz,
+        criarServicoPapelDeclaradoHttp(identidadeAtual),
+        acessoPerdido,
+      ),
+  },
+  {
+    // FR-076/FR-081. Vocabulário de observação, sem nota nem escala; nenhuma decisão de
+    // acesso passa por aqui. Esconder a área não é autorizar: servidor e banco decidem.
+    id: 'estado-emocional',
+    rotulo: 'Estado emocional observado',
+    disponivel: (atual) => atual.usuario.perfil === 'administrador',
+    montar: (raiz) =>
+      montarEstadoEmocionalAdministracao(
+        raiz,
+        criarServicoEstadoEmocionalHttp(identidadeAtual),
+        acessoPerdido,
+      ),
+  },
+  {
+    id: 'acessos',
+    rotulo: 'Acessos',
+    disponivel: (atual) =>
+      atual.usuario.perfil === 'administrador' &&
+      atual.capacidades.includes('administrar_concessoes'),
+    montar: (raiz) =>
+      montarAcessosAdministracao(raiz, criarServicoAcessosHttp(identidadeAtual), {
+        identidadeAtual,
+        acessoPerdido,
+      }),
+  },
+  {
+    id: 'integracoes',
+    rotulo: 'Credenciais das integrações',
+    disponivel: (atual) => atual.usuario.perfil === 'administrador',
+    montar: (raiz) =>
+      montarSegredosIntegracoes(raiz, criarServicoSegredosIntegracoesHttp(identidadeAtual), {
+        nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
+      }),
+  },
   {
     id: 'configuracao',
     rotulo: 'Configuração',
@@ -1388,6 +1816,29 @@ const areasAdministracao: AreaAdministracao[] = [
       atual.capacidades.includes('administrar_concessoes'),
     montar: (raiz) =>
       montarHabilitacaoPlanoCrise(raiz, criarServicoHabilitacaoPlanoCriseHttp(identidadeAtual)),
+  },
+  {
+    // FR-068. Conceder a audiência financeira é ato de Administrador, e não decorre de
+    // vínculo com caso (design D1). Esconder a área não é autorizar: `api.listar_
+    // concessao_financeira` e `api.gravar_concessao_financeira` exigem Administrador no
+    // banco, e a autoconcessão é recusada lá, não aqui.
+    id: 'financeiro-concessao',
+    rotulo: 'Quem vê o financeiro',
+    disponivel: (atual) =>
+      atual.usuario.perfil === 'administrador' &&
+      atual.capacidades.includes('administrar_concessoes'),
+    montar: (raiz) =>
+      montarFinanceiroConcessaoAdministracao(raiz, criarServicoFinanceiroHttp(identidadeAtual)),
+  },
+  {
+    id: 'financeiro',
+    rotulo: 'Financeiro',
+    // Esconder não é autorizar: a sondagem só evita apresentar a área a quem o servidor já
+    // disse que não tem audiência financeira. Família nunca chega a perguntar, e qualquer
+    // chamada financeira continua sendo autorizada no servidor e no banco.
+    disponivel: (atual) =>
+      atual.usuario.perfil !== 'familia' && audienciaFinanceira.permitidaPara(atual.session_id),
+    montar: (raiz) => montarFinanceiro(raiz, criarServicoFinanceiroHttp(identidadeAtual)),
   },
   {
     id: 'auditoria',
@@ -1521,7 +1972,8 @@ function mostrarAdministracao(areaId: string): void {
   );
   if (painelAdministracao?.area === area.id) return;
   // A equipe só é consultada pelas telas que trocam identificador por nome.
-  if (area.id === 'configuracao' || area.id === 'auditoria') nomeDoUsuarioNaEquipe.carregar(atual);
+  if (['configuracao', 'integracoes', 'auditoria'].includes(area.id))
+    nomeDoUsuarioNaEquipe.carregar(atual);
   painelAdministracao?.desmontar();
   const conteudo = elemento('administracao-conteudo');
   conteudo.replaceChildren();
@@ -1617,6 +2069,10 @@ function aplicarSessao(atual: Sessao): boolean {
     aviso('workspace-feedback', 'Seu acesso foi atualizado. Abra a ficha novamente.');
   }
   sessao = atual;
+  audienciaFinanceira.sondar({
+    session_id: atual.session_id,
+    perfil: atual.usuario.perfil,
+  });
   let acessoGoogle = false;
   try {
     acessoGoogle = sessionStorage.getItem('modo-acesso') === 'google';
@@ -1689,6 +2145,7 @@ function aplicarSessao(atual: Sessao): boolean {
     fecharHome();
     mostrarCarteira();
   }
+  ajustarAvisos(atual);
   const temAdministracao = areasDisponiveis(atual).length > 0;
   elemento('nav-administracao').hidden = !temAdministracao;
   if (!temAdministracao && painelAdministracao) {
@@ -1698,7 +2155,9 @@ function aplicarSessao(atual: Sessao): boolean {
   registration.hidden = !podeCadastrar;
   newPatientLink.hidden = !podeCadastrar;
   elemento('workspace').classList.toggle('with-registration', podeCadastrar);
-  elemento('session-role').textContent = perfis[atual.usuario.perfil];
+  elemento('session-role').textContent = atual.usuario.funcao
+    ? funcoesConta[atual.usuario.funcao]
+    : perfis[atual.usuario.perfil];
   elemento('scope-description').textContent = atual.capacidades.includes(
     'consultar_carteira_integral',
   )
@@ -1957,15 +2416,21 @@ async function carregarPacientes(): Promise<boolean> {
   listaPacientes.setAttribute('aria-busy', 'true');
   aviso('list-status', 'Consultando pacientes…');
   try {
-    const [resultado, disponibilidade] = await Promise.all([
-      api.listarPacientes(cursores[pagina], filtrosCarteira),
+    const administraCadastroAgora =
       sessao.usuario.perfil === 'administrador' &&
-      sessao.capacidades.includes('administrar_cadastro')
+      sessao.capacidades.includes('administrar_cadastro');
+    const [resultado, disponibilidade, disponibilidadeSubstituicao] = await Promise.all([
+      api.listarPacientes(cursores[pagina], filtrosCarteira),
+      administraCadastroAgora
         ? api.disponibilidadeEdicao().catch(() => ({ disponivel: false }))
         : Promise.resolve({ disponivel: false }),
+      administraCadastroAgora
+        ? sondarSubstituicaoCm()
+        : Promise.resolve({ disponivel: false as boolean }),
     ]);
     if (!atual()) return false;
     edicaoDisponivel = disponibilidade.disponivel;
+    substituicaoCmDisponivel = disponibilidadeSubstituicao.disponivel;
     pacientesDaPagina = resultado.itens;
     renderizarLista();
     proximoCursor = resultado.proximo_cursor;
@@ -2193,6 +2658,7 @@ async function sair(): Promise<void> {
     ? ' Um cadastro pode estar sem confirmação; não o recrie antes de consultar sua situação no aplicativo ou por canal autorizado.'
     : '';
   cadastroEmRevalidacao = null;
+  audienciaFinanceira.esquecer();
   sessao = null;
   revisao += 1;
   apagarPacientes();
@@ -2208,6 +2674,10 @@ async function sair(): Promise<void> {
   aviso('logout-feedback', 'Encerrando sessão no serviço…');
   try {
     const resultado = await api.sair();
+    // Só depois do encerramento confirmado: `api.sair()` e a nova tentativa dependem das marcas
+    // de sessão. Sem `await` de propósito — a parte síncrona (armazenamentos) já terminou aqui, e
+    // os caches não podem atrasar a tela de saída.
+    void limparAparelho();
     mostrarAcesso(
       (resultado.pendencia_externa
         ? 'Sessão local encerrada. O encerramento no serviço externo permanece pendente.'
@@ -2518,4 +2988,11 @@ async function restaurarSessao(): Promise<void> {
 window.addEventListener('pageshow', (evento) => {
   if (evento.persisted) void restaurarSessao();
 });
+
+// Casca offline (FR-071). O aviso de falta de rede é estado da casca; nenhuma área mostra dado
+// anterior porque nenhuma resposta de API é guardada no aparelho. O registro do worker não
+// bloqueia nada: sem suporte ou com falha, o produto segue igual pelo navegador.
+montarEstadoDeRede(elemento('estado-rede'));
+void registrarCascaOffline();
+
 void restaurarSessao();

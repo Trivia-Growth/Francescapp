@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { cursorSchema, uuidSchema } from './comum.ts';
 import {
   conteudoPlanoSchema,
+  aprovacaoObjetivoPlanoSchema,
   objetivoSchema,
   motivoPlanoSchema,
   visibilidadeObjetivoSchema,
@@ -16,6 +17,8 @@ import {
 const epoca = z.number().int().positive().safe();
 const registro = conteudoPlanoSchema
   .extend({
+    registro_id: uuidSchema.optional(),
+    aprovacoes: z.array(aprovacaoObjetivoPlanoSchema).optional(),
     objetivo_id: uuidSchema,
     versao: z.number().int().positive().max(2147483647),
     visibilidade: visibilidadeObjetivoSchema,

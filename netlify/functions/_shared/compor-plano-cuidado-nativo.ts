@@ -1,3 +1,5 @@
+import { comporCampoExtraPlanoNativo } from './compor-campo-extra-plano-nativo.ts';
+import { campoExtraCatalogoSchema } from '../../../packages/contracts/src/plano-cuidado.ts';
 import type { Pool } from 'pg';
 import { sessaoNativaSchema } from '../../../packages/contracts/src/identidade.ts';
 import type { FonteDeConfiguracao } from '../../../supabase/functions/_shared/configuracao.ts';
@@ -104,6 +106,15 @@ export async function comporPlanoCuidadoNativo(
         revalidar: autorizar,
         metadados: (requestId) =>
           metadadosAtestadoNativo(dependencias.keyIdAtestado, requestId, Date.now()),
+        consultarCatalogo: async () => {
+          const resposta = await comporCampoExtraPlanoNativo(
+            pedido,
+            { operacao: 'listar' },
+            dependencias,
+          );
+          if (!resposta.ok) throw new Error('Catálogo indisponível.');
+          return campoExtraCatalogoSchema.array().parse(resposta.dados);
+        },
         cifra: cofre.cifra,
         cursor: cofre.cursor,
         idempotencia: criarIdempotenciaNativa(cofre.cifra),

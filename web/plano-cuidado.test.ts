@@ -447,3 +447,181 @@ it('confirma antes de descartar alterações ao cancelar revisão', async () => 
   expect(raiz.querySelector('form')).toBeNull();
   confirmar.mockRestore();
 });
+
+const campoExtraId = 'e0000000-0000-4000-8000-000000000005';
+const campoExtra = {
+  campo_id: campoExtraId,
+  nome: 'Observação adicional',
+  tipo: 'texto' as const,
+  opcoes: null,
+  ativo: true,
+  versao: 1,
+};
+
+it('ESP-06: mostra e preserva extras ao revisar campos fixos', async () => {
+  const raiz = document.createElement('div');
+  const revisarObjetivo = vi.fn().mockResolvedValue(undefined);
+  const comExtras = { ...objetivo, camposExtras: { [campoExtraId]: 'Valor fictício preservado' } };
+  montarPlanoCuidado(
+    raiz,
+    'paciente',
+    {
+      consultarCatalogo: vi.fn().mockResolvedValue([campoExtra]),
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi
+        .fn()
+        .mockResolvedValue({ itens: [{ ...atual, objetivo: comExtras }], proximo_cursor: null }),
+      criarObjetivo: vi.fn(),
+      revisarObjetivo,
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Valor fictício preservado'));
+  [...raiz.querySelectorAll('button')]
+    .find((item) => item.textContent === 'Revisar objetivo')
+    ?.click();
+  const motivo = [...raiz.querySelectorAll('label')]
+    .find((item) => item.textContent?.includes('Motivo da revisão'))
+    ?.querySelector('textarea');
+  if (!motivo) throw new Error('Motivo ausente');
+  motivo.value = 'Revisão fictícia';
+  raiz.querySelector('form')?.requestSubmit();
+  await vi.waitFor(() =>
+    expect(revisarObjetivo).toHaveBeenCalledWith('paciente', 'objetivo', 1, {
+      objetivo: comExtras,
+      motivo: 'Revisão fictícia',
+      visibilidade: 'interna',
+    }),
+  );
+});
+
+it('ESP-06: campo inativo permanece visível e bloqueia revisão sem apagar valor', async () => {
+  const raiz = document.createElement('div');
+  const revisarObjetivo = vi.fn();
+  montarPlanoCuidado(
+    raiz,
+    'paciente',
+    {
+      consultarCatalogo: vi.fn().mockResolvedValue([{ ...campoExtra, ativo: false }]),
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi.fn().mockResolvedValue({
+        itens: [
+          {
+            ...atual,
+            objetivo: { ...objetivo, camposExtras: { [campoExtraId]: 'Valor antigo' } },
+          },
+        ],
+        proximo_cursor: null,
+      }),
+      criarObjetivo: vi.fn(),
+      revisarObjetivo,
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Valor antigo'));
+  [...raiz.querySelectorAll('button')]
+    .find((item) => item.textContent === 'Revisar objetivo')
+    ?.click();
+  raiz.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+  expect(raiz.textContent).toContain('A revisão está bloqueada');
+  expect(revisarObjetivo).not.toHaveBeenCalled();
+  expect(raiz.textContent).toContain('Valor antigo');
+});
+
+it('aprovação usa registro confiável da versão e negativa não bloqueia revisão', async () => {
+  const raiz = document.createElement('div');
+  const aprovarObjetivo = vi.fn().mockRejectedValue(new FalhaApi('sem_permissao', 403));
+  montarPlanoCuidado(
+    raiz,
+    'paciente',
+    {
+      aprovarObjetivo,
+      consultarCatalogo: vi.fn().mockResolvedValue([]),
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi.fn().mockResolvedValue({
+        itens: [{ ...atual, registro_id: campoExtraId }],
+        proximo_cursor: null,
+      }),
+      criarObjetivo: vi.fn(),
+      revisarObjetivo: vi.fn(),
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Aprovar esta versão'));
+  [...raiz.querySelectorAll('button')]
+    .find((item) => item.textContent === 'Aprovar esta versão')
+    ?.click();
+  await vi.waitFor(() => expect(aprovarObjetivo).toHaveBeenCalledWith(campoExtraId));
+  expect(
+    [...raiz.querySelectorAll('button')].find((item) => item.textContent === 'Revisar objetivo')
+      ?.disabled,
+  ).toBe(false);
+});
+
+it('mudança de tipo no catálogo mantém valor legado visível e exige correção explícita', async () => {
+  const raiz = document.createElement('div');
+  const revisarObjetivo = vi.fn();
+  montarPlanoCuidado(
+    raiz,
+    'paciente',
+    {
+      consultarCatalogo: vi.fn().mockResolvedValue([{ ...campoExtra, tipo: 'numero' }]),
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi.fn().mockResolvedValue({
+        itens: [
+          {
+            ...atual,
+            objetivo: { ...objetivo, camposExtras: { [campoExtraId]: 'Texto legado' } },
+          },
+        ],
+        proximo_cursor: null,
+      }),
+      criarObjetivo: vi.fn(),
+      revisarObjetivo,
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Texto legado'));
+  [...raiz.querySelectorAll('button')]
+    .find((item) => item.textContent === 'Revisar objetivo')
+    ?.click();
+  const extra = [...raiz.querySelectorAll('label')]
+    .find((item) => item.textContent === campoExtra.nome)
+    ?.querySelector('input');
+  expect(extra?.value).toBe('Texto legado');
+  raiz.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+  expect(revisarObjetivo).not.toHaveBeenCalled();
+  expect(extra?.value).toBe('Texto legado');
+});
+
+it('família consulta objetivo público com extras sem acessar catálogo administrativo', async () => {
+  const raiz = document.createElement('div');
+  const consultarCatalogo = vi.fn();
+  montar(
+    raiz,
+    'paciente',
+    {
+      consultarCatalogo,
+      consultarHistorico: vi.fn(),
+      revisarObjetivo: vi.fn(),
+      ciclo: {} as ServicoPlanoCuidado['ciclo'],
+      consultarObjetivos: vi.fn().mockResolvedValue({
+        itens: [
+          {
+            ...atual,
+            visibilidade: 'publica',
+            objetivo: { ...objetivo, camposExtras: { [campoExtraId]: 'Extra público' } },
+          },
+        ],
+        proximo_cursor: null,
+      }),
+    },
+    vi.fn(),
+    () => {},
+    true,
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Extra público'));
+  expect(consultarCatalogo).not.toHaveBeenCalled();
+  expect(raiz.textContent).not.toContain('Revisar objetivo');
+  expect(raiz.textContent).not.toContain('Aprovar esta versão');
+});

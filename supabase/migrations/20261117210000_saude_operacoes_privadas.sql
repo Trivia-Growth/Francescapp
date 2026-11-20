@@ -5,18 +5,42 @@
 select set_config('ffcmapp.migrador_saude_owner', current_user, false);
 
 create role ffcmapp_saude_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
-grant ffcmapp_saude_owner to current_user with inherit false, set true;
-grant usage, create on schema api to ffcmapp_saude_owner;
+select set_config('ffcmapp.saude_tinha_set',pg_has_role(current_user,'ffcmapp_saude_owner','SET')::text,false);
+select set_config('ffcmapp.saude_tinha_create',exists(
+ select 1 from pg_namespace n cross join lateral aclexplode(coalesce(n.nspacl,acldefault('n',n.nspowner))) a
+ where n.nspname='api' and a.grantee='ffcmapp_saude_owner'::regrole and a.privilege_type='CREATE')::text,false);
+do $$ begin
+ if current_setting('ffcmapp.saude_tinha_set')='false' then
+  execute format('grant ffcmapp_saude_owner to %I with inherit false, set true granted by %I',current_user,current_user);
+ end if;
+ if current_setting('ffcmapp.saude_tinha_create')='false' then grant create on schema api to ffcmapp_saude_owner; end if;
+end $$;
+grant usage on schema api to ffcmapp_saude_owner;
 grant usage on schema public, identidade, cadastro, operacao, auditoria, auth_privado, bloqueios_auth to ffcmapp_saude_owner;
 grant execute on function auth_privado.uid(), auth_privado.jwt(), auth_privado.identidades(), auth_privado.sessoes(), bloqueios_auth.travar(uuid, uuid) to ffcmapp_saude_owner;
 
 -- O verificador do atestado é de outro owner; conceder exige assumir o papel dono.
-grant ffcmapp_atestado_verificador_owner to current_user with inherit false, set true;
+select set_config('ffcmapp.saude_verificador_tinha_set',pg_has_role(current_user,'ffcmapp_atestado_verificador_owner','SET')::text,false);
+do $$ begin
+ if (select proowner from pg_proc where oid='identidade.verificar_assinatura_atestado(text,text,jsonb,jsonb,text)'::regprocedure)
+  is distinct from 'ffcmapp_atestado_verificador_owner'::regrole then raise exception 'OWNER_VERIFICADOR_INESPERADO'; end if;
+ if current_setting('ffcmapp.saude_verificador_tinha_set')='false' then
+  if exists(select 1 from pg_auth_members where roleid='ffcmapp_atestado_verificador_owner'::regrole
+   and member=current_user::regrole and grantor=current_user::regrole) then
+   raise exception 'MEMBERSHIP_CONCEDENTE_EXISTENTE_SEM_SET';
+  end if;
+  execute format('grant ffcmapp_atestado_verificador_owner to %I with inherit false, set true granted by %I',current_user,current_user);
+ end if;
+end $$;
 set role ffcmapp_atestado_verificador_owner;
 grant execute on function identidade.verificar_assinatura_atestado(text, text, jsonb, jsonb, text) to ffcmapp_saude_owner;
 reset role;
 select set_config('role', current_setting('ffcmapp.migrador_saude_owner'), false);
-revoke ffcmapp_atestado_verificador_owner from current_user;
+do $$ begin
+ if current_setting('ffcmapp.saude_verificador_tinha_set')='false' then
+  execute format('revoke ffcmapp_atestado_verificador_owner from %I granted by %I',current_user,current_user);
+ end if;
+end $$;
 
 -- `for share`/`for update` exigem privilégio de UPDATE além do de SELECT; por isso cada
 -- tabela travada recebe update de uma coluna inócua e uma policy de trava que nunca grava.
@@ -247,5 +271,9 @@ revoke all on function api.saude_operacao_privada(jsonb) from public, anon, auth
 reset role;
 select set_config('role', current_setting('ffcmapp.migrador_saude_owner'), false);
 
-revoke create on schema api from ffcmapp_saude_owner;
-revoke ffcmapp_saude_owner from current_user;
+do $$ begin
+ if current_setting('ffcmapp.saude_tinha_create')='false' then revoke create on schema api from ffcmapp_saude_owner; end if;
+ if current_setting('ffcmapp.saude_tinha_set')='false' then
+  execute format('revoke ffcmapp_saude_owner from %I granted by %I',current_user,current_user);
+ end if;
+end $$;

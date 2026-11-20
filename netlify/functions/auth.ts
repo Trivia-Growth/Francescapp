@@ -8,12 +8,17 @@ import { consultarSessaoNativa } from './_shared/auth-nativo/sessao.ts';
 import { consultarSessaoFamiliarPrivada } from './_shared/auth-nativo/sessao-familiar.ts';
 import { encerrarSessaoNativa } from './_shared/auth-nativo/saida.ts';
 import { entrarTecnicaNativa } from './_shared/auth-nativo/tecnica.ts';
+import { entrarInternoNativo } from './_shared/auth-nativo/interno.ts';
+import { confirmarEmailInternoNativo } from './_shared/auth-nativo/confirmar-email-interno.ts';
 
 // Netlify Functions v2: rotas explícitas, sem expor módulos experimentais.
 export const config = {
   path: [
     '/api/auth/google',
     '/api/auth/tecnica',
+    '/api/auth/interno',
+    '/api/auth/interno/confirmacao/solicitar',
+    '/api/auth/interno/confirmacao/verificar',
     '/api/auth/familiar',
     '/api/auth/familiar/ativar',
     '/api/auth/callback',
@@ -42,7 +47,8 @@ export default async function auth(request: Request): Promise<Response> {
       process.env.FFCM_AUTH_FAMILIAR_ATIVADO !== 'true') ||
     (caminho === '/api/auth/familiar/ativar' &&
       (!ativacaoFamiliarComprovada || process.env.FFCM_CONVITE_FAMILIAR_ATIVO !== 'true')) ||
-    (caminho === '/api/auth/tecnica' && process.env.FFCM_AUTH_TECNICA_ATIVADO !== 'true')
+    (caminho === '/api/auth/tecnica' && process.env.FFCM_AUTH_TECNICA_ATIVADO !== 'true') ||
+    (caminho.startsWith('/api/auth/interno') && process.env.FFCM_AUTH_INTERNO_ATIVADO !== 'true')
   ) {
     return Response.json(criarErroPublicoSemCampos('servico_indisponivel', crypto.randomUUID()), {
       status: 503,
@@ -58,6 +64,12 @@ export default async function auth(request: Request): Promise<Response> {
       return iniciarGoogleNativo(request, process.env);
     case '/api/auth/tecnica':
       return entrarTecnicaNativa(request, process.env);
+    case '/api/auth/interno':
+      return entrarInternoNativo(request, process.env);
+    case '/api/auth/interno/confirmacao/solicitar':
+      return confirmarEmailInternoNativo(request, process.env, 'solicitar');
+    case '/api/auth/interno/confirmacao/verificar':
+      return confirmarEmailInternoNativo(request, process.env, 'verificar');
     case '/api/auth/familiar':
       return entrarFamiliarNativa(request, process.env);
     case '/api/auth/familiar/ativar':

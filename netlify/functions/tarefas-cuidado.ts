@@ -2,8 +2,14 @@ import { criarErroPublicoSemCampos } from '../../packages/contracts/src/erros.ts
 import { configurarDependenciasNativas } from './_shared/configurar-dependencias-nativas.ts';
 import { servicoAtivo } from './_shared/configuracao-servidor.ts';
 import { criarEntradaTarefaCuidadoNativa } from './_shared/entrada-tarefa-cuidado-nativa.ts';
+import { consultarDisponibilidadeTarefaCuidado } from './_shared/tarefa-cuidado-disponibilidade.ts';
 
-export const config = { path: '/api/pacientes/:paciente_id/tarefas' };
+export const config = {
+  path: [
+    '/api/pacientes/:paciente_id/tarefas',
+    '/api/pacientes/:paciente_id/tarefas/disponibilidade',
+  ],
+};
 let entrada: ReturnType<typeof criarEntradaTarefaCuidadoNativa> | undefined;
 let dependencias: ReturnType<typeof configurarDependenciasNativas> | undefined;
 
@@ -14,6 +20,16 @@ export default async function tarefasCuidado(request: Request): Promise<Response
   } catch {
     return falha('configuracao_indisponivel');
   }
+  const configuradas = dependencias;
+  if (new URL(request.url).pathname.endsWith('/tarefas/disponibilidade'))
+    return consultarDisponibilidadeTarefaCuidado(request, configuradas, async () => {
+      const flags = await Promise.all([
+        servicoAtivo(configuradas.pool, 'ffcm.tarefas.ativas', false),
+        servicoAtivo(configuradas.pool, 'ffcm.tarefas.escrita_ativa', false),
+        servicoAtivo(configuradas.pool, 'ffcm.tarefas.barreira_ativa', false),
+      ]);
+      return flags.every((ativa) => ativa);
+    });
   // Três interruptores administrados pela tela, cada um com a variável de ambiente como padrão
   // quando o banco não responde. Nenhum é autorização: a rota segue validando sessão, concessão
   // e atestado no banco. A conferência antes de gravar faz parte do fluxo de criação — sem ela a

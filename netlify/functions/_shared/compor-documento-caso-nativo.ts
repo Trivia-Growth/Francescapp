@@ -11,8 +11,11 @@ import { criarIdempotenciaNativa } from './idempotencia-nativa.ts';
 import { carregarConfiguracaoServidor } from './configuracao-servidor.ts';
 import { lerSegredoIntegracao } from './segredo-integracao.ts';
 import { criarPortaDrive } from './google-drive.ts';
+import { entregarDocumentoCaso } from './documento-caso-entrega.ts';
 
-type Resultado = Awaited<ReturnType<typeof operarDocumentoCasoNativo>>;
+type Resultado =
+  | Awaited<ReturnType<typeof operarDocumentoCasoNativo>>
+  | Awaited<ReturnType<typeof entregarDocumentoCaso>>;
 
 /** Referência do segredo no Supabase Vault. Cadastrar a referência (migration
  * `20261120100000`) não é cadastrar o valor: o JSON da conta de serviço é colocado no Vault
@@ -112,38 +115,60 @@ export async function comporDocumentoCasoNativo(
     // A pasta raiz e a credencial só são buscadas quando há arquivo a enviar: uma consulta de
     // relação de anexos não precisa alcançar o cofre nem o Google.
     let drive: Parameters<typeof operarDocumentoCasoNativo>[2]['drive'];
-    if (comando.operacao === 'gravar' && comando.arquivo) {
+    try {
       const configuracao = await noPrazo(() => carregarConfiguracaoServidor(dependencias.pool));
       const raiz = configuracao.get('ffcm.documentos.drive_pasta_raiz')?.valor;
-      // Sem pasta configurada, o envio é recusado. Nunca se escolhe outro local de guarda:
-      // substituição silenciosa de armazenamento é proibida pelo design desta fatia.
-      if (typeof raiz !== 'string' || raiz.trim().length === 0)
-        return {
-          ok: false,
-          erro: { codigo: 'servico_indisponivel' as const },
-          request_id: crypto.randomUUID(),
-        };
+      if (typeof raiz !== 'string' || raiz.trim().length === 0) throw new Error();
       const segredo = await noPrazo(() =>
         lerSegredoIntegracao(dependencias.pool, REFERENCIA_DRIVE),
       );
       drive = { porta: criarPortaDrive(segredo, controle.signal), pastaRaiz: raiz.trim() };
+    } catch {
+      // Relação cifrada continua consultável sem Google; conferência mostra pendência.
+      // Envio exige porta configurada e falha fechado em operarDocumentoCasoNativo.
     }
-    return await noPrazo(() =>
-      operarDocumentoCasoNativo(pedido, comando, {
-        autorizar: async () => inicial,
-        revalidar: autorizar,
-        metadados: (requestId) =>
-          metadadosAtestadoNativo(dependencias.keyIdAtestado, requestId, Date.now()),
-        cifra: cofre.cifra,
-        idempotencia: criarIdempotenciaNativa(cofre.cifra),
-        atestador: cofre.atestador,
-        ...(drive ? { drive } : {}),
-        executar: (_request, transporte) => {
-          verificarCancelamento();
-          mutacaoIniciada = comando.operacao === 'gravar';
-          return executarDocumentoCasoNativo(contexto.cliente, transporte);
-        },
-      }),
+    const portas: Parameters<typeof operarDocumentoCasoNativo>[2] = {
+      autorizar: async () => inicial,
+      revalidar: autorizar,
+      metadados: (requestId) =>
+        metadadosAtestadoNativo(dependencias.keyIdAtestado, requestId, Date.now()),
+      cifra: cofre.cifra,
+      idempotencia: criarIdempotenciaNativa(cofre.cifra),
+      atestador: cofre.atestador,
+      ...(drive ? { drive } : {}),
+      reservarPasta: async (_request, entrada) => {
+        verificarCancelamento();
+        const resultado = await contexto.cliente
+          .schema('api')
+          .rpc('documento_pasta_reservar_privada', entrada);
+        verificarCancelamento();
+        if (resultado.error || contexto.cookiesAlterados)
+          throw new Error('Reserva de pasta indisponível.');
+        return resultado.data;
+      },
+      marcarEfeitoExterno: () => {
+        mutacaoIniciada = true;
+      },
+      preautorizar: async (_request, transporte) => {
+        verificarCancelamento();
+        const resultado = await contexto.cliente
+          .schema('api')
+          .rpc('documento_preautorizar_privada', transporte);
+        verificarCancelamento();
+        if (resultado.error || contexto.cookiesAlterados)
+          throw new Error('Pré-autorização indisponível.');
+        return resultado.data;
+      },
+      executar: (_request, transporte) => {
+        verificarCancelamento();
+        mutacaoIniciada = comando.operacao === 'gravar';
+        return executarDocumentoCasoNativo(contexto.cliente, transporte);
+      },
+    };
+    return await noPrazo<Resultado>(() =>
+      comando.operacao === 'entregar'
+        ? entregarDocumentoCaso(pedido, comando, portas)
+        : operarDocumentoCasoNativo(pedido, comando, portas),
     );
   } catch {
     return {

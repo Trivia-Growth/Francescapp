@@ -30,7 +30,15 @@ function portas(opcoes: { falharNoBanco?: boolean; removerFalha?: boolean } = {}
     chavesDeCifra: { teste: new Uint8Array(32).fill(2) },
     chaveHmac: new Uint8Array(32).fill(4),
   });
-  const enviar = vi.fn(async () => ({ file_id: 'arquivo-ficticio-no-drive' }));
+  const enviar = vi.fn(
+    async (_entrada: {
+      nome: string;
+      tipo: string;
+      bytes: Uint8Array;
+      pastaRaiz: string;
+      pastaPaciente?: string;
+    }) => ({ file_id: 'arquivo-ficticio-no-drive' }),
+  );
   const remover = vi.fn(async () => {
     if (opcoes.removerFalha) throw new Error('Drive fora do ar');
   });
@@ -39,7 +47,27 @@ function portas(opcoes: { falharNoBanco?: boolean; removerFalha?: boolean } = {}
     remover,
     portas: {
       idempotencia: criarIdempotenciaNativa(cifra),
+      reservarPasta: vi.fn(
+        async (
+          _request: Request,
+          { p_transporte }: { p_transporte: { entrada: Record<string, unknown> } },
+        ) => ({
+          ok: true,
+          dados: { pasta_id: 'pasta-ficticia-reservada', marcador: 'p'.repeat(43) },
+          request_id: p_transporte.entrada.request_id,
+        }),
+      ),
       autorizar: async () => ({ estado: 'autorizado' as const, identidade }),
+      preautorizar: vi.fn(
+        async (
+          _request: Request,
+          { p_transporte }: { p_transporte: { entrada: Record<string, unknown> } },
+        ): Promise<unknown> => ({
+          ok: true,
+          repeticao: false,
+          request_id: p_transporte.entrada.request_id,
+        }),
+      ),
       revalidar: async () => ({ estado: 'autorizado' as const, identidade }),
       metadados: (request_id: string) => ({
         key_id: 'teste',
@@ -59,6 +87,36 @@ function portas(opcoes: { falharNoBanco?: boolean; removerFalha?: boolean } = {}
           { p_transporte }: { p_transporte: { entrada: Record<string, unknown> } },
         ) => {
           const entrada = p_transporte.entrada;
+          if (
+            (entrada.atestado as { operacao?: string } | undefined)?.operacao ===
+            'api.ler_documentos'
+          ) {
+            const aad = {
+              tabela: 'cadastro.documento_caso_versao' as const,
+              paciente_id,
+              registro_id: documento_id,
+              versao: 1,
+              campo: 'conteudo' as const,
+              formato: 1 as const,
+            };
+            return {
+              ok: true,
+              repeticao: false,
+              request_id: entrada.request_id,
+              dados: {
+                documentos: [
+                  {
+                    documento_id,
+                    registro_id: documento_id,
+                    paciente_id,
+                    versao: 1,
+                    ...metadado,
+                    conteudo: await cifra.cifrar(JSON.stringify(conteudo), aad),
+                  },
+                ],
+              },
+            };
+          }
           if (opcoes.falharNoBanco)
             return {
               ok: false,
@@ -104,7 +162,7 @@ const gravar = (extra: Record<string, unknown> = {}) =>
   }) as Parameters<typeof operarDocumentoCasoNativo>[1];
 
 describe('documentos do caso (FR-029 a FR-031)', () => {
-  it('envia ao Drive antes de registrar e guarda o identificador devolvido, nunca o do cliente', async () => {
+  it('autoriza operação e paciente antes de enviar ao Drive e registrar e guarda o identificador devolvido, nunca o do cliente', async () => {
     const { enviar, portas: p } = portas();
     const resultado = await operarDocumentoCasoNativo(
       request(),
@@ -120,7 +178,7 @@ describe('documentos do caso (FR-029 a FR-031)', () => {
     expect(resultado.dados.documentos[0]?.drive_file_id).toBe('arquivo-ficticio-no-drive');
   });
 
-  it('desfaz o envio quando o banco recusa, para não deixar arquivo de paciente sem vínculo', async () => {
+  it('preserva arquivo quando banco recusa, sem exclusão automática', async () => {
     const { remover, portas: p } = portas({ falharNoBanco: true });
     const resultado = await operarDocumentoCasoNativo(
       request(),
@@ -132,10 +190,10 @@ describe('documentos do caso (FR-029 a FR-031)', () => {
     expect(resultado.ok).toBe(false);
     if (resultado.ok) throw new Error('esperada recusa');
     expect(resultado.erro.codigo).toBe('conflito_versao');
-    expect(remover).toHaveBeenCalledWith('arquivo-ficticio-no-drive');
+    expect(remover).not.toHaveBeenCalled();
   });
 
-  it('não falha a resposta quando a limpeza do Drive também falha: a recusa continua sendo a recusa', async () => {
+  it('não tenta limpeza destrutiva em recusa confirmada', async () => {
     const { remover, portas: p } = portas({ falharNoBanco: true, removerFalha: true });
     const resultado = await operarDocumentoCasoNativo(
       request(),
@@ -144,7 +202,7 @@ describe('documentos do caso (FR-029 a FR-031)', () => {
       }),
       p,
     );
-    expect(remover).toHaveBeenCalledTimes(1);
+    expect(remover).not.toHaveBeenCalled();
     expect(resultado.ok).toBe(false);
     if (resultado.ok) throw new Error('esperada recusa');
     expect(resultado.erro.codigo).toBe('conflito_versao');
@@ -152,7 +210,7 @@ describe('documentos do caso (FR-029 a FR-031)', () => {
 
   it('não envia nada ao Drive quando a gravação é só de metadado', async () => {
     const { enviar, portas: p } = portas();
-    const resultado = await operarDocumentoCasoNativo(request(), gravar(), p);
+    const resultado = await operarDocumentoCasoNativo(request(), gravar({ versao_esperada: 1 }), p);
     expect(resultado.ok).toBe(true);
     expect(enviar).not.toHaveBeenCalled();
   });
@@ -206,4 +264,156 @@ describe('documentos do caso (FR-029 a FR-031)', () => {
       expect(resultado.erro.codigo).toBe('entrada_invalida');
     }
   });
+});
+
+// PAD-01: recusas específicas de operação/caso e falhas de auditoria têm zero efeitos Drive.
+it.each([
+  'outro_paciente',
+  'familia',
+  'vinculo_revogado',
+  'sessao_revogada',
+  'auditoria_indisponivel',
+])('prévia %s impede primeiro efeito externo', async (motivo) => {
+  const { enviar, remover, portas: p } = portas();
+  p.preautorizar.mockImplementation(async (_request, { p_transporte }) => {
+    if (motivo === 'auditoria_indisponivel') throw new Error('AUDITORIA_NAO_INSERIDA');
+    return {
+      ok: false,
+      erro: { codigo: 'sem_permissao' },
+      request_id: p_transporte.entrada.request_id,
+    };
+  });
+  const r = await operarDocumentoCasoNativo(
+    request(),
+    gravar({
+      arquivo: { nome: 'ficticio.pdf', tipo: 'application/pdf', bytes: new Uint8Array([1]) },
+    }),
+    p,
+  );
+  expect(r.ok).toBe(false);
+  expect(enviar).not.toHaveBeenCalled();
+  expect(remover).not.toHaveBeenCalled();
+  expect(p.executar).not.toHaveBeenCalled();
+});
+it('prévia e auditoria terminam antes do upload; final reautoriza após efeito externo', async () => {
+  const { enviar, portas: p } = portas();
+  const ordem: string[] = [];
+  p.preautorizar.mockImplementation(async (_request, { p_transporte }) => {
+    ordem.push('previa_auditada');
+    return { ok: true, repeticao: false, request_id: p_transporte.entrada.request_id };
+  });
+  enviar.mockImplementation(async () => {
+    ordem.push('drive');
+    return { file_id: 'arquivo-ficticio-no-drive' };
+  });
+  const original = p.executar.getMockImplementation();
+  if (!original) throw new Error('Implementação fictícia ausente.');
+  p.executar.mockImplementation(async (...args) => {
+    ordem.push('rpc_final');
+    return original(...args);
+  });
+  const r = await operarDocumentoCasoNativo(
+    request(),
+    gravar({
+      arquivo: { nome: 'Clinico.pdf', tipo: 'application/pdf', bytes: new Uint8Array([1]) },
+    }),
+    p,
+  );
+  expect(r.ok).toBe(true);
+  expect(ordem).toEqual(['previa_auditada', 'drive', 'rpc_final']);
+  expect(enviar.mock.calls[0]?.[0]).toMatchObject({
+    nome: documento_id,
+    pastaPaciente: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
+  });
+});
+it('resposta final perdida preserva arquivo potencialmente vinculado', async () => {
+  const { remover, portas: p } = portas();
+  p.executar.mockRejectedValue(new Error('resposta perdida'));
+  const r = await operarDocumentoCasoNativo(
+    request(),
+    gravar({
+      arquivo: { nome: 'ficticio.pdf', tipo: 'application/pdf', bytes: new Uint8Array([1]) },
+    }),
+    p,
+  );
+  expect(r).toMatchObject({ ok: false, erro: { codigo: 'pendencia_externa' } });
+  expect(remover).not.toHaveBeenCalled();
+});
+
+it('replay confirmado por prévia não reenvia nem remove arquivo', async () => {
+  const { enviar, remover, portas: p } = portas();
+  p.preautorizar.mockImplementation(async (_request, { p_transporte }) => ({
+    ok: true,
+    repeticao: true,
+    request_id: p_transporte.entrada.request_id,
+  }));
+  const r = await operarDocumentoCasoNativo(
+    request(),
+    gravar({
+      arquivo: { nome: 'ficticio.pdf', tipo: 'application/pdf', bytes: new Uint8Array([1]) },
+    }),
+    p,
+  );
+  expect(r.ok).toBe(true);
+  expect(enviar).not.toHaveBeenCalled();
+  expect(remover).not.toHaveBeenCalled();
+});
+it('nova gravação sem arquivo e troca de capacidade Drive são recusadas', async () => {
+  const { enviar, portas: p } = portas();
+  expect(await operarDocumentoCasoNativo(request(), gravar(), p)).toMatchObject({
+    ok: false,
+    erro: { codigo: 'entrada_invalida' },
+  });
+  expect(
+    await operarDocumentoCasoNativo(
+      request(),
+      gravar({
+        versao_esperada: 1,
+        conteudo: { ...conteudo, drive_file_id: 'arquivo-outro-caso' },
+      }),
+      p,
+    ),
+  ).toMatchObject({ ok: false, erro: { codigo: 'entrada_invalida' } });
+  expect(enviar).not.toHaveBeenCalled();
+  expect(
+    p.executar.mock.calls.filter(
+      (call) =>
+        (call[1].p_transporte.entrada.atestado as { operacao: string }).operacao ===
+        'api.gravar_documento',
+    ),
+  ).toHaveLength(0);
+});
+
+it('commit com resposta perdida e replay conserva arquivo e faz somente um upload', async () => {
+  const { enviar, remover, portas: p } = portas();
+  const original = p.executar.getMockImplementation();
+  if (!original) throw new Error('Implementação fictícia ausente.');
+  let salvo: Awaited<ReturnType<typeof original>> | undefined;
+  p.preautorizar.mockImplementation(async (_request, { p_transporte }) => ({
+    ok: true,
+    repeticao: salvo !== undefined,
+    request_id: p_transporte.entrada.request_id,
+  }));
+  p.executar.mockImplementation(async (...args) => {
+    if (salvo) {
+      if ('erro' in salvo && salvo.erro !== undefined) {
+        return { ...salvo, request_id: args[1].p_transporte.entrada.request_id };
+      }
+      return { ...salvo, request_id: args[1].p_transporte.entrada.request_id, repeticao: true };
+    }
+    const resultado = await original(...args);
+    if ('erro' in resultado && resultado.erro !== undefined) return resultado;
+    salvo = resultado;
+    throw new Error('COMMIT confirmado, resposta perdida');
+  });
+  const comando = gravar({
+    arquivo: { nome: 'ficticio.pdf', tipo: 'application/pdf', bytes: new Uint8Array([1]) },
+  });
+  expect(await operarDocumentoCasoNativo(request(), comando, p)).toMatchObject({
+    ok: false,
+    erro: { codigo: 'pendencia_externa' },
+  });
+  expect(await operarDocumentoCasoNativo(request(), comando, p)).toMatchObject({ ok: true });
+  expect(enviar).toHaveBeenCalledTimes(1);
+  expect(remover).not.toHaveBeenCalled();
 });

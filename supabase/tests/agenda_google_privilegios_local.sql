@@ -15,7 +15,8 @@ grant ffcmapp_atestado_verificador_owner to postgres with inherit false, set tru
 create temporary table agenda_membership_antes as
  select m.* from pg_auth_members m join pg_roles r on r.oid=m.roleid
  join pg_roles u on u.oid=m.member where r.rolname='ffcmapp_atestado_verificador_owner' and u.rolname='postgres';
-\ir ../drafts/20261115100000_agenda_google_conexao.sql
+\ir ../migrations/20261117400000_configuracao_sistema.sql
+\ir ../migrations/20261125050000_agenda_google_conexao.sql
 do $$ begin
  if exists ((select * from agenda_membership_antes except select m.* from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member where r.rolname='ffcmapp_atestado_verificador_owner' and u.rolname='postgres')
  union all (select m.* from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member where r.rolname='ffcmapp_atestado_verificador_owner' and u.rolname='postgres' except select * from agenda_membership_antes)) then

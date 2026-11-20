@@ -28,6 +28,12 @@ export const gravarDocumentoSchema = z
  * campos `metadado`, `conteudo` e `arquivo`. Colocar bytes de exame dentro de um JSON em
  * base64 inflaria o corpo em um terço sem ganhar nada. */
 export const documentoCasoHttp = {
+  arquivo: {
+    metodo: 'GET',
+    caminho: '/api/pacientes/:paciente_id/documentos/:documento_id/arquivo',
+    entrada: vazio,
+    // Resposta binária: attachment application/octet-stream; não é envelope JSON.
+  },
   consultar: {
     metodo: 'GET',
     caminho: '/api/pacientes/:paciente_id/documentos',

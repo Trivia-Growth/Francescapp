@@ -19,6 +19,23 @@ export const motivoIndisponibilidadeSchema = z.enum([
   'anexo_nao_recuperado',
 ]);
 
+/** FR-033: ponte entre o item do manifesto e os BYTES do arquivo correspondente.
+ *
+ * Transporta somente o identificador necessário para o navegador PEDIR o arquivo pela mesma
+ * rota autorizada de sempre — nunca uma URL pública, nunca uma URL assinada, nunca o
+ * conteúdo. `nome` e `mime` são opcionais de propósito: na fatia de documentos eles vivem
+ * dentro do envelope cifrado e o servidor não os decifra para montar manifesto, então
+ * chegam nulos e o nome dentro do ZIP é derivado do identificador. */
+export const arquivoItemExportacaoSchema = z
+  .object({
+    origem: z.enum(['documento', 'anexo_turno']),
+    id: uuidSchema,
+    nome: z.string().min(1).max(255).nullable(),
+    mime: z.string().min(1).max(120).nullable(),
+    tamanho_bytes: z.number().int().positive().nullable(),
+  })
+  .strict();
+
 export const itemExportacaoSchema = z
   .object({
     fonte: fonteLinhaTempoSchema,
@@ -30,6 +47,9 @@ export const itemExportacaoSchema = z
     aconteceu_em: z.string().min(1).nullable(),
     disponibilidade: z.enum(['incluido', 'indisponivel']),
     motivo_indisponibilidade: motivoIndisponibilidadeSchema.nullable(),
+    /** Ausente quando o item não tem arquivo próprio. Opcional para não quebrar o manifesto
+     * já gravado nem os consumidores que não reúnem bytes. */
+    arquivo: arquivoItemExportacaoSchema.nullable().optional(),
   })
   .strict();
 
@@ -90,6 +110,7 @@ export const respostaExportacaoPrivadaSchema = z.discriminatedUnion('ok', [
       dados: registroExportacoesSchema,
       request_id: uuidSchema,
       repeticao: z.boolean().optional(),
+      resultado_id: uuidSchema.nullable().optional(),
     })
     .strict(),
   z
@@ -103,6 +124,7 @@ export const respostaExportacaoPrivadaSchema = z.discriminatedUnion('ok', [
 
 export type Exportacao = z.infer<typeof exportacaoSchema>;
 export type ItemExportacao = z.infer<typeof itemExportacaoSchema>;
+export type ArquivoItemExportacao = z.infer<typeof arquivoItemExportacaoSchema>;
 export type RegistrarExportacao = z.infer<typeof registrarExportacaoSchema>;
 
 export type RegistroExportacoes = z.infer<typeof registroExportacoesSchema>;

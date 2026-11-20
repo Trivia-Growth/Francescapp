@@ -13,4 +13,5 @@ rtk proxy initdb -D "$temporario/data" -U saude_fixture --no-instructions --auth
 rtk proxy pg_ctl -D "$temporario/data" -t 30 -o "-k $temporario -p 55452 -c listen_addresses= -c unix_socket_permissions=0700" -l "$temporario/postgres.log" start >/dev/null
 iniciado=1
 rtk proxy createdb -h "$temporario" -p 55452 -U saude_fixture ffcm_cadeia_local
-rtk proxy psql -X -h "$temporario" -p 55452 -U saude_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/tests/saude_operacoes_local.sql"
+rtk proxy psql -X -h "$temporario" -p 55452 -U saude_fixture -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/tests/saude_operacoes_local.sql" >"$temporario/provas.log" 2>&1 || { rtk proxy cat "$temporario/provas.log"; exit 1; }
+echo "saúde: operações e preservação de privilégios comprovadas localmente"

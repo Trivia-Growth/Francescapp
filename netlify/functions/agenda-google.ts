@@ -20,14 +20,10 @@ export const config = {
 };
 
 export default async function agendaGoogle(request: Request): Promise<Response> {
-  // Liberar somente após revisão e provas reais registradas no OpenSpec.
-  const integracaoComprovada = false;
-  if (integracaoComprovada && process.env.FFCM_AGENDA_GOOGLE_ATIVADO === 'true') {
-    try {
-      return await comporAgendaGoogle(request, process.env);
-    } catch {
-      /* falha fechada */
-    }
+  try {
+    return await comporAgendaGoogle(request, process.env);
+  } catch {
+    /* Flag desligada, configuração incompleta ou dependência indisponível: falha fechada. */
   }
   return Response.json(criarErroPublicoSemCampos('servico_indisponivel', crypto.randomUUID()), {
     status: 503,

@@ -11,6 +11,7 @@ import {
   type TarefaCuidado,
 } from '../packages/contracts/src/tarefa-cuidado.ts';
 import { FalhaApi } from './api.ts';
+import { disponibilidadeTarefaCuidadoHttp } from '../packages/contracts/src/tarefa-cuidado-http.ts';
 
 type Identidade = { usuario_id: string; session_id: string };
 
@@ -26,6 +27,7 @@ export function criarServicoTarefasHttp(identidadeAtual: () => Identidade | null
       geracao_reserva: number;
       versao_esperada?: number;
     },
+    disponibilidade = false,
   ) {
     const paciente = uuidSchema.safeParse(pacienteId);
     if (!paciente.success) throw new FalhaApi('entrada_invalida', 422);
@@ -56,15 +58,31 @@ export function criarServicoTarefasHttp(identidadeAtual: () => Identidade | null
     let modo: string | null;
     try {
       modo = sessionStorage.getItem('modo-acesso');
-      fluxo = sessionStorage.getItem(modo === 'tecnica' ? 'fluxo-tecnico' : 'fluxo-google');
+      fluxo = sessionStorage.getItem(
+        modo === 'interno'
+          ? 'fluxo-interno'
+          : modo === 'tecnica'
+            ? 'fluxo-tecnico'
+            : 'fluxo-google',
+      );
     } catch {
       throw new FalhaApi('nao_autenticado', 401);
     }
-    if ((modo !== 'google' && modo !== 'tecnica') || !fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo))
+    if (
+      (modo !== 'google' && modo !== 'interno' && modo !== 'tecnica') ||
+      !fluxo ||
+      !/^[A-Za-z0-9_-]{22}$/.test(fluxo)
+    )
       throw new FalhaApi('nao_autenticado', 401);
     try {
       const sinal = AbortSignal.timeout(20_000);
-      const resposta = await fetch(`/api/pacientes/${encodeURIComponent(paciente.data)}/tarefas`, {
+      const caminho = disponibilidade
+        ? disponibilidadeTarefaCuidadoHttp.caminho.replace(
+            ':paciente_id',
+            encodeURIComponent(paciente.data),
+          )
+        : `/api/pacientes/${encodeURIComponent(paciente.data)}/tarefas`;
+      const resposta = await fetch(caminho, {
         method: criacao ? 'POST' : 'GET',
         headers: {
           Accept: 'application/json',
@@ -138,6 +156,8 @@ export function criarServicoTarefasHttp(identidadeAtual: () => Identidade | null
           throw new Error();
         return registro;
       }
+      if (disponibilidade)
+        return sucessoRespostaSchema(disponibilidadeTarefaCuidadoHttp.saida).parse(envelope).dados;
       return sucessoRespostaSchema(registroTarefaCuidadoSchema.array()).parse(envelope).dados;
     } catch (erro) {
       if (erro instanceof FalhaApi) throw erro;
@@ -145,6 +165,12 @@ export function criarServicoTarefasHttp(identidadeAtual: () => Identidade | null
     }
   }
   return {
+    async consultarDisponibilidade(pacienteId: string) {
+      const resultado = await solicitar(pacienteId, undefined, true);
+      if (Array.isArray(resultado) || !('escrita_disponivel' in resultado))
+        throw new FalhaApi('servico_indisponivel');
+      return resultado;
+    },
     async consultarTarefas(pacienteId: string) {
       const resultado = await solicitar(pacienteId);
       if (!Array.isArray(resultado)) throw new FalhaApi('servico_indisponivel');

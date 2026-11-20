@@ -8,7 +8,12 @@ import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 
 export type ServicoSaude = {
   consultar(pacienteId: string): Promise<Saude | null>;
-  salvar(pacienteId: string, versaoEsperada: number, registros: RegistroSaude[]): Promise<Saude>;
+  salvar(
+    pacienteId: string,
+    versaoEsperada: number,
+    registros: RegistroSaude[],
+    chaveIdempotencia: string,
+  ): Promise<Saude>;
 };
 
 const TIPOS = [
@@ -42,7 +47,7 @@ export function montarSaude(
   let ativa = true;
   let versao = 0;
   let conflitoVersao = false;
-  let pendente: { registros: RegistroSaude[] } | null = null;
+  let pendente: { registros: RegistroSaude[]; chaveIdempotencia: string } | null = null;
   const descartarAcesso = (erro: unknown): boolean => {
     if (!exigeNovoAcesso(erro)) return false;
     ativa = false;
@@ -216,7 +221,12 @@ export function montarSaude(
       aviso.textContent = 'Salvando histórico de saúde…';
       const finalizar = iniciarAcao(retry.hidden ? salvar : retry);
       try {
-        const salvo = await servico.salvar(pacienteId, versao, pendente.registros);
+        const salvo = await servico.salvar(
+          pacienteId,
+          versao,
+          pendente.registros,
+          pendente.chaveIdempotencia,
+        );
         if (!ativa) return;
         pendente = null;
         alteracaoPendente(false);
@@ -264,7 +274,7 @@ export function montarSaude(
         (faltando?.descricao ?? salvar).focus();
         return;
       }
-      pendente = { registros: validada.data.registros };
+      pendente = { registros: validada.data.registros, chaveIdempotencia: crypto.randomUUID() };
       alteracaoPendente(true);
       campos.setAttribute('inert', '');
       void enviar();

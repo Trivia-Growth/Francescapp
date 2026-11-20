@@ -1,0 +1,80 @@
+[
+  {
+    "viewport": "desktop",
+    "carregando": {
+      "texto": "Carregando credenciais…",
+      "botaoDesabilitado": true
+    }
+  },
+  {
+    "viewport": "desktop",
+    "render": {
+      "largura": 1366,
+      "scroll": 1366,
+      "inputs": 4,
+      "foco": "segredo-ffcmapp-integracao-google_drive",
+      "focusVisible": true,
+      "outline": "rgb(71, 84, 54) solid 3px",
+      "elementosFora": []
+    }
+  },
+  {
+    "viewport": "desktop",
+    "sucesso": {
+      "status": "Credencial cadastrada. Valor não disponível para consulta.",
+      "valores": ["", "", "", ""],
+      "segredoNaTela": false,
+      "enviado": {
+        "chave": "ffcmapp.integracao.google_drive",
+        "comprimento": 23
+      }
+    }
+  },
+  {
+    "viewport": "desktop",
+    "erro": {
+      "texto": "Não foi possível carregar. Confira seu acesso de Administrador e tente recarregar.",
+      "recarregarHabilitado": true,
+      "overflow": false
+    }
+  },
+  {
+    "viewport": "mobile",
+    "carregando": {
+      "texto": "Carregando credenciais…",
+      "botaoDesabilitado": true
+    }
+  },
+  {
+    "viewport": "mobile",
+    "render": {
+      "largura": 390,
+      "scroll": 390,
+      "inputs": 4,
+      "foco": "segredo-ffcmapp-integracao-google_drive",
+      "focusVisible": true,
+      "outline": "rgb(71, 84, 54) solid 3px",
+      "elementosFora": []
+    }
+  },
+  {
+    "viewport": "mobile",
+    "sucesso": {
+      "status": "Credencial cadastrada. Valor não disponível para consulta.",
+      "valores": ["", "", "", ""],
+      "segredoNaTela": false,
+      "enviado": {
+        "chave": "ffcmapp.integracao.google_drive",
+        "comprimento": 23
+      }
+    }
+  },
+  {
+    "viewport": "mobile",
+    "erro": {
+      "texto": "Não foi possível carregar. Confira seu acesso de Administrador e tente recarregar.",
+      "recarregarHabilitado": true,
+      "overflow": false
+    }
+  }
+]

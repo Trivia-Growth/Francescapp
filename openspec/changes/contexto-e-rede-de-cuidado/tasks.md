@@ -18,8 +18,16 @@
 
 ## 4. Telas
 
+**Retomada local — 18/11/2026:** identificada lacuna de fiação em 4.2: o Contexto
+não recebia os objetivos do plano e não permitia novos vínculos FR-005. `main.ts`
+agora fornece a consulta autorizada do mesmo caso; `contexto-cuidado.ts` carrega
+primeira página e oferece mais páginas, com erro/retry/vazio e descarte. Seleções
+e vínculos anteriores permanecem preservados. Cinco provas escritas em
+`web/contexto-objetivos-paginados.test.ts`; **não executadas**, por adiamento pedido
+pelo solicitante. As evidências antigas abaixo não cobrem essa nova fiação.
+
 - [x] 4.1 Telas montáveis, com estados de carregamento, vazio, erro, conflito e salvamento incerto. Evidência: `web/contexto-cuidado.ts` (um bloco por categoria de FR-005, com texto de ajuda e seleção de objetivos do plano) e `web/rede-cuidado.ts` (pessoa com nome, contato, observação e os sete vínculos em caixas de seleção, com aviso de que vínculo não dá acesso), sobre `web/editor-documento-paciente.ts` e `web/servico-documento-paciente-http.ts`. `web/contexto-rede-cuidado.test.ts` (3 testes) confirma as seis categorias de FR-005, os sete vínculos de FR-002 com acúmulo na mesma pessoa, rótulo associado a cada campo, recusa de elemento em branco, de pessoa sem nome e de pessoa sem vínculo, aviso explícito de que vínculo não dá acesso, ausência de campo de permissão no que é enviado, e preservação do rascunho após conflito de versão.
-- [ ] 4.2 Ligar as duas abas em `secoesDaFicha` de `web/main.ts`. Pendente por decisão de coordenação: o arquivo está sendo alterado por outras frentes em paralelo, e o trecho exato de ligação foi entregue no relatório da frente em vez de aplicado aqui.
+- [x] 4.2 Ligar as duas abas em `secoesDaFicha` de `web/main.ts`. Conferido em 18/11/2026: `contexto` e `rede` já montam serviços HTTP reais na base, com descarte do editor. Gate local passou; matriz SQL reexecutada com saída 0. Navegação autenticada publicada continua pendente, sem declarar fatia ativada.
 
 ## 5. Verificação
 

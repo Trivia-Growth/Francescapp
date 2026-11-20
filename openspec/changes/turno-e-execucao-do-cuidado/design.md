@@ -1,0 +1,476 @@
+# Design
+
+## Context
+
+Motivação em `proposal.md — Why`. Requisitos em `specs/turno-e-execucao/spec.md` e `specs/diario-e-evolucao/spec.md`.
+
+O repositório já estabeleceu um padrão repetido para domínios sensíveis, e este recorte deve segui-lo em vez de inventar outro:
+
+- Contratos Zod `strict()` por domínio em `packages/contracts/src/` (ver `tarefa-cuidado.ts`, `plano-cuidado.ts`), com `versao_esperada`, par `reserva_id`/`geracao_reserva` para idempotência e `campoCifradoSchema` para conteúdo sensível.
+- Contrato HTTP e barreira de servidor separados (`barreira-tarefa-cuidado.ts` e `barreira-tarefa-cuidado-servidor.ts`), com cabeçalho `x-sessao`, `origin` nas mutações, `request_id` e `atestado` de operação.
+- Função Netlify fina por domínio em `netlify/functions/`, delegando a composição em `packages/cadastro/src/`.
+- RPC privada no Postgres com auditoria obrigatória na mesma transação, visível nas migrações `*_auditoria_obrigatoria.sql`, `*_auth_nao_admitido.sql` e `*_barreira_*_privada.sql`.
+- Erros fechados em `sem_permissao`, `conflito`, `conflito_idempotencia`.
+
+Diferença relevante deste domínio: até aqui o conteúdo clínico era texto livre cifrado. Turno traz dado estruturado que precisa ser **consultável como série** (sinais vitais) e **referenciável** (administração aponta para item prescrito). Isso cria uma tensão nova entre cifra de campo e consulta, tratada em Decisões.
+
+## Goals / Non-Goals
+
+**Retomada de implementação — 19/11/2026:** pedido posterior do solicitante
+autoriza desenvolver as lacunas da revisão adversarial, incluindo grupos 4–13,
+mantendo decisões confirmadas e validações adiadas. Os bloqueios 0.6.1 e provas
+de 0.6.2 continuam impedindo ativação; não impedem preparar código que implemente
+explicitamente os controles faltantes. A menção histórica a grupos não iniciados
+abaixo preserva o rastro, não reduz esta autorização posterior.
+
+**SUPOSIÇÕES CONSERVADORAS desta retomada:** executor externo é texto declarado
+(nome e vínculo), sem cadastro ou verificação profissional automática; valores de
+referência não confirmados ficam ausentes, sem intervalos clínicos inventados;
+fundamento familiar exige registro próprio vigente e revogável, nunca é inferido
+de parentesco ou de motivo genérico de vínculo. Consentimento de localização é
+separado desse fundamento e não impede o turno quando ausente. Novas flags e
+agendamentos de descarte nascem desligados; nenhum descarte será executado nesta
+retomada. Medição e homologação de PDF/Storage/cron continuam pendentes, mesmo
+com adapters e provas escritos.
+
+**Goals**
+- Modelar turno como fronteira temporal de autoria: todo registro de execução nasce dentro de um turno aberto, de um profissional identificado.
+- Tornar a habilitação do executor um controle verificado no servidor **e** no banco, não uma condição de interface.
+- Preservar integralmente registros de administração e aferição: retificação cria versão, nunca substitui.
+
+**Non-Goals**
+- Não definir o conjunto final de perfis habilitados nem os tipos de sinal vital. Ambos entram como configuração administrada, verificável em teste, com valores provisórios fictícios.
+- Não introduzir notificação externa, fila, agendador ou job periódico. Turno vencido é calculado na leitura, não por processo de fundo.
+- Não criar serviço, tabela ou abstração para cobrir funcionalidade que o mercado oferece mas a spec exclui (gravidade calculada, alerta clínico, repasse financeiro).
+
+## Decisions
+
+### D1 — Turno como agregado, registros como filhos imutáveis
+
+Turno (`turno`) carrega caso, profissional, instante de abertura, instante de encerramento e situação. Aferição, administração e ocorrência referenciam `turno_id` e são append-only: retificação grava nova versão referenciando a anterior.
+
+*Alternativa descartada:* registros soltos com carimbo de data e um campo `turno` denormalizado. Mais simples de escrever, mas perde a garantia de FR-063 — bastaria forjar o identificador para pendurar um registro em turno alheio. Com referência real, a autorização do turno cobre os filhos.
+
+### D2 — Instante sempre do servidor; instante de aferição é dado, não autoridade
+
+Abertura, encerramento e criação de registro usam o relógio do servidor (padrão já adotado em `conteudoTarefaSchema.data`). O `instante_afericao` de FR-058 é informação clínica fornecida pelo profissional e por isso é validado contra a janela do turno, mas nunca substitui o carimbo de auditoria.
+
+*Alternativa descartada:* aceitar o instante do cliente como carimbo único. Permite antedatar administração de medicamento — exatamente o registro de maior risco de responsabilidade aqui.
+
+### D3 — Cifra de campo para conteúdo textual, claro estruturado para o que precisa ser consultado
+
+Síntese de passagem, descrição de ocorrência, motivo de recusa e fonte documental da prescrição seguem o envelope `campoCifradoSchema` com AAD vinculado a caso, turno, registro e versão, como já feito em anamnese e plano.
+
+Tipo de medida, valor, unidade e situação da administração ficam em colunas estruturadas, **não cifradas**, porque FR-058 exige série cronológica consultável e FR-062 exige consolidado por período. Cifrar o valor obrigaria a decifrar a série inteira a cada leitura — custo real e sem ganho, já que a proteção efetiva vem da autorização por caso, não da opacidade do número.
+
+*Risco assumido e mitigado abaixo:* um valor em claro no banco é legível por quem tenha acesso direto. Mitigação: sem grant direto às tabelas, leitura só por RPC autorizada e auditada, como nas migrações existentes.
+
+*Alternativa descartada:* cifrar tudo e manter índice paralelo em claro. Reintroduz o dado em claro e acrescenta um componente para manter sincronizado.
+
+### D4 — Habilitação como concessão verificada, não como papel no token
+
+**Revisado em 17/11/2026.** FR-059 e FR-060 passam a admitir qualquer profissional autenticado com vínculo ativo no caso. A verificação reaproveita a prova de vínculo já usada pelas demais barreiras (`*_barreira_*_privada.sql`), conferida dentro da transação, sob o mesmo lock.
+
+A concessão específica de execução de medicação **continua modelada**, mas nasce concedida a todo profissional com vínculo. Isso não é cerimônia vazia: é o ponto de aperto. Restringir de novo passa a ser mudar quem recebe a concessão, não reescrever a barreira, a RPC, o contrato e os testes. O custo de manter a coluna agora é muito menor que o de reintroduzir o conceito depois sobre dados já gravados.
+
+*Alternativa descartada:* conferir apenas o vínculo e remover o conceito de concessão. Mais enxuto hoje, mas o requisito de restringir volta assim que a equipe crescer — e aí a mudança alcança dados de medicação já persistidos.
+
+Essa concessão é um controle de produto e **não atesta habilitação profissional**. Nenhuma evidência de habilitação é coletada ou validada: não há campo de conselho, número de registro ou documento comprobatório a implementar, nem verificação do executor informado.
+
+*Risco explicitado:* com a abertura de 17/11/2026, o único controle sobre o registro de medicação é o vínculo com o caso. A revisão de código deve tratar a prova negativa — familiar, profissional de outro caso, acesso revogado, acesso direto ao banco — como critério de aceite, não como teste acessório.
+
+*Alternativa descartada:* checar um papel carregado na sessão. Uma concessão revogada continuaria valendo até a sessão expirar — incompatível com o cenário de revogação de FR-063, que exige efeito imediato.
+
+### D8 — Executor e registrador são campos distintos
+
+Quem administra medicamento na operação atual é a enfermagem, externa e sem conta no sistema. Quem opera o registro é Administrador ou case manager. Colapsar os dois num campo faria o relatório afirmar que a coordenação administrou o medicamento.
+
+O registro de administração carrega portanto `executor` — nome e vínculo de quem administrou, dado informado — e `registrador` — identidade autenticada com concessão vigente, dado derivado da fronteira confiável, nunca aceito da entrada. Ausência de executor recusa o registro (FR-060). Relatório e exportação apresentam os dois papéis; nenhuma superfície pode exibir um no lugar do outro.
+
+*Alternativa descartada:* conceder conta à enfermagem externa para que registre o próprio ato. Daria autoria exata, mas abre frente de identidade, convite e concessão para pessoas fora da Francescato, que não pertence a este recorte. Se essa frente existir um dia, o campo `executor` passa a referenciar um usuário em vez de texto, sem mudar o restante do modelo.
+
+*Consequência aceita:* o executor é afirmação de terceiro, não autenticação. O sistema registra quem disse o quê e quando; não prova que o ato ocorreu.
+
+### D5 — Unicidade de turno aberto no banco
+
+"No máximo um turno aberto por profissional" (FR-055) é garantido por índice único parcial sobre `(profissional_id)` quando a situação é aberta, não por consulta prévia na aplicação. Duas requisições simultâneas passariam pela checagem na aplicação; o índice recusa a segunda.
+
+### D6 — Passagem de turno reaproveita FR-009, não cria entidade
+
+A síntese de encerramento é um registro de síntese profissional com o modelo de passagem, vinculado ao turno. A ciência é o mesmo mecanismo de FR-013 estendido. Isso evita duplicar publicação, audiência e retificação em um segundo lugar.
+
+*Alternativa descartada:* entidade `passagem` própria. Duplicaria regras de audiência e retificação já especificadas, contrariando DRY e o princípio de reaproveitar o que existe.
+
+### D7 — Medicação prescrita é transcrição versionada, sem catálogo
+
+Item prescrito é texto estruturado digitado por profissional habilitado, com vigência. Sem base de medicamentos, sem autocomplete, sem validação de dose — qualquer uma dessas coisas aproximaria o sistema de sugerir conduta, que a spec proíbe explicitamente. Administração referencia `(item_id, versao)` vigente à época, para que uma alteração posterior do item não reescreva o que foi executado.
+
+### D9 — Rotina do turno reaproveita o modelo de medida, não cria domínio
+
+FR-064 (alimentação, hidratação, sono, eliminações) tem a mesma forma de FR-058: tipo, valor, unidade opcional, instante de ocorrência, instante do servidor, autor, turno. Entra na mesma tabela de medidas do turno, distinguida por um tipo em catálogo administrado, com as mesmas regras de janela, retificação e paginação.
+
+*Alternativa descartada:* tabela própria por categoria (`refeicao`, `sono`, `eliminacao`). Multiplica migração, RPC, barreira e teste para três formas idênticas, e obriga a consolidar em três lugares ao montar FR-062 e FR-065.
+
+*Consequência aceita:* "aceitação da refeição" é escala observada, não medida fisiológica. Fica em catálogo com rótulo explícito de observação, e vale a mesma proibição de interpretação de D-não-interpretar: nenhum rótulo de adequação é derivado do valor.
+
+### D10 — Consolidado semanal é consulta derivada, não tabela materializada
+
+FR-065 lê os mesmos registros de FR-062 numa janela de sete dias. Nenhuma tabela de resumo, nenhum job noturno, nenhuma materialização. Um consolidado materializado precisaria ser invalidado a cada retificação — e retificação é esperada neste domínio.
+
+*Quando revisitar:* se a leitura de sete dias passar a doer em volume real, medido, e não antes. Paginação e o índice `(caso, instante)` de FR-058 vêm primeiro.
+
+### D11 — PDF montado no servidor a partir da persistência
+
+FR-066 gera o PDF na função Netlify, pela mesma RPC autorizada que alimenta a tela. O corpo da requisição informa **o quê** (caso, período, tipo de relatório), nunca **o conteúdo**. Isso mantém uma única fonte de autorização e torna a emissão auditável como exportação (FR-039, FR-032).
+
+*Alternativa descartada:* gerar no navegador a partir do que já está em tela. Barato, mas a exportação deixa de ser um evento do servidor, e o conteúdo passa a depender do que o cliente tinha carregado — inclusive do que ele conseguiu carregar.
+
+*Risco:* biblioteca de PDF em runtime de função é dependência nova e pesada. Escolher na implementação medindo tempo frio e tamanho do pacote; se não couber, a saída é um serviço de renderização autorizado, não mover a geração para o cliente.
+
+### D12 — Anexo de turno em repositório privado, sem URL pública
+
+A foto de FR-061 vai para armazenamento privado do Supabase, com política ligada à mesma prova de autorização do caso. Entrega por fluxo autorizado a cada leitura; sem bucket público, sem URL assinada de longa duração que sobreviva à revogação.
+
+*Por que não esperar o Drive (FR-030):* a raiz institucional não está definida e o recorte não deve ficar bloqueado por isso. O anexo guarda caso, classificação, audiência e autor, então migrar depois é cópia de arquivo com reescrita de referência — não redefinição do modelo de autorização.
+
+*Alternativa descartada:* URL assinada longa para simplificar a exibição no celular. Quebra FR-037: o link continuaria funcionando depois da revogação.
+
+### D13 — Localização é dado declarado, com consentimento versionado e audiência própria
+
+FR-067 persiste latitude, longitude e precisão **informadas pelo aparelho**, junto do consentimento vigente à época. Três consequências de modelagem:
+
+1. **Nunca é autoridade.** O instante continua sendo o do servidor (D2). A coordenada não valida, não confirma presença e não alimenta cálculo de atraso ou falta. Nenhuma coluna derivada, nenhum rótulo de conformidade.
+2. **Audiência separada do resto do turno.** A família enxerga o conteúdo do turno (decisão de 11/11/2026) mas não a localização. Logo a localização não pode ser coluna do mesmo retorno: fica em tabela própria, lida por RPC distinta, com sua própria prova de perfil. Filtrar no cliente ou na serialização seria um controle de interface, não autorização.
+3. **Consentimento é registro versionado, não flag.** Guarda identidade, finalidade, audiência informada e data; revogação cria nova versão em vez de apagar. Sem isso não há como responder, depois, sob qual base um ponto foi coletado.
+
+*Alternativa descartada:* guardar apenas "dentro/fora do local esperado". Expõe menos, mas exige cadastrar o endereço do caso como geocoordenada e fixar um raio — duas decisões de negócio não tomadas — e ainda assim deriva um juízo a partir de um dado não confiável.
+
+*Pendência que bloqueia a persistência:* prazo de retenção da localização não definido (ver `proposal.md — Pendências`).
+
+## Risks / Trade-offs
+
+- **Dado de saúde estruturado em claro no banco (D3)** → sem grant direto; leitura apenas por RPC autorizada e auditada; prova negativa obrigatória de acesso direto com identidade sem vínculo.
+- **Registro de administração cria exposição de responsabilidade profissional** → executor e registrador sempre identificados e distintos (D8), retificação preservada, auditoria em transação. A concessão é controle de produto, não atestado de habilitação clínica, e por decisão de 11/11/2026 nenhuma evidência de habilitação é exigida. O sistema registra uma afirmação datada e atribuída; não comprova quem podia administrar nem que o ato ocorreu. Relatório e exportação não podem sugerir o contrário.
+- **Audiência familiar ampla sobre dado de saúde de pessoa adulta** → o acesso familiar a todo o conteúdo do turno decorre do fundamento de autorização registrado no caso (FR-038), nunca do parentesco, e é revogável (FR-037). A implementação deve negar por ausência de fundamento, não por ausência de vínculo, e o teste negativo correspondente é obrigatório.
+- **Turno aberto indefinidamente** → situação derivada na leitura a partir da janela prevista na escala; não encerrar automaticamente, porque um encerramento sintético atribuiria à pessoa uma passagem que ela não escreveu. Expor como pendência em FR-027/FR-028.
+- **Volume de aferição cresce rápido** → série paginada por período, sem carregar histórico completo; medir antes de indexar além do par `(caso, instante_afericao)`.
+- **Localização do profissional e endereço da pessoa acompanhada (D13)** → dado pessoal de trabalhador somado a endereço residencial de pessoa adulta acompanhada. Tratar sob FR-042 com o mesmo rigor do conteúdo clínico: audiência restrita provada no banco, consentimento versionado, prova negativa obrigatória para perfil familiar e para profissional sem coordenação, e retenção declarada antes da primeira gravação.
+- **Ferramenta de registro vira ferramenta de vigilância** → a observação do próprio solicitante no levantamento de 11/11/2026 vale aqui: o aplicativo deve apoiar o cuidado, não vigiar. Nenhuma superfície pode ranquear, pontuar ou alertar sobre a presença de profissional, e nenhum cálculo de atraso ou falta pode derivar da coordenada.
+- **Escopo adjacente ao proibido** → a fronteira entre "registrar o executado" e "orientar conduta" é estreita. Nenhum campo calculado, nenhum rótulo derivado de valor, nenhum preenchimento automático. Revisão de código deve tratar isso como critério, não como detalhe.
+
+## Migration Plan
+
+Migrações aditivas locais, seguindo a numeração e o padrão das existentes: tabelas, índice único parcial de D5, RPCs privadas com auditoria obrigatória, políticas e revogação de grants diretos, e migração de grants de teste separada, como em `*_grant_*_teste.sql`.
+
+Nenhuma operação remota é autorizada por este planejamento: sem deploy, sem migração no projeto Supabase, sem concessão e sem dados reais. Reversão precisa preservar registros de administração e aferição já gravados; uma reversão que apague esses lançamentos exige procedimento aprovado à parte.
+
+## Open Questions
+
+**Retomada local de 18/11/2026:** para o grupo 2, os parâmetros são institucionais
+e reutilizam `identidade.configuracao_sistema`/Administração. As três chaves
+`ffcm.turno.duracao_padrao_minutos`, `ffcm.turno.tolerancia_atraso_minutos` e
+`ffcm.turno.tratamento_nao_encerrado` começam como texto vazio, sem duração ou
+tolerância de negócio inventada. Na abertura, duração deve ser inteiro positivo,
+tolerância inteiro não negativo e tratamento `sinalizar_pendencia`; valores são
+copiados para o turno e alterações posteriores não reescrevem o snapshot.
+`ffcm.turno.ativo` começa `false`. **SUPOSIÇÃO CONSERVADORA:** configuração
+institucional única atende ao recorte; vazio nega abertura. Não há encerramento
+automático, nem parâmetro derivado de localização.
+
+Encerramento referencia `sintese_registro_id`, preservando D6. Como o grupo 3 não
+foi iniciado, nenhuma referência ainda é aceita para efetivar encerramento:
+operação falha fechada e o turno permanece aberto. Essa preparação não conclui
+FR-055/FR-057 nem ativa a fatia. Provas locais/remotas e revisão independente
+ficam para a etapa posterior pedida pelo solicitante; não reutilizar evidência
+antiga como aprovação do novo domínio.
+
+Modelo de ameaça do recorte local: autoria/relógio forjados e replay são limitados
+por identidade derivada, entrada estrita, atestado com prazo e reserva vinculada a
+geração/chave/digest. Outro caso, vínculo revogado e sessão/concessão encerrada são
+conferidos sob locks no banco antes de replay; RLS e ausência de grants diretos
+preservam a fronteira das tabelas. Auditoria integra a transação e sua falha aborta.
+Flag desligada é conferida também no SQL, sem depender só da rota HTTP.
+
+A recusa antecipada de perfil usa RPC separada **somente para negativa**. Esta não
+exige HMAC/Vault: valida identidade e sessão Auth, limita ação e alvo, deriva o ator
+e só insere resultado `negado`, sem ler nem alterar turno. **SUPOSIÇÃO CONSERVADORA:**
+registrar uma tentativa negada diretamente por identidade autenticada não confere
+autoridade clínica; não pode registrar sucesso nem atribuir evento a terceiro.
+Isso evita carregar segredos apenas para recusar perfil, sem transformar a RPC de
+negativa em caminho de execução. Falha de auditoria retorna indisponibilidade.
+Provas positivas/negativas dessa fronteira permanecem obrigatórias e ainda não
+executadas, assim como concorrência, instalação NOSUPER e integração Auth real.
+
+Questões que não alteram specs, abordagem ou tarefas, e podem ser respondidas na implementação ou depois dela:
+
+- Paginação da série de aferições: cursor por instante ou por página. Qualquer uma atende FR-058.
+- Formato do consolidado diário exportado (FR-062) dentro do que FR-032 já define.
+- Se a escala exibe turno previsto e turno realizado na mesma lista ou em visões separadas.
+- Como o executor externo é escolhido no registro: lista administrada de profissionais da enfermagem ou texto conferido. Começar por texto conferido atende FR-060; a lista é refinamento posterior sem mudança de contrato.
+- Onde ficam os parâmetros de turno de FR-055: configuração institucional única ou por caso. A spec exige apenas que não sejam valor fixo em código.
+
+As decisões que **mudariam** o recorte — perfis habilitados, autoria da administração, tipos de sinal vital, parâmetros de turno e audiência familiar — foram confirmadas em 11/11/2026 e estão em `proposal.md — Decisões aplicadas`. O que resta em aberto está em `proposal.md — Pendências` e bloqueia as tarefas marcadas como dependentes, em vez de ser resolvido por suposição aqui.
+
+## Auditoria da base para 0.6 — 18/11/2026
+
+Escopo: leitura do código, migrations, specs desta mudança, DF-021/DF-022 e evidências
+já registradas. Nenhum teste repetido, conta criada, segredo lido ou operação remota
+executada nesta auditoria. Naquela passagem, a liberação recebida alcançava somente
+0.6; fechar a checkbox da auditoria não liberou os demais trabalhos. A autorização
+posterior do solicitante, em 18/11/2026, retomou implementação local dos grupos 1 e 2
+com validações adiadas; 0.6.1 continua sendo gate de integração/ativação.
+
+| Controle existente conferido | Âncora de implementação | Evidência e limite |
+| --- | --- | --- |
+| Identidade nativa, perfil único, admissão por concessão | `20261017113000_fundacao_identidade_cadastro.sql` (`usuario`, `concessao_equipe`, `sessao`); `20261105120000_auth_privado.sql`; `20261105130000_auth_nativo_sessao.sql`; `netlify/functions/_shared/auth-nativo/cliente.ts` | Fundação tasks registra login/cadastro/recarga Admin reais anteriores e negativas Auth sem concessão; não prova Profissional/Família atuais ou estabilidade da entrada publicada. |
+| Sessão, concessão e revogação conferidas no banco | `20261106180000_bloqueios_auth.sql`; `20261106190000_wrappers_privados.sql`; `supabase/functions/_shared/atestado-operacao.ts` e `cifra-autenticada.ts` | Ponte Auth, locks e atestado de operação são mecanismos existentes, não novo protocolo de turno. Fundação/S-02 mantém limites de Auth/Vault reais e replay/revogação remotos. |
+| Vínculo ativo por paciente, concessão/revogação auditadas | `20261112050000_conceder_acesso_paciente_privado.sql`; `20261112060000_revogar_acesso_paciente_privado.sql`; `20261112070000_owners_acesso_paciente_privado.sql`; `20261112180000_barreira_acesso_paciente.sql` | `fundar-identidade-e-seguranca-backend/tasks.md` registra PostgreSQL local positivo Admin, negativas Profissional/sessão encerrada/direto, replay e rollback; fixtures Auth/Vault não comprovam integração real. |
+| Exemplo vigente de domínio que exige vínculo sob lock antes de replay | `20261125010000_anamnese_vinculo_caso.sql`; `supabase/tests/anamnese_vinculo_caso_local.sql`; `anamnese_vinculo_revogacao_concorrente_local.sql` | Anamnese tasks, evidência bloco 4: runners vínculo e integrado saída 0; Admin/Profissional vinculados positivos; outro paciente, Família, inativo e revogações negados; dblink nas duas ordens de lock. Auth/PostgREST/Vault fixtures. É referência a reutilizar, não autorização herdada por tabela futura. |
+| Concessão de equipe e barreira de alteração | `20261112310000_criar_concessao_equipe_privado.sql`; `20261112320000_replay_concessao_equipe_versionado.sql`; `20261112350000_barreira_concessao_equipe_privada.sql` | Provas locais existentes em `criar_concessao_equipe_privado_local.sql`, `replay_concessao_equipe_versionado_local.sql` e `barreira_concessao_equipe_local.sql`; estado de execução remota/perfis não foi revalidado aqui. Não confundir concessão de equipe com concessão específica de medicação. |
+| Família tem admissão/vínculo e audiência separadas | `20261111160000_admissao_familiar_privada.sql`; `20261112040000_consultar_paciente_familiar_privado.sql`; `20261120400000_materializar_acesso_familiar.sql`; `20261120420000_cancelar_preautorizacao_revoga_acesso.sql` | Testes `jornada_familiar_local.sql` e diário provam caminhos locais. `cadastro.acesso_paciente` registra concessor/motivo cifrado/revogação; não está comprovado que esse motivo materialize o fundamento específico, vigente e revogável exigido por FR-062. Parentesco nunca supre fundamento. |
+| Liderança por caso, sem quarto perfil (DF-021) | `20261113100000_acompanhamento_caso.sql`; `20261125040000_plano_crise_case_manager_atual.sql` | Runner crise saída 0 nesta passagem: responsável atual Admin/Profissional habilitados positivos; demais atores/direto/replay após troca negados; carimbos preservados. Habilitação de crise não é concessão de medicação. |
+
+**Lacunas concretas e destino.** 0.6.1 retém a prova operacional pendente. 0.6.2 exige
+amarrar os controles novos aos grupos existentes, sem criar camadas antecipadas:
+
+- Ainda não há persistência/RPC de turno nem vínculo de autoria/turno aberto dos filhos;
+  isso pertence a 2.1–2.6 e FR-063, não é garantido pela autorização da anamnese.
+- Concessão de medicação de D4 ainda precisa ser modelada e verificada em 5.1/6.3;
+  `habilitado_plano_crise` não serve como substituto. Pela revisão de 17/11/2026,
+  profissional com vínculo é elegível; liderança de caso não é exigência adicional.
+- Fundamento familiar de 8.3 precisa de prova independente da mera relação/vínculo,
+  inclusive revogação. Não presumir equivalência do motivo cifrado sem contrato verificável.
+- Localização requer consentimento próprio versionado, retenção 90 dias e RPC de audiência
+  própria (12.1–12.7); nenhum mecanismo clínico atual comprova esses controles.
+- Anexo privado e PDF têm fronteiras novas (11 e 10); sua autorização ainda não existe.
+
+**Coerência com decisões vigentes.** D8 conserva descrição histórica do registrador como
+Administrador/case manager; para elegibilidade aplica-se revisão de D4/0.1/FR-060:
+profissional autenticado com vínculo, com registrador derivado e executor declarado distintos.
+A pendência histórica de retenção em D13 foi resolvida por 0.14: 90 dias. Essas correções
+de leitura não autorizam começar implementação de grupos posteriores.
+
+**Estado remoto informado pela coordenação no momento da auditoria, não observado aqui:** sete migrations
+novas aplicadas, oito flags runtime ligadas, grant do executor Agenda aplicado e deploy
+`ddf2415` promovido pela UI e depois revertido: contexto de preview trouxe 503 de
+configuração operacional. O deploy anterior `76838b4` voltou publicado/LOCKED;
+novo build com contexto correto ficou bloqueado pelos créditos da Netlify. Depois da
+auditoria, oitava migration do aviso de expurgo aplicada; estado final e limites em
+`docs/processo/relatorio-noturno-18-11-2026.md`. Isso não prova entrada funcional ou negativas reais:
+login 400/503 e gates Auth continuam pendentes. DF-022 autoriza operação no ambiente real,
+mas somente com dados fictícios; publicação não equivale a go-live nem a aprovação S-02.
+
+**Conclusão de 0.6:** inventário e lacunas estão registrados; auditoria concluída.
+Base reaproveitável identificada, integração/ativação de turno ainda bloqueadas pelos itens
+0.6.1/0.6.2 pertinentes. Nenhum grupo de implementação foi iniciado nesta passagem.
+
+## Fronteiras e ameaças incrementais dos grupos 4–13 — 19/11/2026
+
+Complemento delimitado de D1–D13 para a retomada, sem substituir a auditoria 0.6.
+Stack existente: TypeScript/Zod, BFF Netlify, Auth/Vault/PostgreSQL Supabase;
+evidências em `turno-grupo3-nativo.ts`, `turno-compor-nativo.ts`, `rpc.ts` e
+migrations de turno 0800/1400. `turno-execucao.ts` inicia o contrato privado dos
+novos filhos. As medidas abaixo são **exigências de implementação e prova**, não
+controles certificados em execução.
+
+**SUPOSIÇÃO de exposição:** aplicativo web acessível pela internet, com acesso de
+negócio restrito; atacante pode enviar HTTP arbitrário, adulterar UUID, período,
+versão, conteúdo e coordenadas, ou possuir sessão sem vínculo/sem fundamento ou
+revogada. Não possui owners, chave de atestado/cifra ou controle do serviço Storage.
+Autorizações e ambiente foram definidos pelo solicitante; nenhuma pergunta nova
+é necessária para repetir essas premissas. Escala e consumo reais permanecem
+desconhecidos, portanto páginas, tamanhos de arquivo e geração serão limitados.
+
+```mermaid
+flowchart LR
+  N["Navegador"] --> B["BFF autenticado"]
+  B --> A["Auth"]
+  B --> V["Vault"]
+  B --> D["RPC e RLS"]
+  B --> S["Storage privado"]
+  B --> P["PDF em memória"]
+```
+
+Ativos: conteúdo de saúde cifrado/estruturado, autoria e versões, vínculo e fundamento
+familiar, consentimento/coordenadas, fotos privadas e registros de exportação.
+Navegador/BFF cruza DTO não confiável por HTTP; BFF/RPC cruza conteúdo cifrado e
+atestado, com Auth e autorização transacional; BFF/Storage cruza bytes somente após
+autorizar caso/operação; BFF/PDF usa apenas projeção persistida autorizada. CI e
+fixtures locais não recebem dados de pessoas nem autoridade de aplicação.
+
+| Ameaça | Probabilidade/impacto/prioridade | Controle e prova exigidos |
+| --- | --- | --- |
+| TM-T01: profissional forja caso, turno ou prescrição para registrar ato alheio | média/alto/high | Identidade/relógio derivados, vínculo/concessão/turno sob locks antes de replay; FK da versão prescrita; negativas HTTP/SQL e revogação concorrente. |
+| TM-T02: parentesco/vínculo genérico concede saúde ou coordenada ao familiar | média/alto/high | Fundamento próprio versionado, vigente e revogável; localização em operação/retorno separados; negativas nas consultas, anexos, relatório e PDF. |
+| TM-T03: upload/PDF faz efeito externo ou entrega conteúdo antes de autorizar | média/alto/high | Autorizar antes de Storage/renderização; revalidar antes de entrega e confirmar auditoria de exportação; testes com zero chamada nas negativas. |
+| TM-T04: resposta perdida/repetição duplica administração, ocorrência ou tarefa | média/alto/high | Chave/digest e consulta operacional durável; versão esperada, ledger e atomicidade da conversão; sem retry silencioso ou conteúdo clínico em storage do navegador. |
+| TM-T05: coerção/forja de coordenada vira prova de presença ou bloqueia turno | média/alto/high | Consentimento prévio próprio, dado declarado, ausência com motivo, caminho sem localização e nenhum cálculo de conformidade. |
+| TM-T06: arquivo privado/link sobrevive à revogação ou período omite páginas | média/alto/high | Storage privado/RLS e entrega autenticada por leitura, sem URL pública/assinada longa; paginação estável e nenhuma exportação truncada silenciosamente. |
+| TM-T07: descarte de localização atinge outros registros ou executa sem revisão | baixa/alto/high | Executor de expurgo mínimo, somente coordenadas vencidas após 90 dias, flag desligada, auditoria transacional e prova de preservação do turno; não executar nesta retomada. |
+
+Risco residual: Auth/SMTP/Storage/cron reais, instalação e grants do migrador e
+limites de runtime do PDF não foram exercidos. Escrever adapters/provas não fecha
+esses gates. Revisão independente deve focar nova migration clínica, dispatcher
+de execução, download, emissão PDF, retenção e montagem/desmontagem das telas.
+
+Referências primárias de capacidade, não prova da integração:
+[Storage e RLS](https://supabase.com/docs/guides/storage/security/access-control),
+[buckets privados](https://supabase.com/docs/guides/storage/buckets/fundamentals),
+[PDF-LIB](https://pdf-lib.js.org/) e
+[releases](https://github.com/Hopding/pdf-lib/releases).
+
+Disponibilidade sem contratar recurso novo: a documentação pública lista Storage
+no plano Free, com 1 GB de armazenamento e cotas de tráfego próprias
+([preços](https://supabase.com/docs/guides/storage/pricing),
+[tráfego](https://supabase.com/docs/guides/storage/serving/bandwidth)). Plano,
+consumo e saldo efetivos do projeto não foram consultados; ativação deve conferi-los
+antes de tráfego real. Nenhum upgrade, add-on ou excedente pago está autorizado.
+PDF-LIB é opção de implementação JavaScript no servidor; versão e lock serão
+fixados pelo executor. A escolha só será comprovada para runtime após a medição
+de 10.4. Fonte sem glifo não autoriza substituir conteúdo clínico silenciosamente.
+
+### Contrato complementar de integração — 19/11/2026
+
+Decisões de implementação para FR-032/058–067, sob autorização de concluir as
+lacunas e sem executar validações:
+
+- Concessão de medicação fica no vínculo com o caso, inicialmente concedida;
+  gestão exige Administrador ou responsável atual do caso com vínculo ativo.
+  Não se reutiliza concessão global da equipe nem habilitação de crise.
+- **SUPOSIÇÃO CONSERVADORA:** retificar filho de execução exige autor original e
+  turno ainda aberto. Correção após encerramento não foi liberada por inferência.
+  Prescrição não é filho do turno: outro profissional com vínculo/concessão pode
+  revisá-la, preservando autor original e autor de cada versão. Retificar
+  administração mantém a versão prescrita referenciada originalmente, inclusive
+  após expiração ou nova transcrição; nunca troca automaticamente pelo item atual.
+- Relatório paginado usa consulta opaca de 15 minutos, gerada pelo banco, com corte
+  de versões e contexto de autoridade. Sessão, perfil, concessão, vínculo e
+  fundamento familiar continuam atuais: alteração invalida consulta/PDF. Não há
+  materialização de conteúdo clínico nem job para calcular consolidados.
+- A geração de PDF é adicional ao ZIP legado. Releitura mostrou que o ZIP recebia
+  apenas manifesto/rótulo, sem conteúdo clínico ou anexos; texto/comentários serão
+  corrigidos. PDF usa conteúdo persistido, com versões exatas e redução de dados
+  de terceiros. Manifesto paginado não pode parar silenciosamente em 200 itens.
+- O recibo privado de exportação identificará o resultado da operação, inclusive
+  replay, sem escolher a primeira linha de uma lista concorrente. Registro da
+  emissão deve corresponder ao digest dos bytes efetivamente entregues; mudança
+  de snapshot, audiência ou bytes exige recusa ou nova emissão explícita.
+- Leituras exatas de Saúde, Contexto, Rede, Diário, Plano, Tarefas, Encaminhamentos,
+  Orientações e Documentos recebem apenas no contrato privado o par `registro_id_exportacao` /
+  `versao_exportacao`. Cada domínio conserva seu próprio owner, autorização,
+  audiência da versão e auditoria. Não se cria owner com leitura clínica global;
+  DTOs HTTP legados e leitura sem seletor conservam seu comportamento. Anamnese
+  reutiliza seu histórico existente; Diário e Plano têm seletor privado próprio. Fonte de cada patch deve ser fixada e
+  atributos/ACL/memberships preservados, com prova NOSUPER escrita.
+- Novos anexos são limitados a 3 MiB; PDFs em memória a 4 MiB e limites explícitos
+  de conteúdo/páginas. Excesso falha sem arquivo parcial. A margem considera o
+  [payload da Netlify](https://docs.netlify.com/build/functions/configuration/),
+  sem alegar medição nem aumentar capacidade contratada.
+- Localização é coletada somente após confirmação de abertura/encerramento,
+  complementar e com prazos JavaScript próprios. O timeout nativo não limita a
+  espera de permissão, conforme [Geolocation](https://www.w3.org/TR/geolocation/).
+  Consulta/exportação de coordenadas permanecem separadas e negadas à família;
+  seu descarte de 90 dias nasce com flag e job desligados, sem limpeza executada.
+
+Essas medidas estão em implementação/revisão de fonte. Provas escritas, benchmark,
+matriz executada e integração real continuam pendentes; não constituem aceite.
+
+
+## Grupo 3 — contrato de implementação local (18/11/2026)
+
+Autorizado preparar integralmente 3.1–3.5 em código, com provas escritas sem execução.
+Não representa ativação, conformidade comprovada nem decisões clínicas ratificadas.
+
+**SUPOSIÇÕES CONSERVADORAS autorizadas para implementação:** gerir escala exige
+Administrador autenticado pelo Google Workspace, vínculo vigente no caso e ser seu
+case manager atual. Ler escala exige equipe autenticada pelo Google e vínculo vigente;
+não há exposição familiar neste recorte. Destinatário de ciência é o profissional que
+abre efetivamente o turno seguinte do mesmo caso, derivado de Auth e da abertura
+persistida; o cliente nunca escolhe destinatário. Ausência de responsável nega gestão.
+
+Escala é histórico append-only: primeira versão fixa o previsto original e janela;
+versões seguintes conservam original e guardam substituto/cobertura, motivo cifrado,
+autor e instante servidor. Versão esperada e idempotência impedem sobrescrita/replay
+com comando diferente. Nenhuma escala cria vínculo, concessão ou abertura automática.
+
+Passagem reutiliza **evolução profissional publicada do Diário** (FR-009). A tabela de
+vínculo contém apenas turno, identidade do registro/versão publicada e metadados; não
+contém outra cópia de síntese. O modelo é a área configurada em
+`ffcm.turno.area_passagem`, que deve existir em `ffcm.diario.areas_sintese`.
+Nenhum rótulo clínico é semeado como decisão de equipe. Publicação e vínculo ocorrem na mesma RPC/transação, reutilizando transporte filho
+assinado de `prepararGravacaoDiarioNativa` e `api.diario_privado`, como conversão
+Diário/Tarefa. Resposta perdida é recuperável pelo GET da própria passagem. Vínculo exige mesmo caso, autor, turno aberto,
+estado publicado/retificado e área configurada; data/síntese são validadas na publicação
+existente. Encerramento confere vínculo e versão sob trava do próprio turno e audita
+na mesma transação. Não altera conteúdo publicado nem retifica automaticamente.
+
+Consulta de passagem retorna própria e anterior do mesmo caso, com autor e instante.
+Ao abrir turno sucessor, referência anterior mais recente é fixada em tabela operacional
+sem conteúdo clínico. Ciência é evento imutável explícito no mecanismo do Diário,
+referenciado pelo registro publicado e turno destinatário, preservando ator/instante;
+consulta não insere ciência. Revogação é revalidada antes de replay/consulta/ciência.
+
+Rotas novas por caso: GET/POST `/turnos/escala`, PATCH `/turnos/escala/:escala_id`;
+GET/POST `/turnos/:turno_id/passagem`; POST
+`/turnos/:turno_id/passagem/ciencia`. Identidade e relógio nunca vêm do corpo.
+Mutação usa chave idempotente; resposta perdida exige consulta antes de nova tentativa.
+
+### Recorte de ameaças do grupo 3
+
+Ativos: integridade da escala, síntese clínica cifrada do Diário, autoria, destinatário e
+ciência. Navegador/HTTP são não confiáveis; servidor cifra/atesta, RPC autoriza e audita.
+Atacante autenticado pode forjar caso/autor/versão, repetir pedido e tentar acesso direto;
+não recebe owner, chave de atestado ou permissão direta nas tabelas.
+
+- Alta (probabilidade média, impacto alto): forjar vínculo para fechar turno com síntese
+  alheia/de outro caso. Mitigação exigida: validação SQL cumulativa autor/caso/turno/versão,
+  modelo configurado, acesso vigente e trava antes da decisão.
+- Alta (média/alta): registrar ciência por terceiro ou inferir ciência da consulta.
+  Mitigação exigida: destinatário derivado de abertura persistida, ação explícita,
+  escrita insert-only, reautorização antes de replay e auditoria obrigatória.
+- Alta (média/alta): gestão de escala por perfil isolado, ou perda de histórico em corrida.
+  Mitigação exigida: Google+vínculo+responsável atual sob locks, versão esperada,
+  append-only e motivo cifrado. Escala não concede identidade nem vínculo.
+- Alta (média/alta): lookup sem filtro expõe outros casos ou conteúdo familiar não
+  autorizado. Mitigação exigida: servidor/banco filtram caso/equipe e RLS/ACL estreitas.
+
+Provas SQL/servidor/NOSUPER e concorrência foram escritas; **não executadas** nesta
+passagem. Gates Auth/Vault/RLS reais e verificações executáveis permanecem
+pendentes; revisão de fonte e releituras afetadas estão registradas em tasks.md. Configuração ausente recusa vínculo/encerramento; não inventa modelo.
+
+Suposição conservadora adicional do grupo 3: vínculo da passagem é versionado append-only.
+Publicação exige `versao_esperada` do vínculo (0 inicial); cada ato explícito publica nova
+evolução no Diário e novo vínculo, preservando ambos históricos. Encerrar exige vínculo
+mais recente e versão exata do Diário ainda corrente; retificação anterior ao fechamento
+recusa versão antiga e pede nova publicação explícita. Nunca republicar automaticamente.
+GET `turnos/ultimo` recupera último turno próprio do caso após encerramento/recarga, para
+remetente consultar consulta e ciência futuras; não é lista de histórico nem amplia audiência.
+
+Paginação da escala: cursor composto `escala_id,versao`, página de 50 versões imutáveis,
+com `proximo_cursor`; crescimento não torna histórico indisponível nem o trunca em 500.
+Rótulos autorizados são projeção apenas de identidades presentes na página/passagem,
+separada do catálogo elegível para gestão. Fonte é e-mail cifrado de concessão existente;
+BFF decifra com AAD original, sem logs. Ausência de identidade é `null`, não nome inventado.
+Suposição conservadora: rótulo atual de concessão histórica não prova nome na época do ato.
+Revisão e provas foram preparadas sem execução. Gates reais permanecem obrigatórios.
+
+
+A interface compartilha campos/leitura do modelo FR-009 em `web/modelo-sintese.ts`
+entre Diário e passagem; dois consumidores reais, sem criar novo domínio. Envio,
+rascunho, audiência e ciclo do áudio permanecem no Diário. Prova de regressão foi
+escrita, não executada. Recusa definitiva de publicação/escala permite descarte
+explícito após consulta, preservando texto para correção humana; resultado incerto
+mantém chave e comando originais, sem inferir rollback nem trocar versão sozinho.
+
+### Recuperação durável da execução clínica (2600)
+
+Recarregar a interface não autoriza nova intenção quando uma gravação anterior pode ter confirmado. Antes de editar execução, POST `/execucao-turno/reconciliar` com `comando_id` estável incrementa época própria do ator e devolve somente época e recibo pendente (paciente, classe, registro, versão, data). Retry do comando conserva resultado. POST `/execucao-turno/reconhecer` usa CAS época/recibo após conferência explícita; resposta de gravação conhecida permite reconhecer o próprio recibo. Nenhum conteúdo clínico persiste no navegador.
+
+`api.turno_execucao_barreira` despacha `api.reconciliar_execucao_turno` e `api.reconhecer_execucao_turno`. Autenticação staff vigente própria, sem exigir vínculo ao caso do recibo revogado; família e técnico recusados. POST clínico exige `epoca` assinada e retorna `recibo_id`. Sob lock próprio do ator, depois das autorizações e locks clínicos existentes, época antiga ou recibo pendente impede nova intenção; replay autorizado da mesma chave conserva recibo. Commit clínico e recibo são atômicos. Duas tabelas privadas de metadados; sem grants diretos de aplicação, cache clínico, jobs ou retentativa automática. SQL 2600 modifica fonte congelada por âncoras únicas e hashes, preservando owner, ACL e proconfig. Provas concorrentes e gates permanecem não executados.
+
+
+### Restauração aditiva do wrapper de exportação (2450; FR-032/066)
+
+A validação da ordem real encontrou que 203500 concede EXECUTE no wrapper público de exportação a `authenticated`, mas 203900 o revoga. A fixture histórica reaplicava o grant antigo fora da ordem e escondia a falha. Migration local pendente `20261125245000_exportacao_wrapper_autenticado.sql` restaura exclusivamente esse EXECUTE, sem alterar migrações históricas, corpos, owners, configuração, tabelas ou grants de aplicação adicionais. Executa sob owner dedicado validado, preserva memberships e CREATE de schema, e concede sem grant option. A suposição autorizada é que a nova migration 2450 ainda não foi aplicada remotamente; nenhuma operação remota foi executada.
+
+A cadeia NOSUPER mantém 203500 → 203900 → 2450 e exige delta ACL exato de sete entradas: seis delegações pontuais já previstas e somente o wrapper público de exportação para authenticated. Snapshot de corpos permite exatamente os onze patches previstos de 1800–2500, com hashes finais individuais; demais corpos, owners, ACLs e proconfig devem permanecer iguais. Matriz clínica local chegou a EXIT 0 em 19/11/2026, com Auth/Vault/Storage fictícios; concorrência e reconciliação seguem registradas separadamente, sem substituir prova remota.

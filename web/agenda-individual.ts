@@ -1,8 +1,19 @@
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import { montarVinculoAgenda } from './agenda-vinculo.js';
 import { montarOperacoesAgenda } from './agenda-operacoes.js';
+import { descreverRealizacao, montarRealizacaoAgenda } from './realizacao-compromisso.js';
+import { criarServicoRealizacaoCompromissoHttp } from './servico-realizacao-compromisso-http.js';
+import type { RealizacaoCompromisso } from '../packages/contracts/src/realizacao-compromisso.ts';
 
 type Compromisso = { id: string; inicio: string; fim: string; titulo: string; etag?: string };
+
+/** O Google devolve `fim` como instante ou como data (evento de dia inteiro, fim exclusivo).
+ * A derivação de "realização não confirmada" só precisa saber se já terminou. */
+function instanteFim(fim: string): string | null {
+  const texto = /^\d{4}-\d{2}-\d{2}$/.test(fim) ? `${fim}T00:00:00Z` : fim;
+  const instante = new Date(texto);
+  return Number.isNaN(instante.getTime()) ? null : instante.toISOString();
+}
 
 export function montarAgendaIndividual(
   raiz: HTMLElement,
@@ -47,6 +58,30 @@ export function montarAgendaIndividual(
   titulo.textContent = 'Minha agenda';
   const descricao = document.createElement('p');
   descricao.textContent = 'Consulte os compromissos da sua agenda Google para os próximos 30 dias.';
+  // O callback pode preservar a conexão anterior quando Google não entrega refresh token.
+  // Este aviso é separado do status consultado: não comprova conexão nem deve sumir
+  // quando a consulta assíncrona informa a situação atual.
+  const retornoConsentimento = document.createElement('p');
+  retornoConsentimento.className = 'feedback';
+  retornoConsentimento.setAttribute('role', 'status');
+  const retornosAgenda = new URL(window.location.href).searchParams.getAll('agenda');
+  retornoConsentimento.hidden =
+    retornosAgenda.length !== 1 || retornosAgenda[0] !== 'autorizar-novamente';
+  if (!retornoConsentimento.hidden)
+    retornoConsentimento.textContent =
+      'A nova autorização da agenda não foi concluída: o Google não forneceu acesso para manter a conexão. Uma conexão anterior, se existir, foi preservada. Se a agenda estiver desconectada, use “Conectar agenda Google” para tentar autorizar novamente. Se persistir, peça ao administrador para conferir a configuração da integração.';
+  if (!retornoConsentimento.hidden) {
+    const ajuda = document.createElement('a');
+    ajuda.href = 'https://support.google.com/accounts/answer/13533235?hl=pt-BR';
+    ajuda.target = '_blank';
+    ajuda.rel = 'noopener noreferrer';
+    ajuda.textContent = 'Entenda as conexões da Conta Google';
+    retornoConsentimento.append(
+      ' ',
+      ajuda,
+      '. Alterar ou remover acesso pode afetar outros acessos do projeto e não garante que uma nova autorização seja concluída.',
+    );
+  }
   const status = document.createElement('p');
   status.className = 'feedback';
   status.setAttribute('role', 'status');
@@ -78,7 +113,7 @@ export function montarAgendaIndividual(
   const acoes = document.createElement('div');
   acoes.className = 'agenda-acoes';
   acoes.append(atualizar, conectar, desconectar, reconciliarDesconexao, cancelarDesconexao);
-  raiz.replaceChildren(titulo, descricao, acoes, status, lista);
+  raiz.replaceChildren(titulo, descricao, retornoConsentimento, acoes, status, lista);
 
   function cabecalhos(): Headers {
     const fluxo = sessionStorage.getItem('fluxo-google');
@@ -102,6 +137,13 @@ export function montarAgendaIndividual(
     operacoesRaiz,
     cabecalhos,
     listarPacientes,
+    () => void carregar(),
+  );
+  // FR-024: a situação de realização tem rota e flag próprias, independentes da integração
+  // Google. Ela não carrega paciente nenhum — correlacionar caso e agenda é da carteira.
+  const realizacao = montarRealizacaoAgenda(
+    operacoesRaiz,
+    criarServicoRealizacaoCompromissoHttp(cabecalhos),
     () => void carregar(),
   );
   async function carregar(): Promise<void> {
@@ -154,6 +196,8 @@ export function montarAgendaIndividual(
       if (!ativa || versao !== consulta) return;
       const itens = corpo.dados as Compromisso[];
       const estadosVinculo = new Map<string, HTMLElement>();
+      const estadosRealizacao = new Map<string, HTMLElement>();
+      const situacoes = new Map<string, RealizacaoCompromisso>();
       const data = new Intl.DateTimeFormat('pt-BR', {
         dateStyle: 'full',
         timeStyle: 'short',
@@ -178,7 +222,23 @@ export function montarAgendaIndividual(
         const estadoVinculo = document.createElement('span');
         estadoVinculo.textContent = 'Consultando vínculo…';
         estadosVinculo.set(item.id, estadoVinculo);
-        linha.append(nome, horario, estadoVinculo);
+        const estadoRealizacao = document.createElement('span');
+        estadoRealizacao.className = 'agenda-realizacao';
+        estadoRealizacao.textContent = 'Consultando situação…';
+        estadosRealizacao.set(item.id, estadoRealizacao);
+        linha.append(nome, horario, estadoVinculo, estadoRealizacao);
+        const registrarRealizacao = document.createElement('button');
+        registrarRealizacao.type = 'button';
+        registrarRealizacao.className = 'button-secondary';
+        registrarRealizacao.textContent = 'Registrar realização';
+        registrarRealizacao.setAttribute(
+          'aria-label',
+          `Registrar realização do compromisso de ${horario.textContent}`,
+        );
+        registrarRealizacao.addEventListener('click', () =>
+          realizacao.abrir(item.id, horario.textContent ?? '', situacoes.get(item.id)),
+        );
+        linha.append(registrarRealizacao);
         if (item.etag) {
           const editar = document.createElement('button');
           editar.type = 'button';
@@ -208,6 +268,21 @@ export function montarAgendaIndividual(
         );
         linha.append(vincular);
         lista.append(linha);
+      }
+      try {
+        const registros = await realizacao.consultar(
+          itens.map((item) => ({ evento_id: item.id, fim: instanteFim(item.fim) })),
+        );
+        if (!ativa || versao !== consulta) return;
+        for (const [id, destino] of estadosRealizacao) {
+          const registro = registros.get(id);
+          if (registro) situacoes.set(id, registro);
+          destino.textContent = descreverRealizacao(registro);
+        }
+      } catch {
+        if (!ativa || versao !== consulta) return;
+        for (const destino of estadosRealizacao.values())
+          destino.textContent = 'Não foi possível consultar a situação de realização';
       }
       for (let indice = 0; indice < itens.length; indice += 250) {
         const lote = itens.slice(indice, indice + 250).map((item) => item.id);
@@ -361,6 +436,7 @@ export function montarAgendaIndividual(
       lista.removeAttribute('aria-busy');
       lista.replaceChildren();
       vinculos.ocultar();
+      realizacao.ocultar();
     } else if (ativa && !suspensa) void carregar();
   };
   document.addEventListener('visibilitychange', ocultarDados);
@@ -497,6 +573,7 @@ export function montarAgendaIndividual(
     lista.removeAttribute('aria-busy');
     lista.replaceChildren();
     vinculos.ocultar();
+    realizacao.ocultar();
     operacoesRaiz.hidden = true;
     void enviarDesconexao();
   });
@@ -662,6 +739,7 @@ export function montarAgendaIndividual(
     document.removeEventListener('visibilitychange', ocultarDados);
     operacoes.desmontar();
     vinculos.desmontar();
+    realizacao.desmontar();
     consulta += 1;
     finalizarConsulta?.();
     lista.removeAttribute('aria-busy');

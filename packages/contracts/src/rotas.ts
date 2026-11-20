@@ -285,7 +285,10 @@ const operacaoConcluidaSchema = z
   .object({ id: uuidSchema, versao: z.number().int().positive() })
   .strict();
 
-/** Catálogo completo das rotas D-09; handlers não devem declarar DTOs próprios. */
+/** Catálogo D-09 ligado às assinaturas RPC desse protocolo.
+ * Turno e conversão atômica usam contratos/compositores nativos próprios; não declarar
+ * aqui endpoints preparados órfãos nem fingir uma RPC simples para esses protocolos.
+ */
 export const contratosRotas = {
   desafioTecnico: comandoDeSessao(
     '/api/sessao/desafio-tecnico',

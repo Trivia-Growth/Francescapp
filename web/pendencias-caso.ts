@@ -10,6 +10,7 @@ import {
   type SinalOperacional,
   type TratarPendencia,
 } from '../packages/contracts/src/pendencia.js';
+import type { PendenciaPlantaoHttp } from '../packages/contracts/src/ficha-plantao-http.js';
 import type { ResponsavelOpcao } from './acompanhamento-caso.js';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { dataDeInstante } from './datas.js';
@@ -65,9 +66,15 @@ export function montarPendenciasCaso(
   servico: ServicoPendencias,
   acessoPerdido: (erro: unknown) => void,
   listarResponsaveis?: () => Promise<ResponsavelOpcao[]>,
+  /** FR-077, decisão 0.5 de 20/11/2026: as pendências ESCRITAS no plantão aparecem aqui ao
+   * lado das quatro derivadas, com origem visível. Opcional porque a ficha de plantão tem
+   * interruptor próprio: desligada, a carteira continua mostrando as derivadas como sempre,
+   * e nenhuma delas muda de comportamento. */
+  listarPendenciasEscritas?: () => Promise<PendenciaPlantaoHttp[]>,
 ): () => void {
   let ativa = true;
   let equipe: ResponsavelOpcao[] = [];
+  let escritas: PendenciaPlantaoHttp[] = [];
   let gravacaoEmCurso = false;
   const atualizarControles = () => {
     for (const campo of raiz.querySelectorAll<HTMLButtonElement | HTMLSelectElement>(
@@ -367,6 +374,42 @@ export function montarPendenciasCaso(
       for (const pendencia of resolvidas) lista.append(desenharPendencia(pendencia, aplicar));
       painel.append(lista);
     }
+    // Pendência ESCRITA por pessoa, nunca misturada com as calculadas: seção própria,
+    // origem declarada no texto, autor e plantão identificados. Quem lê a carteira
+    // distingue o que alguém escreveu do que o sistema deduziu só de olhar.
+    if (escritas.length) {
+      painel.append(elemento('h3', 'Escritas no plantão'));
+      painel.append(
+        elemento(
+          'p',
+          'Origem: escrita por pessoa, não deduzida pelo sistema. Resolver é ato explícito, na ficha do plantão.',
+          'visao-aviso',
+        ),
+      );
+      const lista = elemento('ul', undefined, 'pendencia-lista');
+      for (const item of escritas) {
+        const linha = elemento('li', undefined, 'pendencia-item');
+        linha.dataset.origem = item.origem;
+        linha.dataset.estado = item.situacao;
+        linha.append(elemento('p', 'Pendência escrita no plantão', 'pendencia-tipo'));
+        linha.append(elemento('p', item.texto, 'pendencia-motivo'));
+        const marcas = [
+          `Situação: ${item.situacao === 'aberta' ? 'Aberta' : 'Resolvida'}`,
+          `Declarada por ${
+            equipe.find((opcao) => opcao.usuario_id === item.declarado_por_usuario_id)?.rotulo ??
+            'profissional do plantão'
+          }`,
+          `Plantão ${item.turno_id}`,
+        ];
+        if (dataDeInstante(item.registrado_em))
+          marcas.push(`Registrada em ${dataDeInstante(item.registrado_em)}`);
+        if (item.resolvido_em && dataDeInstante(item.resolvido_em))
+          marcas.push(`Resolvida em ${dataDeInstante(item.resolvido_em)}`);
+        linha.append(elemento('p', marcas.join(' · '), 'pendencia-marcas'));
+        lista.append(linha);
+      }
+      painel.append(lista);
+    }
     painel.append(desenharAcordo(sinal, gravarAcordo), aviso);
     raiz.replaceChildren(painel);
   };
@@ -383,12 +426,22 @@ export function montarPendenciasCaso(
             return [] as ResponsavelOpcao[];
           })
         : Promise.resolve([] as ResponsavelOpcao[]);
-      const [sinal, equipeCarregada] = await Promise.all([
+      // A ficha de plantão tem interruptor próprio e pode estar desligada: a falha dela não
+      // pode derrubar a carteira nem alterar as quatro derivadas.
+      const escritasPedidas = listarPendenciasEscritas
+        ? listarPendenciasEscritas().catch((erro: unknown) => {
+            if (exigeNovoAcesso(erro)) throw erro;
+            return [] as PendenciaPlantaoHttp[];
+          })
+        : Promise.resolve([] as PendenciaPlantaoHttp[]);
+      const [sinal, equipeCarregada, escritasCarregadas] = await Promise.all([
         servico.consultar(pacienteId),
         equipePedida,
+        escritasPedidas,
       ]);
       if (!ativa) return;
       equipe = equipeCarregada;
+      escritas = escritasCarregadas;
       desenhar(sinal);
     } catch (erro) {
       if (!ativa || descartarAcesso(erro)) return;

@@ -50,7 +50,13 @@ Como `for share`/`for update` exigem privilégio de UPDATE além do de SELECT no
 PostgreSQL, cada tabela travada recebe `update` de uma coluna inócua acompanhado de uma
 policy `_lock` com `using (true) with check (false)`, que nunca permite gravar.
 
-## Bloqueio de negócio: FR-020 (plano de crise)
+## Bloqueio histórico encerrado: FR-020 (plano de crise)
+
+**Estado vigente:** decisão de 11/11/2026 registrada em `tasks.md`, 6.1: marca de
+habilitação na concessão, administrada pela interface. DF-021, de 17/11, exige também
+ser o case manager atual do caso. Implementação na mudança `plano-de-crise`; não é
+decisão de negócio pendente nesta fatia. O relato abaixo preserva a investigação
+anterior à decisão.
 
 FR-020 exige "plano de crise aprovado pelo **profissional habilitado**". **Não existe
 conceito de habilitação no sistema**: os perfis são `administrador`, `profissional` e

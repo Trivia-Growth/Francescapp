@@ -1,0 +1,105 @@
+import { expect, it, vi } from 'vitest';
+import { criarEntradaTurnoNativa } from './turno-entrada-nativa.ts';
+const id = 'a0000000-0000-4000-8000-000000000001';
+const corpo = { turno_id: id, reserva_id: id, geracao_reserva: 1 };
+const dependencias = {} as Parameters<typeof criarEntradaTurnoNativa>[0];
+function pedido(entrada: unknown, operacao: 'abrir' | 'encerrar' = 'abrir') {
+  return new Request(`https://example.test/api/pacientes/${id}/turnos/${operacao}`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-sessao': id,
+      'x-chave-idempotencia': 'ficticio-1234567890',
+    },
+    body: JSON.stringify(entrada),
+  });
+}
+it.each(['abrir', 'encerrar'] as const)(
+  'descarta os dois carimbos conhecidos em %s e mantém autoria/extras recusados',
+  async (operacao) => {
+    const operar = vi.fn(
+      async (
+        _request: Request,
+        _comando: import('./turno-nativo.ts').ComandoTurno,
+        _dependencias: typeof dependencias,
+      ) => ({ ok: false as const, erro: { codigo: 'sem_permissao' }, request_id: id }) as const,
+    );
+    const entrada = criarEntradaTurnoNativa(dependencias, operar);
+    const valido = {
+      ...corpo,
+      ...(operacao === 'encerrar' ? { versao_esperada: 1, sintese_registro_id: id } : {}),
+    };
+    // Prova somente normalização HTTP; mock não comprova instante persistido pelo banco.
+    expect(
+      (
+        await entrada.atender(
+          pedido(
+            { ...valido, aberto_em: '1900-01-01T00:00:00Z', encerrado_em: '1900-01-02T00:00:00Z' },
+            operacao,
+          ),
+        )
+      ).status,
+    ).toBe(403);
+    expect(operar).toHaveBeenCalledWith(
+      expect.any(Request),
+      { ...valido, operacao, paciente_id: id },
+      dependencias,
+    );
+    for (const extra of [
+      { profissional_usuario_id: id },
+      { instante: '1900-01-01T00:00:00Z' },
+      { atestado: {} },
+    ]) {
+      operar.mockClear();
+      expect((await entrada.atender(pedido({ ...valido, ...extra }, operacao))).status).toBe(422);
+      expect(operar).not.toHaveBeenCalled();
+    }
+  },
+);
+it('não apresenta sucesso quando composição informa persistência incerta', async () => {
+  const operar = vi.fn(
+    async (
+      _request: Request,
+      _comando: import('./turno-nativo.ts').ComandoTurno,
+      _dependencias: typeof dependencias,
+    ) => ({ ok: false as const, erro: { codigo: 'pendencia_externa' }, request_id: id }) as const,
+  );
+  const resposta = await criarEntradaTurnoNativa(dependencias, operar).atender(pedido(corpo));
+  expect((await resposta.json()).erro.codigo).toBe('pendencia_externa');
+});
+
+it('parser HTTP nativo recusa sessão ou idempotência ausente antes da composição', async () => {
+  // Somente parser real; composição simulada não comprova autorização SQL/Auth.
+  const dependencias = {} as Parameters<typeof criarEntradaTurnoNativa>[0];
+  const operar = vi.fn(async () => ({
+    ok: false as const,
+    erro: { codigo: 'sem_permissao' },
+    request_id: crypto.randomUUID(),
+  }));
+  const entrada = criarEntradaTurnoNativa(dependencias, operar);
+  const corpo = { turno_id: id, reserva_id: id, geracao_reserva: 1 };
+  const pedido = (cabecalhos: Record<string, string>) =>
+    new Request(`https://example.test/api/pacientes/${id}/turnos/abrir`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...cabecalhos },
+      body: JSON.stringify(corpo),
+    });
+  expect(
+    (await entrada.atender(pedido({ 'x-chave-idempotencia': 'ficticio-1234567890' }))).status,
+  ).toBe(401);
+  expect((await entrada.atender(pedido({ 'x-sessao': id }))).status).toBe(422);
+  expect(operar).not.toHaveBeenCalled();
+  expect(
+    (
+      await entrada.atender(
+        pedido({ 'x-sessao': id, 'x-chave-idempotencia': 'ficticio-1234567890' }),
+      )
+    ).status,
+  ).toBe(403);
+  expect(operar).toHaveBeenCalledOnce();
+  expect(operar).toHaveBeenCalledWith(
+    expect.any(Request),
+    { ...corpo, operacao: 'abrir', paciente_id: id },
+    dependencias,
+  );
+});

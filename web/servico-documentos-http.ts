@@ -1,3 +1,4 @@
+import { TAMANHO_MAXIMO_DOCUMENTO } from '../packages/contracts/src/documento-caso.ts';
 import { documentoCasoHttp } from '../packages/contracts/src/documento-caso-http.ts';
 import type {
   ConteudoDocumento,
@@ -15,6 +16,7 @@ import { statusErroHttp } from '../packages/contracts/src/erros.ts';
 type Identidade = { usuario_id: string; session_id: string };
 
 export type ServicoDocumentos = {
+  baixar?(paciente: string, documento: string): Promise<Blob>;
   consultar(paciente: string): Promise<DocumentoCaso[]>;
   gravar(
     paciente: string,
@@ -24,6 +26,7 @@ export type ServicoDocumentos = {
       metadado: MetadadoDocumento;
       conteudo: ConteudoDocumento;
       arquivo?: File;
+      chave_idempotencia?: string;
     },
   ): Promise<DocumentoCaso[]>;
 };
@@ -36,9 +39,10 @@ export function criarServicoDocumentosHttp(
   const identidade = identidadeAtual();
   if (!identidade) throw new FalhaApi('nao_autenticado', 401);
   const enviar = async (
-    nome: keyof typeof documentoCasoHttp,
+    nome: 'consultar' | 'gravar',
     paciente: string,
     corpo?: { json: unknown } | { formulario: FormData },
+    chaveIdempotencia?: string,
   ) => {
     const rota = documentoCasoHttp[nome];
     const atual = identidadeAtual();
@@ -60,23 +64,26 @@ export function criarServicoDocumentosHttp(
       // Leitura (`ler_documentos`) já tem a trilha familiar no banco (filtro por `audiencia`,
       // ver migration `20261124120000`); família também passa por aqui para consultar anexos.
       fluxo = sessionStorage.getItem(
-        modo === 'tecnica'
-          ? 'fluxo-tecnico'
-          : modo === 'familiar'
-            ? 'fluxo-familiar'
-            : 'fluxo-google',
+        modo === 'interno'
+          ? 'fluxo-interno'
+          : modo === 'tecnica'
+            ? 'fluxo-tecnico'
+            : modo === 'familiar'
+              ? 'fluxo-familiar'
+              : 'fluxo-google',
       );
     } catch {
       throw new FalhaApi('nao_autenticado', 401);
     }
     if (
-      (modo !== 'google' && modo !== 'tecnica' && modo !== 'familiar') ||
+      (modo !== 'google' && modo !== 'interno' && modo !== 'tecnica' && modo !== 'familiar') ||
       !fluxo ||
       !/^[A-Za-z0-9_-]{22}$/.test(fluxo)
     )
       throw new FalhaApi('nao_autenticado', 401);
     headers.set('x-fluxo', fluxo);
-    if (rota.metodo !== 'GET') headers.set('x-chave-idempotencia', crypto.randomUUID());
+    if (rota.metodo !== 'GET')
+      headers.set('x-chave-idempotencia', chaveIdempotencia ?? crypto.randomUUID());
     // `FormData` define o próprio `content-type` com o limite do multipart; defini-lo à mão
     // quebraria o corpo.
     if (corpo && 'json' in corpo) headers.set('Content-Type', 'application/json');
@@ -118,6 +125,70 @@ export function criarServicoDocumentosHttp(
     }
   };
   return {
+    baixar: async (paciente, documento) => {
+      const atual = identidadeAtual();
+      if (
+        !atual ||
+        atual.usuario_id !== identidade.usuario_id ||
+        atual.session_id !== identidade.session_id
+      )
+        throw new FalhaApi('nao_autenticado', 401);
+      try {
+        const modo = sessionStorage.getItem('modo-acesso');
+        if (!['google', 'interno', 'tecnica', 'familiar'].includes(modo ?? ''))
+          throw new FalhaApi('nao_autenticado', 401);
+        const fluxo = sessionStorage.getItem(
+          modo === 'interno'
+            ? 'fluxo-interno'
+            : modo === 'tecnica'
+              ? 'fluxo-tecnico'
+              : modo === 'familiar'
+                ? 'fluxo-familiar'
+                : 'fluxo-google',
+        );
+        if (!fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo))
+          throw new FalhaApi('nao_autenticado', 401);
+        const caminho = documentoCasoHttp.arquivo.caminho
+          .replace(':paciente_id', encodeURIComponent(uuidSchema.parse(paciente)))
+          .replace(':documento_id', encodeURIComponent(uuidSchema.parse(documento)));
+        const resposta = await fetch(caminho, {
+          headers: {
+            Accept: 'application/octet-stream',
+            'x-sessao': atual.session_id,
+            'x-fluxo': fluxo,
+          },
+          credentials: 'same-origin',
+          cache: 'no-store',
+          redirect: 'error',
+          referrerPolicy: 'no-referrer',
+          signal: AbortSignal.timeout(60_000),
+        });
+        if (!resposta.ok) {
+          const erro = erroRespostaSchema.safeParse(await resposta.json());
+          if (!erro.success || statusErroHttp[erro.data.erro.codigo] !== resposta.status)
+            throw new Error();
+          throw new FalhaApi(erro.data.erro.codigo, resposta.status);
+        }
+        if (
+          resposta.headers.get('content-type') !== 'application/octet-stream' ||
+          !resposta.headers.get('content-disposition')?.startsWith('attachment;')
+        )
+          throw new Error();
+        const blob = await resposta.blob();
+        const depois = identidadeAtual();
+        if (
+          !depois ||
+          depois.usuario_id !== identidade.usuario_id ||
+          depois.session_id !== identidade.session_id
+        )
+          throw new FalhaApi('nao_autenticado', 401);
+        if (!blob.size || blob.size > TAMANHO_MAXIMO_DOCUMENTO) throw new Error();
+        return blob;
+      } catch (erro) {
+        if (erro instanceof FalhaApi) throw erro;
+        throw new FalhaApi('servico_indisponivel');
+      }
+    },
     consultar: async (paciente) => (await enviar('consultar', paciente)).documentos,
     gravar: async (paciente, entrada) => {
       const base = {
@@ -126,14 +197,19 @@ export function criarServicoDocumentosHttp(
         metadado: entrada.metadado,
         conteudo: entrada.conteudo,
       };
-      if (!entrada.arquivo) return (await enviar('gravar', paciente, { json: base })).documentos;
+      if (!entrada.arquivo)
+        return (await enviar('gravar', paciente, { json: base }, entrada.chave_idempotencia))
+          .documentos;
+      if (entrada.arquivo.size === 0 || entrada.arquivo.size > TAMANHO_MAXIMO_DOCUMENTO)
+        throw new FalhaApi('entrada_invalida');
       const formulario = new FormData();
       formulario.set('documento_id', base.documento_id);
       formulario.set('versao_esperada', String(base.versao_esperada));
       formulario.set('metadado', JSON.stringify(base.metadado));
       formulario.set('conteudo', JSON.stringify(base.conteudo));
       formulario.set('arquivo', entrada.arquivo, entrada.arquivo.name);
-      return (await enviar('gravar', paciente, { formulario })).documentos;
+      return (await enviar('gravar', paciente, { formulario }, entrada.chave_idempotencia))
+        .documentos;
     },
   };
 }

@@ -1,0 +1,3544 @@
+{
+  "ambiente": "Chrome headless, perfil temporário isolado, componentes reais, CSS real, portas fictícias; sem Auth/providers/dados reais",
+  "viewports": [
+    {
+      "width": 390,
+      "height": 844
+    },
+    {
+      "width": 1440,
+      "height": 1000
+    }
+  ],
+  "matriz_inicial_com_wrappers_reais": [
+    {
+      "componente": "turno",
+      "estado": "ready",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": ["Consulta atualizada."],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "INPUT",
+          "label": "Confirmo que desejo abrir meu turno neste caso.",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar turno",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Confirmo que desejo abrir meu turno neste caso.",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar turno",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Confirmo que desejo abrir meu turno neste caso.",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "turno",
+      "estado": "empty",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": ["Consulta atualizada."],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "INPUT",
+          "label": "Confirmo que desejo abrir meu turno neste caso.",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar turno",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Confirmo que desejo abrir meu turno neste caso.",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar turno",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Confirmo que desejo abrir meu turno neste caso.",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "turno",
+      "estado": "loading",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": ["Consultando seu turno…"],
+      "ariaBusy": 1,
+      "focoTab": [
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "turno",
+      "estado": "error",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": [
+        "Não foi possível consultar seu turno. O recurso pode estar indisponível. Tente atualizar."
+      ],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar turno",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar turno",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar turno",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar turno",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "execucao",
+      "estado": "ready",
+      "viewport": 390,
+      "scrollWidth": 398,
+      "status": ["Consulta da série concluída.", ""],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Conferir envios antes de novo registro",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar catálogo",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Registrar medicação prescrita",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SELECT",
+          "label": "Tipo de registro\nSelecione\nAferição\nMedicação prescrita\nAdministração de medicação\nOcorrência\nRotina",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Desde",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Desde",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": true
+    },
+    {
+      "componente": "execucao",
+      "estado": "empty",
+      "viewport": 390,
+      "scrollWidth": 398,
+      "status": ["Consulta da série concluída.", ""],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Conferir envios antes de novo registro",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar catálogo",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Registrar medicação prescrita",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SELECT",
+          "label": "Tipo de registro\nSelecione\nAferição\nMedicação prescrita\nAdministração de medicação\nOcorrência\nRotina",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Desde",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Desde",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": true
+    },
+    {
+      "componente": "execucao",
+      "estado": "loading",
+      "viewport": 390,
+      "scrollWidth": 398,
+      "status": ["Consultando catálogo da execução…", ""],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "SUMMARY",
+          "label": "Relatórios e PDF",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SUMMARY",
+          "label": "Fundamento familiar, medicação e catálogo",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SUMMARY",
+          "label": "Localização declarada — coordenação",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SUMMARY",
+          "label": "Relatórios e PDF",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SUMMARY",
+          "label": "Fundamento familiar, medicação e catálogo",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SUMMARY",
+          "label": "Localização declarada — coordenação",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": true
+    },
+    {
+      "componente": "execucao",
+      "estado": "error",
+      "viewport": 390,
+      "scrollWidth": 398,
+      "status": ["Serviço indisponível. Tente novamente em alguns instantes.", ""],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Conferir envios antes de novo registro",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar catálogo",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SELECT",
+          "label": "Tipo de registro\nSelecione\nAferição\nMedicação prescrita\nAdministração de medicação\nOcorrência\nRotina",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Desde",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Desde",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Desde",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": true
+    },
+    {
+      "componente": "relatorios",
+      "estado": "ready",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": ["Consulta concluída."],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "SELECT",
+          "label": "Relatório\nSelecione\nRelatório de um turno\nConsolidado diário\nConsolidado de sete dias\nExportação do caso por período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "relatorios",
+      "estado": "empty",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": ["Consulta concluída."],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "SELECT",
+          "label": "Relatório\nSelecione\nRelatório de um turno\nConsolidado diário\nConsolidado de sete dias\nExportação do caso por período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "relatorios",
+      "estado": "loading",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": ["Consultando registros persistidos…"],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BODY",
+          "label": "Relatórios do cuidado\n\nConsulta e PDF usam registr",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Relatórios do cuidado\n\nConsulta e PDF usam registr",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Relatórios do cuidado\n\nConsulta e PDF usam registr",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Relatórios do cuidado\n\nConsulta e PDF usam registr",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Relatórios do cuidado\n\nConsulta e PDF usam registr",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Relatórios do cuidado\n\nConsulta e PDF usam registr",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "relatorios",
+      "estado": "error",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": ["Serviço indisponível. Tente novamente em alguns instantes."],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "SELECT",
+          "label": "Relatório\nSelecione\nRelatório de um turno\nConsolidado diário\nConsolidado de sete dias\nExportação do caso por período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "config",
+      "estado": "ready",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": ["1 ajuste disponível.", ""],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "INPUT",
+          "label": "Pasta raiz do Drive",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Salvar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Pasta raiz do Drive",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Salvar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "config",
+      "estado": "empty",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": ["Nenhum ajuste disponível."],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "config",
+      "estado": "loading",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": ["Carregando ajustes…"],
+      "ariaBusy": 2,
+      "focoTab": [
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "config",
+      "estado": "error",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": ["Não foi possível carregar os ajustes. Tente recarregar."],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "segredos",
+      "estado": "ready",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": [
+        "1 credenciais disponíveis.",
+        "",
+        "Descarte automático desligado. Nenhuma execução registrada."
+      ],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "INPUT",
+          "label": "OpenRouter — chave da API",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Cadastrar credencial",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "OpenRouter — chave da API",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Cadastrar credencial",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "segredos",
+      "estado": "empty",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": [
+        "0 credenciais disponíveis.",
+        "Descarte automático desligado. Nenhuma execução registrada."
+      ],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "segredos",
+      "estado": "loading",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": ["Carregando credenciais…", "Consultando descarte automático…"],
+      "ariaBusy": 1,
+      "focoTab": [
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "segredos",
+      "estado": "error",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": [
+        "Não foi possível carregar. Confira seu acesso de Administrador e tente recarregar.",
+        "Não foi possível consultar o descarte. Recarregue para tentar novamente."
+      ],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "acessos",
+      "estado": "ready",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": [
+        "Nenhum acesso criado por esta administração ainda. Preencha o novo acesso abaixo."
+      ],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar acessos",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Nome",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "E-mail usado para entrar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SELECT",
+          "label": "Função\nSelecione a função\nAdministrador\nCase Manager\nFamiliar\nProfissional",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SELECT",
+          "label": "Como esta pessoa entrará\nSelecione o método\nGoogle da organização\nE-mail e senha",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "TEXTAREA",
+          "label": "Motivo da concessão",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "acessos",
+      "estado": "empty",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": [
+        "Nenhum acesso criado por esta administração ainda. Preencha o novo acesso abaixo."
+      ],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar acessos",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Nome",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "E-mail usado para entrar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SELECT",
+          "label": "Função\nSelecione a função\nAdministrador\nCase Manager\nFamiliar\nProfissional",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SELECT",
+          "label": "Como esta pessoa entrará\nSelecione o método\nGoogle da organização\nE-mail e senha",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "TEXTAREA",
+          "label": "Motivo da concessão",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "acessos",
+      "estado": "loading",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": ["Consultando acessos…"],
+      "ariaBusy": 1,
+      "focoTab": [
+        {
+          "tag": "BODY",
+          "label": "Acessos ao sistema\n\nCrie contas autorizadas. Cada ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Acessos ao sistema\n\nCrie contas autorizadas. Cada ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Acessos ao sistema\n\nCrie contas autorizadas. Cada ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Acessos ao sistema\n\nCrie contas autorizadas. Cada ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Acessos ao sistema\n\nCrie contas autorizadas. Cada ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Acessos ao sistema\n\nCrie contas autorizadas. Cada ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "acessos",
+      "estado": "error",
+      "viewport": 390,
+      "scrollWidth": 390,
+      "status": ["Não foi possível consultar os acessos. Tente atualizar."],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar acessos",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar acessos",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Acessos ao sistema\n\nCrie contas autorizadas. Cada ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar acessos",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar acessos",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Acessos ao sistema\n\nCrie contas autorizadas. Cada ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "turno",
+      "estado": "ready",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Consulta atualizada."],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "INPUT",
+          "label": "Confirmo que desejo abrir meu turno neste caso.",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar turno",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Confirmo que desejo abrir meu turno neste caso.",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar turno",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Confirmo que desejo abrir meu turno neste caso.",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "turno",
+      "estado": "empty",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Consulta atualizada."],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "INPUT",
+          "label": "Confirmo que desejo abrir meu turno neste caso.",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar turno",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Confirmo que desejo abrir meu turno neste caso.",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar turno",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Confirmo que desejo abrir meu turno neste caso.",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "turno",
+      "estado": "loading",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Consultando seu turno…"],
+      "ariaBusy": 1,
+      "focoTab": [
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "turno",
+      "estado": "error",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": [
+        "Não foi possível consultar seu turno. O recurso pode estar indisponível. Tente atualizar."
+      ],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar turno",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar turno",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar turno",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar turno",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Meu turno\n\nConsulte ou abra seu turno neste caso. ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "execucao",
+      "estado": "ready",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Consulta da série concluída.", ""],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Conferir envios antes de novo registro",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar catálogo",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Registrar medicação prescrita",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SELECT",
+          "label": "Tipo de registro\nSelecione\nAferição\nMedicação prescrita\nAdministração de medicação\nOcorrência\nRotina",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Desde",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Desde",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "execucao",
+      "estado": "empty",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Consulta da série concluída.", ""],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Conferir envios antes de novo registro",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar catálogo",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Registrar medicação prescrita",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SELECT",
+          "label": "Tipo de registro\nSelecione\nAferição\nMedicação prescrita\nAdministração de medicação\nOcorrência\nRotina",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Desde",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Desde",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "execucao",
+      "estado": "loading",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Consultando catálogo da execução…", ""],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "SUMMARY",
+          "label": "Relatórios e PDF",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SUMMARY",
+          "label": "Fundamento familiar, medicação e catálogo",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SUMMARY",
+          "label": "Localização declarada — coordenação",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SUMMARY",
+          "label": "Relatórios e PDF",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SUMMARY",
+          "label": "Fundamento familiar, medicação e catálogo",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SUMMARY",
+          "label": "Localização declarada — coordenação",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "execucao",
+      "estado": "error",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Serviço indisponível. Tente novamente em alguns instantes.", ""],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Conferir envios antes de novo registro",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar catálogo",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SELECT",
+          "label": "Tipo de registro\nSelecione\nAferição\nMedicação prescrita\nAdministração de medicação\nOcorrência\nRotina",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Desde",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Desde",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Desde",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "relatorios",
+      "estado": "ready",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Consulta concluída."],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "SELECT",
+          "label": "Relatório\nSelecione\nRelatório de um turno\nConsolidado diário\nConsolidado de sete dias\nExportação do caso por período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "relatorios",
+      "estado": "empty",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Consulta concluída."],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "SELECT",
+          "label": "Relatório\nSelecione\nRelatório de um turno\nConsolidado diário\nConsolidado de sete dias\nExportação do caso por período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "relatorios",
+      "estado": "loading",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Consultando registros persistidos…"],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BODY",
+          "label": "Relatórios do cuidado\n\nConsulta e PDF usam registr",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Relatórios do cuidado\n\nConsulta e PDF usam registr",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Relatórios do cuidado\n\nConsulta e PDF usam registr",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Relatórios do cuidado\n\nConsulta e PDF usam registr",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Relatórios do cuidado\n\nConsulta e PDF usam registr",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Relatórios do cuidado\n\nConsulta e PDF usam registr",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "relatorios",
+      "estado": "error",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Serviço indisponível. Tente novamente em alguns instantes."],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "SELECT",
+          "label": "Relatório\nSelecione\nRelatório de um turno\nConsolidado diário\nConsolidado de sete dias\nExportação do caso por período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Início do período",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "config",
+      "estado": "ready",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["1 ajuste disponível.", ""],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "INPUT",
+          "label": "Pasta raiz do Drive",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Salvar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Pasta raiz do Drive",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Salvar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "config",
+      "estado": "empty",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Nenhum ajuste disponível."],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "config",
+      "estado": "loading",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Carregando ajustes…"],
+      "ariaBusy": 2,
+      "focoTab": [
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "config",
+      "estado": "error",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Não foi possível carregar os ajustes. Tente recarregar."],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Configuração do sistema\n\nEstes ajustes valem para ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "segredos",
+      "estado": "ready",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": [
+        "1 credenciais disponíveis.",
+        "",
+        "Descarte automático desligado. Nenhuma execução registrada."
+      ],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "INPUT",
+          "label": "OpenRouter — chave da API",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Cadastrar credencial",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "OpenRouter — chave da API",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Cadastrar credencial",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "segredos",
+      "estado": "empty",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": [
+        "0 credenciais disponíveis.",
+        "Descarte automático desligado. Nenhuma execução registrada."
+      ],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "segredos",
+      "estado": "loading",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Carregando credenciais…", "Consultando descarte automático…"],
+      "ariaBusy": 1,
+      "focoTab": [
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "segredos",
+      "estado": "error",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": [
+        "Não foi possível carregar. Confira seu acesso de Administrador e tente recarregar.",
+        "Não foi possível consultar o descarte. Recarregue para tentar novamente."
+      ],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Recarregar integrações",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Credenciais das integrações\n\nCadastre as credencia",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "acessos",
+      "estado": "ready",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": [
+        "Nenhum acesso criado por esta administração ainda. Preencha o novo acesso abaixo."
+      ],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar acessos",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Nome",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "E-mail usado para entrar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SELECT",
+          "label": "Função\nSelecione a função\nAdministrador\nCase Manager\nFamiliar\nProfissional",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SELECT",
+          "label": "Como esta pessoa entrará\nSelecione o método\nGoogle da organização\nE-mail e senha",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "TEXTAREA",
+          "label": "Motivo da concessão",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "acessos",
+      "estado": "empty",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": [
+        "Nenhum acesso criado por esta administração ainda. Preencha o novo acesso abaixo."
+      ],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar acessos",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "Nome",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "INPUT",
+          "label": "E-mail usado para entrar",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SELECT",
+          "label": "Função\nSelecione a função\nAdministrador\nCase Manager\nFamiliar\nProfissional",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "SELECT",
+          "label": "Como esta pessoa entrará\nSelecione o método\nGoogle da organização\nE-mail e senha",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "TEXTAREA",
+          "label": "Motivo da concessão",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "acessos",
+      "estado": "loading",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Consultando acessos…"],
+      "ariaBusy": 1,
+      "focoTab": [
+        {
+          "tag": "BODY",
+          "label": "Acessos ao sistema\n\nCrie contas autorizadas. Cada ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Acessos ao sistema\n\nCrie contas autorizadas. Cada ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Acessos ao sistema\n\nCrie contas autorizadas. Cada ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Acessos ao sistema\n\nCrie contas autorizadas. Cada ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Acessos ao sistema\n\nCrie contas autorizadas. Cada ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Acessos ao sistema\n\nCrie contas autorizadas. Cada ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    },
+    {
+      "componente": "acessos",
+      "estado": "error",
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "status": ["Não foi possível consultar os acessos. Tente atualizar."],
+      "ariaBusy": 0,
+      "focoTab": [
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar acessos",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar acessos",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Acessos ao sistema\n\nCrie contas autorizadas. Cada ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar acessos",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Atualizar acessos",
+          "outline": "solid",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(71, 84, 54)"
+        },
+        {
+          "tag": "BODY",
+          "label": "Acessos ao sistema\n\nCrie contas autorizadas. Cada ",
+          "outline": "none",
+          "outlineWidth": "3px",
+          "outlineColor": "rgb(39, 49, 35)"
+        }
+      ],
+      "errosJavascript": [],
+      "overflowMetricaAnteriorInnerWidth": false,
+      "overflowViewportSolicitado": false
+    }
+  ],
+  "checkbox_antes": [
+    {
+      "viewport": 390,
+      "scrollWidth": 390,
+      "checkbox": {
+        "width": 356,
+        "height": 48
+      },
+      "label": {
+        "width": 356,
+        "height": 91
+      },
+      "checked": false,
+      "focus": {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "outline": "solid",
+        "width": "3px"
+      },
+      "keyboard": {
+        "checked": true,
+        "openEnabled": true
+      }
+    },
+    {
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "checkbox": {
+        "width": 639.4375,
+        "height": 48
+      },
+      "label": {
+        "width": 639.4375,
+        "height": 91
+      },
+      "checked": false,
+      "focus": {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "outline": "solid",
+        "width": "3px"
+      },
+      "keyboard": {
+        "checked": true,
+        "openEnabled": true
+      }
+    }
+  ],
+  "checkbox_depois": [
+    {
+      "viewport": 390,
+      "scrollWidth": 390,
+      "checkbox": {
+        "width": 24,
+        "height": 24
+      },
+      "label": {
+        "width": 356,
+        "height": 67
+      },
+      "checked": false,
+      "focus": {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "outline": "solid",
+        "width": "3px"
+      },
+      "keyboard": {
+        "checked": true,
+        "openEnabled": true
+      }
+    },
+    {
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "checkbox": {
+        "width": 24,
+        "height": 24
+      },
+      "label": {
+        "width": 639.4375,
+        "height": 33
+      },
+      "checked": false,
+      "focus": {
+        "tag": "INPUT",
+        "type": "checkbox",
+        "outline": "solid",
+        "width": "3px"
+      },
+      "keyboard": {
+        "checked": true,
+        "openEnabled": true
+      }
+    }
+  ],
+  "limites": [
+    "Viewport emulado, não dispositivo físico nem Safari/iOS.",
+    "Ports fictícias não provam Auth, banco, integrações ou permissão real.",
+    "Estados consultados e percurso inicial de seis Tab; não auditoria WCAG completa.",
+    "Harness temporário /tmp/ffcm-viewport-sol; reproduzir com servidor Vite isolado e node checkbox.mjs after, Chrome headless separado na porta9223.",
+    "Histórico inicial Execução390:scrollWidth398>clientWidth390 em ready/empty/loading/error; marcação antiga overflow=false incorreta por comparar innerWidth398. ApósCSS, reteste dirigido ready390 confirma scrollWidth/clientWidth/visualViewport390. Não rerodada matriz48 apósCSS."
+  ],
+  "correcao_metrica": "innerWidth pode expandir na emulação mobile; comparar scrollWidth com viewport solicitado/clientWidth. Evidência anterior false não comprovava ausência de overflow.",
+  "execucao390_analise_direcionada": {
+    "requestedViewport": 390,
+    "innerWidth": 398,
+    "outerWidth": 390,
+    "visualViewport": {
+      "width": 390,
+      "scale": 1
+    },
+    "document": {
+      "tag": "HTML",
+      "classe": "",
+      "left": 0,
+      "right": 390,
+      "width": 390,
+      "scrollWidth": 398,
+      "clientWidth": 390,
+      "overflowX": "visible",
+      "marginRight": "0px",
+      "display": "block"
+    },
+    "body": {
+      "tag": "BODY",
+      "classe": "",
+      "left": 0,
+      "right": 390,
+      "width": 390,
+      "scrollWidth": 398,
+      "clientWidth": 390,
+      "overflowX": "visible",
+      "marginRight": "0px",
+      "display": "flex"
+    },
+    "wrapper": {
+      "tag": "DIV",
+      "classe": "ficha-secao",
+      "left": 0,
+      "right": 390,
+      "width": 390,
+      "scrollWidth": 398,
+      "clientWidth": 390,
+      "overflowX": "visible",
+      "marginRight": "0px",
+      "display": "block"
+    },
+    "sections": [
+      {
+        "tag": "SECTION",
+        "classe": "turno-execucao",
+        "label": "Execução do cuidadoRegistros de execução exigem turno próprio aberto. Prescrições ext",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 398,
+        "clientWidth": 390,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "block"
+      },
+      {
+        "tag": "SECTION",
+        "classe": "turno-execucao",
+        "label": "Relatórios do cuidadoConsulta e PDF usam registros persistidos e a audiência autoriza",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "block"
+      }
+    ],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "classe": "button-secondary",
+        "label": "Conferir envios antes de novo registro",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 388,
+        "clientWidth": 388,
+        "overflowX": "visible",
+        "marginRight": "8px",
+        "display": "inline-block",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "button-secondary",
+        "label": "Atualizar catálogo",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 388,
+        "clientWidth": 388,
+        "overflowX": "visible",
+        "marginRight": "8px",
+        "display": "inline-block",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "button-secondary",
+        "label": "Registrar aferição",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 388,
+        "clientWidth": 388,
+        "overflowX": "visible",
+        "marginRight": "8px",
+        "display": "block",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "button-secondary",
+        "label": "Registrar medicação prescrita",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 388,
+        "clientWidth": 388,
+        "overflowX": "visible",
+        "marginRight": "8px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "button-secondary",
+        "label": "Registrar administração de medicação",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 388,
+        "clientWidth": 388,
+        "overflowX": "visible",
+        "marginRight": "8px",
+        "display": "block",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "button-secondary",
+        "label": "Registrar ocorrência",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 388,
+        "clientWidth": 388,
+        "overflowX": "visible",
+        "marginRight": "8px",
+        "display": "block",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "button-secondary",
+        "label": "Registrar rotina",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 388,
+        "clientWidth": 388,
+        "overflowX": "visible",
+        "marginRight": "8px",
+        "display": "block",
+        "disabled": true
+      },
+      {
+        "tag": "SELECT",
+        "classe": "",
+        "label": "Tipo de registro",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "clip",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "classe": "",
+        "label": "Desde",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "clip",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "classe": "",
+        "label": "Até",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "clip",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "",
+        "label": "Consultar série",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "visible",
+        "marginRight": "8px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "classe": "",
+        "label": "Relatórios e PDF",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "list-item"
+      },
+      {
+        "tag": "SELECT",
+        "classe": "",
+        "label": "Relatório",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "clip",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "classe": "",
+        "label": "Início do período",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "clip",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "classe": "",
+        "label": "Fim do período",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "clip",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "button-primary",
+        "label": "Consultar relatório",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "flex",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "classe": "",
+        "label": "Destinatário da exportação",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 304,
+        "clientWidth": 304,
+        "overflowX": "clip",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "TEXTAREA",
+        "classe": "",
+        "label": "Propósito da exportação",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "auto",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "button-secondary",
+        "label": "Emitir PDF do período consultado",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "visible",
+        "marginRight": "8px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "classe": "",
+        "label": "Fundamento familiar, medicação e catálogo",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "list-item"
+      },
+      {
+        "tag": "SUMMARY",
+        "classe": "",
+        "label": "Localização declarada — coordenação",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "list-item"
+      }
+    ],
+    "outside": [],
+    "focus": {
+      "label": "Atualizar catálogo",
+      "right": 390,
+      "outline": "3px",
+      "offset": "4px",
+      "scrollX": 0
+    },
+    "overflowDocumentClientWidth": true,
+    "overflowVisualViewport": true
+  },
+  "execucao390_depois_correcao": {
+    "requestedViewport": 390,
+    "innerWidth": 390,
+    "outerWidth": 390,
+    "visualViewport": {
+      "width": 390,
+      "scale": 1
+    },
+    "document": {
+      "tag": "HTML",
+      "classe": "",
+      "left": 0,
+      "right": 390,
+      "width": 390,
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "overflowX": "visible",
+      "marginRight": "0px",
+      "display": "block"
+    },
+    "body": {
+      "tag": "BODY",
+      "classe": "",
+      "left": 0,
+      "right": 390,
+      "width": 390,
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "overflowX": "visible",
+      "marginRight": "0px",
+      "display": "flex"
+    },
+    "wrapper": {
+      "tag": "DIV",
+      "classe": "ficha-secao",
+      "left": 0,
+      "right": 390,
+      "width": 390,
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "overflowX": "visible",
+      "marginRight": "0px",
+      "display": "block"
+    },
+    "sections": [
+      {
+        "tag": "SECTION",
+        "classe": "turno-execucao",
+        "label": "Execução do cuidadoRegistros de execução exigem turno próprio aberto. Prescrições ext",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "block"
+      },
+      {
+        "tag": "SECTION",
+        "classe": "turno-execucao",
+        "label": "Relatórios do cuidadoConsulta e PDF usam registros persistidos e a audiência autoriza",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "block"
+      }
+    ],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "classe": "button-secondary",
+        "label": "Conferir envios antes de novo registro",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 388,
+        "clientWidth": 388,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "inline-block",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "button-secondary",
+        "label": "Atualizar catálogo",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 388,
+        "clientWidth": 388,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "inline-block",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "button-secondary",
+        "label": "Registrar aferição",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 388,
+        "clientWidth": 388,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "button-secondary",
+        "label": "Registrar medicação prescrita",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 388,
+        "clientWidth": 388,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "button-secondary",
+        "label": "Registrar administração de medicação",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 388,
+        "clientWidth": 388,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "button-secondary",
+        "label": "Registrar ocorrência",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 388,
+        "clientWidth": 388,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "button-secondary",
+        "label": "Registrar rotina",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 388,
+        "clientWidth": 388,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": true
+      },
+      {
+        "tag": "SELECT",
+        "classe": "",
+        "label": "Tipo de registro",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "clip",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "classe": "",
+        "label": "Desde",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "clip",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "classe": "",
+        "label": "Até",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "clip",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "",
+        "label": "Consultar série",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "classe": "",
+        "label": "Relatórios e PDF",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "list-item"
+      },
+      {
+        "tag": "SELECT",
+        "classe": "",
+        "label": "Relatório",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "clip",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "classe": "",
+        "label": "Início do período",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "clip",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "classe": "",
+        "label": "Fim do período",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "clip",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "button-primary",
+        "label": "Consultar relatório",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "flex",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "classe": "",
+        "label": "Destinatário da exportação",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 304,
+        "clientWidth": 304,
+        "overflowX": "clip",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "TEXTAREA",
+        "classe": "",
+        "label": "Propósito da exportação",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "auto",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "classe": "button-secondary",
+        "label": "Emitir PDF do período consultado",
+        "left": 30,
+        "right": 360,
+        "width": 330,
+        "scrollWidth": 328,
+        "clientWidth": 328,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "block",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "classe": "",
+        "label": "Fundamento familiar, medicação e catálogo",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "list-item"
+      },
+      {
+        "tag": "SUMMARY",
+        "classe": "",
+        "label": "Localização declarada — coordenação",
+        "left": 0,
+        "right": 390,
+        "width": 390,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "overflowX": "visible",
+        "marginRight": "0px",
+        "display": "list-item"
+      }
+    ],
+    "outside": [],
+    "focus": {
+      "label": "Atualizar catálogo",
+      "right": 390,
+      "outline": "3px",
+      "offset": "4px",
+      "scrollX": 0
+    },
+    "overflowDocumentClientWidth": false,
+    "overflowVisualViewport": false
+  },
+  "execucao390_causa_correcao": "Margem direita8px de .ficha-secao button:not(.button-primary) prevalecia sobre margem0 mobile; seletor específico apenas em media max560 de turno-execucao.css elimina margem, sem mudar desktop. Nenhum controle tinha border-box cortado; margem expandia layoutviewport. Reteste dirigido somente Execução390."
+}

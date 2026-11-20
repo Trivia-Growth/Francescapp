@@ -1,3 +1,8 @@
+import {
+  incluirSeletorExportacao,
+  conferirVersaoExportacao,
+  type SeletorVersaoExportacao,
+} from './turno-execucao-seletor-exportacao.ts';
 import { chaveIdempotenciaSchema, uuidSchema } from '../../../packages/contracts/src/comum.ts';
 import {
   conteudoOrientacaoSchema,
@@ -28,7 +33,7 @@ type Autorizacao =
   | { estado: 'autorizado'; identidade: Identidade }
   | { estado: 'nao_autenticado' | 'sem_permissao' | 'servico_indisponivel' };
 type Comando =
-  | { operacao: 'ler'; paciente_id: string; apenas_vigentes?: boolean }
+  | ({ operacao: 'ler'; paciente_id: string; apenas_vigentes?: boolean } & SeletorVersaoExportacao)
   | {
       operacao: 'gravar';
       paciente_id: string;
@@ -156,6 +161,7 @@ export async function operarOrientacaoNativa(
     if (request.headers.get('x-sessao')?.toLowerCase() !== identidade.session_id)
       return erro('nao_autenticado');
     const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+    if (comando.operacao === 'ler') incluirSeletorExportacao(comando, entrada);
     if (comando.operacao === 'ler' && comando.apenas_vigentes === true)
       entrada.apenas_vigentes = true;
     if (comando.operacao === 'gravar' && orientacaoId && conteudo) {
@@ -218,6 +224,7 @@ export async function operarOrientacaoNativa(
       return erro(resposta.erro.codigo === 'conflito' ? 'conflito_versao' : 'sem_permissao');
     // Forma da resposta é parte do contrato: lista devolve coleção, gravação devolve um registro.
     if ((comando.operacao === 'ler') !== Array.isArray(resposta.dados)) throw new Error();
+    if (comando.operacao === 'ler') conferirVersaoExportacao(comando, resposta.dados);
     const registros = Array.isArray(resposta.dados) ? resposta.dados : [resposta.dados];
     if (
       comando.operacao === 'gravar' &&

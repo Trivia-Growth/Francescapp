@@ -38,7 +38,9 @@ function lerCampo(
   }
   if (tipo === 'texto') {
     const texto = controle.value.trim();
-    return texto.length >= 1 && texto.length <= 600 ? texto : undefined;
+    // Vazio é valor legítimo do catálogo (por exemplo, raiz Drive não configurada).
+    // Restrições por chave pertencem ao servidor/banco, não a um piso global na tela.
+    return texto.length <= 600 ? texto : undefined;
   }
   const itens = controle.value
     .split('\n')
@@ -118,6 +120,11 @@ export function montarConfiguracaoSistema(
         const numero = document.createElement('input');
         numero.type = 'number';
         numero.inputMode = 'decimal';
+        // A faixa vem do catálogo do banco (migration `20261128100000`), não da tela: aqui
+        // ela só é APRESENTADA. Quem recusa valor fora da faixa é o banco; sem isto a
+        // pessoa só descobriria a faixa ao receber a recusa.
+        if (typeof item.minimo === 'number') numero.min = String(item.minimo);
+        if (typeof item.maximo === 'number') numero.max = String(item.maximo);
         controle = numero;
       } else if (tipo === 'texto' && item.opcoes && item.opcoes.length > 0) {
         const escolha = document.createElement('select');
@@ -156,6 +163,10 @@ export function montarConfiguracaoSistema(
       const descricoes: string[] = [];
       if (item.descricao) descricoes.push(item.descricao);
       if (tipo === 'lista') descricoes.push('Escreva uma opção por linha.');
+      if (typeof item.minimo === 'number' && typeof item.maximo === 'number')
+        descricoes.push(`Valor aceito entre ${item.minimo} e ${item.maximo}.`);
+      else if (typeof item.minimo === 'number') descricoes.push(`Valor mínimo: ${item.minimo}.`);
+      else if (typeof item.maximo === 'number') descricoes.push(`Valor máximo: ${item.maximo}.`);
       ajuda.textContent = descricoes.join(' ');
       if (ajuda.textContent) controle.setAttribute('aria-describedby', ajuda.id);
       const autoria = document.createElement('p');

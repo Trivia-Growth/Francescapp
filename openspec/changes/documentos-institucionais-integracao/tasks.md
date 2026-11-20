@@ -14,7 +14,7 @@
 
   **Continua pendente de decisão**, e por isso não foi implementado: a política de revogação de audiência individual, os limites de tipo de arquivo além do teto de tamanho, e o tratamento de mudanças feitas diretamente no Drive (ver 1.3).
 
-- [x] 1.2 Implementar FR-029 a FR-031 com cenários de acesso autorizado, outro paciente/perfil, audiência, revogação, acesso direto e falha do Drive.
+- [ ] 1.2 Implementar FR-029 a FR-031 com cenários de acesso autorizado, outro paciente/perfil, audiência, revogação, acesso direto e falha do Drive.
 
   **Banco** (faixa `20261120100000`–`20261120130000`, **nenhuma aplicada remotamente**):
 
@@ -89,6 +89,7 @@
     de login familiar com Google real, não decidida agora) continuam como as pendências já
     registradas nesta tarefa — nenhuma delas foi resolvida por este trabalho, nem pretendia ser.
     **Revisão independente desta adição ainda não feita.**
+  - **Decidido em 17/11/2026 — FR-031: sinalizar, nunca alterar.** O produto consulta as permissões do Drive, compara com a audiência do caso e levanta pendência para a coordenação quando divergem. NÃO remove compartilhamento por conta própria: revogar automaticamente pode cortar alguém que a Francescato autorizou por fora, por um motivo que o sistema desconhece. Evidência: teste cobrindo divergência detectada virando pendência, e nenhuma escrita de permissão no Drive.
   - **Arquivo órfão residual.** A ordem envio→registro tenta desfazer o envio quando o banco recusa; se a remoção também falhar, o arquivo fica na pasta sem vínculo. Não há varredura de reconciliação Drive↔banco — só o estado `indisponivel` para o caminho inverso, e ele hoje é marcado à mão.
   - **FR-031 "sinalizar compartilhamentos incompatíveis" não foi implementado.** Está garantido que o produto não cria compartilhamento; detectar um criado por fora exige consultar permissões no Drive real e uma decisão sobre o que fazer ao encontrá-lo.
   - **FR-032 e FR-033 (exportação) ficaram fora**, como o recorte desta change já previa. São fatia própria: dependem de ler conteúdo cifrado de todas as outras fatias e de registrar destinatário, propósito, entrega e conferência.
@@ -97,3 +98,144 @@
   - Revisão independente de dois eixos não foi feita nesta passagem.
 
 Nenhuma operação remota foi executada: nenhuma migration aplicada, nenhum deploy, nenhum commit, nenhuma alteração no Drive.
+
+
+## Retomada 18/11/2026 — pronta para cadastrar chave, sem prova externa
+
+- [ ] 1.4 Entregar os bytes do documento pela interface, com autorização vigente
+  de caso/audiência, alvo específico auditado, negativa de outro paciente/perfil,
+  revogação durante I/O e falha Google sem sucesso falso. **Implementação escrita
+  nesta retomada:** GET de arquivo, consulta privada antes/depois do Drive, stream
+  limitado ao teto existente, download binário com headers restritivos e botão na
+  tela. Migration nova `20261125090000_documento_entrega_privada.sql` preparada,
+  não aplicada. Testes helper/HTTP/adapter/UI/SQL escritos; runner
+  `scripts/testar-documento-entrega-local.sh`. **Validação adiada por pedido do
+  solicitante:** nenhum desses testes executado; revisão e integração real
+  pendentes. Não usar as provas antigas de metadados como prova de entrega.
+
+Removido interruptor constante `DOCUMENTOS_ATIVOS=false`: `ffcm.documentos.ativo` controla
+rota com padrão conservador `false`; categorias e raiz seguem catálogo editável no banco.
+Credencial continua nome canônico `ffcmapp.integracao.google_drive` (JSON conta de serviço),
+a cadastrar em **Configuração do sistema / Segredos das integrações**. Preencher
+`ffcm.documentos.drive_pasta_raiz` com ID da pasta institucional e ligar `ffcm.documentos.ativo`.
+
+FR-031 consulta `/permissions` paginada, somente GET, após banco autorizar os documentos da
+resposta. `anyone` diverge das duas audiências; domínio inteiro diverge de `equipe`.
+Ausência de mapeamento verificável Google-destinatário/vínculo ativo não vira aprovação:
+permissões nominais ou domínio da audiência familiar levantam revisão da coordenação.
+Falha Google vira pendência de conferência indisponível; metadados autorizados continuam
+legíveis sem segredo/raiz, envio continua falhando fechado. Nenhum caminho escreve ACL.
+Pendências aparecem na lista da equipe, sem expor destinatários ou credencial à família.
+
+**Suposição conservadora:** nenhuma ACL nominal pode ser declarada compatível só pelo tipo
+`user`/`group`; checagem exata de destinatários exige autoridade de identidade ainda ausente.
+Por isso há revisão necessária, não falso selo de conformidade. Pendência é reavaliada na
+consulta; não foi criado workflow persistente independente de coordenação.
+
+Provas: `google-drive.test.ts` 5 testes novos passaram (público, domínio, nominal,
+paginação, erro); `scripts/testar-documento-caso-familia-local.sh` exit 0 inclui matriz
+SQL de documentos e família. Nenhuma chamada Google real ou ativação foi feita.
+Revisão independente e limite/conferência do Drive compartilhado continuam pendentes.
+
+
+### Revisão de fonte da entrega de bytes — continuação de 18/11
+
+Base fixa `abac1a6f2c7c3d68df52bfa4b8edf28e3c066b4a`, diff delimitado à entrega
+(`ef12071` e ajuste de tipos `8c9df6d`), conferido no HEAD `6715f6a` e no patch local.
+Dois revisores Sol, padrões/segurança e especificação, encontraram P1 na composição:
+`{operacao:'ler',...comando}` recebia comando real `operacao:'entregar'` e sobrescrevia
+a leitura antes de chegar ao banco. Corrigido por projeção explícita dos campos.
+Releituras independentes afetadas sem P1/P2 de fonte restante na entrega.
+
+`documento-entrega-composicao.test.ts` acrescenta três provas escritas atravessando
+handler, composição e operação reais, com Auth/cofre/Drive/RPC fictícios: entrega e
+ordem consulta/Drive/consulta; negativa antes do I/O sem buscar bytes; negativa após
+I/O sem emitir bytes/attachment. Expectativa antiga de query recusada alinhada à
+tabela HTTP vigente. Nenhum teste/check foi executado nesta revisão; gates de
+RLS/autorização, Google real e ativação continuam pendentes.
+
+
+## Correções adversariais de 19/11/2026 — PAD-01 e ESP-01/02/03
+
+Tarefa 1.2 reaberta: implementação anterior não comprovava autorização antes do Drive,
+organização por paciente nem edição de metadados existentes. Correções de fonte escritas:
+
+- Prévia assinada `api.documento_preautorizar_privada`, autorizando **gravação e paciente**,
+  com auditoria obrigatória antes de qualquer busca/criação de pasta ou upload. Sem persistir
+  conteúdo/versão ou sucesso antecipado. RPC final reautoriza e audita atomicamente;
+  profissional exige vínculo vigente também em leitura e escrita. Administrador conserva
+  alçada existente. Ambos métodos DF-023 e legado são preservados pelo hash da função.
+- Pasta por paciente com chave opaca HMAC e `appProperties`; arquivo novo usa identificador
+  opaco como título. Nome visível permanece cifrado no banco. Consulta/reutilização da pasta
+  só ocorre depois da prévia. Nenhum conteúdo/pasta preexistente é movido ou excluído.
+  Reserva DB única por paciente+raiz precede criação com ID pré-gerado Google. Recovery/409
+  conferem ID, MIME, parent, marcador e lixeira; nunca há adoção por nome/listagem.
+- UI da equipe edita categoria/origem/data/audiência/estado do documento existente, preserva
+  conteúdo e histórico, usa versão esperada e mesma chave/comando no replay. Incerteza oferece
+  conferir resultado e repetir mesma alteração, sem reenviar arquivo. Família não recebe editor.
+- Digest de upload é calculado antes do ID Drive e inclui hash dos bytes; replay já confirmado
+  pela prévia não reenvia. Resposta final perdida não dispara exclusão de arquivo potencialmente
+  vinculado. Nenhuma exclusão compensatória automática permanece, mesmo após recusa confirmada.
+  Metadados sem arquivo consultam versão autorizada e preservam ID Drive; nova criação sem arquivo
+  e troca de capacidade por payload são recusadas antes da RPC de gravação.
+
+**Provas escritas, NÃO EXECUTADAS:** `documento-caso-nativo.test.ts` (ordem prévia/auditoria,
+zero uploads nas negativas, auditoria indisponível, resposta final perdida),
+`google-drive.test.ts` (reserva, pasta nova/reutilizada, recovery de timeout/409,
+parent/marcador/MIME/lixeira divergentes, sem mover/apagar),
+`web/documentos-caso-edicao.test.ts` (edição sem arquivo, família, replay, perda de acesso,
+chave HTTP) e `supabase/tests/documentos_preautorizacao_local.sql` (matriz profissional A/B,
+família, revogação, leitura/escrita/prévia, auditoria, replay, grants diretos).
+
+Migrations preparadas `20261125180000_documentos_preautorizacao.sql` e
+`20261125185000_documentos_pastas.sql`, não aplicadas.
+Validações, lint/typecheck, SQL, browser e operações externas **adiados expressamente** pelo
+solicitante. Nenhum gate executado nesta passagem; não ativar nem marcar 1.2 concluída.
+Revisão independente de fonte ainda necessária. Testes existentes antigos não comprovam
+estado novo. Provas reais Google/ACL e concorrência distribuída continuam pendentes.
+
+**Limites:** provas reais Google/ACL, concorrência SQL com processos simultâneos e cadeia de
+migrations continuam não executadas. Unicidade por paciente+raiz é imposta pela PK e ID de pasta
+reservado antes de criar no Google; candidatos concorrentes reutilizam mesmo ID. Upload cujo
+registro falhe pode ficar pendente no Drive: sem exclusão/reconciliação automática e sem mover
+conteúdo preexistente. Retry após commit confirmado pela prévia não envia arquivo novamente.
+
+Correções da revisão independente de fonte (19/11, ainda sem execução): a prévia e a reserva
+revalidam expiração e sessão depois dos locks/INSERTs/auditoria, imediatamente antes de retornar
+sucesso; expiração desfaz a reserva na transação. Prova preparada em
+`supabase/tests/documentos_preautorizacao_concorrencia_local.sql` e runner local correspondente:
+duas conexões, bloqueio posterior ao gate inicial e espera além do TTL fictício, sem autorização
+nem reserva confirmada. O editor de metadados reutiliza o catálogo administrado; categoria histórica
+retirada permanece opção explicitamente preservada. Prova UI ajustada para catálogo/histórico.
+
+
+**Releitura cruzada de fonte em 19/11/2026:** base `cc10aad`, diff desta
+continuação incluindo novos arquivos; revisor Sol de outra frente. Eixos padrões
+e especificação conferidos sem aceitar a própria implementação. Correções e
+limites no [relatório complementar](../../../docs/processo/entrega-complementar-19-11-2026.md).
+Nenhum P1/P2 confirmado restante no recorte relido; não é aceite em runtime.
+Nenhum teste manual/SQL/build/Deno/browser executado; hooks Git preservados.
+Provas positivas e negativas permanecem obrigatórias antes da ativação.
+
+**Retomada de validação autorizada — 19/11/2026:** os registros acima preservam o
+estado anterior à autorização. Agora executados: testes nativos Documento e Drive,
+AAD e BFF Turno afetados (ver resumo operacional da entrega); Documento entrega
+5/5; runner `testar-documentos-preautorizacao-concorrencia-local.sh` exit0, com
+matriz prévia, migrations1800/1850 e duas conexões reais expirando após o gate
+inicial, sem sucesso nem reserva persistida. Corrigidos limite ARE inválido
+`{1,256}` por comprimento1..256+charset equivalente e drenagem dblink/lock do
+próprio teste. Runner Plano1900 false e true exit0 em clusters distintos.
+Somente dados fictícios, Auth/Vault locais e pg_cron carregado com jobs desativados.
+Isso não prova integração Google real, ACL externa, cron em execução nem ativação
+completa. Nenhum teste verde foi repetido; sem suíte completa/build/Deno/remoto.
+
+### Limite operacional bufferizado — retomada após c99b890
+
+SUPOSIÇÃO conservadora aprovada: arquivo até4MiB (antes8MiB), compartilhado em
+`documento-caso.ts` por UI, parser, operação e Drive. Corpo HTTP até4MiB+64KiB
+para multipart/metadados, medido no stream mesmo sem Content-Length; cancelar em
+excesso/abort e prazo15s. A plataforma limita funções bufferizadas a6MB e reduz
+binário efetivo a~4.5MB: [Netlify](https://docs.netlify.com/build/functions/configuration/).
+O teto não altera autorização, audiência ou arquivos existentes. Legado maior
+falha fechado na entrega sem truncar, mover ou excluir. Upload é recusado antes
+do provider. Nenhuma integração Google real executada.

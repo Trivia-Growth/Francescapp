@@ -24,11 +24,16 @@ const request = () =>
   });
 function portas() {
   const identidade = { usuario_id, session_id };
-  const cifra = criarCifraAutenticada({
+  const adaptadorCifra = criarCifraAutenticada({
     keyIdAtiva: 'teste',
     chavesDeCifra: { teste: new Uint8Array(32).fill(2) },
     chaveHmac: new Uint8Array(32).fill(4),
   });
+  const cifra = {
+    ...adaptadorCifra,
+    cifrar: vi.fn(adaptadorCifra.cifrar),
+    decifrar: vi.fn(adaptadorCifra.decifrar),
+  };
   return {
     autorizar: async () => ({ estado: 'autorizado' as const, identidade }),
     revalidar: async () => ({ estado: 'autorizado' as const, identidade }),
@@ -310,4 +315,84 @@ describe('plano interno', () => {
     ).toMatchObject({ ok: false, erro: { codigo: 'sem_permissao' } });
     expect(executar).toHaveBeenCalledTimes(2);
   });
+});
+
+const campoExtraId = 'e0000000-0000-4000-8000-000000000005';
+const campoExtra = {
+  campo_id: campoExtraId,
+  nome: 'Campo fictício',
+  tipo: 'numero' as const,
+  opcoes: null,
+  ativo: true,
+  versao: 3,
+};
+it('valida extras no servidor antes de cifrar e atesta somente IDs/versões', async () => {
+  const deps = portas();
+  const resultado = await operarPlanoCuidadoNativo(
+    request(),
+    { ...comando, objetivo: { ...objetivo, camposExtras: { [campoExtraId]: '42' } } },
+    { ...deps, consultarCatalogo: async () => [campoExtra] },
+  );
+  expect(resultado).toMatchObject({
+    ok: true,
+    dados: { objetivo: { camposExtras: { [campoExtraId]: '42' } } },
+  });
+  expect(deps.executar.mock.calls[0]?.[1].p_transporte.entrada.campos_extras_catalogo).toEqual({
+    [campoExtraId]: 3,
+  });
+});
+
+it.each([
+  ['tipo inválido', { [campoExtraId]: 'não é número' }, [campoExtra]],
+  [
+    'opção inválida',
+    { [campoExtraId]: 'ausente' },
+    [{ ...campoExtra, tipo: 'lista' as const, opcoes: ['permitida'] }],
+  ],
+  ['inativo', { [campoExtraId]: '42' }, [{ ...campoExtra, ativo: false }]],
+  ['desconhecido', { [campoExtraId]: '42' }, []],
+])('nega extra %s sem cifra ou RPC de gravação', async (_nome, valores, catalogo) => {
+  const deps = portas();
+  const cifrar = deps.cifra.cifrar;
+  const resultado = await operarPlanoCuidadoNativo(
+    request(),
+    { ...comando, objetivo: { ...objetivo, camposExtras: valores } },
+    { ...deps, consultarCatalogo: async () => catalogo },
+  );
+  expect(resultado).toMatchObject({ ok: false, erro: { codigo: 'entrada_invalida' } });
+  expect(cifrar).not.toHaveBeenCalled();
+  expect(deps.executar).not.toHaveBeenCalled();
+});
+
+it('catálogo indisponível falha fechado antes da cifra', async () => {
+  const deps = portas();
+  const cifrar = deps.cifra.cifrar;
+  const resultado = await operarPlanoCuidadoNativo(
+    request(),
+    { ...comando, objetivo: { ...objetivo, camposExtras: { [campoExtraId]: '42' } } },
+    {
+      ...deps,
+      consultarCatalogo: async () => {
+        throw new Error('indisponível');
+      },
+    },
+  );
+  expect(resultado).toMatchObject({ ok: false, erro: { codigo: 'servico_indisponivel' } });
+  expect(cifrar).not.toHaveBeenCalled();
+  expect(deps.executar).not.toHaveBeenCalled();
+});
+
+it('perfil ou sessão sem autorização não consulta catálogo nem cifra valores', async () => {
+  const deps = portas();
+  const consultarCatalogo = vi.fn();
+  const cifrar = deps.cifra.cifrar;
+  const resultado = await operarPlanoCuidadoNativo(
+    request(),
+    { ...comando, objetivo: { ...objetivo, camposExtras: { [campoExtraId]: '42' } } },
+    { ...deps, autorizar: async () => ({ estado: 'sem_permissao' as const }), consultarCatalogo },
+  );
+  expect(resultado).toMatchObject({ ok: false, erro: { codigo: 'sem_permissao' } });
+  expect(consultarCatalogo).not.toHaveBeenCalled();
+  expect(cifrar).not.toHaveBeenCalled();
+  expect(deps.executar).not.toHaveBeenCalled();
 });

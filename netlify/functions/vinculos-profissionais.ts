@@ -8,8 +8,11 @@ import {
 } from '../../packages/contracts/src/erros.ts';
 import { sessaoNativaSchema } from '../../packages/contracts/src/identidade.ts';
 import { criarContextoAuthNativo } from './_shared/auth-nativo/cliente.ts';
+import { servicoAtivo } from './_shared/configuracao-servidor.ts';
+import { configurarDependenciasNativas } from './_shared/configurar-dependencias-nativas.ts';
 
 export const config = { path: '/api/pacientes/:paciente_id/vinculos-profissionais' };
+let dependencias: ReturnType<typeof configurarDependenciasNativas> | undefined;
 const resposta = z.discriminatedUnion('ok', [
   z.object({ ok: z.literal(true), dados: pagina, request_id: uuidSchema }).strict(),
   z
@@ -32,7 +35,31 @@ export default async function vinculosProfissionais(request: Request): Promise<R
       status: statusErroHttp[codigo],
       headers,
     });
-  if (process.env.FFCM_CONSULTA_VINCULOS_ATIVA !== 'true') return erro('servico_indisponivel');
+  // Interruptor administrado pela tela (`ffcm.equipe.vinculos_ativa`), com a variável de
+  // ambiente como padrão de última instância quando o banco não responde ou não tem a chave.
+  //
+  // Até 20/11/2026 esta rota lia SOMENTE `process.env.FFCM_CONSULTA_VINCULOS_ATIVA`, enquanto
+  // a chave existia no catálogo desde `20261121100000_configuracao_servicos.sql:224` e
+  // aparecia na tela de Administração. Alternar na tela não fazia nada, em silêncio — o
+  // interruptor mentia. É o mesmo defeito corrigido em `acessos.ts`, e a correção é a mesma.
+  //
+  // Não é autorização: mesmo ligada, a rota segue exigindo sessão, atestado e perfil
+  // administrador no banco, logo abaixo.
+  try {
+    dependencias ??= configurarDependenciasNativas(process.env);
+  } catch {
+    // Sem acesso ao banco não há configuração a ler: falha fechada, independentemente do
+    // que o ambiente diga.
+    return erro('servico_indisponivel');
+  }
+  if (
+    !(await servicoAtivo(
+      dependencias.pool,
+      'ffcm.equipe.vinculos_ativa',
+      process.env.FFCM_CONSULTA_VINCULOS_ATIVA === 'true',
+    ))
+  )
+    return erro('servico_indisponivel');
   const url = new URL(request.url);
   const item = /^\/api\/pacientes\/([^/]+)\/vinculos-profissionais$/.exec(url.pathname);
   const cursor = url.searchParams.get('cursor');

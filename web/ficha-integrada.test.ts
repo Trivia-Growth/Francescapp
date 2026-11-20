@@ -65,6 +65,10 @@ function preparar(
       return envelope({ itens: [], proximo_cursor: null });
     if (caminho === `/api/pacientes/${A}/tarefas`) return envelope([tarefa('Tarefa de Helena')]);
     if (caminho === `/api/pacientes/${B}/tarefas`) return envelope([tarefa('Tarefa de Bruno')]);
+    if (caminho.endsWith('/execucao-turno/reconciliar'))
+      return envelope({ epoca: 1, resultado_pendente: null });
+    if (caminho.endsWith('/execucao-turno/catalogo')) return envelope([]);
+    if (caminho.endsWith('/execucao-turno/consentimento')) return envelope(null);
     if (caminho.endsWith('/anamnese')) return envelope(null);
     return new Response(null, { status: 404 });
   });
@@ -181,6 +185,8 @@ it.each([
       'Saúde',
       'Plano de crise',
       'Tarefas',
+      'Meu turno',
+      'Escala de turnos',
       'Encaminhamentos',
       'Orientações',
       'Rotina e recursos',
@@ -197,6 +203,8 @@ it.each([
       'Anamnese',
       'Saúde',
       'Plano de crise',
+      'Execução e relatórios',
+      'Escala de turnos',
       'Cadastro',
       'Equipe com acesso',
       'Exportação',
@@ -223,6 +231,27 @@ it.each([
     ).toEqual(secundarias);
   },
 );
+
+it('monta Meu turno no caso atual e desmonta ao sair da seção', async () => {
+  const caminhos = preparar('profissional', [], (caminho) =>
+    caminho === '/api/turnos/barreira'
+      ? envelope({ epoca: 1, reserva: null, resultado_pendente: null })
+      : caminho === `/api/pacientes/${A}/turnos/atual` ||
+          caminho === `/api/pacientes/${A}/turnos/ultimo`
+        ? envelope(null)
+        : undefined,
+  );
+  await import('./main.js');
+  await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
+  document.querySelector<HTMLButtonElement>(linha(A))?.click();
+  el('ficha-aba-meu-turno').click();
+  await vi.waitFor(() => expect(painel()).toContain('Você não tem turno aberto neste caso.'));
+  expect(caminhos).toContain(`/api/pacientes/${A}/turnos/atual`);
+  expect(caminhos).not.toContain(`/api/pacientes/${B}/turnos/atual`);
+  expect(painel()).toContain('Encerrar exige síntese de passagem publicada');
+  el('ficha-aba-visao').click();
+  expect(document.querySelector('.turno-proprio')).toBeNull();
+});
 
 it('só mostra a seção da visão de tarefas ao profissional', async () => {
   preparar('administrador', ['administrar_cadastro']);
@@ -261,6 +290,7 @@ it('mostra à família só os dados do paciente vinculado', async () => {
   expect([...document.querySelectorAll('[role="tab"]')].map((aba) => aba.textContent)).toEqual([
     'Dados do paciente',
     'Diário',
+    'Relatórios do cuidado',
     'Plano de cuidado',
     'Documentos',
     'Orientações',

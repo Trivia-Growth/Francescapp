@@ -99,7 +99,11 @@ migrations desta fatia.
   **Sem ativação:** `ffcm.diario.ativo` continua semeada `false` e nenhuma flag foi tocada —
   o código fica pronto; ativar (e a prova real com Auth/dados reais) é decisão e operação
   remota separadas, fora deste código.
-- [ ] 4.3 Prova visual e de teclado na tela real. Não executada (depende da rota estar ativa).
+- [ ] 4.3 Prova visual e de teclado na tela real.
+  **Parcial 18/11/2026:** componente/CSS reais em Chrome headless isolado, desktop
+  1366×900 e celular 390×844, serviço fictício. Sem overflow; campos rotulados;
+  Tab com foco de 3px; carregar/vazio/erro conferidos. Capturas e medidas no relatório
+  noturno. Navegação integrada, perfil Família e jornada publicada permanecem pendentes.
 
 ## 5. Limitações e pendências registradas
 
@@ -116,6 +120,12 @@ migrations desta fatia.
   data e encaminhamento e aceita o identificador da tarefa pela porta `converterEmTarefa`; sem
   essa porta ligada, ela instrui a abrir a aba Tarefas. `tarefa_id` não tem chave estrangeira,
   de propósito — a tarefa é de outro owner.
+  **Retomada 18/11/2026:** essa limitação histórica é tratada separadamente pela change
+  [`conversao-diario-tarefa-atomica`](../conversao-diario-tarefa-atomica/proposal.md),
+  planejada antes da implementação. A composição substitui o encadeamento de duas
+  gravações por transação única, sem transformar conversão em retorno FR-013.
+  Seus testes e gates novos são próprios; resultados antigos desta fatia não os
+  aprovam. Execução das validações adiada pelo solicitante; sem ativação implícita.
 - **"Coordenação" foi tratada como "colaboradores vinculados ao paciente"**, como nas demais
   fatias. Restringir o relato familiar à case manager é mudança de regra de negócio e precisa de
   decisão explícita.

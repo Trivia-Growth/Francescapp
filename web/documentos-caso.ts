@@ -1,3 +1,4 @@
+import { TAMANHO_MAXIMO_DOCUMENTO } from '../packages/contracts/src/documento-caso.ts';
 import type {
   AudienciaDocumento,
   DocumentoCaso,
@@ -41,6 +42,7 @@ export function montarDocumentosCaso(
 ): () => void {
   let ativa = true;
   let documentos: DocumentoCaso[] = [];
+  const downloads = new Set<string>();
   const descartarAcesso = (erro: unknown): boolean => {
     if (!exigeNovoAcesso(erro)) return false;
     ativa = false;
@@ -163,6 +165,10 @@ export function montarDocumentosCaso(
         aviso.textContent = 'Escolha um arquivo para anexar.';
         return;
       }
+      if (escolhido.size === 0 || escolhido.size > TAMANHO_MAXIMO_DOCUMENTO) {
+        aviso.textContent = 'Escolha um arquivo de até 4 MiB.';
+        return;
+      }
       if (!categoria.value || !audiencia.value) {
         aviso.textContent = 'Classifique o anexo e confirme quem pode vê-lo antes de concluir.';
         return;
@@ -230,6 +236,252 @@ export function montarDocumentosCaso(
         const selo = elemento('span', rotuloEstado(documento.estado));
         selo.className = 'documento-item__estado';
         item.append(nome, meta, selo);
+        if (documento.estado === 'disponivel' && servico.baixar) {
+          const baixar = elemento('button', 'Baixar arquivo');
+          baixar.type = 'button';
+          baixar.className = 'button-secondary';
+          baixar.setAttribute('aria-label', `Baixar ${documento.nome_visivel}`);
+          const feedback = elemento('p');
+          feedback.setAttribute('role', 'status');
+          baixar.addEventListener('click', async () => {
+            if (baixar.disabled || !servico.baixar) return;
+            baixar.disabled = true;
+            feedback.textContent = 'Preparando arquivo…';
+            const finalizar = iniciarAcao(baixar);
+            try {
+              const blob = await servico.baixar(pacienteId, documento.documento_id);
+              if (!ativa) return;
+              const url = URL.createObjectURL(blob);
+              downloads.add(url);
+              const link = elemento('a');
+              link.href = url;
+              link.download =
+                documento.nome_visivel.replace(/[\p{C}/\\"<>:|?*]/gu, '_').slice(0, 180) ||
+                'documento';
+              link.hidden = true;
+              raiz.append(link);
+              try {
+                link.click();
+              } finally {
+                link.remove();
+                window.setTimeout(() => {
+                  URL.revokeObjectURL(url);
+                  downloads.delete(url);
+                }, 1000);
+              }
+              feedback.textContent =
+                'Arquivo enviado ao navegador para download. Confira seus downloads.';
+            } catch (erro) {
+              if (descartarAcesso(erro) || !ativa) return;
+              feedback.textContent =
+                erro instanceof FalhaApi
+                  ? mensagemFalha(erro)
+                  : 'Não foi possível baixar o arquivo. Tente novamente.';
+            } finally {
+              finalizar();
+              if (ativa) baixar.disabled = false;
+            }
+          });
+          item.append(baixar, feedback);
+        }
+        if (!ehFamilia) {
+          const editor = elemento('details');
+          editor.append(elemento('summary', 'Editar dados do documento'));
+          const form = elemento('form');
+          form.className = 'documentos-envio';
+          const campo = (rotulo: string, atual: string, tipo = 'text') => {
+            const input = elemento('input');
+            input.type = tipo;
+            input.value = atual;
+            input.id = `documento-${documento.documento_id}-${tipo}-${form.childElementCount}`;
+            const label = elemento('label', rotulo);
+            label.htmlFor = input.id;
+            form.append(label, input);
+            return input;
+          };
+          const categoriasAtuais = obterCategorias();
+          const categoria = elemento('select');
+          categoria.id = `documento-${documento.documento_id}-categoria`;
+          categoria.required = true;
+          const rotuloCategoria = elemento('label', 'Categoria');
+          rotuloCategoria.htmlFor = categoria.id;
+          if (!categoriasAtuais.includes(documento.categoria)) {
+            const preservada = elemento(
+              'option',
+              `${documento.categoria} (categoria anterior, preservada)`,
+            );
+            preservada.value = documento.categoria;
+            categoria.append(preservada);
+          }
+          for (const nome of categoriasAtuais) {
+            const opcao = elemento('option', nome);
+            opcao.value = nome;
+            categoria.append(opcao);
+          }
+          categoria.value = documento.categoria;
+          form.append(rotuloCategoria, categoria);
+          const origem = campo('Origem (opcional)', documento.origem ?? '');
+          origem.maxLength = 120;
+          const data = campo(
+            'Data do documento (opcional)',
+            documento.data_documento ?? '',
+            'date',
+          );
+          const selecao = (
+            rotulo: string,
+            atual: string,
+            opcoes: readonly (readonly [string, string])[],
+          ) => {
+            const select = elemento('select');
+            select.id = `documento-${documento.documento_id}-${form.childElementCount}`;
+            const label = elemento('label', rotulo);
+            label.htmlFor = select.id;
+            for (const [valor, texto] of opcoes) {
+              const option = elemento('option', texto);
+              option.value = valor;
+              option.selected = valor === atual;
+              select.append(option);
+            }
+            form.append(label, select);
+            return select;
+          };
+          const audiencia = selecao('Quem pode ver', documento.audiencia, AUDIENCIAS);
+          const estado = selecao('Estado do arquivo', documento.estado, [
+            ['disponivel', 'Disponível'],
+            ['indisponivel', 'Indisponível'],
+            ['removido', 'Removido'],
+          ]);
+          form.append(
+            elemento(
+              'p',
+              'Alterar dados mantém o arquivo e o histórico. Removido oculta o acesso pelo app; não exclui o arquivo do Drive.',
+            ),
+          );
+          const salvar = elemento('button', 'Salvar dados');
+          salvar.type = 'submit';
+          const conferir = elemento('button', 'Conferir resultado');
+          conferir.type = 'button';
+          conferir.hidden = true;
+          const aviso = elemento('p');
+          aviso.setAttribute('role', 'status');
+          let pendente: Parameters<ServicoDocumentos['gravar']>[1] | undefined;
+          let ocupada = false;
+          const bloquearCampos = (bloquear: boolean) => {
+            for (const input of [categoria, origem, data, audiencia, estado])
+              input.disabled = bloquear;
+          };
+          form.addEventListener('input', () => alteracaoPendente(true));
+          form.addEventListener('submit', async (evento) => {
+            evento.preventDefault();
+            if (ocupada || !ativa) return;
+            pendente ??= {
+              documento_id: documento.documento_id,
+              versao_esperada: documento.versao,
+              chave_idempotencia: crypto.randomUUID(),
+              metadado: {
+                categoria: categoria.value.trim(),
+                ...(origem.value.trim() ? { origem: origem.value.trim() } : {}),
+                ...(data.value ? { data_documento: data.value } : {}),
+                audiencia: audiencia.value as DocumentoCaso['audiencia'],
+                estado: estado.value as DocumentoCaso['estado'],
+              },
+              conteudo: {
+                nome_visivel: documento.nome_visivel,
+                drive_file_id: documento.drive_file_id,
+                ...(documento.descricao === undefined ? {} : { descricao: documento.descricao }),
+              },
+            };
+            ocupada = true;
+            salvar.disabled = true;
+            conferir.disabled = true;
+            bloquearCampos(true);
+            aviso.textContent = 'Salvando dados…';
+            try {
+              const atualizados = await servico.gravar(pacienteId, pendente);
+              if (!ativa) return;
+              documentos = atualizados;
+              alteracaoPendente(false);
+              desenhar();
+            } catch (erro) {
+              if (descartarAcesso(erro) || !ativa) return;
+              if (resultadoIncerto(erro)) {
+                conferir.hidden = false;
+                salvar.textContent = 'Repetir mesma alteração';
+                aviso.textContent =
+                  'A alteração pode ter sido salva. Confira o resultado ou repita a mesma alteração com segurança.';
+                alteracaoPendente(true);
+              } else {
+                pendente = undefined;
+                bloquearCampos(false);
+                aviso.textContent =
+                  erro instanceof FalhaApi
+                    ? mensagemFalha(erro)
+                    : 'Não foi possível salvar os dados. Tente novamente.';
+              }
+            } finally {
+              ocupada = false;
+              if (ativa) {
+                salvar.disabled = false;
+                conferir.disabled = false;
+              }
+            }
+          });
+          conferir.addEventListener('click', async () => {
+            if (ocupada || !pendente || !ativa) return;
+            ocupada = true;
+            conferir.disabled = true;
+            salvar.disabled = true;
+            aviso.textContent = 'Conferindo versão atual…';
+            try {
+              const atualizados = await servico.consultar(pacienteId);
+              if (!ativa) return;
+              const atual = atualizados.find(
+                (item) => item.documento_id === documento.documento_id,
+              );
+              const esperado = pendente.metadado;
+              if (
+                atual &&
+                atual.versao > pendente.versao_esperada &&
+                atual.categoria === esperado.categoria &&
+                atual.origem === esperado.origem &&
+                atual.data_documento === esperado.data_documento &&
+                atual.audiencia === esperado.audiencia &&
+                atual.estado === esperado.estado
+              ) {
+                documentos = atualizados;
+                alteracaoPendente(false);
+                desenhar();
+              } else {
+                aviso.textContent =
+                  atual && atual.versao !== pendente.versao_esperada
+                    ? 'Outra versão está disponível. A alteração pendente foi preservada; repetir verificará o conflito sem substituir a versão atual.'
+                    : 'A alteração ainda não aparece. Repita a mesma alteração para confirmar o resultado.';
+              }
+            } catch (erro) {
+              if (descartarAcesso(erro) || !ativa) return;
+              aviso.textContent =
+                'Não foi possível conferir. A alteração pendente continua preservada.';
+            } finally {
+              ocupada = false;
+              if (ativa) {
+                conferir.disabled = false;
+                salvar.disabled = false;
+              }
+            }
+          });
+          form.append(salvar, conferir, aviso);
+          editor.append(form);
+          item.append(editor);
+        }
+        if (!ehFamilia && documento.compartilhamento) {
+          const mensagem =
+            documento.compartilhamento === 'divergente'
+              ? 'Pendência: compartilhamento no Drive incompatível com a audiência. Coordenação deve revisar na origem.'
+              : documento.compartilhamento === 'indisponivel'
+                ? 'Pendência: não foi possível conferir compartilhamento no Drive.'
+                : 'Pendência: coordenação deve conferir destinatários do Drive com a audiência do caso.';
+          item.append(elemento('p', mensagem));
+        }
         if (documento.estado === 'indisponivel') {
           const orientacao = elemento(
             'p',
@@ -261,6 +513,8 @@ export function montarDocumentosCaso(
 
   return () => {
     ativa = false;
+    for (const url of downloads) URL.revokeObjectURL(url);
+    downloads.clear();
     alteracaoPendente(false);
     raiz.replaceChildren();
   };

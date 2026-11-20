@@ -2,6 +2,10 @@ import { z } from 'zod';
 import { uuidSchema } from './comum.ts';
 import { campoCifradoSchema } from './rpc.ts';
 
+// Limite operacional conservador para funções bufferizadas (inclui margem multipart).
+export const TAMANHO_MAXIMO_DOCUMENTO = 4 * 1024 * 1024;
+export const TAMANHO_MAXIMO_CORPO_DOCUMENTO = TAMANHO_MAXIMO_DOCUMENTO + 64 * 1024;
+
 /** FR-029 a FR-031: anexos do caso guardados no Google Drive institucional.
  *
  * Três decisões do requisito estão no modelo, não na interface:
@@ -63,6 +67,7 @@ export const documentoCasoSchema = metadadoDocumentoSchema
     documento_id: uuidSchema,
     registro_id: uuidSchema,
     versao: z.number().int().min(1),
+    compartilhamento: z.enum(['divergente', 'revisao_necessaria', 'indisponivel']).optional(),
     criado_por_usuario_id: uuidSchema.optional(),
     criado_em: z.iso.datetime({ offset: true }).optional(),
   })
@@ -105,3 +110,30 @@ export const respostaDocumentoPrivadaSchema = z.discriminatedUnion('ok', [
     })
     .strict(),
 ]);
+
+/** Prévia privada: audita a autorização, sem persistir versão nem reservar sucesso. */
+export const respostaPreautorizacaoDocumentoSchema = z.discriminatedUnion('ok', [
+  z.object({ ok: z.literal(true), repeticao: z.boolean(), request_id: uuidSchema }).strict(),
+  z
+    .object({
+      ok: z.literal(false),
+      erro: z
+        .object({ codigo: z.enum(['sem_permissao', 'conflito', 'conflito_idempotencia']) })
+        .strict(),
+      request_id: uuidSchema,
+    })
+    .strict(),
+]);
+
+export const respostaPastaDocumentoSchema = z
+  .object({
+    ok: z.literal(true),
+    dados: z
+      .object({
+        pasta_id: z.string().regex(/^[A-Za-z0-9_-]{1,256}$/),
+        marcador: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+      })
+      .strict(),
+    request_id: uuidSchema,
+  })
+  .strict();

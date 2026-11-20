@@ -3,6 +3,7 @@ import {
   type CategoriaContexto,
   type ElementoContexto,
 } from '../packages/contracts/src/contexto-cuidado.ts';
+import { exigeNovoAcesso } from './api.ts';
 import { montarEditorDocumentoPaciente } from './editor-documento-paciente.ts';
 import type { ServicoDocumentoPaciente } from './servico-documento-paciente-http.ts';
 
@@ -26,6 +27,10 @@ const AJUDA: Record<CategoriaContexto, string> = {
 };
 
 export type ObjetivoDisponivel = { id: string; titulo: string };
+export type ConsultaObjetivosContexto = (
+  pacienteId: string,
+  cursor?: string,
+) => Promise<{ itens: ObjetivoDisponivel[]; proximo_cursor: string | null }>;
 export type ServicoContextoCuidado = ServicoDocumentoPaciente<ElementoContexto[]>;
 
 /** Interface isolada; montagem depende da integração segura do servidor. */
@@ -36,8 +41,11 @@ export function montarContextoCuidado(
   acessoPerdido: (erro: unknown) => void,
   alteracaoPendente: (pendente: boolean) => void = () => {},
   objetivos: readonly ObjetivoDisponivel[] = [],
+  consultarObjetivos?: ConsultaObjetivosContexto,
 ): () => void {
-  return montarEditorDocumentoPaciente<ElementoContexto[]>(
+  let ativa = true;
+  let geracao = 0;
+  const desmontarEditor = montarEditorDocumentoPaciente<ElementoContexto[]>(
     raiz,
     pacienteId,
     servico,
@@ -53,6 +61,8 @@ export function montarContextoCuidado(
         'O contexto foi alterado por outra pessoa. Copie seu rascunho antes de recarregar a página para consultar a versão atual; suas alterações ainda não foram salvas.',
     },
     (conteudo, aoAlterar) => {
+      const geracaoAtual = ++geracao;
+      const disponiveis = new Map(objetivos.map((objetivo) => [objetivo.id, objetivo]));
       const elemento = <K extends keyof HTMLElementTagNameMap>(tipo: K, texto?: string) => {
         const el = document.createElement(tipo);
         if (texto !== undefined) el.textContent = texto;
@@ -66,13 +76,35 @@ export function montarContextoCuidado(
         /** Vínculos que vieram do documento e não têm caixa nesta tela — objetivo
          * arquivado, de outra página, ou lista de objetivos não carregada. Sem isso
          * um salvamento comum apagaria silenciosamente o vínculo que FR-005 exige. */
-        preservados: readonly string[];
+        preservados: string[];
+        grupo: HTMLFieldSetElement;
+        avisoPreservados: HTMLParagraphElement;
         raiz: HTMLElement;
       };
       const linhas: Linha[] = [];
       const campos = elemento('div');
       campos.className = 'contexto-cuidado';
       const adicionarBotoes: HTMLButtonElement[] = [];
+
+      const atualizarObjetivos = (linha: Linha) => {
+        for (const objetivo of disponiveis.values()) {
+          if (linha.objetivos.some((caixa) => caixa.value === objetivo.id)) continue;
+          const caixa = elemento('input');
+          caixa.type = 'checkbox';
+          caixa.value = objetivo.id;
+          caixa.checked = linha.preservados.includes(objetivo.id);
+          linha.preservados = linha.preservados.filter((id) => id !== objetivo.id);
+          const marcacao = elemento('label');
+          marcacao.append(caixa, document.createTextNode(` ${objetivo.titulo}`));
+          linha.objetivos.push(caixa);
+          linha.grupo.append(marcacao);
+        }
+        linha.grupo.hidden = linha.objetivos.length === 0;
+        linha.avisoPreservados.textContent = linha.preservados.length
+          ? `${linha.preservados.length} objetivo(s) vinculado(s) fora desta lista continuam guardados.`
+          : '';
+        linha.avisoPreservados.hidden = linha.preservados.length === 0;
+      };
 
       const criarLinha = (
         categoria: CategoriaContexto,
@@ -96,33 +128,13 @@ export function montarContextoCuidado(
         const marcados: HTMLInputElement[] = [];
         item.append(rotulo, descricao);
         const vinculados = inicial?.objetivos ?? [];
-        const preservados = vinculados.filter(
-          (vinculo) => !objetivos.some((objetivo) => objetivo.id === vinculo),
-        );
-        if (objetivos.length) {
-          const grupo = elemento('fieldset');
-          grupo.className = 'contexto-cuidado__objetivos';
-          grupo.append(elemento('legend', 'Objetivos do plano relacionados'));
-          for (const objetivo of objetivos) {
-            const marcacao = elemento('label');
-            const caixa = elemento('input');
-            caixa.type = 'checkbox';
-            caixa.value = objetivo.id;
-            caixa.checked = vinculados.includes(objetivo.id);
-            marcados.push(caixa);
-            marcacao.append(caixa, document.createTextNode(` ${objetivo.titulo}`));
-            grupo.append(marcacao);
-          }
-          item.append(grupo);
-        }
-        // O vínculo preservado é mostrado para que ninguém salve achando que não existe.
-        if (preservados.length)
-          item.append(
-            elemento(
-              'p',
-              `${preservados.length} objetivo(s) vinculado(s) fora desta lista continuam guardados.`,
-            ),
-          );
+        const preservados = [...vinculados];
+        const grupo = elemento('fieldset');
+        grupo.className = 'contexto-cuidado__objetivos';
+        grupo.append(elemento('legend', 'Objetivos do plano relacionados'));
+        grupo.hidden = true;
+        const avisoPreservados = elemento('p');
+        item.append(grupo, avisoPreservados);
         item.append(remover);
         const linha: Linha = {
           id,
@@ -130,6 +142,8 @@ export function montarContextoCuidado(
           descricao,
           objetivos: marcados,
           preservados,
+          grupo,
+          avisoPreservados,
           raiz: item,
         };
         const nomearRemocao = () => {
@@ -148,9 +162,68 @@ export function montarContextoCuidado(
           aoAlterar();
         });
         linhas.push(linha);
+        atualizarObjetivos(linha);
         lista.append(item);
         return descricao;
       };
+
+      if (consultarObjetivos) {
+        const consultarPagina = consultarObjetivos;
+        const avisoObjetivos = elemento('p', 'Carregando objetivos do plano…');
+        avisoObjetivos.setAttribute('aria-live', 'polite');
+        const carregarMais = elemento('button', 'Carregar mais objetivos');
+        carregarMais.type = 'button';
+        carregarMais.hidden = true;
+        let cursor: string | undefined;
+        let carregando = false;
+        let terminou = false;
+        const cursores = new Set<string>();
+        const carregar = async () => {
+          if (!ativa || geracaoAtual !== geracao || carregando || terminou) return;
+          carregando = true;
+          carregarMais.disabled = true;
+          avisoObjetivos.textContent = 'Carregando objetivos do plano…';
+          try {
+            const pagina = await consultarPagina(pacienteId, cursor);
+            if (!ativa || geracaoAtual !== geracao) return;
+            if (
+              pagina.proximo_cursor &&
+              (pagina.proximo_cursor === cursor || cursores.has(pagina.proximo_cursor))
+            )
+              throw new Error('Cursor repetido.');
+            for (const objetivo of pagina.itens) disponiveis.set(objetivo.id, objetivo);
+            for (const linha of linhas) atualizarObjetivos(linha);
+            if (cursor) cursores.add(cursor);
+            cursor = pagina.proximo_cursor ?? undefined;
+            terminou = !cursor;
+            carregarMais.textContent = 'Carregar mais objetivos';
+            carregarMais.hidden = terminou;
+            avisoObjetivos.textContent = disponiveis.size
+              ? `${disponiveis.size} objetivo(s) do plano disponível(is) para vínculo.`
+              : 'Nenhum objetivo disponível no plano deste caso.';
+          } catch (erro) {
+            if (!ativa || geracaoAtual !== geracao) return;
+            if (exigeNovoAcesso(erro)) {
+              ativa = false;
+              desmontarEditor();
+              acessoPerdido(erro);
+              return;
+            }
+            avisoObjetivos.textContent =
+              'Não foi possível carregar os objetivos. Seus vínculos anteriores continuam guardados.';
+            carregarMais.textContent = 'Tentar carregar objetivos novamente';
+            carregarMais.hidden = false;
+          } finally {
+            carregando = false;
+            if (ativa && geracaoAtual === geracao) carregarMais.disabled = false;
+          }
+        };
+        carregarMais.addEventListener('click', () => {
+          void carregar();
+        });
+        campos.append(avisoObjetivos, carregarMais);
+        void carregar();
+      }
 
       for (const categoria of CATEGORIAS_CONTEXTO) {
         const bloco = elemento('fieldset');
@@ -205,4 +278,9 @@ export function montarContextoCuidado(
     },
     alteracaoPendente,
   );
+  return () => {
+    ativa = false;
+    geracao += 1;
+    desmontarEditor();
+  };
 }

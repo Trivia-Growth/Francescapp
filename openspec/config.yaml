@@ -14,10 +14,10 @@ context: |
   Transição exige limpeza seletiva conferida dos itens identificados de teste, preservando configurações, acessos administrativos válidos e conteúdo institucional preexistente. Não executar exclusões por esta decisão de planejamento.
   Padrão de código: projeto Atendimento, conforme docs/projeto/referencia-atendimento.md.
   HED Transportes orienta o processo de IA, não a arquitetura ou a identidade visual do produto.
-  Família: convite inicial Supabase, senha definida pelo destinatário, login e-mail/senha e recuperação.
-  Equipe: Google Workspace; agendas individuais nas próprias contas Google.
-  Cada usuário possui um único perfil, sem acúmulo. Equipe exige cadastro/concessão prévios por Administrador; Google não concede acesso automaticamente.
-  Edilaine na administração de negócio inicial. Projeto Supabase confirmado: drdpuxcllpymtoskmuqv. Conta Auth técnica individual por senha criada e testada na operação autorizada; concessão de Administrador do produto ainda pendente. Exceção não libera senha para a equipe; não versionar credenciais ou identidade pessoal.
+  Família: preservar convite inicial Supabase, senha definida pelo destinatário, login e-mail/senha e recuperação; DF-023 acrescenta criação administrativa de conta interna sem conceder vínculo de caso automaticamente.
+  DF-023 (18/11/2026): Administrador cria acessos com nome, login (e-mail), senha interna e uma função Administrador, Case Manager, Familiar ou Profissional. Entrada Google Workspace institucional ou conta interna previamente aprovada; substitui exclusividade Google e senha apenas técnica. Convites existentes permanecem. Agendas individuais continuam nas próprias contas Google.
+  Cada usuário possui uma única função de conta, sem acúmulo. Case Manager usa perfil-base clínico Profissional e exige responsabilidade/vínculo por caso, sem carteira automática. Cadastro/concessão prévios por Administrador; autenticação não concede acesso automaticamente.
+  Edilaine na administração de negócio inicial. Projeto Supabase confirmado: drdpuxcllpymtoskmuqv. Conta Auth técnica individual por senha criada e testada na operação autorizada; concessão de Administrador do produto ainda pendente. Exceção técnica preservada; nova admissão interna de DF-023 é separada. Não versionar credenciais ou identidade pessoal.
   Agenda global em e-mail compartilhado com visualização e edição autorizadas separadamente.
   Agenda inicial permite consultar, criar, alterar e cancelar, confirmando na origem. Séries/conflitos e integração ainda exigem detalhamento.
   Áudio original será apagado após revisão humana confirmada; exclusão pendente/falha deve aparecer. Modelo, política do processador e áudios abandonados ainda pendentes.

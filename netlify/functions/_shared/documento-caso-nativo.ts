@@ -1,8 +1,16 @@
+import { TAMANHO_MAXIMO_DOCUMENTO } from '../../../packages/contracts/src/documento-caso.ts';
+import {
+  incluirSeletorExportacao,
+  conferirVersaoExportacao,
+  type SeletorVersaoExportacao,
+} from './turno-execucao-seletor-exportacao.ts';
 import {
   conteudoDocumentoSchema,
   documentoCasoSchema,
   metadadoDocumentoSchema,
   respostaDocumentoPrivadaSchema,
+  respostaPreautorizacaoDocumentoSchema,
+  respostaPastaDocumentoSchema,
   type DocumentoCaso,
 } from '../../../packages/contracts/src/documento-caso.ts';
 import {
@@ -28,7 +36,8 @@ type Autorizacao =
   | { estado: 'nao_autenticado' | 'sem_permissao' | 'servico_indisponivel' };
 
 export type ComandoDocumento =
-  | { operacao: 'ler'; paciente_id: string }
+  | ({ operacao: 'ler'; paciente_id: string; documento_id?: string } & SeletorVersaoExportacao)
+  | { operacao: 'entregar'; paciente_id: string; documento_id: string }
   | {
       operacao: 'gravar';
       paciente_id: string;
@@ -39,15 +48,8 @@ export type ComandoDocumento =
       arquivo?: { nome: string; tipo: string; bytes: Uint8Array };
     };
 
-/** Composição interna da fatia de documentos (FR-029 a FR-031), sem rota ou privilégio de
- * banco. Autorização e auditoria pertencem ao banco; aqui há cifra, atestado, idempotência e a
- * conversa com o Drive.
- *
- * Ordem deliberada na gravação com arquivo: o arquivo sobe ao Drive ANTES do registro no
- * banco. O inverso criaria um vínculo apontando para um arquivo que talvez nunca exista —
- * um anexo "disponível" que não abre, exatamente o que o cenário 2 da User Story 8 proíbe.
- * O custo dessa ordem é o arquivo órfão quando o banco recusa depois do envio; por isso a
- * falha tenta desfazer o envio, e o que sobrar é reconciliável pelo estado `indisponivel`. */
+/** Documentos: autorização de operação/caso precede qualquer efeito Drive; a RPC final
+ * reautoriza e audita na mesma transação da versão. Falha incerta nunca apaga arquivo. */
 export async function operarDocumentoCasoNativo(
   request: Request,
   comando: ComandoDocumento,
@@ -72,6 +74,32 @@ export async function operarDocumentoCasoNativo(
     /** Ausente quando a guarda não está configurada: sem pasta raiz ou sem credencial, o
      * envio de arquivo é recusado em vez de cair em outro local de guarda. */
     drive?: { porta: PortaDrive; pastaRaiz: string };
+    reservarPasta?: (
+      request: Request,
+      entrada: {
+        p_transporte: {
+          entrada: Record<string, unknown>;
+          entrada_canonica: string;
+          dados_canonicos: string;
+        };
+        p_previa: {
+          entrada: Record<string, unknown>;
+          entrada_canonica: string;
+          dados_canonicos: string;
+        };
+      },
+    ) => Promise<unknown>;
+    marcarEfeitoExterno?: () => void;
+    preautorizar?: (
+      request: Request,
+      transporte: {
+        p_transporte: {
+          entrada: Record<string, unknown>;
+          entrada_canonica: string;
+          dados_canonicos: string;
+        };
+      },
+    ) => Promise<unknown>;
     executar(
       request: Request,
       transporte: {
@@ -83,7 +111,23 @@ export async function operarDocumentoCasoNativo(
       },
     ): Promise<unknown>;
   },
-) {
+): Promise<
+  | { ok: true; dados: { documentos: DocumentoCaso[] }; request_id: string }
+  | {
+      ok: false;
+      erro: {
+        codigo:
+          | 'entrada_invalida'
+          | 'nao_autenticado'
+          | 'sem_permissao'
+          | 'conflito_versao'
+          | 'conflito_idempotencia'
+          | 'servico_indisponivel'
+          | 'pendencia_externa';
+      };
+      request_id: string;
+    }
+> {
   const requestId = crypto.randomUUID();
   const erro = (
     codigo:
@@ -96,7 +140,6 @@ export async function operarDocumentoCasoNativo(
       | 'pendencia_externa',
   ) => ({ ok: false as const, erro: { codigo }, request_id: requestId });
   let iniciada = false;
-  let enviadoAoDrive: string | undefined;
   try {
     if (request.signal.aborted) return erro('servico_indisponivel');
     const paciente = uuidSchema.safeParse(comando.paciente_id);
@@ -108,6 +151,12 @@ export async function operarDocumentoCasoNativo(
     let documentoId: string | undefined;
     let chaveIdempotencia: string | undefined;
     if (comando.operacao === 'gravar') {
+      if (
+        comando.arquivo &&
+        (!comando.arquivo.bytes.byteLength ||
+          comando.arquivo.bytes.byteLength > TAMANHO_MAXIMO_DOCUMENTO)
+      )
+        return erro('entrada_invalida');
       const chave = chaveIdempotenciaSchema.safeParse(request.headers.get('x-chave-idempotencia'));
       const documento = uuidSchema.safeParse(comando.documento_id);
       if (!chave.success || !documento.success) return erro('entrada_invalida');
@@ -140,18 +189,14 @@ export async function operarDocumentoCasoNativo(
     if (request.headers.get('x-sessao')?.toLowerCase() !== identidade.session_id)
       return erro('nao_autenticado');
     const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+    if (comando.operacao === 'ler') incluirSeletorExportacao(comando, entrada);
+    if (comando.operacao === 'ler' && comando.documento_id !== undefined) {
+      const documento = uuidSchema.safeParse(comando.documento_id);
+      if (!documento.success) return erro('entrada_invalida');
+      entrada.documento_id = documento.data.toLowerCase();
+    }
     if (comando.operacao === 'gravar' && metadado && conteudo && documentoId) {
-      if (comando.arquivo) {
-        if (!portas.drive) return erro('servico_indisponivel');
-        const envio = await portas.drive.porta.enviar({
-          nome: comando.arquivo.nome,
-          tipo: comando.arquivo.tipo,
-          bytes: comando.arquivo.bytes,
-          pastaRaiz: portas.drive.pastaRaiz,
-        });
-        enviadoAoDrive = envio.file_id;
-        conteudo = { ...conteudo, drive_file_id: envio.file_id };
-      }
+      if (!comando.arquivo && comando.versao_esperada === 0) return erro('entrada_invalida');
       const registroId = crypto.randomUUID();
       const aad: Aad = {
         tabela: 'cadastro.documento_caso_versao',
@@ -161,6 +206,15 @@ export async function operarDocumentoCasoNativo(
         campo: 'conteudo',
         formato: 1,
       };
+      const arquivoDigest = comando.arquivo
+        ? Array.from(
+            new Uint8Array(
+              await crypto.subtle.digest('SHA-256', new Uint8Array(comando.arquivo.bytes)),
+            ),
+          )
+            .map((byte) => byte.toString(16).padStart(2, '0'))
+            .join('')
+        : undefined;
       const digest = await portas.idempotencia.calcularDigestIdempotencia(
         portas.atestador.canonicalizar({
           paciente_id: pacienteId,
@@ -168,6 +222,9 @@ export async function operarDocumentoCasoNativo(
           versao_esperada: comando.versao_esperada,
           metadado,
           conteudo,
+          ...(comando.arquivo
+            ? { arquivo: { tipo: comando.arquivo.tipo, sha256: arquivoDigest } }
+            : {}),
         }),
       );
       if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) throw new Error();
@@ -188,41 +245,116 @@ export async function operarDocumentoCasoNativo(
         aad,
       });
     }
-    const metadados = dadosAtestadoSchema.omit({ digest_entrada: true }).parse({
-      ...portas.metadados(requestId),
-      ...identidade,
-      operacao: comando.operacao === 'gravar' ? 'api.gravar_documento' : 'api.ler_documentos',
-    });
-    if (metadados.request_id !== requestId) throw new Error();
-    const prova = resultadoAtestacaoSchema.parse(
-      await portas.atestador.atestarEntrada(metadados, entrada),
-    );
-    const dados = dadosAtestadoSchema.parse(JSON.parse(prova.dadosCanonicos));
-    if (
-      portas.atestador.canonicalizar(entrada) !== prova.entradaCanonica ||
-      portas.atestador.canonicalizar(dados) !== prova.dadosCanonicos ||
-      Object.entries(metadados).some(
-        ([chave, valor]) => dados[chave as keyof typeof dados] !== valor,
-      ) ||
-      Object.entries(dados).some(
-        ([chave, valor]) => prova.atestado[chave as keyof typeof dados] !== valor,
+    const transportar = async (alvo = entrada) => {
+      const metadados = dadosAtestadoSchema.omit({ digest_entrada: true }).parse({
+        ...portas.metadados(requestId),
+        ...identidade,
+        operacao: comando.operacao === 'gravar' ? 'api.gravar_documento' : 'api.ler_documentos',
+      });
+      if (metadados.request_id !== requestId) throw new Error();
+      const prova = resultadoAtestacaoSchema.parse(
+        await portas.atestador.atestarEntrada(metadados, alvo),
+      );
+      const dados = dadosAtestadoSchema.parse(JSON.parse(prova.dadosCanonicos));
+      if (
+        portas.atestador.canonicalizar(alvo) !== prova.entradaCanonica ||
+        portas.atestador.canonicalizar(dados) !== prova.dadosCanonicos ||
+        Object.entries(metadados).some(
+          ([chave, valor]) => dados[chave as keyof typeof dados] !== valor,
+        ) ||
+        Object.entries(dados).some(
+          ([chave, valor]) => prova.atestado[chave as keyof typeof dados] !== valor,
+        )
       )
-    )
-      throw new Error();
-    if (request.signal.aborted) throw new Error();
-    iniciada = comando.operacao === 'gravar';
-    const resposta = respostaDocumentoPrivadaSchema.parse(
-      await portas.executar(request, {
+        throw new Error();
+      return {
         p_transporte: {
-          entrada: { ...entrada, atestado: prova.atestado },
+          entrada: { ...alvo, atestado: prova.atestado },
           entrada_canonica: prova.entradaCanonica,
           dados_canonicos: prova.dadosCanonicos,
         },
-      }),
+      };
+    };
+    if (comando.operacao === 'gravar' && conteudo) {
+      if (!documentoId) return erro('entrada_invalida');
+      if (!portas.preautorizar) return erro('servico_indisponivel');
+      const transportePrevia = await transportar();
+      const previa = respostaPreautorizacaoDocumentoSchema.parse(
+        await portas.preautorizar(request, transportePrevia),
+      );
+      if (previa.request_id !== requestId) throw new Error();
+      if (!previa.ok)
+        return erro(previa.erro.codigo === 'conflito' ? 'conflito_versao' : previa.erro.codigo);
+      if (request.signal.aborted) throw new Error();
+      if (!previa.repeticao && !comando.arquivo) {
+        // Capacidade Drive vem da versão autorizada; replay confirmado nunca adota payload.
+        const leitura = await operarDocumentoCasoNativo(
+          request,
+          {
+            operacao: 'ler',
+            paciente_id: pacienteId,
+            documento_id: documentoId,
+          },
+          portas,
+        );
+        if (!leitura.ok) return erro(leitura.erro.codigo);
+        const anterior = leitura.dados.documentos.find((item) => item.documento_id === documentoId);
+        if (!anterior) return erro('sem_permissao');
+        if (anterior.versao !== comando.versao_esperada) return erro('conflito_versao');
+        if (anterior.drive_file_id !== conteudo.drive_file_id) return erro('entrada_invalida');
+        conteudo = { ...conteudo, drive_file_id: anterior.drive_file_id };
+        entrada.conteudo = campoCifradoSchema.parse(
+          await portas.cifra.cifrar(JSON.stringify(conteudo), entrada.aad as Aad),
+        );
+      }
+      if (!previa.repeticao && comando.arquivo) {
+        const reservarPasta = portas.reservarPasta;
+        if (!portas.drive || !reservarPasta) return erro('servico_indisponivel');
+        const pastaPaciente = await portas.idempotencia.calcularDigestIdempotencia(
+          portas.atestador.canonicalizar({
+            finalidade: 'pasta_documentos_paciente',
+            paciente_id: pacienteId,
+          }),
+        );
+        iniciada = true;
+        portas.marcarEfeitoExterno?.();
+        const envio = await portas.drive.porta.enviar({
+          nome: documentoId,
+          tipo: comando.arquivo.tipo,
+          bytes: comando.arquivo.bytes,
+          pastaRaiz: portas.drive.pastaRaiz,
+          pastaPaciente,
+          reservarPasta: async (raiz, candidata) => {
+            const reserva = respostaPastaDocumentoSchema.parse(
+              await reservarPasta(request, {
+                ...(await transportar({
+                  request_id: requestId,
+                  paciente_id: pacienteId,
+                  raiz,
+                  candidata,
+                  marcador: pastaPaciente,
+                })),
+                p_previa: transportePrevia.p_transporte,
+              }),
+            );
+            if (reserva.request_id !== requestId) throw new Error();
+            return { id: reserva.dados.pasta_id, marcador: reserva.dados.marcador };
+          },
+        });
+        conteudo = { ...conteudo, drive_file_id: envio.file_id };
+        entrada.conteudo = campoCifradoSchema.parse(
+          await portas.cifra.cifrar(JSON.stringify(conteudo), entrada.aad as Aad),
+        );
+      }
+    }
+    const transporte = await transportar();
+    if (request.signal.aborted) throw new Error();
+    iniciada = comando.operacao === 'gravar';
+    const resposta = respostaDocumentoPrivadaSchema.parse(
+      await portas.executar(request, transporte),
     );
     if (request.signal.aborted || resposta.request_id !== requestId) throw new Error();
     if (!resposta.ok) {
-      await desfazerEnvio();
       return erro(
         resposta.erro.codigo === 'conflito'
           ? 'conflito_versao'
@@ -231,8 +363,7 @@ export async function operarDocumentoCasoNativo(
             : 'sem_permissao',
       );
     }
-    // O registro ficou gravado: o arquivo deixou de ser órfão e não deve ser desfeito.
-    enviadoAoDrive = undefined;
+    if (comando.operacao === 'ler') conferirVersaoExportacao(comando, resposta.dados);
     const documentos: DocumentoCaso[] = [];
     for (const item of resposta.dados.documentos) {
       if (item.paciente_id.toLowerCase() !== pacienteId) throw new Error();
@@ -247,8 +378,23 @@ export async function operarDocumentoCasoNativo(
       const aberto = conteudoDocumentoSchema.parse(
         JSON.parse(await portas.cifra.decifrar(item.conteudo, aad)),
       );
+      let compartilhamento: 'divergente' | 'revisao_necessaria' | 'indisponivel' = 'indisponivel';
+      if (
+        portas.drive?.porta.consultarCompartilhamento &&
+        !('documento_id' in comando && comando.operacao === 'ler')
+      ) {
+        try {
+          compartilhamento = await portas.drive.porta.consultarCompartilhamento(
+            aberto.drive_file_id,
+            item.audiencia,
+          );
+        } catch {
+          /* A falha da conferência não transforma ausência de prova em aprovação. */
+        }
+      }
       documentos.push(
         documentoCasoSchema.parse({
+          compartilhamento,
           documento_id: item.documento_id,
           registro_id: item.registro_id,
           versao: item.versao,
@@ -275,21 +421,6 @@ export async function operarDocumentoCasoNativo(
       return erro(iniciada ? 'pendencia_externa' : 'nao_autenticado');
     return { ok: true as const, dados: { documentos }, request_id: requestId };
   } catch {
-    await desfazerEnvio();
     return erro(iniciada ? 'pendencia_externa' : 'servico_indisponivel');
-  }
-
-  /** O arquivo subiu mas o vínculo não ficou: tenta apagar para não deixar conteúdo de
-   * paciente solto numa pasta sem referência. Se a remoção também falhar, o arquivo fica no
-   * Drive sem vínculo — registrado como limitação conhecida, não silenciado. */
-  async function desfazerEnvio(): Promise<void> {
-    const alvo = enviadoAoDrive;
-    enviadoAoDrive = undefined;
-    if (!alvo || !portas.drive) return;
-    try {
-      await portas.drive.porta.remover(alvo);
-    } catch {
-      /* falha fechada: o estado `indisponivel` cobre a reconciliação posterior */
-    }
   }
 }

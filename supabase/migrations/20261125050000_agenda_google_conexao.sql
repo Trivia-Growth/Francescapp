@@ -1,5 +1,4 @@
--- PREPARAÇÃO LOCAL: sem grants a runtime. Antes de promover, comprovar gateway JWT,
--- privilégios Vault, canal sem logs de parâmetros e concorrência/revogação reais.
+-- Agenda individual V1. Runtime exige executor restrito; ativação por flag nasce desligada.
 select set_config('ffcmapp.migrador_agenda', current_user, false);
 create role ffcmapp_agenda_google_executor nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
 create role ffcmapp_agenda_vault_owner nologin nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
@@ -95,7 +94,7 @@ create table identidade.agenda_google_vinculo_paciente (
   id uuid primary key default gen_random_uuid(),
   usuario_id uuid not null,
   subject_google text not null,
-  evento_id text not null check (evento_id ~ '^[A-Za-z0-9_-]{1,1024}$'),
+  evento_id text not null check (evento_id ~ '^[A-Za-z0-9_-]+$' and length(evento_id) <= 1024),
   paciente_id uuid not null,
   criado_em timestamptz not null default clock_timestamp(),
   retirado_em timestamptz,
@@ -105,7 +104,7 @@ create unique index agenda_google_vinculo_ativo on identidade.agenda_google_vinc
 create table identidade.agenda_google_escrita (
   usuario_id uuid not null,
   operacao_id uuid not null,
-  evento_id text not null check (evento_id ~ '^[A-Za-z0-9_-]{1,1024}$'),
+  evento_id text not null check (evento_id ~ '^[A-Za-z0-9_-]+$' and length(evento_id) <= 1024),
   acao text not null check (acao in ('criar','alterar','cancelar')),
   subject_google text not null,
   estado text not null check (estado in ('pendente','confirmada','nao_realizada')),
@@ -370,6 +369,10 @@ begin
     or identidade.verificar_assinatura_atestado(p_transporte->>'entrada_canonica',p_transporte->>'dados_canonicos',e-'atestado',a-'mac',a->>'mac') is distinct from true then
     raise exception using errcode='42501', message='SEM_PERMISSAO';
   end if;
+  -- O executor PostgreSQL não recebe JWT PostgREST. Somente após verificar o
+  -- atestado, derivar o contexto das pontes Auth da identidade assinada, nunca do GUC
+  -- controlável pelo chamador. As pontes ainda conferem sessão e identidade reais.
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',v_usuario,'session_id',v_sessao)::text,true);
   perform set_config('ffcmapp.agenda_usuario',v_usuario::text,true);
   perform set_config('ffcmapp.agenda_sessao',v_sessao::text,true);
   -- Mesma ordem das operações privadas: concessão, usuário, sessão.
@@ -511,7 +514,7 @@ begin
       end;
     when 'agenda.consultar_vinculos' then
       if jsonb_typeof(e->'eventos') is distinct from 'array' or jsonb_array_length(e->'eventos') not between 1 and 250
-        or exists(select 1 from jsonb_array_elements(e->'eventos') x where jsonb_typeof(x)<>'string' or (x#>>'{}') !~ '^[A-Za-z0-9_-]{1,1024}$')
+        or exists(select 1 from jsonb_array_elements(e->'eventos') x where jsonb_typeof(x)<>'string' or ((x#>>'{}') !~ '^[A-Za-z0-9_-]+$' or length(x#>>'{}') > 1024))
         or coalesce(e->>'geracao','') !~ '^[0-9]{1,18}$' then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
       perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_usuario::text, 0));
       if not exists (select 1 from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id
@@ -538,7 +541,7 @@ begin
       declare v_paciente uuid; v_existente uuid;
       begin
         if coalesce(e->>'paciente_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-          or coalesce(e->>'evento_id','') !~ '^[A-Za-z0-9_-]{1,1024}$' then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
+          or (coalesce(e->>'evento_id','') !~ '^[A-Za-z0-9_-]+$' or length(e->>'evento_id') > 1024) then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
         v_paciente := (e->>'paciente_id')::uuid;
         if coalesce(e->>'geracao','') !~ '^[0-9]{1,18}$' then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
         perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_usuario::text, 0));
@@ -562,7 +565,7 @@ begin
       begin
         if coalesce(e->>'paciente_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
           or coalesce(e->>'vinculo_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-          or coalesce(e->>'evento_id','') !~ '^[A-Za-z0-9_-]{1,1024}$'
+          or (coalesce(e->>'evento_id','') !~ '^[A-Za-z0-9_-]+$' or length(e->>'evento_id') > 1024)
           or coalesce(e->>'geracao','') !~ '^[0-9]{1,18}$' then raise exception using errcode='42501',message='SEM_PERMISSAO'; end if;
         v_paciente := (e->>'paciente_id')::uuid; v_vinculo := (e->>'vinculo_id')::uuid;
         perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_usuario::text, 0));
@@ -593,7 +596,7 @@ begin
         from identidade.agenda_google_escrita w where w.usuario_id=v_usuario and w.estado='pendente';
     when 'agenda.reservar_escrita' then
       if coalesce(e->>'operacao_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-        or coalesce(e->>'evento_id','') !~ '^[A-Za-z0-9_-]{1,1024}$'
+        or (coalesce(e->>'evento_id','') !~ '^[A-Za-z0-9_-]+$' or length(e->>'evento_id') > 1024)
         or coalesce(e->>'acao','') not in ('criar','alterar','cancelar')
         or not exists (select 1 from identidade.sessao s join identidade.concessao_equipe c on c.id=s.concessao_id where s.usuario_id=v_usuario and s.session_id=v_sessao and c.subject_google=e->>'subject') then
         raise exception using errcode='42501',message='SEM_PERMISSAO';
@@ -633,3 +636,7 @@ revoke create on schema identidade from ffcmapp_agenda_google_owner;
 revoke ffcmapp_agenda_google_owner from current_user;
 
 revoke ffcmapp_agenda_vault_owner from current_user;
+
+insert into identidade.configuracao_sistema(id,chave,valor,tipo,rotulo,descricao,exposicao) values
+ (gen_random_uuid(),'ffcm.agenda_google.ativa','false'::jsonb,'booleano','Agenda Google individual','Habilita conexão e eventos únicos na agenda individual. Não concede autorização.','servidor'),
+ (gen_random_uuid(),'ffcm.agenda_google.dominio_workspace','""'::jsonb,'texto','Domínio Workspace da agenda','Domínio institucional autorizado para validar o consentimento Google.','servidor');

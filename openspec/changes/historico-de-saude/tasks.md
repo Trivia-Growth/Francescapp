@@ -73,18 +73,30 @@
   em `web/styles.css` dá contorno próprio ao relato leigo e destaque à hipótese.
   Estados de carregamento, vazio, erro, conflito de versão e salvamento incerto seguem
   o mesmo comportamento já revisado da anamnese.
-- [ ] 4.2 Ligar a seção em `secoesDaFicha` de `web/main.ts`.
-  **Bloqueio operacional:** o arquivo está sob edição simultânea de outras frentes; a
-  coordenação pediu para não editá-lo. O trecho exato foi entregue no resumo final.
+- [x] 4.2 Ligar a seção em `secoesDaFicha` de `web/main.ts`.
+  **Evidência 18/11/2026:** seção `saude` já presente na base, montando serviço HTTP e
+  guarda de rascunho. `verificar:ativacao` local passou e matriz SQL de saúde foi
+  reexecutada com saída 0. Conferência visual publicada e leitor de tela continuam pendentes.
 - [ ] 4.3 Verificação visual real no navegador e passagem de leitor de tela.
-  **Pendente:** depende de 4.2 e da ativação da flag.
+  **Parcial 18/11/2026:** componente/CSS reais em Chrome headless isolado, desktop
+  1366×900 e celular 390×844, serviço fictício. Sem overflow; controles rotulados;
+  Tab com foco de 3px; origem/natureza/situação visíveis; carregar/vazio/erro conferidos.
+  Capturas e medidas no relatório noturno. Leitor de tela e navegação autenticada
+  integrada continuam pendentes; DOM não equivale a VoiceOver real.
 
 ## 5. Ativação
 
 - [ ] 5.1 Aplicar as três migrations no projeto de teste e ligar `FFCM_SAUDE_ATIVADA`.
-  **Pendente:** exige autorização explícita para operação remota; não executada.
-- [ ] 5.2 Revisão independente de dois eixos sobre o diff da fatia.
-  **Pendente.**
+  **Pendente:** DF-022 autoriza; acesso operacional indisponível. Não executada.
+- [x] 5.2 Revisão independente de dois eixos sobre o diff da fatia.
+  **18/11/2026:** base fixa `df326cb96f67281e43cdffe868b6444ea26ddf45` (anterior
+  à introdução da fatia), até `d38509a`, caminhos `*saude*`, `rpc.ts` e
+  `cifra-autenticada.ts` apenas no impacto saúde. Padrões e spec acharam dois P2:
+  idempotência após resposta perdida e retirada de membership preexistente na migration.
+  Ambos corrigidos, com revisão focal cruzada independente do diff local, sem P1/P2
+  restante. Revisor reexecutou `web/saude.test.ts` (1/1) e outro reexecutou
+  `testar-saude-operacoes-local.sh` (saída 0). Prova de persistência é HTTP fictício;
+  SQL usa PostgreSQL descartável. Não equivale a ativação/Auth/Vault reais.
 
 ## 6. FR-020 — plano de crise
 
@@ -93,3 +105,15 @@
   concessão de equipe, preenchida na tela de administração e guardada no banco.
   O bloqueio de negócio está encerrado; a implementação saiu da fatia de saúde e virou
   mudança própria: `openspec/changes/plano-de-crise/` (proposal, design e tasks).
+
+## Correção focal após revisão — 18/11/2026
+
+- P2: confirmação de salvamento incerto agora preserva a chave de idempotência junto
+  dos registros pendentes na tela; o serviço HTTP recebe essa chave e não gera outra.
+  Novo comando após confirmação recebe chave nova. Sem mudança no contrato HTTP/banco.
+- TDD: `web/saude.test.ts` falhou antes da correção ao tentar confirmar resposta perdida
+  após persistência. Após correção passou (1 teste): tela e serviço HTTP reais contra
+  fronteira fetch fictícia confirmam versão 2 sem duplicação e permitem novo comando
+  versão 3. Não comprova integração remota.
+- `pnpm run verificar:rapido`: lint e typecheck passaram. Revisão independente posterior
+  da correção ainda necessária; tarefa 5.2 permanece aberta.

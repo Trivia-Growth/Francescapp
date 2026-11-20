@@ -1,6 +1,12 @@
 import { chaveIdempotenciaSchema, uuidSchema } from '../../../packages/contracts/src/comum.ts';
 import { respostaCampoExtraPlanoPrivadaSchema } from '../../../packages/contracts/src/plano-cuidado.ts';
 import {
+  escopoCampoExtraSchema,
+  respostaCampoExtraEscopoPrivadaSchema,
+  tipoCampoExtraSchema,
+  visibilidadeCampoExtraSchema,
+} from '../../../packages/contracts/src/campo-extra-catalogo.ts';
+import {
   dadosAtestadoSchema,
   resultadoAtestacaoSchema,
 } from '../../../packages/contracts/src/rpc.ts';
@@ -9,19 +15,27 @@ type Identidade = { usuario_id: string; session_id: string };
 type Autorizacao =
   | { estado: 'autorizado'; identidade: Identidade }
   | { estado: 'nao_autenticado' | 'sem_permissao' | 'servico_indisponivel' };
+/** `escopo` ausente é a ação literal do Plano de cuidado, preservada com o significado
+ * e o formato antigos. Presente, é a ação parametrizada de FR-078, que também carrega
+ * ordem, obrigatoriedade e visibilidade (migration 20261127100000). */
 type Comando =
-  | { operacao: 'listar' }
+  | { operacao: 'listar'; escopo?: string }
   | {
       operacao: 'gravar';
+      escopo?: string;
       campo_id: string;
       nome: string;
       tipo: string;
       opcoes: unknown;
       ativo: unknown;
+      ordem?: unknown;
+      obrigatorio?: unknown;
+      visibilidade?: unknown;
       versao_esperada: number;
     };
 
 const tipos = ['texto', 'numero', 'data', 'lista'] as const;
+const tiposComEscopo = tipoCampoExtraSchema.options;
 
 /** Operação interna sem rota ou grant; banco autoriza (administrador-only) e audita
  * antes de ler ou gravar. Catálogo não é conteúdo clínico: sem cifra, sem AAD. */
@@ -70,17 +84,46 @@ export async function operarCampoExtraPlanoNativo(
     if (request.signal.aborted) return erro('servico_indisponivel');
     if (comando.operacao !== 'listar' && comando.operacao !== 'gravar')
       return erro('entrada_invalida');
+    const escopo =
+      comando.escopo === undefined ? undefined : escopoCampoExtraSchema.safeParse(comando.escopo);
+    if (escopo && !escopo.success) return erro('entrada_invalida');
+    const comEscopo = escopo?.data;
     let campoId: string | undefined;
     let nome: string | undefined;
-    let tipo: (typeof tipos)[number] | undefined;
+    let tipo: (typeof tiposComEscopo)[number] | undefined;
     let opcoes: readonly string[] | null | undefined;
     let ativo: boolean | undefined;
+    let ordem: number | undefined;
+    let obrigatorio: boolean | undefined;
+    let visibilidade: string | undefined;
     let chaveIdempotencia: string | undefined;
     if (comando.operacao === 'gravar') {
       const chave = chaveIdempotenciaSchema.safeParse(request.headers.get('x-chave-idempotencia'));
       const id = uuidSchema.safeParse(comando.campo_id);
       const nomeValidado = typeof comando.nome === 'string' ? comando.nome.trim() : '';
-      const tipoValidado = tipos.find((valor) => valor === comando.tipo);
+      const permitidos: readonly string[] = comEscopo ? tiposComEscopo : tipos;
+      const tipoValidado = tiposComEscopo.find(
+        (valor) => valor === comando.tipo && permitidos.includes(valor),
+      );
+      if (comEscopo) {
+        const visibilidadeValidada = visibilidadeCampoExtraSchema.safeParse(comando.visibilidade);
+        if (
+          !visibilidadeValidada.success ||
+          typeof comando.obrigatorio !== 'boolean' ||
+          !Number.isInteger(comando.ordem) ||
+          (comando.ordem as number) < 0 ||
+          (comando.ordem as number) > 999999999
+        )
+          return erro('entrada_invalida');
+        ordem = comando.ordem as number;
+        obrigatorio = comando.obrigatorio;
+        visibilidade = visibilidadeValidada.data;
+      } else if (
+        comando.ordem !== undefined ||
+        comando.obrigatorio !== undefined ||
+        comando.visibilidade !== undefined
+      )
+        return erro('entrada_invalida');
       if (
         !chave.success ||
         !id.success ||
@@ -127,25 +170,24 @@ export async function operarCampoExtraPlanoNativo(
     )
       return erro('nao_autenticado');
     const entrada: Record<string, unknown> = { request_id: requestId };
+    if (comEscopo) entrada.escopo = comEscopo;
     if (comando.operacao === 'gravar' && campoId !== undefined) {
-      const digest = await portas.idempotencia.calcularDigestIdempotencia(
-        portas.atestador.canonicalizar({
-          campo_id: campoId,
-          nome,
-          tipo,
-          opcoes,
-          ativo,
-          versao_esperada: comando.versao_esperada,
-        }),
-      );
-      if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) throw new Error();
-      Object.assign(entrada, {
+      const comum = {
         campo_id: campoId,
         nome,
         tipo,
         opcoes,
         ativo,
         versao_esperada: comando.versao_esperada,
+      };
+      const proprio = comEscopo
+        ? { escopo: comEscopo, ordem, obrigatorio, visibilidade }
+        : undefined;
+      const digest = await portas.idempotencia.calcularDigestIdempotencia(
+        portas.atestador.canonicalizar({ ...comum, ...proprio }),
+      );
+      if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) throw new Error();
+      Object.assign(entrada, comum, proprio, {
         chave_idempotencia: chaveIdempotencia,
         digest_idempotencia: digest,
         auditoria_id: crypto.randomUUID(),
@@ -154,8 +196,11 @@ export async function operarCampoExtraPlanoNativo(
     const metadados = dadosAtestadoSchema.omit({ digest_entrada: true }).parse({
       ...portas.metadados(requestId),
       ...identidade,
-      operacao:
-        comando.operacao === 'listar'
+      operacao: comEscopo
+        ? comando.operacao === 'listar'
+          ? 'api.listar_campo_extra'
+          : 'api.gravar_campo_extra'
+        : comando.operacao === 'listar'
           ? 'api.listar_campo_extra_plano'
           : 'api.gravar_campo_extra_plano',
     });
@@ -173,7 +218,9 @@ export async function operarCampoExtraPlanoNativo(
       throw new Error();
     if (request.signal.aborted) throw new Error();
     iniciada = comando.operacao === 'gravar';
-    const resposta = respostaCampoExtraPlanoPrivadaSchema.parse(
+    const resposta = (
+      comEscopo ? respostaCampoExtraEscopoPrivadaSchema : respostaCampoExtraPlanoPrivadaSchema
+    ).parse(
       await portas.executar(request, {
         p_transporte: {
           entrada: { ...entrada, atestado: prova.atestado },

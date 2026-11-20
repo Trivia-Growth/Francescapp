@@ -29,7 +29,15 @@ const JANELA_MS = 30_000;
  * o valor conhecido vale, como antes. */
 const ESPERA_RETENTATIVA_MS = 150;
 
-type Linha = { valor: ValorConfiguracao; tipo: TipoConfiguracao; versao: number };
+type Linha = {
+  valor: ValorConfiguracao;
+  tipo: TipoConfiguracao;
+  versao: number;
+  /** Faixa declarada no catálogo (migration `20261128100000`). `undefined` quando a chave
+   * não declara limite, ou quando o banco ainda não tem as colunas. */
+  minimo?: number;
+  maximo?: number;
+};
 
 let cache: { em: number; valores: ReadonlyMap<string, Linha> } | undefined;
 let emVoo: Promise<ReadonlyMap<string, Linha>> | undefined;
@@ -58,7 +66,7 @@ async function ler(pool: Pool): Promise<ReadonlyMap<string, Linha>> {
     const valores = new Map<string, Linha>();
     for (const [chave, item] of Object.entries(bruto as Record<string, unknown>)) {
       if (item === null || typeof item !== 'object' || Array.isArray(item)) continue;
-      const { valor, tipo, versao } = item as Record<string, unknown>;
+      const { valor, tipo, versao, minimo, maximo } = item as Record<string, unknown>;
       const tipoValidado = tipoConfiguracaoSchema.safeParse(tipo);
       const valorValidado = valorConfiguracaoSchema.safeParse(valor);
       if (!tipoValidado.success || !valorValidado.success) continue;
@@ -68,6 +76,11 @@ async function ler(pool: Pool): Promise<ReadonlyMap<string, Linha>> {
         valor: valorValidado.data,
         tipo: tipoValidado.data,
         versao: versao as number,
+        // Faixa só é aceita quando vem inteira e coerente. Qualquer coisa fora disso é
+        // tratada como "sem faixa do banco", e a faixa de código continua valendo: uma
+        // leitura estranha não pode AFROUXAR um teto.
+        ...(Number.isSafeInteger(minimo) ? { minimo: minimo as number } : {}),
+        ...(Number.isSafeInteger(maximo) ? { maximo: maximo as number } : {}),
       });
     }
     return valores;
@@ -145,7 +158,17 @@ export async function textoConfigurado(
 }
 
 /** Lê uma chave numérica inteira. Fora de faixa, não inteira, ausente ou ilegível cai no
- * padrão — nunca em "sem limite", porque este número costuma ser um teto. */
+ * padrão — nunca em "sem limite", porque este número costuma ser um teto.
+ *
+ * `minimo`/`maximo` são o teto DE CÓDIGO (FR-085, S2: "a configuração pode baixar, nunca
+ * subir"). A faixa declarada no catálogo entra por cima, e só para RESTRINGIR: a faixa
+ * efetiva é a interseção das duas. Uma faixa do banco mais permissiva que o código é
+ * ignorada, não obedecida — senão a tela alargaria um teto de proteção.
+ *
+ * A recusa de gravação fora de faixa é do BANCO (CHECK em `identidade.configuracao_sistema`
+ * e `ENTRADA_INVALIDA` na operação administrativa). Aqui a faixa continua existindo apenas
+ * como falha fechada de leitura: se um valor fora de faixa chegar a este ponto, ele cai no
+ * padrão em vez de virar limite. */
 export async function numeroConfigurado(
   pool: Pool,
   chave: string,
@@ -157,7 +180,9 @@ export async function numeroConfigurado(
     const valores = await carregarConfiguracaoServidor(pool);
     const linha = valores.get(chave);
     if (!linha || linha.tipo !== 'numero' || typeof linha.valor !== 'number') return padrao;
-    if (!Number.isInteger(linha.valor) || linha.valor < minimo || linha.valor > maximo)
+    const pisoEfetivo = linha.minimo === undefined ? minimo : Math.max(minimo, linha.minimo);
+    const tetoEfetivo = linha.maximo === undefined ? maximo : Math.min(maximo, linha.maximo);
+    if (!Number.isInteger(linha.valor) || linha.valor < pisoEfetivo || linha.valor > tetoEfetivo)
       return padrao;
     return linha.valor;
   } catch {

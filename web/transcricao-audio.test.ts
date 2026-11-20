@@ -95,6 +95,99 @@ const esperar = async () => {
 };
 
 describe('relato por áudio', () => {
+  it('encerra a gravação ao sair do caso sem enviar o áudio abandonado', async () => {
+    const raiz = document.createElement('div');
+    const { Gravador, instancias } = criarGravadorFalso();
+    const pararFaixa = vi.fn();
+    const servico = servicoFalso();
+    const desmontar = montarTranscricaoAudio(raiz, paciente, servico, vi.fn(), vi.fn(), {
+      midia: {
+        getUserMedia: vi.fn(async () => ({ getTracks: () => [{ stop: pararFaixa }] }) as never),
+      },
+      gravador: Gravador,
+    });
+    raiz.querySelector('button')?.click();
+    await esperar();
+    expect(instancias[0]?.state).toBe('recording');
+    desmontar();
+    await esperar();
+    expect(instancias[0]?.state).toBe('inactive');
+    expect(pararFaixa).toHaveBeenCalledOnce();
+    expect(servico.registrar).not.toHaveBeenCalled();
+    expect(raiz.childElementCount).toBe(0);
+  });
+
+  it('não envia áudio se sair do caso durante a leitura assíncrona do arquivo', async () => {
+    const raiz = document.createElement('div');
+    const { Gravador, instancias } = criarGravadorFalso();
+    const servico = servicoFalso();
+    const desmontar = montarTranscricaoAudio(raiz, paciente, servico, vi.fn(), vi.fn(), {
+      midia: midiaFalsa() as never,
+      gravador: Gravador,
+    });
+    raiz.querySelector('button')?.click();
+    await esperar();
+    instancias[0]?.stop();
+    // O callback stop aguarda Blob.arrayBuffer/FileReader. A próxima montagem
+    // não pode disparar envio usando a gravação do caso que acabou de sair.
+    desmontar();
+    await esperar();
+    expect(servico.registrar).not.toHaveBeenCalled();
+    expect(raiz.childElementCount).toBe(0);
+  });
+
+  it('preserva o original pendente e só libera nova gravação após regularizar o descarte', async () => {
+    const raiz = document.createElement('div');
+    const { Gravador, instancias } = criarGravadorFalso();
+    const excluir = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('indisponível'))
+      .mockResolvedValueOnce(registroFicticio({ exclusao_estado: 'confirmada' }));
+    const servico = servicoFalso({ excluirAudio: excluir });
+    const confirmarTexto = vi.fn();
+    const desmontar = montarTranscricaoAudio(raiz, paciente, servico, confirmarTexto, vi.fn(), {
+      midia: midiaFalsa() as never,
+      gravador: Gravador,
+      textoInicial: 'Texto humano.',
+    });
+    const gravar = raiz.querySelector('button');
+    gravar?.click();
+    await esperar();
+    instancias[0]?.stop();
+    await esperar();
+    expect(gravar?.disabled).toBe(true);
+    gravar?.click();
+    expect(instancias).toHaveLength(1);
+    expect(raiz.querySelector('textarea')?.value).toBe(`Texto humano.\n\n${falaFicticia}`);
+    expect(confirmarTexto).not.toHaveBeenCalled();
+    const confirmar = [...raiz.querySelectorAll('button')].find(
+      (botao) => botao.textContent === 'Confirmar revisão',
+    );
+    expect(confirmar?.hidden).toBe(false);
+    confirmar?.click();
+    await esperar();
+    expect(servico.confirmarRevisao).toHaveBeenCalledWith(
+      paciente,
+      audioId,
+      `Texto humano.\n\n${falaFicticia}`,
+    );
+    expect(gravar?.disabled).toBe(true);
+    gravar?.click();
+    expect(instancias).toHaveLength(1);
+    const regularizar = [...raiz.querySelectorAll('button')].find(
+      (botao) => botao.textContent === 'Tentar excluir o áudio novamente',
+    );
+    regularizar?.click();
+    await esperar();
+    expect(excluir).toHaveBeenNthCalledWith(2, paciente, audioId);
+    expect(gravar?.disabled).toBe(false);
+    gravar?.click();
+    await esperar();
+    expect(instancias).toHaveLength(2);
+    expect(raiz.querySelector('textarea')?.value).toBe(`Texto humano.\n\n${falaFicticia}`);
+    desmontar();
+  });
+
   it('reconhece só os formatos do contrato', () => {
     expect(mimeDoBlob('audio/webm;codecs=opus')).toBe('audio/webm');
     expect(mimeDoBlob('audio/aiff')).toBeNull();

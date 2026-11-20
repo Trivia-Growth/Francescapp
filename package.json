@@ -17,7 +17,7 @@
     "lint:base": "biome check scripts/verify-base-preservation.mjs scripts/test-verify-base-preservation.mjs scripts/verify-mockup-isolation.mjs scripts/test-verify-mockup-isolation.mjs",
     "verificar:base": "pnpm run test:preservacao && pnpm run verificar:preservacao && pnpm run test:isolamento && pnpm run verificar:isolamento && pnpm run verificar:migracao && pnpm run lint:base",
     "typecheck:funcoes": "tsc --project supabase/functions/tsconfig.json",
-    "typecheck:deno": "deno check --config supabase/functions/deno.json --frozen supabase/functions/_shared/sessao/renovacao-prova.ts supabase/functions/_shared/sessao/persistencia-postgres-experimento.ts supabase/functions/_shared/identidade/entrada-tecnica-prova.ts supabase/functions/_shared/identidade/desafio-google.ts supabase/functions/_shared/identidade/google-jwks.ts supabase/functions/_shared/identidade/auth-google.ts supabase/functions/_shared/atestado-operacao.ts supabase/functions/_shared/cofre-vault.ts supabase/functions/_shared/cofre-vault-postgres.ts supabase/functions/_shared/pool-cofre.ts supabase/functions/_shared/configurar-cofre-experimental.ts packages/cadastro/src/executor-paciente-experimental.ts packages/cadastro/src/http-reconciliacao-experimental.ts packages/cadastro/src/projetar-paciente-experimental.ts",
+    "typecheck:deno": "deno check --config supabase/functions/deno.json --frozen supabase/functions/_shared/sessao/renovacao-prova.ts supabase/functions/_shared/sessao/persistencia-postgres-experimento.ts supabase/functions/_shared/identidade/entrada-tecnica-prova.ts supabase/functions/_shared/identidade/desafio-google.ts supabase/functions/_shared/identidade/google-jwks.ts supabase/functions/_shared/identidade/auth-google.ts supabase/functions/_shared/atestado-operacao.ts supabase/functions/_shared/cofre-vault.ts supabase/functions/_shared/cofre-vault-postgres.ts supabase/functions/_shared/pool-cofre.ts supabase/functions/_shared/configurar-cofre-experimental.ts supabase/functions/_shared/edge/ambiente-isolate.ts supabase/functions/_shared/edge/caminho-edge.ts supabase/functions/_shared/edge/erro-edge.ts supabase/functions/_shared/edge/conexao-supavisor.ts supabase/functions/_shared/edge/funcao-edge.ts scripts/prova-conexao-supavisor-pooler.ts scripts/prova-regras-atendimento-supabase-local.ts scripts/edge-partida-frio.ts netlify/functions/_shared/encaminhamento-api.ts packages/cadastro/src/executor-paciente-experimental.ts packages/cadastro/src/http-reconciliacao-experimental.ts packages/cadastro/src/projetar-paciente-experimental.ts supabase/functions/configuracao-sistema/index.ts supabase/functions/regras-atendimento/index.ts supabase/functions/auditoria/index.ts supabase/functions/preautorizacoes-familiares/index.ts supabase/functions/solicitacoes-titular/index.ts",
     "typecheck:web": "tsc --project web/tsconfig.json",
     "typecheck:proxy": "tsc --project netlify/tsconfig.json",
     "typecheck": "pnpm -r --if-present typecheck && pnpm run typecheck:funcoes && pnpm run typecheck:web && pnpm run typecheck:proxy",
@@ -29,17 +29,19 @@
     "test:web": "vitest run web",
     "test:proxy": "vitest run netlify/functions/_shared",
     "validar:configuracao": "node scripts/validar-configuracao-local.mjs",
+    "verificar:celular": "playwright test --config playwright.config.ts",
     "preparar:bootstrap-tecnico": "node --experimental-strip-types scripts/preparar-bootstrap-tecnico.mjs",
     "prepare": "lefthook install",
     "verificar:rapido": "lefthook run pre-push --force",
     "verificar:ativacao": "pnpm run verificar:fundacao",
-    "lint": "biome check packages/contracts packages/cadastro supabase/functions/_shared netlify/functions web scripts/validar-configuracao-local.mjs",
-    "verificar:fundacao": "pnpm run lint && pnpm run typecheck && pnpm run typecheck:deno && pnpm run test:contratos && pnpm run test:cadastro && pnpm run test:funcoes && pnpm run test:proxy && pnpm run test:web && pnpm run build:web && pnpm run validar:configuracao"
+    "lint": "biome check packages/contracts packages/cadastro supabase/functions/_shared supabase/functions/*/index.ts netlify/functions web scripts/validar-configuracao-local.mjs scripts/prova-celular scripts/prova-celular-vite.config.mjs playwright.config.ts",
+    "verificar:fundacao": "pnpm run lint && pnpm run typecheck && pnpm run typecheck:deno && pnpm run test:contratos && pnpm run test:cadastro && pnpm run test:funcoes && pnpm run test:proxy && pnpm run test:web && pnpm run build:web && pnpm run validar:configuracao && pnpm run verificar:celular"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@fission-ai/openspec": "1.14.1",
     "@iarna/toml": "2.2.5",
+    "@playwright/test": "1.65.1",
     "@types/node": "22.15.34",
     "@types/pg": "8.15.5",
     "jsdom": "26.1.0",
@@ -52,6 +54,7 @@
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.118.0",
     "jose": "6.2.12",
+    "pdf-lib": "1.17.1",
     "pg": "8.16.3",
     "zod": "4.1.12"
   }

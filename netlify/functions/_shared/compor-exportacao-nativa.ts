@@ -26,6 +26,7 @@ export async function comporExportacaoNativa(
     referencias: ReferenciasCifraCofre;
     keyIdAtestado: string;
   },
+  observarRespostaPrivada?: (resposta: unknown) => void,
 ): Promise<Resultado> {
   const controle = new AbortController();
   const cancelar = () => controle.abort();
@@ -111,10 +112,12 @@ export async function comporExportacaoNativa(
         idempotencia: criarIdempotenciaNativa(cofre.cifra),
         cifra: cofre.cifra,
         atestador: cofre.atestador,
-        executar: (_request, transporte) => {
+        executar: async (_request, transporte) => {
           verificarCancelamento();
           mutacaoIniciada = comando.operacao !== 'ler';
-          return executarExportacaoNativa(contexto.cliente, transporte);
+          const resposta = await executarExportacaoNativa(contexto.cliente, transporte);
+          observarRespostaPrivada?.(resposta);
+          return resposta;
         },
       }),
     );

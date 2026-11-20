@@ -1,3 +1,4 @@
+import { metadadosAadExecucaoTurnoSchema } from './turno-execucao.ts';
 import { z } from 'zod';
 import { eventoAuditoriaSchema } from './auditoria.ts';
 
@@ -15,6 +16,11 @@ import {
   versaoSchema,
 } from './comum.ts';
 import { estadoConcessaoSchema } from './identidade.ts';
+import {
+  comprovanteDespesaSchema,
+  linhaApuracaoSchema,
+  valorCentavosSchema,
+} from './financeiro.ts';
 import { sinalCarteiraSchema } from './pendencia.ts';
 
 // Reexportados de `comum.ts`: quem já importava daqui continua importando daqui. A definição
@@ -262,7 +268,153 @@ const metadadosAadExportacaoSchema = z
   })
   .strict();
 
+export const metadadosAadEscalaTurnoSchema = z
+  .object({
+    tabela: z.literal('cadastro.turno_escala_versao'),
+    paciente_id: uuidSchema,
+    escala_id: uuidSchema,
+    versao: z.number().int().positive(),
+    campo: z.literal('motivo'),
+    formato: z.literal(1),
+  })
+  .strict();
+
+export const metadadosAadAcessoGerenciadoSchema = z
+  .object({
+    tabela: z.literal('identidade.acesso_gerenciado'),
+    registro_id: uuidSchema,
+    campo: z.enum(['nome', 'email', 'motivo']),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+/** FR-024. Observação livre do registro de realização do compromisso. `registro_id` e
+ * `versao` entram na ligação porque o registro é append-only: a observação de uma versão
+ * não pode ser remontada como se fosse a de outra versão do mesmo compromisso. */
+export const metadadosAadRealizacaoCompromissoSchema = z
+  .object({
+    tabela: z.literal('cadastro.realizacao_compromisso'),
+    registro_id: uuidSchema,
+    versao: z.number().int().min(1).max(2147483647),
+    campo: z.literal('observacao'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+/** FR-037. Motivo da substituição temporária da case manager e motivo do encerramento
+ * antecipado. Mesma forma genérica do repositório — `{tabela, registro_id, campo, formato}` —,
+ * com `registro_id` na chave primária da linha (`cadastro.substituicao_case_manager.id`), que
+ * é conhecida antes da cifra nos dois caminhos de escrita. `campo` entra na ligação porque a
+ * mesma linha guarda dois textos cifrados: sem isso o envelope do motivo do registro seria
+ * aceito no lugar do motivo do encerramento. A linha é append-only com uma única transição
+ * nomeada, então `versao` seria redundante com `id`. Não há convenção própria aqui. */
+export const metadadosAadSubstituicaoCmSchema = z
+  .object({
+    tabela: z.literal('cadastro.substituicao_case_manager'),
+    registro_id: uuidSchema,
+    campo: z.enum(['motivo', 'motivo_encerramento']),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+/** AAD do financeiro do cuidado (FR-068/FR-069). As duas tabelas usam a forma genérica do
+ * repositório — `{tabela, registro_id, campo, formato}` —, com `registro_id` na chave
+ * primária da linha: `valor_id` no valor acordado, `id` no lançamento de despesa. Não existe
+ * segunda convenção de AAD aqui. */
+export const metadadosAadFinanceiroValorSchema = z
+  .object({
+    tabela: z.literal('financeiro.valor_acordado_turno'),
+    registro_id: uuidSchema,
+    campo: z.literal('motivo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+/** `registro_id` é o `id` da linha, não o `despesa_id` do lançamento: a tabela é append-only
+ * por `(despesa_id, versao)` e cada versão é uma linha própria, então amarrar o `id` é o que
+ * impede reaproveitar o envelope de uma versão como se fosse o de outra, do mesmo lançamento
+ * e do mesmo campo. `api.consultar_despesas` projeta `id` justamente para isso. `campo`
+ * continua na ligação porque há três campos cifrados na mesma linha. */
+export const metadadosAadFinanceiroDespesaSchema = z
+  .object({
+    tabela: z.literal('financeiro.despesa_lancamento'),
+    registro_id: uuidSchema,
+    campo: z.enum(['descricao', 'autorizacao', 'motivo_retificacao']),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+/** Recorte do AAD financeiro: os MESMOS membros que `metadadosAadSchema` carrega, reunidos
+ * para que a composição do financeiro (`compor-financeiro-nativo.ts`) possa recusar na
+ * fronteira qualquer AAD de tabela de cuidado. Não é uma segunda convenção — é um
+ * subconjunto da única união, e a separação de chaves do design D1 depende dele. */
+
+/** FR-073/FR-074/FR-076/FR-077. Ficha de plantão. As três tabelas usam a MESMA forma
+ * genérica do repositório — `{tabela, registro_id, campo, formato}` —, a que as tabelas
+ * financeiras e a substituição de case manager já adotam. Como nas despesas, `registro_id`
+ * é o `id` da LINHA, não o identificador lógico do plantão, da pendência ou do rascunho:
+ * as duas primeiras são append-only por `(registro_id, versao)`, com uma linha por versão,
+ * e é amarrar o `id` que impede reaproveitar o envelope de uma versão como se fosse o de
+ * outra. O rascunho é mutável, e por isso recebe um `id` novo a cada gravação, o que tira
+ * do envelope antigo qualquer serventia. `campo` entra na ligação porque a mesma linha
+ * guarda mais de um texto cifrado. Nenhuma convenção nova de AAD é criada aqui. */
+export const metadadosAadPlantaoVersaoSchema = z
+  .object({
+    tabela: z.literal('cadastro.turno_plantao_versao'),
+    registro_id: uuidSchema,
+    campo: z.enum(['atividades', 'observacoes', 'motivo']),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+export const metadadosAadPlantaoPendenciaSchema = z
+  .object({
+    tabela: z.literal('cadastro.turno_plantao_pendencia_versao'),
+    registro_id: uuidSchema,
+    campo: z.enum(['conteudo', 'motivo']),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+/** FR-078/FR-081. Resposta de campo acrescentado ao modelo da ficha. Mesma forma genérica,
+ * mesma regra: `registro_id` é o `id` da LINHA da resposta, uma por (ficha, versão, campo),
+ * de modo que o envelope de uma versão não serve para outra nem para outro campo. */
+export const metadadosAadPlantaoRespostaSchema = z
+  .object({
+    tabela: z.literal('cadastro.turno_plantao_resposta_versao'),
+    registro_id: uuidSchema,
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+export const metadadosAadFichaPlantaoRascunhoSchema = z
+  .object({
+    tabela: z.literal('cadastro.ficha_plantao_rascunho'),
+    registro_id: uuidSchema,
+    campo: z.literal('conteudo'),
+    formato: formatoCifraSchema,
+  })
+  .strict();
+
+export const metadadosAadFinanceiroSchema = z.union([
+  metadadosAadFinanceiroValorSchema,
+  metadadosAadFinanceiroDespesaSchema,
+]);
+export type MetadadosAadFinanceiro = z.infer<typeof metadadosAadFinanceiroSchema>;
+
 export const metadadosAadSchema = z.union([
+  metadadosAadFinanceiroValorSchema,
+  metadadosAadFinanceiroDespesaSchema,
+  metadadosAadRealizacaoCompromissoSchema,
+  metadadosAadSubstituicaoCmSchema,
+  metadadosAadPlantaoVersaoSchema,
+  metadadosAadPlantaoPendenciaSchema,
+  metadadosAadPlantaoRespostaSchema,
+  metadadosAadFichaPlantaoRascunhoSchema,
+  metadadosAadExecucaoTurnoSchema,
+  metadadosAadAcessoGerenciadoSchema,
+  metadadosAadEscalaTurnoSchema,
   metadadosAadExportacaoSchema,
   metadadosAadSolicitacaoTitularSchema,
   metadadosAadCamposSchema,
@@ -621,7 +773,7 @@ export type MapeamentoOperacao = {
   rpc: string;
   executor: ExecutorOperacao;
   transacao: TransacaoOperacao;
-  perfilExigido: 'administrador' | 'sessao-admitida' | 'servidor';
+  perfilExigido: 'administrador' | 'financeiro' | 'sessao-admitida' | 'servidor';
 };
 
 /** Uma função SQL recebe exclusivamente p_entrada jsonb. Ator vem do JWT;
@@ -660,6 +812,131 @@ const assinatura = <E extends z.ZodType, S extends z.ZodType>(
   }),
   saida: resultadoRpcSchema(dados),
 });
+
+// --- Financeiro do cuidado (FR-068, FR-069, FR-070) ------------------------------------
+//
+// Os quatro wrappers públicos são `api.financeiro_concessao_privado`,
+// `api.financeiro_valor_privado`, `api.financeiro_despesa_privado` e
+// `api.financeiro_apuracao_privado`, e todos recebem `p_transporte`. O catálogo registra a
+// AÇÃO atestada, não o wrapper: é a ação que viaja em `atestado.operacao`, é ela que o
+// `array[...]` de cada `operacao.financeiro_*_privada` aceita, e é ela que o `superRefine`
+// de `assinatura` confere. O mapeamento ação -> wrapper está em `wrapperFinanceiro` abaixo.
+/** `habilitacao_financeira_versao` nasce em 0 (default da coluna em
+ * `20261126200000_financeiro_concessao.sql`) e só cresce a cada gravação, então NÃO é
+ * `versaoSchema`, que é `positive()` e recusaria toda concessão nunca marcada. O teto é o
+ * do CHECK da coluna. `usuario_id` é nulo enquanto a concessão está `pendente` — a coluna
+ * é anulável desde `20261017113000_fundacao_identidade_cadastro.sql` —, como já descreve
+ * `itemHabilitacaoSchema` para a mesma tabela. */
+export const versaoHabilitacaoFinanceiraSchema = z.number().int().min(0).max(2_147_483_647);
+
+export const financeiroConcessaoSaidaSchema = z
+  .object({
+    concessao_id: uuidSchema,
+    usuario_id: uuidSchema.nullable(),
+    email: campoCifradoSchema,
+    perfil: perfilSchema,
+    estado: estadoConcessaoSchema,
+    habilitado: z.boolean(),
+    versao: versaoHabilitacaoFinanceiraSchema,
+  })
+  .strict();
+
+export const financeiroValorSaidaSchema = z
+  .object({
+    valor_id: uuidSchema,
+    profissional_usuario_id: uuidSchema,
+    valor_turno_centavos: valorCentavosSchema,
+    vigencia: z.object({ inicio: z.iso.date(), fim: z.iso.date().nullable() }).strict(),
+    motivo_cifrado: campoCifradoSchema,
+    autor_usuario_id: uuidSchema,
+    registrado_em: z.iso.datetime({ offset: true }),
+  })
+  .strict();
+
+export const financeiroDespesaSaidaSchema = z
+  .object({
+    /** Chave primária da LINHA (uma por versão), distinta do `despesa_id` do lançamento. É o
+     * `registro_id` do AAD da despesa; sem ela na listagem o texto cifrado não é decifrável. */
+    id: uuidSchema,
+    despesa_id: uuidSchema,
+    versao: versaoSchema,
+    paciente_id: uuidSchema,
+    descricao_cifrada: campoCifradoSchema,
+    valor_centavos: valorCentavosSchema,
+    data: z.iso.date(),
+    responsavel_usuario_id: uuidSchema,
+    autorizacao_cifrada: campoCifradoSchema,
+    comprovante_objeto_nome: z.string().min(1).max(512).nullable(),
+    motivo_retificacao_cifrado: campoCifradoSchema.nullable(),
+    autor_usuario_id: uuidSchema,
+    registrado_em: z.iso.datetime({ offset: true }),
+  })
+  .strict();
+
+export const financeiroApuracaoSaidaSchema = z
+  .object({
+    origem: z.literal('consulta_aberta'),
+    consultado_em: z.iso.datetime({ offset: true }),
+    profissional_usuario_id: uuidSchema,
+    periodo_inicio: z.iso.date(),
+    periodo_fim: z.iso.date(),
+    linhas: z.array(linhaApuracaoSchema).max(1000),
+    total_centavos: z.number().int().min(0),
+    pendentes: z.number().int().min(0).max(1000),
+  })
+  .strict();
+
+/** Envelope das RPCs financeiras privadas. Difere de `resultadoRpcSchema` em dois pontos
+ * reais do banco: as mutações devolvem `repeticao`, e os códigos de erro possíveis são
+ * apenas os três que `operacao.financeiro_*_privada` retorna. `.strict()` em ambos os
+ * membros impede que um campo novo do banco passe silenciosamente para a borda HTTP. */
+export const respostaFinanceiraPrivadaSchema = <T extends z.ZodType>(dados: T) =>
+  z.discriminatedUnion('ok', [
+    z
+      .object({
+        ok: z.literal(true),
+        dados,
+        repeticao: z.boolean().optional(),
+        request_id: uuidSchema,
+      })
+      .strict(),
+    z
+      .object({
+        ok: z.literal(false),
+        erro: z
+          .object({
+            codigo: z.enum(['sem_permissao', 'conflito', 'conflito_idempotencia']),
+          })
+          .strict(),
+        request_id: uuidSchema,
+      })
+      .strict(),
+  ]);
+
+const periodoApuracaoEntradaSchema = contextoRpcUsuarioSchema
+  .extend({
+    profissional_usuario_id: uuidSchema,
+    periodo_inicio: z.iso.date(),
+    periodo_fim: z.iso.date(),
+  })
+  .strict();
+
+/** Ação atestada -> função `api.*` que a executa. Falhar fechado: uma ação ausente daqui
+ * não tem wrapper e não pode ser despachada. */
+export const wrapperFinanceiro = Object.freeze({
+  'api.listar_concessao_financeira': 'financeiro_concessao_privado',
+  'api.gravar_concessao_financeira': 'financeiro_concessao_privado',
+  'api.registrar_valor_acordado': 'financeiro_valor_privado',
+  'api.alterar_valor_acordado': 'financeiro_valor_privado',
+  'api.consultar_valor_acordado': 'financeiro_valor_privado',
+  'api.registrar_despesa': 'financeiro_despesa_privado',
+  'api.retificar_despesa': 'financeiro_despesa_privado',
+  'api.consultar_despesas': 'financeiro_despesa_privado',
+  'api.executar_apuracao_repasse': 'financeiro_apuracao_privado',
+  'api.consultar_apuracao_repasse': 'financeiro_apuracao_privado',
+  'api.exportar_apuracao_repasse': 'financeiro_apuracao_privado',
+} as const);
+export type AcaoFinanceira = keyof typeof wrapperFinanceiro;
 
 export const assinaturasRpc = {
   desafioGoogle: assinatura(
@@ -945,6 +1222,153 @@ export const assinaturasRpc = {
   ),
 } as const;
 
+/** Catálogo das operações financeiras, montado pelo mesmo `assinatura(...)` das vizinhas.
+ *
+ * Fica em constante própria, e não dentro de `assinaturasRpc`, por um motivo concreto:
+ * `test/contratos-internos.test.ts` exige fixtures exaustivas por chave de `assinaturasRpc`,
+ * e ampliá-la quebraria aquele teste — que é a prova de cobertura das operações de
+ * identidade e cadastro, não um obstáculo a contornar editando-o. Mantendo o catálogo
+ * separado, nenhuma trilha existente muda de forma e `mapeamentoOperacoes` continua
+ * descrevendo exatamente o mesmo conjunto de antes. */
+export const assinaturasFinanceiroRpc = {
+  // Conceder a audiência financeira é ato de Administrador; exercê-la é da audiência
+  // financeira. Por isso os dois primeiros exigem 'administrador' e os demais 'financeiro'.
+  listarConcessaoFinanceira: assinatura(
+    'api.listar_concessao_financeira',
+    'jwt-do-solicitante',
+    'leitura-auditada',
+    'administrador',
+    contextoRpcUsuarioSchema,
+    z.array(financeiroConcessaoSaidaSchema),
+  ),
+  gravarConcessaoFinanceira: assinatura(
+    'api.gravar_concessao_financeira',
+    'jwt-do-solicitante',
+    'mutacao-auditada',
+    'administrador',
+    mutacaoSchema
+      .extend({
+        concessao_id: uuidSchema,
+        habilitado: z.boolean(),
+        versao_esperada: versaoHabilitacaoFinanceiraSchema.max(2_147_483_646),
+      })
+      .strict(),
+    financeiroConcessaoSaidaSchema,
+  ),
+  registrarValorAcordado: assinatura(
+    'api.registrar_valor_acordado',
+    'jwt-do-solicitante',
+    'mutacao-auditada',
+    'financeiro',
+    mutacaoSchema
+      .extend({
+        valor_id: uuidSchema,
+        profissional_usuario_id: uuidSchema,
+        valor_turno_centavos: valorCentavosSchema,
+        vigencia_inicio: z.iso.date(),
+        vigencia_fim: z.iso.date().nullable(),
+        motivo_cifrado: campoCifradoSchema,
+      })
+      .strict(),
+    financeiroValorSaidaSchema,
+  ),
+  alterarValorAcordado: assinatura(
+    'api.alterar_valor_acordado',
+    'jwt-do-solicitante',
+    'mutacao-auditada',
+    'financeiro',
+    mutacaoSchema
+      .extend({
+        valor_id: uuidSchema,
+        profissional_usuario_id: uuidSchema,
+        valor_turno_centavos: valorCentavosSchema,
+        vigencia_anterior_id: uuidSchema,
+        vigente_a_partir_de: z.iso.date(),
+        motivo_cifrado: campoCifradoSchema,
+      })
+      .strict(),
+    financeiroValorSaidaSchema,
+  ),
+  consultarValorAcordado: assinatura(
+    'api.consultar_valor_acordado',
+    'jwt-do-solicitante',
+    'leitura-auditada',
+    'financeiro',
+    contextoRpcUsuarioSchema.extend({ profissional_usuario_id: uuidSchema }).strict(),
+    z.array(financeiroValorSaidaSchema),
+  ),
+  registrarDespesa: assinatura(
+    'api.registrar_despesa',
+    'jwt-do-solicitante',
+    'mutacao-auditada',
+    'financeiro',
+    mutacaoSchema
+      .extend({
+        despesa_id: uuidSchema,
+        paciente_id: uuidSchema,
+        descricao_cifrada: campoCifradoSchema,
+        valor_centavos: valorCentavosSchema,
+        data: z.iso.date(),
+        responsavel_usuario_id: uuidSchema,
+        autorizacao_cifrada: campoCifradoSchema,
+        comprovante: comprovanteDespesaSchema,
+      })
+      .strict(),
+    financeiroDespesaSaidaSchema,
+  ),
+  retificarDespesa: assinatura(
+    'api.retificar_despesa',
+    'jwt-do-solicitante',
+    'mutacao-auditada',
+    'financeiro',
+    mutacaoSchema
+      .extend({
+        despesa_id: uuidSchema,
+        retificacao_id: uuidSchema,
+        descricao_cifrada: campoCifradoSchema,
+        valor_centavos: valorCentavosSchema,
+        data: z.iso.date(),
+        responsavel_usuario_id: uuidSchema,
+        autorizacao_cifrada: campoCifradoSchema,
+        motivo_retificacao_cifrado: campoCifradoSchema,
+      })
+      .strict(),
+    financeiroDespesaSaidaSchema,
+  ),
+  consultarDespesas: assinatura(
+    'api.consultar_despesas',
+    'jwt-do-solicitante',
+    'leitura-auditada',
+    'financeiro',
+    contextoRpcUsuarioSchema.extend({ paciente_id: uuidSchema }).strict(),
+    z.array(financeiroDespesaSaidaSchema),
+  ),
+  executarApuracaoRepasse: assinatura(
+    'api.executar_apuracao_repasse',
+    'jwt-do-solicitante',
+    'leitura-auditada',
+    'financeiro',
+    periodoApuracaoEntradaSchema,
+    financeiroApuracaoSaidaSchema,
+  ),
+  consultarApuracaoRepasse: assinatura(
+    'api.consultar_apuracao_repasse',
+    'jwt-do-solicitante',
+    'leitura-auditada',
+    'financeiro',
+    periodoApuracaoEntradaSchema,
+    financeiroApuracaoSaidaSchema,
+  ),
+  exportarApuracaoRepasse: assinatura(
+    'api.exportar_apuracao_repasse',
+    'jwt-do-solicitante',
+    'leitura-auditada',
+    'financeiro',
+    periodoApuracaoEntradaSchema,
+    financeiroApuracaoSaidaSchema,
+  ),
+} as const;
+
 /** Transporte experimental exclusivamente interno, ainda incompatível com o
  * formato atual das RPCs. Não usar em runtime antes da revisão S-02 e da prova
  * de verificação dos bytes, equivalência semântica e autorização no banco.
@@ -966,6 +1390,17 @@ export function criarTransporteRpcAtestadaSchema<R extends keyof typeof assinatu
     })
     .strict();
 }
+
+export const mapeamentoOperacoesFinanceiro = Object.entries(assinaturasFinanceiroRpc).map(
+  ([rota, contrato]) => ({
+    rota,
+    rpc: contrato.rpc,
+    wrapper: wrapperFinanceiro[contrato.rpc as AcaoFinanceira],
+    executor: contrato.executor,
+    transacao: contrato.transacao,
+    perfilExigido: contrato.perfilExigido,
+  }),
+);
 
 export const mapeamentoOperacoes = Object.entries(assinaturasRpc).map(([rota, contrato]) => ({
   rota,
