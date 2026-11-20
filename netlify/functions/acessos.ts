@@ -1,6 +1,10 @@
 import { uuidSchema } from '../../packages/contracts/src/comum.ts';
 import { criarErroPublicoSemCampos } from '../../packages/contracts/src/erros.ts';
 import { comporAcessosNativo } from './_shared/compor-acessos-nativo.ts';
+import { servicoAtivo } from './_shared/configuracao-servidor.ts';
+import { configurarDependenciasNativas } from './_shared/configurar-dependencias-nativas.ts';
+
+let dependencias: ReturnType<typeof configurarDependenciasNativas> | undefined;
 
 export const config = { path: ['/api/acessos', '/api/acessos/operacoes/:id'] };
 
@@ -13,7 +17,28 @@ export default async function acessos(request: Request): Promise<Response> {
   };
   const erro = (codigo: 'entrada_invalida' | 'servico_indisponivel', status: number) =>
     Response.json(criarErroPublicoSemCampos(codigo, crypto.randomUUID()), { status, headers });
-  if (process.env.FFCM_ACESSOS_ATIVADOS !== 'true') return erro('servico_indisponivel', 503);
+  // Interruptor administrado pela tela (`ffcm.acessos.ativo`), com a variável de ambiente
+  // como padrão quando o banco não responde ou não tem a chave.
+  //
+  // Até 20/11/2026 esta rota lia SOMENTE `process.env.FFCM_ACESSOS_ATIVADOS`, enquanto a
+  // chave existia no banco e aparecia na tela de Administração. Ligar pela tela não fazia
+  // nada, em silêncio — o interruptor mentia. Alinhado ao padrão de `financeiro.ts` e
+  // `avisos.ts`.
+  //
+  // Não é autorização: mesmo ligada, a rota segue exigindo sessão, atestado e perfil.
+  try {
+    dependencias ??= configurarDependenciasNativas(process.env);
+  } catch {
+    // Sem acesso ao banco não há configuração a ler, e o padrão desta rota é desligado:
+    // falha fechada, independentemente do que o ambiente diga.
+    return erro('servico_indisponivel', 503);
+  }
+  const disponivel = await servicoAtivo(
+    dependencias.pool,
+    'ffcm.acessos.ativo',
+    process.env.FFCM_ACESSOS_ATIVADOS === 'true',
+  );
+  if (!disponivel) return erro('servico_indisponivel', 503);
   const url = new URL(request.url);
   if (url.hash) return erro('entrada_invalida', 422);
   if (request.method === 'GET' && url.pathname === '/api/acessos') {
