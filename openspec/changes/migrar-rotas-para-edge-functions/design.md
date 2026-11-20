@@ -65,6 +65,18 @@ Grupos 1 e 2 executados no que não depende de operação remota. Três coisas m
 
 *Limite desta passagem:* o módulo de encaminhamento existe (`netlify/functions/_shared/encaminhamento-api.ts`), mas não há arquivo de função registrando o proxy em `/api/*`, e `netlify.toml` não foi alterado. A ligação é o primeiro passo de quem retomar. Nenhuma Edge Function de domínio foi criada — isso é o grupo 3.
 
+### E8 — O que a execução de 20/11/2026 apurou no lote 1
+
+**Não existe implantação na Netlify deste repositório.** Com a sessão da CLI autenticada, nenhum dos 12 projetos das três equipes do solicitante é o FFCMApp. Isso derruba a premissa de 2.5 ("mover as variáveis da Netlify") e redefine o que "estado anterior" significa nas tarefas de paridade: o lado antigo é o módulo de rota executado, não uma implantação servindo tráfego. A reversão por tabela (E4) continua correta como mecanismo, mas hoje reverte para um destino não publicado.
+
+**A migração abre uma porta fora da mesma origem.** D6 manteve a Netlify como proxy para preservar a mesma origem. A Edge Function publicada, porém, também responde em `https://<ref>.supabase.co/functions/v1/<nome>/...` a quem tiver a chave anônima, que é pública por construção. `verify_jwt` barra quem não a tem (401 sem a função ser invocada), e a barreira real continua sendo sessão, concessão e atestado no banco — não é escalonamento. Mas os controles que dependiam de origem passam a ter um caminho que não atravessa o proxy, e isso precisa de tratamento antes de encaminhar qualquer caminho em produção.
+
+**A paridade de cabeçalho não é automática.** A plataforma acrescenta 17 cabeçalhos à resposta, entre eles `sb-error-code: EDGE_FUNCTION_ERROR` — numa resposta de negócio legítima — e um `set-cookie` da Cloudflare com `Domain=supabase.co`. O proxy repassa a resposta inteira, inclusive `set-cookie`, por decisão deliberada de 2.2. Corpo e status ficam idênticos; o cabeçalho, não.
+
+**A partida a frio real é uma ordem de grandeza maior que a de 1.4.** Função de domínio publicada, bundle de 1,5 MB: 369-498 ms no primeiro pedido após a publicação, 89-142 ms quente — de ~280 a ~400 ms de custo de isolate, contra os ~28 ms medidos localmente com cache de módulo quente e função mínima. E esse número ainda não inclui banco: as respostas medidas pararam no gate de interruptor.
+
+**O gate de interruptor e o roteamento trocam de ordem.** Na Netlify o roteamento é da plataforma (`config.path`) e acontece antes do gate; na Edge o roteamento é da própria função e `criarFuncaoEdge` o aplica antes do gate. A diferença não é observável pelo cliente porque o proxy casa o caminho contra a tabela antes de encaminhar — mas é observável por quem chamar a função direto, e aí o envelope de API substitui o 404 do site.
+
 ## Riscos
 
 - **Barreiras migradas cedo (lote 2).** É deliberado: elas são o controle, e migrar com volume pequeno dá atenção total. Mas um erro aqui é o pior erro possível. A matriz deste lote é a mais exigente, com prova de acesso direto ao servidor e ao banco.

@@ -118,3 +118,33 @@ export function criarEncaminhamentoApi(
     },
   });
 }
+
+/** Estado do encaminhamento de produção, caminho a caminho (design E1/E4).
+ *
+ * Começa inteiro em `netlify`: publicar a Edge Function e apontar o caminho para ela são
+ * dois atos distintos, e o segundo só ocorre depois da paridade provada para aquele
+ * caminho. Reverter é trocar `destino` nesta linha — sem republicar função e sem tocar no
+ * cliente.
+ *
+ * Lote 1 (piloto, 5 caminhos) publicado no projeto Supabase em 20/11/2026. Os cinco
+ * continuam em `netlify` enquanto 2.5 estiver bloqueada: sem os segredos no projeto, a
+ * composição das Edge Functions não tem como atender além do envelope de indisponível. */
+export const tabelaEncaminhamentoApi: readonly RotaEncaminhada[] = Object.freeze([
+  {
+    padrao: '/api/admin/configuracao-sistema',
+    funcao: 'configuracao-sistema',
+    destino: 'netlify',
+  },
+  { padrao: '/api/regras-atendimento', funcao: 'regras-atendimento', destino: 'netlify' },
+  { padrao: '/api/admin/auditoria', funcao: 'auditoria', destino: 'netlify' },
+  {
+    padrao: '/api/admin/preautorizacoes-familiares',
+    funcao: 'preautorizacoes-familiares',
+    destino: 'netlify',
+  },
+  {
+    padrao: '/api/admin/solicitacoes-titular',
+    funcao: 'solicitacoes-titular',
+    destino: 'netlify',
+  },
+] as const);
