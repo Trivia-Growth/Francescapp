@@ -135,4 +135,35 @@ do $$ begin
  exception when insufficient_privilege then null; end;
 end $$;
 reset role;
+-- Teto de varredura: acima de 1000 turnos a apuração RECUSA, em vez de somar parte deles
+-- e devolver total menor que o devido. Prova com 1001 turnos encerrados fictícios.
+do $$
+declare r jsonb; prof uuid := '10000000-0000-4000-8000-000000000002';
+  pac uuid := (select id from cadastro.paciente limit 1); n integer;
+begin
+  insert into cadastro.turno(id, paciente_id, profissional_usuario_id, aberto_em, encerrado_em, situacao, versao, parametros)
+  select gen_random_uuid(), pac, prof,
+         '2026-11-05T12:00:00Z'::timestamptz + (i || ' minutes')::interval,
+         '2026-11-05T12:30:00Z'::timestamptz + (i || ' minutes')::interval,
+         'encerrado', 2, '{"duracao_padrao_minutos":720}'
+    from generate_series(1, 1001) i;
+  select count(*) into n from cadastro.turno where profissional_usuario_id = prof
+    and situacao = 'encerrado' and encerrado_em >= '2026-11-01'::date::timestamptz
+    and encerrado_em < ('2026-11-30'::date + 1)::timestamptz;
+  if n <= 1000 then raise exception 'FIXTURE_NAO_PASSOU_DO_TETO: %', n; end if;
+
+  -- A recusa sobe como exceção, do mesmo jeito que `ENTRADA_INVALIDA` já fazia nesta
+  -- função; o ponto provado aqui é que NÃO volta total nenhum.
+  begin
+    r := public.financeiro_apuracao_fixture('api.consultar_apuracao_repasse', jsonb_build_object(
+        'profissional_usuario_id', prof, 'periodo_inicio','2026-11-01','periodo_fim','2026-11-30'),
+      '10000000-0000-4000-8000-000000000003','20000000-0000-4000-8000-000000000003');
+    raise exception 'TOTAL_TRUNCADO_DEVOLVIDO: %', r#>'{dados,total_centavos}';
+  exception when sqlstate '22023' then
+    if sqlerrm is distinct from 'PERIODO_EXCEDE_APURACAO' then
+      raise exception 'RECUSA_COM_MOTIVO_ERRADO: %', sqlerrm;
+    end if;
+  end;
+end $$;
+
 \echo 'FINANCEIRO APURACAO OK'

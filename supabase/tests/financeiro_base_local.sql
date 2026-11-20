@@ -26,6 +26,7 @@ create policy fixture_storage_ampla on storage.objects to authenticated using(tr
 \ir ../migrations/20261126200400_financeiro_despesa.sql
 \ir ../migrations/20261126200500_financeiro_comprovante.sql
 \ir ../migrations/20261126200600_financeiro_apuracao.sql
+\ir ../migrations/20261127310000_financeiro_apuracao_sem_truncamento.sql
 
 -- Contas fictícias novas: 003 é a pessoa do financeiro (profissional SEM vínculo de caso),
 -- 004 é familiar COM fundamento de autorização no caso 4001.
