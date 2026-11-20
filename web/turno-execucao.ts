@@ -31,6 +31,7 @@ import {
 import { montarRelatoriosTurno } from './turno-execucao-relatorios.ts';
 import { montarLocalizacaoCoordenacao } from './turno-execucao-localizacao-coordenacao.ts';
 import { montarGestaoExecucaoTurno } from './turno-execucao-gestao.ts';
+import { montarFichaPlantao, type ServicosFichaPlantao } from './ficha-plantao.ts';
 
 export function montarExecucaoTurno(
   raiz: HTMLElement,
@@ -43,6 +44,9 @@ export function montarExecucaoTurno(
     acessoPerdido(erro: unknown): void;
     alteracaoPendente(valor: boolean): void;
     conversao?: PortasConversaoOcorrencia;
+    /** FR-073/FR-080. Serviços da ficha de plantão, criados sob demanda para que a seção
+     * não faça pedido nenhum enquanto o profissional não a abrir. */
+    criarServicosFicha?(): ServicosFichaPlantao;
   },
 ) {
   let barreira: EstadoBarreiraExecucaoTurno | null = null;
@@ -171,13 +175,53 @@ export function montarExecucaoTurno(
   const relatorioRaiz = el('div');
   relatorios.append(relatorioRaiz);
   secao.append(relatorios);
+  let servicosFicha: ServicosFichaPlantao | null = null;
+  const obterServicosFicha = () => {
+    if (!opcoes.criarServicosFicha) return null;
+    servicosFicha ??= opcoes.criarServicosFicha();
+    return servicosFicha;
+  };
   filhos.push(
     montarRelatoriosTurno(relatorioRaiz, servico, {
       turno,
       acessoPerdido: opcoes.acessoPerdido,
       alteracaoPendente: pendente('pdf'),
+      ...(opcoes.criarServicosFicha
+        ? {
+            // FR-080: rotula o consolidado com o que foi redigido no plantão. A audiência
+            // dos registros continua sendo a de FR-062; nada aqui amplia acesso.
+            fichaDoPlantao: async (turnoId: string) => {
+              const servicos = obterServicosFicha();
+              if (!servicos) return null;
+              const resultado = await servicos.ficha.consultar(pacienteId, turnoId);
+              return { ficha: resultado.ficha, pendencias: resultado.pendencias };
+            },
+          }
+        : {}),
     }),
   );
+  if (opcoes.criarServicosFicha) {
+    const fichaDetalhe = el('details');
+    fichaDetalhe.append(el('summary', 'Ficha do plantão'));
+    const fichaRaiz = el('div');
+    fichaDetalhe.append(fichaRaiz);
+    secao.append(fichaDetalhe);
+    let fichaMontada = false;
+    fichaDetalhe.ontoggle = () => {
+      if (!fichaDetalhe.open || fichaMontada) return;
+      const servicos = obterServicosFicha();
+      if (!servicos) return;
+      fichaMontada = true;
+      filhos.push(
+        montarFichaPlantao(fichaRaiz, servicos, {
+          pacienteId,
+          turno: turno?.situacao === 'aberto' ? turno : null,
+          acessoPerdido: opcoes.acessoPerdido,
+          alteracaoPendente: pendente('ficha-plantao'),
+        }),
+      );
+    };
+  }
   const gestao = el('details');
   gestao.append(el('summary', 'Fundamento familiar, medicação e catálogo'));
   const gestaoRaiz = el('div');

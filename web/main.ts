@@ -66,6 +66,7 @@ import { montarTurnoComExecucao } from './turno-execucao-integracao.js';
 import { montarExecucaoTurno } from './turno-execucao.js';
 import { montarRelatoriosTurno } from './turno-execucao-relatorios.js';
 import { criarServicoTurnoExecucaoHttp } from './servico-turno-execucao-http.js';
+import { criarServicoFichaPlantaoHttp } from './servico-ficha-plantao-http.js';
 import { montarEscalaTurno } from './escala-turno.js';
 import { criarServicoTurnoHttp } from './servico-turno-http.js';
 import './turno-proprio.css';
@@ -851,6 +852,13 @@ function montarSecaoExecucaoTurno(
     acessoPerdido: (erro?: unknown) => acessoPerdido(erro ?? new FalhaApi('nao_autenticado', 401)),
     alteracaoPendente: pendente,
     conversao,
+    // FR-073/FR-078/FR-079. Criados sob demanda: a seção da ficha não faz pedido nenhum
+    // antes de ser aberta. Esconder a seção não autoriza nada — servidor e banco decidem.
+    criarServicosFicha: () => ({
+      ficha: criarServicoFichaPlantaoHttp(identidadeDaSecao),
+      modelo: criarServicoModeloFormularioHttp(identidadeDaSecao, 'ficha_plantao'),
+      papeis: criarServicoPapelDeclaradoHttp(identidadeDaSecao),
+    }),
   };
   const desmontar = comTurno
     ? montarTurnoComExecucao(

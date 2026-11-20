@@ -11,6 +11,7 @@ import {
   estadoTurno,
 } from './turno-execucao-campos.ts';
 import { apresentarRelatorioTurno, dataTurno } from './turno-execucao-leitura.ts';
+import { apresentarConsolidadoFicha, type FichaDoPlantao } from './consolidado-ficha-plantao.ts';
 import { criarEntregaArquivoTurno } from './turno-execucao-arquivos.ts';
 export function montarRelatoriosTurno(
   raiz: HTMLElement,
@@ -20,6 +21,11 @@ export function montarRelatoriosTurno(
     familia?: boolean;
     acessoPerdido(erro: unknown): void;
     alteracaoPendente?(valor: boolean): void;
+    /** FR-080. Consulta autorizada da ficha de um plantão, usada só para rotular o
+     * consolidado com período, papel declarado e conteúdo redigido do plantão. A audiência
+     * dos registros continua sendo a de FR-062; quem não alcança a ficha vê o campo como
+     * não disponível, sem que o teor seja revelado. */
+    fichaDoPlantao?(turnoId: string): Promise<FichaDoPlantao | null>;
   },
 ) {
   let ativa = true;
@@ -194,7 +200,21 @@ export function montarRelatoriosTurno(
       const relatorio = await servico.relatorio(entrada);
       if (!ativa) return;
       if (!acrescentar) resultados.replaceChildren();
-      resultados.append(apresentarRelatorioTurno(relatorio));
+      if (relatorio.tipo === 'diario') {
+        // FR-080: mesmo conteúdo da projeção autorizada, agrupado por plantão e rotulado
+        // na ordem da ficha de papel. Nenhuma consulta nova de audiência.
+        const fichas = new Map<string, FichaDoPlantao>();
+        if (opcoes.fichaDoPlantao)
+          for (const evento of relatorio.itens)
+            if ('aberto_em' in evento.dados && !fichas.has(evento.dados.turno_id)) {
+              const ficha = await opcoes.fichaDoPlantao(evento.dados.turno_id).catch(() => null);
+              if (!ativa) return;
+              if (ficha) fichas.set(evento.dados.turno_id, ficha);
+            }
+        resultados.append(
+          apresentarConsolidadoFicha(relatorio, opcoes.fichaDoPlantao ? fichas : undefined),
+        );
+      } else resultados.append(apresentarRelatorioTurno(relatorio));
       consulta = {
         consulta_id: relatorio.consulta_id,
         tipo: entrada.tipo,

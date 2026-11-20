@@ -151,6 +151,11 @@ export async function abrirRegistroExecucao(
       Object.assign(dados, { inicio: d.inicio, fim: d.fim, qualidade: d.qualidade });
     else if (d.tipo === 'eliminacao')
       Object.assign(dados, { eliminacao: d.eliminacao, contagem: d.contagem });
+    // O estado observado é gravado na coluna `qualidade` (CHECK da migration 20261127200000:
+    // `tipo='estado_emocional' and qualidade is not null and valor is null`). Sem esta linha
+    // a projeção emitia o tipo sem o termo, o schema público recusava, e a PRIMEIRA ficha com
+    // estado emocional derrubava o relatório de turno do período inteiro (FR-062).
+    else if (d.tipo === 'estado_emocional') dados.qualidade = d.qualidade;
     if (d.observacao != null) dados.observacao = await abrir('observacao');
   }
   let prescricao: { nome: string; dose: string; via: string; versao: number } | undefined;

@@ -85,9 +85,14 @@ export function apresentarRegistroTurno(registro: RegistroExecucaoPublico) {
       linha(artigo, 'Início do sono', dataTurno(dados.inicio));
       linha(artigo, 'Fim do sono', dataTurno(dados.fim));
       linha(artigo, 'Qualidade observada', rotulos[dados.qualidade] ?? dados.qualidade);
-    } else {
+    } else if (dados.tipo === 'eliminacao') {
       linha(artigo, 'Eliminação', rotulos[dados.eliminacao] ?? dados.eliminacao);
       linha(artigo, 'Contagem observada', String(dados.contagem));
+    } else {
+      // Estado emocional observado (FR-076): termo declarado, vindo do catálogo
+      // administrado. O rótulo diz "observado" de propósito — não é medida, não é escala
+      // validada e não há número algum a apresentar.
+      linha(artigo, 'Estado emocional observado', rotulos[dados.qualidade] ?? dados.qualidade);
     }
     if (dados.observacao) linha(artigo, 'Observações adicionais', dados.observacao);
   }

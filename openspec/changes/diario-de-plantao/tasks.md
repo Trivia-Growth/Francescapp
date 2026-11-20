@@ -259,13 +259,13 @@ Depende de 3.1.
 
 Depende de 3.1, 5.3, 6.2 e 7.3.
 
-- [ ] 8.1 Tela da ficha de plantão como superfície única de registro, com os campos de
+- [x] 8.1 (20/11/2026) Tela da ficha de plantão como superfície única de registro, com os campos de
   fábrica na ordem do modelo vigente, os campos acrescentados, obrigatoriedade aplicada,
   campos desativados ocultos em ficha nova e visíveis em ficha antiga. **Evidência:** teste
   de tela cobrindo estados de carregamento, vazio, erro e sucesso; submissão bloqueada por
   campo obrigatório vazio; e campo desativado ainda legível na ficha antiga (FR-073,
   FR-078; `AGENTS.md — Qualidade e experiência`).
-- [ ] 8.2 Apresentar o **Consolidado diário no formato da ficha**, reusando a projeção
+- [x] 8.2 (20/11/2026) Apresentar o **Consolidado diário no formato da ficha**, reusando a projeção
   autorizada de FR-062 sem consulta própria, agrupando por plantão, com período, papel
   declarado e autores identificados, em ordem cronológica e indicando lacunas de cobertura.
   **Evidência:** teste cobrindo dia com dois plantões, dia com lacuna e dia sem plantão
@@ -286,9 +286,64 @@ Depende de 3.1, 5.3, 6.2 e 7.3.
   alerta, tendência ou sugestão de conduta a partir de estado emocional, rotina ou qualquer
   campo (FR-081, cenário 4; FR-064, FR-028; seção 1 do documento da cliente).
 
+### Registro da camada HTTP e das telas — 20/11/2026
+
+Entregue nesta passagem: `netlify/functions/ficha-plantao.ts` com interruptor próprio
+(`ffcm.ficha_plantao.ativo`, padrão desligado) e o quarteto
+`ficha-plantao-nativa` / `entrada-ficha-plantao-nativa` / `compor-ficha-plantao-nativo` /
+`executor-ficha-plantao-nativo`; `web/ficha-plantao.ts` com serviço e teste de interface;
+`web/consolidado-ficha-plantao.ts` ligado ao seletor existente, sem consulta de audiência
+nova; prova de celular em `scripts/prova-celular/ficha-plantao*`.
+
+Evidências executadas uma vez cada: `pnpm run verificar:rapido` (lint `Checked 940 files`,
+typecheck limpo); `LC_ALL=C sh scripts/testar-ficha-plantao-local.sh` (`FICHA_PLANTAO_LOCAL_OK`,
+saída 0); `pnpm run verificar:celular` (14 cenários, alvos mínimos 44px, sem rolagem
+horizontal em 360x640 e 390x844); `pnpm exec vitest run $(grep -ln "main.js" web/*.test.ts)`
+(28 arquivos, 109 testes) e os arquivos novos `web/ficha-plantao.test.ts`,
+`web/consolidado-ficha-plantao.test.ts`, `netlify/functions/_shared/ficha-plantao-nativa.test.ts`.
+
+**Decisões desta passagem, para revisão.**
+
+1. **Uma ficha por plantão**: o `registro_id` da ficha é o próprio `turno_id`, conferido no
+   servidor. Sem essa convenção a ficha publicada deixa de ser recuperável depois de um
+   recarregamento, porque `operacao.projetar_ficha_plantao` é chaveada pelo registro.
+2. **Identificador da linha derivado** de `(tabela, registro, versão)` por SHA-256, porque o
+   AAD amarra o `id` da LINHA e a projeção do banco não o devolve. Sem isso, ficha publicada
+   e pendência escrita seriam ilegíveis na leitura seguinte. Continua havendo um envelope por
+   versão. **SUPOSIÇÃO CONSERVADORA (S7).**
+3. **Caixa de marcação trocada por seleção** no bloco de abertura retroativa: a prova de
+   celular reprovou o `input[type=checkbox]` com 24x24px contra o mínimo de 44px do projeto.
+   Reprovação corrigida, não escondida.
+
+**Achados bloqueantes, não corrigidos por estarem fora dos arquivos permitidos.**
+
+- **A1 — `operacao.projetar_ficha_plantao` não devolve o `id` da linha.** Contornado por (2);
+  a correção de fundo é projetar o `id`, o que exige migração.
+- **A2 — estado emocional quebra a projeção de FR-062.** `rotinaTurnoPublicaSchema`
+  (`packages/contracts/src/turno-execucao-http.ts`) não tem a variante `estado_emocional`, e
+  `netlify/functions/_shared/turno-execucao-projecao.ts` monta `{tipo:'estado_emocional'}` sem
+  os campos que o schema exige. A primeira ficha com estado emocional derruba o relatório de
+  turno do período. Exige alterar os dois arquivos, ambos de outra frente.
+- **A3 — catálogo de estados emocionais nasce vazio** (decisão da própria migração) e não há
+  rota para listá-lo. Enquanto o Administrador não semear os termos, o campo é recusado pelo
+  banco. A tela apresenta o campo com a instrução e mostra a recusa; não há sucesso falso.
+- **A4 — campo acrescentado ao modelo não tem onde gravar.** `cadastro.turno_plantao_versao`
+  não tem coluna de respostas de campo extra e o `conteudo` da RPC tem conjunto de chaves
+  fechado. A tela mostra o campo acrescentado com o limite declarado, em vez de oferecer um
+  campo que não grava. Bloqueia a parte de 5.2 que depende de resposta.
+- **A5 — PDF do consolidado no formato da ficha (8.3) não foi feito.** A montagem das seções
+  do PDF está em `netlify/functions/_shared/turno-execucao-nativo.ts`, fora dos arquivos
+  permitidos desta passagem. O consolidado em tela está entregue; o PDF continua no layout
+  anterior.
+
+**Limites do que foi provado.** As telas e a camada HTTP foram provadas com dublês; nenhuma
+prova aqui substitui as matrizes positivas e negativas de autorização e RLS dos grupos 3.6,
+5.5, 6.3, 7.1 e 8.4, que continuam pendentes para a ativação. Nenhuma migração foi aplicada
+remotamente e nenhuma flag foi ligada.
+
 ## 9. Verificação e fechamento
 
-- [ ] 9.1 `pnpm run verificar:rapido` durante o desenvolvimento. **Evidência:** saída
+- [x] 9.1 (20/11/2026) `pnpm run verificar:rapido` durante o desenvolvimento. **Evidência:** saída
   registrada; falha em arquivo de outra frente é identificada como tal antes de ser
   descartada.
 - [ ] 9.2 Revisão formal de dois eixos — padrões do projeto e aderência à especificação —

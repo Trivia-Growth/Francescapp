@@ -81,7 +81,10 @@ export function apresentarRegistroExecucao(registro: RegistroExecucaoPublico): s
         `Sono informado: ${d.inicio} até ${d.fim}`,
         `Qualidade observada: ${situacoes[d.qualidade]}`,
       );
-    else linhas.push(`Eliminação observada: ${situacoes[d.eliminacao]}`, `Contagem: ${d.contagem}`);
+    else if (d.tipo === 'eliminacao')
+      linhas.push(`Eliminação observada: ${situacoes[d.eliminacao]}`, `Contagem: ${d.contagem}`);
+    // Estado emocional observado (FR-076): declaração, não medida. Sem número e sem escala.
+    else linhas.push(`Estado emocional observado: ${situacoes[d.qualidade] ?? d.qualidade}`);
     if (d.observacao) linhas.push(`Observação: ${d.observacao}`);
   }
   if (registro.motivo) linhas.push(`Motivo da retificação: ${registro.motivo}`);

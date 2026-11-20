@@ -108,6 +108,22 @@ export const rotinaTurnoPublicaSchema = z.discriminatedUnion('tipo', [
       ...observacao,
     })
     .strict(),
+  // Estado emocional observado (FR-076). O termo vem do catálogo administrado
+  // `cadastro.turno_estado_emocional_catalogo`, por isso é texto limitado e não enum fechado
+  // como a qualidade do sono: o conjunto é vocabulário do cliente, não contrato.
+  //
+  // NÃO existe campo de valor, pontuação, escala ou gravidade — e a ausência é deliberada.
+  // Sem número não há como derivar risco a partir deste registro, o que torna a proibição
+  // de FR-076 e FR-081 inviável por esquema, e não apenas escrita em texto.
+  z
+    .object({
+      tipo: z.literal('estado_emocional'),
+      turno_id: uuidSchema,
+      instante_ocorrencia: instante,
+      qualidade: z.string().min(1).max(80),
+      ...observacao,
+    })
+    .strict(),
 ]);
 export const conteudoExecucaoPublicoSchema = z.discriminatedUnion('classe', [
   z.object({ classe: z.literal('afericao'), dados: sinalVitalSchema }).strict(),

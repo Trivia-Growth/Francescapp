@@ -55,14 +55,15 @@ export const pendenciaPlantaoHttpSchema = z
   .strict();
 export type PendenciaPlantaoHttp = z.infer<typeof pendenciaPlantaoHttpSchema>;
 
-const resultadoSchema = z
+export const resultadoFichaPlantaoSchema = z
   .object({
     ficha: fichaPlantaoProjetadaSchema.nullable(),
     pendencias: z.array(pendenciaPlantaoHttpSchema).max(200),
   })
   .strict();
+export type ResultadoFichaPlantao = z.infer<typeof resultadoFichaPlantaoSchema>;
 
-const rascunhoProjetadoHttpSchema = z
+export const rascunhoFichaPlantaoProjetadoSchema = z
   .object({
     turno_id: uuidSchema,
     conteudo: conteudoFichaPlantaoSchema,
@@ -71,33 +72,44 @@ const rascunhoProjetadoHttpSchema = z
   })
   .strict()
   .nullable();
+export type RascunhoFichaPlantaoProjetado = z.infer<typeof rascunhoFichaPlantaoProjetadoSchema>;
 
 /** Contrato HTTP isolado da ficha de plantão (FR-073 a FR-077, FR-081). Não registra rota
  * em `rotas.ts`: a exposição depende da flag do turno e das provas de autorização, como nas
  * demais fatias. Uma submissão, uma transação: ou toda a ficha grava, ou nada grava. */
 export const fichaPlantaoHttp = {
+  /** Leitura da ficha do plantão pelo turno. A ficha é uma por plantão, e por isso o
+   * `registro_id` dela É o `turno_id`: sem essa convenção a ficha publicada deixaria de ser
+   * recuperável depois de um recarregamento, porque a projeção do banco é chaveada pelo
+   * registro. Família não passa por aqui — a audiência familiar continua sendo a de FR-062. */
+  consultar: {
+    metodo: 'GET',
+    caminho: '/api/pacientes/:paciente_id/turnos/:turno_id/ficha-plantao',
+    entrada: vazio,
+    saida: resultadoFichaPlantaoSchema,
+  },
   submeter: {
     metodo: 'POST',
     caminho: '/api/pacientes/:paciente_id/ficha-plantao',
     entrada: submissaoFichaPlantaoSchema,
-    saida: resultadoSchema,
+    saida: resultadoFichaPlantaoSchema,
   },
   consultarRascunho: {
     metodo: 'GET',
     caminho: '/api/pacientes/:paciente_id/turnos/:turno_id/ficha-plantao/rascunho',
     entrada: vazio,
-    saida: rascunhoProjetadoHttpSchema,
+    saida: rascunhoFichaPlantaoProjetadoSchema,
   },
   salvarRascunho: {
     metodo: 'PUT',
     caminho: '/api/pacientes/:paciente_id/turnos/:turno_id/ficha-plantao/rascunho',
     entrada: rascunhoFichaPlantaoSchema,
-    saida: rascunhoProjetadoHttpSchema,
+    saida: rascunhoFichaPlantaoProjetadoSchema,
   },
   resolverPendencia: {
     metodo: 'POST',
     caminho: '/api/pacientes/:paciente_id/ficha-plantao/pendencias/resolucao',
     entrada: resolucaoPendenciaEscritaSchema,
-    saida: resultadoSchema,
+    saida: resultadoFichaPlantaoSchema,
   },
 } as const;
