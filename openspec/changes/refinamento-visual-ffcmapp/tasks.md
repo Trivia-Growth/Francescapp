@@ -114,17 +114,39 @@ autorização e RLS permanecem gate de ativação e **não** são substituídas 
 
 ## 3. Primeiro contato
 
-- [ ] 3.1 **VIS-014, SC-VIS-014-A/B/C/D. Depende de 1.1, 2.1, 0.2 e 0.3.** Recompor a tela de acesso em coluna
+- [x] 3.1 **VIS-014, SC-VIS-014-A/B/C/D. Depende de 1.1, 2.1, 0.2 e 0.3.** Recompor a tela de acesso em coluna
   única conforme a decisão 5 do `design.md`: marca em escala menor e com respiro, frase de acolhimento
   aprovada, um caminho de entrada visível, demais caminhos em dobras com marcador explícito, aviso de ambiente
   e nota de restrição deslocados para depois do bloco de acesso. Preservar todos os formulários, rótulos,
   `autocomplete`, feedback acessível e o bloco familiar desligado em `web/index.html:91`. Evidência: capturas
   em 1280, 1440, 360 e 390 nos estados repouso, foco, dobras abertas e erro (SC-VIS-014-A/B/C/D); percurso de foco e alvos de toque
   conferidos.
-- [ ] 3.2 **VIS-013, SC-VIS-013-A. Depende de 3.1 e 1.3.** Aplicar a sequência única de entrada do acesso
+  **22/11/2026 — feito.** `#login-view` virou coluna única de 460px (medido: `width: 460px`), centrada,
+  com `padding-block-start: var(--espaco-8)`. Ordem: marca (96px, imagem recebida intacta, sem recorte nem
+  transparência simulada, com `margin-bottom: var(--espaco-5)`) › `Estamos aqui com você.` › caminho de
+  entrada (Google, única ação primária visível em repouso) › dobras `Entrar com e-mail e senha` (com
+  `Confirmar o e-mail da conta interna` dentro), `Acesso de familiares` (continua `hidden`) e
+  `Acesso técnico excepcional`, todas com marcador ▾/▴ e 49,59px de altura medidos em 360 e 390 ›
+  `.access-rodape` com o chip de ambiente e a nota de acesso restrito. O cartão branco com borda deixou de
+  existir: em coluna única a página é a superfície. O chip no topo é ocultado só enquanto `#login-view`
+  está visível (`body:has(#login-view:not([hidden])) .topbar .chip-ambiente`). Fala de permissão acima da
+  dobra: de quatro para uma. Formulários, rótulos, `autocomplete`, `aria-live`, `fieldset[disabled]` e IDs
+  preservados; `#acesso-interno` passou de `<section>` para `<details>` mantendo o id e todos os campos.
+  Contraste medido no navegador: frase 13,15:1; rótulo de dobra 7,87:1; linha explicativa 6,15:1; nota
+  pós-Google 6,15:1; chip de ambiente 6,93:1; nota de acesso restrito 6,15:1. Capturas em 1280, 1440, 360
+  e 390 nos estados repouso, foco, dobras abertas e erro, em diretório temporário fora do repositório.
+  `pnpm run verificar:celular`: 14 cenários, `alvosAbaixoDoMinimo: []`, nenhuma parada sem foco visível.
+- [x] 3.2 **VIS-013, SC-VIS-013-A. Depende de 3.1 e 1.3.** Aplicar a sequência única de entrada do acesso
   (240ms, escalonamento de 60ms entre marca, frase e bloco), sem atrasar a interação e sem nada em laço.
   Evidência: captura com e sem movimento reduzido; confirmar que o campo recebe foco no mesmo instante que
   hoje.
+  **22/11/2026 — feito.** Uma sequência só, medida por `getComputedStyle`: `.institutional-logo`
+  `mov-entrada-contexto 0.24s` atraso `0s`, `#login-title` atraso `0.06s`, `.access-form-panel` atraso
+  `0.12s`, todas com `animation-fill-mode: backwards` e `--curva-entrada`. Nada em laço e nada além disso;
+  o aviso de ambiente não entra na sequência. Os controles permanecem na posição final e clicáveis durante
+  a entrada, e nenhum tratador de foco foi tocado — `elemento('login-title').focus()` em `web/main.ts`
+  continua igual. Com `reducedMotion: 'reduce'`: `animation-name: none` e `opacity: 1` nos três elementos.
+  Capturas `acesso-repouso-1280.png` e `acesso-repouso-1280-movimento-reduzido.png`.
 
 ## 4. Movimento nas trocas de contexto
 

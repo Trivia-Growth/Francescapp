@@ -1,3 +1,4 @@
+import { FalhaApi, exigeNovoAcesso } from './api.ts';
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import type { z } from 'zod';
 import type {
@@ -17,6 +18,19 @@ const rotulosEstado: Record<Preautorizacao['estado'], string> = {
   falha: 'Envio falhou',
   ativado: 'E-mail confirmado',
 };
+
+/** O convite familiar está desligado por decisão de produto, não por falha passageira:
+ * `netlify/functions/preautorizacoes-familiares.ts` recusa com `servico_indisponivel`
+ * antes de qualquer dependência. Dizer "tente de novo" nesse caso manda a pessoa repetir
+ * algo que nunca vai funcionar. */
+function acessoFamiliarNaoLiberado(erro: unknown): boolean {
+  return erro instanceof FalhaApi && erro.codigo === 'servico_indisponivel';
+}
+
+const AVISO_NAO_LIBERADO =
+  'O acesso da família ainda não foi liberado. Ninguém da família entra no aplicativo por ' +
+  'enquanto, e não há acessos a mostrar aqui. Combine com a família pelo canal que o ' +
+  'acompanhamento já usa.';
 
 function formatarData(valor: string | null): string {
   if (!valor) return '';
@@ -52,6 +66,19 @@ export function montarPreautorizacoesFamiliares(
 
   const avisar = (texto: string) => {
     estado.textContent = texto;
+  };
+
+  /** Mesmo guarda dos demais módulos de `web/`: só perda de acesso (401/403) retira o
+   * conteúdo protegido e devolve a sessão ao acesso. Sem ele, qualquer falha chamava
+   * `acessoPerdido` — inofensivo hoje porque `main.ts` repete o guarda, mas o módulo
+   * ficava dependendo de um controle que não é dele. */
+  const descartarAcesso = (erro: unknown): boolean => {
+    if (!exigeNovoAcesso(erro)) return false;
+    ativa = false;
+    lista.replaceChildren();
+    secao.remove();
+    acessoPerdido(erro);
+    return true;
   };
 
   const desenhar = (itens: Preautorizacao[]) => {
@@ -111,8 +138,12 @@ export function montarPreautorizacoesFamiliares(
             if (ativa) avisar('Acesso encerrado.');
           } catch (erro) {
             if (!ativa) return;
-            acessoPerdido(erro);
-            avisar('Não foi possível encerrar o acesso agora. Tente de novo.');
+            if (descartarAcesso(erro)) return;
+            avisar(
+              acessoFamiliarNaoLiberado(erro)
+                ? AVISO_NAO_LIBERADO
+                : 'Não foi possível encerrar o acesso agora. Tente de novo.',
+            );
           } finally {
             finalizar();
             ocupada = false;
@@ -137,8 +168,12 @@ export function montarPreautorizacoesFamiliares(
       desenhar(itens);
     } catch (erro) {
       if (!ativa) return;
-      acessoPerdido(erro);
-      avisar('Não foi possível carregar os acessos da família agora.');
+      if (descartarAcesso(erro)) return;
+      avisar(
+        acessoFamiliarNaoLiberado(erro)
+          ? AVISO_NAO_LIBERADO
+          : 'Não foi possível carregar os acessos da família agora. Tente de novo.',
+      );
     } finally {
       carregamento.remove();
       lista.removeAttribute('aria-busy');

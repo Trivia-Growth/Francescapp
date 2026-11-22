@@ -223,45 +223,82 @@ h3 {
 p {
   max-width: 70ch;
 }
+/* Primeiro contato: coluna única. Quem abre esta tela pode ser uma família às duas da manhã;
+   ela não quer ser impressionada, quer achar o caminho. Por isso um caminho de entrada à vista,
+   os demais em dobras, e o aviso de ambiente depois do bloco de acesso. */
 .access-layout {
-  max-width: 1112px;
+  max-width: 460px;
   margin: 0 auto;
-  padding: 72px 40px 88px;
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 100px;
-  align-items: center;
+  padding: var(--espaco-8) var(--espaco-5) var(--espaco-7);
 }
-.access-context h1 {
-  margin: 30px 0 16px;
-  max-width: 12ch;
+.access-layout h1 {
+  margin-bottom: var(--espaco-6);
+  max-width: 20ch;
 }
-.access-context > p {
-  max-width: 34ch;
-  font-size: var(--texto-3);
-  color: var(--muted);
-}
-.access-context .access-note {
-  font-size: var(--texto-1);
-  margin-top: 32px;
-  max-width: 38ch;
-}
+/* Marca como material recebido: sem recorte, sem transparência simulada, sem redesenho.
+   O que muda é a escala (144px para 96px) e o respiro, para o fundo oliva embutido do JPEG
+   ler como selo e não como bloco colado ao fundo quase branco da página. */
 .institutional-logo {
   display: block;
-  width: 144px;
-  height: 144px;
+  width: 96px;
+  height: 96px;
+  margin-bottom: var(--espaco-5);
   object-fit: contain;
 }
+/* Sem cartão: em coluna única a página é a superfície, e a borda só repetiria o contorno
+   da própria coluna. As dobras passam a carregar a estrutura. */
 .access-form-panel {
-  padding: var(--espaco-5);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-panel);
-  background: var(--white);
+  padding: 0;
+  border: 0;
+  background: none;
 }
-.access-form-panel > p:first-of-type,
 .registration-panel > p:first-of-type {
   margin: 12px 0 24px;
   color: var(--muted);
+}
+.access-form-panel > .small-text {
+  margin: var(--espaco-3) 0 var(--espaco-5);
+  color: var(--muted);
+}
+.access-form-panel > details {
+  border-top: 1px solid var(--line);
+}
+/* Fecha o grupo de dobras: sem a linha de baixo, a última ficava aberta contra o vazio
+   e o rodapé precisava de uma régua própria para se separar do nada. */
+.access-form-panel > details:last-of-type {
+  border-bottom: 1px solid var(--line);
+}
+/* A linha que explica a dobra, logo abaixo do seu rótulo. Não alcança os parágrafos de
+   feedback, que precisam do corpo normal e da própria cor de erro. */
+.access-form-panel details > summary + p {
+  margin-bottom: var(--espaco-4);
+  color: var(--muted);
+  font-size: var(--texto-1);
+}
+.access-form-panel details > details {
+  margin-top: var(--espaco-4);
+  border-top: 1px solid var(--line);
+}
+.access-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espaco-2) var(--espaco-4);
+  margin-top: var(--espaco-6);
+}
+.access-rodape .chip-ambiente {
+  order: 0;
+  flex: 0 0 auto;
+  text-align: start;
+}
+.access-rodape .access-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--texto-1);
+}
+/* Um aviso de ambiente por tela: na entrada ele vive no rodapé da coluna, não no topo. */
+body:has(#login-view:not([hidden])) .topbar .chip-ambiente {
+  display: none;
 }
 .service-status {
   padding: 12px 14px;
@@ -523,9 +560,6 @@ input[aria-invalid="true"] {
 }
 
 @media (max-width: 1050px) {
-  .access-layout {
-    gap: 56px;
-  }
   .registration-panel {
     padding: 24px;
   }
@@ -557,29 +591,19 @@ input[aria-invalid="true"] {
     font-size: var(--texto-5);
   }
   .access-layout {
-    display: block;
-    padding: 32px 22px 48px;
-    max-width: 520px;
+    padding: var(--espaco-7) var(--espaco-5) var(--espaco-6);
+  }
+  .access-layout h1 {
+    max-width: none;
+    margin-bottom: var(--espaco-5);
   }
   .institutional-logo {
-    width: 88px;
-    height: 88px;
+    width: 80px;
+    height: 80px;
+    margin-bottom: var(--espaco-4);
   }
-  .access-context h1 {
-    max-width: none;
-    margin-top: 24px;
-  }
-  .access-context > p {
-    font-size: var(--texto-2);
-    max-width: 38ch;
-  }
-  .access-context .access-note {
-    margin-top: 16px;
-  }
-  .access-form-panel {
-    margin-top: 32px;
-    padding-top: 28px;
-    border-top: 1px solid var(--line);
+  .access-rodape {
+    margin-top: var(--espaco-5);
   }
   .patients-layout {
     padding: 32px 22px 48px;
@@ -1488,15 +1512,6 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .acessos-lista p {
   margin: 4px 0;
-}
-#acesso-interno {
-  margin-block: var(--espaco-6);
-}
-#acesso-interno h3 {
-  margin-bottom: var(--espaco-2);
-}
-#acesso-interno > p {
-  margin-bottom: var(--espaco-4);
 }
 #interno-confirmacao-form {
   display: grid;
@@ -2516,7 +2531,24 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
   min-height: 44px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: var(--espaco-3);
+  padding: var(--espaco-3) 0;
+  color: var(--primary);
+  font-weight: 600;
   cursor: pointer;
+  list-style: none;
+}
+/* Sem marcador, a dobra era lida como texto solto e não como controle. Mesmo marcador
+   de "Mais seções" e do painel de filtros da carteira: uma só linguagem de dobra. */
+.access-form-panel summary::after {
+  content: "▾";
+}
+.access-form-panel details[open] > summary::after {
+  content: "▴";
+}
+.access-form-panel summary::-webkit-details-marker {
+  display: none;
 }
 .ficha-secao form,
 .administracao-conteudo form {
@@ -2891,6 +2923,22 @@ label > .loading-indicator {
 #lista-view:not([hidden]),
 #home-view:not([hidden]) {
   animation: mov-entrada-contexto var(--mov-contexto) var(--curva-entrada);
+}
+
+/* Primeiro contato: uma sequência, e só uma. Marca, frase e bloco de acesso entram em
+   240ms, escalonados em 60ms. Nada fica em laço e nada atrasa a interação: os controles
+   já estão na posição final e clicáveis durante a entrada. O aviso de ambiente não entra
+   na sequência — ele informa, não se apresenta. */
+#login-view:not([hidden]) > .institutional-logo,
+#login-view:not([hidden]) > h1,
+#login-view:not([hidden]) > .access-form-panel {
+  animation: mov-entrada-contexto var(--mov-contexto) var(--curva-entrada) backwards;
+}
+#login-view:not([hidden]) > h1 {
+  animation-delay: 60ms;
+}
+#login-view:not([hidden]) > .access-form-panel {
+  animation-delay: 120ms;
 }
 
 /* Troca de conteúdo dentro da mesma tela: aba da ficha e dobras. */
