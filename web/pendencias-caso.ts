@@ -74,7 +74,8 @@ export function montarPendenciasCaso(
 ): () => void {
   let ativa = true;
   let equipe: ResponsavelOpcao[] = [];
-  let escritas: PendenciaPlantaoHttp[] = [];
+  // `null` = não deu para ler. Distinto de `[]`, que é "leu e não há nenhuma".
+  let escritas: PendenciaPlantaoHttp[] | null = [];
   let gravacaoEmCurso = false;
   const atualizarControles = () => {
     for (const campo of raiz.querySelectorAll<HTMLButtonElement | HTMLSelectElement>(
@@ -377,7 +378,15 @@ export function montarPendenciasCaso(
     // Pendência ESCRITA por pessoa, nunca misturada com as calculadas: seção própria,
     // origem declarada no texto, autor e plantão identificados. Quem lê a carteira
     // distingue o que alguém escreveu do que o sistema deduziu só de olhar.
-    if (escritas.length) {
+    if (escritas === null) {
+      painel.append(elemento('h3', 'Escritas no plantão'));
+      painel.append(
+        elemento(
+          'p',
+          'Não foi possível ler as pendências escritas no plantão agora. Isto não quer dizer que não existam — quer dizer que a leitura falhou. As pendências calculadas acima não dependem dessa consulta.',
+        ),
+      );
+    } else if (escritas.length) {
       painel.append(elemento('h3', 'Escritas no plantão'));
       painel.append(
         elemento(
@@ -428,10 +437,13 @@ export function montarPendenciasCaso(
         : Promise.resolve([] as ResponsavelOpcao[]);
       // A ficha de plantão tem interruptor próprio e pode estar desligada: a falha dela não
       // pode derrubar a carteira nem alterar as quatro derivadas.
-      const escritasPedidas = listarPendenciasEscritas
+      // Falha de leitura NÃO pode virar "ninguém escreveu pendência": é informação que
+      // existe para alertar, e omiti-la em silêncio é pior que mostrar erro. `null`
+      // distingue "não deu para ler" de "leu e não há nenhuma".
+      const escritasPedidas: Promise<PendenciaPlantaoHttp[] | null> = listarPendenciasEscritas
         ? listarPendenciasEscritas().catch((erro: unknown) => {
             if (exigeNovoAcesso(erro)) throw erro;
-            return [] as PendenciaPlantaoHttp[];
+            return null;
           })
         : Promise.resolve([] as PendenciaPlantaoHttp[]);
       const [sinal, equipeCarregada, escritasCarregadas] = await Promise.all([

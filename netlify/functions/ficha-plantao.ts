@@ -6,6 +6,12 @@ import { criarEntradaFichaPlantaoNativa } from './_shared/entrada-ficha-plantao-
 export const config = {
   path: [
     '/api/pacientes/:paciente_id/ficha-plantao',
+    // `/pendencias` precisa estar declarado mesmo o regex do handler já o atendendo
+    // (`entrada-ficha-plantao-nativa.ts:84`): o roteamento da plataforma só entrega o que
+    // está aqui. Sem esta linha a chamada nunca chegava à função em produção, e como o
+    // cliente engolia a falha, a pendência escrita no plantão simplesmente não aparecia na
+    // carteira — sem erro e sem aviso.
+    '/api/pacientes/:paciente_id/ficha-plantao/pendencias',
     '/api/pacientes/:paciente_id/ficha-plantao/pendencias/resolucao',
     '/api/pacientes/:paciente_id/turnos/:turno_id/ficha-plantao',
     '/api/pacientes/:paciente_id/turnos/:turno_id/ficha-plantao/rascunho',
