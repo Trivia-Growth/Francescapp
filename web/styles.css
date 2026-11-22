@@ -35,7 +35,35 @@
   --radius-control: 8px;
   --radius-card: 12px;
   --radius-panel: 14px;
-  font: 400 1rem / 1.6 var(--font-body);
+  /* Escala tipográfica modular, razão 1,25 ancorada em 16px. Seis degraus, e só seis.
+     Papéis: 6 título de tela; 5 título de tela no celular e de seção; 4 título de bloco;
+     3 subtítulo e entrada de leitura longa; 2 corpo, campo e nome em lista; 1 metadado.
+     Dado operacional nunca usa --font-display: nome e estado são procurados, não lidos. */
+  --texto-1: 0.8125rem;
+  --texto-2: 1rem;
+  --texto-3: 1.25rem;
+  --texto-4: 1.5625rem;
+  --texto-5: 1.9375rem;
+  --texto-6: 2.4375rem;
+  /* Espaçamento de base 4, oito degraus. Dentro de um controle 1–3; entre campos de um
+     grupo 4; entre grupos 5; entre blocos 6; entre seções 7; primeira dobra 8.
+     Alvo de toque de 44px continua restrição de tamanho, não de espaço. */
+  --espaco-1: 4px;
+  --espaco-2: 8px;
+  --espaco-3: 12px;
+  --espaco-4: 16px;
+  --espaco-5: 24px;
+  --espaco-6: 32px;
+  --espaco-7: 48px;
+  --espaco-8: 72px;
+  /* Movimento: três durações e duas curvas. Nada fora disto anima.
+     O atraso de 300ms antes de indicador de espera é anterior a esta escala e permanece. */
+  --mov-estado: 120ms;
+  --mov-troca: 180ms;
+  --mov-contexto: 240ms;
+  --curva-entrada: cubic-bezier(0.2, 0, 0, 1);
+  --curva-saida: cubic-bezier(0.4, 0, 1, 1);
+  font: 400 var(--texto-2) / 1.6 var(--font-body);
   font-variant-numeric: lining-nums;
   color: var(--ink);
   background: var(--wash);
@@ -86,7 +114,7 @@ button,
   min-height: 46px;
   border-radius: 8px;
   padding: 10px 16px;
-  font-size: .9375rem;
+  font-size: var(--texto-2);
   font-weight: 600;
   line-height: 1.4;
   cursor: pointer;
@@ -151,19 +179,19 @@ a.button-primary:active {
 }
 .brand-name {
   color: var(--primary);
-  font-size: 1.375rem;
+  font-size: var(--texto-3);
   font-weight: 700;
   letter-spacing: -.025em;
 }
 .brand-organization {
   color: var(--muted);
-  font-size: .875rem;
+  font-size: var(--texto-1);
 }
 .session-actions {
   display: flex;
   align-items: center;
   gap: 16px;
-  font-size: .875rem;
+  font-size: var(--texto-1);
 }
 main {
   flex: 1;
@@ -181,16 +209,16 @@ h2 {
   letter-spacing: -.025em;
 }
 h1 {
-  font-size: 3.125rem;
+  font-size: var(--texto-6);
   line-height: 1.15;
   text-wrap: balance;
 }
 h2 {
-  font-size: 1.875rem;
+  font-size: var(--texto-5);
   line-height: 1.2;
 }
 h3 {
-  font-size: 1.0625rem;
+  font-size: var(--texto-3);
 }
 p {
   max-width: 70ch;
@@ -210,11 +238,11 @@ p {
 }
 .access-context > p {
   max-width: 34ch;
-  font-size: 1.125rem;
+  font-size: var(--texto-3);
   color: var(--muted);
 }
 .access-context .access-note {
-  font-size: .875rem;
+  font-size: var(--texto-1);
   margin-top: 32px;
   max-width: 38ch;
 }
@@ -225,7 +253,10 @@ p {
   object-fit: contain;
 }
 .access-form-panel {
-  padding-top: 8px;
+  padding: var(--espaco-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--white);
 }
 .access-form-panel > p:first-of-type,
 .registration-panel > p:first-of-type {
@@ -237,7 +268,7 @@ p {
   background: var(--panel);
   border-radius: 7px;
   margin-bottom: 16px;
-  font-size: .9375rem;
+  font-size: var(--texto-2);
 }
 .service-status[data-tone="error"] {
   color: var(--error);
@@ -250,7 +281,7 @@ p {
   border-left: 3px solid var(--muted);
   background: var(--soft);
   color: var(--ink);
-  font-size: .9375rem;
+  font-size: var(--texto-2);
 }
 #retry-availability {
   margin-bottom: 20px;
@@ -262,7 +293,7 @@ fieldset {
   min-width: 0;
 }
 .field {
-  margin-bottom: 20px;
+  margin-bottom: var(--espaco-4);
 }
 .password-toggle {
   margin-top: 4px;
@@ -282,13 +313,13 @@ label {
   flex-wrap: wrap;
   gap: 4px 12px;
   margin-bottom: 7px;
-  font-size: .9375rem;
+  font-size: var(--texto-2);
   font-weight: 600;
 }
 .label-detail {
   color: var(--muted);
   font-weight: 400;
-  font-size: .875rem;
+  font-size: var(--texto-1);
 }
 input,
 select,
@@ -297,7 +328,7 @@ textarea {
   width: 100%;
   min-height: 48px;
   /* 16px evita o zoom automático do iOS ao focar; o rótulo pai tem 15px e o campo herdava. */
-  font-size: 1rem;
+  font-size: var(--texto-2);
   border: 1px solid var(--field-line);
   border-radius: 7px;
   padding: 10px 12px;
@@ -317,14 +348,14 @@ input[aria-invalid="true"] {
 .field-error {
   display: block;
   color: var(--error);
-  font-size: .875rem;
+  font-size: var(--texto-1);
   margin-top: 6px;
 }
 .field-error:empty {
   display: none;
 }
 .feedback {
-  font-size: .9375rem;
+  font-size: var(--texto-2);
   overflow-wrap: anywhere;
 }
 .feedback:not(:empty) {
@@ -338,12 +369,12 @@ input[aria-invalid="true"] {
 }
 .small-text {
   color: var(--muted);
-  font-size: .875rem;
+  font-size: var(--texto-1);
   margin-top: 20px;
 }
 .patients-layout {
-  max-width: 1460px;
-  padding: 48px 5% 72px;
+  max-width: 1580px;
+  padding: var(--espaco-7) 4% var(--espaco-8);
   margin: 0 auto;
 }
 .page-heading {
@@ -392,6 +423,11 @@ input[aria-invalid="true"] {
 .patient-register {
   min-width: 0;
 }
+/* A faixa de ferramentas da carteira traz a própria divisória: o cabeçalho fica sem régua. */
+.patient-register .section-heading {
+  padding: 0;
+  border: 0;
+}
 .section-heading {
   display: flex;
   align-items: center;
@@ -402,11 +438,11 @@ input[aria-invalid="true"] {
   border-bottom: 1px solid var(--line);
 }
 .section-heading h2 {
-  font-size: 1.625rem;
+  font-size: var(--texto-4);
 }
 .list-status {
   color: var(--muted);
-  font-size: .875rem;
+  font-size: var(--texto-1);
   margin: 16px 0;
 }
 .list-status[data-tone="error"] {
@@ -419,10 +455,10 @@ input[aria-invalid="true"] {
   scroll-margin-top: 24px;
 }
 .registration-panel h2 {
-  font-size: 1.75rem;
+  font-size: var(--texto-4);
 }
 .registration-panel > p:first-of-type {
-  font-size: .9375rem;
+  font-size: var(--texto-2);
 }
 .empty-state {
   padding: 44px 0;
@@ -430,23 +466,6 @@ input[aria-invalid="true"] {
 .empty-state p {
   color: var(--muted);
   margin-top: 10px;
-}
-.list-loading span {
-  display: block;
-  height: 64px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
-  margin-bottom: 12px;
-}
-/* Mesma linguagem do esqueleto da lista, em blocos menores (ficha, contatos, cadastro). */
-.list-loading[data-compacto] span {
-  height: 16px;
-  margin-bottom: 10px;
-  border: 0;
-  border-radius: var(--radius-field);
-}
-.list-loading[data-compacto] span:last-child {
-  width: 60%;
 }
 .pagination {
   display: flex;
@@ -457,7 +476,7 @@ input[aria-invalid="true"] {
 }
 .pagination span {
   color: var(--muted);
-  font-size: .875rem;
+  font-size: var(--texto-1);
   text-align: center;
 }
 .logout-panel {
@@ -474,7 +493,7 @@ input[aria-invalid="true"] {
   padding: 22px 0;
   border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: .875rem;
+  font-size: var(--texto-1);
 }
 .skip-link {
   position: fixed;
@@ -523,10 +542,9 @@ input[aria-invalid="true"] {
   }
   .brand-name {
     display: block;
-    font-size: 1.25rem;
   }
   .brand-organization {
-    font-size: .875rem;
+    font-size: var(--texto-1);
   }
   .session-actions {
     gap: 12px;
@@ -536,7 +554,7 @@ input[aria-invalid="true"] {
     max-width: 15ch;
   }
   h1 {
-    font-size: 2.625rem;
+    font-size: var(--texto-5);
   }
   .access-layout {
     display: block;
@@ -550,10 +568,9 @@ input[aria-invalid="true"] {
   .access-context h1 {
     max-width: none;
     margin-top: 24px;
-    font-size: 2.625rem;
   }
   .access-context > p {
-    font-size: 1rem;
+    font-size: var(--texto-2);
     max-width: 38ch;
   }
   .access-context .access-note {
@@ -593,16 +610,6 @@ input[aria-invalid="true"] {
   }
   .footer {
     margin: 0 22px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    transition: none !important;
-    animation: none !important;
   }
 }
 
@@ -669,20 +676,24 @@ body:has(#patients-view:not([hidden])) .topbar .brand-organization {
   border-right: 1px solid var(--line);
 }
 .sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-3);
+  min-width: 0;
   color: var(--primary);
-  font: 600 28px / 1 var(--font-display);
+  font: 600 var(--texto-4) / 1 var(--font-display);
 }
 .sidebar-brand small {
   display: block;
   margin-top: 8px;
   color: var(--muted);
-  font: 600 .75rem / 1.2 var(--font-body);
+  font: 600 var(--texto-1) / 1.2 var(--font-body);
   letter-spacing: .12em;
 }
 .sidebar-label {
-  margin: 44px 12px 12px;
+  margin: var(--espaco-6) var(--espaco-3) var(--espaco-3);
   color: var(--muted);
-  font-size: .75rem;
+  font-size: var(--texto-1);
 }
 .sidebar-current {
   display: block;
@@ -690,7 +701,7 @@ body:has(#patients-view:not([hidden])) .topbar .brand-organization {
   border-radius: 8px;
   background: #edf2e6;
   color: var(--primary);
-  font-size: .9375rem;
+  font-size: var(--texto-2);
   font-weight: 700;
   text-decoration: none;
 }
@@ -699,24 +710,11 @@ body:has(#patients-view:not([hidden])) .topbar .brand-organization {
   padding: 18px 10px 0;
   border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: .8125rem;
+  font-size: var(--texto-1);
 }
 body:has(#patients-view:not([hidden])) main,
 body:has(#patients-view:not([hidden])) .footer {
   margin-left: 240px;
-}
-.patients-layout {
-  max-width: 1580px;
-  padding: 48px 4% 72px;
-}
-.patient-register {
-  padding: 24px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--white);
-}
-.patient-register .section-heading {
-  padding-bottom: 18px;
 }
 body:has(#patients-view:not([hidden])) .footer {
   margin-right: 4%;
@@ -758,14 +756,14 @@ body:has(#patients-view:not([hidden])) .footer {
   border-radius: 20px;
   background: #f4ece1;
   color: #5a4e3b;
-  font-size: .8125rem;
+  font-size: var(--texto-1);
   font-weight: 600;
 }
 .breadcrumbs {
   display: none;
   min-width: 0;
   color: var(--muted);
-  font-size: .875rem;
+  font-size: var(--texto-1);
 }
 body:has(#patients-view:not([hidden])) .breadcrumbs {
   display: block;
@@ -796,7 +794,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 /* Lista de pessoas acompanhadas: linhas planas, como no mock. */
 .busca {
   max-width: 460px;
-  margin: 20px 0 4px;
+  margin: var(--espaco-4) 0;
 }
 .busca label {
   display: block;
@@ -805,23 +803,30 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   margin-top: 8px;
 }
 .people-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espaco-4);
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--line);
+  border: 0;
 }
 .people-list li {
-  border-bottom: 1px solid var(--line);
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--white);
 }
 .pessoa {
   display: flex;
-  align-items: center;
-  gap: 16px;
+  align-items: flex-start;
+  gap: var(--espaco-4);
   width: 100%;
-  min-height: 76px;
-  padding: 14px 8px;
+  height: 100%;
+  min-height: 150px;
+  padding: var(--espaco-5);
   border: 0;
-  border-radius: 0;
+  border-radius: inherit;
   background: transparent;
   color: var(--ink);
   font-weight: 400;
@@ -837,16 +842,16 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .pessoa-texto {
   display: grid;
   flex: 1;
-  gap: 2px;
+  gap: var(--espaco-1);
   min-width: 0;
 }
 .pessoa-nome {
-  font-weight: 600;
+  font: 600 var(--texto-2) / 1.4 var(--font-body);
   overflow-wrap: anywhere;
 }
 .pessoa-preferencia {
   color: var(--muted);
-  font-size: .875rem;
+  font-size: var(--texto-1);
   overflow-wrap: anywhere;
 }
 .pessoa-situacao {
@@ -856,7 +861,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   border-radius: 20px;
   background: var(--panel);
   color: var(--ink);
-  font-size: .8125rem;
+  font-size: var(--texto-1);
   font-weight: 600;
 }
 /* Chip de situação pendente: contorno contínuo. A borda tracejada parecia defeito de
@@ -868,6 +873,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .pessoa-seta {
   flex: none;
+  align-self: center;
   width: 10px;
   height: 10px;
   margin-right: 6px;
@@ -884,7 +890,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   border-radius: 50%;
   background: var(--soft);
   color: var(--primary);
-  font-size: .875rem;
+  font-size: var(--texto-1);
   font-weight: 700;
   letter-spacing: .02em;
 }
@@ -892,6 +898,12 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 /* Ficha do paciente: cabeçalho, abas e seção atual. */
 .ficha {
   min-width: 0;
+  /* `body` é um contêiner flex em coluna e o Chromium dimensiona `main` pelo conteúdo
+     mínimo: sem isto, a faixa rolável de abas empurrava a página inteira em 360px em vez
+     de rolar sozinha (medido: documentElement.scrollWidth 486px antes desta change, 518px
+     depois do degrau de 16px, contra 360px da janela). A contenção só no eixo em linha
+     devolve a rolagem à faixa; nada mais muda de tamanho. */
+  contain: inline-size;
 }
 .ficha-cabecalho {
   padding-bottom: 24px;
@@ -911,10 +923,9 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .ficha-identidade .avatar {
   width: 64px;
   height: 64px;
-  font-size: 1.25rem;
+  font-size: var(--texto-3);
 }
 .ficha-identidade h1 {
-  font-size: 2.625rem;
   overflow-wrap: anywhere;
 }
 .ficha-preferencia {
@@ -934,29 +945,55 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .ficha-abas {
   display: flex;
-  gap: 4px;
+  gap: var(--espaco-1);
   overflow-x: auto;
   border-bottom: 1px solid var(--line);
   scrollbar-width: thin;
 }
-.ficha-aba {
-  flex: none;
+/* Linguagem única de aba do produto: faixa da ficha, "Mais seções", administração e
+   financeiro. A seleção nunca depende só de cor — traço de 3px no oliva da marca
+   (que é superfície e traço, nunca texto pequeno), mais peso 700 e o oliva escuro de
+   produto no rótulo. Isto substitui a pílula preenchida que deixava o rótulo da aba
+   ativa da Administração ilegível. */
+.ficha-aba,
+.administracao-aba,
+.financeiro__aba {
+  display: inline-flex;
+  align-items: center;
   min-height: 48px;
-  padding: 12px 16px;
+  min-width: 44px;
+  padding: var(--espaco-3) var(--espaco-4);
   border: 0;
   border-bottom: 3px solid transparent;
   border-radius: 0;
   background: transparent;
   color: var(--muted);
+  font-family: var(--font-body);
+  font-size: var(--texto-2);
   font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--mov-estado) var(--curva-entrada), border-color var(--mov-estado)
+    var(--curva-entrada), background-color var(--mov-estado) var(--curva-entrada);
+}
+.ficha-abas > .ficha-aba {
+  flex: none;
   white-space: nowrap;
 }
-.ficha-aba:hover {
+.ficha-aba:hover,
+.administracao-aba:hover,
+.financeiro__aba:hover {
   color: var(--ink);
+  background: var(--soft);
 }
-.ficha-aba[aria-selected="true"] {
-  border-bottom-color: var(--primary);
+.ficha-aba[aria-selected="true"],
+.ficha-aba-secundaria[aria-current="true"],
+.administracao-aba[aria-current="page"],
+.financeiro__aba[aria-selected="true"] {
+  border-bottom-color: var(--brand-olive);
   color: var(--primary);
+  font-weight: 700;
 }
 .ficha-aba-estado {
   margin-left: 8px;
@@ -964,7 +1001,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   border-radius: 20px;
   background: var(--soft);
   color: var(--muted);
-  font-size: .75rem;
+  font-size: var(--texto-1);
 }
 .ficha-mais {
   flex: none;
@@ -973,12 +1010,20 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .ficha-mais-resumo {
   display: inline-flex;
   align-items: center;
+  gap: var(--espaco-2);
   min-height: 48px;
-  padding: 12px 16px;
+  padding: var(--espaco-3) var(--espaco-4);
   color: var(--muted);
   font-weight: 600;
   cursor: pointer;
   list-style: none;
+}
+/* Sem marcador, a dobra era lida como texto solto e não como controle. */
+.ficha-mais-resumo::after {
+  content: "▾";
+}
+.ficha-mais[open] > .ficha-mais-resumo::after {
+  content: "▴";
 }
 .ficha-mais-resumo::-webkit-details-marker {
   display: none;
@@ -989,16 +1034,8 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .ficha-mais-lista {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  padding: 0 0 12px;
-}
-.ficha-aba-secundaria {
-  border-radius: var(--radius-control);
-  border-bottom: 0;
-}
-.ficha-aba-secundaria[aria-current="true"] {
-  background: var(--soft);
-  color: var(--primary);
+  gap: 0 var(--espaco-1);
+  padding: 0 0 var(--espaco-3);
 }
 .ficha-painel {
   min-width: 0;
@@ -1012,7 +1049,6 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .ficha-secao h2 {
   margin-bottom: 18px;
-  font-size: 1.875rem;
 }
 .ficha-secao h3 {
   margin-bottom: 10px;
@@ -1087,7 +1123,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .ficha-dados dt {
   color: var(--muted);
-  font-size: .875rem;
+  font-size: var(--texto-1);
 }
 .ficha-dados dd {
   margin: 2px 0 18px;
@@ -1108,14 +1144,13 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .visao-bloco h3 {
   margin: 0;
-  font-size: 1.0625rem;
 }
 .visao-bloco-link {
-  font-size: .875rem;
+  font-size: var(--texto-1);
   font-weight: 600;
 }
 .visao-destaque {
-  font: 500 1.5rem / 1.2 var(--font-display);
+  font: 600 var(--texto-3) / 1.3 var(--font-body);
   overflow-wrap: anywhere;
 }
 .visao-lista {
@@ -1132,7 +1167,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .visao-aviso {
   margin-top: 12px;
   color: var(--muted);
-  font-size: .875rem;
+  font-size: var(--texto-1);
 }
 .visao-estado[data-tone="error"] {
   color: var(--error);
@@ -1173,20 +1208,15 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
     z-index: 20;
     width: min(280px, 84vw);
     transform: translateX(-100%);
-    transition: transform 0.2s ease;
+    transition: transform var(--mov-troca) var(--curva-saida);
   }
   .patients-sidebar.open {
     transform: translateX(0);
-  }
-  .page-heading h1 {
-    font-size: 2.25rem;
+    transition: transform var(--mov-contexto) var(--curva-entrada);
   }
   .page-heading {
     gap: 16px;
     margin-bottom: 20px;
-  }
-  .pessoa {
-    padding: 14px 4px;
   }
   .ficha-identidade {
     display: grid;
@@ -1203,10 +1233,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   .ficha-identidade .avatar {
     width: 52px;
     height: 52px;
-    font-size: 1.0625rem;
-  }
-  .ficha-identidade h1 {
-    font-size: 2rem;
+    font-size: var(--texto-2);
   }
   .ficha-painel {
     padding-top: 24px;
@@ -1218,7 +1245,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 
 .field-group {
   border: 0;
-  margin: 0 0 var(--space-4, 16px);
+  margin: 0 0 var(--espaco-4);
   padding: 0;
   min-inline-size: 0;
 }
@@ -1235,7 +1262,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .contact-row select,
 .contact-row input {
-  font-size: 16px;
+  font-size: var(--texto-2);
   min-inline-size: 0;
 }
 .contact-row .contact-remove {
@@ -1267,7 +1294,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   border-radius: var(--radius-field);
   background: var(--soft);
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--texto-1);
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -1299,7 +1326,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .configuracao-sistema__status {
   margin: 0;
   color: var(--muted);
-  font-size: 0.9375rem;
+  font-size: var(--texto-2);
 }
 .configuracao-sistema__vazio {
   margin: 0;
@@ -1325,7 +1352,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .configuracao-sistema__rotulo {
   font-family: var(--font-display);
-  font-size: 1.1875rem;
+  font-size: var(--texto-3);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -1348,12 +1375,12 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .configuracao-sistema__ajuda {
   margin: 0;
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--texto-1);
 }
 .configuracao-sistema__autoria {
   margin: 0;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: var(--texto-1);
 }
 .configuracao-sistema__acoes {
   display: flex;
@@ -1364,7 +1391,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .configuracao-sistema__aviso {
   margin: 0;
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--texto-1);
 }
 @media (max-width: 560px) {
   .configuracao-sistema__item {
@@ -1381,11 +1408,14 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   gap: 4px;
 }
 .sidebar-link {
-  display: block;
-  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-3);
+  min-height: 48px;
+  padding: var(--espaco-3) 14px;
   border-radius: var(--radius-control);
-  color: var(--ink);
-  font-size: .9375rem;
+  color: var(--muted);
+  font-size: var(--texto-2);
   font-weight: 550;
   text-decoration: none;
 }
@@ -1402,28 +1432,9 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .administracao-abas {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 24px;
-  padding-bottom: 14px;
+  gap: 0 var(--espaco-1);
+  margin-bottom: var(--espaco-5);
   border-bottom: 1px solid var(--line);
-}
-.administracao-aba {
-  padding: 9px 14px;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: var(--white);
-  color: var(--ink);
-  font-size: .875rem;
-  font-weight: 550;
-  text-decoration: none;
-}
-.administracao-aba:hover {
-  background: var(--soft);
-}
-.administracao-aba[aria-current="page"] {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: var(--white);
 }
 .administracao-conteudo,
 .regras-conteudo {
@@ -1448,7 +1459,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .administracao-conteudo label {
   display: grid;
   gap: 6px;
-  font-size: .875rem;
+  font-size: var(--texto-1);
   font-weight: 550;
 }
 .administracao-conteudo textarea {
@@ -1474,16 +1485,18 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .acessos-lista h3 {
   margin: 0 0 8px;
   font-family: inherit;
-  font-size: 1.125rem;
 }
 .acessos-lista p {
   margin: 4px 0;
 }
 #acesso-interno {
-  margin-block: 28px;
+  margin-block: var(--espaco-6);
 }
 #acesso-interno h3 {
-  margin-bottom: 8px;
+  margin-bottom: var(--espaco-2);
+}
+#acesso-interno > p {
+  margin-bottom: var(--espaco-4);
 }
 #interno-confirmacao-form {
   display: grid;
@@ -1526,7 +1539,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .regras-atendimento__atualizacao {
   margin: 0;
   color: var(--muted);
-  font-size: .875rem;
+  font-size: var(--texto-1);
 }
 
 /* ---- Auditoria (FR-039) ------------------------------------------------- */
@@ -1536,7 +1549,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   color: var(--muted);
 }
 .auditoria__status {
-  font-size: .9375rem;
+  font-size: var(--texto-2);
 }
 .auditoria__filtros {
   display: flex;
@@ -1549,7 +1562,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   display: grid;
   gap: 6px;
   min-width: 170px;
-  font-size: .8125rem;
+  font-size: var(--texto-1);
   font-weight: 550;
 }
 .auditoria__acoes,
@@ -1566,7 +1579,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   max-width: 100%;
   overflow-x: auto;
   border-collapse: collapse;
-  font-size: .875rem;
+  font-size: var(--texto-1);
 }
 .auditoria__tabela thead,
 .auditoria__tabela tbody {
@@ -1583,7 +1596,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .auditoria__tabela th {
   color: var(--muted);
-  font-size: .75rem;
+  font-size: var(--texto-1);
   font-weight: 700;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -1599,7 +1612,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .solicitacoes-titular__meta {
   margin: 0;
   color: var(--muted);
-  font-size: .9375rem;
+  font-size: var(--texto-2);
 }
 .solicitacoes-titular__lista {
   display: grid;
@@ -1636,7 +1649,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .habilitacao-crise__aviso {
   margin: 0;
   color: var(--muted);
-  font-size: .9375rem;
+  font-size: var(--texto-2);
 }
 .habilitacao-crise__vazio {
   margin: 0;
@@ -1666,7 +1679,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .habilitacao-crise__rotulo {
   color: var(--muted);
-  font-size: .8125rem;
+  font-size: var(--texto-1);
 }
 .habilitacao-crise__acoes {
   display: flex;
@@ -1685,7 +1698,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .plano-crise__prazo {
   margin: 0;
   color: var(--muted);
-  font-size: .9375rem;
+  font-size: var(--texto-2);
 }
 .plano-crise__lista {
   display: grid;
@@ -1711,7 +1724,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   border-radius: var(--radius-card);
   background: #fdf6e7;
   color: #5c431a;
-  font-size: .9375rem;
+  font-size: var(--texto-2);
 }
 
 /* ---- Pendências do caso (FR-027) ---------------------------------------- */
@@ -1741,7 +1754,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   flex-wrap: wrap;
   gap: 8px;
   color: var(--muted);
-  font-size: .8125rem;
+  font-size: var(--texto-1);
 }
 .pendencia-sinal {
   display: inline-flex;
@@ -1750,7 +1763,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   padding: 4px 10px;
   border-radius: 20px;
   background: var(--soft);
-  font-size: .8125rem;
+  font-size: var(--texto-1);
   font-weight: 600;
 }
 .pendencia-acoes,
@@ -1767,40 +1780,39 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
-  gap: 12px;
-  margin-bottom: 18px;
-  padding: 16px;
+  gap: var(--espaco-3);
+  margin-bottom: var(--espaco-4);
+  padding: var(--espaco-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
-  background: var(--soft);
+  background: transparent;
 }
 .filtros-carteira-titulo {
   flex-basis: 100%;
   margin: 0;
   font-family: var(--font-body);
-  font-size: .75rem;
+  font-size: var(--texto-1);
   font-weight: 700;
   color: var(--muted);
-  letter-spacing: .06em;
-  text-transform: uppercase;
 }
 .filtro-carteira {
   display: grid;
   gap: 6px;
   min-width: 160px;
   flex: 1 1 160px;
-  font-size: .8125rem;
+  font-size: var(--texto-1);
   font-weight: 550;
 }
 .filtro-carteira select {
   width: 100%;
   min-height: 44px;
-  padding: 10px 12px;
+  padding: 10px var(--espaco-3);
   border: 1px solid var(--field-line);
   border-radius: var(--radius-field);
   background: var(--white);
   color: inherit;
   font: inherit;
+  font-size: var(--texto-2);
 }
 .filtros-carteira .button-secondary {
   flex: 0 0 auto;
@@ -1816,7 +1828,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   border: 1px solid var(--line);
   border-radius: 20px;
   background: var(--soft);
-  font-size: .75rem;
+  font-size: var(--texto-1);
   line-height: 1.5;
 }
 .sinal-carteira strong {
@@ -1861,7 +1873,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   padding: 12px 14px;
   border-radius: var(--radius-field);
   background: var(--white);
-  font-size: .9375rem;
+  font-size: var(--texto-2);
   white-space: pre-wrap;
 }
 
@@ -1871,7 +1883,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
     gap: 16px;
   }
   .auditoria__tabela {
-    font-size: .8125rem;
+    font-size: var(--texto-1);
   }
   .auditoria__tabela th,
   .auditoria__tabela td {
@@ -1934,14 +1946,14 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .linha-tempo__acontecimento {
   margin: 0;
   color: var(--ink);
-  font-size: .9375rem;
+  font-size: var(--texto-2);
 }
 .linha-tempo__registro,
 .linha-tempo__fonte,
 .linha-tempo__area {
   margin: 0;
   color: var(--muted);
-  font-size: .875rem;
+  font-size: var(--texto-1);
 }
 .linha-tempo__estado,
 .linha-tempo__audiencia {
@@ -1951,14 +1963,14 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   border-radius: 999px;
   background: var(--wash);
   color: var(--muted);
-  font-size: .8125rem;
+  font-size: var(--texto-1);
 }
 /* Conteúdo que a pessoa não pode ver não vira item fantasma: só esta linha
    explica, sem vocabulário técnico e sem revelar o que foi omitido. */
 .linha-tempo__indisponivel {
   margin: 0;
   color: var(--muted);
-  font-size: .875rem;
+  font-size: var(--texto-1);
   font-style: italic;
 }
 
@@ -1972,7 +1984,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .exportacao__contagem {
   margin: 0;
   color: var(--muted);
-  font-size: .9375rem;
+  font-size: var(--texto-2);
 }
 .exportacao__form {
   display: grid;
@@ -2005,14 +2017,14 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .exportacao__quando {
   margin: 0;
   color: var(--muted);
-  font-size: .875rem;
+  font-size: var(--texto-1);
 }
 /* FR-033: a declaração de que houve omissão de terceiros. Fica legível, não em nota de
    rodapé — quem recebe o pacote precisa saber que ele foi reduzido. */
 .exportacao__terceiros {
   margin: 0;
   color: var(--muted);
-  font-size: .875rem;
+  font-size: var(--texto-1);
   font-style: italic;
 }
 
@@ -2043,7 +2055,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .home-saudacao {
   margin: 0;
-  font-size: 3.125rem;
+  font-size: var(--texto-6);
   line-height: 1.06;
   letter-spacing: -.03em;
 }
@@ -2066,7 +2078,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .home-bloco-titulo {
   margin: 0;
-  font: 500 1.5rem / 1.2 var(--font-display);
+  font: 500 var(--texto-4) / 1.2 var(--font-display);
   letter-spacing: -.02em;
 }
 /* O aviso de FR-028 acompanha o estado onde ele é mostrado, nunca num rodapé solto. */
@@ -2074,7 +2086,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   margin: 0;
   max-width: 62ch;
   color: var(--muted);
-  font-size: .8125rem;
+  font-size: var(--texto-1);
   line-height: 1.55;
 }
 .home-lista {
@@ -2105,7 +2117,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .home-caso-nome {
   font-weight: 600;
-  font-size: 1.0625rem;
+  font-size: var(--texto-2);
   overflow-wrap: anywhere;
 }
 .home-caso-motivos {
@@ -2116,7 +2128,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   display: grid;
   gap: 2px;
   color: var(--muted);
-  font-size: .875rem;
+  font-size: var(--texto-1);
   line-height: 1.5;
 }
 /* Seta de abertura, igual à linha de caso da carteira. */
@@ -2149,7 +2161,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   padding-top: 20px;
   border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: .9375rem;
+  font-size: var(--texto-2);
 }
 .home-rodape-link {
   color: var(--primary);
@@ -2165,7 +2177,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 
 @media (max-width: 760px) {
   .home-saudacao {
-    font-size: 2.625rem;
+    font-size: var(--texto-5);
   }
   .home,
   .home-corpo {
@@ -2189,13 +2201,6 @@ body:has(#patients-view:not([hidden])) .topbar .brand {
   width: var(--sidebar-width);
   padding: 28px 20px 24px;
 }
-.sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  font-size: 25px;
-}
 .sidebar-brand img {
   display: block;
   width: 64px;
@@ -2212,21 +2217,10 @@ body:has(#patients-view:not([hidden])) .topbar .brand {
   margin: 12px 0 -12px;
   background: transparent;
   color: var(--primary);
-  font: 400 28px / 1 var(--font-body);
+  font: 400 var(--texto-4) / 1 var(--font-body);
 }
 .sidebar-collapse:hover {
   background: var(--soft);
-}
-.sidebar-label {
-  margin: 32px 12px 12px;
-  font-size: .875rem;
-}
-.sidebar-link {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 48px;
-  color: var(--muted);
 }
 .sidebar-icon {
   width: 20px;
@@ -2274,61 +2268,6 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
 }
 .sidebar-close {
   display: none;
-}
-.patients-layout {
-  padding: 48px 4% 72px;
-}
-.patient-register {
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-.patient-register .section-heading {
-  padding-bottom: 14px;
-}
-.busca {
-  margin: 16px 0;
-}
-.people-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-  border: 0;
-}
-.people-list li {
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--white);
-}
-.pessoa {
-  height: 100%;
-  min-height: 150px;
-  align-items: flex-start;
-  padding: 24px;
-  border-radius: inherit;
-}
-.pessoa-texto {
-  gap: 5px;
-}
-.pessoa-nome {
-  font: 600 1.6rem / 1.1 var(--font-display);
-}
-.pessoa-seta {
-  align-self: center;
-}
-.filtros-carteira {
-  gap: 10px;
-  padding: 12px;
-  background: transparent;
-}
-.filtros-carteira-titulo {
-  text-transform: none;
-  letter-spacing: normal;
-}
-.filtro-carteira select {
-  font-size: 1rem;
 }
 @media (max-width: 760px) {
   body:has(#patients-view:not([hidden])) .topbar,
@@ -2382,6 +2321,7 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
   animation: loading-reveal 0s linear 300ms backwards;
 }
 .list-loading span {
+  display: block;
   height: 64px;
   margin: 0;
   border: 1px solid var(--line);
@@ -2389,12 +2329,18 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
   background: var(--soft);
   animation: loading-pulse 1.4s ease-in-out 300ms infinite alternate;
 }
+/* Mesma linguagem do esqueleto da lista, em blocos menores (ficha, contatos, cadastro). */
 .list-loading[data-compacto] span {
   height: 36px;
+  border: 0;
+  border-radius: var(--radius-field);
+}
+.list-loading[data-compacto] span:last-child {
+  width: 60%;
 }
 #list-loading {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  gap: var(--espaco-4);
 }
 #list-loading span {
   height: 150px;
@@ -2418,8 +2364,12 @@ body.sidebar-open {
 .sidebar-link,
 .sidebar-collapse,
 .button-primary,
-.button-secondary {
-  transition: background-color .16s ease, color .16s ease, border-color .16s ease;
+.button-secondary,
+.button-quiet,
+.pessoa,
+.home-caso-link {
+  transition: background-color var(--mov-estado) var(--curva-entrada), color var(--mov-estado)
+    var(--curva-entrada), border-color var(--mov-estado) var(--curva-entrada);
 }
 body.sidebar-collapsed .sidebar-link:hover .sidebar-tooltip,
 body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
@@ -2457,26 +2407,7 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
     height: 120px;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .list-loading,
-  .list-loading span,
-  .loading-indicator {
-    animation: none;
-  }
-  .sidebar-link,
-  .sidebar-collapse,
-  .button-primary,
-  .button-secondary,
-  .patients-sidebar {
-    transition: none;
-  }
-}
-
 /* Ferramentas da carteira permanecem disponíveis sem dominar a lista. */
-.patient-register .section-heading {
-  padding: 0;
-  border: 0;
-}
 .carteira-tools {
   display: flex;
   flex-wrap: wrap;
@@ -2484,20 +2415,17 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
   gap: 10px 16px;
   margin-bottom: 18px;
 }
-.carteira-tools > #filtros-carteira {
-  flex: 1 1 100%;
-}
 .carteira-tools .busca {
   flex: 1 1 260px;
   margin: 0;
 }
 .carteira-tools .busca label {
-  font-size: .875rem;
+  font-size: var(--texto-1);
   font-weight: 600;
 }
 .carteira-tools .busca .small-text {
   margin-top: 4px;
-  font-size: .8125rem;
+  font-size: var(--texto-1);
 }
 .carteira-tools #reload-patients {
   align-self: center;
@@ -2509,7 +2437,7 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
   }
   body:has(#patients-view:not([hidden])) .chip-ambiente {
     padding: 3px 8px;
-    font-size: .75rem;
+    font-size: var(--texto-1);
   }
   .carteira-tools {
     gap: 8px 12px;
@@ -2536,7 +2464,7 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
   border-radius: var(--radius-control);
   background: var(--white);
   color: var(--primary);
-  font-size: .9375rem;
+  font-size: var(--texto-2);
   font-weight: 600;
   cursor: pointer;
 }
@@ -2575,17 +2503,11 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
   }
 }
 /* Superfícies existentes compartilham bordas e hierarquia do mock. */
-.access-form-panel,
 .ficha-secao form,
 .administracao-conteudo form,
 .dialogo,
 .registration-panel {
   background: var(--white);
-}
-.access-form-panel {
-  padding: 28px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-panel);
 }
 /* As dobras do acesso são controles de toque, não texto. Mediam 25,59px de altura em viewport
    de celular (360x640 e 390x844), abaixo dos 44px exigidos; o mínimo aqui iguala o que o
@@ -2601,26 +2523,6 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
 }
-.ficha-aba,
-.administracao-aba {
-  transition: background-color .16s ease, color .16s ease, border-color .16s ease;
-}
-.ficha-aba[aria-selected="true"],
-.administracao-aba[aria-current="page"] {
-  color: var(--primary);
-}
-@media (max-width: 760px) {
-  .access-form-panel {
-    padding: 22px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ficha-aba,
-  .administracao-aba {
-    transition: none;
-  }
-}
-
 button:has(> .loading-indicator),
 label:has(> .loading-indicator) {
   position: relative;
@@ -2654,13 +2556,6 @@ label > .loading-indicator {
   border-radius: 50%;
   animation: loading-reveal 0s linear 300ms backwards, loading-spin .8s linear 300ms infinite;
 }
-@media (prefers-reduced-motion: reduce) {
-  #revalidacao-status:not([hidden])::before,
-  #logout-view.logout-loading::before {
-    animation: none;
-  }
-}
-
 @media (max-width: 760px) {
   .filtro-carteira {
     min-width: 0;
@@ -2684,7 +2579,7 @@ label > .loading-indicator {
 .substituicao-cm__aviso {
   margin: 0;
   color: var(--muted);
-  font-size: .9375rem;
+  font-size: var(--texto-2);
 }
 .substituicao-cm__resumo {
   display: grid;
@@ -2698,7 +2593,7 @@ label > .loading-indicator {
 }
 .substituicao-cm__resumo dt {
   color: var(--muted);
-  font-size: .8125rem;
+  font-size: var(--texto-1);
 }
 .substituicao-cm__resumo dd {
   margin: 0 0 8px;
@@ -2805,23 +2700,8 @@ label > .loading-indicator {
 .financeiro__abas {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-}
-.financeiro__aba {
-  min-height: 44px;
-  min-width: 44px;
-  padding: 0 0.9rem;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--wash);
-  color: var(--ink);
-  font: inherit;
-  cursor: pointer;
-}
-.financeiro__aba[aria-selected="true"] {
-  background: var(--panel);
-  border-color: var(--primary);
-  font-weight: 600;
+  gap: 0 var(--espaco-1);
+  border-bottom: 1px solid var(--line);
 }
 .financeiro__painel {
   display: flex;
@@ -2915,7 +2795,7 @@ label > .loading-indicator {
   border-radius: 999px;
   background: var(--alerta, #b42318);
   color: #fff;
-  font-size: 0.75rem;
+  font-size: var(--texto-1);
   font-weight: 600;
   line-height: 1.25rem;
   text-align: center;
@@ -2938,7 +2818,7 @@ label > .loading-indicator {
 
 .avisos-situacao {
   margin: 0 0 0.5rem;
-  font-size: 0.85rem;
+  font-size: var(--texto-1);
 }
 
 .avisos-lista {
@@ -2969,10 +2849,81 @@ label > .loading-indicator {
 .avisos-item-detalhe,
 .avisos-item-motivo {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: var(--texto-1);
 }
 
 .avisos-item-lido {
   justify-self: start;
   min-height: 2.5rem;
+}
+
+/* ---- Movimento: vocabulário fechado (VIS-013) ---------------------------
+   Três durações (--mov-estado, --mov-troca, --mov-contexto) e duas curvas, já
+   declaradas em :root. Nada fora desta seção e das transições de estado dos
+   controles anima.
+
+   O que NÃO anima, por decisão e não por esquecimento:
+   - erro, que aparece imediatamente (regra explícita abaixo);
+   - retirada de conteúdo protegido: sair, perder acesso ou trocar de identidade
+     usa `hidden`, que é `display: none` e não tem transição de saída em lugar
+     nenhum deste arquivo. Nenhuma regra aqui anima a saída de nada;
+   - números, valores e datas, que não são contados em tela;
+   - revelação por rolagem, parallax, elevação em hover de cartão e brilho;
+   - conclusão de tarefa, plantão ou cadastro, que não é celebrada.
+   O único laço continua sendo o da espera já aprovada (esqueleto e indicador),
+   com o atraso de 300ms preservado. */
+@keyframes mov-entrada-contexto {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes mov-entrada-troca {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* Entrada e saída de contexto: abrir a ficha de um paciente e voltar para a lista.
+   O elemento só anima quando reaparece, porque `hidden` o tira do fluxo. */
+#ficha-view:not([hidden]),
+#lista-view:not([hidden]),
+#home-view:not([hidden]) {
+  animation: mov-entrada-contexto var(--mov-contexto) var(--curva-entrada);
+}
+
+/* Troca de conteúdo dentro da mesma tela: aba da ficha e dobras. */
+.ficha-secao,
+.ficha-mais[open] > .ficha-mais-lista,
+.filtros-carteira-painel[open] > .filtros-carteira,
+.access-form-panel details[open] > *:not(summary) {
+  animation: mov-entrada-troca var(--mov-troca) var(--curva-entrada);
+}
+
+/* Diálogo: opacidade do painel e do fundo, sem escala. */
+.dialogo[open],
+.dialogo[open]::backdrop {
+  animation: mov-entrada-contexto var(--mov-contexto) var(--curva-entrada);
+}
+
+/* Erro nunca entra animado: quem já está num momento difícil não espera por uma
+   mensagem de falha. Vale também dentro de uma região que acabou de entrar. */
+[data-tone="error"],
+.field-error,
+[role="alert"] {
+  animation: none;
+  transition: none;
+}
+
+/* Movimento reduzido: um único bloco governante, no lugar dos quatro anteriores.
+   O estado final é o estado visível — sem fade residual e sem deslocamento. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
 }
