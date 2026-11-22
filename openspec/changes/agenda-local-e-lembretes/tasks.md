@@ -34,38 +34,53 @@ Nenhuma tarefa dos grupos 1 a 8 começa antes de 0.1 e 0.2. As pendências P1 a 
   perfil, método de acesso (`google_workspace` / `interno`) e revogação de FR-037.
   **Evidência:** matriz positiva e negativa existente reexecutada, com saída registrada.
   Não cria controle novo; confirma o que FR-090 vai pressupor.
-- [ ] 0.3 **BLOQUEADA — P1.** Quem, além do perfil Administrador, administra a agenda de
-  outra pessoa. Adotado enquanto não houver decisão: **somente Administrador**. Se a case
-  manager do caso também cadastrar, a matriz de autorização muda, a concessão nominal
-  descartada em `design.md — D3` volta à mesa e as provas positivas e negativas precisam
-  ser refeitas. Bloqueia 3.2.
-- [ ] 0.4 **BLOQUEADA — P2.** Se o compromisso local se vincula a paciente ou caso. Adotado
-  enquanto não houver decisão: **não se vincula**, e a tabela não tem `paciente_id`
-  (`design.md — D6`). Se vincular, entram audiência de caso, título genérico por ausência
-  de acesso clínico e FR-023 inteiro — o recorte deixa de ser "agenda da pessoa". Bloqueia
-  5.3.
-- [ ] 0.5 **BLOQUEADA — P3.** Se o titular cria ou edita compromisso próprio, além de pôr
-  lembretes. O pedido de 22/11/2026 lhe dá lembretes, não compromissos. Adotado enquanto
-  não houver decisão: **o titular não cria nem edita compromisso**; registra realização e
-  pede mudança fora do produto. Bloqueia 3.3.
-- [ ] 0.6 **BLOQUEADA — P4.** Se lembrete vencido e não aberto tem consequência operacional
-  para quem cadastrou. Adotado enquanto não houver decisão: **não tem**, porque seria
-  confirmação de leitura disfarçada e contradiz a distinção de FR-072 entre aviso lido e
-  ciência registrada. Bloqueia 6.4.
-- [ ] 0.7 **BLOQUEADA — P5.** Contingência da extensão de FR-024. Se 7.1 demonstrar que a
-  extensão aditiva não preserva o comportamento provado do ramo Google, a escolha entre
-  tabela paralela com dívida registrada e adiamento da realização do compromisso local é
-  **da coordenação, não do executor**. Bloqueia 7.1.
-- [ ] 0.8 **BLOQUEADA — P6.** Catálogo inicial de propósitos do compromisso local: quais
-  termos a agenda nasce conhecendo. O catálogo é administrado justamente para crescer, mas
-  a semeadura é regra de negócio da cliente. Bloqueia 2.2.
+- [x] 0.3 (22/11/2026) **P1 RESOLVIDA pela coordenação.** Só o perfil **Administrador**
+  administra a agenda de outra pessoa. Nenhum outro perfil, e em particular **não** se deriva
+  a permissão do vínculo com o caso — é exatamente o acoplamento que FR-023 proíbe. Ampliar
+  depois é acrescentar quem administra, não refazer o modelo. Desbloqueia 3.2.
+- [x] 0.4 (22/11/2026) **P2 RESOLVIDA.** O compromisso local **não se vincula a paciente
+  nem a caso**, pela mesma razão que o do Google não leva: agenda não concede acesso clínico.
+  Quem precisa correlacionar compromisso e caso usa a carteira, que já tem a autorização do
+  caso e as provas dela. Isso mantém 5.3 fechada por decisão, e não por omissão.
+- [x] 0.5 (22/11/2026) **P3 RESOLVIDA — o titular também cria o seu.** Além de ler, marcar
+  realização e pôr lembrete, o titular **cria e edita compromisso próprio** na sua agenda.
+  Consequência que 3.3 precisa tratar explicitamente, e não supor: passam a existir dois
+  autores na mesma agenda. **Regra da coordenação:** autoria é individual e preservada por
+  versão; **cada um edita o que criou**. O titular não altera o que o Administrador marcou, e
+  o Administrador não reescreve o que o titular criou — quem quiser mudar o do outro cria uma
+  versão nova com autoria própria e motivo, que é como o resto do produto trata correção.
+  Isso evita divergência silenciosa com o que a coordenação combinou. Desbloqueia 3.3.
+- [x] 0.6 (22/11/2026) **P4 RESOLVIDA.** O lembrete vive no sino de FR-072 e **não tem
+  consequência operacional** além de aparecer: não gera pendência, não cobra ninguém, não
+  escala. Compromisso vencido sem leitura aparece **marcado como atrasado**, e só.
+  O limite é escrito no requisito, não escondido: **o lembrete alcança quem abre o
+  aplicativo.** O solicitante decidiu assim em 22/11/2026, ciente de que, para o caso em que
+  o alcance precisa ser garantido — medicação, consulta, plantão —, a saída é push ou
+  WhatsApp, que é recorte próprio e reabre a decisão de 17/11 sobre notificação externa.
+- [x] 0.7 (22/11/2026) **P5 RESOLVIDA — contingência definida pela coordenação.** Se 7.1
+  demonstrar que a extensão de FR-024 **não** preserva as provas do ramo Google, a regra é:
+  **não mexer no ramo Google.** A extensão para por ali, o ramo local passa a usar mecanismo
+  próprio com a mesma semântica, e a duplicação fica registrada como dívida explícita com o
+  motivo técnico concreto. `registrar-realizacao-do-compromisso` é trilha já provada, com
+  prova de concorrência em duas conexões; arriscá-la por elegância de mecanismo não se
+  justifica. Mesma regra já aplicada ao catálogo do Plano em 20/11/2026.
+- [x] 0.8 (22/11/2026) **P6 RESOLVIDA, e muda a decisão D6.** O solicitante decidiu que o
+  propósito do compromisso local é **texto livre**, não catálogo fechado.
+  A razão de D6 não se aplica aqui, e vale explicitar por quê: o título do compromisso do
+  Google é genérico porque ele vive **no calendário do Google**, fora da cifra e do controle
+  de audiência do produto. O compromisso local vive no banco do produto e é cifrado — texto
+  livre ali tem a mesma proteção do resto do conteúdo.
+  **Duas salvaguardas obrigatórias, que substituem o catálogo:** o texto é **cifrado** como
+  os demais textos livres, com AAD próprio; e a interface diz, no próprio campo, que ali não
+  entra diagnóstico, condição de saúde nem nome de terceiro. Texto livre é onde conteúdo
+  clínico vaza sem intenção, e FR-042 continua valendo.
+  Isso desbloqueia 2.2 e dispensa o catálogo de propósitos — se a operação pedir termos
+  padronizados depois, vira recorte próprio.
 
 ## 1. Contratos
 
-Depende de 0.1.
-
 - [ ] 1.1 Criar `packages/contracts/src/agenda-local.ts` com os schemas Zod `.strict()` do
-  compromisso local: titular, janela com fuso, propósito de catálogo, local ou modalidade,
+  compromisso local: titular, janela com fuso, propósito em texto livre cifrado (decisão 0.8), local ou modalidade,
   observação, situação de vigência, motivo e versão. **Evidência:** teste novo em
   `packages/contracts/test/`, executado uma vez, cobrindo entrada válida, rejeição de campo
   desconhecido, rejeição de propósito fora do conjunto, rejeição de fim anterior ao início
