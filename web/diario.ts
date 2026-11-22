@@ -49,10 +49,66 @@ function elemento<K extends keyof HTMLElementTagNameMap>(tipo: K, texto?: string
   return el;
 }
 
-function linha(titulo: string, valor: string): HTMLElement {
-  const item = elemento('p');
-  item.append(elemento('strong', `${titulo}: `), document.createTextNode(valor));
-  return item;
+/** VIS-017: campo secundário de um registro publicado. O rótulo existe para situar quem
+ * lê — em corpo menor e apagado — e o peso de leitura fica com o que a pessoa escreveu.
+ * O par `Rótulo: valor` em negrito, linha a linha, é ficha preenchida, não relato. */
+function campoRegistro(lista: HTMLElement, titulo: string, valor: string): void {
+  lista.append(elemento('dt', titulo), elemento('dd', valor));
+}
+
+/** Texto livre de um registro publicado: o que a pessoa de fato escreveu.
+ *
+ * Entra como prosa, com o rótulo acima em corpo menor e apagado, em vez de competir com o
+ * conteúdo na mesma linha. É a diferença entre ler um relato e conferir um formulário —
+ * e esta é a mesma tela que a família pode receber. */
+function trechoRegistro(artigo: HTMLElement, titulo: string, texto: string): void {
+  const bloco = elemento('div');
+  bloco.className = 'diario-trecho';
+  bloco.append(elemento('p', titulo), elemento('p', texto));
+  (bloco.firstElementChild as HTMLElement).className = 'diario-trecho-rotulo';
+  artigo.append(bloco);
+}
+
+/** Procedência do registro numa linha só: situação, instante e audiência. Eram três
+ * parágrafos em negrito antes do conteúdo, empurrando o relato para baixo da dobra. */
+function procedenciaRegistro(artigo: HTMLElement, partes: readonly string[]): void {
+  const linha = elemento('p', partes.join(' · '));
+  linha.className = 'diario-procedencia';
+  artigo.append(linha);
+}
+
+/** Lista de valores curtos — datas, categoria, área. Só o que cabe numa linha. */
+function listaCampos(artigo: HTMLElement): HTMLElement {
+  const lista = elemento('dl');
+  lista.className = 'diario-campos';
+  artigo.append(lista);
+  return lista;
+}
+
+/** Agrupa campos por assunto (VIS-017). Nenhum campo sai do formulário: o que muda é que
+ * eles deixam de ser uma pilha de áreas de texto idênticas. */
+function grupo(form: HTMLFormElement, titulo: string): HTMLFieldSetElement {
+  const bloco = elemento('fieldset');
+  bloco.append(elemento('legend', titulo));
+  form.append(bloco);
+  return bloco;
+}
+
+/** Uma única ação principal por formulário de registro (decisão 6 do design): publicar
+ * torna o registro visível a outras pessoas e não pode ter o mesmo peso de guardar um
+ * rascunho, que é reversível e privado. */
+function acoesDoFormulario(
+  form: HTMLFormElement,
+  secundaria: HTMLButtonElement,
+  principal: HTMLButtonElement,
+): HTMLElement {
+  const acoes = elemento('div');
+  acoes.className = 'diario-acoes';
+  principal.classList.add('button-primary');
+  secundaria.classList.add('button-quiet');
+  acoes.append(secundaria, principal);
+  form.append(acoes);
+  return acoes;
 }
 
 /** FR-013: envio, consulta e retorno são situações distintas, e consultar não encerra a
@@ -173,15 +229,16 @@ export function montarDiario(
       elemento('h3', 'Registrar no diário'),
       elemento('p', 'Conte o que aconteceu e o que você gostaria de levar à coordenação.'),
     );
-    const data = campo(form, 'Quando aconteceu? (obrigatória)', elemento('input'));
+    const acontecimento = grupo(form, 'O que aconteceu');
+    const data = campo(acontecimento, 'Quando aconteceu? (obrigatória)', elemento('input'));
     data.type = 'date';
-    const descricao = campo(form, 'O que aconteceu? (obrigatória)', elemento('textarea'));
+    const descricao = campo(acontecimento, 'O que aconteceu? (obrigatória)', elemento('textarea'));
     // FR-010: ditar é atalho para preencher a descrição, nunca requisito.
     let origemConteudo: OrigemConteudoDiario = rascunhoExistente?.origem_conteudo ?? 'texto';
     if (montarEntradaPorAudio) {
       const porAudio = document.createElement('div');
       porAudio.className = 'diario-entrada-audio';
-      form.append(porAudio);
+      acontecimento.append(porAudio);
       const desmontarAudio = montarEntradaPorAudio(porAudio, (texto) => {
         descricao.value = texto;
         origemConteudo = 'audio_transcrito';
@@ -194,12 +251,13 @@ export function montarDiario(
         if (!descricao.value.trim()) origemConteudo = 'texto';
       });
     }
-    const categoria = campo(form, 'Categoria (opcional)', elemento('input'));
-    const contexto = campo(form, 'O que ajudou? (opcional)', elemento('textarea'));
-    const acao = campo(form, 'Ação tomada (opcional)', elemento('textarea'));
+    const detalhes = grupo(form, 'Detalhes, se quiser contar');
+    const categoria = campo(detalhes, 'Categoria (opcional)', elemento('input'));
+    const contexto = campo(detalhes, 'O que ajudou? (opcional)', elemento('textarea'));
+    const acao = campo(detalhes, 'Ação tomada (opcional)', elemento('textarea'));
     const retorno = elemento('input');
     retorno.type = 'checkbox';
-    campo(form, 'Gostaria de um retorno da coordenação', retorno);
+    campo(grupo(form, 'Retorno da coordenação'), 'Gostaria de um retorno da coordenação', retorno);
     if (rascunhoExistente) {
       const conteudo = rascunhoExistente.conteudo as ConteudoRelatoDiario;
       data.value = conteudo.dataAcontecimento;
@@ -216,7 +274,8 @@ export function montarDiario(
     rascunho.type = 'button';
     const publicar = elemento('button', 'Publicar');
     publicar.type = 'submit';
-    form.append(aviso, rascunho, publicar);
+    form.append(aviso);
+    acoesDoFormulario(form, rascunho, publicar);
     form.addEventListener('input', () => {
       pendenteFamiliar = true;
       registrarPendencia(true);
@@ -564,36 +623,45 @@ export function montarDiario(
           registro.tipo === 'relato_familiar' ? 'Relato da família' : 'Evolução profissional',
         ),
       );
-      artigo.append(linha('Situação', rotuloEstado[registro.estado]));
-      artigo.append(linha('Registrado em', dataLegivel(registro.criado_em)));
-      artigo.append(linha('Quem vê', rotuloAudiencia[registro.audiencia]));
+      procedenciaRegistro(artigo, [
+        rotuloEstado[registro.estado],
+        dataLegivel(registro.criado_em),
+        rotuloAudiencia[registro.audiencia],
+      ]);
       if (registro.origem_conteudo === 'audio_transcrito')
         artigo.append(elemento('p', 'Texto obtido de transcrição de áudio e revisado pelo autor.'));
+      // O texto livre vem primeiro e como prosa; os valores curtos vão para a lista ao fim.
+      // Ler um registro é ler o que a pessoa escreveu, não percorrer rótulos.
       if (registro.tipo === 'relato_familiar') {
         const conteudo = registro.conteudo as ConteudoRelatoDiario;
-        artigo.append(linha('Aconteceu em', conteudo.dataAcontecimento));
-        artigo.append(linha('Descrição', conteudo.descricao));
-        if (conteudo.categoria) artigo.append(linha('Categoria', conteudo.categoria));
-        if (conteudo.contexto) artigo.append(linha('Contexto', conteudo.contexto));
-        if (conteudo.acaoTomada) artigo.append(linha('Ação tomada', conteudo.acaoTomada));
+        trechoRegistro(artigo, 'O que aconteceu', conteudo.descricao);
+        if (conteudo.contexto) trechoRegistro(artigo, 'O que ajudou', conteudo.contexto);
+        if (conteudo.acaoTomada) trechoRegistro(artigo, 'Ação tomada', conteudo.acaoTomada);
+        const campos = listaCampos(artigo);
+        campoRegistro(campos, 'Aconteceu em', conteudo.dataAcontecimento);
+        if (conteudo.categoria) campoRegistro(campos, 'Categoria', conteudo.categoria);
       } else {
         const conteudo = registro.conteudo as ConteudoEvolucaoDiario;
-        artigo.append(linha('Área', conteudo.area));
-        artigo.append(linha('Data do atendimento', conteudo.data));
-        if (conteudo.atividade) artigo.append(linha('Atividade', conteudo.atividade));
+        if (conteudo.atividade) trechoRegistro(artigo, 'Atividade', conteudo.atividade);
         if (conteudo.observacoesCompartilhaveis)
-          artigo.append(linha('Observações compartilháveis', conteudo.observacoesCompartilhaveis));
-        if (conteudo.progresso) artigo.append(linha('Progresso', conteudo.progresso));
-        if (conteudo.orientacao) artigo.append(linha('Orientação', conteudo.orientacao));
-        if (conteudo.proximoPasso) artigo.append(linha('Próximo passo', conteudo.proximoPasso));
+          trechoRegistro(
+            artigo,
+            'Observações compartilháveis',
+            conteudo.observacoesCompartilhaveis,
+          );
+        if (conteudo.progresso) trechoRegistro(artigo, 'Progresso', conteudo.progresso);
+        if (conteudo.orientacao) trechoRegistro(artigo, 'Orientação', conteudo.orientacao);
+        if (conteudo.proximoPasso) trechoRegistro(artigo, 'Próximo passo', conteudo.proximoPasso);
+        const campos = listaCampos(artigo);
+        campoRegistro(campos, 'Área', conteudo.area);
+        campoRegistro(campos, 'Data do atendimento', conteudo.data);
         if (conteudo.objetivoRelacionado)
-          artigo.append(linha('Objetivo relacionado', conteudo.objetivoRelacionado));
+          campoRegistro(campos, 'Objetivo relacionado', conteudo.objetivoRelacionado);
       }
       if (registro.justificativa)
-        artigo.append(linha('Motivo da retificação', registro.justificativa));
-      if (registro.atencao) artigo.append(linha('Atenção', 'Sinalizada por quem registrou.'));
-      if (registro.tarefa_id)
-        artigo.append(linha('Encaminhamento', 'Convertido em tarefa da equipe.'));
+        trechoRegistro(artigo, 'Motivo da retificação', registro.justificativa);
+      if (registro.atencao) procedenciaRegistro(artigo, ['Atenção sinalizada por quem registrou.']);
+      if (registro.tarefa_id) procedenciaRegistro(artigo, ['Convertido em tarefa da equipe.']);
       if (registro.autor_usuario_id === usuarioId) {
         const situacao = elemento('p', situacaoDoRemetente(registro, respostas));
         situacao.setAttribute('role', 'status');

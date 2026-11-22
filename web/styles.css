@@ -967,12 +967,27 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   gap: 10px;
   margin-left: auto;
 }
+/* A faixa rola de verdade desde o `contain: inline-size` de `.ficha`, mas rolar sem sinal
+ * de continuidade esconde abas: quem não arrasta não descobre que existem.
+ *
+ * As duas sombras abaixo aparecem só quando há conteúdo fora da vista, sem JavaScript: a
+ * camada `local` rola junto com o conteúdo e encobre a camada `scroll` quando se chega ao
+ * fim. Chegou na ponta, o sinal some sozinho. Nada anima — é pintura, não movimento. */
 .ficha-abas {
   display: flex;
   gap: var(--espaco-1);
   overflow-x: auto;
   border-bottom: 1px solid var(--line);
   scrollbar-width: thin;
+  background:
+    linear-gradient(to right, var(--wash) 40%, rgb(255 255 255 / 0)) left / 32px 100% no-repeat
+    local,
+    linear-gradient(to left, var(--wash) 40%, rgb(255 255 255 / 0)) right / 32px 100% no-repeat
+    local,
+    linear-gradient(to right, rgb(31 31 29 / 0.12), rgb(255 255 255 / 0)) left / 18px 100%
+    no-repeat scroll,
+    linear-gradient(to left, rgb(31 31 29 / 0.12), rgb(255 255 255 / 0)) right / 18px 100%
+    no-repeat scroll;
 }
 /* Linguagem única de aba do produto: faixa da ficha, "Mais seções", administração e
    financeiro. A seleção nunca depende só de cor — traço de 3px no oliva da marca
@@ -1863,6 +1878,70 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .sinal-carteira[data-estado="informacao_insuficiente"] {
   border-color: var(--line);
   background: var(--white);
+}
+
+/* ---- Registro do diário: relato, não formulário preenchido (VIS-017) -----
+ *
+ * O registro publicado era oito pares `Rótulo: valor` em negrito, empilhados. Formulário
+ * impresso. Esta é, ao mesmo tempo, a tela do plantão às três da manhã e a que a família
+ * pode receber — e em nenhuma das duas leituras o rótulo deve disputar atenção com o que
+ * a pessoa escreveu.
+ *
+ * A procedência fica numa linha discreta, o texto livre entra como prosa com o rótulo
+ * apagado acima, e só os valores curtos ficam em lista. */
+.diario-procedencia {
+  color: var(--muted);
+  font-size: var(--texto-1);
+  margin: var(--espaco-1) 0 var(--espaco-3);
+}
+.diario-trecho {
+  margin-block: var(--espaco-4);
+}
+.diario-trecho-rotulo {
+  color: var(--muted);
+  font-size: var(--texto-1);
+  letter-spacing: 0.02em;
+  margin: 0 0 var(--espaco-1);
+}
+/* O que a pessoa escreveu: medida de leitura confortável e entrelinha de prosa, não de
+ * rótulo. `pre-wrap` preserva as quebras que ela digitou — reflui-las é reescrever o
+ * relato. */
+.diario-trecho > p + p {
+  margin: 0;
+  max-width: 68ch;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.diario-campos {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--espaco-1) var(--espaco-3);
+  margin: var(--espaco-4) 0 0;
+  padding-block-start: var(--espaco-3);
+  border-block-start: 1px solid var(--line);
+}
+.diario-campos dt {
+  color: var(--muted);
+  font-size: var(--texto-1);
+}
+.diario-campos dd {
+  margin: 0;
+  font-size: var(--texto-1);
+}
+/* Publicar torna o registro visível a outras pessoas e não é reversível; guardar rascunho
+ * é privado e reversível. Pesos iguais convidavam ao engano. A principal fica à direita,
+ * sozinha com preenchimento. */
+.diario-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--espaco-3);
+  margin-block-start: var(--espaco-5);
+}
+.diario-acoes .button-quiet {
+  margin-inline-end: auto;
 }
 
 /* ---- Ditar o registro do diário (FR-010) -------------------------------- */
