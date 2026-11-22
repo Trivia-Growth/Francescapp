@@ -11,6 +11,7 @@ create function public.suprimir_auditoria_tarefa_autorizacao_fixture() returns t
 begin if current_setting('fixture.tarefa_autorizacao_suprimir',true)='sim' then return null; end if; return new; end $$;
 create trigger tarefa_autorizacao_auditoria_suprimida before insert on auditoria.evento for each row execute function public.suprimir_auditoria_tarefa_autorizacao_fixture();
 do $$
+#variable_conflict use_variable
 declare ator uuid:='10000000-0000-4000-8000-000000000002'; sessao uuid:='20000000-0000-4000-8000-000000000002'; paciente uuid:='40000000-0000-4000-8000-000000000001'; req uuid; e jsonb; r jsonb; invalido jsonb; transporte jsonb; perfil_teste text;
 begin
  perform set_config('request.jwt.claims',jsonb_build_object('sub',ator,'session_id',sessao,'amr',jsonb_build_array(jsonb_build_object('method','oauth')))::text,true);
