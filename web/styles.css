@@ -3043,6 +3043,114 @@ label > .loading-indicator {
   transition: none;
 }
 
+/* ── Relatórios do cuidado (FR-062, FR-066, FR-080) ──────────────────────────
+   A tela e o PDF são o mesmo documento: a ordem da ficha de plantão governa os dois.
+   Aqui ela só recebe a escala de espaço e de texto do produto — nenhuma cor nova, e
+   nenhum destaque por conteúdo, que seria leitura clínica. */
+.relatorios-turno {
+  display: grid;
+  gap: var(--espaco-5);
+}
+.relatorios-turno > h3 {
+  margin: 0;
+  font-size: var(--texto-4);
+}
+.relatorios-turno__intro {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--texto-1);
+}
+.relatorios-turno__painel {
+  display: grid;
+  gap: var(--espaco-4);
+  margin: 0;
+  padding: var(--espaco-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+}
+.relatorios-turno__painel > legend {
+  padding-inline: var(--espaco-2);
+  font-size: var(--texto-1);
+  color: var(--muted);
+}
+.relatorios-turno__painel > label {
+  display: grid;
+  gap: var(--espaco-1);
+  margin: 0;
+}
+.relatorios-turno__painel > button {
+  justify-self: start;
+}
+.relatorios-turno__dica,
+.relatorios-turno__corte,
+.relatorios-turno__pendencia {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--texto-1);
+}
+.relatorios-turno__pendencia:empty {
+  display: none;
+}
+.relatorios-turno__resultados {
+  display: grid;
+  gap: var(--espaco-5);
+}
+.relatorios-turno__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-3);
+}
+/* Um plantão é um bloco de leitura, e as linhas da ficha são degraus dentro dele:
+   a régua à esquerda substitui a borda fechada que empilharia caixa dentro de caixa. */
+.relatorios-turno .turno-execucao__registro {
+  display: grid;
+  gap: var(--espaco-3);
+  padding: var(--espaco-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+.relatorios-turno .turno-execucao__registro > h4 {
+  margin: 0;
+  font-size: var(--texto-3);
+}
+.relatorios-turno .turno-execucao__registro section {
+  display: grid;
+  gap: var(--espaco-2);
+  padding-inline-start: var(--espaco-4);
+  border-inline-start: 2px solid var(--brand-olive);
+}
+.relatorios-turno .turno-execucao__registro section > h4 {
+  margin: 0;
+  font-size: var(--texto-2);
+  font-weight: 600;
+}
+.relatorios-turno .turno-execucao__registro p {
+  max-width: 68ch;
+  margin: 0;
+}
+.relatorios-turno .turno-execucao__registro section p {
+  color: var(--muted);
+  font-size: var(--texto-1);
+}
+.relatorios-turno .turno-execucao__registro section .turno-execucao__registro {
+  padding: var(--espaco-3) 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+@media (max-width: 560px) {
+  .relatorios-turno__painel {
+    padding: var(--espaco-4);
+  }
+  .relatorios-turno .turno-execucao__registro {
+    padding: var(--espaco-4);
+  }
+}
+
 /* Movimento reduzido: um único bloco governante, no lugar dos quatro anteriores.
    O estado final é o estado visível — sem fade residual e sem deslocamento. */
 @media (prefers-reduced-motion: reduce) {

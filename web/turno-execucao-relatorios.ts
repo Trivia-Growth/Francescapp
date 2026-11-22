@@ -39,11 +39,14 @@ export function montarRelatoriosTurno(
   } | null = null;
   const entrega = criarEntregaArquivoTurno();
   const secao = el('section');
-  secao.className = 'turno-execucao';
+  secao.className = 'turno-execucao relatorios-turno';
   const status = estadoTurno();
+  status.className = 'list-status';
   const resultados = el('div');
+  resultados.className = 'relatorios-turno__resultados';
   const form = el('form');
   const filtros = el('fieldset');
+  filtros.className = 'relatorios-turno__painel';
   filtros.append(el('legend', 'Período do relatório'));
   const tipo = selecaoTurno(
     filtros,
@@ -78,6 +81,7 @@ export function montarRelatoriosTurno(
     'p',
     'Para escolher um turno anterior, consulte primeiro o consolidado do período.',
   );
+  dica.className = 'relatorios-turno__dica';
   filtros.append(dica);
   const ajustar = () => {
     turno.parentElement?.toggleAttribute('hidden', tipo.value !== 'turno');
@@ -115,6 +119,7 @@ export function montarRelatoriosTurno(
   mais.hidden = true;
   const pdfForm = el('form');
   const exportacao = el('fieldset');
+  exportacao.className = 'relatorios-turno__painel';
   exportacao.append(el('legend', 'PDF gerado no servidor'));
   const destinatario = campoTurno(exportacao, 'Destinatário da exportação');
   const proposito = campoTurno(exportacao, 'Propósito da exportação', { longo: true });
@@ -124,27 +129,32 @@ export function montarRelatoriosTurno(
   exportacao.append(emitir);
   pdfForm.append(exportacao);
   const resumoPdf = el('p');
+  resumoPdf.className = 'relatorios-turno__pendencia';
   const conferirPdf = botaoTurno('Conferir emissão anterior de PDF', () => void consultarPdf());
   conferirPdf.hidden = true;
   const repetirPdf = botaoTurno('Repetir a mesma emissão de PDF', () => {
     if (tentativaPdf?.consultada) void enviarPdf();
   });
   repetirPdf.hidden = true;
+  const intro = el(
+    'p',
+    'Consulta e PDF usam registros persistidos e a audiência autorizada. Nenhum dado de localização integra estes relatórios.',
+  );
+  intro.className = 'relatorios-turno__intro';
+  const acoesPdf = el('div');
+  acoesPdf.className = 'relatorios-turno__acoes';
   secao.append(
     el('h3', 'Relatórios do cuidado'),
-    el(
-      'p',
-      'Consulta e PDF usam registros persistidos e a audiência autorizada. Nenhum dado de localização integra estes relatórios.',
-    ),
+    intro,
     status,
     form,
     resultados,
     mais,
     pdfForm,
     resumoPdf,
-    conferirPdf,
-    repetirPdf,
+    acoesPdf,
   );
+  acoesPdf.append(conferirPdf, repetirPdf);
   if (opcoes.familia)
     secao.append(
       el(
@@ -178,7 +188,16 @@ export function montarRelatoriosTurno(
       opcoes.acessoPerdido(erro);
       return;
     }
+    status.dataset.tone = 'error';
     status.textContent = mensagemFalha(erro);
+  }
+  /** Carregamento, vazio e erro têm tratamentos distintos: o esqueleto só aparece depois de
+   * 300 ms (`.list-loading`), e o aviso de erro é o único que muda de cor. */
+  function esqueleto() {
+    const area = el('div');
+    area.className = 'list-loading';
+    area.append(el('span'), el('span'), el('span'));
+    return area;
   }
   async function carregar(
     entrada: Parameters<ServicoTurnoExecucao['relatorio']>[0],
@@ -193,6 +212,8 @@ export function montarRelatoriosTurno(
     }
     ocupada = true;
     controles();
+    delete status.dataset.tone;
+    if (!acrescentar) resultados.replaceChildren(esqueleto());
     status.textContent = tentativaPdf
       ? `Consultando registros. PDF anterior pendente: ${tentativaPdf.entrada.tipo}, ${tentativaPdf.entrada.inicio} até ${tentativaPdf.entrada.fim}.`
       : 'Consultando registros persistidos…';
@@ -259,16 +280,18 @@ export function montarRelatoriosTurno(
           opcao.value = evento.dados.turno_id;
           turno.append(opcao);
         }
-      resultados.append(
-        el(
-          'p',
-          `Corte dos registros: ${new Date(relatorio.instante_corte).toLocaleString('pt-BR')}. Os rótulos de identidade são atuais e não comprovam o nome na época do registro.`,
-        ),
+      const corte = el(
+        'p',
+        `Corte dos registros: ${new Date(relatorio.instante_corte).toLocaleString('pt-BR')}. Os rótulos de identidade são atuais e não comprovam o nome na época do registro.`,
       );
+      corte.className = 'relatorios-turno__corte';
+      resultados.append(corte);
       status.textContent = proximo
         ? 'Página consultada. Há mais registros no período.'
         : 'Consulta concluída.';
     } catch (erro) {
+      // O esqueleto não pode sobreviver à falha: ele promete conteúdo a caminho.
+      if (!acrescentar && ativa) resultados.replaceChildren();
       falha(erro);
     } finally {
       ocupada = false;
@@ -279,6 +302,7 @@ export function montarRelatoriosTurno(
     if (!ativa || ocupada || !tentativaPdf) return;
     ocupada = true;
     controles();
+    delete status.dataset.tone;
     try {
       const recibo = await servico.consultarPdf({
         exportacao_id: tentativaPdf.entrada.exportacao_id,
@@ -306,6 +330,7 @@ export function montarRelatoriosTurno(
     ocupada = true;
     tentativaPdf.consultada = false;
     controles();
+    delete status.dataset.tone;
     status.textContent = 'Gerando PDF no servidor…';
     try {
       const arquivo = await servico.pdf(tentativaPdf.entrada, tentativaPdf.chave);
@@ -343,6 +368,7 @@ export function montarRelatoriosTurno(
         limite: 25,
       });
     } catch {
+      status.dataset.tone = 'error';
       status.textContent = 'Confira o tipo de relatório, o período e o turno selecionado.';
     }
   };

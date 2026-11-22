@@ -2,6 +2,7 @@ import type {
   RegistroExecucaoPublico,
   RelatorioTurnoPublico,
 } from '../../../packages/contracts/src/turno-execucao-http.ts';
+import { instanteLegivel } from './instante-legivel.ts';
 const situacoes: Record<string, string> = {
   administrado: 'Administrado',
   recusado: 'Recusado',
@@ -34,10 +35,10 @@ const sinais: Record<string, string> = {
 };
 export function apresentarRegistroExecucao(registro: RegistroExecucaoPublico): string {
   const linhas = [
-    `Registro: ${registro.criado_em}`,
-    `Ocorrência informada: ${registro.instante_ocorrencia}`,
+    `Registro: ${instanteLegivel(registro.criado_em)}`,
+    `Ocorrência informada: ${instanteLegivel(registro.instante_ocorrencia)}`,
     `Registrador autenticado: ${registro.registrador_nome ?? `identificador do autor persistido ${registro.registrador_usuario_id}`}`,
-    `Versão ${registro.versao}${registro.retificada ? ' (retificação)' : ''}`,
+    `Versão: ${registro.versao}${registro.retificada ? ' (retificação)' : ''}`,
   ];
   const c = registro.conteudo;
   if (c.classe === 'afericao')
@@ -78,7 +79,7 @@ export function apresentarRegistroExecucao(registro: RegistroExecucaoPublico): s
     else if (d.tipo === 'hidratacao') linhas.push(`Hidratação informada: ${d.mililitros} mL`);
     else if (d.tipo === 'sono')
       linhas.push(
-        `Sono informado: ${d.inicio} até ${d.fim}`,
+        `Sono informado: ${instanteLegivel(d.inicio)} até ${instanteLegivel(d.fim)}`,
         `Qualidade observada: ${situacoes[d.qualidade]}`,
       );
     else if (d.tipo === 'eliminacao')
@@ -120,8 +121,8 @@ export function apresentarEventoExecucao(evento: RelatorioTurnoPublico['itens'][
       titulo: 'Turno',
       texto: [
         `Profissional: ${d.profissional_nome ?? `identificador do profissional persistido ${d.profissional_usuario_id}`}`,
-        `Abertura: ${d.aberto_em}`,
-        `Encerramento: ${d.encerrado_em ?? 'Turno aberto no corte da consulta'}`,
+        `Abertura: ${instanteLegivel(d.aberto_em)}`,
+        `Encerramento: ${d.encerrado_em ? instanteLegivel(d.encerrado_em) : 'Turno aberto no corte da consulta'}`,
         `Situação: ${d.situacao === 'aberto' ? 'Aberto' : 'Encerrado'}`,
         `Versão: ${d.versao}`,
       ].join('\n'),
@@ -131,7 +132,7 @@ export function apresentarEventoExecucao(evento: RelatorioTurnoPublico['itens'][
       titulo: 'Passagem de turno',
       texto: [
         `Autor: ${d.autor_nome ?? `identificador do autor persistido ${d.autor_usuario_id}`}`,
-        `Publicação: ${d.publicado_em}`,
+        `Publicação: ${instanteLegivel(d.publicado_em)}`,
         `Versão: ${d.versao}`,
         `Audiência: ${d.audiencia === 'equipe' ? 'Equipe' : 'Equipe e família'}`,
         d.conteudo,

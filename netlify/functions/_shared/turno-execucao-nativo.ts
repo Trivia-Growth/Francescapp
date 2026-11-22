@@ -28,7 +28,8 @@ import {
 } from './turno-execucao-projecao.ts';
 import { prepararConversaoOcorrencia } from './turno-execucao-conversao.ts';
 import { apresentarEventoExecucao } from './turno-execucao-apresentacao.ts';
-import { gerarPdfExecucao } from './turno-execucao-pdf.ts';
+import { gerarPdfExecucao, type SecaoPdfExecucao } from './turno-execucao-pdf.ts';
+import { montarSecoesFichaConsolidada } from './turno-execucao-ficha-consolidada.ts';
 import { turnoSchema } from '../../../packages/contracts/src/turno.ts';
 type Identidade = { usuario_id: string; session_id: string };
 type Autorizacao =
@@ -500,7 +501,11 @@ export async function operarExecucaoTurno(
           exportacao_id,
         });
         if (existente.dados !== null) throw new FalhaExecucao('conflito_idempotencia');
-        const secoes: { titulo: string; texto: string }[] = [];
+        const secoes: SecaoPdfExecucao[] = [];
+        // FR-080: o consolidado diário sai na ordem da ficha de plantão, montada ao final a
+        // partir dos mesmos eventos da projeção autorizada. Nenhuma consulta nova.
+        const eventosFicha: RelatorioTurnoPublico['itens'][number][] = [];
+        let lacunasFicha: RelatorioTurnoPublico['lacunas'] = [];
         let cursor: Record<string, unknown> = {};
         let consultaId: string | undefined;
         let instanteCorte: string | undefined;
@@ -521,12 +526,17 @@ export async function operarExecucaoTurno(
           consultaId = pagina.consulta_id;
           instanteCorte = pagina.instante_corte;
           for (const evento of pagina.itens) {
+            if (h.tipo === 'diario') {
+              eventosFicha.push(evento);
+              continue;
+            }
             const secao = apresentarEventoExecucao(evento);
             textoTotal += secao.titulo.length + secao.texto.length;
             if (textoTotal > 500_000) throw new Error('PDF excede limite de conteúdo.');
             secoes.push(secao);
           }
-          if (vistos.size === 0)
+          if (vistos.size === 0 && h.tipo === 'diario') lacunasFicha = pagina.lacunas;
+          else if (vistos.size === 0)
             secoes.push({
               titulo: 'Lacunas de cobertura',
               texto: pagina.lacunas.length
@@ -550,9 +560,17 @@ export async function operarExecucaoTurno(
           };
         } while (!request.signal.aborted);
         if (!instanteCorte) throw new Error('Corte de consulta ausente.');
+        if (h.tipo === 'diario') {
+          secoes.push(
+            ...montarSecoesFichaConsolidada({ itens: eventosFicha, lacunas: lacunasFicha }),
+          );
+          textoTotal = secoes.reduce((t, s) => t + s.titulo.length + s.texto.length, 0);
+          if (textoTotal > 500_000) throw new Error('PDF excede limite de conteúdo.');
+        }
         secoes.unshift({
-          titulo: 'Período e emissão',
-          texto: `Identificador do caso: ${paciente}. Período: ${h.inicio} a ${h.fim}. Emissão referente ao corte persistido: ${instanteCorte}. Rótulos de autoria são os atuais; identidades históricas permanecem no registro.`,
+          titulo: 'Sobre esta emissão',
+          texto:
+            'Rótulos de autoria são os atuais; identidades históricas permanecem no registro. O conteúdo é o da projeção autorizada para quem emitiu, no corte indicado na identificação acima.',
         });
         if (h.tipo === 'caso')
           secoes.push(
@@ -564,10 +582,24 @@ export async function operarExecucaoTurno(
             })),
           );
         const bytes = await gerarPdfExecucao(
-          `FFCMApp - ${h.tipo}`,
+          {
+            turno: 'Relatório de um turno',
+            diario: 'Consolidado diário no formato da ficha',
+            semanal: 'Consolidado de sete dias',
+            caso: 'Exportação do caso por período',
+          }[h.tipo],
           secoes,
           request.signal,
           instanteCorte,
+          {
+            caso: paciente,
+            emissor: `identificador do autor persistido ${identidade.usuario_id}`,
+            destinatario,
+            proposito,
+            versao: 1,
+            exportacao: exportacao_id,
+            periodo: { inicio: h.inicio, fim: h.fim },
+          },
         );
         const aad = (campo: 'destinatario' | 'proposito') =>
           aadExecucao(
@@ -639,6 +671,14 @@ export async function operarExecucaoTurno(
             .map((item) => item.registrado_em)
             .sort()
             .at(-1) ?? '1970-01-01T00:00:00Z',
+          {
+            caso: paciente,
+            emissor: `identificador do autor persistido ${identidade.usuario_id}`,
+            destinatario: h.destinatario,
+            proposito: h.proposito,
+            versao: 1,
+            exportacao: h.exportacao_id,
+          },
         );
         const aad = (campo: 'destinatario' | 'proposito') =>
           aadExecucao(
