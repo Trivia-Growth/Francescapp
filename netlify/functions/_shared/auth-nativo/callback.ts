@@ -109,7 +109,7 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
       normalizada.data.session.provider_refresh_token
     )
       return falha();
-    return contexto.responder(
+    return contexto.responderSessaoNova(
       new Response(null, { status: 303, headers: { Location: `/?fluxo=${fluxo}#` } }),
     );
   } catch {

@@ -56,7 +56,7 @@ export async function entrarInternoNativo(request: Request, fonte: FonteDeConfig
       request.signal.aborted
     )
       return erro('nao_autenticado', 401);
-    return contexto.responder(
+    return contexto.responderSessaoNova(
       Response.json(
         { dados: sessao.data, request_id: requestId },
         { headers: cabecalhosAuthInterno },

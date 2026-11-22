@@ -92,7 +92,7 @@ export async function entrarFamiliarNativa(request: Request, fonte: FonteDeConfi
       sessao.data.usuario.id !== identidade.data.user.id
     )
       return erro('nao_autenticado', 401);
-    return contexto.responder(
+    return contexto.responderSessaoNova(
       Response.json({ dados: sessao.data, request_id: requestId }, { headers }),
     );
   } catch {

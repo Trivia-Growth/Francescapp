@@ -25,6 +25,7 @@ vi.mock('./cliente.ts', () => ({
       schema: () => ({ rpc: mocks.rpc }),
     },
     responder: mocks.responder,
+    responderSessaoNova: mocks.responder,
   }),
 }));
 vi.mock('./cliente-otp.ts', () => ({
