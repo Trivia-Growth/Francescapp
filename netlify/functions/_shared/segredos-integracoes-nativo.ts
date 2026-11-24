@@ -9,6 +9,7 @@ import {
   dadosAtestadoSchema,
   resultadoAtestacaoSchema,
 } from '../../../packages/contracts/src/rpc.ts';
+import { causaDaFalha, registrarFalhaOperacional } from './falha-operacional.ts';
 
 type Identidade = { usuario_id: string; session_id: string };
 type Autorizacao =
@@ -184,10 +185,30 @@ export async function operarSegredosIntegracoesNativo(
       atual.estado !== 'autorizado' ||
       atual.identidade.usuario_id.toLowerCase() !== identidade.usuario_id ||
       atual.identidade.session_id.toLowerCase() !== identidade.session_id
-    )
+    ) {
+      registrarFalhaOperacional({
+        rota: 'segredos-integracoes',
+        etapa: 'autorizacao',
+        request_id: requestId,
+        causa: `revalidacao_${atual.estado}`,
+      });
       return erro(iniciada ? 'pendencia_externa' : 'nao_autenticado');
+    }
     return { ok: true as const, dados: resposta.dados, request_id: requestId };
-  } catch {
+  } catch (falha) {
+    // Este `catch` cobre a operação inteira — contrato da resposta, revalidação da sessão e
+    // a escrita no cofre — e até 24/11/2026 descartava o erro sem deixar rastro. Quem tentou
+    // cadastrar a chave da OpenRouter recebeu `pendencia_externa`, e o log do servidor ficou
+    // MUDO: as duas outras camadas registram, esta não registrava, então não havia o que ler.
+    //
+    // É o mesmo defeito que `registrarFalhaDeResposta` já tinha corrigido nas entradas
+    // nativas. Só a causa reduzida entra aqui, pelas regras de `falha-operacional.ts`.
+    registrarFalhaOperacional({
+      rota: 'segredos-integracoes',
+      etapa: 'operacao',
+      request_id: requestId,
+      causa: causaDaFalha(falha),
+    });
     return erro(iniciada ? 'pendencia_externa' : 'servico_indisponivel');
   }
 }
