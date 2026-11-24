@@ -83,7 +83,7 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
     if (request.method === 'GET' && url.pathname === '/api/auth/callback') {
       registrarFalhaOperacional({
         rota: 'auth-callback',
-        etapa: 'entrada',
+        etapa: 'resposta',
         request_id: crypto.randomUUID(),
         causa: `parametros_${[...new Set(url.searchParams.keys())].sort().join('-') || 'nenhum'}`,
       });
