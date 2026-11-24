@@ -1,5 +1,6 @@
 import type { operarSegredosIntegracoesNativo } from './segredos-integracoes-nativo.ts';
 import type { criarContextoAuthNativo } from './auth-nativo/cliente.ts';
+import { causaDaFalha, registrarFalhaOperacional } from './falha-operacional.ts';
 
 type Transporte = Parameters<Parameters<typeof operarSegredosIntegracoesNativo>[2]['executar']>[1];
 
@@ -19,7 +20,20 @@ export async function executarSegredosIntegracoesNativo(
           : 'segredos_integracoes_privado',
         transporte,
       );
-    if (resultado.error) throw new Error();
+    // O código do PostgREST/PostgreSQL é o que diagnostica: `22023` é entrada fora do
+    // contrato, `42501` é recusa de autorização ou atestado. Sem ele, a camada de cima só
+    // conseguia registrar `excecao_Error`, que não diz nada — foi o que aconteceu em
+    // 24/11/2026 ao cadastrar a credencial da OpenRouter. Mensagem, `details` e `hint` NÃO
+    // entram: carregam nome de tabela, de coluna e às vezes o valor que falhou.
+    if (resultado.error) {
+      registrarFalhaOperacional({
+        rota: 'segredos-integracoes',
+        etapa: 'operacao',
+        request_id: crypto.randomUUID(),
+        causa: causaDaFalha(resultado.error),
+      });
+      throw new Error();
+    }
     return resultado.data;
   } catch {
     throw new Error('Não foi possível executar a configuração do sistema.');
