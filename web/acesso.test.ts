@@ -185,3 +185,28 @@ it('após recusa do login retorna o foco ao campo de e-mail habilitado', async (
   expect(campos.disabled).toBe(false);
   expect(document.activeElement).toBe(email);
 });
+
+it('sai do endereço da ficha ao voltar para o acesso, para não repetir a recusa', async () => {
+  // Em 24/11/2026, no navegador contra a produção: um profissional abriu "Plano de crise",
+  // aba que o próprio menu oferece, sem estar habilitado para ela. Foi expulso para o acesso
+  // com `#paciente/<id>/crise` ainda no endereço, e cada nova entrada caiu na mesma seção e
+  // repetiu a expulsão — um laço do qual só se escapa editando a barra de endereços.
+  //
+  // Limpar o fragmento não conserta a recusa; conserta a armadilha.
+  const paciente = '027ec55d-1499-4c6b-bdda-25a2899e0786';
+  window.history.replaceState(null, '', `/#paciente/${paciente}/crise`);
+  document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
+  // Sessão recusada: é o que leva a aplicação de volta à tela de acesso.
+  const fetch = vi.fn(
+    async () =>
+      new Response(JSON.stringify({ erro: { codigo: 'nao_autenticado' } }), {
+        status: 401,
+        headers: { 'content-type': 'application/json' },
+      }),
+  );
+  vi.stubGlobal('fetch', fetch);
+  await import('./main.js');
+  const campos = document.getElementById('login-fields') as HTMLFieldSetElement;
+  await vi.waitFor(() => expect(campos.disabled).toBe(false));
+  await vi.waitFor(() => expect(window.location.hash).toBe(''));
+});

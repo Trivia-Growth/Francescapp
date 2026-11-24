@@ -1576,6 +1576,20 @@ function mostrarAcesso(mensagem = '', tom: 'error' | 'success' | 'neutral' = 'ne
   loginView.hidden = false;
   document.title = 'FFCMApp | Acesso';
   aviso('login-feedback', mensagem, tom);
+  // Sai do endereço da ficha ao voltar para o acesso. Sem isto o fragmento sobrevive, e a
+  // entrada seguinte cai de volta na MESMA seção que acabou de recusar — recusa, expulsa,
+  // entra, recusa: um laço do qual só se escapa editando a barra de endereços.
+  //
+  // Observado em 24/11/2026 no navegador, contra a produção: um profissional abriu a aba
+  // "Plano de crise", que o próprio menu oferece, sem estar habilitado para ela. Foi expulso
+  // para o acesso com `#paciente/<id>/crise` ainda no endereço, e cada nova entrada repetiu a
+  // expulsão. Limpar o fragmento não conserta a recusa — conserta a armadilha.
+  if (lerRotaFicha(window.location.hash))
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}${window.location.search}`,
+    );
   loginFields.disabled = false;
   loginButton.textContent = 'Entrar';
   elemento('login-title').focus();
