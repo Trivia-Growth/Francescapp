@@ -152,7 +152,11 @@ if (retornosFluxo.length) {
 }
 const falhaGoogle =
   urlInicial.pathname === '/' && urlInicial.searchParams.get('acesso') === 'indisponivel';
-if (falhaGoogle) {
+/** Entrou no Google, mas aquela conta não tem acesso liberado. Distinto de `indisponivel`,
+ * que é falha do serviço: aqui repetir não resolve, e a tela precisa dizer isso. */
+const semAutorizacaoGoogle =
+  urlInicial.pathname === '/' && urlInicial.searchParams.get('acesso') === 'sem_autorizacao';
+if (falhaGoogle || semAutorizacaoGoogle) {
   urlInicial.searchParams.delete('acesso');
   window.history.replaceState(
     window.history.state,
@@ -2950,10 +2954,12 @@ async function restaurarSessao(): Promise<void> {
     const atual = await api.consultarSessao();
     if (versao !== revisao) return;
     aplicarSessao(atual);
-    if (falhaGoogle) {
+    if (falhaGoogle || semAutorizacaoGoogle) {
       aviso(
         'workspace-feedback',
-        'Não foi possível concluir a entrada com Google. Sua sessão anterior continua ativa.',
+        semAutorizacaoGoogle
+          ? 'A conta Google escolhida não tem acesso liberado. Sua sessão anterior continua ativa.'
+          : 'Não foi possível concluir a entrada com Google. Sua sessão anterior continua ativa.',
         'error',
       );
     }
@@ -2971,9 +2977,11 @@ async function restaurarSessao(): Promise<void> {
     if (versao !== revisao) return;
     mostrarAcesso(
       erro instanceof FalhaApi && erro.status === 401
-        ? falhaGoogle
-          ? 'Não foi possível entrar com Google. Tente novamente.'
-          : ''
+        ? semAutorizacaoGoogle
+          ? 'A conta Google escolhida não tem acesso liberado neste sistema. Confira se você entrou com a conta da organização e fale com a administração.'
+          : falhaGoogle
+            ? 'Não foi possível entrar com Google. Tente novamente.'
+            : ''
         : exigeNovoAcesso(erro)
           ? 'Sua conta não possui acesso autorizado. Confira a liberação com a administração.'
           : 'Não foi possível verificar seu acesso. Tente novamente quando o serviço estiver disponível.',

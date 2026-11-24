@@ -25,6 +25,23 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
       status: 303,
       headers: { ...headers, Location: '/?acesso=indisponivel#' },
     });
+  /**
+   * A pessoa provou no Google que é dona daquela conta, e o banco recusou a admissão: a
+   * conta não tem acesso liberado aqui.
+   *
+   * Até 24/11/2026 esse caso caía em `falha()`, e a tela dizia "Tente novamente" — um convite
+   * a repetir uma coisa que nunca vai dar certo. Em 24/11/2026 sete tentativas seguidas
+   * foram registradas como `admitir_sessao_nativa` negado, porque o seletor do Google
+   * escolhia uma conta pessoal em vez da conta da organização.
+   *
+   * Dizer isso não vaza nada: a pessoa acabou de autenticar essa conta, e a resposta é sobre
+   * a conta que ela já tem em mãos. Não afirma se existe cadastro de alguém, nem qual.
+   */
+  const semAutorizacao = () =>
+    new Response(null, {
+      status: 303,
+      headers: { ...headers, Location: '/?acesso=sem_autorizacao#' },
+    });
   const url = new URL(request.url);
   // O fragmento não chega ao servidor; um fragmento vazio impede sua herança no redirect.
   if (
@@ -105,14 +122,14 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
     const admissao = await contexto.cliente
       .schema('api')
       .rpc('admitir_sessao_nativa', { p_request_id: crypto.randomUUID() });
-    if (admissao.error || admissao.data === null) return falha();
+    // `error` é falha de infraestrutura; `data === null` é a recusa do banco, que é a
+    // resposta normal para quem entrou com uma conta sem acesso.
+    if (admissao.error) return falha();
+    if (admissao.data === null) return semAutorizacao();
     const autorizada = sessaoNativaSchema.safeParse(admissao.data);
-    if (
-      !autorizada.success ||
-      !autorizada.data.usuario.ativo ||
-      autorizada.data.usuario.id !== identidade.data.user.id
-    )
+    if (!autorizada.success || autorizada.data.usuario.id !== identidade.data.user.id)
       return falha();
+    if (!autorizada.data.usuario.ativo) return semAutorizacao();
 
     // O SDK salva tokens Google no exchange. Regravar somente a sessão Auth
     // pelo SDK impede transportá-los ao navegador. Integrações Google terão

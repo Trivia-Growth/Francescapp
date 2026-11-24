@@ -133,19 +133,37 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
     expect(rede).toHaveBeenCalledTimes(4);
   });
 
+  // Em 24/11/2026 sete entradas seguidas foram negadas porque o seletor do Google escolheu
+  // uma conta pessoal, e a tela respondia "Tente novamente" — convite a repetir uma coisa que
+  // nunca ia dar certo. A recusa do banco passou a ter destino próprio. O que NÃO muda em
+  // nenhum caso: nenhuma sessão é publicada.
   it.each([
-    { admissao: null },
-    { admissao: { ...autorizada, usuario: { ...autorizada.usuario, id: outraId } } },
-    { admissao: { ...autorizada, usuario: { ...autorizada.usuario, ativo: false } } },
-    { admissao: { ...autorizada, access_token: 'campo-indevido' } },
-  ])('não publica sessão sem admissão válida e vinculada à identidade: %j', async (opcoes) => {
-    const pedido = await callback();
-    fornecedor(opcoes);
-    const resposta = await concluirGoogleNativo(pedido, fonte);
-    expect(resposta.status).toBe(303);
-    expect(resposta.headers.getSetCookie()).toEqual([]);
-    expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel#');
-  });
+    { admissao: null, destino: '/?acesso=sem_autorizacao#' },
+    {
+      admissao: { ...autorizada, usuario: { ...autorizada.usuario, ativo: false } },
+      destino: '/?acesso=sem_autorizacao#',
+    },
+    // Identidade divergente e resposta fora do contrato são anomalia, não recusa de acesso:
+    // seguem no destino genérico, sem contar nada a quem chamou.
+    {
+      admissao: { ...autorizada, usuario: { ...autorizada.usuario, id: outraId } },
+      destino: '/?acesso=indisponivel#',
+    },
+    {
+      admissao: { ...autorizada, access_token: 'campo-indevido' },
+      destino: '/?acesso=indisponivel#',
+    },
+  ])(
+    'não publica sessão sem admissão válida e vinculada à identidade: %j',
+    async ({ destino, ...opcoes }) => {
+      const pedido = await callback();
+      fornecedor(opcoes);
+      const resposta = await concluirGoogleNativo(pedido, fonte);
+      expect(resposta.status).toBe(303);
+      expect(resposta.headers.getSetCookie()).toEqual([]);
+      expect(resposta.headers.get('location')).toBe(destino);
+    },
+  );
 
   it.each(['troca', 'usuario', 'banco', 'normalizacao', 'rede'] as const)(
     'preserva cookies anteriores quando falha %s, sem signOut ou tokens na resposta',
