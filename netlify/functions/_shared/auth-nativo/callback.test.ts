@@ -230,17 +230,25 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
         new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/callback${sufixo}`),
         fonte,
       );
-      expect(resposta.status).toBe(422);
+      // Navegação de volta do Google é uma PESSOA olhando a tela: ela volta para o acesso,
+      // como nos demais caminhos de falha, em vez de receber o JSON de erro como página.
+      // Até 24/11/2026 `?error=access_denied` sozinho voltava para a tela e
+      // `?error=access_denied&code=a` despejava JSON cru — mesma situação, duas saídas.
+      expect(resposta.status, sufixo).toBe(303);
+      // A propriedade que importa continua sendo esta: o destino é fixo e interno, mesmo
+      // quando o pedido traz `next=https://malicioso.test`.
+      expect(resposta.headers.get('location'), sufixo).toBe('/?acesso=indisponivel#');
+      expect(await resposta.text()).toBe('');
       expect(resposta.headers.getSetCookie()).toEqual([]);
     }
-    expect(
-      (
-        await concluirGoogleNativo(
-          new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/callback?code=a`, { method: 'POST' }),
-          fonte,
-        )
-      ).status,
-    ).toBe(422);
+    // Método errado não é navegação de pessoa: segue recusado com JSON, agora com o charset
+    // declarado, porque sem ele o Safari decodifica o acento como latin-1.
+    const porPost = await concluirGoogleNativo(
+      new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/callback?code=a`, { method: 'POST' }),
+      fonte,
+    );
+    expect(porPost.status).toBe(422);
+    expect(porPost.headers.get('content-type')).toBe('application/json; charset=utf-8');
     expect(rede).not.toHaveBeenCalled();
   });
 });

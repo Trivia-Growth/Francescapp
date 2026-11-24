@@ -2,6 +2,7 @@ import { criarErroPublicoSemCampos } from '../../../../packages/contracts/src/er
 import { sessaoNativaSchema } from '../../../../packages/contracts/src/identidade.ts';
 import type { FonteDeConfiguracao } from '../../../../supabase/functions/_shared/configuracao.ts';
 import { criarContextoAuthNativo, fluxoValido } from './cliente.ts';
+import { registrarFalhaOperacional } from '../falha-operacional.ts';
 
 /** Cookies ficam retidos no contexto até a autorização no banco. Erros não
  * sobrescrevem nem encerram uma sessão anterior do navegador. */
@@ -10,6 +11,10 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
     'Cache-Control': 'private, no-store',
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'no-referrer',
+    // `Response.json` não declara charset, e o Safari então decodifica a resposta com a
+    // codificação padrão do documento. Em 24/11/2026 "Dados inválidos." chegou a um iPhone
+    // como "Dados invÃ¡lidos.".
+    'Content-Type': 'application/json; charset=utf-8',
   };
   const erro = (
     codigo: 'entrada_invalida' | 'sem_permissao' | 'servico_indisponivel',
@@ -66,8 +71,26 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
     ) ||
     url.searchParams.getAll('sb_flow_id').length > 1 ||
     (flowId !== null && !/^[A-Za-z0-9_-]{8,64}$/.test(flowId))
-  )
+  ) {
+    // Uma navegação de volta do Google que cai aqui é uma PESSOA olhando a tela, não um
+    // cliente de API. Até 24/11/2026 ela recebia o JSON de erro cru — chaves, código e
+    // `request_id` — como página. Quem tentou entrar viu isso, e o servidor não registrou
+    // nada: não havia como descobrir qual parâmetro o retorno trouxe de diferente.
+    //
+    // Agora a navegação volta para a tela de acesso, como já faziam os outros caminhos de
+    // falha deste arquivo, e o servidor anota os NOMES dos parâmetros recebidos. Nomes, não
+    // valores: `code` é credencial de uso único e `error_description` é texto do provedor.
+    if (request.method === 'GET' && url.pathname === '/api/auth/callback') {
+      registrarFalhaOperacional({
+        rota: 'auth-callback',
+        etapa: 'entrada',
+        request_id: crypto.randomUUID(),
+        causa: `parametros_${[...new Set(url.searchParams.keys())].sort().join('-') || 'nenhum'}`,
+      });
+      return falha();
+    }
     return erro('entrada_invalida', 422);
+  }
 
   try {
     const contexto = criarContextoAuthNativo(request, fonte, fluxo);
