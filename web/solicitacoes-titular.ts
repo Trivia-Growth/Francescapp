@@ -5,6 +5,7 @@ import type {
   TipoSolicitacaoTitular,
 } from '../packages/contracts/src/solicitacao-titular.ts';
 import type { ServicoSolicitacaoTitular } from './servico-solicitacao-titular-http.ts';
+import { botao } from './ui/basicos.js';
 
 const formatadorData = new Intl.DateTimeFormat('pt-BR', {
   dateStyle: 'short',
@@ -66,14 +67,8 @@ export function montarSolicitacoesTitular(
   const lista = document.createElement('div');
   lista.className = 'solicitacoes-titular__lista';
 
-  const voltar = document.createElement('button');
-  voltar.type = 'button';
-  voltar.className = 'button-secondary';
-  voltar.textContent = 'Página anterior';
-  const avancar = document.createElement('button');
-  avancar.type = 'button';
-  avancar.className = 'button-secondary';
-  avancar.textContent = 'Próxima página';
+  const voltar = botao({ rotulo: 'Página anterior', peso: 'secundario' });
+  const avancar = botao({ rotulo: 'Próxima página', peso: 'secundario' });
   const paginacao = document.createElement('div');
   paginacao.className = 'solicitacoes-titular__paginacao';
   paginacao.append(voltar, avancar);
@@ -102,10 +97,7 @@ export function montarSolicitacoesTitular(
   const descricaoRotulo = document.createElement('label');
   descricaoRotulo.htmlFor = descricao.id;
   descricaoRotulo.textContent = 'Como o pedido chegou e o que foi pedido';
-  const registrar = document.createElement('button');
-  registrar.type = 'submit';
-  registrar.className = 'button-primary';
-  registrar.textContent = 'Registrar solicitação';
+  const registrar = botao({ rotulo: 'Registrar solicitação', peso: 'principal', tipo: 'submit' });
   const avisoRegistro = document.createElement('p');
   avisoRegistro.className = 'solicitacoes-titular__aviso';
   avisoRegistro.setAttribute('role', 'status');
@@ -139,10 +131,7 @@ export function montarSolicitacoesTitular(
     const textoRotulo = document.createElement('label');
     textoRotulo.htmlFor = texto.id;
     textoRotulo.textContent = 'Resposta dada e, se houver guarda, o motivo dela';
-    const enviar = document.createElement('button');
-    enviar.type = 'submit';
-    enviar.className = 'button-primary';
-    enviar.textContent = 'Registrar resposta';
+    const enviar = botao({ rotulo: 'Registrar resposta', peso: 'principal', tipo: 'submit' });
     const aviso = document.createElement('p');
     aviso.className = 'solicitacoes-titular__aviso';
     aviso.setAttribute('role', 'status');

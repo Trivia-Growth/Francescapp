@@ -1,6 +1,7 @@
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import type { ItemHabilitacao } from '../packages/contracts/src/habilitacao-plano-crise.ts';
 import type { ServicoHabilitacaoPlanoCrise } from './servico-habilitacao-plano-crise-http.ts';
+import { botao, estadoVazio } from './ui/basicos.js';
 
 const PERFIS: Record<ItemHabilitacao['perfil'], string> = {
   profissional: 'Profissional',
@@ -37,20 +38,14 @@ export function montarHabilitacaoPlanoCrise(
   status.setAttribute('aria-live', 'polite');
   const lista = document.createElement('div');
   lista.className = 'habilitacao-crise__lista';
-  const recarregar = document.createElement('button');
-  recarregar.type = 'button';
-  recarregar.className = 'button-secondary';
-  recarregar.textContent = 'Recarregar';
+  const recarregar = botao({ rotulo: 'Recarregar', peso: 'secundario' });
   secao.append(titulo, explicacao, status, lista, recarregar);
   raiz.replaceChildren(secao);
 
   const desenhar = (itens: readonly ItemHabilitacao[]) => {
     lista.replaceChildren();
     if (itens.length === 0) {
-      const vazio = document.createElement('p');
-      vazio.className = 'habilitacao-crise__vazio';
-      vazio.textContent = 'Nenhuma pessoa com acesso cadastrado.';
-      lista.append(vazio);
+      lista.append(estadoVazio('Nenhuma pessoa com acesso cadastrado.'));
       return;
     }
     for (const item of itens) {
@@ -78,10 +73,7 @@ export function montarHabilitacaoPlanoCrise(
       ajuda.id = `${identificador}-ajuda`;
       if (!podeMarcar) ajuda.textContent = 'Só quem tem acesso ativo pode ser habilitado.';
       if (ajuda.textContent) caixa.setAttribute('aria-describedby', ajuda.id);
-      const salvar = document.createElement('button');
-      salvar.type = 'submit';
-      salvar.className = 'button-primary';
-      salvar.textContent = 'Salvar';
+      const salvar = botao({ rotulo: 'Salvar', peso: 'principal', tipo: 'submit' });
       salvar.disabled = caixa.disabled;
       const aviso = document.createElement('p');
       aviso.className = 'habilitacao-crise__aviso';

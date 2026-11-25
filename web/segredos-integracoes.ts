@@ -1,5 +1,6 @@
 import type { SegredosIntegracoes } from '../packages/contracts/src/segredos-integracoes.ts';
 import type { ServicoSegredosIntegracoes } from './servico-segredos-integracoes-http.ts';
+import { botao } from './ui/basicos.js';
 
 const rotulos: Record<SegredosIntegracoes['chave'], string> = {
   'ffcmapp.integracao.google_drive': 'Google Drive — JSON da conta de serviço',
@@ -30,10 +31,7 @@ export function montarSegredosIntegracoes(
   status.setAttribute('aria-live', 'polite');
   const lista = document.createElement('div');
   lista.className = 'configuracao-sistema__lista';
-  const recarregar = document.createElement('button');
-  recarregar.type = 'button';
-  recarregar.className = 'button-secondary';
-  recarregar.textContent = 'Recarregar integrações';
+  const recarregar = botao({ rotulo: 'Recarregar integrações', peso: 'secundario' });
   secao.append(titulo, explicacao, status, lista, recarregar);
   const tituloExpurgo = document.createElement('h2');
   tituloExpurgo.textContent = 'Descarte de áudios abandonados';
@@ -90,10 +88,11 @@ export function montarSegredosIntegracoes(
       autoria.textContent = item.cadastrado
         ? `Cadastrado. Versão ${item.versao}.${quem && item.atualizado_em ? ` Por ${quem}, em ${new Date(item.atualizado_em).toLocaleString('pt-BR')}.` : ' Cadastro anterior à tela, autoria não disponível.'}`
         : 'Não cadastrado.';
-      const salvar = document.createElement('button');
-      salvar.type = 'submit';
-      salvar.className = 'button-primary';
-      salvar.textContent = item.cadastrado ? 'Substituir credencial' : 'Cadastrar credencial';
+      const salvar = botao({
+        rotulo: item.cadastrado ? 'Substituir credencial' : 'Cadastrar credencial',
+        peso: 'principal',
+        tipo: 'submit',
+      });
       const aviso = document.createElement('p');
       aviso.setAttribute('role', 'status');
       aviso.setAttribute('aria-live', 'polite');

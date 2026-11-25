@@ -8,6 +8,7 @@ import { statusErroHttp } from '../packages/contracts/src/erros.ts';
 import { FalhaApi, exigeNovoAcesso } from './api.ts';
 import { esqueletoCarregando } from './esqueleto.ts';
 import type { ServicoAcessos } from './servico-acessos-http.ts';
+import { botao } from './ui/basicos.js';
 
 const funcoes: Record<FuncaoConta, string> = {
   administrador: 'Administrador',
@@ -59,16 +60,10 @@ export function montarAcessosAdministracao(
   status.setAttribute('aria-live', 'polite');
   const lista = el('ul');
   lista.className = 'acessos-lista';
-  const atualizar = el('button', 'Atualizar acessos');
-  atualizar.type = 'button';
-  atualizar.className = 'button-secondary';
-  const mais = el('button', 'Carregar mais acessos');
-  mais.type = 'button';
-  mais.className = 'button-secondary';
+  const atualizar = botao({ rotulo: 'Atualizar acessos', peso: 'secundario' });
+  const mais = botao({ rotulo: 'Carregar mais acessos', peso: 'secundario' });
   mais.hidden = true;
-  const conferir = el('button', 'Conferir cadastro pendente');
-  conferir.type = 'button';
-  conferir.className = 'button-secondary';
+  const conferir = botao({ rotulo: 'Conferir cadastro pendente', peso: 'secundario' });
   conferir.hidden = true;
   const formulario = el('form');
   formulario.method = 'post';
@@ -124,9 +119,7 @@ export function montarAcessosAdministracao(
   senha.disabled = true;
   const motivo = campo('Motivo da concessão', el('textarea'));
   motivo.maxLength = 500;
-  const criar = el('button', 'Criar acesso');
-  criar.type = 'submit';
-  criar.className = 'button-primary';
+  const criar = botao({ rotulo: 'Criar acesso', peso: 'principal', tipo: 'submit' });
   campos.append(criar);
   formulario.append(campos);
   raiz.classList.add('acessos-administracao');
@@ -169,9 +162,7 @@ export function montarAcessosAdministracao(
       el('p', `Cadastrado em ${new Date(item.criado_em).toLocaleString('pt-BR')}`),
     );
     if (item.estado !== 'conflito' && item.estado !== 'falha_confirmada') {
-      const consultar = el('button', 'Conferir situação');
-      consultar.type = 'button';
-      consultar.className = 'button-secondary';
+      const consultar = botao({ rotulo: 'Conferir situação', peso: 'discreto' });
       consultar.addEventListener(
         'click',
         () =>

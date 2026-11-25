@@ -7,6 +7,7 @@ import {
   type ValorConfiguracao,
 } from '../packages/contracts/src/configuracao-sistema.ts';
 import type { ServicoConfiguracaoSistema } from './servico-configuracao-sistema-http.ts';
+import { botao, estadoVazio } from './ui/basicos.js';
 
 const formatadorInstante = new Intl.DateTimeFormat('pt-BR', {
   dateStyle: 'short',
@@ -85,20 +86,14 @@ export function montarConfiguracaoSistema(
   status.setAttribute('aria-live', 'polite');
   const lista = document.createElement('div');
   lista.className = 'configuracao-sistema__lista';
-  const recarregar = document.createElement('button');
-  recarregar.type = 'button';
-  recarregar.className = 'button-secondary';
-  recarregar.textContent = 'Recarregar';
+  const recarregar = botao({ rotulo: 'Recarregar', peso: 'secundario' });
   secao.append(titulo, explicacao, status, lista, recarregar);
   raiz.replaceChildren(secao);
 
   const desenhar = (itens: readonly ConfiguracaoSistema[]) => {
     lista.replaceChildren();
     if (itens.length === 0) {
-      const vazio = document.createElement('p');
-      vazio.className = 'configuracao-sistema__vazio';
-      vazio.textContent = 'Nenhum ajuste disponível para esta conta.';
-      lista.append(vazio);
+      lista.append(estadoVazio('Nenhum ajuste disponível para esta conta.'));
       return;
     }
     for (const item of itens) {
@@ -182,10 +177,7 @@ export function montarConfiguracaoSistema(
       } else {
         autoria.textContent = 'Ainda no valor original, sem alteração registrada.';
       }
-      const salvar = document.createElement('button');
-      salvar.type = 'submit';
-      salvar.className = 'button-primary';
-      salvar.textContent = 'Salvar';
+      const salvar = botao({ rotulo: 'Salvar', peso: 'principal', tipo: 'submit' });
       const aviso = document.createElement('p');
       aviso.className = 'configuracao-sistema__aviso';
       aviso.setAttribute('role', 'status');

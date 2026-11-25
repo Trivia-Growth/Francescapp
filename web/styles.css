@@ -1387,14 +1387,6 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   color: var(--muted);
   font-size: var(--texto-2);
 }
-.configuracao-sistema__vazio {
-  margin: 0;
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  color: var(--muted);
-  background: var(--soft);
-}
 .configuracao-sistema__lista {
   display: grid;
   gap: 14px;

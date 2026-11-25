@@ -3,6 +3,7 @@ import { criarConcessaoEquipeSchema } from '../packages/contracts/src/index.js';
 import type { ClienteFFCM } from './api.js';
 import { criarCicloConcessaoEquipe } from './ciclo-concessao-equipe.js';
 import { confirmar } from './confirmacao.js';
+import { botao } from './ui/basicos.js';
 
 // Preparação isolada: não montar até existir capacidade e recuperação entre sessões comprovadas.
 export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () => void {
@@ -50,14 +51,8 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
   const status = document.createElement('p');
   status.setAttribute('role', 'status');
   status.setAttribute('aria-live', 'polite');
-  const enviar = document.createElement('button');
-  enviar.type = 'submit';
-  enviar.className = 'button-primary';
-  enviar.textContent = 'Pré-conceder acesso';
-  const verificar = document.createElement('button');
-  verificar.type = 'button';
-  verificar.className = 'button-secondary';
-  verificar.textContent = 'Conferir novamente';
+  const enviar = botao({ rotulo: 'Pré-conceder acesso', peso: 'principal', tipo: 'submit' });
+  const verificar = botao({ rotulo: 'Conferir novamente', peso: 'secundario' });
   campos.disabled = enviar.disabled = true;
   campos.append(enviar);
   formulario.append(campos, verificar, status);
@@ -77,14 +72,8 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
   const lista = document.createElement('ul');
   lista.className = 'lista-registros';
   lista.setAttribute('aria-label', 'Pessoas com acesso concedido');
-  const atualizarLista = document.createElement('button');
-  atualizarLista.type = 'button';
-  atualizarLista.className = 'button-secondary';
-  atualizarLista.textContent = 'Atualizar lista';
-  const maisLista = document.createElement('button');
-  maisLista.type = 'button';
-  maisLista.className = 'button-secondary';
-  maisLista.textContent = 'Carregar mais';
+  const atualizarLista = botao({ rotulo: 'Atualizar lista', peso: 'secundario' });
+  const maisLista = botao({ rotulo: 'Carregar mais', peso: 'secundario' });
   maisLista.hidden = true;
   raiz.replaceChildren(titulo, atualizarLista, listaStatus, lista, maisLista, formulario);
 
