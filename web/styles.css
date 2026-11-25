@@ -826,31 +826,39 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .busca .small-text {
   margin-top: 8px;
 }
+/* Carteira em lista, e não em blocos. Duas colunas de cartões de 150px mostravam seis
+   pessoas numa tela inteira e não alinhavam nada entre si: para comparar quem está em
+   que situação era preciso ler cartão por cartão. A lista é uma superfície só, com as
+   linhas separadas por fio e os mesmos campos na mesma coluna em todas elas. */
 .people-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--espaco-4);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
   margin: 0;
   padding: 0;
+  overflow: hidden;
   list-style: none;
-  border: 0;
-}
-.people-list li {
-  min-width: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--white);
 }
+.people-list li {
+  min-width: 0;
+  border-top: 1px solid var(--line);
+}
+.people-list li:first-child {
+  border-top: 0;
+}
 .pessoa {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--espaco-4);
   width: 100%;
   height: 100%;
-  min-height: 150px;
-  padding: var(--espaco-5);
+  min-height: 64px;
+  padding: var(--espaco-3) var(--espaco-4);
   border: 0;
-  border-radius: inherit;
+  border-radius: 0;
   background: transparent;
   color: var(--ink);
   font-weight: 400;
@@ -863,11 +871,25 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .ficha-aba:focus-visible {
   outline-offset: -3px;
 }
+/* Densidade de lista: nome, preferência e situação na mesma linha e sempre na mesma
+   coluna. Abaixo de 760px as partes voltam a empilhar — ver o bloco do celular. */
 .pessoa-texto {
-  display: grid;
+  display: flex;
   flex: 1;
-  gap: var(--espaco-1);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espaco-1) var(--espaco-4);
   min-width: 0;
+}
+.pessoa-texto > .pessoa-nome {
+  flex: 0 0 34%;
+}
+.pessoa-texto > .pessoa-preferencia {
+  flex: 1 1 10rem;
+}
+.pessoa-texto > .pessoa-situacao {
+  flex: none;
+  margin-left: auto;
 }
 .pessoa-nome {
   font: 600 var(--texto-2) / 1.4 var(--font-body);
@@ -1468,12 +1490,29 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 
 /* ---- Administração ------------------------------------------------------ */
+/* Treze áreas quebravam em três fileiras desalinhadas e a faixa deixava de se ler como
+   navegação: viravam um parágrafo de links. Mesma faixa rolável da ficha, com os mesmos
+   dois sinais de continuidade, para o produto ter uma só linguagem de aba. */
 .administracao-abas {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0 var(--espaco-1);
+  gap: var(--espaco-1);
   margin-bottom: var(--espaco-5);
+  overflow-x: auto;
   border-bottom: 1px solid var(--line);
+  scrollbar-width: thin;
+  background:
+    linear-gradient(to right, var(--wash) 40%, rgb(255 255 255 / 0)) left / 32px 100% no-repeat
+    local,
+    linear-gradient(to left, var(--wash) 40%, rgb(255 255 255 / 0)) right / 32px 100% no-repeat
+    local,
+    linear-gradient(to right, rgb(31 31 29 / 0.12), rgb(255 255 255 / 0)) left / 18px 100%
+    no-repeat scroll,
+    linear-gradient(to left, rgb(31 31 29 / 0.12), rgb(255 255 255 / 0)) right / 18px 100%
+    no-repeat scroll;
+}
+.administracao-abas > .administracao-aba {
+  flex: none;
+  white-space: nowrap;
 }
 .administracao-conteudo,
 .regras-conteudo {
@@ -1481,25 +1520,52 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   gap: 20px;
   max-width: 78ch;
 }
+/* O formulário era caixa dentro de caixa: borda do `form`, borda do `fieldset` e a legenda
+   recortando as duas. Uma só superfície, com título, grupo de campos e rodapé de ação. */
 .administracao-conteudo form {
   display: grid;
-  gap: 12px;
+  gap: 0;
   max-width: 54ch;
-}
-.administracao-conteudo fieldset {
-  display: grid;
-  gap: 12px;
-  margin: 0;
-  padding: 18px;
+  padding: var(--espaco-5);
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--white);
 }
+.administracao-conteudo fieldset {
+  display: grid;
+  gap: var(--espaco-4);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.administracao-conteudo fieldset > legend {
+  padding: 0;
+  margin-bottom: var(--espaco-4);
+  color: var(--ink);
+  font: 600 var(--texto-4) / 1.2 var(--font-display);
+}
+/* O campo herdava a largura intrínseca do controle — cada linha parava numa medida
+   diferente, e o formulário parecia montado sem desenho. A coluna é uma só. */
 .administracao-conteudo label {
   display: grid;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espaco-2);
   font-size: var(--texto-1);
   font-weight: 550;
+}
+/* Rodapé de ação: a ação confirma o formulário, não preenche a tela. Continua dentro do
+   `fieldset` de propósito — é ele que a administração desabilita quando a criação está
+   bloqueada, e tirar a ação de lá a deixaria clicável fora de hora. */
+.administracao-conteudo form fieldset > button[type="submit"] {
+  justify-self: start;
+  min-width: 11rem;
+  margin-top: var(--espaco-2);
+}
+/* Ação de recarregar lado a lado com o conteúdo, não esticada de margem a margem. */
+.administracao-conteudo > button,
+.acessos-administracao > button {
+  justify-self: start;
 }
 .administracao-conteudo textarea {
   min-height: 96px;
@@ -2403,13 +2469,22 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
     display: inline-flex;
     align-self: flex-end;
   }
-  .people-list {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
+  /* No celular a linha não cabe em colunas: nome, preferência e situação empilham, e o
+     alvo de toque volta a ser confortável sem virar cartão de novo. */
   .pessoa {
-    min-height: 120px;
-    padding: 20px;
+    align-items: flex-start;
+    min-height: 72px;
+    padding: var(--espaco-4);
+  }
+  .pessoa-texto {
+    display: grid;
+    gap: var(--espaco-1);
+  }
+  .pessoa-texto > .pessoa-nome,
+  .pessoa-texto > .pessoa-preferencia,
+  .pessoa-texto > .pessoa-situacao {
+    flex: none;
+    margin-left: 0;
   }
   .patient-register {
     padding: 0;
@@ -2455,13 +2530,14 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
 .list-loading[data-compacto] span:last-child {
   width: 60%;
 }
+/* A espera tem a forma do que vem: linhas de lista, não blocos de cartão. */
 #list-loading {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--espaco-4);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espaco-2);
 }
 #list-loading span {
-  height: 150px;
-  border-radius: var(--radius-card);
+  height: 64px;
+  border-radius: var(--radius-control);
 }
 .loading-indicator {
   display: inline-block;
@@ -2508,12 +2584,8 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
   }
 }
 @media (max-width: 760px) {
-  #list-loading {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
   #list-loading span {
-    height: 120px;
+    height: 108px;
   }
 }
 /* Ferramentas da carteira permanecem disponíveis sem dominar a lista. */
