@@ -175,7 +175,7 @@ a.button-primary:active {
 .brand {
   display: flex;
   align-items: baseline;
-  gap: 16px;
+  gap: var(--espaco-4);
 }
 .brand-name {
   color: var(--primary);
@@ -190,7 +190,7 @@ a.button-primary:active {
 .session-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--espaco-4);
   font-size: var(--texto-1);
 }
 main {
@@ -304,7 +304,7 @@ body:has(#login-view:not([hidden])) .topbar .chip-ambiente {
   padding: 12px 14px;
   background: var(--panel);
   border-radius: 7px;
-  margin-bottom: 16px;
+  margin-bottom: var(--espaco-4);
   font-size: var(--texto-2);
 }
 .service-status[data-tone="error"] {
@@ -314,7 +314,7 @@ body:has(#login-view:not([hidden])) .topbar .chip-ambiente {
    confundir com os avisos de serviço (.service-status) nem com erro de requisição. */
 .estado-rede {
   padding: 12px 14px;
-  margin-bottom: 16px;
+  margin-bottom: var(--espaco-4);
   border-left: 3px solid var(--muted);
   background: var(--soft);
   color: var(--ink);
@@ -333,7 +333,7 @@ fieldset {
   margin-bottom: var(--espaco-4);
 }
 .password-toggle {
-  margin-top: 4px;
+  margin-top: var(--espaco-1);
   padding: 8px 0;
   color: var(--primary);
   background: transparent;
@@ -419,17 +419,17 @@ input[aria-invalid="true"] {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 24px;
+  gap: var(--espaco-5);
   margin-bottom: 36px;
 }
 .page-heading p {
   color: var(--muted);
-  margin-top: 12px;
+  margin-top: var(--espaco-3);
 }
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 48px;
+  gap: var(--espaco-7);
   align-items: start;
 }
 /* O cadastro saiu da coluna lateral e virou diálogo; a área de trabalho é só a lista. */
@@ -454,8 +454,8 @@ input[aria-invalid="true"] {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 4px;
+  gap: var(--espaco-4);
+  margin-bottom: var(--espaco-1);
 }
 .patient-register {
   min-width: 0;
@@ -470,7 +470,7 @@ input[aria-invalid="true"] {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: var(--espaco-4);
   padding-bottom: 20px;
   border-bottom: 1px solid var(--line);
 }
@@ -508,7 +508,7 @@ input[aria-invalid="true"] {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: var(--espaco-4);
   margin-top: 28px;
 }
 .pagination span {
@@ -536,7 +536,7 @@ input[aria-invalid="true"] {
   position: fixed;
   left: 16px;
   top: -100px;
-  padding: 12px;
+  padding: var(--espaco-3);
   z-index: 10;
   background: var(--white);
 }
@@ -556,12 +556,12 @@ input[aria-invalid="true"] {
 }
 .noscript-message {
   margin: 32px auto;
-  padding: 24px;
+  padding: var(--espaco-5);
 }
 
 @media (max-width: 1050px) {
   .registration-panel {
-    padding: 24px;
+    padding: var(--espaco-5);
   }
 }
 
@@ -569,7 +569,7 @@ input[aria-invalid="true"] {
   .topbar {
     min-height: 78px;
     padding: 16px 22px;
-    gap: 12px;
+    gap: var(--espaco-3);
   }
   .brand {
     display: block;
@@ -581,7 +581,7 @@ input[aria-invalid="true"] {
     font-size: var(--texto-1);
   }
   .session-actions {
-    gap: 12px;
+    gap: var(--espaco-3);
     flex-wrap: nowrap;
   }
   .session-actions > span {
@@ -622,7 +622,7 @@ input[aria-invalid="true"] {
     padding: 24px 20px;
   }
   .pagination {
-    gap: 8px;
+    gap: var(--espaco-2);
     flex-wrap: wrap;
   }
   .pagination button {
@@ -709,7 +709,7 @@ body:has(#patients-view:not([hidden])) .topbar .brand-organization {
 }
 .sidebar-brand small {
   display: block;
-  margin-top: 8px;
+  margin-top: var(--espaco-2);
   color: var(--muted);
   font: 600 var(--texto-1) / 1.2 var(--font-body);
   letter-spacing: .12em;
@@ -824,7 +824,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   display: block;
 }
 .busca .small-text {
-  margin-top: 8px;
+  margin-top: var(--espaco-2);
 }
 /* Carteira em lista, e não em blocos. Duas colunas de cartões de 150px mostravam seis
    pessoas numa tela inteira e não alinhavam nada entre si: para comparar quem está em
@@ -902,7 +902,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .pessoa-situacao {
   justify-self: start;
-  margin-top: 4px;
+  margin-top: var(--espaco-1);
   padding: 2px 10px;
   border-radius: 20px;
   background: var(--panel);
@@ -952,7 +952,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   contain: inline-size;
 }
 .ficha-cabecalho {
-  padding-bottom: 24px;
+  padding-bottom: var(--espaco-5);
 }
 .ficha-voltar {
   padding-left: 0;
@@ -961,7 +961,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   display: flex;
   align-items: center;
   gap: 20px;
-  margin-top: 8px;
+  margin-top: var(--espaco-2);
 }
 .ficha-identidade > div:last-child {
   min-width: 0;
@@ -975,13 +975,13 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   overflow-wrap: anywhere;
 }
 .ficha-preferencia {
-  margin-top: 4px;
+  margin-top: var(--espaco-1);
   color: var(--muted);
   overflow-wrap: anywhere;
 }
 .ficha-identidade .pessoa-situacao {
   display: inline-block;
-  margin-top: 8px;
+  margin-top: var(--espaco-2);
 }
 .ficha-acoes {
   display: flex;
@@ -1057,7 +1057,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   font-weight: 700;
 }
 .ficha-aba-estado {
-  margin-left: 8px;
+  margin-left: var(--espaco-2);
   padding: 2px 8px;
   border-radius: 20px;
   background: var(--soft);
@@ -1127,7 +1127,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   margin-bottom: 18px;
 }
 .ficha-secao legend {
-  margin-bottom: 12px;
+  margin-bottom: var(--espaco-3);
   font-weight: 700;
 }
 .ficha-secao label {
@@ -1159,7 +1159,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .ficha-secao[data-secao="anamnese"] form {
   display: grid;
-  gap: 16px;
+  gap: var(--espaco-4);
 }
 .ficha-secao[data-secao="anamnese"] fieldset {
   display: block;
@@ -1173,7 +1173,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .ficha-subsecao {
   margin-top: 40px;
-  padding-top: 32px;
+  padding-top: var(--espaco-6);
   border-top: 1px solid var(--line);
 }
 .ficha-secao [data-tone="error"] {
@@ -1201,7 +1201,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 16px;
-  margin-bottom: 12px;
+  margin-bottom: var(--espaco-3);
 }
 .visao-bloco h3 {
   margin: 0;
@@ -1226,7 +1226,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .visao-data,
 .visao-aviso {
-  margin-top: 12px;
+  margin-top: var(--espaco-3);
   color: var(--muted);
   font-size: var(--texto-1);
 }
@@ -1234,7 +1234,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   color: var(--error);
 }
 .visao-estado + button {
-  margin-top: 12px;
+  margin-top: var(--espaco-3);
 }
 
 @media (max-width: 760px) {
@@ -1276,7 +1276,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
     transition: transform var(--mov-contexto) var(--curva-entrada);
   }
   .page-heading {
-    gap: 16px;
+    gap: var(--espaco-4);
     margin-bottom: 20px;
   }
   .ficha-identidade {
@@ -1297,7 +1297,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
     font-size: var(--texto-2);
   }
   .ficha-painel {
-    padding-top: 24px;
+    padding-top: var(--espaco-5);
   }
   .ficha-secao form {
     padding: 18px 16px;
@@ -1318,8 +1318,8 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .contact-row {
   display: grid;
   grid-template-columns: minmax(96px, 8rem) minmax(0, 1fr);
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: var(--espaco-2);
+  margin-bottom: var(--espaco-2);
 }
 .contact-row select,
 .contact-row input {
@@ -1335,7 +1335,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
    relance, para que relato de quem convive não seja confundido com diagnóstico. */
 .ficha-secao[data-secao="saude"] form {
   display: grid;
-  gap: 16px;
+  gap: var(--espaco-4);
 }
 .saude-lista {
   display: grid;
@@ -1377,7 +1377,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 /* Tela de administração da configuração do sistema (web/configuracao-sistema.ts). */
 .configuracao-sistema {
   display: grid;
-  gap: 16px;
+  gap: var(--espaco-4);
   max-width: 68ch;
 }
 .configuracao-sistema__explicacao {
@@ -1466,7 +1466,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 /* ---- Navegação lateral -------------------------------------------------- */
 .sidebar-nav {
   display: grid;
-  gap: 4px;
+  gap: var(--espaco-1);
 }
 .sidebar-link {
   display: flex;
@@ -1557,16 +1557,16 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 /* Rodapé de ação: a ação confirma o formulário, não preenche a tela. Continua dentro do
    `fieldset` de propósito — é ele que a administração desabilita quando a criação está
    bloqueada, e tirar a ação de lá a deixaria clicável fora de hora. */
+/* Ação tem a largura do seu rótulo. Esticada de margem a margem num painel de 670px,
+   "Recarregar" parecia o assunto da tela, e não o que fazer quando ela falha.
+   `.full-width` continua sendo a forma de pedir o contrário, onde isso é desejado. */
+.administracao-conteudo button:not(.full-width) {
+  justify-self: start;
+}
 .administracao-conteudo form fieldset > button[type="submit"],
 .administracao-conteudo form > button {
-  justify-self: start;
   min-width: 11rem;
   margin-top: var(--espaco-2);
-}
-/* Ação de recarregar lado a lado com o conteúdo, não esticada de margem a margem. */
-.administracao-conteudo > button,
-.acessos-administracao > button {
-  justify-self: start;
 }
 .administracao-conteudo textarea {
   min-height: 96px;
@@ -1574,7 +1574,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .acessos-administracao {
   display: grid;
-  gap: 16px;
+  gap: var(--espaco-4);
   min-width: 0;
 }
 .acessos-lista {
@@ -1597,8 +1597,8 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 #interno-confirmacao-form {
   display: grid;
-  gap: 12px;
-  margin-top: 12px;
+  gap: var(--espaco-3);
+  margin-top: var(--espaco-3);
 }
 .administracao-conteudo input,
 .administracao-conteudo select,
@@ -1652,7 +1652,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
-  gap: 12px;
+  gap: var(--espaco-3);
   max-width: none;
 }
 .auditoria__campo {
@@ -1758,14 +1758,14 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .habilitacao-crise__lista {
   display: grid;
-  gap: 12px;
+  gap: var(--espaco-3);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .habilitacao-crise__item {
   display: grid;
-  gap: 8px;
+  gap: var(--espaco-2);
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
@@ -1788,7 +1788,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 /* ---- Plano de crise na ficha (FR-020) ----------------------------------- */
 .secao-plano-crise {
   display: grid;
-  gap: 16px;
+  gap: var(--espaco-4);
 }
 .plano-crise__explicacao,
 .plano-crise__situacao,
@@ -1799,14 +1799,14 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .plano-crise__lista {
   display: grid;
-  gap: 12px;
+  gap: var(--espaco-3);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .plano-crise__item {
   display: grid;
-  gap: 8px;
+  gap: var(--espaco-2);
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
@@ -1827,14 +1827,14 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 /* ---- Pendências do caso (FR-027) ---------------------------------------- */
 .pendencia-lista {
   display: grid;
-  gap: 12px;
+  gap: var(--espaco-3);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .pendencia-item {
   display: grid;
-  gap: 8px;
+  gap: var(--espaco-2);
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
@@ -1849,7 +1849,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .pendencia-marcas {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--espaco-2);
   color: var(--muted);
   font-size: var(--texto-1);
 }
@@ -2041,14 +2041,14 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 @media (max-width: 560px) {
   .administracao-conteudo,
   .regras-conteudo {
-    gap: 16px;
+    gap: var(--espaco-4);
   }
   .auditoria__tabela {
     font-size: var(--texto-1);
   }
   .auditoria__tabela th,
   .auditoria__tabela td {
-    padding: 8px;
+    padding: var(--espaco-2);
   }
   .filtros-carteira {
     padding: 14px;
@@ -2068,17 +2068,17 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 /* ── Linha do tempo (FR-007) ─────────────────────────────────────────────── */
 .secao-linha-tempo {
   display: grid;
-  gap: 16px;
+  gap: var(--espaco-4);
 }
 .linha-tempo__filtros {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--espaco-3);
   align-items: flex-end;
 }
 .linha-tempo__lista {
   display: grid;
-  gap: 12px;
+  gap: var(--espaco-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -2094,7 +2094,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .linha-tempo__cabecalho {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--espaco-2);
   align-items: baseline;
   justify-content: space-between;
 }
@@ -2138,7 +2138,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 /* ── Exportação (FR-032, FR-033) ─────────────────────────────────────────── */
 .secao-exportacao {
   display: grid;
-  gap: 16px;
+  gap: var(--espaco-4);
 }
 .exportacao__explicacao,
 .exportacao__estado,
@@ -2149,15 +2149,15 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .exportacao__form {
   display: grid;
-  gap: 12px;
-  padding: 16px;
+  gap: var(--espaco-3);
+  padding: var(--espaco-4);
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--panel);
 }
 .exportacao__lista {
   display: grid;
-  gap: 12px;
+  gap: var(--espaco-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -2195,7 +2195,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   }
   .linha-tempo__cabecalho {
     display: grid;
-    gap: 4px;
+    gap: var(--espaco-1);
   }
 }
 
@@ -2205,7 +2205,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
    aparecem, estão dentro da frase. */
 .home {
   display: grid;
-  gap: 32px;
+  gap: var(--espaco-6);
   max-width: 760px;
 }
 .home-cabecalho {
@@ -2231,11 +2231,11 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .home-corpo {
   display: grid;
-  gap: 32px;
+  gap: var(--espaco-6);
 }
 .home-bloco {
   display: grid;
-  gap: 12px;
+  gap: var(--espaco-3);
 }
 .home-bloco-titulo {
   margin: 0;
@@ -2329,7 +2329,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .home-falha {
   display: grid;
-  gap: 12px;
+  gap: var(--espaco-3);
   justify-items: start;
 }
 .home-falha p {
@@ -2404,7 +2404,7 @@ body.sidebar-collapsed {
   --sidebar-width: 80px;
 }
 body.sidebar-collapsed .patients-sidebar {
-  padding-inline: 12px;
+  padding-inline: var(--espaco-3);
 }
 body.sidebar-collapsed .sidebar-brand span,
 body.sidebar-collapsed .sidebar-label,
@@ -2496,7 +2496,7 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
 .list-loading {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
+  gap: var(--espaco-3);
   animation: loading-reveal 0s linear 300ms backwards;
 }
 .list-loading span {
@@ -2606,7 +2606,7 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
   font-weight: 600;
 }
 .carteira-tools .busca .small-text {
-  margin-top: 4px;
+  margin-top: var(--espaco-1);
   font-size: var(--texto-1);
 }
 .carteira-tools #reload-patients {
@@ -2640,7 +2640,7 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
   min-height: 46px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--espaco-2);
   padding: 10px 16px;
   border: 1px solid var(--field-line);
   border-radius: var(--radius-control);
@@ -2768,7 +2768,7 @@ label > .loading-indicator {
 /* ---- Substituição temporária da case manager (FR-037) ------------------- */
 .substituicao-cm {
   display: grid;
-  gap: 16px;
+  gap: var(--espaco-4);
 }
 .substituicao-cm__explicacao,
 .substituicao-cm__status,
@@ -2800,7 +2800,7 @@ label > .loading-indicator {
 }
 .substituicao-cm__formulario {
   display: grid;
-  gap: 8px;
+  gap: var(--espaco-2);
 }
 .substituicao-cm__formulario select,
 .substituicao-cm__formulario input {
@@ -2819,7 +2819,7 @@ label > .loading-indicator {
 }
 .substituicao-cm__encerramento {
   display: grid;
-  gap: 8px;
+  gap: var(--espaco-2);
 }
 .substituicao-cm__vazio {
   margin: 0;
@@ -2831,14 +2831,14 @@ label > .loading-indicator {
 }
 .substituicao-cm__lista {
   display: grid;
-  gap: 12px;
+  gap: var(--espaco-3);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .substituicao-cm__item {
   display: grid;
-  gap: 8px;
+  gap: var(--espaco-2);
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
