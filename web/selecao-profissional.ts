@@ -1,3 +1,4 @@
+import { confirmar } from './confirmacao.js';
 import { iniciarAcao } from './esqueleto.js';
 import { type ClienteFFCM, mensagemFalha } from './api.js';
 import { criarCicloAcesso } from './ciclo-acesso.js';
@@ -104,9 +105,13 @@ export function montarSelecaoProfissional(
       if (!estado.resultado_pendente) {
         if (
           estado.reserva &&
-          !window.confirm(
-            'Há uma tentativa em andamento que pode estar em outra aba. Encerrá-la afetará todas as abas. Deseja continuar?',
-          )
+          !(await confirmar({
+            titulo: 'Encerrar a tentativa em andamento?',
+            detalhe:
+              'A tentativa pode estar aberta em outra aba. Encerrá-la afeta todas as abas desta pessoa.',
+            acao: 'Encerrar a tentativa',
+            cancelar: 'Deixar como está',
+          }))
         )
           throw new Error('Encerramento não confirmado');
         await ciclo.encerrar();
@@ -138,9 +143,13 @@ export function montarSelecaoProfissional(
           if (
             !encontrado ||
             !nome ||
-            !window.confirm(
-              `${pendente.acao === 'revogar' ? 'Revogação' : 'Concessão'} anterior para ${nome}: ${encontrado.revogado ? 'revogada' : 'ativa'}. Confirmar verificação?`,
-            )
+            !(await confirmar({
+              titulo: `${pendente.acao === 'revogar' ? 'Revogação' : 'Concessão'} anterior para ${nome}: ${encontrado.revogado ? 'revogada' : 'ativa'}. Confere?`,
+              detalhe:
+                'Confirmar encerra a conferência e libera novas alterações de vínculo. Cancelar mantém tudo como está.',
+              acao: 'Confere, pode seguir',
+              cancelar: 'Não confere',
+            }))
           )
             throw new Error('Confirmação necessária');
         }
@@ -347,7 +356,7 @@ export function montarSelecaoProfissional(
             botao.addEventListener('click', () => {
               const nome = nomesProfissionais.get(item.usuario_id.toLowerCase());
               if (nome && liberado)
-                revogacao.selecionar({ id: item.id, versao: item.versao, nome });
+                void revogacao.selecionar({ id: item.id, versao: item.versao, nome });
             });
             linha.append(botao);
           }

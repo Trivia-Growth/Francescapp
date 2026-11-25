@@ -1,3 +1,5 @@
+import { confirmarDescarte } from './confirmacao.js';
+
 export type PessoaReferenciaLocal = {
   id: string;
   nome: string;
@@ -49,7 +51,9 @@ export function montarRelacoesLocais(
   let original = ['', '', ''];
   const alterado = () =>
     [nome.value, relacao.value, contato.value].some((v, i) => v !== original[i]);
-  const confirmarDescarte = () => !alterado() || window.confirm('Descartar alterações não salvas?');
+  // A confirmação deixou de ser síncrona: quem pergunta precisa esperar a resposta.
+  const confirmarSaida = async () =>
+    !alterado() || (await confirmarDescarte('as alterações não salvas desta pessoa de referência'));
   const limpar = () => {
     editando = null;
     formulario.reset();
@@ -59,9 +63,11 @@ export function montarRelacoesLocais(
     dados.aoLimpar?.();
   };
   cancelar.addEventListener('click', () => {
-    if (!confirmarDescarte()) return;
-    limpar();
-    mensagem.textContent = '';
+    void (async () => {
+      if (!(await confirmarSaida())) return;
+      limpar();
+      mensagem.textContent = '';
+    })();
   });
   const atualizarLista = () => {
     lista.replaceChildren();
@@ -82,17 +88,19 @@ export function montarRelacoesLocais(
       editar.textContent = 'Editar';
       editar.setAttribute('aria-label', `Editar pessoa de referência ${pessoa.nome}`);
       editar.addEventListener('click', () => {
-        if (!confirmarDescarte()) return;
-        dados.aoLimpar?.();
-        editando = pessoa.id;
-        nome.value = pessoa.nome;
-        relacao.value = pessoa.relacao;
-        contato.value = pessoa.contato;
-        original = [nome.value, relacao.value, contato.value];
-        salvar.textContent = 'Salvar alterações';
-        cancelar.hidden = false;
-        mensagem.textContent = '';
-        nome.focus();
+        void (async () => {
+          if (!(await confirmarSaida())) return;
+          dados.aoLimpar?.();
+          editando = pessoa.id;
+          nome.value = pessoa.nome;
+          relacao.value = pessoa.relacao;
+          contato.value = pessoa.contato;
+          original = [nome.value, relacao.value, contato.value];
+          salvar.textContent = 'Salvar alterações';
+          cancelar.hidden = false;
+          mensagem.textContent = '';
+          nome.focus();
+        })();
       });
       item.append(descricao, editar);
       lista.append(item);
