@@ -2,6 +2,7 @@ import type { CampoExtraCatalogo } from '../packages/contracts/src/plano-cuidado
 import { contratosRotas } from '../packages/contracts/src/rotas.ts';
 import type { ServicoPlanoCuidado } from './plano-cuidado.ts';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
+import { botao, estadoVazio } from './ui/basicos.js';
 
 /** Metadados globais. Cada escrita é reautorizada pelo servidor e pelo banco. */
 export function montarAdministracaoPlano(
@@ -35,8 +36,7 @@ export function montarAdministracaoPlano(
   status.setAttribute('role', 'status');
   const conteudo = el('div');
   const recuperacao = el('div');
-  const repetir = el('button', 'Repetir exatamente o envio conferido');
-  repetir.type = 'button';
+  const repetir = botao({ rotulo: 'Repetir exatamente o envio conferido', peso: 'secundario' });
   const estadoTentativa = () => {
     recuperacao.replaceChildren();
     if (!tentativa) return;
@@ -55,8 +55,7 @@ export function montarAdministracaoPlano(
     for (const grupo of conteudo.querySelectorAll('fieldset'))
       grupo.disabled = ocupado || tentativa !== null;
   };
-  const atualizar = el('button', 'Atualizar catálogo e aprovadores');
-  atualizar.type = 'button';
+  const atualizar = botao({ rotulo: 'Atualizar catálogo e aprovadores', peso: 'secundario' });
   raiz.replaceChildren(
     el('h2', 'Plano de cuidado — administração'),
     el(
@@ -165,8 +164,11 @@ export function montarAdministracaoPlano(
         const ativo = entrada('Campo ativo');
         ativo.type = 'checkbox';
         ativo.checked = campo?.ativo ?? true;
-        const salvar = el('button', campo ? 'Salvar campo' : 'Criar campo');
-        salvar.type = 'submit';
+        const salvar = botao({
+          rotulo: campo ? 'Salvar campo' : 'Criar campo',
+          peso: 'principal',
+          tipo: 'submit',
+        });
         grupo.append(salvar);
         form.append(grupo);
         form.onsubmit = (evento) => {
@@ -203,7 +205,7 @@ export function montarAdministracaoPlano(
       };
       conteudo.append(el('h3', 'Campos adicionais'), formularioCampo());
       if (!campos.length)
-        conteudo.append(el('p', 'Nenhum campo cadastrado. Crie um campo opcional acima.'));
+        conteudo.append(estadoVazio('Nenhum campo cadastrado.', 'Crie um campo opcional acima.'));
       for (const campo of campos) {
         const detalhe = el('details');
         detalhe.append(
@@ -237,8 +239,7 @@ export function montarAdministracaoPlano(
       }
       label.append(usuario);
       grupo.append(label);
-      const indicar = el('button', 'Indicar aprovador');
-      indicar.type = 'submit';
+      const indicar = botao({ rotulo: 'Indicar aprovador', peso: 'principal', tipo: 'submit' });
       grupo.append(indicar);
       form.append(grupo);
       conteudo.append(form);
@@ -277,14 +278,16 @@ export function montarAdministracaoPlano(
           'p',
           `${equipe.find((pessoa) => pessoa.usuario_id === aprovador.usuario_id)?.rotulo ?? 'Colaborador sem identificação disponível'} — ${aprovador.ativo ? 'ativo' : 'desativado'} `,
         );
-        const alternar = el('button', aprovador.ativo ? 'Remover indicação' : 'Reativar indicação');
-        alternar.type = 'button';
+        const alternar = botao({
+          rotulo: aprovador.ativo ? 'Remover indicação' : 'Reativar indicação',
+          peso: 'discreto',
+        });
         alternar.onclick = () =>
           gravarAprovador(aprovador.usuario_id, !aprovador.ativo, aprovador.versao, alternar);
         linha.append(alternar);
         conteudo.append(linha);
       }
-      if (!aprovadores.length) conteudo.append(el('p', 'Nenhum aprovador extra indicado.'));
+      if (!aprovadores.length) conteudo.append(estadoVazio('Nenhum aprovador extra indicado.'));
       status.textContent = tentativa
         ? 'Consulta concluída. O envio anterior ainda precisa de confirmação; confira e repita exatamente o mesmo envio.'
         : 'Catálogo e aprovadores atualizados.';

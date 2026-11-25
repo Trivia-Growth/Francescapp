@@ -11,6 +11,7 @@ import type { criarCicloPlano } from './ciclo-plano.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import { confirmarDescarte } from './confirmacao.js';
+import { botao, estadoVazio } from './ui/basicos.js';
 
 export type ObjetivoAtual = {
   registro_id?: string;
@@ -99,8 +100,7 @@ export function montarPlanoCuidado(
       .catch((erro: unknown) => {
         if (!ativa || perdeuAcesso(erro)) return;
         status.textContent = mensagemFalha(erro);
-        const tentar = elemento('button', 'Tentar novamente');
-        tentar.type = 'button';
+        const tentar = botao({ rotulo: 'Tentar novamente', peso: 'secundario' });
         tentar.addEventListener('click', () => consultar(cursor));
         raiz.replaceChildren(status, tentar);
       });
@@ -119,8 +119,7 @@ export function montarPlanoCuidado(
         'Antes de criar um objetivo, confira se já existe algum envio aguardando resposta.',
       );
       aviso.setAttribute('role', 'status');
-      const recuperar = elemento('button', 'Conferir e liberar');
-      recuperar.type = 'button';
+      const recuperar = botao({ rotulo: 'Conferir e liberar', peso: 'secundario' });
       recuperar.dataset.recuperacaoPlano = '';
       recuperar.disabled = recuperando;
       recuperar.onclick = () => {
@@ -194,7 +193,7 @@ export function montarPlanoCuidado(
       };
       secao.append(aviso, recuperar);
     }
-    if (!objetivos.length) secao.append(elemento('p', 'Nenhum objetivo nesta página.'));
+    if (!objetivos.length) secao.append(estadoVazio('Nenhum objetivo nesta página.'));
     const lista = elemento('div');
     const abrir = (atual?: ObjetivoAtual) => {
       if (gravando || bloqueada || recuperando || formulario.querySelector('form')) return;
@@ -321,15 +320,16 @@ export function montarPlanoCuidado(
         estado.value = objetivo.estado;
         visibilidade.value = atual.visibilidade;
       }
-      const salvar = elemento('button', atual ? 'Salvar revisão' : 'Salvar objetivo');
-      salvar.type = 'submit';
-      const cancelar = elemento('button', 'Cancelar');
-      cancelar.type = 'button';
+      const salvar = botao({
+        rotulo: atual ? 'Salvar revisão' : 'Salvar objetivo',
+        peso: 'principal',
+        tipo: 'submit',
+      });
+      const cancelar = botao({ rotulo: 'Cancelar', peso: 'secundario' });
       const aviso = elemento('p');
       aviso.setAttribute('role', 'status');
       const recuperacao = elemento('div');
-      const consultarAtual = elemento('button', 'Consultar versão atual');
-      consultarAtual.type = 'button';
+      const consultarAtual = botao({ rotulo: 'Consultar versão atual', peso: 'secundario' });
       consultarAtual.hidden = true;
       const carregarAtual = (cursor?: string) => {
         consultarAtual.disabled = true;
@@ -357,13 +357,14 @@ export function montarPlanoCuidado(
               recuperacao.append(item);
             }
             if (paginaAtual.proximo_cursor) {
-              const mais = elemento('button', 'Próxima página do plano atual');
-              mais.type = 'button';
+              const mais = botao({ rotulo: 'Próxima página do plano atual', peso: 'discreto' });
               mais.onclick = () => carregarAtual(paginaAtual.proximo_cursor ?? undefined);
               recuperacao.append(mais);
             }
-            const descartar = elemento('button', 'Descartar rascunho e abrir plano atual');
-            descartar.type = 'button';
+            const descartar = botao({
+              rotulo: 'Descartar rascunho e abrir plano atual',
+              peso: 'secundario',
+            });
             descartar.addEventListener('click', () => {
               bloqueada = false;
               alteracaoPendente(false);
@@ -455,8 +456,10 @@ export function montarPlanoCuidado(
               bloqueada = true;
               if (!atual) {
                 criacaoIncerta = true;
-                const confirmar = elemento('button', 'Descartar rascunho e confirmar criação');
-                confirmar.type = 'button';
+                const confirmar = botao({
+                  rotulo: 'Descartar rascunho e confirmar criação',
+                  peso: 'secundario',
+                });
                 confirmar.addEventListener('click', () => {
                   alteracaoPendente(false);
                   consultar();
@@ -519,8 +522,7 @@ export function montarPlanoCuidado(
           ),
         );
       if (servico.aprovarObjetivo && atual.registro_id) {
-        const aprovar = elemento('button', 'Aprovar esta versão');
-        aprovar.type = 'button';
+        const aprovar = botao({ rotulo: 'Aprovar esta versão', peso: 'secundario' });
         const resultado = elemento('p');
         resultado.setAttribute('role', 'status');
         aprovar.onclick = () => {
@@ -559,12 +561,10 @@ export function montarPlanoCuidado(
         };
         item.append(aprovar, resultado);
       }
-      const revisar = elemento('button', 'Revisar objetivo');
-      revisar.type = 'button';
+      const revisar = botao({ rotulo: 'Revisar objetivo', peso: 'discreto' });
       revisar.addEventListener('click', () => abrir(atual));
       const historico = elemento('div');
-      const consultarHistorico = elemento('button', 'Consultar histórico');
-      consultarHistorico.type = 'button';
+      const consultarHistorico = botao({ rotulo: 'Consultar histórico', peso: 'discreto' });
       const carregarHistorico = (cursor?: string) => {
         consultarHistorico.disabled = true;
         const status = elemento('p', 'Carregando histórico…');
@@ -631,8 +631,7 @@ export function montarPlanoCuidado(
     }
     secao.append(lista);
     if (cursores.length) {
-      const anterior = elemento('button', 'Página anterior de objetivos');
-      anterior.type = 'button';
+      const anterior = botao({ rotulo: 'Página anterior de objetivos', peso: 'discreto' });
       anterior.addEventListener('click', () => {
         if (formulario.querySelector('form') || recuperando || gravando) return;
         consultar(cursores.pop());
@@ -640,8 +639,7 @@ export function montarPlanoCuidado(
       secao.append(anterior);
     }
     if (pagina.proximo_cursor) {
-      const proxima = elemento('button', 'Próxima página de objetivos');
-      proxima.type = 'button';
+      const proxima = botao({ rotulo: 'Próxima página de objetivos', peso: 'discreto' });
       proxima.addEventListener('click', () => {
         if (formulario.querySelector('form') || recuperando || gravando) return;
         cursores.push(cursorAtual);
@@ -650,8 +648,7 @@ export function montarPlanoCuidado(
       secao.append(proxima);
     }
     if (!ehFamilia) {
-      const adicionar = elemento('button', 'Adicionar objetivo');
-      adicionar.type = 'button';
+      const adicionar = botao({ rotulo: 'Adicionar objetivo', peso: 'secundario' });
       adicionar.disabled = criacaoIncerta;
       adicionar.addEventListener('click', () => abrir());
       secao.append(adicionar, formulario);

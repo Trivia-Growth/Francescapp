@@ -6,6 +6,7 @@ import {
 } from '../packages/contracts/src/campo-extra-catalogo.ts';
 import type { ServicoModeloFormulario } from './servico-catalogo-administrado-http.ts';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
+import { botao, estadoVazio } from './ui/basicos.js';
 
 const rotulosDeTipo: readonly (readonly [TipoCampoExtra, string])[] = [
   ['texto', 'Texto curto'],
@@ -38,10 +39,8 @@ export function montarModeloFichaPlantao(
   status.setAttribute('role', 'status');
   const conteudo = el('div');
   const recuperacao = el('div');
-  const repetir = el('button', 'Repetir exatamente o envio conferido');
-  repetir.type = 'button';
-  const atualizar = el('button', 'Atualizar modelo');
-  atualizar.type = 'button';
+  const repetir = botao({ rotulo: 'Repetir exatamente o envio conferido', peso: 'secundario' });
+  const atualizar = botao({ rotulo: 'Atualizar modelo', peso: 'secundario' });
   const estadoTentativa = () => {
     recuperacao.replaceChildren();
     if (!tentativa) return;
@@ -142,8 +141,11 @@ export function montarModeloFichaPlantao(
     const ativo = campoDeTexto('Campo ativo');
     ativo.type = 'checkbox';
     ativo.checked = campo?.ativo ?? true;
-    const salvar = el('button', campo ? 'Salvar campo' : 'Criar campo');
-    salvar.type = 'submit';
+    const salvar = botao({
+      rotulo: campo ? 'Salvar campo' : 'Criar campo',
+      peso: 'principal',
+      tipo: 'submit',
+    });
     grupo.append(salvar);
     form.append(grupo);
     form.onsubmit = (evento) => {
@@ -213,7 +215,9 @@ export function montarModeloFichaPlantao(
       conteudo.append(el('h3', 'Novo campo'), formulario(undefined, proxima));
       conteudo.append(el('h3', 'Campos da ficha'));
       if (!campos.length)
-        conteudo.append(el('p', 'Nenhum campo no modelo. Crie o primeiro campo da ficha acima.'));
+        conteudo.append(
+          estadoVazio('Nenhum campo no modelo.', 'Crie o primeiro campo da ficha acima.'),
+        );
       for (const campo of campos) {
         const detalhe = el('details');
         const marcas = [

@@ -5,6 +5,7 @@ import {
 } from '../packages/contracts/src/papel-declarado.ts';
 import type { ServicoPapelDeclarado } from './servico-catalogo-administrado-http.ts';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
+import { botao, estadoVazio } from './ui/basicos.js';
 
 /** FR-079. Catálogo de papéis declarados do profissional. É rótulo impresso na ficha:
  * não concede, amplia nem restringe acesso nenhum — perfil e vínculo com o caso
@@ -27,10 +28,8 @@ export function montarPapelDeclaradoAdministracao(
   status.setAttribute('role', 'status');
   const conteudo = el('div');
   const recuperacao = el('div');
-  const repetir = el('button', 'Repetir exatamente o envio conferido');
-  repetir.type = 'button';
-  const atualizar = el('button', 'Atualizar catálogo de papéis');
-  atualizar.type = 'button';
+  const repetir = botao({ rotulo: 'Repetir exatamente o envio conferido', peso: 'secundario' });
+  const atualizar = botao({ rotulo: 'Atualizar catálogo de papéis', peso: 'secundario' });
   const estadoTentativa = () => {
     recuperacao.replaceChildren();
     if (!tentativa) return;
@@ -96,8 +95,11 @@ export function montarPapelDeclaradoAdministracao(
     nome.maxLength = 80;
     label.append(nome);
     grupo.append(label);
-    const salvar = el('button', papel ? 'Salvar nome' : 'Criar papel');
-    salvar.type = 'submit';
+    const salvar = botao({
+      rotulo: papel ? 'Salvar nome' : 'Criar papel',
+      peso: 'principal',
+      tipo: 'submit',
+    });
     grupo.append(salvar);
     form.append(grupo);
     form.onsubmit = (evento) => {
@@ -137,15 +139,17 @@ export function montarPapelDeclaradoAdministracao(
       conteudo.replaceChildren(el('h3', 'Novo papel'), formulario());
       conteudo.append(el('h3', 'Papéis do catálogo'));
       if (!papeis.length)
-        conteudo.append(el('p', 'Nenhum papel no catálogo. Crie o primeiro papel acima.'));
+        conteudo.append(estadoVazio('Nenhum papel no catálogo.', 'Crie o primeiro papel acima.'));
       for (const papel of papeis) {
         const detalhe = el('details');
         const marcas = [
           papel.ativo ? 'ativo' : 'desativado',
           ...(papel.de_fabrica ? ['de fábrica'] : []),
         ];
-        const alternar = el('button', papel.ativo ? 'Desativar papel' : 'Reativar papel');
-        alternar.type = 'button';
+        const alternar = botao({
+          rotulo: papel.ativo ? 'Desativar papel' : 'Reativar papel',
+          peso: 'secundario',
+        });
         alternar.onclick = () =>
           enviar({
             papel_id: papel.papel_id,

@@ -5,6 +5,7 @@ import {
 } from '../packages/contracts/src/estado-emocional.ts';
 import type { ServicoEstadoEmocional } from './servico-catalogo-administrado-http.ts';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
+import { botao, estadoVazio } from './ui/basicos.js';
 
 /** FR-076/FR-081. Catálogo de estado emocional observado na ficha de plantão. É vocabulário
  * de OBSERVAÇÃO: não há nota, escala, pontuação nem ordem de gravidade, e por isso o registro
@@ -28,10 +29,8 @@ export function montarEstadoEmocionalAdministracao(
   status.setAttribute('role', 'status');
   const conteudo = el('div');
   const recuperacao = el('div');
-  const repetir = el('button', 'Repetir exatamente o envio conferido');
-  repetir.type = 'button';
-  const atualizar = el('button', 'Atualizar catálogo de termos');
-  atualizar.type = 'button';
+  const repetir = botao({ rotulo: 'Repetir exatamente o envio conferido', peso: 'secundario' });
+  const atualizar = botao({ rotulo: 'Atualizar catálogo de termos', peso: 'secundario' });
   const estadoTentativa = () => {
     recuperacao.replaceChildren();
     if (!tentativa) return;
@@ -97,8 +96,11 @@ export function montarEstadoEmocionalAdministracao(
     estado.maxLength = 80;
     label.append(estado);
     grupo.append(label);
-    const salvar = el('button', termo ? 'Salvar termo' : 'Criar termo');
-    salvar.type = 'submit';
+    const salvar = botao({
+      rotulo: termo ? 'Salvar termo' : 'Criar termo',
+      peso: 'principal',
+      tipo: 'submit',
+    });
     grupo.append(salvar);
     form.append(grupo);
     form.onsubmit = (evento) => {
@@ -141,9 +143,9 @@ export function montarEstadoEmocionalAdministracao(
       // atômica e o banco recusa termo fora do catálogo, derrubando a ficha inteira.
       if (!termos.length)
         conteudo.append(
-          el(
-            'p',
-            'Nenhum termo no catálogo. Enquanto estiver vazio, a ficha de plantão não aceita estado emocional. Crie o primeiro termo acima.',
+          estadoVazio(
+            'Nenhum termo no catálogo.',
+            'Enquanto estiver vazio, a ficha de plantão não aceita estado emocional. Crie o primeiro termo acima.',
           ),
         );
       for (const termo of termos) {
@@ -152,8 +154,10 @@ export function montarEstadoEmocionalAdministracao(
           termo.ativo ? 'ativo' : 'desativado',
           ...(termo.de_fabrica ? ['de fábrica'] : []),
         ];
-        const alternar = el('button', termo.ativo ? 'Desativar termo' : 'Reativar termo');
-        alternar.type = 'button';
+        const alternar = botao({
+          rotulo: termo.ativo ? 'Desativar termo' : 'Reativar termo',
+          peso: 'secundario',
+        });
         alternar.onclick = () =>
           enviar({
             estado_id: termo.estado_id,
