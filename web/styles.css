@@ -450,6 +450,45 @@ input[aria-invalid="true"] {
 .dialogo::backdrop {
   background: rgb(39 49 35 / 48%);
 }
+/* Confirmação: substitui o `window.confirm`, que desenhava uma caixa do navegador ACIMA
+   da página — fora do conteúdo, invisível para quem olhava a tela. Cabe em uma dobra e
+   não rola: é uma decisão, não um texto. O botão seguro é o destaque, porque confirmar
+   por engano é o erro caro e a tela não deve facilitar o caro. */
+.dialogo-confirmacao {
+  width: min(420px, calc(100vw - var(--espaco-6)));
+  display: grid;
+  gap: var(--espaco-4);
+  padding: var(--espaco-5);
+  overflow: visible;
+}
+.dialogo-confirmacao__titulo {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--texto-4);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.dialogo-confirmacao__detalhe {
+  max-width: 46ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--texto-2);
+}
+.dialogo-confirmacao__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--espaco-3);
+}
+@media (max-width: 480px) {
+  /* No celular as duas ações ocupam a largura toda, e a segura fica acima do polegar. */
+  .dialogo-confirmacao__acoes {
+    flex-direction: column-reverse;
+  }
+  .dialogo-confirmacao__acoes button {
+    width: 100%;
+  }
+}
 .registration-heading {
   display: flex;
   align-items: baseline;
