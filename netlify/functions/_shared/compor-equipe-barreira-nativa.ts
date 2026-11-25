@@ -9,6 +9,7 @@ import type { ReferenciasCifraCofre } from '../../../supabase/functions/_shared/
 import { credencialAuthRejeitada, criarContextoAuthNativo } from './auth-nativo/cliente.ts';
 import { processarBarreiraEquipeNativa } from './equipe-barreira-handler-nativo.ts';
 import { carregarCofreNativo } from './cofre-nativo.ts';
+import { causaDaFalha, registrarFalhaOperacional } from './falha-operacional.ts';
 
 type OperacaoBarreira = Parameters<typeof processarBarreiraEquipeNativa>[1];
 
@@ -137,7 +138,16 @@ export async function comporBarreiraEquipeNativa(
         },
       }),
     );
-  } catch {
+  } catch (falha) {
+    // Mais um `catch` cego da mesma família. Em 25/11/2026 a barreira da equipe devolvia
+    // `servico_indisponivel` em produção sem deixar rastro, e com ela o formulário de
+    // pré-conceder acesso ficava inteiro desabilitado na tela da Administração.
+    registrarFalhaOperacional({
+      rota: 'equipe-barreira',
+      etapa: 'operacao',
+      request_id: crypto.randomUUID(),
+      causa: causaDaFalha(falha),
+    });
     const codigo = mutacaoIniciada ? 'pendencia_externa' : 'servico_indisponivel';
     return Response.json(criarErroPublicoSemCampos(codigo, crypto.randomUUID()), {
       status: statusErroHttp[codigo],
