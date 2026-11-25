@@ -2001,26 +2001,40 @@ function mostrarAdministracao(areaId: string): void {
   const vista = elemento('administracao-view');
   vista.hidden = false;
   marcarNavegacao('administracao');
+  // A faixa de abas só é reconstruída quando o conjunto autorizado muda. Reconstruí-la a
+  // cada troca descartava os elementos sob o cursor e o foco, e a faixa inteira piscava
+  // junto com o painel: trocar de aba parecia recarregar a página.
   const abas = elemento('administracao-abas');
-  abas.replaceChildren(
-    ...disponiveis.map((item) => {
-      const link = document.createElement('a');
-      link.className = 'administracao-aba';
-      link.href = `#administracao/${item.id}`;
-      link.textContent = item.rotulo;
-      if (item.id === area.id) link.setAttribute('aria-current', 'page');
-      return link;
-    }),
-  );
+  const assinatura = disponiveis.map((item) => item.id).join('|');
+  if (abas.dataset.areas !== assinatura) {
+    abas.dataset.areas = assinatura;
+    abas.replaceChildren(
+      ...disponiveis.map((item) => {
+        const link = document.createElement('a');
+        link.className = 'administracao-aba';
+        link.href = `#administracao/${item.id}`;
+        link.textContent = item.rotulo;
+        return link;
+      }),
+    );
+  }
+  for (const link of abas.querySelectorAll<HTMLAnchorElement>('a.administracao-aba')) {
+    if (link.hash === `#administracao/${area.id}`) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  }
   if (painelAdministracao?.area === area.id) return;
   // A equipe só é consultada pelas telas que trocam identificador por nome.
   if (['configuracao', 'integracoes', 'auditoria'].includes(area.id))
     nomeDoUsuarioNaEquipe.carregar(atual);
   painelAdministracao?.desmontar();
   const conteudo = elemento('administracao-conteudo');
+  // O painel anterior sai e o próximo ainda não desenhou nada: sem isto a área ficava em
+  // branco até a primeira consulta responder, e o branco era lido como erro.
+  conteudo.setAttribute('aria-busy', 'true');
   conteudo.replaceChildren();
   painelAdministracao = { area: area.id, desmontar: area.montar(conteudo) };
-  elemento('administracao-title').focus();
+  if (conteudo.hasChildNodes()) conteudo.removeAttribute('aria-busy');
+  elemento('administracao-title').focus({ preventScroll: true });
 }
 
 function mostrarRegras(): void {

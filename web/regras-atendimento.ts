@@ -78,6 +78,8 @@ export function montarRegrasAtendimento(
 
   const carregar = async () => {
     status.textContent = 'Carregando…';
+    // Sem isto a tela ficava com uma palavra solta onde deveria haver texto chegando.
+    lista.setAttribute('aria-busy', 'true');
     recarregar.disabled = true;
     try {
       const itens = await servico.consultar();
@@ -91,6 +93,7 @@ export function montarRegrasAtendimento(
       status.hidden = false;
       status.textContent = 'Não foi possível carregar as regras. Tente recarregar.';
     } finally {
+      lista.removeAttribute('aria-busy');
       if (ativa) recarregar.disabled = false;
     }
   };

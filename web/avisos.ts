@@ -165,11 +165,14 @@ export function montarAvisos(
     marcar('carregando');
     situacao.textContent = 'Carregando avisos…';
     lista.replaceChildren();
+    lista.setAttribute('aria-busy', 'true');
     limparIndicador();
     try {
       aplicar(await servico.listar());
     } catch {
       falhar();
+    } finally {
+      lista.removeAttribute('aria-busy');
     }
   };
 

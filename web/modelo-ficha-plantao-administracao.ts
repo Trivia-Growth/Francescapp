@@ -186,6 +186,9 @@ export function montarModeloFichaPlantao(
     ocupado = true;
     atualizar.disabled = true;
     status.textContent = 'Carregando o modelo da ficha…';
+    // A frase sozinha trocava o painel inteiro por uma linha de texto. A região passa a
+    // dizer que está em consulta, e web/styles.css lhe dá a forma do que vem.
+    conteudo.setAttribute('aria-busy', 'true');
     try {
       const campos = await servico.consultar();
       if (!ativa) return;
@@ -234,6 +237,7 @@ export function montarModeloFichaPlantao(
     } finally {
       ocupado = false;
       atualizar.disabled = false;
+      conteudo.removeAttribute('aria-busy');
       if (ativa) {
         bloquearFormularios();
         estadoTentativa();
