@@ -350,7 +350,10 @@ export function aprimorarData(nativo: HTMLInputElement): CampoData {
   return campo;
 }
 
-/** Aprimora todos os campos de data dentro de uma raiz. Idempotente. */
+/** Aprimora os campos de data ainda nativos dentro de uma raiz. Pula os já aprimorados
+ *  pelo mesmo motivo de `aprimorarSelecoes`: quem chama é um observador da própria raiz. */
 export function aprimorarDatas(raiz: ParentNode): CampoData[] {
-  return [...raiz.querySelectorAll<HTMLInputElement>('input[type="date"]')].map(aprimorarData);
+  return [...raiz.querySelectorAll<HTMLInputElement>('input[type="date"]')]
+    .filter((nativo) => !nativo.parentElement?.hasAttribute('data-aprimorada'))
+    .map(aprimorarData);
 }

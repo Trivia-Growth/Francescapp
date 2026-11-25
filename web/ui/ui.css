@@ -550,8 +550,8 @@
   align-items: center;
   gap: var(--espaco-4);
   width: 100%;
-  min-height: 60px;
-  padding: var(--espaco-3) var(--espaco-4);
+  min-height: 56px;
+  padding: var(--espaco-2) var(--espaco-4);
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -569,6 +569,8 @@
 @media (max-width: 767px) {
   .ui-linha {
     min-height: 64px;
+    align-items: flex-start;
+    padding: var(--espaco-3) var(--espaco-4);
   }
 }
 /* Estado vazio: uma frase que diz o que houve e, quando existe, o que fazer a seguir.
@@ -662,9 +664,14 @@
   transform: rotate(45deg);
 }
 @media (max-width: 767px) {
-  .ui-linha__principal,
-  .ui-linha__secundario {
+  /* Sem colunas: o nome ocupa a linha e o que o reconhece vem abaixo, junto do estado.
+     Empilhar os três em três linhas levava a linha a 99px — alto demais para percorrer
+     uma carteira com o polegar. */
+  .ui-linha__principal {
     flex-basis: 100%;
+  }
+  .ui-linha__secundario {
+    flex: 0 1 auto;
   }
   .ui-linha__texto > :nth-child(n + 3) {
     margin-left: 0;

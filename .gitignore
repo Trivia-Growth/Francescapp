@@ -27,3 +27,6 @@ supabase/.temp/
 # Saídas da prova de conforto no celular (Playwright).
 test-results/
 playwright-report/
+
+# Local Netlify folder
+.netlify

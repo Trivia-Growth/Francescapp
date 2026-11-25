@@ -268,7 +268,14 @@ export function aprimorarSelecao(nativa: HTMLSelectElement): Selecao {
   return selecao;
 }
 
-/** Aprimora todos os `<select>` dentro de uma raiz. Idempotente. */
+/** Aprimora os `<select>` ainda nativos dentro de uma raiz.
+ *
+ *  Pula de propósito os que já foram aprimorados, em vez de ressincronizá-los: quem chama
+ *  isto costuma ser um `MutationObserver` que vigia o formulário, e ressincronizar
+ *  reescreveria a lista de opções dentro da própria raiz vigiada — a observação dispararia
+ *  de novo, e a tela travaria em laço. */
 export function aprimorarSelecoes(raiz: ParentNode): Selecao[] {
-  return [...raiz.querySelectorAll('select')].map(aprimorarSelecao);
+  return [...raiz.querySelectorAll('select')]
+    .filter((nativa) => !nativa.parentElement?.hasAttribute('data-aprimorada'))
+    .map(aprimorarSelecao);
 }

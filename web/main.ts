@@ -301,6 +301,13 @@ const buscaVazia = elemento('busca-vazia');
 // `web/ui/data.ts`, e o comentário em `web/index.html` sobre o `required` que saiu.
 aprimorarSelecoes(registration);
 aprimorarDatas(registration);
+// Cada contato adicionado traz um `<select>` novo. Sem observar o diálogo, o primeiro
+// contato aparecia com a seleção da aplicação e os seguintes com a do navegador — duas
+// aparências no mesmo formulário, que é exatamente o defeito que esta frente corrige.
+new MutationObserver(() => {
+  aprimorarSelecoes(registration);
+  aprimorarDatas(registration);
+}).observe(registration, { childList: true, subtree: true });
 
 // A navegação mantém os mesmos links e seu estado de autorização nas duas larguras.
 const toggleSidebar = elemento<HTMLButtonElement>('toggle-sidebar');
