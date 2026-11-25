@@ -106,7 +106,7 @@ export function confirmar(pedido: PedidoConfirmacao): Promise<boolean> {
       const passo = evento.shiftKey ? -1 : 1;
       const destino = (atual + passo + botoes.length) % botoes.length;
       evento.preventDefault();
-      botoes[atual === -1 ? 0 : destino].focus();
+      botoes[atual === -1 ? 0 : destino]?.focus();
     });
 
     document.body.append(dialogo);

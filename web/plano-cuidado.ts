@@ -10,6 +10,7 @@ import {
 import type { criarCicloPlano } from './ciclo-plano.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
+import { confirmarDescarte } from './confirmacao.js';
 
 export type ObjetivoAtual = {
   registro_id?: string;
@@ -382,11 +383,16 @@ export function montarPlanoCuidado(
       consultarAtual.addEventListener('click', () => carregarAtual());
       let rascunhoAlterado = false;
       cancelar.addEventListener('click', () => {
-        if (rascunhoAlterado && !window.confirm('Descartar alterações não salvas deste objetivo?'))
-          return;
-        formulario.replaceChildren();
-        if (botaoRecuperacao) botaoRecuperacao.disabled = false;
-        alteracaoPendente(false);
+        void (async () => {
+          if (
+            rascunhoAlterado &&
+            !(await confirmarDescarte('as alterações não salvas deste objetivo'))
+          )
+            return;
+          formulario.replaceChildren();
+          if (botaoRecuperacao) botaoRecuperacao.disabled = false;
+          alteracaoPendente(false);
+        })();
       });
       const marcarAlterado = () => {
         rascunhoAlterado = true;

@@ -2,6 +2,7 @@ import type {
   RegistroTarefaCuidado,
   TarefaCuidado,
 } from '../packages/contracts/src/tarefa-cuidado.ts';
+import { confirmar, confirmarDescarte } from './confirmacao.js';
 import type { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
@@ -44,9 +45,9 @@ export function montarTarefasCuidado(
     formulariosAlterados.add(form);
     alteracaoPendente(true);
   };
-  const permitirAtualizacao = (form: HTMLFormElement) =>
+  const permitirAtualizacao = async (form: HTMLFormElement) =>
     ![...formulariosAlterados].some((outro) => outro !== form) ||
-    window.confirm('Há alterações não salvas em outra tarefa. Deseja descartá-las?');
+    (await confirmarDescarte('as alterações não salvas em outra tarefa'));
   const bloquearOutrosFormularios = (atual: HTMLFormElement) => {
     const controles = [
       ...raiz.querySelectorAll<
@@ -256,17 +257,23 @@ export function montarTarefasCuidado(
     const recarregar = elemento('button', 'Consultar tarefas novamente');
     recarregar.type = 'button';
     recarregar.addEventListener('click', () => {
-      if (
-        !window.confirm(
-          'A consulta descartará os dados não salvos desta tela. Copie o que precisar antes de continuar. Deseja consultar novamente?',
+      void (async () => {
+        if (
+          !(await confirmar({
+            titulo: 'Consultar de novo e descartar o que não foi salvo nesta tela?',
+            detalhe:
+              'A consulta substitui o que está na tela pelos dados do serviço. Copie o que precisar antes de seguir.',
+            acao: 'Consultar de novo',
+            cancelar: 'Continuar nesta tela',
+          }))
         )
-      )
-        return;
-      formulariosAlterados.clear();
-      alteracaoPendente(false);
-      recuperacao = false;
-      bloqueada = !!servico.ciclo;
-      consultar();
+          return;
+        formulariosAlterados.clear();
+        alteracaoPendente(false);
+        recuperacao = false;
+        bloqueada = !!servico.ciclo;
+        consultar();
+      })();
     });
     form.append(recarregar);
   };
@@ -328,7 +335,7 @@ export function montarTarefasCuidado(
     form.append(campos, salvar, status);
     form.addEventListener('input', () => marcarAlterado(form));
     form.addEventListener('change', () => marcarAlterado(form));
-    form.addEventListener('submit', (evento) => {
+    form.addEventListener('submit', async (evento) => {
       evento.preventDefault();
       if (recuperacao) return;
       const descricaoLimpa = descricao.value.trim();
@@ -349,7 +356,7 @@ export function montarTarefasCuidado(
         return;
       }
       if (!Object.hasOwn(estados, estado.value)) return;
-      if (!permitirAtualizacao(form)) return;
+      if (!(await permitirAtualizacao(form))) return;
       const tarefa: TarefaCuidado = {
         ...registro.tarefa,
         descricao: descricaoLimpa,
@@ -442,7 +449,7 @@ export function montarTarefasCuidado(
     form.append(campos, salvar, status);
     form.addEventListener('input', () => marcarAlterado(form));
     form.addEventListener('change', () => marcarAlterado(form));
-    form.addEventListener('submit', (evento) => {
+    form.addEventListener('submit', async (evento) => {
       evento.preventDefault();
       if (recuperacao) return;
       const descricaoLimpa = descricao.value.trim();
@@ -456,7 +463,7 @@ export function montarTarefasCuidado(
         status.textContent = 'Preencha descrição, responsável, prazo e prioridade.';
         return;
       }
-      if (!permitirAtualizacao(form)) return;
+      if (!(await permitirAtualizacao(form))) return;
       const tarefa: TarefaCuidado = {
         descricao: descricaoLimpa,
         responsavel: responsavelLimpo,

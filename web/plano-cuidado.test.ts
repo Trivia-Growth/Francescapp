@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
+import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
 import { FalhaApi } from './api.js';
 import { montarPlanoCuidado as montar, type ServicoPlanoCuidado } from './plano-cuidado.js';
 
@@ -435,17 +436,18 @@ it('confirma antes de descartar alterações ao cancelar revisão', async () => 
   if (!campo) throw new Error('Campo ausente');
   campo.value = 'Rascunho fictício';
   campo.dispatchEvent(new Event('input', { bubbles: true }));
-  const confirmar = vi
-    .spyOn(window, 'confirm')
-    .mockReturnValueOnce(false)
-    .mockReturnValueOnce(true);
+  const confirmacoes = responderConfirmacoes(false);
   const cancelar = [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Cancelar');
   cancelar?.click();
+  await aguardarConfirmacao();
   expect(campo.value).toBe('Rascunho fictício');
   expect(raiz.querySelector('form')).not.toBeNull();
+  expect(confirmacoes.chamadas[0]).toContain('Descartar as alterações não salvas deste objetivo');
+  confirmacoes.resposta = true;
   cancelar?.click();
+  await aguardarConfirmacao();
   expect(raiz.querySelector('form')).toBeNull();
-  confirmar.mockRestore();
+  confirmacoes.encerrar();
 });
 
 const campoExtraId = 'e0000000-0000-4000-8000-000000000005';

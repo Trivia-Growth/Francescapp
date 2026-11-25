@@ -14,6 +14,7 @@ import type { ServicoSubstituicaoCaseManager } from './servico-substituicao-cm-h
 import type { criarCicloEdicaoPaciente } from './ciclo-edicao-paciente.js';
 import { dataDeInstante } from './datas.js';
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
+import { confirmar } from './confirmacao.js';
 
 export type ServicoEdicaoPaciente = {
   consultarPaciente(pacienteId: string): Promise<PacienteEdicao>;
@@ -305,9 +306,13 @@ export function montarEdicaoPaciente(
         if (!situacao.resultado_pendente) {
           if (
             situacao.reserva &&
-            !window.confirm(
-              'Há uma tentativa em andamento que pode estar em outra aba. Encerrá-la afetará todas as abas. Deseja continuar?',
-            )
+            !(await confirmar({
+              titulo: 'Encerrar a tentativa em andamento?',
+              detalhe:
+                'A tentativa pode estar aberta em outra aba. Encerrá-la afeta todas as abas desta pessoa.',
+              acao: 'Encerrar a tentativa',
+              cancelar: 'Deixar como está',
+            }))
           )
             throw new Error('Encerramento não confirmado');
           await servico.ciclo.encerrar();

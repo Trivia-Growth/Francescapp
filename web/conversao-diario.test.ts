@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
+import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
 import { montarConversaoDiario, type PortasConversaoDiario } from './conversao-diario.ts';
 import { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.ts';
 import { registroDiarioSchema } from '../packages/contracts/src/diario.ts';
@@ -321,12 +322,15 @@ it('fechar formulário sujo exige confirmação e preserva texto quando recusada
   const p = preparar();
   await abrir(p.raiz);
   preencher(p.raiz);
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const confirmacoes = responderConfirmacoes(false);
   botao(p.raiz, 'Fechar conversão').click();
-  expect(confirmar).toHaveBeenCalledTimes(1);
+  await aguardarConfirmacao();
+  expect(confirmacoes.chamadas).toHaveLength(1);
   expect(campo(p.raiz, 'Motivo').value).toBe('Motivo fictício');
-  confirmar.mockReturnValue(true);
+  confirmacoes.resposta = true;
   botao(p.raiz, 'Fechar conversão').click();
+  await aguardarConfirmacao();
   expect(campo(p.raiz, 'Motivo').value).toBe('');
   expect(p.pendente).toHaveBeenLastCalledWith(false);
+  confirmacoes.encerrar();
 });

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
+import { responderConfirmacoes } from './confirmacao-prova.js';
 import { FalhaApi } from './api.js';
 import { montarEdicaoPaciente, type ServicoEdicaoPaciente } from './editar-paciente.js';
 
@@ -214,7 +215,7 @@ it('não permite reconhecer quando consulta autorizada para conferência falha',
 });
 
 it('não encerra reserva de edição em outra aba sem confirmação', async () => {
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const confirmacoes = responderConfirmacoes(false);
   const ciclo = {
     consultar: vi
       .fn()
@@ -232,10 +233,11 @@ it('não encerra reserva de edição em outra aba sem confirmação', async () =
     vi.fn(),
   );
   raiz.querySelector('button')?.click();
-  await vi.waitFor(() => expect(confirmar).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(confirmacoes.chamadas).toHaveLength(1));
+  expect(confirmacoes.chamadas[0]).toContain('Encerrar a tentativa em andamento?');
   expect(ciclo.encerrar).not.toHaveBeenCalled();
   expect(raiz.querySelector('form')).toBeNull();
-  confirmar.mockRestore();
+  confirmacoes.encerrar();
 });
 
 const ana = '30000000-0000-4000-8000-000000000003';

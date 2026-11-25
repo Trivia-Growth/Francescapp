@@ -1,5 +1,6 @@
 import { novoContatoSchema, type PacienteAdministrativo } from '../packages/contracts/src/index.js';
 import { exigeNovoAcesso, FalhaApi, mensagemFalha, type ClienteFFCM } from './api.js';
+import { confirmar } from './confirmacao.js';
 import { criarCicloContato } from './ciclo-contato.js';
 import { esqueletoCarregando } from './esqueleto.js';
 import type { consultaBarreiraContatoSchema } from '../packages/contracts/src/barreira-contato.js';
@@ -137,9 +138,13 @@ export function montarContatoPaciente(
       );
       if (
         !contato ||
-        !window.confirm(
-          `Este contato foi adicionado antes — ${contato.tipo === 'email' ? 'e-mail' : 'telefone'}: ${contato.valor}. Confere?`,
-        )
+        !(await confirmar({
+          titulo: `Este contato foi adicionado antes — ${contato.tipo === 'email' ? 'e-mail' : 'telefone'}: ${contato.valor}. Confere?`,
+          detalhe:
+            'Confirmar encerra a conferência e libera novos contatos. Cancelar mantém a tela conferindo.',
+          acao: 'Confere, pode seguir',
+          cancelar: 'Não confere',
+        }))
       )
         throw new Error('Conferência necessária');
       contatoConfirmado = true;
@@ -156,9 +161,13 @@ export function montarContatoPaciente(
         etapa = resultadoPendente ? 'reconhecer' : 'encerrar';
         if (
           estado.reserva &&
-          !window.confirm(
-            'Há uma tentativa em andamento que pode estar em outra aba. Encerrá-la afetará todas as abas. Deseja continuar?',
-          )
+          !(await confirmar({
+            titulo: 'Encerrar a tentativa em andamento?',
+            detalhe:
+              'A tentativa pode estar aberta em outra aba. Encerrá-la afeta todas as abas desta pessoa.',
+            acao: 'Encerrar a tentativa',
+            cancelar: 'Deixar como está',
+          }))
         ) {
           etapa = null;
           throw new Error('Encerramento não confirmado');

@@ -1,4 +1,5 @@
 import type { RegistroDiario } from '../packages/contracts/src/diario.ts';
+import { confirmarDescarte } from './confirmacao.js';
 import {
   converterDiarioTarefaSchema,
   type ConverterDiarioTarefa,
@@ -317,21 +318,23 @@ export function montarConversaoDiario(
     });
   });
   fechar.addEventListener('click', () => {
-    if (ocupada) return;
-    if (
-      [motivo, data, encaminhamento, responsavel, prazo, prioridade, area].some(
-        (controle) => controle.value,
-      ) &&
-      !reciboConfirmado &&
-      !window.confirm('Descartar os campos não enviados desta conversão?')
-    )
-      return;
-    form.reset();
-    pedido = null;
-    pendente(false);
-    painel.hidden = true;
-    abrir.hidden = false;
-    abrir.focus();
+    void (async () => {
+      if (ocupada) return;
+      if (
+        [motivo, data, encaminhamento, responsavel, prazo, prioridade, area].some(
+          (controle) => controle.value,
+        ) &&
+        !reciboConfirmado &&
+        !(await confirmarDescarte('os campos não enviados desta conversão'))
+      )
+        return;
+      form.reset();
+      pedido = null;
+      pendente(false);
+      painel.hidden = true;
+      abrir.hidden = false;
+      abrir.focus();
+    })();
   });
   return {
     desmontar: () => {

@@ -1,4 +1,5 @@
 import type { VisibilidadeObjetivo } from '../packages/contracts/src/plano-cuidado.ts';
+import { confirmarDescarte } from './confirmacao.js';
 
 export type OrientacaoLocal = {
   id: string;
@@ -84,7 +85,9 @@ export function montarOrientacoesLocais(
     botao.textContent = 'Registrar orientação';
   };
   cancelar.addEventListener('click', () => {
-    if (window.confirm('Descartar alterações não salvas?')) limpar();
+    void (async () => {
+      if (await confirmarDescarte('as alterações não salvas desta orientação')) limpar();
+    })();
   });
   const renderizar = () => {
     lista.replaceChildren();
@@ -102,21 +105,23 @@ export function montarOrientacoesLocais(
         substituir.textContent = 'Substituir';
         substituir.disabled = salvando;
         substituir.addEventListener('click', () => {
-          if (
-            (texto.value || autor.value || data.value || destinatarios.value || validade.value) &&
-            !window.confirm('Descartar alterações não salvas?')
-          )
-            return;
-          substituindo = item.id;
-          texto.value = item.texto;
-          autor.value = item.autor;
-          data.value = item.data;
-          destinatarios.value = item.destinatarios;
-          validade.value = item.validade ?? '';
-          visibilidade.value = item.visibilidade;
-          cancelar.hidden = false;
-          botao.textContent = 'Salvar nova versão';
-          texto.focus();
+          void (async () => {
+            if (
+              (texto.value || autor.value || data.value || destinatarios.value || validade.value) &&
+              !(await confirmarDescarte('as alterações não salvas desta orientação'))
+            )
+              return;
+            substituindo = item.id;
+            texto.value = item.texto;
+            autor.value = item.autor;
+            data.value = item.data;
+            destinatarios.value = item.destinatarios;
+            validade.value = item.validade ?? '';
+            visibilidade.value = item.visibilidade;
+            cancelar.hidden = false;
+            botao.textContent = 'Salvar nova versão';
+            texto.focus();
+          })();
         });
         linha.append(substituir);
       }
