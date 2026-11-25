@@ -64,13 +64,6 @@
   align-items: center;
   justify-content: center;
   gap: var(--espaco-2);
-  /* Dentro de um contêiner flex, um botão sem isto encolhe até sumir quando o irmão ocupa
-     a linha. Foi o que aconteceu com "Novo paciente" na carteira: no iPhone 14 ele media
-     0x0, visível para o CSS e inalcançável para quem usa — a ação principal da tela
-     simplesmente não existia no telefone. Medido em 25/11/2026: 148x46 no computador,
-     0x0 no celular. */
-  flex: 0 0 auto;
-  white-space: nowrap;
   min-height: 46px;
   padding: 10px 18px;
   border: 1px solid transparent;
