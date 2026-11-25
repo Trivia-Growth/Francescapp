@@ -15,6 +15,7 @@ import type { criarCicloEdicaoPaciente } from './ciclo-edicao-paciente.js';
 import { dataDeInstante } from './datas.js';
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import { confirmar } from './confirmacao.js';
+import { botao } from './ui/basicos.js';
 
 export type ServicoEdicaoPaciente = {
   consultarPaciente(pacienteId: string): Promise<PacienteEdicao>;
@@ -177,8 +178,7 @@ export function montarEdicaoPaciente(
         });
     else indicarEquipe('Listagem da equipe indisponível para este perfil');
     rotular('Motivo da alteração', motivo);
-    const salvar = elemento('button', 'Salvar alterações');
-    salvar.type = 'submit';
+    const salvar = botao({ rotulo: 'Salvar alterações', peso: 'principal', tipo: 'submit' });
     const aviso = elemento('p');
     aviso.setAttribute('role', 'status');
     form.append(campos, salvar, aviso);
@@ -260,14 +260,12 @@ export function montarEdicaoPaciente(
       .catch((erro: unknown) => {
         if (!ativa || descartarAcesso(erro)) return;
         status.textContent = mensagemFalha(erro);
-        const tentar = elemento('button', 'Tentar novamente');
-        tentar.type = 'button';
+        const tentar = botao({ rotulo: 'Tentar novamente', peso: 'secundario' });
         tentar.addEventListener('click', consultar);
         raiz.replaceChildren(status, tentar);
       });
   };
-  const recuperar = elemento('button', 'Conferir o que foi salvo');
-  recuperar.type = 'button';
+  const recuperar = botao({ rotulo: 'Conferir o que foi salvo', peso: 'secundario' });
   let reconhecido = false;
   const concluirRecuperacao = () => {
     recuperar.hidden = true;
@@ -282,8 +280,7 @@ export function montarEdicaoPaciente(
     if (campos) campos.disabled = false;
     status.textContent =
       'Conferência concluída. Copie seu rascunho antes de recarregar o cadastro.';
-    const recarregar = elemento('button', 'Recarregar cadastro');
-    recarregar.type = 'button';
+    const recarregar = botao({ rotulo: 'Recarregar cadastro', peso: 'secundario' });
     recarregar.onclick = () => {
       alteracaoPendente(false);
       bloqueada = false;

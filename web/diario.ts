@@ -12,6 +12,7 @@ import { relatoTextualSchema } from '../packages/contracts/src/relato-textual.ts
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import type { MontagemConversaoDiario } from './conversao-diario.ts';
 import { confirmar, confirmarDescarte } from './confirmacao.js';
+import { botao, estadoVazio } from './ui/basicos.js';
 
 export type ServicoDiarioTela = {
   consultar(pacienteId: string): Promise<RegistroDiario[]>;
@@ -105,8 +106,6 @@ function acoesDoFormulario(
 ): HTMLElement {
   const acoes = elemento('div');
   acoes.className = 'diario-acoes';
-  principal.classList.add('button-primary');
-  secundaria.classList.add('button-quiet');
   acoes.append(secundaria, principal);
   form.append(acoes);
   return acoes;
@@ -271,10 +270,8 @@ export function montarDiario(
     const aviso = elemento('p');
     aviso.setAttribute('role', 'status');
     aviso.setAttribute('aria-live', 'polite');
-    const rascunho = elemento('button', 'Salvar rascunho');
-    rascunho.type = 'button';
-    const publicar = elemento('button', 'Publicar');
-    publicar.type = 'submit';
+    const rascunho = botao({ rotulo: 'Salvar rascunho', peso: 'discreto' });
+    const publicar = botao({ rotulo: 'Publicar', peso: 'principal', tipo: 'submit' });
     form.append(aviso);
     acoesDoFormulario(form, rascunho, publicar);
     form.addEventListener('input', () => {
@@ -412,10 +409,8 @@ export function montarDiario(
     const aviso = elemento('p');
     aviso.setAttribute('role', 'status');
     aviso.setAttribute('aria-live', 'polite');
-    const rascunho = elemento('button', 'Salvar rascunho');
-    rascunho.type = 'button';
-    const publicar = elemento('button', 'Publicar');
-    publicar.type = 'submit';
+    const rascunho = botao({ rotulo: 'Salvar rascunho', peso: 'discreto' });
+    const publicar = botao({ rotulo: 'Publicar', peso: 'principal', tipo: 'submit' });
     form.append(destinatarios, aviso, rascunho, publicar);
     form.addEventListener('input', () => {
       registrarPendencia(true);
@@ -495,8 +490,7 @@ export function montarDiario(
     const motivo = campo(form, 'Motivo da retificação (obrigatório)', elemento('textarea'));
     const aviso = elemento('p');
     aviso.setAttribute('role', 'status');
-    const confirmar = elemento('button', 'Registrar retificação');
-    confirmar.type = 'submit';
+    const confirmar = botao({ rotulo: 'Registrar retificação', peso: 'principal', tipo: 'submit' });
     form.append(aviso, confirmar);
     form.addEventListener('input', () => {
       if (ehFamilia) pendenteFamiliar = true;
@@ -609,7 +603,7 @@ export function montarDiario(
     if (carregando) regiaoLeituras.append(esqueletoCarregando(3, true));
     if (estadoLeituras !== 'pronto') return;
     if (!registros.length) {
-      regiaoLeituras.append(elemento('p', 'Nenhum registro no diário deste paciente ainda.'));
+      regiaoLeituras.append(estadoVazio('Nenhum registro no diário deste paciente ainda.'));
       return;
     }
     const lista = elemento('ul');
@@ -669,8 +663,7 @@ export function montarDiario(
         situacao.setAttribute('role', 'status');
         artigo.append(situacao);
         if (ehFamilia && registro.tipo === 'relato_familiar' && registro.estado === 'rascunho') {
-          const retomar = elemento('button', 'Retomar rascunho');
-          retomar.type = 'button';
+          const retomar = botao({ rotulo: 'Retomar rascunho', peso: 'discreto' });
           retomar.addEventListener('click', () => {
             void trocarEditorFamiliar(() =>
               formularioRelatoFamiliar((texto) => desenhar(texto), registro),
@@ -678,8 +671,7 @@ export function montarDiario(
           });
           artigo.append(retomar);
         } else if (registro.estado !== 'rascunho') {
-          const retificar = elemento('button', 'Retificar');
-          retificar.type = 'button';
+          const retificar = botao({ rotulo: 'Retificar', peso: 'discreto' });
           retificar.addEventListener('click', () => {
             if (ehFamilia)
               void trocarEditorFamiliar(() =>
@@ -694,8 +686,7 @@ export function montarDiario(
         registro.tipo === 'relato_familiar' &&
         registro.estado !== 'rascunho'
       ) {
-        const responder = elemento('button', 'Responder');
-        responder.type = 'button';
+        const responder = botao({ rotulo: 'Responder', peso: 'discreto' });
         responder.addEventListener('click', () => {
           responder.replaceWith(formularioEvolucao((texto) => desenhar(texto), registro));
         });
@@ -721,9 +712,10 @@ export function montarDiario(
         if (conversao.versao !== registro.versao) {
           conversao.montagem.invalidarOrigem();
           if (!conversao.reabrir) {
-            const reabrir = elemento('button', 'Descartar campos e usar versão atual');
-            reabrir.type = 'button';
-            reabrir.className = 'button-secondary';
+            const reabrir = botao({
+              rotulo: 'Descartar campos e usar versão atual',
+              peso: 'secundario',
+            });
             reabrir.addEventListener('click', () => {
               void (async () => {
                 if (

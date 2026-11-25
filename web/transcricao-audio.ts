@@ -6,6 +6,7 @@ import {
   type Transcricao,
 } from '../packages/contracts/src/transcricao.ts';
 import { exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
+import { botao } from './ui/basicos.js';
 
 export type ServicoTranscricao = {
   registrar(
@@ -110,10 +111,8 @@ export function montarTranscricaoAudio(
   const estado = elemento('p');
   estado.setAttribute('role', 'status');
   estado.setAttribute('aria-live', 'polite');
-  const gravar = elemento('button', 'Gravar áudio');
-  gravar.type = 'button';
-  const parar = elemento('button', 'Parar gravação');
-  parar.type = 'button';
+  const gravar = botao({ rotulo: 'Gravar áudio', peso: 'secundario' });
+  const parar = botao({ rotulo: 'Parar gravação', peso: 'secundario' });
   parar.hidden = true;
   const comandos = elemento('div');
   comandos.className = 'transcricao-comandos';
@@ -133,11 +132,9 @@ export function montarTranscricaoAudio(
   const rotuloOriginal = elemento('p', 'Áudio original, para conferir enquanto revisa:');
   original.append(rotuloOriginal, tocador);
 
-  const confirmar = elemento('button', 'Confirmar revisão');
-  confirmar.type = 'button';
+  const confirmar = botao({ rotulo: 'Confirmar revisão', peso: 'principal' });
   confirmar.hidden = true;
-  const regularizar = elemento('button', 'Tentar excluir o áudio novamente');
-  regularizar.type = 'button';
+  const regularizar = botao({ rotulo: 'Tentar excluir o áudio novamente', peso: 'secundario' });
   regularizar.hidden = true;
   const destino = elemento('p');
   destino.setAttribute('role', 'status');

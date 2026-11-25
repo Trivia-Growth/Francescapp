@@ -5,6 +5,7 @@ import {
 } from '../packages/contracts/src/index.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
+import { botao } from './ui/basicos.js';
 
 /** Roteiro sugerido de FR-003. Vem do banco (`ffcm.anamnese.roteiro`), editável na tela de
  *  administração pela diretriz de 11/11/2026 — a estrutura de seis seções foi aprovada pelo
@@ -84,10 +85,8 @@ export function montarAnamnese(
     const campos = elemento('div');
     const aviso = elemento('p');
     aviso.setAttribute('role', 'status');
-    const salvar = elemento('button', 'Salvar anamnese');
-    salvar.type = 'submit';
-    const retry = elemento('button', 'Tentar confirmar salvamento');
-    retry.type = 'button';
+    const salvar = botao({ rotulo: 'Salvar anamnese', peso: 'principal', tipo: 'submit' });
+    const retry = botao({ rotulo: 'Tentar confirmar salvamento', peso: 'secundario' });
     retry.hidden = true;
     form.append(elemento('h2', 'Anamnese de coordenação'));
     const secoes = resultado?.secoes ?? [];
@@ -240,8 +239,7 @@ export function montarAnamnese(
       });
       const rotuloEscolha = elemento('label', 'Perguntas sugeridas');
       rotuloEscolha.append(escolha);
-      const todas = elemento('button', 'Adicionar todas as sugeridas');
-      todas.type = 'button';
+      const todas = botao({ rotulo: 'Adicionar todas as sugeridas', peso: 'secundario' });
       todas.addEventListener('click', () => {
         for (const { secao, campo } of faltantes)
           if (!existe(secao, campo)) adicionar(secao, campo, true);
@@ -259,8 +257,7 @@ export function montarAnamnese(
 
     rotularNovo('Outra seção', novaSecao);
     rotularNovo('Outro campo', novoCampo);
-    const adicionarBotao = elemento('button', 'Adicionar campo');
-    adicionarBotao.type = 'button';
+    const adicionarBotao = botao({ rotulo: 'Adicionar campo', peso: 'secundario' });
     adicionarBotao.addEventListener('click', () => {
       const secao = novaSecao.value.trim();
       const campo = novoCampo.value.trim();
@@ -290,8 +287,7 @@ export function montarAnamnese(
       const conteudo = elemento('div');
       const historicoStatus = elemento('p');
       historicoStatus.setAttribute('role', 'status');
-      const anterior = elemento('button', 'Consultar histórico');
-      anterior.type = 'button';
+      const anterior = botao({ rotulo: 'Consultar histórico', peso: 'discreto' });
       let cursor: number | undefined;
       anterior.addEventListener('click', async () => {
         if (!servico.consultarHistoricoAnamnese) return;
@@ -423,8 +419,7 @@ export function montarAnamnese(
       .catch((erro: unknown) => {
         if (!ativa || descartarAcesso(erro)) return;
         status.textContent = mensagemFalha(erro);
-        const tentarNovamente = elemento('button', 'Tentar novamente');
-        tentarNovamente.type = 'button';
+        const tentarNovamente = botao({ rotulo: 'Tentar novamente', peso: 'secundario' });
         tentarNovamente.addEventListener('click', consultar);
         raiz.replaceChildren(status, tentarNovamente);
       });

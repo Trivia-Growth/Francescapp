@@ -1,4 +1,5 @@
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
+import { botao } from './ui/basicos.js';
 import {
   salvarPlanoCriseSchema,
   type PlanoCrise,
@@ -152,8 +153,7 @@ export function montarPlanoCrise(
         papel: campoTexto(grupo, 'Papel', valor?.papel ?? '', 'Mãe, psiquiatra, escola…'),
         contato: campoTexto(grupo, 'Como falar', valor?.contato ?? '', 'Telefone, e-mail…'),
       };
-      const remover = elemento('button', 'Remover responsável');
-      remover.type = 'button';
+      const remover = botao({ rotulo: 'Remover responsável', peso: 'discreto' });
       remover.addEventListener('click', () => {
         const posicao = responsaveis.indexOf(linha);
         if (posicao >= 0) responsaveis.splice(posicao, 1);
@@ -187,8 +187,7 @@ export function montarPlanoCrise(
       rotuloTelefone.append(telefone);
       grupo.append(rotuloTelefone);
       const linha: LinhaContato = { id: valor?.id ?? crypto.randomUUID(), descricao, telefone };
-      const remover = elemento('button', 'Remover contato');
-      remover.type = 'button';
+      const remover = botao({ rotulo: 'Remover contato', peso: 'discreto' });
       remover.addEventListener('click', () => {
         const posicao = contatos.indexOf(linha);
         if (posicao >= 0) contatos.splice(posicao, 1);
@@ -205,16 +204,14 @@ export function montarPlanoCrise(
     for (const valor of resultado?.conteudo.responsaveis ?? []) adicionarResponsavel(valor);
     for (const valor of resultado?.conteudo.contatos ?? []) adicionarContato(valor);
 
-    const botaoResponsavel = elemento('button', 'Adicionar responsável');
-    botaoResponsavel.type = 'button';
+    const botaoResponsavel = botao({ rotulo: 'Adicionar responsável', peso: 'secundario' });
     botaoResponsavel.addEventListener('click', () => {
       const linha = adicionarResponsavel();
       alteracaoPendente(true);
       aviso.textContent = '';
       linha.nome.focus();
     });
-    const botaoContato = elemento('button', 'Adicionar contato de urgência');
-    botaoContato.type = 'button';
+    const botaoContato = botao({ rotulo: 'Adicionar contato de urgência', peso: 'secundario' });
     botaoContato.addEventListener('click', () => {
       const linha = adicionarContato();
       alteracaoPendente(true);
@@ -256,13 +253,10 @@ export function montarPlanoCrise(
     revisao.addEventListener('change', atualizarPrazo);
     form.append(prazo);
 
-    const salvar = elemento('button', 'Salvar plano de crise');
-    salvar.type = 'submit';
-    const retry = elemento('button', 'Tentar confirmar salvamento');
-    retry.type = 'button';
+    const salvar = botao({ rotulo: 'Salvar plano de crise', peso: 'principal', tipo: 'submit' });
+    const retry = botao({ rotulo: 'Tentar confirmar salvamento', peso: 'secundario' });
     retry.hidden = true;
-    const aprovar = elemento('button', 'Aprovar esta versão');
-    aprovar.type = 'button';
+    const aprovar = botao({ rotulo: 'Aprovar esta versão', peso: 'secundario' });
     aprovar.hidden = !resultado || aprovacao !== null;
     const explicacaoAprovacao = elemento(
       'p',
@@ -414,8 +408,7 @@ export function montarPlanoCrise(
         if (!ativa || descartarAcesso(erro)) return;
         carregamentoAtual.remove();
         status.textContent = mensagemFalha(erro);
-        const tentarNovamente = elemento('button', 'Tentar novamente');
-        tentarNovamente.type = 'button';
+        const tentarNovamente = botao({ rotulo: 'Tentar novamente', peso: 'secundario' });
         tentarNovamente.addEventListener('click', consultar);
         raiz.append(tentarNovamente);
       });

@@ -5,6 +5,7 @@ import {
 } from '../packages/contracts/src/saude.ts';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
+import { botao } from './ui/basicos.js';
 
 export type ServicoSaude = {
   consultar(pacienteId: string): Promise<Saude | null>;
@@ -74,10 +75,12 @@ export function montarSaude(
     campos.className = 'saude-lista';
     const aviso = elemento('p');
     aviso.setAttribute('role', 'status');
-    const salvar = elemento('button', 'Salvar histórico de saúde');
-    salvar.type = 'submit';
-    const retry = elemento('button', 'Tentar confirmar salvamento');
-    retry.type = 'button';
+    const salvar = botao({
+      rotulo: 'Salvar histórico de saúde',
+      peso: 'principal',
+      tipo: 'submit',
+    });
+    const retry = botao({ rotulo: 'Tentar confirmar salvamento', peso: 'secundario' });
     retry.hidden = true;
     form.append(elemento('h2', 'Histórico de saúde'));
     form.append(
@@ -169,8 +172,7 @@ export function montarSaude(
       data.value = registro?.data ?? '';
       rotularTexto('Data', data);
       const situacao = selecionar('Situação', SITUACOES, registro?.situacao);
-      const remover = elemento('button', 'Remover registro');
-      remover.type = 'button';
+      const remover = botao({ rotulo: 'Remover registro', peso: 'discreto' });
       grupo.append(remover);
       const linha: Linha = {
         id: registro?.id ?? crypto.randomUUID(),
@@ -205,8 +207,7 @@ export function montarSaude(
     for (const registro of resultado?.registros ?? []) adicionar(registro);
     atualizarResumo();
 
-    const adicionarBotao = elemento('button', 'Adicionar registro');
-    adicionarBotao.type = 'button';
+    const adicionarBotao = botao({ rotulo: 'Adicionar registro', peso: 'secundario' });
     adicionarBotao.addEventListener('click', () => {
       const linha = adicionar();
       alteracaoPendente(true);
@@ -294,8 +295,7 @@ export function montarSaude(
       .catch((erro: unknown) => {
         if (!ativa || descartarAcesso(erro)) return;
         status.textContent = mensagemFalha(erro);
-        const tentarNovamente = elemento('button', 'Tentar novamente');
-        tentarNovamente.type = 'button';
+        const tentarNovamente = botao({ rotulo: 'Tentar novamente', peso: 'secundario' });
         tentarNovamente.addEventListener('click', consultar);
         raiz.replaceChildren(status, tentarNovamente);
       });

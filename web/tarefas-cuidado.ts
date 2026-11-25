@@ -6,6 +6,7 @@ import { confirmar, confirmarDescarte } from './confirmacao.js';
 import type { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
+import { botao, estadoVazio } from './ui/basicos.js';
 
 type RegistroTarefa = RegistroTarefaCuidado;
 export type ServicoTarefasCuidado = {
@@ -96,8 +97,7 @@ export function montarTarefasCuidado(
             'Antes de alterar tarefas, confira se já existe algum envio aguardando resposta.',
           );
           aviso.setAttribute('role', 'status');
-          const confirmar = elemento('button', 'Conferir e liberar');
-          confirmar.type = 'button';
+          const confirmar = botao({ rotulo: 'Conferir e liberar', peso: 'secundario' });
           let cercado = false;
           const falhou = (erro: unknown) => {
             if (!ativa) return;
@@ -160,7 +160,7 @@ export function montarTarefasCuidado(
         }
         if (servico.criarTarefa && !bloqueada) secao.append(criarFormulario(servico.criarTarefa));
         if (!registros.length)
-          secao.append(elemento('p', 'Nenhuma tarefa encontrada para este paciente.'));
+          secao.append(estadoVazio('Nenhuma tarefa encontrada para este paciente.'));
         const itens: { registro: RegistroTarefa; elemento: HTMLElement }[] = [];
         const semResultados = elemento('p', 'Nenhuma tarefa corresponde aos filtros selecionados.');
         semResultados.setAttribute('role', 'status');
@@ -233,8 +233,7 @@ export function montarTarefasCuidado(
           return;
         }
         status.textContent = mensagemFalha(erro);
-        const tentar = elemento('button', 'Tentar novamente');
-        tentar.type = 'button';
+        const tentar = botao({ rotulo: 'Tentar novamente', peso: 'secundario' });
         tentar.addEventListener('click', consultar);
         raiz.replaceChildren(status, tentar);
       });
@@ -254,8 +253,7 @@ export function montarTarefasCuidado(
     ))
       controle.disabled = true;
     status.textContent = mensagem;
-    const recarregar = elemento('button', 'Consultar tarefas novamente');
-    recarregar.type = 'button';
+    const recarregar = botao({ rotulo: 'Consultar tarefas novamente', peso: 'secundario' });
     recarregar.addEventListener('click', () => {
       void (async () => {
         if (
@@ -328,8 +326,7 @@ export function montarTarefasCuidado(
     justificativa.value = registro.tarefa.justificativa ?? '';
     labelJustificativa.append(justificativa);
     campos.append(labelEstado, labelAcao, labelJustificativa);
-    const salvar = elemento('button', 'Salvar tarefa');
-    salvar.type = 'submit';
+    const salvar = botao({ rotulo: 'Salvar tarefa', peso: 'principal', tipo: 'submit' });
     const status = elemento('p');
     status.setAttribute('role', 'status');
     form.append(campos, salvar, status);
@@ -441,9 +438,7 @@ export function montarTarefasCuidado(
     }
     labelPrioridade.append(prioridade);
     campos.append(labelPrioridade);
-    const salvar = elemento('button', 'Criar tarefa');
-    salvar.type = 'submit';
-    salvar.className = 'button-primary';
+    const salvar = botao({ rotulo: 'Criar tarefa', peso: 'principal', tipo: 'submit' });
     const status = elemento('p');
     status.setAttribute('role', 'status');
     form.append(campos, salvar, status);
