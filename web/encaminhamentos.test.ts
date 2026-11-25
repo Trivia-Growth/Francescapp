@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
+import { aguardarConfirmacao } from './confirmacao-prova.js';
 import { montarEncaminhamentos } from './encaminhamentos';
 
 const registro = (sobrepor: Record<string, unknown> = {}) => ({
@@ -27,6 +28,9 @@ it('traduz a etapa do banco para o rótulo da equipe e revisa com a versão vige
   await vi.waitFor(() => expect(raiz.textContent).toContain('retorno pendente'));
 
   (raiz.querySelector('li button') as HTMLButtonElement).click();
+  // Entrar em edição passou a esperar a confirmação de descarte, que aqui não aparece
+  // porque nada foi digitado — mas a troca de campos acontece no passo seguinte.
+  await aguardarConfirmacao();
   (raiz.querySelector('select') as HTMLSelectElement).value = 'concluído';
   (raiz.querySelector('form') as HTMLFormElement).dispatchEvent(
     new Event('submit', { cancelable: true }),

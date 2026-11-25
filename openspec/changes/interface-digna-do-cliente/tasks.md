@@ -102,13 +102,43 @@ Achado em 25/11/2026 na aba Equipe: ao conferir convites pendentes, a tela abria
 aparece no conteúdo — quem olhava a tela via só "Conferindo…" parado para sempre. Eu mesmo
 diagnostiquei errado como estado perdido antes de encontrar o diálogo aberto.
 
-- [ ] 3b.1 Um diálogo de confirmação próprio, com `<dialog>`, foco presa, Esc, botão de
+- [x] 3b.1 Um diálogo de confirmação próprio, com `<dialog>`, foco presa, Esc, botão de
       cancelar como ação segura e o texto da consequência em vez de "Continuar?".
-- [ ] 3b.2 Trocar as 46 chamadas de `window.confirm` em 18 arquivos. São síncronas; o
+      *Feito em `web/confirmacao.ts`.* Reaproveita a superfície `.dialogo` que o cadastro
+      já usava; o acréscimo em `web/styles.css` é só o desenho da decisão (420px, título
+      em display, rodapé de ações, e no celular as duas ações em largura cheia com a
+      segura acima). Nenhuma regra nova de movimento: o bloco único de
+      `prefers-reduced-motion` já zera transição e animação de tudo, e a entrada do
+      diálogo continua sendo a de `.dialogo[open]`. O foco inicial é o botão de cancelar,
+      Tab e Shift+Tab não saem do diálogo, Esc e o evento `cancel` equivalem a cancelar e
+      o foco volta a quem pediu. `showModal` não existe no jsdom 26.1, então o diálogo cai
+      no atributo `open` nas provas e continua modal no navegador.
+- [x] 3b.2 Trocar as 46 chamadas de `window.confirm` em 18 arquivos. São síncronas; o
       diálogo é assíncrono, então cada chamada vira `await` e a função envolvente precisa
       ser `async`. `web/demonstracao.ts` concentra 17 delas.
-- [ ] 3b.3 Nenhuma confirmação pode ficar invisível: teste que garanta que o diálogo está
+      *Feito: 46 de 46, nenhuma sobrou* (`grep -rn "window.confirm" web --include="*.ts"`
+      só encontra os comentários que explicam o defeito). Onde o retorno era lido de forma
+      síncrona, a função envolvente virou `async` e os chamadores receberam `await` ou
+      `void`: `montarFicha().selecionar` e `montarRevogacaoVinculo().selecionar` passaram a
+      devolver `Promise`, e `opcoes.confirmar` da ficha também. Três cuidados tomados:
+      (a) onde não há rascunho nenhum, a condição curto-circuita antes do `await` e a ação
+      continua acontecendo no mesmo quadro — sair pelo menu, trocar de aba e voltar da
+      prévia não ficaram mais lentos; (b) toda guarda de estado (`ocupado`, `enviando`,
+      `salvando`) é reavaliada depois da resposta, porque a tela pode ter mudado enquanto
+      a pergunta estava aberta; (c) os textos dizem a consequência e os dois botões dizem
+      o que cada um faz, no lugar de "Deseja continuar?" — o sentido de cada confirmação
+      foi preservado, inclusive o aviso de que encerrar afeta todas as abas e o de que o
+      compromisso permanece no Google Calendar.
+- [x] 3b.3 Nenhuma confirmação pode ficar invisível: teste que garanta que o diálogo está
       no documento e recebe foco.
+      *Feito em `web/confirmacao.test.ts`, três casos:* o diálogo está no documento com o
+      texto pedido e o foco no botão seguro, e ao responder o foco volta a quem perguntou;
+      Esc resolve como cancelar e tira o diálogo do documento; confirmar resolve `true` e
+      Tab circula entre as duas ações sem sair do diálogo. As 24 provas que espionavam
+      `window.confirm` passaram a responder ao diálogo real por `web/confirmacao-prova.ts`,
+      que observa o documento e clica — ou seja, elas agora falham se a pergunta não
+      aparecer na página. `pnpm exec vitest run web`: 115 arquivos, 677 testes, todos
+      passando; `pnpm run verificar:rapido` limpo (Biome "Checked 256 files" em `web`).
 
 ## 4. Navegação
 
