@@ -210,3 +210,19 @@ it('sai do endereço da ficha ao voltar para o acesso, para não repetir a recus
   await vi.waitFor(() => expect(campos.disabled).toBe(false));
   await vi.waitFor(() => expect(window.location.hash).toBe(''));
 });
+
+it('recusa de permissão numa seção não derruba a sessão', async () => {
+  // Reproduzido no navegador contra a produção em 24/11/2026: um profissional clicou em
+  // "Plano de crise", aba que o próprio menu da ficha oferece, sem estar habilitado para
+  // ela. O servidor respondeu 403 e o aplicativo o mandou para a tela de acesso dizendo que
+  // a sessão precisava ser validada de novo. O mesmo acontecia ao administrador em
+  // Administração › Acessos. Quem lia a tela concluía que o login havia quebrado.
+  const { exigeNovoAcesso, semPermissao, FalhaApi } = await import('./api.ts');
+  const negada = new FalhaApi('sem_permissao', 403);
+  const semSessao = new FalhaApi('nao_autenticado', 401);
+
+  expect(semPermissao(negada)).toBe(true);
+  expect(exigeNovoAcesso(negada)).toBe(true); // segue limpando o conteúdo negado
+  expect(semPermissao(semSessao)).toBe(false);
+  expect(exigeNovoAcesso(semSessao)).toBe(true);
+});

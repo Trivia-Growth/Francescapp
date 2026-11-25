@@ -89,13 +89,24 @@ it.each(['403', 'logout'])(
     const evento = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(evento);
     expect(evento.defaultPrevented).toBe(false);
-    if (situacao === '403') terminarLista?.(Response.json({}, { status: 403 }));
-    else elemento('logout').click();
+    if (situacao === '403') {
+      // `sem_permissao` não derruba a sessão desde 24/11/2026: a pessoa continua dentro, e a
+      // área recusada avisa o motivo. O que esta prova guarda é o outro ponto — um cadastro
+      // sem confirmação não pode ser anunciado como incerto por causa de uma recusa de
+      // permissão numa LISTA.
+      terminarLista?.(Response.json({}, { status: 403 }));
+      await vi.waitFor(() => expect(elemento('patients-view').hidden).toBe(false));
+      expect(elemento('login-view').hidden).toBe(true);
+      expect(elemento('workspace-feedback').textContent).not.toContain('sem confirmação');
+      expect(elemento('login-feedback').textContent).not.toContain('sem confirmação');
+      return;
+    }
+    elemento('logout').click();
     await vi.waitFor(() => expect(elemento('login-view').hidden).toBe(false));
     expect(elemento('login-feedback').textContent).not.toContain('sem confirmação');
     await entrar();
     expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(true);
-    if (situacao === 'logout') terminarLista?.(envelope({ itens: [], proximo_cursor: null }));
+    terminarLista?.(envelope({ itens: [], proximo_cursor: null }));
   },
 );
 

@@ -12,7 +12,7 @@ import type {
   CriarPaciente,
   PacienteLista,
 } from '../packages/contracts/src/index.js';
-import { ClienteFFCM, exigeNovoAcesso, FalhaApi, mensagemFalha } from './api.js';
+import { ClienteFFCM, exigeNovoAcesso, FalhaApi, mensagemFalha, semPermissao } from './api.js';
 import { lerCadastro } from './cadastro.js';
 import { montarCamposCasoNovo } from './campos-caso-novo.js';
 import { montarAnamnese } from './anamnese.js';
@@ -1595,7 +1595,31 @@ function mostrarAcesso(mensagem = '', tom: 'error' | 'success' | 'neutral' = 'ne
   elemento('login-title').focus();
 }
 
+/**
+ * Decide o que fazer quando uma leitura é recusada. Devolve `true` quando tratou — e quem
+ * chamou já limpou o conteúdo antes de chegar aqui, que é o comportamento a preservar.
+ *
+ * `sem_permissao` NÃO derruba a sessão. Até 24/11/2026 derrubava, e isso foi reproduzido no
+ * navegador contra a produção: um profissional clicou em "Plano de crise", aba que o próprio
+ * menu da ficha oferece, sem estar habilitado para ela; o servidor recusou corretamente e o
+ * aplicativo o mandou para a tela de acesso dizendo que a sessão precisava ser validada de
+ * novo. O mesmo acontecia ao administrador em Administração › Acessos. Quem lia a tela
+ * concluía que o login havia quebrado; o que faltava era permissão.
+ *
+ * Perder a sessão de verdade continua coberto: aí o servidor responde 401.
+ */
 function acessoPerdido(erro: unknown): boolean {
+  if (semPermissao(erro)) {
+    // A ficha do caso negado sai da tela: dado clínico não pode continuar visível depois de
+    // uma recusa. A lista e a sessão ficam — é só aquele caso, ou aquela área, que fechou.
+    fecharFicha();
+    aviso(
+      'workspace-feedback',
+      'Esta área não está liberada para o seu acesso. Sua sessão continua ativa. Fale com a administração se precisar dela.',
+      'error',
+    );
+    return true;
+  }
   if (!exigeNovoAcesso(erro)) return false;
   const secaoPendente = pendenciaFicha()?.secao;
   const alertaCadastro = cadastroPendente

@@ -265,6 +265,13 @@ export function mensagemFalha(erro: unknown): string {
   return 'Serviço indisponível. Tente novamente em alguns instantes.';
 }
 
+/** Recusa de permissão com a sessão viva: o servidor respondeu `sem_permissao`, não
+ * `nao_autenticado`. Continua dentro de `exigeNovoAcesso` para que as 53 leituras que
+ * dependem disso sigam limpando o conteúdo negado — o que muda é só quem decide expulsar. */
+export function semPermissao(erro: unknown): boolean {
+  return erro instanceof FalhaApi && erro.status === 403 && !erro.exigeReautenticacao;
+}
+
 export function exigeNovoAcesso(erro: unknown): boolean {
   return (
     erro instanceof FalhaApi &&
