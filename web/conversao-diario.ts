@@ -8,6 +8,7 @@ import {
 import type { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.ts';
 import { exigeNovoAcesso, mensagemFalha } from './api.ts';
 import { iniciarAcao } from './esqueleto.ts';
+import { botao as botaoDaCamada } from './ui/basicos.js';
 
 type Ciclo = ReturnType<typeof criarCicloTarefaCuidado>;
 type Conteudo = Omit<
@@ -60,9 +61,10 @@ export function montarConversaoDiario(
     if (texto) elemento.textContent = texto;
     return elemento;
   };
-  const abrir = el('button', 'Sinalizar atenção e converter em tarefa');
-  abrir.type = 'button';
-  abrir.className = 'button-secondary';
+  const abrir = botaoDaCamada({
+    rotulo: 'Sinalizar atenção e converter em tarefa',
+    peso: 'secundario',
+  });
   const painel = el('section');
   painel.hidden = true;
   const titulo = el('h4', 'Converter registro em ação da equipe');
@@ -73,9 +75,7 @@ export function montarConversaoDiario(
   const aviso = el('p');
   aviso.setAttribute('role', 'status');
   aviso.setAttribute('aria-live', 'polite');
-  const conferir = el('button', 'Conferir e liberar conversão');
-  conferir.type = 'button';
-  conferir.className = 'button-secondary';
+  const conferir = botaoDaCamada({ rotulo: 'Conferir e liberar conversão', peso: 'secundario' });
   const form = el('form');
   form.noValidate = true;
   form.hidden = true;
@@ -109,12 +109,12 @@ export function montarConversaoDiario(
     prioridade.append(opcao);
   }
   const area = campo('Área da evolução', el('select'));
-  const salvar = el('button', 'Criar ação e evolução interna');
-  salvar.type = 'submit';
-  salvar.className = 'button-primary';
-  const fechar = el('button', 'Fechar conversão');
-  fechar.type = 'button';
-  fechar.className = 'button-secondary';
+  const salvar = botaoDaCamada({
+    rotulo: 'Criar ação e evolução interna',
+    tipo: 'submit',
+    peso: 'principal',
+  });
+  const fechar = botaoDaCamada({ rotulo: 'Fechar conversão', peso: 'secundario' });
   form.append(salvar);
   painel.append(titulo, explicacao, aviso, conferir, form, fechar);
   raiz.replaceChildren(abrir, painel);

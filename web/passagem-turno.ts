@@ -7,6 +7,7 @@ import type {
 } from '../packages/contracts/src/turno-passagem.ts';
 import { montarCamposSintese } from './modelo-sintese.js';
 import type { ServicoTurnoHttp } from './servico-turno-http.ts';
+import { botao } from './ui/basicos.js';
 
 export function montarPassagemTurno(
   raiz: HTMLElement,
@@ -36,14 +37,8 @@ export function montarPassagemTurno(
   const status = document.createElement('p');
   status.setAttribute('role', 'status');
   const conteudo = document.createElement('div');
-  const atualizar = document.createElement('button');
-  atualizar.type = 'button';
-  atualizar.textContent = 'Consultar passagem';
-  atualizar.className = 'button-secondary';
-  const descartar = document.createElement('button');
-  descartar.type = 'button';
-  descartar.textContent = 'Descartar tentativa e editar síntese';
-  descartar.className = 'button-secondary';
+  const atualizar = botao({ rotulo: 'Consultar passagem', peso: 'secundario' });
+  const descartar = botao({ rotulo: 'Descartar tentativa e editar síntese', peso: 'secundario' });
   descartar.hidden = true;
   raiz.replaceChildren(status, conteudo, atualizar, descartar);
   const data = (iso: string) => new Date(iso).toLocaleString('pt-BR');
@@ -142,10 +137,7 @@ export function montarPassagemTurno(
           anterior,
           'Passagem consultada. Ciência ainda pendente; ler esta tela não registra ciência.',
         );
-        const ciencia = document.createElement('button');
-        ciencia.type = 'button';
-        ciencia.className = 'button-primary';
-        ciencia.textContent = 'Registrar minha ciência';
+        const ciencia = botao({ rotulo: 'Registrar minha ciência', peso: 'principal' });
         ciencia.addEventListener(
           'click',
           () =>
@@ -189,10 +181,10 @@ export function montarPassagemTurno(
               : `Enviada a ${nome(recebimento.usuario_id)} no turno seguinte; ainda não consultada.`,
       );
       if (turno.situacao === 'aberto' && !novaVersao && !publicacao) {
-        const republicar = document.createElement('button');
-        republicar.type = 'button';
-        republicar.className = 'button-secondary';
-        republicar.textContent = 'Publicar nova versão de passagem';
+        const republicar = botao({
+          rotulo: 'Publicar nova versão de passagem',
+          peso: 'secundario',
+        });
         republicar.addEventListener('click', () => {
           novaVersao = true;
           void executar(carregar);
@@ -205,10 +197,7 @@ export function montarPassagemTurno(
           confirmar,
           document.createTextNode(' Confirmo o encerramento com esta síntese publicada.'),
         );
-        const encerrar = document.createElement('button');
-        encerrar.type = 'button';
-        encerrar.textContent = 'Encerrar meu turno';
-        encerrar.className = 'button-primary';
+        const encerrar = botao({ rotulo: 'Encerrar meu turno', peso: 'principal' });
         encerrar.disabled = true;
         confirmar.addEventListener('change', () => {
           encerrar.disabled = !confirmar.checked || ocupada;
@@ -276,12 +265,11 @@ export function montarPassagemTurno(
         form,
         'A síntese será publicada no Diário para a equipe e vinculada a este turno na mesma operação.',
       );
-      const publicar = document.createElement('button');
-      publicar.type = 'submit';
-      publicar.className = 'button-primary';
-      publicar.textContent = publicacao
-        ? 'Repetir publicação pendente'
-        : 'Publicar síntese de passagem';
+      const publicar = botao({
+        rotulo: publicacao ? 'Repetir publicação pendente' : 'Publicar síntese de passagem',
+        tipo: 'submit',
+        peso: 'principal',
+      });
       if (publicacao) {
         texto(
           form,

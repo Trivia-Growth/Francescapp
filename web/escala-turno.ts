@@ -2,6 +2,7 @@ import { FalhaApi } from './api.ts';
 import { statusErroHttp } from '../packages/contracts/src/erros.ts';
 import type { EscalaCaso, EscalaVersao } from '../packages/contracts/src/turno-passagem.ts';
 import type { ServicoTurnoHttp } from './servico-turno-http.ts';
+import { botao } from './ui/basicos.js';
 
 export function montarEscalaTurno(
   raiz: HTMLElement,
@@ -23,25 +24,13 @@ export function montarEscalaTurno(
   const status = document.createElement('p');
   status.setAttribute('role', 'status');
   const conteudo = document.createElement('div');
-  const atualizar = document.createElement('button');
-  atualizar.type = 'button';
-  atualizar.textContent = 'Atualizar escala';
-  atualizar.className = 'button-secondary';
-  const recuperar = document.createElement('button');
-  recuperar.type = 'button';
-  recuperar.textContent = 'Repetir operação pendente';
+  const atualizar = botao({ rotulo: 'Atualizar escala', peso: 'secundario' });
+  const recuperar = botao({ rotulo: 'Repetir operação pendente', peso: 'secundario' });
   recuperar.hidden = true;
-  recuperar.className = 'button-secondary';
-  const descartar = document.createElement('button');
-  descartar.type = 'button';
-  descartar.textContent = 'Descartar tentativa e editar dados';
+  const descartar = botao({ rotulo: 'Descartar tentativa e editar dados', peso: 'secundario' });
   descartar.hidden = true;
-  descartar.className = 'button-secondary';
-  const mais = document.createElement('button');
-  mais.type = 'button';
-  mais.textContent = 'Carregar mais histórico';
+  const mais = botao({ rotulo: 'Carregar mais histórico', peso: 'secundario' });
   mais.hidden = true;
-  mais.className = 'button-secondary';
   raiz.replaceChildren(status, conteudo, atualizar, recuperar, descartar, mais);
   function texto(destino: HTMLElement, valor: string) {
     const p = document.createElement('p');
@@ -223,10 +212,7 @@ export function montarEscalaTurno(
         const motivo = campo(form, 'Motivo obrigatório', 'textarea');
         motivo.required = true;
         motivo.maxLength = 2000;
-        const salvar = document.createElement('button');
-        salvar.type = 'submit';
-        salvar.textContent = 'Registrar alteração';
-        salvar.className = 'button-primary';
+        const salvar = botao({ rotulo: 'Registrar alteração', tipo: 'submit', peso: 'principal' });
         form.append(salvar);
         form.addEventListener('input', () => opcoes.alteracaoPendente?.(true));
         form.addEventListener('submit', (evento) => {
@@ -264,10 +250,11 @@ export function montarEscalaTurno(
       const fim = campo(form, 'Fim previsto (horário deste aparelho)', 'input');
       fim.type = 'datetime-local';
       fim.required = true;
-      const salvar = document.createElement('button');
-      salvar.type = 'submit';
-      salvar.textContent = 'Registrar turno previsto';
-      salvar.className = 'button-primary';
+      const salvar = botao({
+        rotulo: 'Registrar turno previsto',
+        tipo: 'submit',
+        peso: 'principal',
+      });
       form.append(salvar);
       form.addEventListener('input', () => opcoes.alteracaoPendente?.(true));
       form.addEventListener('submit', (evento) => {

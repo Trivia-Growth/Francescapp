@@ -10,6 +10,7 @@ import type {
   PedidoEvento,
   ServicoRealizacaoCompromisso,
 } from './servico-realizacao-compromisso-http.js';
+import { botao } from './ui/basicos.js';
 
 /** FR-024. "Realização não confirmada" é um estado seu, não um apelido de falta: aparece
  * quando o compromisso já passou e ninguém registrou nada. A tela nunca a chama de falta,
@@ -125,10 +126,7 @@ export function montarRealizacaoAgenda(
   const registrar = document.createElement('button');
   registrar.type = 'submit';
   registrar.textContent = 'Registrar';
-  const fechar = document.createElement('button');
-  fechar.type = 'button';
-  fechar.className = 'button-secondary';
-  fechar.textContent = 'Fechar';
+  const fechar = botao({ rotulo: 'Fechar', peso: 'secundario' });
   formulario.append(
     situacaoRotulo,
     situacao,

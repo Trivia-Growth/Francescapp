@@ -2,6 +2,7 @@ import type { Turno } from '../packages/contracts/src/turno.ts';
 import type { ServicoTurnoHttp } from './servico-turno-http.ts';
 import type { DeclaracaoLocalizacao } from './turno-execucao-localizacao.ts';
 import { montarPassagemTurno } from './passagem-turno.js';
+import { botao } from './ui/basicos.js';
 
 /** Seção da ficha da equipe. Regras de autorização continuam no servidor e banco. */
 export function montarTurnoProprio(
@@ -57,18 +58,9 @@ export function montarTurnoProprio(
     confirmar,
     document.createTextNode(' Confirmo que desejo abrir meu turno neste caso.'),
   );
-  const abrir = document.createElement('button');
-  abrir.type = 'submit';
-  abrir.className = 'button-primary';
-  abrir.textContent = 'Abrir meu turno';
-  const atualizar = document.createElement('button');
-  atualizar.type = 'button';
-  atualizar.className = 'button-secondary';
-  atualizar.textContent = 'Atualizar turno';
-  const recuperar = document.createElement('button');
-  recuperar.type = 'button';
-  recuperar.className = 'button-secondary';
-  recuperar.textContent = 'Recuperar operação pendente';
+  const abrir = botao({ rotulo: 'Abrir meu turno', tipo: 'submit', peso: 'principal' });
+  const atualizar = botao({ rotulo: 'Atualizar turno', peso: 'secundario' });
+  const recuperar = botao({ rotulo: 'Recuperar operação pendente', peso: 'secundario' });
   const acoes = document.createElement('div');
   acoes.className = 'turno-proprio__acoes';
   acoes.append(abrir, atualizar, recuperar);

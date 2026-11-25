@@ -12,6 +12,7 @@ import {
   botaoTurno,
   estadoTurno,
 } from './turno-execucao-campos.ts';
+import { botao } from './ui/basicos.js';
 
 type Ciclo = ReturnType<typeof criarCicloTarefaCuidado>;
 type Gravar = Parameters<typeof criarCicloTarefaCuidado>[0]['gravar'];
@@ -70,9 +71,11 @@ export function montarConversaoOcorrenciaTurno(
     'Área configurada do diário',
     [] as { valor: string; rotulo: string }[],
   );
-  const salvar = el('button', 'Criar tarefa e evolução interna atomicamente');
-  salvar.type = 'submit';
-  salvar.className = 'button-primary';
+  const salvar = botao({
+    rotulo: 'Criar tarefa e evolução interna atomicamente',
+    tipo: 'submit',
+    peso: 'principal',
+  });
   grupo.append(salvar);
   form.append(grupo);
   form.hidden = true;
