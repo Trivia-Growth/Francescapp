@@ -12,6 +12,7 @@ import {
 import type { configurarDependenciasNativas } from './configurar-dependencias-nativas.ts';
 import type { configurarIdempotenciaConcessao } from './configurar-idempotencia-concessao.ts';
 import { servicoAtivo } from './configuracao-servidor.ts';
+import { causaDaFalha, registrarFalhaOperacional } from './falha-operacional.ts';
 
 export const caminhoConcessoesEquipe = '/api/admin/concessoes-equipe';
 
@@ -107,7 +108,17 @@ export function criarEntradaConcessoesEquipeNativa(
           { dados: resultado.dados, request_id: requestId },
           { headers: cabecalhosConcessoesEquipe },
         );
-      } catch {
+      } catch (falha) {
+        // Em 25/11/2026 a listagem de equipe devolvia `servico_indisponivel` em produção e o
+        // log ficava mudo, derrubando QUATRO áreas da Administração de uma vez: Equipe, Plano
+        // de cuidado, Quem aprova plano de crise e Quem vê o financeiro. Mesma família de
+        // `catch` cego já corrigida em credenciais e em acesso ao caso.
+        registrarFalhaOperacional({
+          rota: 'concessoes-equipe',
+          etapa: 'operacao',
+          request_id: requestId,
+          causa: causaDaFalha(falha),
+        });
         return erro('servico_indisponivel');
       } finally {
         clearTimeout(prazo);
@@ -190,7 +201,13 @@ async function criar(
       { dados: resultado.dados, request_id: requestId },
       { headers: cabecalhosConcessoesEquipe },
     );
-  } catch {
+  } catch (falha) {
+    registrarFalhaOperacional({
+      rota: 'concessoes-equipe',
+      etapa: 'resposta',
+      request_id: requestId,
+      causa: causaDaFalha(falha),
+    });
     return erro('servico_indisponivel');
   }
 }
