@@ -1,6 +1,7 @@
 import { criarErroPublicoSemCampos, statusErroHttp } from '../../packages/contracts/src/index.ts';
 import { configurarDependenciasNativas } from './_shared/configurar-dependencias-nativas.ts';
 import { configurarIdempotenciaConcessao } from './_shared/configurar-idempotencia-concessao.ts';
+import { causaDaFalha, registrarFalhaOperacional } from './_shared/falha-operacional.ts';
 import {
   cabecalhosConcessoesEquipe,
   caminhoConcessoesEquipe,
@@ -22,7 +23,17 @@ export default async function concessoesEquipe(request: Request): Promise<Respon
   try {
     dependencias ??= configurarDependenciasNativas(process.env);
     entrada ??= criarEntradaConcessoesEquipeNativa(dependencias);
-  } catch {
+  } catch (falha) {
+    // Último `catch` cego desta rota. Em 25/11/2026 a listagem devolvia
+    // `servico_indisponivel` em produção com o log inteiramente mudo, e as duas camadas de
+    // baixo já instrumentadas não registravam nada — logo a falha era aqui, na montagem.
+    // Quatro áreas da Administração caíam juntas por causa disso.
+    registrarFalhaOperacional({
+      rota: 'concessoes-equipe',
+      etapa: 'autorizacao',
+      request_id: crypto.randomUUID(),
+      causa: causaDaFalha(falha),
+    });
     return Response.json(criarErroPublicoSemCampos('servico_indisponivel', crypto.randomUUID()), {
       status: statusErroHttp.servico_indisponivel,
       headers: cabecalhosConcessoesEquipe,
