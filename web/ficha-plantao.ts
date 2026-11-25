@@ -593,6 +593,8 @@ export function montarFichaPlantao(
     ocupada = true;
     atualizar.disabled = true;
     status.textContent = 'Carregando a ficha do plantão…';
+    // Sem isto o corpo da ficha ficava em branco até a consulta responder.
+    corpo.setAttribute('aria-busy', 'true');
     try {
       const turnoId = opcoes.turno.turno_id;
       const [modelo, papeis, resultado, rascunho] = await Promise.all([
@@ -619,6 +621,7 @@ export function montarFichaPlantao(
       corpo.replaceChildren();
       falha(erro);
     } finally {
+      corpo.removeAttribute('aria-busy');
       ocupada = false;
       atualizar.disabled = false;
       if (ativa) estadoTentativa();

@@ -337,6 +337,8 @@ export function montarExecucaoTurno(
     ocupada = true;
     controles();
     status.textContent = 'Consultando série de registros…';
+    // A série sumia e voltava; a lista passa a dizer que está em consulta.
+    lista.setAttribute('aria-busy', 'true');
     try {
       const pagina = await servico.consultar(entrada);
       if (!ativa) return;
@@ -402,6 +404,7 @@ export function montarExecucaoTurno(
     } catch (erro) {
       falha(erro);
     } finally {
+      lista.removeAttribute('aria-busy');
       ocupada = false;
       if (ativa) controles();
     }
