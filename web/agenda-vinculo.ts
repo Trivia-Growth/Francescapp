@@ -1,5 +1,6 @@
 import { esqueletoCarregando } from './esqueleto.js';
 import { confirmar } from './confirmacao.js';
+import { botao as botaoDaCamada } from './ui/basicos.js';
 
 type Pagina = { itens: readonly { id: string; nome: string }[]; proximo_cursor: string | null };
 
@@ -28,18 +29,9 @@ export function montarVinculoAgenda(
   estado.setAttribute('role', 'status');
   estado.setAttribute('aria-live', 'polite');
   const lista = document.createElement('div');
-  const anterior = document.createElement('button');
-  anterior.type = 'button';
-  anterior.className = 'button-secondary';
-  anterior.textContent = 'Página anterior';
-  const seguinte = document.createElement('button');
-  seguinte.type = 'button';
-  seguinte.className = 'button-secondary';
-  seguinte.textContent = 'Próxima página';
-  const fechar = document.createElement('button');
-  fechar.type = 'button';
-  fechar.className = 'button-secondary';
-  fechar.textContent = 'Fechar';
+  const anterior = botaoDaCamada({ rotulo: 'Página anterior', peso: 'secundario' });
+  const seguinte = botaoDaCamada({ rotulo: 'Próxima página', peso: 'secundario' });
+  const fechar = botaoDaCamada({ rotulo: 'Fechar', peso: 'secundario' });
   secao.append(titulo, descricao, evento, estado, lista, anterior, seguinte, fechar);
   raiz.append(secao);
   async function carregar() {
@@ -55,10 +47,7 @@ export function montarVinculoAgenda(
       lista.replaceChildren();
       proximo = dados.proximo_cursor;
       for (const paciente of dados.itens) {
-        const botao = document.createElement('button');
-        botao.type = 'button';
-        botao.className = 'button-secondary';
-        botao.textContent = paciente.nome;
+        const botao = botaoDaCamada({ rotulo: paciente.nome, peso: 'secundario' });
         botao.addEventListener('click', () => void vincular(paciente.id, paciente.nome));
         lista.append(botao);
       }
@@ -127,10 +116,7 @@ export function montarVinculoAgenda(
       if (ativa) {
         estado.textContent =
           'Não foi possível confirmar o vínculo. Tente novamente com o mesmo paciente.';
-        const repetir = document.createElement('button');
-        repetir.type = 'button';
-        repetir.className = 'button-secondary';
-        repetir.textContent = 'Tentar novamente';
+        const repetir = botaoDaCamada({ rotulo: 'Tentar novamente', peso: 'secundario' });
         repetir.addEventListener('click', () => void vincular(pacienteId, nome));
         lista.replaceChildren(repetir);
       }

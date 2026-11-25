@@ -3,6 +3,7 @@ import { avisoSinalOperacional } from '../packages/contracts/src/pendencia.js';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { esqueletoCarregando } from './esqueleto.js';
 import { hashFicha } from './ficha-paciente.js';
+import { botao } from './ui/basicos.js';
 
 export type PaginaCarteira = {
   itens: PacienteLista[];
@@ -129,8 +130,7 @@ export function montarHomeProfissional(
     const bloco = elemento('div', undefined, 'home-falha');
     const texto = elemento('p', `${mensagemFalha(erro)} Esta leitura não foi carregada.`);
     texto.dataset.tone = 'error';
-    const tentar = elemento('button', 'Tentar novamente', 'button-secondary');
-    tentar.type = 'button';
+    const tentar = botao({ rotulo: 'Tentar novamente', peso: 'secundario' });
     tentar.addEventListener('click', repetir);
     bloco.append(texto, tentar);
     return bloco;

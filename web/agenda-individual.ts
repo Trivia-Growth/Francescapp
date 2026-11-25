@@ -5,6 +5,7 @@ import { descreverRealizacao, montarRealizacaoAgenda } from './realizacao-compro
 import { criarServicoRealizacaoCompromissoHttp } from './servico-realizacao-compromisso-http.js';
 import type { RealizacaoCompromisso } from '../packages/contracts/src/realizacao-compromisso.ts';
 import { confirmar } from './confirmacao.js';
+import { botao } from './ui/basicos.js';
 
 type Compromisso = { id: string; inicio: string; fim: string; titulo: string; etag?: string };
 
@@ -89,27 +90,15 @@ export function montarAgendaIndividual(
   status.setAttribute('aria-live', 'polite');
   const lista = document.createElement('ul');
   lista.className = 'agenda-lista';
-  const atualizar = document.createElement('button');
-  atualizar.className = 'button-secondary';
-  atualizar.type = 'button';
-  atualizar.textContent = 'Atualizar agenda';
-  const conectar = document.createElement('button');
-  conectar.className = 'button-secondary';
-  conectar.type = 'button';
-  conectar.textContent = 'Conectar agenda Google';
-  const desconectar = document.createElement('button');
-  desconectar.type = 'button';
-  desconectar.className = 'button-secondary';
-  desconectar.textContent = 'Desconectar agenda Google';
-  const reconciliarDesconexao = document.createElement('button');
-  reconciliarDesconexao.type = 'button';
-  reconciliarDesconexao.className = 'button-secondary';
-  reconciliarDesconexao.textContent = 'Verificar desconexão';
+  const atualizar = botao({ rotulo: 'Atualizar agenda', peso: 'secundario' });
+  const conectar = botao({ rotulo: 'Conectar agenda Google', peso: 'secundario' });
+  const desconectar = botao({ rotulo: 'Desconectar agenda Google', peso: 'secundario' });
+  const reconciliarDesconexao = botao({ rotulo: 'Verificar desconexão', peso: 'secundario' });
   reconciliarDesconexao.hidden = true;
-  const cancelarDesconexao = document.createElement('button');
-  cancelarDesconexao.type = 'button';
-  cancelarDesconexao.className = 'button-secondary';
-  cancelarDesconexao.textContent = 'Cancelar tentativa de desconexão';
+  const cancelarDesconexao = botao({
+    rotulo: 'Cancelar tentativa de desconexão',
+    peso: 'secundario',
+  });
   cancelarDesconexao.hidden = true;
   const acoes = document.createElement('div');
   acoes.className = 'agenda-acoes';
@@ -228,10 +217,7 @@ export function montarAgendaIndividual(
         estadoRealizacao.textContent = 'Consultando situação…';
         estadosRealizacao.set(item.id, estadoRealizacao);
         linha.append(nome, horario, estadoVinculo, estadoRealizacao);
-        const registrarRealizacao = document.createElement('button');
-        registrarRealizacao.type = 'button';
-        registrarRealizacao.className = 'button-secondary';
-        registrarRealizacao.textContent = 'Registrar realização';
+        const registrarRealizacao = botao({ rotulo: 'Registrar realização', peso: 'secundario' });
         registrarRealizacao.setAttribute(
           'aria-label',
           `Registrar realização do compromisso de ${horario.textContent}`,
@@ -241,25 +227,16 @@ export function montarAgendaIndividual(
         );
         linha.append(registrarRealizacao);
         if (item.etag) {
-          const editar = document.createElement('button');
-          editar.type = 'button';
-          editar.className = 'button-secondary';
-          editar.textContent = 'Alterar';
+          const editar = botao({ rotulo: 'Alterar', peso: 'secundario' });
           editar.setAttribute('aria-label', `Alterar compromisso de ${horario.textContent}`);
           editar.addEventListener('click', () => operacoes.editar(item));
-          const cancelar = document.createElement('button');
-          cancelar.type = 'button';
-          cancelar.className = 'button-secondary';
-          cancelar.textContent = 'Cancelar compromisso';
+          const cancelar = botao({ rotulo: 'Cancelar compromisso', peso: 'secundario' });
           cancelar.setAttribute('aria-label', `Cancelar compromisso de ${horario.textContent}`);
           cancelar.addEventListener('click', () => operacoes.cancelar(item));
           if (!/^\d{4}-\d{2}-\d{2}$/.test(item.inicio)) linha.append(editar);
           linha.append(cancelar);
         }
-        const vincular = document.createElement('button');
-        vincular.type = 'button';
-        vincular.className = 'button-secondary';
-        vincular.textContent = 'Vincular paciente';
+        const vincular = botao({ rotulo: 'Vincular paciente', peso: 'secundario' });
         vincular.setAttribute(
           'aria-label',
           `Vincular paciente ao compromisso de ${horario.textContent}`,
@@ -345,10 +322,7 @@ export function montarAgendaIndividual(
               continue;
             }
             destino.textContent = `Paciente: ${vinculo.nome}`;
-            const retirar = document.createElement('button');
-            retirar.type = 'button';
-            retirar.className = 'button-secondary';
-            retirar.textContent = 'Retirar vínculo';
+            const retirar = botao({ rotulo: 'Retirar vínculo', peso: 'secundario' });
             retirar.setAttribute('aria-label', `Retirar vínculo com ${vinculo.nome}`);
             retirar.addEventListener('click', async () => {
               if (

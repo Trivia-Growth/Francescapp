@@ -1,5 +1,6 @@
 import { esqueletoCarregando } from './esqueleto.js';
 import { type ClienteFFCM, mensagemFalha } from './api.js';
+import { botao } from './ui/basicos.js';
 
 /** Dados que a conta de família pode consultar do paciente vinculado. */
 export function montarDadosFamiliar(
@@ -17,10 +18,7 @@ export function montarDadosFamiliar(
   estado.setAttribute('aria-live', 'polite');
   const dados = document.createElement('dl');
   dados.className = 'ficha-dados';
-  const tentar = document.createElement('button');
-  tentar.type = 'button';
-  tentar.className = 'button-secondary';
-  tentar.textContent = 'Tentar novamente';
+  const tentar = botao({ rotulo: 'Tentar novamente', peso: 'secundario' });
   raiz.replaceChildren(titulo, estado, dados, tentar);
 
   const linha = (rotulo: string, valor: string) => {

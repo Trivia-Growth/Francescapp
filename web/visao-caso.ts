@@ -17,6 +17,7 @@ import { hashFicha, type PacienteFicha } from './ficha-paciente.js';
 import type { ObjetivoAtual, Pagina, ServicoPlanoCuidado } from './plano-cuidado.js';
 import type { RegistroTarefaCuidado as RegistroTarefa } from '../packages/contracts/src/tarefa-cuidado.js';
 import type { ServicoTarefasCuidado } from './tarefas-cuidado.js';
+import { botao } from './ui/basicos.js';
 
 /** Fontes consultadas pela visão. Fonte ausente significa que o perfil não a lê: o bloco nem aparece. */
 export type FontesVisaoCaso = {
@@ -133,8 +134,7 @@ export function montarVisaoCaso(
             'visao-estado',
           );
           falha.dataset.tone = 'error';
-          const tentar = elemento('button', 'Tentar novamente', 'button-secondary');
-          tentar.type = 'button';
+          const tentar = botao({ rotulo: 'Tentar novamente', peso: 'secundario' });
           tentar.addEventListener('click', carregar);
           corpo.replaceChildren(falha, tentar);
         },

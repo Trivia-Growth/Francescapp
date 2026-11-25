@@ -1,5 +1,6 @@
 import { novoContatoSchema, type SituacaoCaso } from '../packages/contracts/src/index.js';
 import type { ResponsavelOpcao } from './acompanhamento-caso.js';
+import { botao } from './ui/basicos.js';
 
 const LIMITE_CONTATOS = 10;
 
@@ -68,9 +69,8 @@ export function montarCamposCasoNovo(
     };
     ajustarTipo();
     tipo.addEventListener('change', ajustarTipo);
-    const remover = elemento('button', 'Remover');
-    remover.type = 'button';
-    remover.className = 'button-secondary contact-remove';
+    const remover = botao({ rotulo: 'Remover', peso: 'secundario' });
+    remover.classList.add('contact-remove');
     remover.setAttribute('aria-label', `Remover contato ${numero}`);
     const linha: Linha = { raiz, tipo, valor };
     remover.addEventListener('click', () => {

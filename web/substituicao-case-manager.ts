@@ -5,6 +5,7 @@ import type {
 } from '../packages/contracts/src/substituicao-case-manager.ts';
 import type { ResponsavelOpcao } from './acompanhamento-caso.ts';
 import type { ServicoSubstituicaoCaseManager } from './servico-substituicao-cm-http.ts';
+import { botao } from './ui/basicos.js';
 
 const formato = new Intl.DateTimeFormat('pt-BR', {
   dateStyle: 'short',
@@ -100,10 +101,7 @@ export function montarSubstituicaoCaseManager(
   ajudaMotivo.textContent =
     'Obrigatório: toda alteração de acesso registra data, responsável e motivo. O texto é guardado cifrado.';
   motivo.setAttribute('aria-describedby', ajudaMotivo.id);
-  const registrar = document.createElement('button');
-  registrar.type = 'submit';
-  registrar.className = 'button-primary';
-  registrar.textContent = 'Registrar substituição';
+  const registrar = botao({ rotulo: 'Registrar substituição', tipo: 'submit', peso: 'principal' });
   const aviso = document.createElement('p');
   aviso.className = 'substituicao-cm__aviso';
   aviso.setAttribute('role', 'status');
@@ -122,10 +120,7 @@ export function montarSubstituicaoCaseManager(
     aviso,
   );
 
-  const recarregar = document.createElement('button');
-  recarregar.type = 'button';
-  recarregar.className = 'button-secondary';
-  recarregar.textContent = 'Recarregar';
+  const recarregar = botao({ rotulo: 'Recarregar', peso: 'secundario' });
   secao.append(titulo, explicacao, status, resumo, formulario, historico, recarregar);
   raiz.replaceChildren(secao);
 
@@ -219,10 +214,7 @@ export function montarSubstituicaoCaseManager(
       const rotuloCampo = document.createElement('label');
       rotuloCampo.htmlFor = campo.id;
       rotuloCampo.textContent = 'Motivo do encerramento';
-      const encerrar = document.createElement('button');
-      encerrar.type = 'submit';
-      encerrar.className = 'button-secondary';
-      encerrar.textContent = 'Encerrar agora';
+      const encerrar = botao({ rotulo: 'Encerrar agora', tipo: 'submit', peso: 'secundario' });
       encerramento.append(rotuloCampo, campo, encerrar);
       encerramento.addEventListener('submit', (evento) => {
         evento.preventDefault();

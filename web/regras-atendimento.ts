@@ -1,5 +1,6 @@
 import type { RegraAtendimento } from '../packages/contracts/src/regras-atendimento.ts';
 import type { ServicoRegrasAtendimento } from './servico-regras-atendimento-http.ts';
+import { botao } from './ui/basicos.js';
 
 const formatadorData = new Intl.DateTimeFormat('pt-BR', {
   dateStyle: 'long',
@@ -47,10 +48,7 @@ export function montarRegrasAtendimento(
   status.setAttribute('aria-live', 'polite');
   const lista = document.createElement('div');
   lista.className = 'regras-atendimento__lista';
-  const recarregar = document.createElement('button');
-  recarregar.type = 'button';
-  recarregar.className = 'button-secondary';
-  recarregar.textContent = 'Recarregar';
+  const recarregar = botao({ rotulo: 'Recarregar', peso: 'secundario' });
   secao.append(titulo, status, lista, recarregar);
   raiz.replaceChildren(secao);
 

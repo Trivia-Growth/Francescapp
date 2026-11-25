@@ -1,5 +1,6 @@
 import type { SituacaoCaso } from '../packages/contracts/src/index.js';
 import { rotulosSituacao } from './acompanhamento-caso.js';
+import { botao } from './ui/basicos.js';
 
 export type PacienteFicha = {
   id: string;
@@ -110,8 +111,8 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
     return el;
   };
 
-  const voltar = elemento('button', 'button-quiet ficha-voltar', 'Voltar para a lista');
-  voltar.type = 'button';
+  const voltar = botao({ rotulo: 'Voltar para a lista', peso: 'discreto' });
+  voltar.classList.add('ficha-voltar');
   voltar.id = 'ficha-voltar';
   const titulo = elemento('h1', undefined, paciente.nome);
   titulo.id = 'ficha-title';
@@ -137,8 +138,7 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
     if (acoes.childElementCount >= LIMITE_ATALHOS) break;
     const rotulo = ATALHOS[secao.id];
     if (!rotulo || !secao.montar) continue;
-    const atalho = elemento('button', 'button-secondary', rotulo);
-    atalho.type = 'button';
+    const atalho = botao({ rotulo, peso: 'secundario' });
     atalho.addEventListener('click', () => {
       void selecionar(secao.id);
     });

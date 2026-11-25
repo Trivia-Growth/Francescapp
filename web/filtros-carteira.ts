@@ -6,6 +6,7 @@ import {
 } from '../packages/contracts/src/pendencia.js';
 import { rotulosSituacao, type ResponsavelOpcao } from './acompanhamento-caso.js';
 import { aprimorarSelecao } from './ui/selecao.js';
+import { botao } from './ui/basicos.js';
 
 /** FR-026: filtros da carteira. A busca por nome que já existe continua valendo só dentro
  * da página carregada, porque o nome é cifrado e o banco não o compara; estes filtros são
@@ -102,10 +103,7 @@ export function montarFiltrosCarteira(
     if (opcoes.inicial.pendencia) pen.selecao.value = opcoes.inicial.pendencia;
   }
 
-  const limparBotao = document.createElement('button');
-  limparBotao.type = 'button';
-  limparBotao.className = 'button-secondary';
-  limparBotao.textContent = 'Limpar filtros';
+  const limparBotao = botao({ rotulo: 'Limpar filtros', peso: 'secundario' });
   formulario.append(limparBotao);
 
   const reunir = (): FiltrosCarteira => ({

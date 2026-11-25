@@ -1,4 +1,5 @@
 import { rotulosTipoAviso, type Aviso, type ListaAvisos } from '../packages/contracts/src/aviso.ts';
+import { botao as botaoDaCamada } from './ui/basicos.js';
 
 /** Serviço dos avisos no aplicativo (FR-072). Implementado por `servico-avisos-http.ts`;
  * aqui só existe o contrato, para que a tela seja testável sem rede. */
@@ -107,10 +108,8 @@ export function montarAvisos(
       }
 
       if (!aviso.lido) {
-        const botao = document.createElement('button');
-        botao.type = 'button';
-        botao.className = 'avisos-item-lido button-quiet';
-        botao.textContent = 'Marcar como lido';
+        const botao = botaoDaCamada({ rotulo: 'Marcar como lido', peso: 'discreto' });
+        botao.classList.add('avisos-item-lido');
         // Marcar como lido não registra ciência e não encerra a pendência (design D7):
         // o rótulo diz exatamente isso para que ninguém confunda os dois atos.
         botao.title = 'Tira do indicador. Não registra ciência nem encerra a pendência.';

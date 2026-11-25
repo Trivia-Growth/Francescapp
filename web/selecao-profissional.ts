@@ -3,6 +3,7 @@ import { iniciarAcao } from './esqueleto.js';
 import { type ClienteFFCM, mensagemFalha } from './api.js';
 import { criarCicloAcesso } from './ciclo-acesso.js';
 import { montarRevogacaoVinculo } from './revogacao-vinculo.js';
+import { botao as botaoDaCamada } from './ui/basicos.js';
 
 export function montarSelecaoProfissional(
   raiz: HTMLElement,
@@ -28,21 +29,12 @@ export function montarSelecaoProfissional(
   rotulo.textContent = 'Profissional';
   const selecao = document.createElement('select');
   selecao.id = rotulo.htmlFor;
-  const anterior = document.createElement('button');
-  anterior.type = 'button';
-  anterior.className = 'button-secondary';
-  anterior.textContent = 'Página anterior';
-  const seguinte = document.createElement('button');
-  seguinte.type = 'button';
-  seguinte.className = 'button-secondary';
-  seguinte.textContent = 'Próxima página';
+  const anterior = botaoDaCamada({ rotulo: 'Página anterior', peso: 'secundario' });
+  const seguinte = botaoDaCamada({ rotulo: 'Próxima página', peso: 'secundario' });
   // Paginação só aparece quando há mais de uma página: botões soltos sobre lista
   // vazia davam a impressão de tela quebrada.
   anterior.hidden = seguinte.hidden = true;
-  const tentar = document.createElement('button');
-  tentar.type = 'button';
-  tentar.className = 'button-secondary';
-  tentar.textContent = 'Tentar novamente';
+  const tentar = botaoDaCamada({ rotulo: 'Tentar novamente', peso: 'secundario' });
   const explicacao = document.createElement('p');
   explicacao.textContent = 'Conferindo se há alguma concessão aguardando resposta…';
   const rotuloMotivo = document.createElement('label');
@@ -58,10 +50,7 @@ export function montarSelecaoProfissional(
   const recuperar = document.createElement('button');
   recuperar.type = 'button';
   recuperar.textContent = 'Conferir novamente';
-  const conceder = document.createElement('button');
-  conceder.type = 'button';
-  conceder.className = 'button-primary';
-  conceder.textContent = 'Conceder acesso';
+  const conceder = botaoDaCamada({ rotulo: 'Conceder acesso', peso: 'principal' });
   conceder.disabled = true;
   raiz.replaceChildren(
     status,
@@ -215,15 +204,12 @@ export function montarSelecaoProfissional(
   const estadoVinculos = document.createElement('p');
   estadoVinculos.setAttribute('role', 'status');
   const listaVinculos = document.createElement('ul');
-  const maisVinculos = document.createElement('button');
-  maisVinculos.type = 'button';
-  maisVinculos.className = 'button-secondary';
-  maisVinculos.textContent = 'Carregar mais vínculos';
+  const maisVinculos = botaoDaCamada({ rotulo: 'Carregar mais vínculos', peso: 'secundario' });
   maisVinculos.hidden = true;
-  const tentarVinculos = document.createElement('button');
-  tentarVinculos.type = 'button';
-  tentarVinculos.className = 'button-secondary';
-  tentarVinculos.textContent = 'Tentar consultar vínculos novamente';
+  const tentarVinculos = botaoDaCamada({
+    rotulo: 'Tentar consultar vínculos novamente',
+    peso: 'secundario',
+  });
   tentarVinculos.hidden = true;
   vinculos.append(tituloVinculos, estadoVinculos, listaVinculos, maisVinculos, tentarVinculos);
   const areaRevogacao = document.createElement('section');
