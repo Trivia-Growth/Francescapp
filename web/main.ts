@@ -78,6 +78,9 @@ import { montarConversaoDiario } from './conversao-diario.js';
 import { criarServicoConversaoDiarioHttp } from './servico-conversao-diario-http.js';
 import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
 import { montarLinhaTempo } from './linha-tempo.js';
+import { aprimorarDatas } from './ui/data.js';
+import { aprimorarSelecoes } from './ui/selecao.js';
+import { linhaLista } from './ui/basicos.js';
 import { criarServicoLinhaTempoHttp } from './servico-linha-tempo-http.js';
 import { montarExportacao } from './exportacao.js';
 import { criarServicoExportacaoHttp } from './servico-exportacao-http.js';
@@ -291,6 +294,13 @@ const fichaView = elemento('ficha-view');
 const crumbPaciente = elemento('crumb-paciente');
 const buscaCampo = elemento<HTMLInputElement>('busca-pacientes');
 const buscaVazia = elemento('busca-vazia');
+
+// Seleção e data da aplicação no lugar das do navegador, no diálogo de cadastro. O
+// `<select>` e o `input[type=date]` continuam no documento e continuam donos do valor —
+// o que muda é quem aparece e o que o teclado percorre. Ver `web/ui/selecao.ts` e
+// `web/ui/data.ts`, e o comentário em `web/index.html` sobre o `required` que saiu.
+aprimorarSelecoes(registration);
+aprimorarDatas(registration);
 
 // A navegação mantém os mesmos links e seu estado de autorização nas duas larguras.
 const toggleSidebar = elemento<HTMLButtonElement>('toggle-sidebar');
@@ -2365,11 +2375,6 @@ async function entrarFamiliar(evento: SubmitEvent): Promise<void> {
 }
 
 function linhaPaciente(paciente: PacienteLista): HTMLLIElement {
-  const item = document.createElement('li');
-  const abrir = document.createElement('button');
-  abrir.type = 'button';
-  abrir.className = 'pessoa';
-  abrir.dataset.pacienteId = paciente.id;
   // Só o Administrador recebe a situação; sem o campo, a linha não indica nada.
   const rotuloSituacao =
     paciente.situacao === undefined
@@ -2377,50 +2382,42 @@ function linhaPaciente(paciente: PacienteLista): HTMLLIElement {
       : paciente.situacao === null
         ? 'Situação a completar'
         : `Situação: ${rotulosSituacao[paciente.situacao]}`;
-  abrir.setAttribute(
-    'aria-label',
-    rotuloSituacao
-      ? `Abrir ficha de ${paciente.nome}. ${rotuloSituacao}.`
-      : `Abrir ficha de ${paciente.nome}`,
-  );
-  const texto = document.createElement('span');
-  texto.className = 'pessoa-texto';
-  const nome = document.createElement('span');
-  nome.className = 'pessoa-nome';
-  nome.textContent = paciente.nome;
-  const preferencia = document.createElement('span');
-  preferencia.className = 'pessoa-preferencia';
-  preferencia.textContent = paciente.nome_preferencia
-    ? `Preferência: ${paciente.nome_preferencia}`
-    : 'Preferência não informada';
-  texto.append(nome, preferencia);
+  const aoFim: Node[] = [];
   if (rotuloSituacao) {
     const situacao = document.createElement('span');
     situacao.className = 'pessoa-situacao';
     situacao.dataset.situacao = paciente.situacao ?? 'completar';
     situacao.textContent = rotuloSituacao;
-    texto.append(situacao);
+    aoFim.push(situacao);
   }
   // FR-028: sinal operacional com motivo visível, nunca uma classificação clínica.
-  if (paciente.sinal) texto.append(montarSinalCarteira(paciente.sinal));
-  const seta = document.createElement('span');
-  seta.className = 'pessoa-seta';
-  seta.setAttribute('aria-hidden', 'true');
-  abrir.append(criarAvatar(paciente.nome), texto, seta);
-  abrir.addEventListener('click', () => {
-    if (!sessao) return;
-    abrirFicha(
-      {
-        id: paciente.id,
-        nome: paciente.nome,
-        nome_preferencia: paciente.nome_preferencia,
-        ...(paciente.situacao === undefined ? {} : { situacao: paciente.situacao }),
-      },
-      undefined,
-      true,
-    );
+  if (paciente.sinal) aoFim.push(montarSinalCarteira(paciente.sinal));
+  const item = linhaLista({
+    principal: paciente.nome,
+    secundario: paciente.nome_preferencia
+      ? `Preferência: ${paciente.nome_preferencia}`
+      : 'Preferência não informada',
+    fim: aoFim,
+    antes: criarAvatar(paciente.nome),
+    rotuloLeitura: rotuloSituacao
+      ? `Abrir ficha de ${paciente.nome}. ${rotuloSituacao}.`
+      : `Abrir ficha de ${paciente.nome}`,
+    aoAbrir: () => {
+      if (!sessao) return;
+      abrirFicha(
+        {
+          id: paciente.id,
+          nome: paciente.nome,
+          nome_preferencia: paciente.nome_preferencia,
+          ...(paciente.situacao === undefined ? {} : { situacao: paciente.situacao }),
+        },
+        undefined,
+        true,
+      );
+    },
   });
-  item.append(abrir);
+  const abrir = item.firstElementChild;
+  if (abrir instanceof HTMLButtonElement) abrir.dataset.pacienteId = paciente.id;
   return item;
 }
 

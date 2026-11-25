@@ -175,7 +175,7 @@ export type PedidoLinha = {
   /** O que ajuda a reconhecer. Cinza, menor, logo ao lado. */
   secundario?: Node | string;
   /** O estado, à direita. É o que se compara entre linhas. */
-  fim?: Node;
+  fim?: Node | readonly Node[];
   antes?: Node;
   rotuloLeitura: string;
   aoAbrir?: () => void;
@@ -202,7 +202,7 @@ export function linhaLista(pedido: PedidoLinha): HTMLLIElement {
   texto.className = 'ui-linha__texto';
   texto.append(comoNo(pedido.principal, 'ui-linha__principal'));
   if (pedido.secundario) texto.append(comoNo(pedido.secundario, 'ui-linha__secundario'));
-  if (pedido.fim) texto.append(pedido.fim);
+  if (pedido.fim) texto.append(...(Array.isArray(pedido.fim) ? pedido.fim : [pedido.fim]));
   abrir.append(texto);
   const seta = document.createElement('span');
   seta.className = 'ui-linha__seta';

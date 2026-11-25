@@ -5,6 +5,7 @@ import {
   type SinalCarteira,
 } from '../packages/contracts/src/pendencia.js';
 import { rotulosSituacao, type ResponsavelOpcao } from './acompanhamento-caso.js';
+import { aprimorarSelecao } from './ui/selecao.js';
 
 /** FR-026: filtros da carteira. A busca por nome que já existe continua valendo só dentro
  * da página carregada, porque o nome é cifrado e o banco não o compara; estes filtros são
@@ -31,8 +32,9 @@ function campoSelecao(
   vazio: string,
 ): { campo: HTMLLabelElement; selecao: HTMLSelectElement } {
   const campo = document.createElement('label');
-  campo.className = 'filtro-carteira';
+  campo.className = 'filtro-carteira ui-campo';
   const texto = document.createElement('span');
+  texto.className = 'ui-campo__rotulo';
   texto.textContent = rotulo;
   const selecao = document.createElement('select');
   selecao.name = nome;
@@ -143,6 +145,10 @@ export function montarFiltrosCarteira(
   atualizarResumo();
   painel.append(formulario);
   raiz.replaceChildren(painel);
+  // Quatro `<select>` nativos viravam quatro roletas do sistema no celular, cada uma com
+  // uma aparência que não era a da aplicação. A seleção própria entra depois que o
+  // formulário está no documento, para que o `<label>` já esteja associado.
+  for (const campo of campos) aprimorarSelecao(campo);
   return { aplicar, limpar };
 }
 

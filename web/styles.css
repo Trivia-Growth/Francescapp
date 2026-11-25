@@ -231,14 +231,57 @@ p {
 /* Primeiro contato: coluna única. Quem abre esta tela pode ser uma família às duas da manhã;
    ela não quer ser impressionada, quer achar o caminho. Por isso um caminho de entrada à vista,
    os demais em dobras, e o aviso de ambiente depois do bloco de acesso. */
-.access-layout {
-  max-width: 460px;
+/* Antes: coluna de 460px centrada, sozinha num fundo quase branco — o cartão estreito
+   boiando que o cliente leu como amador. Agora a página usa a largura toda numa grade
+   clara: marca e frase de um lado, caminhos de entrada numa superfície só do outro, e o
+   aviso de ambiente embaixo da apresentação. A ordem do DOM é a do celular, e a grade só
+   reposiciona a partir de 900px — nenhum texto acordado mudou de lugar na leitura. */
+.acesso {
+  display: grid;
+  gap: var(--espaco-6);
+  max-width: 1180px;
   margin: 0 auto;
-  padding: var(--espaco-8) var(--espaco-5) var(--espaco-7);
+  padding: var(--espaco-8) 5% var(--espaco-7);
 }
-.access-layout h1 {
-  margin-bottom: var(--espaco-6);
-  max-width: 20ch;
+.acesso h1 {
+  margin-bottom: 0;
+  max-width: 14ch;
+}
+.acesso__apresentacao {
+  display: grid;
+  justify-items: start;
+  gap: var(--espaco-5);
+}
+/* A superfície do acesso tem medida própria: 460px é a largura confortável de um
+   formulário de entrada, e passar disso só faria a linha do campo correr a tela. */
+.acesso__caminhos {
+  width: 100%;
+  max-width: 460px;
+}
+@media (min-width: 900px) {
+  .acesso {
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "apresentacao caminhos"
+      "rodape caminhos";
+    column-gap: var(--espaco-8);
+    align-items: start;
+    padding-top: calc(var(--espaco-8) + var(--espaco-5));
+  }
+  .acesso__apresentacao {
+    grid-area: apresentacao;
+  }
+  .acesso__caminhos {
+    grid-area: caminhos;
+    max-width: none;
+  }
+  .acesso__rodape {
+    grid-area: rodape;
+  }
+  .acesso h1 {
+    font-size: var(--texto-6);
+  }
 }
 /* Marca como material recebido: sem recorte, sem transparência simulada, sem redesenho.
    O que muda é a escala (144px para 96px) e o respiro, para o fundo oliva embutido do JPEG
@@ -250,12 +293,10 @@ p {
   margin-bottom: var(--espaco-5);
   object-fit: contain;
 }
-/* Sem cartão: em coluna única a página é a superfície, e a borda só repetiria o contorno
-   da própria coluna. As dobras passam a carregar a estrutura. */
-.access-form-panel {
-  padding: 0;
-  border: 0;
-  background: none;
+/* O painel é o corpo da superfície `.acesso__caminhos`: o espaçamento vem de
+   `.ui-superficie__corpo` e as dobras continuam carregando a estrutura interna. */
+.access-form-panel > form:first-child {
+  margin-top: 0;
 }
 .registration-panel > p:first-of-type {
   margin: 12px 0 24px;
@@ -634,12 +675,12 @@ input[aria-invalid="true"] {
   h1 {
     font-size: var(--texto-5);
   }
-  .access-layout {
+  .acesso {
+    gap: var(--espaco-5);
     padding: var(--espaco-7) var(--espaco-5) var(--espaco-6);
   }
-  .access-layout h1 {
+  .acesso h1 {
     max-width: none;
-    margin-bottom: var(--espaco-5);
   }
   .institutional-logo {
     width: 80px;
@@ -655,7 +696,7 @@ input[aria-invalid="true"] {
   .page-heading {
     margin-bottom: 28px;
   }
-  .page-heading > .button-primary {
+  .page-heading > .ui-botao {
     width: 100%;
   }
   .workspace.with-registration {
@@ -864,86 +905,9 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   max-width: 460px;
   margin: var(--espaco-4) 0;
 }
-.busca label {
-  display: block;
-}
-.busca .small-text {
-  margin-top: var(--espaco-2);
-}
-/* Carteira em lista, e não em blocos. Duas colunas de cartões de 150px mostravam seis
-   pessoas numa tela inteira e não alinhavam nada entre si: para comparar quem está em
-   que situação era preciso ler cartão por cartão. A lista é uma superfície só, com as
-   linhas separadas por fio e os mesmos campos na mesma coluna em todas elas. */
-.people-list {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  list-style: none;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--white);
-}
-.people-list li {
-  min-width: 0;
-  border-top: 1px solid var(--line);
-}
-.people-list li:first-child {
-  border-top: 0;
-}
-.pessoa {
-  display: flex;
-  align-items: center;
-  gap: var(--espaco-4);
-  width: 100%;
-  height: 100%;
-  min-height: 64px;
-  padding: var(--espaco-3) var(--espaco-4);
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--ink);
-  font-weight: 400;
-  text-align: left;
-}
-.pessoa:hover {
-  background: var(--soft);
-}
-.pessoa:focus-visible,
-.ficha-aba:focus-visible {
-  outline-offset: -3px;
-}
-/* Densidade de lista: nome, preferência e situação na mesma linha e sempre na mesma
-   coluna. Abaixo de 760px as partes voltam a empilhar — ver o bloco do celular. */
-.pessoa-texto {
-  display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--espaco-1) var(--espaco-4);
-  min-width: 0;
-}
-.pessoa-texto > .pessoa-nome {
-  flex: 0 0 34%;
-}
-.pessoa-texto > .pessoa-preferencia {
-  flex: 1 1 10rem;
-}
-.pessoa-texto > .pessoa-situacao {
-  flex: none;
-  margin-left: auto;
-}
-.pessoa-nome {
-  font: 600 var(--texto-2) / 1.4 var(--font-body);
-  overflow-wrap: anywhere;
-}
-.pessoa-preferencia {
-  color: var(--muted);
-  font-size: var(--texto-1);
-  overflow-wrap: anywhere;
-}
+/* A lista de pessoas passou a ser `.ui-lista` + `.ui-linha` da camada de componente
+   (`web/ui/ui.css`): as regras que viviam aqui eram as mesmas, só que exclusivas desta
+   tela. O que sobra abaixo é o que é desta tela e de mais nenhuma: o chip de situação. */
 .pessoa-situacao {
   justify-self: start;
   margin-top: var(--espaco-1);
@@ -960,16 +924,6 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   border: 1px solid var(--line);
   background: var(--white);
   color: var(--muted);
-}
-.pessoa-seta {
-  flex: none;
-  align-self: center;
-  width: 10px;
-  height: 10px;
-  margin-right: 6px;
-  border-top: 2px solid var(--field-line);
-  border-right: 2px solid var(--field-line);
-  transform: rotate(45deg);
 }
 .avatar {
   display: inline-grid;
@@ -2514,23 +2468,7 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
     display: inline-flex;
     align-self: flex-end;
   }
-  /* No celular a linha não cabe em colunas: nome, preferência e situação empilham, e o
-     alvo de toque volta a ser confortável sem virar cartão de novo. */
-  .pessoa {
-    align-items: flex-start;
-    min-height: 72px;
-    padding: var(--espaco-4);
-  }
-  .pessoa-texto {
-    display: grid;
-    gap: var(--espaco-1);
-  }
-  .pessoa-texto > .pessoa-nome,
-  .pessoa-texto > .pessoa-preferencia,
-  .pessoa-texto > .pessoa-situacao {
-    flex: none;
-    margin-left: 0;
-  }
+  /* No celular a linha empilha — a regra agora é de `.ui-linha` em `web/ui/ui.css`. */
   .patient-register {
     padding: 0;
   }
@@ -2645,12 +2583,7 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
   flex: 1 1 260px;
   margin: 0;
 }
-.carteira-tools .busca label {
-  font-size: var(--texto-1);
-  font-weight: 600;
-}
-.carteira-tools .busca .small-text {
-  margin-top: var(--espaco-1);
+.carteira-tools .busca .ui-campo__rotulo {
   font-size: var(--texto-1);
 }
 .carteira-tools #reload-patients {
@@ -3140,15 +3073,15 @@ label > .loading-indicator {
    240ms, escalonados em 60ms. Nada fica em laço e nada atrasa a interação: os controles
    já estão na posição final e clicáveis durante a entrada. O aviso de ambiente não entra
    na sequência — ele informa, não se apresenta. */
-#login-view:not([hidden]) > .institutional-logo,
-#login-view:not([hidden]) > h1,
-#login-view:not([hidden]) > .access-form-panel {
+#login-view:not([hidden]) .institutional-logo,
+#login-view:not([hidden]) h1,
+#login-view:not([hidden]) > .acesso__caminhos {
   animation: mov-entrada-contexto var(--mov-contexto) var(--curva-entrada) backwards;
 }
-#login-view:not([hidden]) > h1 {
+#login-view:not([hidden]) h1 {
   animation-delay: 60ms;
 }
-#login-view:not([hidden]) > .access-form-panel {
+#login-view:not([hidden]) > .acesso__caminhos {
   animation-delay: 120ms;
 }
 
@@ -3428,4 +3361,27 @@ label > .loading-indicator {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* O cadastro é o primeiro formulário a usar a moldura de diálogo da camada de componente:
+   cabeçalho fixo, corpo rolando e rodapé fixo com a ação. No computador ele tem 560px para
+   a tela não crescer sem fim; no celular o mesmo elemento vira folha de baixo para cima, e
+   "Cadastrar paciente" fica no rodapé, acima da área segura, em vez de ficar no fim de uma
+   página que o teclado virtual empurra para fora. */
+.ui-dialogo__painel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 100%;
+}
+.ui-dialogo__formulario {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+/* Último campo do corpo não precisa da margem de separação: o filete do rodapé já separa. */
+.ui-dialogo__corpo > :last-child {
+  margin-bottom: 0;
 }

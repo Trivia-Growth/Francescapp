@@ -141,7 +141,7 @@ export function aprimorarData(nativo: HTMLInputElement): CampoData {
   const abrir = document.createElement('button');
   abrir.type = 'button';
   abrir.className = 'ui-data__abrir';
-  abrir.dataset.acao = 'calendario';
+  abrir.dataset.ui = 'calendario';
   abrir.setAttribute('aria-expanded', 'false');
   abrir.setAttribute('aria-haspopup', 'dialog');
   abrir.setAttribute('aria-label', 'Escolher no calendário');
