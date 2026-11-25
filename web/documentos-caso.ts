@@ -7,6 +7,7 @@ import type {
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import type { ServicoDocumentos } from './servico-documentos-http.js';
+import { botao, estadoVazio } from './ui/basicos.js';
 
 const AUDIENCIAS = [
   ['equipe', 'Só a equipe'],
@@ -123,8 +124,7 @@ export function montarDocumentosCaso(
     const rotuloAud = elemento('label', 'Quem pode ver');
     rotuloAud.htmlFor = audiencia.id;
 
-    const enviar = elemento('button', 'Anexar');
-    enviar.type = 'submit';
+    const enviar = botao({ rotulo: 'Anexar', tipo: 'submit', peso: 'principal' });
     const aviso = elemento('p');
     aviso.setAttribute('role', 'status');
 
@@ -215,7 +215,7 @@ export function montarDocumentosCaso(
     const lista = elemento('ul');
     lista.className = 'documentos-lista';
     if (documentos.length === 0) {
-      secao.append(elemento('p', 'Nenhum documento anexado a este caso ainda.'));
+      secao.append(estadoVazio('Nenhum documento anexado a este caso ainda.'));
     } else {
       for (const documento of documentos) {
         const item = elemento('li');
@@ -237,10 +237,11 @@ export function montarDocumentosCaso(
         selo.className = 'documento-item__estado';
         item.append(nome, meta, selo);
         if (documento.estado === 'disponivel' && servico.baixar) {
-          const baixar = elemento('button', 'Baixar arquivo');
-          baixar.type = 'button';
-          baixar.className = 'button-secondary';
-          baixar.setAttribute('aria-label', `Baixar ${documento.nome_visivel}`);
+          const baixar = botao({
+            rotulo: 'Baixar arquivo',
+            peso: 'discreto',
+            rotuloLeitura: `Baixar ${documento.nome_visivel}`,
+          });
           const feedback = elemento('p');
           feedback.setAttribute('role', 'status');
           baixar.addEventListener('click', async () => {
@@ -357,10 +358,8 @@ export function montarDocumentosCaso(
               'Alterar dados mantém o arquivo e o histórico. Removido oculta o acesso pelo app; não exclui o arquivo do Drive.',
             ),
           );
-          const salvar = elemento('button', 'Salvar dados');
-          salvar.type = 'submit';
-          const conferir = elemento('button', 'Conferir resultado');
-          conferir.type = 'button';
+          const salvar = botao({ rotulo: 'Salvar dados', tipo: 'submit', peso: 'principal' });
+          const conferir = botao({ rotulo: 'Conferir resultado', peso: 'secundario' });
           conferir.hidden = true;
           const aviso = elemento('p');
           aviso.setAttribute('role', 'status');

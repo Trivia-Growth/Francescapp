@@ -4,6 +4,7 @@ import { confirmar } from './confirmacao.js';
 import { criarCicloContato } from './ciclo-contato.js';
 import { esqueletoCarregando } from './esqueleto.js';
 import type { consultaBarreiraContatoSchema } from '../packages/contracts/src/barreira-contato.js';
+import { botao } from './ui/basicos.js';
 
 /** Montagem preparada para quando a rota de contatos estiver autorizada. */
 export function montarContatoPaciente(
@@ -106,16 +107,11 @@ export function montarContatoPaciente(
     valor.type = tipo.value === 'email' ? 'email' : 'tel';
     valor.maxLength = tipo.value === 'email' ? 254 : 32;
   });
-  const salvar = document.createElement('button');
-  salvar.type = 'submit';
-  salvar.className = 'button-primary';
-  salvar.textContent = 'Adicionar contato';
+  const salvar = botao({ rotulo: 'Adicionar contato', tipo: 'submit', peso: 'principal' });
   const status = document.createElement('p');
   status.setAttribute('role', 'status');
   status.setAttribute('aria-live', 'polite');
-  const recuperar = document.createElement('button');
-  recuperar.type = 'button';
-  recuperar.textContent = 'Conferir novamente';
+  const recuperar = botao({ rotulo: 'Conferir novamente', peso: 'secundario' });
   recuperar.hidden = true;
   campos.disabled = salvar.disabled = true;
   let etapa: 'encerrar' | 'reconhecer' | null = null;

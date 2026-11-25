@@ -1,6 +1,7 @@
 import { iniciarAcao } from './esqueleto.js';
 import type { EventoAuditoria } from '../packages/contracts/src/auditoria.ts';
 import type { FiltrosAuditoria, ServicoAuditoria } from './servico-auditoria-http.ts';
+import { botao } from './ui/basicos.js';
 
 const formatadorInstante = new Intl.DateTimeFormat('pt-BR', {
   dateStyle: 'short',
@@ -131,14 +132,8 @@ export function montarAuditoria(
         /* sem a lista, o filtro fica só com "Todos" em vez de sumir no meio da sessão */
       });
 
-  const aplicar = document.createElement('button');
-  aplicar.type = 'submit';
-  aplicar.className = 'button-primary';
-  aplicar.textContent = 'Aplicar filtros';
-  const limpar = document.createElement('button');
-  limpar.type = 'button';
-  limpar.className = 'button-secondary';
-  limpar.textContent = 'Limpar';
+  const aplicar = botao({ rotulo: 'Aplicar filtros', tipo: 'submit', peso: 'secundario' });
+  const limpar = botao({ rotulo: 'Limpar', peso: 'secundario' });
   const acoes = document.createElement('div');
   acoes.className = 'auditoria__acoes';
   acoes.append(aplicar, limpar);
@@ -171,14 +166,8 @@ export function montarAuditoria(
   const corpo = document.createElement('tbody');
   tabela.append(cabecalho, corpo);
 
-  const voltar = document.createElement('button');
-  voltar.type = 'button';
-  voltar.className = 'button-secondary';
-  voltar.textContent = 'Página anterior';
-  const avancar = document.createElement('button');
-  avancar.type = 'button';
-  avancar.className = 'button-secondary';
-  avancar.textContent = 'Próxima página';
+  const voltar = botao({ rotulo: 'Página anterior', peso: 'secundario' });
+  const avancar = botao({ rotulo: 'Próxima página', peso: 'secundario' });
   const paginacao = document.createElement('div');
   paginacao.className = 'auditoria__paginacao';
   paginacao.append(voltar, avancar);

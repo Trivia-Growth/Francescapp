@@ -14,6 +14,7 @@ import type { PendenciaPlantaoHttp } from '../packages/contracts/src/ficha-plant
 import type { ResponsavelOpcao } from './acompanhamento-caso.js';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { dataDeInstante } from './datas.js';
+import { botao as botaoDaCamada, estadoVazio } from './ui/basicos.js';
 
 export type ServicoPendencias = {
   consultar(pacienteId: string): Promise<SinalOperacional>;
@@ -144,8 +145,7 @@ export function montarPendenciasCaso(
         acoes.append(campo);
         continue;
       }
-      const botao = elemento('button', rotulo, 'button-secondary');
-      botao.type = 'button';
+      const botao = botaoDaCamada({ rotulo, peso: 'discreto' });
       botao.addEventListener('click', () =>
         aplicar(
           {
@@ -242,8 +242,11 @@ export function montarPendenciasCaso(
     formulario.append(campoRevisao);
     const erroCampo = elemento('p', '', 'visao-estado');
     erroCampo.setAttribute('role', 'alert');
-    const salvar = elemento('button', 'Salvar periodicidade');
-    salvar.type = 'submit';
+    const salvar = botaoDaCamada({
+      rotulo: 'Salvar periodicidade',
+      tipo: 'submit',
+      peso: 'principal',
+    });
     salvar.disabled = gravacaoEmCurso;
     formulario.append(salvar, erroCampo);
     formulario.addEventListener('submit', (evento) => {
@@ -349,8 +352,7 @@ export function montarPendenciasCaso(
     const resolvidas = sinal.pendencias.filter((item) => item.estado === 'resolvida');
     if (!sinal.pendencias.length)
       painel.append(
-        elemento(
-          'p',
+        estadoVazio(
           sinal.estado === 'informacao_insuficiente'
             ? 'Nenhuma pendência pode ser apurada enquanto a periodicidade do caso não for acordada.'
             : 'Nenhuma pendência operacional neste caso.',

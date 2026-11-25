@@ -1,6 +1,7 @@
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import type { ConcessaoFinanceira } from '../packages/contracts/src/index.ts';
 import type { ServicoFinanceiro } from './servico-financeiro-http.ts';
+import { botao, estadoVazio } from './ui/basicos.js';
 
 const PERFIS: Record<ConcessaoFinanceira['perfil'], string> = {
   profissional: 'Profissional',
@@ -45,20 +46,14 @@ export function montarFinanceiroConcessaoAdministracao(
   status.setAttribute('aria-live', 'polite');
   const lista = document.createElement('div');
   lista.className = 'habilitacao-crise__lista';
-  const recarregar = document.createElement('button');
-  recarregar.type = 'button';
-  recarregar.className = 'button-secondary';
-  recarregar.textContent = 'Recarregar';
+  const recarregar = botao({ rotulo: 'Recarregar', peso: 'secundario' });
   secao.append(titulo, explicacao, status, lista, recarregar);
   raiz.replaceChildren(secao);
 
   const desenhar = (itens: readonly ConcessaoFinanceira[]) => {
     lista.replaceChildren();
     if (itens.length === 0) {
-      const vazio = document.createElement('p');
-      vazio.className = 'habilitacao-crise__vazio';
-      vazio.textContent = 'Nenhuma pessoa com acesso cadastrado.';
-      lista.append(vazio);
+      lista.append(estadoVazio('Nenhuma pessoa com acesso cadastrado.'));
       return;
     }
     for (const item of itens) {
@@ -88,10 +83,7 @@ export function montarFinanceiroConcessaoAdministracao(
         ajuda.textContent = 'Administrador já vê o financeiro pelo próprio perfil.';
       else if (!podeMarcar) ajuda.textContent = 'Só quem tem acesso ativo pode ser marcado.';
       if (ajuda.textContent) caixa.setAttribute('aria-describedby', ajuda.id);
-      const salvar = document.createElement('button');
-      salvar.type = 'submit';
-      salvar.className = 'button-primary';
-      salvar.textContent = 'Salvar';
+      const salvar = botao({ rotulo: 'Salvar', tipo: 'submit', peso: 'principal' });
       salvar.disabled = caixa.disabled;
       const aviso = document.createElement('p');
       aviso.className = 'habilitacao-crise__aviso';
