@@ -1,5 +1,6 @@
 import type { VisibilidadeObjetivo } from '../packages/contracts/src/plano-cuidado.ts';
 import { confirmarDescarte } from './confirmacao.js';
+import { botao as botaoDaCamada } from './ui/basicos.js';
 
 export type OrientacaoLocal = {
   id: string;
@@ -64,12 +65,12 @@ export function montarOrientacoesLocais(
   }
   labelVisibilidade.append(visibilidade);
   formulario.append(labelVisibilidade);
-  const botao = document.createElement('button');
-  botao.type = 'submit';
-  botao.textContent = 'Registrar orientação';
-  const cancelar = document.createElement('button');
-  cancelar.type = 'button';
-  cancelar.textContent = 'Cancelar substituição';
+  const botao = botaoDaCamada({
+    rotulo: 'Registrar orientação',
+    tipo: 'submit',
+    peso: 'principal',
+  });
+  const cancelar = botaoDaCamada({ rotulo: 'Cancelar substituição', peso: 'secundario' });
   cancelar.hidden = true;
   formulario.append(botao, cancelar);
   const mensagem = document.createElement('p');
@@ -100,9 +101,7 @@ export function montarOrientacoesLocais(
       descricao.textContent = `${item.anterior ? 'Anterior' : 'Atual'} · ${item.texto} · ${item.autor} · ${item.data} · ${item.destinatarios}${item.validade ? ` · Validade/revisão: ${item.validade}` : ''} · ${rotuloVisibilidade}`;
       linha.append(descricao);
       if (!item.anterior) {
-        const substituir = document.createElement('button');
-        substituir.type = 'button';
-        substituir.textContent = 'Substituir';
+        const substituir = botaoDaCamada({ rotulo: 'Substituir', peso: 'discreto' });
         substituir.disabled = salvando;
         substituir.addEventListener('click', () => {
           void (async () => {

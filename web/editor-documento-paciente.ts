@@ -1,6 +1,7 @@
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
 import type { ServicoDocumentoPaciente } from './servico-documento-paciente-http.ts';
+import { botao } from './ui/basicos.js';
 
 export type CorpoEditor<T> = {
   /** Campos do formulário, já montados a partir do conteúdo carregado. */
@@ -62,10 +63,8 @@ export function montarEditorDocumentoPaciente<T>(
     const form = elemento('form');
     const aviso = elemento('p');
     aviso.setAttribute('role', 'status');
-    const salvar = elemento('button', textos.salvar);
-    salvar.type = 'submit';
-    const retry = elemento('button', 'Tentar confirmar salvamento');
-    retry.type = 'button';
+    const salvar = botao({ rotulo: textos.salvar, tipo: 'submit', peso: 'principal' });
+    const retry = botao({ rotulo: 'Tentar confirmar salvamento', peso: 'secundario' });
     retry.hidden = true;
     const corpo = construir(resultado?.conteudo ?? null, () => alteracaoPendente(true));
     form.append(elemento('h2', textos.titulo));
@@ -140,8 +139,7 @@ export function montarEditorDocumentoPaciente<T>(
         if (!ativa || descartarAcesso(erro)) return;
         conteudo.remove();
         status.textContent = mensagemFalha(erro);
-        const tentarNovamente = elemento('button', 'Tentar novamente');
-        tentarNovamente.type = 'button';
+        const tentarNovamente = botao({ rotulo: 'Tentar novamente', peso: 'secundario' });
         tentarNovamente.addEventListener('click', consultar);
         raiz.append(tentarNovamente);
       });

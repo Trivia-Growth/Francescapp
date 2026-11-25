@@ -6,6 +6,7 @@ import {
 import { exigeNovoAcesso } from './api.ts';
 import { montarEditorDocumentoPaciente } from './editor-documento-paciente.ts';
 import type { ServicoDocumentoPaciente } from './servico-documento-paciente-http.ts';
+import { botao } from './ui/basicos.js';
 
 /** FR-005: rótulos em português do usuário, na ordem em que o requisito os lista. */
 const ROTULOS: Record<CategoriaContexto, string> = {
@@ -123,8 +124,7 @@ export function montarContextoCuidado(
         descricao.maxLength = 2000;
         descricao.value = inicial?.descricao ?? '';
         descricao.placeholder = AJUDA[categoria];
-        const remover = elemento('button', 'Remover');
-        remover.type = 'button';
+        const remover = botao({ rotulo: 'Remover', peso: 'discreto' });
         const marcados: HTMLInputElement[] = [];
         item.append(rotulo, descricao);
         const vinculados = inicial?.objetivos ?? [];
@@ -171,8 +171,7 @@ export function montarContextoCuidado(
         const consultarPagina = consultarObjetivos;
         const avisoObjetivos = elemento('p', 'Carregando objetivos do plano…');
         avisoObjetivos.setAttribute('aria-live', 'polite');
-        const carregarMais = elemento('button', 'Carregar mais objetivos');
-        carregarMais.type = 'button';
+        const carregarMais = botao({ rotulo: 'Carregar mais objetivos', peso: 'secundario' });
         carregarMais.hidden = true;
         let cursor: string | undefined;
         let carregando = false;
@@ -235,8 +234,10 @@ export function montarContextoCuidado(
         bloco.append(lista);
         for (const existente of conteudo ?? [])
           if (existente.categoria === categoria) criarLinha(categoria, lista, existente);
-        const adicionar = elemento('button', `Adicionar em ${ROTULOS[categoria].toLowerCase()}`);
-        adicionar.type = 'button';
+        const adicionar = botao({
+          rotulo: `Adicionar em ${ROTULOS[categoria].toLowerCase()}`,
+          peso: 'secundario',
+        });
         adicionar.addEventListener('click', () => {
           criarLinha(categoria, lista).focus();
           aoAlterar();

@@ -1,4 +1,5 @@
 import { confirmarDescarte } from './confirmacao.js';
+import { botao } from './ui/basicos.js';
 
 export type PessoaReferenciaLocal = {
   id: string;
@@ -35,12 +36,12 @@ export function montarRelacoesLocais(
   const nome = campo('Nome', true);
   const relacao = campo('Relação', true);
   const contato = campo('Contato (opcional)', false);
-  const salvar = document.createElement('button');
-  salvar.type = 'submit';
-  salvar.textContent = 'Registrar pessoa de referência';
-  const cancelar = document.createElement('button');
-  cancelar.type = 'button';
-  cancelar.textContent = 'Cancelar edição';
+  const salvar = botao({
+    rotulo: 'Registrar pessoa de referência',
+    tipo: 'submit',
+    peso: 'principal',
+  });
+  const cancelar = botao({ rotulo: 'Cancelar edição', peso: 'secundario' });
   cancelar.hidden = true;
   formulario.append(salvar, cancelar);
   const mensagem = document.createElement('p');
@@ -82,10 +83,8 @@ export function montarRelacoesLocais(
       descricao.textContent = [pessoa.nome, pessoa.relacao, pessoa.contato]
         .filter(Boolean)
         .join(' · ');
-      const editar = document.createElement('button');
-      editar.type = 'button';
+      const editar = botao({ rotulo: 'Editar', peso: 'discreto' });
       editar.disabled = salvando;
-      editar.textContent = 'Editar';
       editar.setAttribute('aria-label', `Editar pessoa de referência ${pessoa.nome}`);
       editar.addEventListener('click', () => {
         void (async () => {

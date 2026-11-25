@@ -1,4 +1,5 @@
 import { confirmarDescarte } from './confirmacao.js';
+import { botao } from './ui/basicos.js';
 
 export type EstadoEncaminhamento =
   | 'sugerido'
@@ -57,12 +58,12 @@ export function montarEncaminhamentosLocais(
     estado.append(opcao);
   }
   labelEstado.append(estado);
-  const salvar = document.createElement('button');
-  salvar.type = 'submit';
-  salvar.textContent = 'Registrar encaminhamento';
-  const cancelar = document.createElement('button');
-  cancelar.type = 'button';
-  cancelar.textContent = 'Cancelar edição';
+  const salvar = botao({
+    rotulo: 'Registrar encaminhamento',
+    tipo: 'submit',
+    peso: 'principal',
+  });
+  const cancelar = botao({ rotulo: 'Cancelar edição', peso: 'secundario' });
   cancelar.hidden = true;
   formulario.append(labelEstado, salvar, cancelar);
   const mensagem = document.createElement('p');
@@ -112,10 +113,8 @@ export function montarEncaminhamentosLocais(
       const item = document.createElement('li');
       const descricao = document.createElement('span');
       descricao.textContent = `${encaminhamento.destino} · ${encaminhamento.motivo} · ${encaminhamento.responsavel} · ${encaminhamento.estado}`;
-      const editar = document.createElement('button');
-      editar.type = 'button';
+      const editar = botao({ rotulo: 'Editar', peso: 'discreto' });
       editar.disabled = salvando;
-      editar.textContent = 'Editar';
       editar.setAttribute('aria-label', `Editar encaminhamento para ${encaminhamento.destino}`);
       editar.addEventListener('click', () => {
         void (async () => {

@@ -1,5 +1,6 @@
 import { confirmar } from './confirmacao.js';
 import { iniciarAcao } from './esqueleto.js';
+import { botao as botaoDaCamada } from './ui/basicos.js';
 
 /** A autorização permanece no servidor. Reconsulta informa somente o estado observado. */
 export function montarRevogacaoVinculo(
@@ -32,9 +33,7 @@ export function montarRevogacaoVinculo(
   motivo.required = true;
   motivo.maxLength = 4000;
   rotulo.append(motivo);
-  const botao = document.createElement('button');
-  botao.type = 'button';
-  botao.textContent = 'Revogar acesso';
+  const botao = botaoDaCamada({ rotulo: 'Revogar acesso', peso: 'secundario' });
   const status = document.createElement('p');
   status.setAttribute('role', 'status');
   status.setAttribute('aria-live', 'polite');

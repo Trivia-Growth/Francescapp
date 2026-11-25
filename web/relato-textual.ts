@@ -2,6 +2,7 @@ import {
   relatoTextualSchema,
   type RelatoTextual,
 } from '../packages/contracts/src/relato-textual.ts';
+import { botao } from './ui/basicos.js';
 
 /** Protótipo isolado: sem armazenamento, envio, autorização ou rota. */
 export function montarRelatoTextual(
@@ -54,8 +55,7 @@ export function montarRelatoTextual(
   if (bloqueado)
     aviso.textContent =
       'Gravação bloqueada por resultado incerto. Volte e abra os relatos novamente para consultar o servidor.';
-  const revisar = elemento('button', 'Revisar dados');
-  revisar.type = 'submit';
+  const revisar = botao({ rotulo: 'Revisar dados', tipo: 'submit', peso: 'principal' });
   const revisao = elemento('section');
   form.append(revisar, aviso, revisao);
   form.addEventListener('input', (evento) => {
@@ -108,8 +108,10 @@ export function montarRelatoTextual(
       ['Solicitação de retorno', resultado.data.solicitacaoRetorno ? 'Sim' : 'Não'],
     ];
     if (salvar) {
-      const guardar = elemento('button', 'Guardar relato fictício nesta prévia');
-      guardar.type = 'button';
+      const guardar = botao({
+        rotulo: 'Guardar relato fictício nesta prévia',
+        peso: 'secundario',
+      });
       guardar.disabled = salvamentoIncerto;
       guardar.addEventListener('click', async () => {
         const controles = [

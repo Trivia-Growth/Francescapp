@@ -6,6 +6,7 @@ import type {
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { dataDeInstante } from './datas.js';
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
+import { botao } from './ui/basicos.js';
 
 export type ServicoLinhaTempo = {
   consultar(pacienteId: string, filtros?: FiltrosLinhaTempo): Promise<LinhaTempo>;
@@ -103,8 +104,7 @@ export function montarLinhaTempo(
   barra.append(rotuloFonte, seletor, rotuloArea, seletorArea, rotuloDe, campoDe);
 
   const lista = elemento('ol', undefined, 'linha-tempo__lista');
-  const mais = elemento('button', 'Carregar mais');
-  mais.type = 'button';
+  const mais = botao({ rotulo: 'Carregar mais', peso: 'secundario' });
   mais.hidden = true;
   secao.append(titulo, estado, barra, lista, mais);
   raiz.append(secao);

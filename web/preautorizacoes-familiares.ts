@@ -5,6 +5,7 @@ import type {
   cancelarPreautorizacaoFamiliarSchema,
   preautorizacaoFamiliarSchema,
 } from '../packages/contracts/src/identidade.ts';
+import { botao as botaoDaCamada } from './ui/basicos.js';
 
 export type Preautorizacao = z.infer<typeof preautorizacaoFamiliarSchema>;
 export type ServicoPreautorizacoes = {
@@ -109,9 +110,11 @@ export function montarPreautorizacoesFamiliares(
         const rotulo = document.createElement('label');
         rotulo.textContent = 'Motivo';
         rotulo.append(motivo);
-        const botao = document.createElement('button');
-        botao.type = 'submit';
-        botao.textContent = 'Encerrar acesso';
+        const botao = botaoDaCamada({
+          rotulo: 'Encerrar acesso',
+          tipo: 'submit',
+          peso: 'principal',
+        });
         campos.append(rotulo, botao);
         formulario.append(campos);
         formulario.addEventListener('submit', async (evento) => {

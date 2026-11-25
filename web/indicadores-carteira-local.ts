@@ -1,3 +1,4 @@
+import { botao as botaoDaCamada } from './ui/basicos.js';
 export type SituacaoCarteiraLocal =
   | 'entrada'
   | 'ativo'
@@ -32,9 +33,7 @@ export function montarIndicadoresCarteiraLocal(
     ).length;
     const texto = `${rotulo}: ${quantidade}`;
     if (dados.filtrar) {
-      const botao = document.createElement('button');
-      botao.type = 'button';
-      botao.textContent = texto;
+      const botao = botaoDaCamada({ rotulo: texto, peso: 'discreto' });
       botao.addEventListener('click', () => dados.filtrar?.(situacao));
       item.append(botao);
     } else {

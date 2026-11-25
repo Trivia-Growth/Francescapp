@@ -5,6 +5,7 @@ import {
 } from '../packages/contracts/src/rede-cuidado.ts';
 import { montarEditorDocumentoPaciente } from './editor-documento-paciente.ts';
 import type { ServicoDocumentoPaciente } from './servico-documento-paciente-http.ts';
+import { botao } from './ui/basicos.js';
 
 /** FR-002: os sete vínculos do requisito, com os rótulos que a equipe usa. */
 const ROTULOS: Record<VinculoRede, string> = {
@@ -61,8 +62,7 @@ export function montarRedeCuidado(
       const lista = elemento('ul');
       lista.className = 'rede-cuidado__lista';
       campos.append(lista);
-      const adicionar = elemento('button', 'Adicionar pessoa');
-      adicionar.type = 'button';
+      const adicionar = botao({ rotulo: 'Adicionar pessoa', peso: 'secundario' });
 
       const criarLinha = (inicial?: PessoaRede) => {
         const item = elemento('li');
@@ -123,8 +123,7 @@ export function montarRedeCuidado(
           marcacao.append(caixa, document.createTextNode(` ${ROTULOS[vinculo]}`));
           grupo.append(marcacao);
         }
-        const remover = elemento('button', 'Remover pessoa');
-        remover.type = 'button';
+        const remover = botao({ rotulo: 'Remover pessoa', peso: 'discreto' });
         item.append(
           rotuloNome,
           nome,

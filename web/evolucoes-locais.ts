@@ -1,3 +1,4 @@
+import { botao as botaoDaCamada } from './ui/basicos.js';
 export type EvolucaoLocal = {
   id: string;
   texto: string;
@@ -44,9 +45,11 @@ export function montarEvolucoesLocais(
     estado.append(opcao);
   }
   estadoLabel.append(estado);
-  const botao = document.createElement('button');
-  botao.type = 'submit';
-  botao.textContent = 'Registrar evolução fictícia';
+  const botao = botaoDaCamada({
+    rotulo: 'Registrar evolução fictícia',
+    tipo: 'submit',
+    peso: 'principal',
+  });
   formulario.append(estadoLabel, botao);
   const mensagem = document.createElement('p');
   mensagem.setAttribute('role', 'status');

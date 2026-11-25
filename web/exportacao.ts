@@ -16,6 +16,7 @@ import {
   nomeDoArquivoPacote,
   type AnexoPacote,
 } from './pacote-exportacao.js';
+import { botao } from './ui/basicos.js';
 
 export type ServicoExportacao = {
   consultar(pacienteId: string): Promise<RegistroExportacoes>;
@@ -103,8 +104,7 @@ export function montarExportacao(
   proposito.required = true;
   proposito.maxLength = 2000;
   rotuloProposito.htmlFor = proposito.id;
-  const enviar = elemento('button', 'Registrar exportação');
-  enviar.type = 'submit';
+  const enviar = botao({ rotulo: 'Registrar exportação', tipo: 'submit', peso: 'principal' });
   formulario.append(
     rotuloFinalidade,
     finalidade,

@@ -1,3 +1,4 @@
+import { botao as botaoDaCamada } from './ui/basicos.js';
 export type DocumentoLocal = { nome: string; categoria: string; metadados?: string };
 
 export type DadosDocumentosLocais = {
@@ -25,9 +26,11 @@ export function montarDocumentosLocais(raiz: HTMLElement, dados: DadosDocumentos
   const nome = campo('Nome', true);
   const categoria = campo('Categoria', true);
   const metadados = campo('Metadados (opcional)', false);
-  const registrar = document.createElement('button');
-  registrar.type = 'submit';
-  registrar.textContent = 'Registrar documento';
+  const registrar = botaoDaCamada({
+    rotulo: 'Registrar documento',
+    tipo: 'submit',
+    peso: 'principal',
+  });
   formulario.append(registrar);
   const mensagem = document.createElement('p');
   mensagem.setAttribute('role', 'status');
@@ -97,8 +100,7 @@ export function montarDocumentosLocais(raiz: HTMLElement, dados: DadosDocumentos
     arquivo.accept = '.pdf,.png,.jpg,.jpeg,.txt';
     arquivo.required = true;
     label.append(arquivo);
-    const botao = document.createElement('button');
-    botao.textContent = 'Anexar arquivo';
+    const botao = botaoDaCamada({ rotulo: 'Anexar arquivo', peso: 'secundario' });
     const status = document.createElement('p');
     status.setAttribute('role', 'status');
     const listaAnexos = document.createElement('ul');
