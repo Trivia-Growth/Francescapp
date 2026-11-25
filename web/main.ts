@@ -78,8 +78,7 @@ import { montarConversaoDiario } from './conversao-diario.js';
 import { criarServicoConversaoDiarioHttp } from './servico-conversao-diario-http.js';
 import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
 import { montarLinhaTempo } from './linha-tempo.js';
-import { aprimorarDatas } from './ui/data.js';
-import { aprimorarSelecoes } from './ui/selecao.js';
+import { aplicarControlesProprios } from './ui/controles.js';
 import { linhaLista } from './ui/basicos.js';
 import { criarServicoLinhaTempoHttp } from './servico-linha-tempo-http.js';
 import { montarExportacao } from './exportacao.js';
@@ -295,19 +294,25 @@ const crumbPaciente = elemento('crumb-paciente');
 const buscaCampo = elemento<HTMLInputElement>('busca-pacientes');
 const buscaVazia = elemento('busca-vazia');
 
-// Seleção e data da aplicação no lugar das do navegador, no diálogo de cadastro. O
+// Seleção e data da aplicação no lugar das do navegador, em toda a aplicação. O
 // `<select>` e o `input[type=date]` continuam no documento e continuam donos do valor —
 // o que muda é quem aparece e o que o teclado percorre. Ver `web/ui/selecao.ts` e
 // `web/ui/data.ts`, e o comentário em `web/index.html` sobre o `required` que saiu.
-aprimorarSelecoes(registration);
-aprimorarDatas(registration);
-// Cada contato adicionado traz um `<select>` novo. Sem observar o diálogo, o primeiro
-// contato aparecia com a seleção da aplicação e os seguintes com a do navegador — duas
-// aparências no mesmo formulário, que é exatamente o defeito que esta frente corrige.
-new MutationObserver(() => {
-  aprimorarSelecoes(registration);
-  aprimorarDatas(registration);
-}).observe(registration, { childList: true, subtree: true });
+//
+// Cada região é observada porque todas trocam o próprio conteúdo depois de consultar o
+// serviço: o contato que o cadastro adiciona, a área que a administração monta, a seção
+// que a ficha abre. Sem observar, o primeiro controle aparecia com a seleção da aplicação
+// e os seguintes com a do navegador — duas aparências na mesma tela, que é o defeito que
+// esta frente corrige. A mecânica vive em `web/ui/controles.ts` e é provada lá.
+for (const regiao of [
+  registration,
+  elemento('administracao-conteudo'),
+  elemento('ficha-view'),
+  elemento('regras-conteudo'),
+  homeView,
+  elemento('agenda-individual'),
+])
+  aplicarControlesProprios(regiao);
 
 // A navegação mantém os mesmos links e seu estado de autorização nas duas larguras.
 const toggleSidebar = elemento<HTMLButtonElement>('toggle-sidebar');
