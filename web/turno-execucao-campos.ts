@@ -1,4 +1,6 @@
-/** Controles nativos compartilhados pelas superfícies de execução do cuidado. */
+/** Controles compartilhados pelas superfícies de execução do cuidado. */
+import { botao as botaoDaCamada } from './ui/basicos.js';
+
 export function elementoTurno<K extends keyof HTMLElementTagNameMap>(tipo: K, texto?: string) {
   const elemento = document.createElement(tipo);
   if (texto !== undefined) elemento.textContent = texto;
@@ -76,12 +78,15 @@ export function dataLocalTurno(valor?: string): string {
   const local = new Date(data.getTime() - data.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 16);
 }
+/** Única fábrica de botão de plantão e turno: trocá-la aqui troca os quarenta botões
+ *  dessas telas de uma vez. Passa a devolver o botão da camada de componente, para a ação
+ *  do turno ser a mesma peça da ação do cadastro e da carteira. `onclick` continua sendo
+ *  atribuição, e não `addEventListener`: há chamador que troca a ação do botão depois de
+ *  montá-lo, e com dois registros a ação antiga continuaria disparando. */
 export function botaoTurno(texto: string, acao: () => void, principal = false) {
-  const botao = elementoTurno('button', texto);
-  botao.type = 'button';
-  botao.className = principal ? 'button-primary' : 'button-secondary';
-  botao.onclick = acao;
-  return botao;
+  const elemento = botaoDaCamada({ rotulo: texto, peso: principal ? 'principal' : 'secundario' });
+  elemento.onclick = acao;
+  return elemento;
 }
 export function estadoTurno(texto = '') {
   const estado = elementoTurno('p', texto);

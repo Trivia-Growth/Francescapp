@@ -13,6 +13,7 @@ import {
   dataLocalTurno,
   estadoTurno,
 } from './turno-execucao-campos.ts';
+import { botao } from './ui/basicos.js';
 
 export type ClasseExecucao = ConteudoExecucaoPublico['classe'];
 export const rotulosClasse: Record<ClasseExecucao, string> = {
@@ -403,11 +404,12 @@ export function montarEditorExecucao(
   const motivo = contexto.atual
     ? campoTurno(grupo, 'Motivo da retificação', { longo: true })
     : null;
-  const salvar = el('button', contexto.atual ? 'Salvar retificação' : 'Registrar');
-  salvar.type = 'submit';
-  salvar.className = 'button-primary';
-  const cancelar = el('button', 'Cancelar edição');
-  cancelar.type = 'button';
+  const salvar = botao({
+    rotulo: contexto.atual ? 'Salvar retificação' : 'Registrar',
+    tipo: 'submit',
+    peso: 'principal',
+  });
+  const cancelar = botao({ rotulo: 'Cancelar edição', peso: 'secundario' });
   cancelar.onclick = opcoes.cancelar;
   grupo.append(salvar, cancelar);
   form.append(grupo, status);

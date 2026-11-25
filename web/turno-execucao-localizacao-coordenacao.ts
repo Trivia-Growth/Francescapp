@@ -11,6 +11,7 @@ import {
 } from './turno-execucao-campos.ts';
 import { criarEntregaArquivoTurno } from './turno-execucao-arquivos.ts';
 import { dataTurno } from './turno-execucao-leitura.ts';
+import { botao } from './ui/basicos.js';
 export function montarLocalizacaoCoordenacao(
   raiz: HTMLElement,
   servico: ServicoTurnoExecucao,
@@ -46,8 +47,11 @@ export function montarLocalizacaoCoordenacao(
     tipo: 'datetime-local',
     valor: dataLocalTurno(amanha.toISOString()),
   });
-  const consultarTurnos = el('button', 'Consultar turnos autorizados');
-  consultarTurnos.type = 'submit';
+  const consultarTurnos = botao({
+    rotulo: 'Consultar turnos autorizados',
+    tipo: 'submit',
+    peso: 'principal',
+  });
   grupo.append(consultarTurnos);
   form.append(grupo);
   const selecao = el('fieldset');
@@ -66,8 +70,11 @@ export function montarLocalizacaoCoordenacao(
   pdfGrupo.append(el('legend', 'Exportar localização separadamente'));
   const destinatario = campoTurno(pdfGrupo, 'Destinatário');
   const proposito = campoTurno(pdfGrupo, 'Propósito', { longo: true });
-  const emitir = el('button', 'Emitir PDF restrito de localização');
-  emitir.type = 'submit';
+  const emitir = botao({
+    rotulo: 'Emitir PDF restrito de localização',
+    tipo: 'submit',
+    peso: 'principal',
+  });
   pdfGrupo.append(emitir);
   pdfForm.append(pdfGrupo);
   const conferir = botaoTurno('Conferir emissão restrita anterior', () => void conferirPdf());
