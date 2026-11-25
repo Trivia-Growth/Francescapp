@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { aguardarConfirmacao } from './confirmacao-prova.js';
 import {
   hashFicha,
   iniciais,
@@ -43,7 +44,7 @@ function secao(nome: string, extra: Partial<SecaoFicha> = {}) {
 }
 
 function abrir(secoes: SecaoFicha[], extra: Partial<OpcoesFicha> = {}) {
-  const confirmar = vi.fn(() => true);
+  const confirmar = vi.fn(async () => true);
   const aoSelecionar = vi.fn();
   const aoVoltar = vi.fn();
   const ficha = montarFicha({
@@ -154,33 +155,38 @@ it('indica seção sem fonte como em breve, sem dados nem ação de gravação',
   expect(um.desmontar).toHaveBeenCalledTimes(1);
 });
 
-it('pede confirmação ao sair de seção com alteração pendente e respeita a recusa', () => {
+it('pede confirmação ao sair de seção com alteração pendente e respeita a recusa', async () => {
   const um = secao('anamnese', { descarte: 'Descartar anamnese?' });
   const dois = secao('plano');
   const { confirmar } = abrir([um.definicao, dois.definicao]);
   um.pendenteRef.atual?.(true);
-  confirmar.mockReturnValueOnce(false);
+  confirmar.mockResolvedValueOnce(false);
   aba('plano').click();
+  await aguardarConfirmacao();
   expect(confirmar).toHaveBeenCalledWith('Descartar anamnese?');
   expect(aba('anamnese').getAttribute('aria-selected')).toBe('true');
   expect(um.desmontar).not.toHaveBeenCalled();
   expect(document.activeElement).toBe(aba('anamnese'));
   aba('plano').click();
+  await aguardarConfirmacao();
   expect(um.desmontar).toHaveBeenCalledTimes(1);
   expect(aba('plano').getAttribute('aria-selected')).toBe('true');
 });
 
-it('pede confirmação ao voltar com alteração pendente e só então avisa a saída', () => {
+it('pede confirmação ao voltar com alteração pendente e só então avisa a saída', async () => {
   const um = secao('anamnese');
   const { confirmar, aoVoltar } = abrir([um.definicao]);
   document.getElementById('ficha-voltar')?.click();
+  await aguardarConfirmacao();
   expect(confirmar).not.toHaveBeenCalled();
   expect(aoVoltar).toHaveBeenCalledTimes(1);
   um.pendenteRef.atual?.(true);
-  confirmar.mockReturnValueOnce(false);
+  confirmar.mockResolvedValueOnce(false);
   document.getElementById('ficha-voltar')?.click();
+  await aguardarConfirmacao();
   expect(aoVoltar).toHaveBeenCalledTimes(1);
   document.getElementById('ficha-voltar')?.click();
+  await aguardarConfirmacao();
   expect(aoVoltar).toHaveBeenCalledTimes(2);
 });
 

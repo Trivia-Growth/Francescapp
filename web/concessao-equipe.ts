@@ -2,6 +2,7 @@ import { iniciarAcao } from './esqueleto.js';
 import { criarConcessaoEquipeSchema } from '../packages/contracts/src/index.js';
 import type { ClienteFFCM } from './api.js';
 import { criarCicloConcessaoEquipe } from './ciclo-concessao-equipe.js';
+import { confirmar } from './confirmacao.js';
 
 // Preparação isolada: não montar até existir capacidade e recuperação entre sessões comprovadas.
 export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () => void {
@@ -170,9 +171,13 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
       if (!estado.resultado_pendente) {
         if (
           estado.reserva &&
-          !window.confirm(
-            'Há uma operação em andamento, possivelmente em outra aba. Encerrá-la afetará todas as abas. Continuar?',
-          )
+          !(await confirmar({
+            titulo: 'Encerrar a operação em andamento?',
+            detalhe:
+              'A operação pode estar aberta em outra aba. Encerrá-la afeta todas as abas desta pessoa.',
+            acao: 'Encerrar a operação',
+            cancelar: 'Deixar como está',
+          }))
         )
           throw new Error();
         await ciclo.encerrar();
@@ -199,9 +204,13 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
           } while (!encontrada && cursor);
           if (
             !encontrada ||
-            !window.confirm(
-              `O convite enviado antes para ${encontrada.email} está ${encontrada.estado}, como ${encontrada.perfil}. Confere?`,
-            )
+            !(await confirmar({
+              titulo: `O convite enviado antes para ${encontrada.email} está ${encontrada.estado}, como ${encontrada.perfil}. Confere?`,
+              detalhe:
+                'Confirmar encerra a conferência e libera novos convites. Cancelar mantém a tela conferindo.',
+              acao: 'Confere, pode seguir',
+              cancelar: 'Não confere',
+            }))
           )
             throw new Error();
         }

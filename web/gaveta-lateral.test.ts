@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
+import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
 const sessionId = '20000000-0000-4000-8000-000000000001';
@@ -132,7 +133,7 @@ it('mantém ficha, rascunho e gaveta quando descarte é cancelado', async () => 
   sessionStorage.setItem('modo-acesso', 'tecnica');
   sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
   sessionStorage.setItem('sessao-tecnica', sessionId);
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const confirmacoes = responderConfirmacoes(false);
   vi.stubGlobal('fetch', async (url: URL) => {
     if (url.pathname === '/api/sessao')
       return envelope({
@@ -171,12 +172,14 @@ it('mantém ficha, rascunho e gaveta quando descarte é cancelado', async () => 
   const rota = window.location.hash;
   document.getElementById('toggle-sidebar')?.click();
   document.getElementById('nav-home')?.click();
-  expect(confirmar).toHaveBeenCalledTimes(1);
+  await aguardarConfirmacao();
+  expect(confirmacoes.chamadas).toHaveLength(1);
+  expect(confirmacoes.chamadas[0]).toContain('Sair e descartar o que ainda não foi confirmado?');
   expect(window.location.hash).toBe(rota);
   expect(document.getElementById('ficha-view')?.hidden).toBe(false);
   expect(campo.value).toBe('Rascunho fictício');
   expect(document.getElementById('patients-sidebar')?.classList.contains('open')).toBe(true);
-  confirmar.mockRestore();
+  confirmacoes.encerrar();
 });
 
 /** A navegação recolhida voltava inteira na carga seguinte, e o recolher parecia não ter

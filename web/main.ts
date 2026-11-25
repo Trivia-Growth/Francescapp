@@ -108,6 +108,7 @@ import { montarConcessaoEquipe } from './concessao-equipe.js';
 import { montarFiltrosCarteira, montarSinalCarteira } from './filtros-carteira.js';
 import { montarTranscricaoAudio } from './transcricao-audio.js';
 import { criarServicoTranscricaoHttp } from './servico-transcricao-http.js';
+import { confirmar } from './confirmacao.js';
 import type { FiltrosCarteira } from '../packages/contracts/src/cadastro.js';
 import {
   criarCatalogoResponsaveis,
@@ -515,6 +516,18 @@ const descarteCrise =
   'Há alterações do plano de crise não confirmadas. Ao sair, elas serão descartadas e um salvamento incerto não poderá ser confirmado nesta tela. Deseja continuar?';
 const descarteDiario =
   'Há um registro do diário não confirmado. Ao sair, ele será descartado. Deseja continuar?';
+
+/** Cada seção já descreve o que se perde ao sair; o que mudou foi onde a pergunta aparece.
+ *  A frase final "Deseja continuar?" sai do texto porque os dois botões agora dizem, cada
+ *  um, o que acontece ao serem escolhidos. */
+function confirmarSaidaDaSecao(mensagem: string): Promise<boolean> {
+  return confirmar({
+    titulo: 'Sair e descartar o que ainda não foi confirmado?',
+    detalhe: mensagem.replace(/\s*Deseja (continuar|sair)\?\s*$/, ''),
+    acao: 'Sair e descartar',
+    cancelar: 'Continuar nesta seção',
+  });
+}
 
 // As áreas do diário vêm da configuração em banco (FR-009); enquanto a consulta não
 // responde, a tela monta sem sugestão de área em vez de esperar. A consulta só sai quando
@@ -1369,7 +1382,7 @@ function abrirFicha(paciente: PacienteFicha, secao: string | undefined, empilhar
     secoes: secoesAtual,
     primarias: destinosPrimarios(secoesAtual),
     ...(secao ? { secaoInicial: secao } : {}),
-    confirmar: (mensagem) => window.confirm(mensagem),
+    confirmar: confirmarSaidaDaSecao,
     aoSelecionar: (escolhida) => {
       registrarRota(paciente.id, escolhida, primeira);
       primeira = false;
@@ -2117,10 +2130,10 @@ function navegarPelaRota(): void {
 
 /** Sair da ficha por um link do menu precisa respeitar a mesma confirmação do botão
  * voltar: o rascunho não confirmado se perde do mesmo jeito. */
-function sairDaFichaPermitido(): boolean {
+async function sairDaFichaPermitido(): Promise<boolean> {
   const pendencia = pendenciaFicha();
   if (!pendencia) return true;
-  return window.confirm(pendencia.mensagem);
+  return confirmarSaidaDaSecao(pendencia.mensagem);
 }
 
 /** Retorna se a sessão, usuário ou perfil mudou. */
@@ -2720,7 +2733,9 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
 
 async function sair(): Promise<void> {
   const pendencia = pendenciaFicha();
-  if (logoutOcupado || (pendencia && !window.confirm(pendencia.mensagem))) return;
+  if (logoutOcupado) return;
+  if (pendencia && !(await confirmarSaidaDaSecao(pendencia.mensagem))) return;
+  if (logoutOcupado) return;
   trocarRota('#home');
   logoutOcupado = true;
   ciclo = null;
@@ -2818,7 +2833,7 @@ async function revalidarAcesso(): Promise<void> {
         if (acessoPerdido(erro)) return;
         if (planoAberto === plano) {
           const rascunhoDescartado = pendenciaFicha()?.secao === 'plano';
-          ficha?.selecionar('visao', { confirmar: false });
+          void ficha?.selecionar('visao', { confirmar: false });
           aviso(
             'workspace-feedback',
             rascunhoDescartado
@@ -2913,8 +2928,19 @@ window.addEventListener('popstate', () => {
   const rota = lerRotaFicha(window.location.hash);
   if (!rota && ficha && fichaPaciente) {
     const pendencia = pendenciaFicha();
-    if (pendencia && !window.confirm(pendencia.mensagem)) {
-      registrarRota(fichaPaciente.id, ficha.secaoAtual(), true);
+    if (pendencia) {
+      // Voltar pelo navegador já mudou o endereço: se a resposta for não, a rota da ficha
+      // é registrada de novo, como antes — só que agora depois de uma pergunta visível.
+      const pacienteId = fichaPaciente.id;
+      const secao = ficha.secaoAtual();
+      void (async () => {
+        if (!(await confirmarSaidaDaSecao(pendencia.mensagem))) {
+          registrarRota(pacienteId, secao, true);
+          return;
+        }
+        fecharGavetaLateral();
+        navegarPelaRota();
+      })();
       return;
     }
   }
@@ -2931,9 +2957,18 @@ for (const [id, destino] of [
 ] as const)
   elemento(id).addEventListener('click', (evento) => {
     evento.preventDefault();
-    if (!sairDaFichaPermitido()) return;
-    fecharGavetaLateral();
-    irPara(destino);
+    const pendencia = pendenciaFicha();
+    // Sem rascunho não há o que perguntar: o destino abre no mesmo quadro, como sempre.
+    if (!pendencia) {
+      fecharGavetaLateral();
+      irPara(destino);
+      return;
+    }
+    void (async () => {
+      if (!(await confirmarSaidaDaSecao(pendencia.mensagem))) return;
+      fecharGavetaLateral();
+      irPara(destino);
+    })();
   });
 elemento('administracao-abas').addEventListener('click', (evento) => {
   const alvo = (evento.target as HTMLElement | null)?.closest('a.administracao-aba');

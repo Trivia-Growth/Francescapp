@@ -34,7 +34,8 @@ export type OpcoesFicha = {
   /** Ids que ficam na primeira faixa; os demais entram em "Mais seções". Sem esta lista, ou
    * se ela cobrir todas as seções recebidas, a ficha mantém a faixa única de sempre. */
   primarias?: readonly string[];
-  confirmar: (mensagem: string) => boolean;
+  /** Assíncrona desde que a confirmação passou a ser desenhada na própria página. */
+  confirmar: (mensagem: string) => Promise<boolean>;
   aoSelecionar: (secao: string) => void;
   aoVoltar: () => void;
 };
@@ -42,7 +43,7 @@ export type OpcoesFicha = {
 export type Ficha = {
   secaoAtual(): string;
   pendencia(): { secao: string; mensagem: string } | null;
-  selecionar(secao: string, opcoes?: { confirmar?: boolean }): boolean;
+  selecionar(secao: string, opcoes?: { confirmar?: boolean }): Promise<boolean>;
   /** Remove o conteúdo carregado da seção atual e invalida respostas pendentes. */
   limparSecao(): void;
   remontarSecao(): void;
@@ -139,7 +140,7 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
     const atalho = elemento('button', 'button-secondary', rotulo);
     atalho.type = 'button';
     atalho.addEventListener('click', () => {
-      selecionar(secao.id);
+      void selecionar(secao.id);
     });
     acoes.append(atalho);
   }
@@ -191,7 +192,9 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
     aba.append(secao.rotulo);
     if (!secao.montar) aba.append(' ', elemento('span', 'ficha-aba-estado', 'em breve'));
     aba.addEventListener('click', () => {
-      if (!selecionar(secao.id)) botoes.get(atual)?.focus();
+      void (async () => {
+        if (!(await selecionar(secao.id))) botoes.get(atual)?.focus();
+      })();
     });
     botoes.set(secao.id, aba);
     return aba;
@@ -270,12 +273,18 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
     }
   }
 
-  function selecionar(id: string, { confirmar = true }: { confirmar?: boolean } = {}): boolean {
+  // Sem confirmação a troca continua acontecendo no mesmo quadro: nenhum `await` é
+  // avaliado antes de montar a seção, então a aba responde na hora como sempre respondeu.
+  async function selecionar(
+    id: string,
+    { confirmar = true }: { confirmar?: boolean } = {},
+  ): Promise<boolean> {
     if (!ativa) return false;
     const alvo = secoes.find((secao) => secao.id === id);
     if (!alvo) return false;
     if (id === atual) return true;
-    if (confirmar && pendente && !opcoes.confirmar(mensagemAtual())) return false;
+    if (confirmar && pendente && !(await opcoes.confirmar(mensagemAtual()))) return false;
+    if (!ativa || atual === id) return false;
     descartarSecao();
     atual = id;
     marcarAbas();
@@ -285,8 +294,10 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
   }
 
   voltar.addEventListener('click', () => {
-    if (pendente && !opcoes.confirmar(mensagemAtual())) return;
-    opcoes.aoVoltar();
+    void (async () => {
+      if (pendente && !(await opcoes.confirmar(mensagemAtual()))) return;
+      opcoes.aoVoltar();
+    })();
   });
 
   // Restrito à faixa primária: as demais seções vivem em "Mais seções" e seguem a ordem
@@ -319,7 +330,7 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
   });
 
   const inicial = secoes.find((secao) => secao.id === opcoes.secaoInicial) ?? secoes[0];
-  if (inicial) selecionar(inicial.id, { confirmar: false });
+  if (inicial) void selecionar(inicial.id, { confirmar: false });
 
   return {
     secaoAtual: () => atual,

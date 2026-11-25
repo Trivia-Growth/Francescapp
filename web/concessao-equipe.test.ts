@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
+import { responderConfirmacoes } from './confirmacao-prova.js';
 import { montarConcessaoEquipe } from './concessao-equipe.ts';
 import type { ClienteFFCM } from './api.ts';
 
@@ -11,7 +12,7 @@ const vazia = { epoca: 2, reserva: null, resultado_pendente: null };
 
 it('recupera resultado confirmado após recarga antes de permitir nova solicitação', async () => {
   const raiz = document.createElement('div');
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  const confirmacoes = responderConfirmacoes(true);
   const api = {
     identidadeAtual: () => ({ usuario_id: ator, session_id: ator }),
     consultarBarreiraEquipe: vi
@@ -43,10 +44,10 @@ it('recupera resultado confirmado após recarga antes de permitir nova solicita�
   } as unknown as ClienteFFCM;
   montarConcessaoEquipe(raiz, api);
   await vi.waitFor(() => expect(raiz.textContent).toContain('Tudo conferido'));
-  expect(confirmar).toHaveBeenCalledWith(expect.stringContaining('revogada'));
+  expect(confirmacoes.chamadas.join(' ')).toContain('revogada');
   expect(api.reconhecerBarreiraEquipe).toHaveBeenCalledWith({ comando_id: recibo });
   expect(raiz.querySelector('fieldset')?.disabled).toBe(false);
-  confirmar.mockRestore();
+  confirmacoes.encerrar();
 });
 
 it('não reconhece resultado que não foi identificado', async () => {
