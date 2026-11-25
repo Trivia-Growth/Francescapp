@@ -95,6 +95,21 @@ Ordem por impacto no que o solicitante vê primeiro.
       frase com `data-tone="error"` na falha, sempre em `role="status"`. Coberto por
       teste em `web/concessao-equipe.test.ts` (conteúdo, estado por linha e falha).
 
+## 3-bis. Confirmações
+
+Achado em 25/11/2026 na aba Equipe: ao conferir convites pendentes, a tela abria um
+`window.confirm` do navegador. O diálogo nativo fica ACIMA da página, bloqueia tudo e não
+aparece no conteúdo — quem olhava a tela via só "Conferindo…" parado para sempre. Eu mesmo
+diagnostiquei errado como estado perdido antes de encontrar o diálogo aberto.
+
+- [ ] 3b.1 Um diálogo de confirmação próprio, com `<dialog>`, foco presa, Esc, botão de
+      cancelar como ação segura e o texto da consequência em vez de "Continuar?".
+- [ ] 3b.2 Trocar as 46 chamadas de `window.confirm` em 18 arquivos. São síncronas; o
+      diálogo é assíncrono, então cada chamada vira `await` e a função envolvente precisa
+      ser `async`. `web/demonstracao.ts` concentra 17 delas.
+- [ ] 3b.3 Nenhuma confirmação pode ficar invisível: teste que garanta que o diálogo está
+      no documento e recebe foco.
+
 ## 4. Navegação
 
 - [x] 4.1 Recolher a navegação lateral precisa recolher. Hoje o botão troca o rótulo e os
