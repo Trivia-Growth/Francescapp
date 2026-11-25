@@ -7,7 +7,13 @@ import {
   criarEntradaConcessoesEquipeNativa,
 } from './_shared/entrada-concessoes-equipe-nativa.ts';
 
-export const config = { path: caminhoConcessoesEquipe };
+/** O caminho precisa ser LITERAL aqui. A plataforma lê `config` estaticamente, no build, sem
+ * executar o módulo: uma constante importada não é resolvida, e a função sobe publicada e
+ * **sem rota**. Em 24/11/2026 era o caso desta: `/api/admin/concessoes-equipe` devolvia a
+ * página 404 da própria plataforma, e a aba Equipe da Administração não funcionava em
+ * produção. `caminhoConcessoesEquipe` continua sendo a fonte do handler; o teste
+ * `_shared/rotas-literais.test.ts` confere que os dois não se separem. */
+export const config = { path: ['/api/admin/concessoes-equipe'] };
 
 let entrada: ReturnType<typeof criarEntradaConcessoesEquipeNativa> | undefined;
 let dependencias: ReturnType<typeof configurarDependenciasNativas> | undefined;
