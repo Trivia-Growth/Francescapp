@@ -1,3 +1,8 @@
+/* A camada de componente (`web/ui/`) entra antes de tudo: as telas que já existem
+   continuam podendo sobrescrever o que precisarem, e o que é compartilhado fica
+   num arquivo só em vez de repetido em 246 arquivos de tela. */
+@import url("./ui/ui.css");
+
 /* Fontes provisórias do mock (OFL), reduzidas a latim. Trocar os arquivos e
    as duas variáveis --font-* basta para adotar as fontes definitivas da marca. */
 @font-face {
