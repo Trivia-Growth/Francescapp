@@ -4,6 +4,7 @@ import { montarOperacoesAgenda } from './agenda-operacoes.js';
 import { descreverRealizacao, montarRealizacaoAgenda } from './realizacao-compromisso.js';
 import { criarServicoRealizacaoCompromissoHttp } from './servico-realizacao-compromisso-http.js';
 import type { RealizacaoCompromisso } from '../packages/contracts/src/realizacao-compromisso.ts';
+import { confirmar } from './confirmacao.js';
 
 type Compromisso = { id: string; inicio: string; fim: string; titulo: string; etag?: string };
 
@@ -351,9 +352,13 @@ export function montarAgendaIndividual(
             retirar.setAttribute('aria-label', `Retirar vínculo com ${vinculo.nome}`);
             retirar.addEventListener('click', async () => {
               if (
-                !window.confirm(
-                  `Retirar o vínculo com ${vinculo.nome}? O compromisso permanecerá no Google Calendar.`,
-                )
+                !(await confirmar({
+                  titulo: `Retirar o vínculo com ${vinculo.nome}?`,
+                  detalhe:
+                    'O compromisso continua existindo no Google Calendar; ele apenas deixa de aparecer ligado a esta pessoa.',
+                  acao: 'Retirar vínculo',
+                  cancelar: 'Manter vínculo',
+                }))
               )
                 return;
               retirar.disabled = true;
@@ -547,35 +552,41 @@ export function montarAgendaIndividual(
     }
   }
   desconectar.addEventListener('click', () => {
-    if (
-      !versaoConexao ||
-      !operacaoConexao ||
-      !autorizacaoDesconexao ||
-      !armazenamentoDisponivel ||
-      !window.confirm(
-        'Desconectar a agenda Google? Será necessário autorizar novamente para voltar a usá-la.',
+    void (async () => {
+      if (
+        !versaoConexao ||
+        !operacaoConexao ||
+        !autorizacaoDesconexao ||
+        !armazenamentoDisponivel ||
+        !(await confirmar({
+          titulo: 'Desconectar a agenda Google?',
+          detalhe:
+            'Os compromissos deixam de ser sincronizados e será necessário autorizar o Google de novo para voltar a usá-la.',
+          acao: 'Desconectar a agenda',
+          cancelar: 'Manter conectada',
+        }))
       )
-    )
-      return;
-    const pedido = { operacao_id: operacaoConexao, versao: versaoConexao };
-    try {
-      localStorage.setItem(marcadorDesconexao, JSON.stringify(pedido));
-    } catch {
-      status.textContent = 'Não foi possível preparar a desconexão com segurança.';
-      return;
-    }
-    pedidoDesconexao = pedido;
-    suspensa = true;
-    conectar.disabled = desconectar.disabled = atualizar.disabled = true;
-    consulta += 1;
-    finalizarConsulta?.();
-    finalizarConsulta = undefined;
-    lista.removeAttribute('aria-busy');
-    lista.replaceChildren();
-    vinculos.ocultar();
-    realizacao.ocultar();
-    operacoesRaiz.hidden = true;
-    void enviarDesconexao();
+        return;
+      const pedido = { operacao_id: operacaoConexao, versao: versaoConexao };
+      try {
+        localStorage.setItem(marcadorDesconexao, JSON.stringify(pedido));
+      } catch {
+        status.textContent = 'Não foi possível preparar a desconexão com segurança.';
+        return;
+      }
+      pedidoDesconexao = pedido;
+      suspensa = true;
+      conectar.disabled = desconectar.disabled = atualizar.disabled = true;
+      consulta += 1;
+      finalizarConsulta?.();
+      finalizarConsulta = undefined;
+      lista.removeAttribute('aria-busy');
+      lista.replaceChildren();
+      vinculos.ocultar();
+      realizacao.ocultar();
+      operacoesRaiz.hidden = true;
+      void enviarDesconexao();
+    })();
   });
   reconciliarDesconexao.addEventListener('click', async () => {
     if (!pedidoDesconexao) return;
@@ -636,8 +647,17 @@ export function montarAgendaIndividual(
     }
   });
   cancelarDesconexao.addEventListener('click', async () => {
-    if (!pedidoDesconexao || !window.confirm('Cancelar a tentativa pendente de desconexão?'))
+    if (!pedidoDesconexao) return;
+    if (
+      !(await confirmar({
+        titulo: 'Cancelar a tentativa pendente de desconexão?',
+        detalhe: 'A agenda continua conectada e a desconexão não será concluída.',
+        acao: 'Cancelar a desconexão',
+        cancelar: 'Manter a tentativa',
+      }))
+    )
       return;
+    if (!pedidoDesconexao) return;
     cancelarDesconexao.disabled = reconciliarDesconexao.disabled = true;
     status.textContent = 'Cancelando tentativa…';
     const finalizar = iniciarAcao(cancelarDesconexao);

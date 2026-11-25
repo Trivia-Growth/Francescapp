@@ -1,4 +1,5 @@
 import { esqueletoCarregando } from './esqueleto.js';
+import { confirmar } from './confirmacao.js';
 
 type Pagina = { itens: readonly { id: string; nome: string }[]; proximo_cursor: string | null };
 
@@ -76,7 +77,18 @@ export function montarVinculoAgenda(
     }
   }
   async function vincular(pacienteId: string, nome: string) {
-    if (ocupado || !eventoId || !window.confirm(`Vincular este compromisso a ${nome}?`)) return;
+    if (ocupado || !eventoId) return;
+    if (
+      !(await confirmar({
+        titulo: `Vincular este compromisso a ${nome}?`,
+        detalhe: 'O compromisso passa a aparecer na agenda desta pessoa.',
+        acao: 'Vincular',
+        cancelar: 'Não vincular',
+      }))
+    )
+      return;
+    // A pergunta é assíncrona: o estado pode ter mudado enquanto ela estava na tela.
+    if (ocupado || !eventoId) return;
     ocupado = true;
     lista.replaceChildren();
     anterior.disabled = seguinte.disabled = fechar.disabled = true;

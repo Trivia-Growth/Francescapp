@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
+import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
 import { montarDiario, type ConversaoEmTarefa } from './diario.ts';
 import { registroDiarioSchema, type RegistroDiario } from '../packages/contracts/src/diario.ts';
 
@@ -113,14 +114,16 @@ it('versão alterada bloqueia montagem antiga e só descarta campos após ação
   const reabrir = [...raiz.querySelectorAll('button')].find(
     (botao) => botao.textContent === 'Descartar campos e usar versão atual',
   );
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const confirmacoes = responderConfirmacoes(false);
   reabrir?.click();
+  await aguardarConfirmacao();
   expect(limpar).not.toHaveBeenCalled();
-  confirmar.mockReturnValue(true);
+  confirmacoes.resposta = true;
   reabrir?.click();
+  await aguardarConfirmacao();
   expect(limpar).toHaveBeenCalledTimes(1);
   expect(montar).toHaveBeenCalledTimes(2);
   expect(montar.mock.calls[1]?.[1].versao).toBe(2);
   desmontar();
-  confirmar.mockRestore();
+  confirmacoes.encerrar();
 });

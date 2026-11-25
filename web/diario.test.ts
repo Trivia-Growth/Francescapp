@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
 import type { RegistroDiario } from '../packages/contracts/src/diario.ts';
+import { responderConfirmacoes } from './confirmacao-prova.js';
 import { montarDiario, type ServicoDiarioTela } from './diario.js';
 import { FalhaApi } from './api.js';
 
@@ -218,10 +219,7 @@ it('retomar rascunho confirma descarte e mantém somente um formulário familiar
     conteudo: { dataAcontecimento: '2026-11-05', descricao: 'Rascunho salvo' },
   });
   const pendente = vi.fn();
-  const confirmacao = vi
-    .spyOn(window, 'confirm')
-    .mockReturnValueOnce(false)
-    .mockReturnValueOnce(true);
+  const confirmacao = responderConfirmacoes(false);
   montarDiario(
     raiz,
     pacienteId,
@@ -244,14 +242,17 @@ it('retomar rascunho confirma descarte e mantém somente um formulário familiar
   );
   if (!retomar) throw new Error('Retomada indisponível.');
   retomar.click();
+  await esperar();
   expect(raiz.querySelector('form textarea')?.value).toBe('Novo relato pendente');
   expect(pendente).toHaveBeenLastCalledWith(true);
+  confirmacao.resposta = true;
   retomar.click();
+  await esperar();
   expect(raiz.querySelectorAll('form')).toHaveLength(1);
   expect(raiz.querySelector('form textarea')?.value).toBe('Rascunho salvo');
   expect(pendente).toHaveBeenLastCalledWith(false);
-  expect(confirmacao).toHaveBeenCalledTimes(2);
-  confirmacao.mockRestore();
+  expect(confirmacao.chamadas).toHaveLength(2);
+  confirmacao.encerrar();
 });
 
 it('oculta leituras antigas e reconsulta ao voltar sem perder edição familiar', async () => {
@@ -308,10 +309,7 @@ it('retificar troca editor familiar somente após confirmar descarte', async () 
     audiencia: 'equipe',
     conteudo: { dataAcontecimento: '2026-11-05', descricao: 'Relato publicado' },
   });
-  const confirmacao = vi
-    .spyOn(window, 'confirm')
-    .mockReturnValueOnce(false)
-    .mockReturnValueOnce(true);
+  const confirmacao = responderConfirmacoes(false);
   const desmontar = montarDiario(
     raiz,
     pacienteId,
@@ -334,12 +332,15 @@ it('retificar troca editor familiar somente após confirmar descarte', async () 
   );
   if (!retificar) throw new Error('Retificação indisponível.');
   retificar.click();
+  await esperar();
   expect(raiz.querySelector('textarea')?.value).toBe('Texto pendente');
+  confirmacao.resposta = true;
   retificar.click();
+  await esperar();
   expect(raiz.querySelectorAll('form')).toHaveLength(1);
   expect(raiz.textContent).toContain('Motivo da retificação');
   desmontar();
-  confirmacao.mockRestore();
+  confirmacao.encerrar();
 });
 
 it('reconsulta familiar negada encerra acesso e remove conteúdo', async () => {

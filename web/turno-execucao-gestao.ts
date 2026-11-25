@@ -14,6 +14,7 @@ import {
   estadoTurno,
 } from './turno-execucao-campos.ts';
 import { rotuloSinal } from './turno-execucao-editor.ts';
+import { confirmarDescarte } from './confirmacao.js';
 
 /** Controles de coordenação aparecem somente após capacidade recebida do servidor. */
 export function montarGestaoExecucaoTurno(
@@ -83,9 +84,9 @@ export function montarGestaoExecucaoTurno(
     }
     status.textContent = mensagemFalha(erro);
   }
-  function podeRedesenhar() {
+  async function podeRedesenhar() {
     if (!rascunho) return true;
-    if (!window.confirm('Descartar alterações de gestão ainda não enviadas?')) return false;
+    if (!(await confirmarDescarte('as alterações de gestão ainda não enviadas'))) return false;
     rascunho = false;
     opcoes.alteracaoPendente?.(false);
     return true;
@@ -253,12 +254,13 @@ export function montarGestaoExecucaoTurno(
     grupo.append(salvar);
     fundamentoForm.append(grupo);
     conteudo.append(fundamentoForm);
-    familiar.onchange = () => {
+    familiar.onchange = async () => {
       if (ocupada || tentativa || !familiar.value) return;
-      if (!podeRedesenhar()) {
+      if (!(await podeRedesenhar())) {
         familiar.value = consultado?.id ?? '';
         return;
       }
+      if (ocupada || tentativa || !familiar.value) return;
       const id = familiar.value;
       consultado = null;
       salvar.disabled = true;
@@ -388,7 +390,7 @@ export function montarGestaoExecucaoTurno(
     }
   }
   async function carregarProfissionais(cursor?: string) {
-    if (!ativa || ocupada || !podeRedesenhar()) return;
+    if (!ativa || ocupada || !(await podeRedesenhar())) return;
     ocupada = true;
     controles();
     try {
@@ -406,7 +408,7 @@ export function montarGestaoExecucaoTurno(
     }
   }
   async function carregarFamiliares(cursor?: string) {
-    if (!ativa || ocupada || !podeRedesenhar()) return;
+    if (!ativa || ocupada || !(await podeRedesenhar())) return;
     ocupada = true;
     controles();
     try {
@@ -423,7 +425,7 @@ export function montarGestaoExecucaoTurno(
     }
   }
   async function carregar() {
-    if (!ativa || ocupada || tentativa || !podeRedesenhar()) return;
+    if (!ativa || ocupada || tentativa || !(await podeRedesenhar())) return;
     ocupada = true;
     controles();
     try {

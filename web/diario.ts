@@ -11,6 +11,7 @@ import type {
 import { relatoTextualSchema } from '../packages/contracts/src/relato-textual.ts';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import type { MontagemConversaoDiario } from './conversao-diario.ts';
+import { confirmar, confirmarDescarte } from './confirmacao.js';
 
 export type ServicoDiarioTela = {
   consultar(pacienteId: string): Promise<RegistroDiario[]>;
@@ -581,10 +582,11 @@ export function montarDiario(
     desenharLeituras();
   };
 
-  const trocarEditorFamiliar = (novo: () => HTMLFormElement) => {
+  const trocarEditorFamiliar = async (novo: () => HTMLFormElement) => {
     if (salvandoFamiliar || !formularioFamiliar) return;
-    if (pendenteFamiliar && !window.confirm('Descartar alterações não salvas do relato atual?'))
+    if (pendenteFamiliar && !(await confirmarDescarte('as alterações não salvas do relato atual')))
       return;
+    if (salvandoFamiliar || !formularioFamiliar) return;
     desmontarFormularios();
     const proximo = novo();
     formularioFamiliar.replaceWith(proximo);
@@ -670,7 +672,7 @@ export function montarDiario(
           const retomar = elemento('button', 'Retomar rascunho');
           retomar.type = 'button';
           retomar.addEventListener('click', () => {
-            trocarEditorFamiliar(() =>
+            void trocarEditorFamiliar(() =>
               formularioRelatoFamiliar((texto) => desenhar(texto), registro),
             );
           });
@@ -680,7 +682,7 @@ export function montarDiario(
           retificar.type = 'button';
           retificar.addEventListener('click', () => {
             if (ehFamilia)
-              trocarEditorFamiliar(() =>
+              void trocarEditorFamiliar(() =>
                 formularioRetificacao(registro, (texto) => desenhar(texto)),
               );
             else retificar.replaceWith(formularioRetificacao(registro, (texto) => desenhar(texto)));
@@ -723,16 +725,22 @@ export function montarDiario(
             reabrir.type = 'button';
             reabrir.className = 'button-secondary';
             reabrir.addEventListener('click', () => {
-              if (
-                pendenciasConversao.has(registro.diario_registro_id) &&
-                !window.confirm(
-                  'Descartar os campos da conversão anterior e abrir a versão atual do registro?',
+              void (async () => {
+                if (
+                  pendenciasConversao.has(registro.diario_registro_id) &&
+                  !(await confirmar({
+                    titulo: 'Descartar os campos da conversão anterior?',
+                    detalhe:
+                      'A versão atual do registro abre no lugar, e o que foi digitado na conversão anterior se perde.',
+                    acao: 'Descartar e abrir a versão atual',
+                    cancelar: 'Manter os campos',
+                  }))
                 )
-              )
-                return;
-              conversoes.get(registro.diario_registro_id)?.montagem.desmontar();
-              conversoes.delete(registro.diario_registro_id);
-              desenharLeituras();
+                  return;
+                conversoes.get(registro.diario_registro_id)?.montagem.desmontar();
+                conversoes.delete(registro.diario_registro_id);
+                desenharLeituras();
+              })();
             });
             conversao.reabrir = reabrir;
             conversao.raiz.append(reabrir);

@@ -32,6 +32,7 @@ import { montarRelatoriosTurno } from './turno-execucao-relatorios.ts';
 import { montarLocalizacaoCoordenacao } from './turno-execucao-localizacao-coordenacao.ts';
 import { montarGestaoExecucaoTurno } from './turno-execucao-gestao.ts';
 import { montarFichaPlantao, type ServicosFichaPlantao } from './ficha-plantao.ts';
+import { confirmarDescarte } from './confirmacao.js';
 
 export function montarExecucaoTurno(
   raiz: HTMLElement,
@@ -137,13 +138,17 @@ export function montarExecucaoTurno(
   reconhecer.hidden = true;
   painelBarreira.append(reciboResumo, reconciliar, reconhecer);
   const cancelar = botaoTurno('Descartar rascunho não enviado', () => {
-    if (tentativa || ocupada) return;
-    if (rascunho && !window.confirm('Descartar as alterações não enviadas deste registro?')) return;
-    editor?.desmontar();
-    editor = null;
-    rascunho = false;
-    pendente('editor')(false);
-    controles();
+    void (async () => {
+      if (tentativa || ocupada) return;
+      if (rascunho && !(await confirmarDescarte('as alterações não enviadas deste registro')))
+        return;
+      if (tentativa || ocupada) return;
+      editor?.desmontar();
+      editor = null;
+      rascunho = false;
+      pendente('editor')(false);
+      controles();
+    })();
   });
   cancelar.hidden = true;
   const atualizarCatalogo = botaoTurno('Atualizar catálogo', () => {
