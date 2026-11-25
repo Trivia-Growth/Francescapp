@@ -8,6 +8,7 @@ const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
 
 afterEach(() => {
   sessionStorage.clear();
+  localStorage.clear();
   vi.unstubAllGlobals();
   vi.resetModules();
   window.history.replaceState(null, '', '/');
@@ -176,4 +177,37 @@ it('mantém ficha, rascunho e gaveta quando descarte é cancelado', async () => 
   expect(campo.value).toBe('Rascunho fictício');
   expect(document.getElementById('patients-sidebar')?.classList.contains('open')).toBe(true);
   confirmar.mockRestore();
+});
+
+/** A navegação recolhida voltava inteira na carga seguinte, e o recolher parecia não ter
+ * funcionado. A preferência é de largura e nada mais: nenhum dado de pessoa ou sessão. */
+it('lembra a navegação recolhida na carga seguinte', async () => {
+  document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1280, writable: true });
+  localStorage.setItem('navegacao-recolhida', 'sim');
+  sessionStorage.setItem('modo-acesso', 'tecnica');
+  sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
+  sessionStorage.setItem('sessao-tecnica', sessionId);
+  vi.stubGlobal('fetch', async (url: URL) => {
+    if (url.pathname === '/api/sessao')
+      return envelope({
+        session_id: sessionId,
+        usuario: { id, perfil: 'administrador', ativo: true, versao: 1 },
+        capacidades: [],
+      });
+    if (url.pathname === '/api/pacientes') return envelope({ itens: [], proximo_cursor: null });
+    throw new Error(`Rota inesperada: ${url.pathname}`);
+  });
+  await import('./main.js');
+  await vi.waitFor(() => expect(document.getElementById('patients-view')?.hidden).toBe(false));
+
+  const recolher = document.getElementById('collapse-sidebar') as HTMLButtonElement;
+  expect(document.body.classList.contains('sidebar-collapsed')).toBe(true);
+  expect(recolher.getAttribute('aria-expanded')).toBe('false');
+  expect(recolher.getAttribute('aria-label')).toBe('Expandir navegação');
+
+  recolher.click();
+  expect(document.body.classList.contains('sidebar-collapsed')).toBe(false);
+  expect(recolher.getAttribute('aria-expanded')).toBe('true');
+  expect(localStorage.getItem('navegacao-recolhida')).toBeNull();
 });

@@ -2295,6 +2295,15 @@ body:has(#patients-view:not([hidden])) .topbar .brand {
   width: var(--sidebar-width);
   padding: 28px 20px 24px;
 }
+/* Recolher trocava 248px por 80px num quadro só. O salto era lido como a tela quebrando,
+   e não como a navegação cedendo espaço. Mudança de contexto, na duração de contexto. */
+.patients-sidebar,
+body:has(#patients-view:not([hidden])) .topbar,
+body:has(#patients-view:not([hidden])) main,
+body:has(#patients-view:not([hidden])) .footer {
+  transition: width var(--mov-contexto) var(--curva-entrada), margin-left var(--mov-contexto)
+    var(--curva-entrada);
+}
 .sidebar-brand img {
   display: block;
   width: 64px;

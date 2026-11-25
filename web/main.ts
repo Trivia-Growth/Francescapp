@@ -417,8 +417,13 @@ toggleSidebar.addEventListener('click', () => {
   if (patientsSidebar.classList.contains('open')) fecharGavetaLateral(true);
   else abrirGavetaLateral();
 });
-collapseSidebar.addEventListener('click', () => {
-  const recolhida = document.body.classList.toggle('sidebar-collapsed');
+/** Preferência de largura da navegação, e nada além disso: nenhum dado de pessoa, caso
+ *  ou sessão entra aqui. Sem a lembrança, recolher durava até a próxima carga e parecia
+ *  não ter funcionado. Navegador que recusa armazenamento continua com a barra inteira. */
+const CHAVE_NAVEGACAO_RECOLHIDA = 'navegacao-recolhida';
+
+function aplicarNavegacaoRecolhida(recolhida: boolean): void {
+  document.body.classList.toggle('sidebar-collapsed', recolhida);
   collapseSidebar.setAttribute('aria-expanded', String(!recolhida));
   collapseSidebar.setAttribute(
     'aria-label',
@@ -426,6 +431,23 @@ collapseSidebar.addEventListener('click', () => {
   );
   const simbolo = collapseSidebar.querySelector('span');
   if (simbolo) simbolo.textContent = recolhida ? '›' : '‹';
+}
+
+try {
+  if (localStorage.getItem(CHAVE_NAVEGACAO_RECOLHIDA) === 'sim') aplicarNavegacaoRecolhida(true);
+} catch {
+  // Armazenamento bloqueado não impede navegar: fica a largura inteira.
+}
+
+collapseSidebar.addEventListener('click', () => {
+  const recolhida = !document.body.classList.contains('sidebar-collapsed');
+  aplicarNavegacaoRecolhida(recolhida);
+  try {
+    if (recolhida) localStorage.setItem(CHAVE_NAVEGACAO_RECOLHIDA, 'sim');
+    else localStorage.removeItem(CHAVE_NAVEGACAO_RECOLHIDA);
+  } catch {
+    // A preferência vale para esta carga mesmo sem poder ser lembrada.
+  }
   ocultarTooltips();
 });
 closeSidebar.addEventListener('click', () => fecharGavetaLateral(true));
