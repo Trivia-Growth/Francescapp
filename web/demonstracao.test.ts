@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
+import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -467,7 +468,7 @@ it('avisa sobre alterações não guardadas antes de sair da anamnese', async ()
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const confirmacoes = responderConfirmacoes(false);
   servidorFicticio();
   await import('./demonstracao.js');
   await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
@@ -478,12 +479,14 @@ it('avisa sobre alterações não guardadas antes de sair da anamnese', async ()
   campo.dispatchEvent(new Event('input', { bubbles: true }));
   expect(document.getElementById('anamnese-feedback')?.textContent).toContain('não guardadas');
   document.getElementById('back-patients')?.click();
-  expect(confirmar).toHaveBeenCalled();
+  await aguardarConfirmacao();
+  expect(confirmacoes.chamadas).not.toHaveLength(0);
   expect(document.getElementById('anamnese-view')?.hidden).toBe(false);
-  confirmar.mockReturnValue(true);
+  confirmacoes.resposta = true;
   document.getElementById('back-patients')?.click();
+  await aguardarConfirmacao();
   expect(document.getElementById('patients-view')?.hidden).toBe(false);
-  confirmar.mockRestore();
+  confirmacoes.encerrar();
 });
 
 it('recusa estado inválido antes de guardar a anamnese', async () => {
@@ -510,7 +513,7 @@ it('preserva alerta de cadastro ao salvar tarefa e voltar à lista', async () =>
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  const confirmacoes = responderConfirmacoes(true);
   servidorFicticio();
   await import('./demonstracao.js');
   await vi.waitFor(() =>
@@ -530,12 +533,14 @@ it('preserva alerta de cadastro ao salvar tarefa e voltar à lista', async () =>
     expect(document.getElementById('task-feedback')?.textContent).toContain('salva'),
   );
   document.getElementById('tasks-back')?.click();
-  confirmar.mockClear();
-  confirmar.mockReturnValue(false);
+  await aguardarConfirmacao();
+  confirmacoes.chamadas.length = 0;
+  confirmacoes.resposta = false;
   document.getElementById('logout')?.click();
-  expect(confirmar).toHaveBeenCalled();
+  await aguardarConfirmacao();
+  expect(confirmacoes.chamadas).not.toHaveLength(0);
   expect(nome.value).toBe('Rascunho fictício');
-  confirmar.mockRestore();
+  confirmacoes.encerrar();
 });
 
 it('mantém tarefas por paciente e exige registro para concluir sem chamar serviço', async () => {
@@ -585,12 +590,13 @@ it('mantém tarefas por paciente e exige registro para concluir sem chamar servi
   camposEdicao[2].value = '2026-12-15';
   camposEdicao[3].value = 'Alta';
   camposEdicao[3].dispatchEvent(new Event('input', { bubbles: true }));
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const confirmacoes = responderConfirmacoes(false);
   document.getElementById('tasks-back')?.click();
-  expect(confirmar).toHaveBeenCalledOnce();
+  await aguardarConfirmacao();
+  expect(confirmacoes.chamadas).toHaveLength(1);
   expect(document.getElementById('tasks-view')?.hidden).toBe(false);
   expect(camposEdicao[3].value).toBe('Alta');
-  confirmar.mockRestore();
+  confirmacoes.encerrar();
   atualizar.dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() =>
     expect(document.getElementById('tasks-list')?.textContent).toContain('Tarefa revisada'),
@@ -634,7 +640,7 @@ it('confirma descarte de alterações de tarefas ao voltar ou sair', async () =>
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const confirmacoes = responderConfirmacoes(false);
   servidorFicticio();
   await import('./demonstracao.js');
   await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
@@ -646,13 +652,16 @@ it('confirma descarte de alterações de tarefas ao voltar ou sair', async () =>
   campo.value = 'Rascunho fictício';
   campo.dispatchEvent(new Event('input', { bubbles: true }));
   document.getElementById('tasks-back')?.click();
+  await aguardarConfirmacao();
   expect(document.getElementById('tasks-view')?.hidden).toBe(false);
   document.getElementById('logout')?.click();
-  expect(confirmar).toHaveBeenCalledTimes(2);
-  confirmar.mockReturnValue(true);
+  await aguardarConfirmacao();
+  expect(confirmacoes.chamadas).toHaveLength(2);
+  confirmacoes.resposta = true;
   document.getElementById('tasks-back')?.click();
+  await aguardarConfirmacao();
   expect(document.getElementById('patients-view')?.hidden).toBe(false);
-  confirmar.mockRestore();
+  confirmacoes.encerrar();
 });
 
 it('oculta dados ao expirar sessão e preserva rascunho até novo login', async () => {
@@ -660,7 +669,7 @@ it('oculta dados ao expirar sessão e preserva rascunho até novo login', async 
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
   const fetch = servidorFicticio();
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  const confirmacoes = responderConfirmacoes(true);
   await import('./demonstracao.js');
   await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
   (document.querySelector('#patients-body button') as HTMLButtonElement).click();
@@ -693,7 +702,7 @@ it('oculta dados ao expirar sessão e preserva rascunho até novo login', async 
     ?.dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() => expect(document.getElementById('anamnese-view')?.hidden).toBe(false));
   expect(campo.value).toBe('Rascunho fictício');
-  confirmar.mockRestore();
+  confirmacoes.encerrar();
 });
 
 it('guarda objetivos fictícios por paciente e valida campos', async () => {
@@ -807,20 +816,21 @@ it('abre relato fictício isolado e descarta conteúdo ao voltar', async () => {
   if (!descricao) throw new Error('Descrição ausente');
   descricao.value = 'Conteúdo fictício';
   descricao.dispatchEvent(new Event('input', { bubbles: true }));
-  const confirmar = vi
-    .spyOn(window, 'confirm')
-    .mockReturnValueOnce(false)
-    .mockReturnValueOnce(true);
+  const confirmacoes = responderConfirmacoes(false);
   document.getElementById('relato-back')?.click();
+  await aguardarConfirmacao();
   expect(document.getElementById('relato-view')?.hidden).toBe(false);
   expect(descricao.value).toBe('Conteúdo fictício');
+  confirmacoes.resposta = true;
   document.getElementById('relato-back')?.click();
-  expect(confirmar).toHaveBeenCalledTimes(2);
+  await aguardarConfirmacao();
+  expect(confirmacoes.chamadas).toHaveLength(2);
   expect(document.getElementById('relato-content')?.childElementCount).toBe(0);
   expect(document.activeElement?.id).toBe('open-relato');
   expect(fetch.mock.calls.length).toBe(chamadasAntes);
   document.getElementById('open-relato')?.click();
   expect(document.querySelector<HTMLTextAreaElement>('#relato-content textarea')?.value).toBe('');
+  confirmacoes.encerrar();
 });
 
 it('guarda relato fictício somente na prévia do paciente escolhido', async () => {
@@ -1319,8 +1329,7 @@ it('cancela edição de pessoa de referência sem manter rascunho sujo', async (
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
-  const confirmar = vi.fn(() => true);
-  vi.stubGlobal('confirm', confirmar);
+  const confirmacoes = responderConfirmacoes(true);
   servidorFicticio();
   await import('./demonstracao.js');
   const abrir = '[aria-label="Abrir pessoas de referência de Paciente Exemplo Um"]';
@@ -1346,8 +1355,11 @@ it('cancela edição de pessoa de referência sem manter rascunho sujo', async (
       (botao) => botao.textContent === 'Cancelar edição',
     ) as HTMLButtonElement
   ).click();
-  expect(confirmar).toHaveBeenCalledTimes(1);
+  await aguardarConfirmacao();
+  expect(confirmacoes.chamadas).toHaveLength(1);
   (document.getElementById('relations-back') as HTMLButtonElement).click();
-  expect(confirmar).toHaveBeenCalledTimes(1);
+  await aguardarConfirmacao();
+  expect(confirmacoes.chamadas).toHaveLength(1);
   expect(document.getElementById('patients-view')?.hidden).toBe(false);
+  confirmacoes.encerrar();
 });

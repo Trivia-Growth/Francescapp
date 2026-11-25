@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
 import { montarBuscaPacientesLocal, correspondeBuscaPacienteLocal } from './busca-pacientes-local';
+import { confirmar, confirmarDescarte } from './confirmacao';
 
 import { objetivoSchema, type Objetivo } from '../packages/contracts/src/plano-cuidado';
 import { validarTarefaPlano } from '../packages/cadastro/src/tarefa-plano';
@@ -25,6 +26,9 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     if (!item) throw new Error('Elemento da demonstração indisponível.');
     return item as T;
   };
+  /** A prévia perguntava pelo navegador: o diálogo nativo cobria a página e a tela
+   *  parecia travada. Aqui a pergunta é a mesma da aplicação, desenhada no conteúdo. */
+  const confirmarDescarteDaPrevia = () => confirmarDescarte('as alterações não guardadas');
   const login = elemento('login-view');
   const pacientes = elemento('patients-view');
   const telaRelato = elemento('relato-view');
@@ -39,27 +43,24 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     elemento('relato-title').focus();
   });
   elemento('relato-back').addEventListener('click', () => {
-    const form = elemento('relato-content').querySelector('form');
-    if (
-      form &&
-      formulariosAlterados.has(form) &&
-      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
-    )
-      return;
-    if (form) formulariosAlterados.delete(form);
-    desmontarRelato?.();
-    desmontarRelato = undefined;
-    telaRelato.hidden = true;
-    if (selecionado) {
-      selecionado = undefined;
-      pacientes.hidden = false;
-      elemento('patients-title').focus();
-    } else {
-      login.hidden = false;
-      elemento('open-relato').focus();
-    }
-    elemento('relato-list').replaceChildren();
-    elemento('relato-patient').textContent = '';
+    void (async () => {
+      const form = elemento('relato-content').querySelector('form');
+      if (form && formulariosAlterados.has(form) && !(await confirmarDescarteDaPrevia())) return;
+      if (form) formulariosAlterados.delete(form);
+      desmontarRelato?.();
+      desmontarRelato = undefined;
+      telaRelato.hidden = true;
+      if (selecionado) {
+        selecionado = undefined;
+        pacientes.hidden = false;
+        elemento('patients-title').focus();
+      } else {
+        login.hidden = false;
+        elemento('open-relato').focus();
+      }
+      elemento('relato-list').replaceChildren();
+      elemento('relato-patient').textContent = '';
+    })();
   });
   const acoes = elemento('session-actions');
   const tabela = elemento('patients-table');
@@ -822,36 +823,35 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       editar.textContent = 'Editar cadastro';
       editar.setAttribute('aria-label', `Editar cadastro de ${registro.name}`);
       editar.addEventListener('click', () => {
-        geracaoNavegacao++;
-        if (salvandoCadastro) return;
-        if (
-          formulariosAlterados.has(formulario) &&
-          !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
-        )
-          return;
-        editando = registro;
-        nome.value = registro.name;
-        preferencia.value = registro.preferredName ?? '';
-        nascimento.value = registro.birthDate ?? '';
-        telefone.value = registro.phone ?? '';
-        email.value = registro.email ?? '';
-        elemento<HTMLSelectElement>('patient-situation').value = registro.situacao ?? '';
-        elemento<HTMLTextAreaElement>('patient-situation-reason').value = '';
-        elemento('patient-situation-fields').hidden = false;
-        const historico = elemento('patient-situation-history');
-        historico.replaceChildren();
-        for (const evento of registro.historicoSituacao ?? []) {
-          const item = document.createElement('li');
-          item.textContent = `${evento.situacao} — ${new Date(evento.data).toLocaleString('pt-BR')}${evento.motivo ? ` — ${evento.motivo}` : ''}`;
-          historico.append(item);
-        }
-        elemento('patient-situation-empty').hidden = historico.childElementCount > 0;
-        elemento('create-title').textContent = 'Editar paciente';
-        elemento('create-submit').textContent = 'Salvar alterações';
-        elemento('cancel-edit').hidden = false;
-        elemento('create-feedback').textContent = '';
-        formulariosAlterados.delete(formulario);
-        nome.focus();
+        void (async () => {
+          geracaoNavegacao++;
+          if (salvandoCadastro) return;
+          if (formulariosAlterados.has(formulario) && !(await confirmarDescarteDaPrevia())) return;
+          if (salvandoCadastro) return;
+          editando = registro;
+          nome.value = registro.name;
+          preferencia.value = registro.preferredName ?? '';
+          nascimento.value = registro.birthDate ?? '';
+          telefone.value = registro.phone ?? '';
+          email.value = registro.email ?? '';
+          elemento<HTMLSelectElement>('patient-situation').value = registro.situacao ?? '';
+          elemento<HTMLTextAreaElement>('patient-situation-reason').value = '';
+          elemento('patient-situation-fields').hidden = false;
+          const historico = elemento('patient-situation-history');
+          historico.replaceChildren();
+          for (const evento of registro.historicoSituacao ?? []) {
+            const item = document.createElement('li');
+            item.textContent = `${evento.situacao} — ${new Date(evento.data).toLocaleString('pt-BR')}${evento.motivo ? ` — ${evento.motivo}` : ''}`;
+            historico.append(item);
+          }
+          elemento('patient-situation-empty').hidden = historico.childElementCount > 0;
+          elemento('create-title').textContent = 'Editar paciente';
+          elemento('create-submit').textContent = 'Salvar alterações';
+          elemento('cancel-edit').hidden = false;
+          elemento('create-feedback').textContent = '';
+          formulariosAlterados.delete(formulario);
+          nome.focus();
+        })();
       });
       linha.insertCell().textContent = registro.situacao
         ? rotulosSituacao[registro.situacao]
@@ -1012,69 +1012,59 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     elemento('open-general-agenda').focus();
   });
   elemento('relations-back').addEventListener('click', () => {
-    if (salvandoRelacao) return;
-    const form = elemento('relations-content').querySelector('form');
-    if (
-      form &&
-      formulariosAlterados.has(form) &&
-      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
-    )
-      return;
-    if (form) formulariosAlterados.delete(form);
-    exibirTela(pacientes);
-    elemento('patients-title').focus();
+    void (async () => {
+      if (salvandoRelacao) return;
+      const form = elemento('relations-content').querySelector('form');
+      if (form && formulariosAlterados.has(form) && !(await confirmarDescarteDaPrevia())) return;
+      if (salvandoRelacao) return;
+      if (form) formulariosAlterados.delete(form);
+      exibirTela(pacientes);
+      elemento('patients-title').focus();
+    })();
   });
   elemento('evolutions-back').addEventListener('click', () => {
-    if (salvandoEvolucao) return;
-    const form = elemento('evolutions-content').querySelector('form');
-    if (
-      form &&
-      formulariosAlterados.has(form) &&
-      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
-    )
-      return;
-    if (form) formulariosAlterados.delete(form);
-    exibirTela(pacientes);
-    elemento('patients-title').focus();
+    void (async () => {
+      if (salvandoEvolucao) return;
+      const form = elemento('evolutions-content').querySelector('form');
+      if (form && formulariosAlterados.has(form) && !(await confirmarDescarteDaPrevia())) return;
+      if (salvandoEvolucao) return;
+      if (form) formulariosAlterados.delete(form);
+      exibirTela(pacientes);
+      elemento('patients-title').focus();
+    })();
   });
   elemento('guidance-back').addEventListener('click', () => {
-    if (salvandoOrientacao) return;
-    const form = elemento('guidance-content').querySelector('form');
-    if (
-      form &&
-      formulariosAlterados.has(form) &&
-      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
-    )
-      return;
-    if (form) formulariosAlterados.delete(form);
-    exibirTela(pacientes);
-    elemento('patients-title').focus();
+    void (async () => {
+      if (salvandoOrientacao) return;
+      const form = elemento('guidance-content').querySelector('form');
+      if (form && formulariosAlterados.has(form) && !(await confirmarDescarteDaPrevia())) return;
+      if (salvandoOrientacao) return;
+      if (form) formulariosAlterados.delete(form);
+      exibirTela(pacientes);
+      elemento('patients-title').focus();
+    })();
   });
   elemento('referrals-back').addEventListener('click', () => {
-    if (salvandoEncaminhamento) return;
-    const form = elemento('referrals-content').querySelector('form');
-    if (
-      form &&
-      formulariosAlterados.has(form) &&
-      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
-    )
-      return;
-    if (form) formulariosAlterados.delete(form);
-    exibirTela(pacientes);
-    elemento('patients-title').focus();
+    void (async () => {
+      if (salvandoEncaminhamento) return;
+      const form = elemento('referrals-content').querySelector('form');
+      if (form && formulariosAlterados.has(form) && !(await confirmarDescarteDaPrevia())) return;
+      if (salvandoEncaminhamento) return;
+      if (form) formulariosAlterados.delete(form);
+      exibirTela(pacientes);
+      elemento('patients-title').focus();
+    })();
   });
   elemento('documents-back').addEventListener('click', () => {
-    if (salvandoDocumento) return;
-    const form = elemento('documents-content').querySelector('form');
-    if (
-      form &&
-      formulariosAlterados.has(form) &&
-      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
-    )
-      return;
-    if (form) formulariosAlterados.delete(form);
-    exibirTela(pacientes);
-    elemento('patients-title').focus();
+    void (async () => {
+      if (salvandoDocumento) return;
+      const form = elemento('documents-content').querySelector('form');
+      if (form && formulariosAlterados.has(form) && !(await confirmarDescarteDaPrevia())) return;
+      if (salvandoDocumento) return;
+      if (form) formulariosAlterados.delete(form);
+      exibirTela(pacientes);
+      elemento('patients-title').focus();
+    })();
   });
   elemento('summary-back').addEventListener('click', () => {
     telaResumo.hidden = true;
@@ -1107,26 +1097,25 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         editar.textContent = 'Editar';
         editar.setAttribute('aria-label', `Editar ${item.descricao}`);
         editar.addEventListener('click', () => {
-          if (
-            formulariosAlterados.has(formularioAgenda) &&
-            !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
-          )
-            return;
-          compromissoEmEdicao = indice;
-          for (const [nome, valor] of Object.entries({
-            description: item.descricao,
-            professional: item.profissional,
-            date: item.data,
-            time: item.hora,
-            duration: item.duracao,
-            location: item.local,
-            participants: item.participantes,
-          }))
-            campoAgenda(nome).value = String(valor);
-          elemento('agenda-form-title').textContent = 'Editar compromisso';
-          elemento('agenda-cancel-edit').hidden = false;
-          formulariosAlterados.delete(formularioAgenda);
-          campoAgenda('description').focus();
+          void (async () => {
+            if (formulariosAlterados.has(formularioAgenda) && !(await confirmarDescarteDaPrevia()))
+              return;
+            compromissoEmEdicao = indice;
+            for (const [nome, valor] of Object.entries({
+              description: item.descricao,
+              professional: item.profissional,
+              date: item.data,
+              time: item.hora,
+              duration: item.duracao,
+              location: item.local,
+              participants: item.participantes,
+            }))
+              campoAgenda(nome).value = String(valor);
+            elemento('agenda-form-title').textContent = 'Editar compromisso';
+            elemento('agenda-cancel-edit').hidden = false;
+            formulariosAlterados.delete(formularioAgenda);
+            campoAgenda('description').focus();
+          })();
         });
         const cancelar = document.createElement('button');
         cancelar.type = 'button';
@@ -1134,17 +1123,19 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         cancelar.textContent = 'Cancelar compromisso';
         cancelar.setAttribute('aria-label', `Cancelar ${item.descricao}`);
         cancelar.addEventListener('click', async () => {
+          if (salvandoAgenda || !selecionado) return;
           if (
-            salvandoAgenda ||
-            !selecionado ||
-            !window.confirm('Cancelar este compromisso fictício?')
+            !(await confirmar({
+              titulo: 'Cancelar este compromisso fictício?',
+              detalhe: 'O compromisso sai da agenda desta prévia.',
+              acao: 'Cancelar o compromisso',
+              cancelar: 'Manter o compromisso',
+            }))
           )
             return;
-          if (
-            formulariosAlterados.has(formularioAgenda) &&
-            !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
-          )
+          if (formulariosAlterados.has(formularioAgenda) && !(await confirmarDescarteDaPrevia()))
             return;
+          if (salvandoAgenda || !selecionado) return;
           const pacienteId = selecionado;
           const atualizados = itens.map((atual, posicao) =>
             posicao === indice ? { ...atual, estado: 'cancelado' as const } : atual,
@@ -1176,26 +1167,25 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     }
   };
   elemento('agenda-back').addEventListener('click', () => {
-    if (
-      salvandoAgenda ||
-      (formulariosAlterados.has(formularioAgenda) &&
-        !window.confirm('Há alterações não guardadas. Deseja descartá-las?'))
-    )
-      return;
-    limparAgenda();
-    if (origemAgendaGeral) void abrirAgendaGeral();
-    else {
-      exibirTela(pacientes);
-      elemento('patients-title').focus();
-    }
+    void (async () => {
+      if (salvandoAgenda) return;
+      if (formulariosAlterados.has(formularioAgenda) && !(await confirmarDescarteDaPrevia()))
+        return;
+      if (salvandoAgenda) return;
+      limparAgenda();
+      if (origemAgendaGeral) void abrirAgendaGeral();
+      else {
+        exibirTela(pacientes);
+        elemento('patients-title').focus();
+      }
+    })();
   });
   elemento('agenda-cancel-edit').addEventListener('click', () => {
-    if (
-      formulariosAlterados.has(formularioAgenda) &&
-      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
-    )
-      return;
-    limparAgenda();
+    void (async () => {
+      if (formulariosAlterados.has(formularioAgenda) && !(await confirmarDescarteDaPrevia()))
+        return;
+      limparAgenda();
+    })();
   });
   formularioAgenda.addEventListener('input', () => formulariosAlterados.add(formularioAgenda));
   formularioAgenda.addEventListener('submit', async (evento) => {
@@ -1225,7 +1215,15 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         inicio < new Date(`${outro.data}T${outro.hora}`).getTime() + outro.duracao * 60000 &&
         new Date(`${outro.data}T${outro.hora}`).getTime() < inicio + item.duracao * 60000,
     );
-    if (sobreposicao && !window.confirm('Há sobreposição nesta agenda fictícia. Deseja continuar?'))
+    if (
+      sobreposicao &&
+      !(await confirmar({
+        titulo: 'Marcar mesmo com sobreposição nesta agenda fictícia?',
+        detalhe: 'Outro compromisso agendado ocupa parte deste horário.',
+        acao: 'Marcar assim mesmo',
+        cancelar: 'Rever o horário',
+      }))
+    )
       return;
     if (compromissoEmEdicao === undefined) itens.push(item);
     else itens[compromissoEmEdicao] = item;
@@ -1290,37 +1288,43 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       revisar.textContent = 'Revisar objetivo';
       revisar.setAttribute('aria-label', `Revisar objetivo ${objetivo.descricao}`);
       revisar.addEventListener('click', () => {
-        if (salvandoObjetivo) return;
-        if (formulariosAlterados.has(formularioObjetivo) && !podeDescartar()) return;
-        objetivoEmRevisao = indice;
-        revisaoDesatualizada = false;
-        const campos: Record<string, Exclude<keyof Objetivo, 'camposExtras'>> = {
-          'goal-description': 'descricao',
-          'goal-area': 'area',
-          'goal-responsible': 'responsavel',
-          'goal-initial': 'situacaoInicial',
-          'goal-progress': 'observacaoProgresso',
-          'goal-date': 'dataRevisao',
-          'goal-status': 'estado',
-        };
-        for (const [id, chave] of Object.entries(campos))
-          elemento<HTMLInputElement>(id).value = objetivo[chave];
-        elemento<HTMLInputElement>('goal-reason').value = '';
-        elemento('goal-reason-field').hidden = false;
-        elemento('goal-form-title').textContent = 'Revisar objetivo';
-        formulariosAlterados.delete(formularioObjetivo);
-        elemento<HTMLInputElement>('goal-description').focus();
+        void (async () => {
+          if (salvandoObjetivo) return;
+          if (formulariosAlterados.has(formularioObjetivo) && !(await confirmarDescarteDaPrevia()))
+            return;
+          if (salvandoObjetivo) return;
+          objetivoEmRevisao = indice;
+          revisaoDesatualizada = false;
+          const campos: Record<string, Exclude<keyof Objetivo, 'camposExtras'>> = {
+            'goal-description': 'descricao',
+            'goal-area': 'area',
+            'goal-responsible': 'responsavel',
+            'goal-initial': 'situacaoInicial',
+            'goal-progress': 'observacaoProgresso',
+            'goal-date': 'dataRevisao',
+            'goal-status': 'estado',
+          };
+          for (const [id, chave] of Object.entries(campos))
+            elemento<HTMLInputElement>(id).value = objetivo[chave];
+          elemento<HTMLInputElement>('goal-reason').value = '';
+          elemento('goal-reason-field').hidden = false;
+          elemento('goal-form-title').textContent = 'Revisar objetivo';
+          formulariosAlterados.delete(formularioObjetivo);
+          elemento<HTMLInputElement>('goal-description').focus();
+        })();
       });
       item.append(revisar);
       lista.append(item);
     }
   };
   elemento('goals-back').addEventListener('click', () => {
-    if (!podeDescartar()) return;
-    formulariosAlterados.delete(formularioObjetivo);
-    telaObjetivos.hidden = true;
-    pacientes.hidden = false;
-    elemento('patients-title').focus();
+    void (async () => {
+      if (temRascunho() && !(await confirmarDescarteDaPrevia())) return;
+      formulariosAlterados.delete(formularioObjetivo);
+      telaObjetivos.hidden = true;
+      pacientes.hidden = false;
+      elemento('patients-title').focus();
+    })();
   });
   formularioObjetivo.addEventListener('input', () => formulariosAlterados.add(formularioObjetivo));
   formularioObjetivo.addEventListener('change', () => formulariosAlterados.add(formularioObjetivo));
@@ -1548,16 +1552,14 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     for (const form of formulariosDeTarefas()) formulariosAlterados.delete(form);
   };
   elemento('tasks-back').addEventListener('click', () => {
-    if (
-      formulariosDeTarefas().length &&
-      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
-    )
-      return;
-    limparAlteracoesTarefas();
-    void carregarPendencias();
-    telaTarefas.hidden = true;
-    pacientes.hidden = false;
-    elemento('patients-title').focus();
+    void (async () => {
+      if (formulariosDeTarefas().length && !(await confirmarDescarteDaPrevia())) return;
+      limparAlteracoesTarefas();
+      void carregarPendencias();
+      telaTarefas.hidden = true;
+      pacientes.hidden = false;
+      elemento('patients-title').focus();
+    })();
   });
   formularioTarefa.addEventListener('input', () => formulariosAlterados.add(formularioTarefa));
   formularioTarefa.addEventListener('change', () => formulariosAlterados.add(formularioTarefa));
@@ -1584,7 +1586,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     }
     if (
       formulariosDeTarefas().some((form) => form !== formularioTarefa) &&
-      !window.confirm('Há alterações não guardadas em outras tarefas. Deseja descartá-las?')
+      !(await confirmarDescarte('as alterações não guardadas em outras tarefas'))
     )
       return;
     const pacienteId = selecionado;
@@ -1689,20 +1691,22 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     elemento('anamnese-feedback').textContent = 'Há alterações não guardadas nesta prévia.';
     camposRaiz.lastElementChild?.querySelector<HTMLInputElement>('input')?.focus();
   });
-  const podeDescartar = () =>
-    (!anamneseAlterada && formulariosAlterados.size === 0) ||
-    window.confirm('Há alterações não guardadas. Deseja descartá-las?');
+  /** Sem rascunho não há o que perguntar, e a saída continua acontecendo no mesmo quadro:
+   *  a confirmação só entra no caminho quando existe algo a perder. */
+  const temRascunho = () => anamneseAlterada || formulariosAlterados.size > 0;
   const formularioAnamnese = elemento<HTMLFormElement>('anamnese-form');
   formularioAnamnese.addEventListener('input', () => {
     anamneseAlterada = true;
     elemento('anamnese-feedback').textContent = 'Há alterações não guardadas nesta prévia.';
   });
   elemento('back-patients').addEventListener('click', () => {
-    if (!podeDescartar()) return;
-    anamneseAlterada = false;
-    anamnese.hidden = true;
-    pacientes.hidden = false;
-    elemento('patients-title').focus();
+    void (async () => {
+      if (temRascunho() && !(await confirmarDescarteDaPrevia())) return;
+      anamneseAlterada = false;
+      anamnese.hidden = true;
+      pacientes.hidden = false;
+      elemento('patients-title').focus();
+    })();
   });
   formularioAnamnese.addEventListener('submit', async (evento) => {
     evento.preventDefault();
@@ -1789,7 +1793,8 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     }
   });
   elemento('logout').addEventListener('click', async () => {
-    if (salvandoCadastro || !podeDescartar()) return;
+    if (salvandoCadastro) return;
+    if (temRascunho() && !(await confirmarDescarteDaPrevia())) return;
     geracaoPendencias++;
     try {
       await requisitar('/logout', {
@@ -1818,14 +1823,13 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   };
   formulario.addEventListener('input', () => formulariosAlterados.add(formulario));
   elemento('cancel-edit').addEventListener('click', () => {
-    if (salvandoCadastro) return;
-    if (
-      formulariosAlterados.has(formulario) &&
-      !window.confirm('Há alterações não guardadas. Deseja descartá-las?')
-    )
-      return;
-    cancelarEdicao();
-    elemento('create-feedback').textContent = '';
+    void (async () => {
+      if (salvandoCadastro) return;
+      if (formulariosAlterados.has(formulario) && !(await confirmarDescarteDaPrevia())) return;
+      if (salvandoCadastro) return;
+      cancelarEdicao();
+      elemento('create-feedback').textContent = '';
+    })();
   });
   formulario.addEventListener('submit', async (evento) => {
     evento.preventDefault();
