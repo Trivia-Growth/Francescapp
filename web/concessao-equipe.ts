@@ -51,13 +51,112 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
   status.setAttribute('aria-live', 'polite');
   const enviar = document.createElement('button');
   enviar.type = 'submit';
+  enviar.className = 'button-primary';
   enviar.textContent = 'Pré-conceder acesso';
   const verificar = document.createElement('button');
   verificar.type = 'button';
+  verificar.className = 'button-secondary';
   verificar.textContent = 'Conferir novamente';
   campos.disabled = enviar.disabled = true;
-  formulario.append(campos, enviar, verificar, status);
-  raiz.replaceChildren(formulario);
+  campos.append(enviar);
+  formulario.append(campos, verificar, status);
+  const legenda = document.createElement('legend');
+  legenda.textContent = 'Convidar alguém da equipe';
+  campos.prepend(legenda);
+
+  // A área da equipe mostrava só o formulário de convite: não havia como ver quem já
+  // tem acesso sem abrir outra tela. A listagem já existia no serviço e era consultada
+  // só por dentro, para conferir um convite; aqui ela aparece.
+  const titulo = document.createElement('h2');
+  titulo.textContent = 'Equipe';
+  const listaStatus = document.createElement('p');
+  listaStatus.className = 'visao-estado';
+  listaStatus.setAttribute('role', 'status');
+  listaStatus.setAttribute('aria-live', 'polite');
+  const lista = document.createElement('ul');
+  lista.className = 'lista-registros';
+  lista.setAttribute('aria-label', 'Pessoas com acesso concedido');
+  const atualizarLista = document.createElement('button');
+  atualizarLista.type = 'button';
+  atualizarLista.className = 'button-secondary';
+  atualizarLista.textContent = 'Atualizar lista';
+  const maisLista = document.createElement('button');
+  maisLista.type = 'button';
+  maisLista.className = 'button-secondary';
+  maisLista.textContent = 'Carregar mais';
+  maisLista.hidden = true;
+  raiz.replaceChildren(titulo, atualizarLista, listaStatus, lista, maisLista, formulario);
+
+  const perfisEquipe = { profissional: 'Profissional', administrador: 'Administrador' };
+  const estadosEquipe = {
+    pendente: 'Convite pendente',
+    vinculada: 'Acesso ativo',
+    revogada: 'Acesso revogado',
+  };
+  type ItemEquipe = Awaited<ReturnType<ClienteFFCM['listarProfissionais']>>['itens'][number];
+
+  function linhaEquipe(item: ItemEquipe): HTMLLIElement {
+    const linha = document.createElement('li');
+    linha.className = 'lista-registros__linha';
+    const principal = document.createElement('span');
+    principal.className = 'lista-registros__principal';
+    principal.textContent = item.email;
+    const papel = document.createElement('span');
+    papel.className = 'lista-registros__secundario';
+    papel.textContent = perfisEquipe[item.perfil];
+    const estado = document.createElement('span');
+    estado.className = 'lista-registros__marca';
+    estado.dataset.estado = item.estado;
+    estado.textContent = estadosEquipe[item.estado];
+    linha.append(principal, papel);
+    if (item.ativo === false) {
+      const conta = document.createElement('span');
+      conta.className = 'lista-registros__secundario';
+      conta.textContent = 'Conta desativada';
+      linha.append(conta);
+    }
+    // A marca de estado fecha a linha: entra depois do que for opcional para ficar
+    // sempre na mesma coluna, em todas as linhas.
+    linha.append(estado);
+    return linha;
+  }
+
+  let cursorLista: string | undefined;
+  let consultandoLista = false;
+
+  async function carregarLista(continuar = false): Promise<void> {
+    if (consultandoLista) return;
+    consultandoLista = true;
+    atualizarLista.disabled = maisLista.disabled = true;
+    if (!continuar) {
+      cursorLista = undefined;
+      lista.replaceChildren();
+    }
+    lista.setAttribute('aria-busy', 'true');
+    listaStatus.textContent = 'Carregando a equipe…';
+    listaStatus.removeAttribute('data-tone');
+    try {
+      const pagina = await api.listarProfissionais(continuar ? cursorLista : undefined);
+      if (!ativa) return;
+      for (const item of pagina.itens) lista.append(linhaEquipe(item));
+      cursorLista = pagina.proximo_cursor ?? undefined;
+      maisLista.hidden = !cursorLista;
+      listaStatus.textContent = lista.childElementCount
+        ? `${lista.childElementCount} pessoas com acesso concedido.`
+        : 'Nenhum acesso concedido ainda. Convide alguém da equipe abaixo.';
+    } catch {
+      if (!ativa) return;
+      listaStatus.dataset.tone = 'error';
+      listaStatus.textContent = 'Não foi possível carregar a equipe. Tente atualizar a lista.';
+    } finally {
+      lista.removeAttribute('aria-busy');
+      consultandoLista = false;
+      if (ativa) atualizarLista.disabled = maisLista.disabled = false;
+    }
+  }
+
+  atualizarLista.addEventListener('click', () => void carregarLista());
+  maisLista.addEventListener('click', () => void carregarLista(true));
   const recuperar = async () => {
     if (ocupada) return;
     ocupada = true;
@@ -164,6 +263,7 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
       });
   });
   void recuperar();
+  void carregarLista();
   return () => {
     ativa = false;
     raiz.replaceChildren();
