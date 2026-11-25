@@ -505,6 +505,12 @@
 .ui-dialogo__rodape:empty {
   display: none;
 }
+/* Decisão não tem corpo: o que se precisa saber está no cabeçalho e a resposta é uma das
+   ações. Sem isto, o corpo vazio ainda pintava os dois sinais de rolagem, um sobre o
+   outro, e a faixa cinza resultante lia como defeito no meio do diálogo. */
+.ui-dialogo__corpo:empty {
+  display: none;
+}
 /* Decisão: cabe numa dobra e não rola, porque é uma resposta e não um texto. */
 .ui-dialogo[data-medida="decisao"] .ui-dialogo__cabecalho {
   border-bottom: 0;

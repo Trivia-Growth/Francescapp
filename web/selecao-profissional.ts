@@ -47,9 +47,7 @@ export function montarSelecaoProfissional(
     informarPendencia();
   });
   rotuloMotivo.append(motivo);
-  const recuperar = document.createElement('button');
-  recuperar.type = 'button';
-  recuperar.textContent = 'Conferir novamente';
+  const recuperar = botaoDaCamada({ rotulo: 'Conferir novamente', peso: 'secundario' });
   const conceder = botaoDaCamada({ rotulo: 'Conceder acesso', peso: 'principal' });
   conceder.disabled = true;
   raiz.replaceChildren(
@@ -334,10 +332,10 @@ export function montarSelecaoProfissional(
           const linha = document.createElement('li');
           const texto = document.createElement('span');
           linha.append(texto);
-          const botao = item.revogado ? null : document.createElement('button');
+          const botao = item.revogado
+            ? null
+            : botaoDaCamada({ rotulo: 'Selecionar para revogação', peso: 'discreto' });
           if (botao) {
-            botao.type = 'button';
-            botao.textContent = 'Selecionar para revogação';
             botao.disabled = true;
             botao.addEventListener('click', () => {
               const nome = nomesProfissionais.get(item.usuario_id.toLowerCase());

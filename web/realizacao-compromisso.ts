@@ -123,9 +123,7 @@ export function montarRealizacaoAgenda(
   estado.className = 'feedback';
   estado.setAttribute('role', 'status');
   estado.setAttribute('aria-live', 'polite');
-  const registrar = document.createElement('button');
-  registrar.type = 'submit';
-  registrar.textContent = 'Registrar';
+  const registrar = botao({ rotulo: 'Registrar', tipo: 'submit', peso: 'principal' });
   const fechar = botao({ rotulo: 'Fechar', peso: 'secundario' });
   formulario.append(
     situacaoRotulo,

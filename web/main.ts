@@ -79,7 +79,7 @@ import { criarServicoConversaoDiarioHttp } from './servico-conversao-diario-http
 import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
 import { montarLinhaTempo } from './linha-tempo.js';
 import { aplicarControlesProprios } from './ui/controles.js';
-import { linhaLista } from './ui/basicos.js';
+import { botao, linhaLista } from './ui/basicos.js';
 import { criarServicoLinhaTempoHttp } from './servico-linha-tempo-http.js';
 import { montarExportacao } from './exportacao.js';
 import { criarServicoExportacaoHttp } from './servico-exportacao-http.js';
@@ -1448,10 +1448,7 @@ const usuariosCadastroSemConfirmacao = new Set<string>();
 // Não sobe para o corpo porque o corpo rola: a ação que destrava o formulário não pode
 // depender de alguém rolar até ela. A explicação continua em `#create-feedback`, no corpo,
 // e o botão aponta para ela por `aria-describedby`.
-const recuperarCadastro = document.createElement('button');
-recuperarCadastro.type = 'button';
-recuperarCadastro.className = 'ui-botao';
-recuperarCadastro.dataset.peso = 'secundario';
+const recuperarCadastro = botao({ rotulo: '', peso: 'secundario' });
 recuperarCadastro.setAttribute('aria-describedby', 'create-feedback');
 recuperarCadastro.hidden = true;
 elemento('cadastro-acoes').insertBefore(recuperarCadastro, createButton);
