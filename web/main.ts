@@ -1435,10 +1435,21 @@ const usuariosComCadastroIncerto = new Set<string>();
 let ciclo: ReturnType<typeof criarCicloCadastro> | null = null;
 let cadastroLiberado = false;
 const usuariosCadastroSemConfirmacao = new Set<string>();
+// Uma faixa de ação só. Antes este botão era filho de `#cadastro`, depois do formulário:
+// no computador aparecia como uma SEGUNDA barra logo abaixo de "Cadastrar paciente", e as
+// duas competiam pela mesma decisão. Ele entra agora na própria faixa do rodapé, antes da
+// ação principal, como alternativa — que é o que ele é: enquanto o cadastro anterior não
+// for conferido, "Cadastrar paciente" fica desabilitado e este é o único caminho adiante.
+// Não sobe para o corpo porque o corpo rola: a ação que destrava o formulário não pode
+// depender de alguém rolar até ela. A explicação continua em `#create-feedback`, no corpo,
+// e o botão aponta para ela por `aria-describedby`.
 const recuperarCadastro = document.createElement('button');
 recuperarCadastro.type = 'button';
+recuperarCadastro.className = 'ui-botao';
+recuperarCadastro.dataset.peso = 'secundario';
+recuperarCadastro.setAttribute('aria-describedby', 'create-feedback');
 recuperarCadastro.hidden = true;
-registration.append(recuperarCadastro);
+elemento('cadastro-acoes').insertBefore(recuperarCadastro, createButton);
 
 async function consultarCadastro(): Promise<void> {
   const atual = ciclo;
