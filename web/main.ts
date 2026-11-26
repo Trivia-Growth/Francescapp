@@ -309,6 +309,10 @@ function ajustarAvisos(atual: Sessao | null): void {
   const disponivel = atual !== null && atual.usuario.perfil !== 'familia';
   avisosRaiz.hidden = !disponivel;
   if (!disponivel) {
+    // Desmontar ANTES de esvaziar: a raiz React precisa retirar os próprios nós enquanto
+    // eles ainda estão lá. Invertida, a ordem deixa a raiz órfã e o React lança ao tentar
+    // remover o que já saiu.
+    avisos?.desmontar();
     avisos = null;
     avisosRaiz.replaceChildren();
     return;
@@ -1765,8 +1769,14 @@ function montarFiltrosDaCarteira(atual: Sessao): void {
     proximoCursor = null;
     void carregarPacientes();
   };
+  /* `desenhar` é chamada DUAS vezes na mesma raiz — uma sem a equipe e outra quando a
+     lista de responsáveis chega. A montagem anterior precisa ser desfeita de verdade, não
+     só ter os filhos apagados: a raiz React continua viva depois de `replaceChildren()`, e
+     quando o React vai remover os próprios nós eles já saíram. */
+  let desmontarBarra: (() => void) | null = null;
   const desenhar = (responsaveis?: readonly ResponsavelOpcao[]) => {
-    montarFiltrosCarteira(
+    desmontarBarra?.();
+    desmontarBarra = montarFiltrosCarteira(
       raiz,
       {
         administrador,
@@ -1795,6 +1805,11 @@ function montarFiltrosDaCarteira(atual: Sessao): void {
   if (catalogo) raiz.addEventListener('focusin', carregarResponsaveis);
   desmontarFiltros = () => {
     raiz.removeEventListener('focusin', carregarResponsaveis);
+    // Desmontar a ilha ANTES de esvaziar. Até 26/11/2026 esta função só apagava os
+    // filhos, e a raiz React ficava órfã — era a origem do `NotFoundError` que derrubava
+    // o portão de ativação sem quebrar uma única asserção.
+    desmontarBarra?.();
+    desmontarBarra = null;
     raiz.replaceChildren();
   };
 }

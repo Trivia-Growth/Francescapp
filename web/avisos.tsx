@@ -208,10 +208,10 @@ function TelaAvisos({
 export function montarAvisos(
   raiz: HTMLElement,
   servico: ServicoAvisos,
-): { atualizar(): Promise<void>; estado(): EstadoAvisos } {
+): { atualizar(): Promise<void>; estado(): EstadoAvisos; desmontar(): void } {
   raiz.classList.add('avisos');
   let atualizarAtual: () => Promise<void> = () => Promise.resolve();
-  ilha(
+  const desmontarIlha = ilha(
     raiz,
     <TelaAvisos
       servico={servico}
@@ -224,5 +224,12 @@ export function montarAvisos(
   return {
     atualizar: () => atualizarAtual(),
     estado: () => (raiz.dataset.estado as EstadoAvisos | undefined) ?? 'inicial',
+    /* A versão imperativa não precisava de desmontagem: quem encerrava o sino apagava os
+       filhos da raiz e pronto. Uma raiz React não some assim — ela continua viva, e
+       quando o React vai remover os nós dela, eles já saíram. Resultado medido em
+       26/11/2026: `NotFoundError: The node to be removed is not a child of this node`,
+       15 vezes no portão de ativação, sempre em caminho de perda de acesso, sem
+       derrubar uma única asserção. */
+    desmontar: desmontarIlha,
   };
 }
