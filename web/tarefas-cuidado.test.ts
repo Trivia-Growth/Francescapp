@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
 import { FalhaApi } from './api.ts';
-import { montarTarefasCuidado } from './tarefas-cuidado.ts';
+import { montarTarefasCuidado } from './tarefas-cuidado.js';
 
 it.each([401, 403])('remove rascunho antes de informar perda de acesso %s', async (status) => {
   const raiz = document.createElement('div');

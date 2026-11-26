@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
 import type { Saude, SalvarSaude } from '../packages/contracts/src/saude.ts';
-import { montarSaude } from './saude.ts';
+import { montarSaude } from './saude.js';
 import { criarServicoSaudeHttp } from './servico-saude-http.ts';
 
 afterEach(() => {

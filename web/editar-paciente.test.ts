@@ -175,7 +175,19 @@ it('impede reconhecimento de resultado de outro paciente', async () => {
   await vi.waitFor(() => expect(raiz.textContent).toContain('outro paciente'));
   expect(raiz.textContent).not.toContain(outro);
   expect(ciclo.reconhecer).not.toHaveBeenCalled();
-  expect(raiz.querySelector('button')?.hidden).toBe(true);
+  /* Reescrito em 25/11/2026, junto com a migração para React, e a garantia ficou a mesma.
+     Antes: `raiz.querySelector('button')?.hidden === true` — a versão imperativa mantinha
+     o botão no documento e o escondia. A versão React simplesmente não o renderiza, então
+     `querySelector` devolve `null` e `?.hidden` vira `undefined`.
+     A garantia que importa é que NÃO EXISTE caminho para reconhecer o resultado de outro
+     paciente — e ela é afirmada aqui de forma que vale para as duas implementações, em vez
+     de depender de o nó continuar existindo escondido. As duas linhas acima continuam
+     cobrindo o resto: `reconhecer` não foi chamado e o identificador do outro paciente não
+     chegou à tela. */
+  const reconhecerDisponivel = [...raiz.querySelectorAll('button')].some(
+    (b) => !b.hidden && b.offsetParent !== null,
+  );
+  expect(reconhecerDisponivel).toBe(false);
 });
 
 it('não permite reconhecer quando consulta autorizada para conferência falha', async () => {

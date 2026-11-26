@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
 import { responderConfirmacoes } from './confirmacao-prova.js';
-import { montarContatoPaciente } from './contatos-paciente.ts';
+import { montarContatoPaciente } from './contatos-paciente.js';
 import type { ClienteFFCM } from './api.ts';
 const id = '10000000-0000-4000-8000-000000000001';
 const outro = '10000000-0000-4000-8000-000000000002';
