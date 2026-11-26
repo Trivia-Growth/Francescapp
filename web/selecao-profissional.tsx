@@ -66,7 +66,9 @@ function ListaVinculos({
   const nomeDe = (vinculo: VinculoExibido) =>
     estado.nomes.get(vinculo.usuarioId.toLowerCase()) ?? NOME_INDISPONIVEL;
   const colunas: ReadonlyArray<Coluna<VinculoExibido>> = [
-    { titulo: 'Profissional', celula: nomeDe },
+    // Sem truncamento: numa ação de revogação, quem decide precisa ler o identificador
+    // inteiro, não um prefixo cortado por reticência.
+    { titulo: 'Profissional', celula: nomeDe, semTruncamento: true },
     {
       titulo: 'Situação do vínculo',
       celula: (vinculo) => (
@@ -79,7 +81,10 @@ function ListaVinculos({
     {
       // Não é coluna secundária de propósito: revogar acesso é a única ação da lista, e
       // escondê-la no celular tiraria do telefone a capacidade que o desktop tem.
+      // Sem truncamento: o botão tem ~220px e era cortado pela célula, sobrando só
+      // "Selecionar" em vez de "Selecionar para revogação" — achado C1.
       titulo: 'Alteração',
+      semTruncamento: true,
       celula: (vinculo) => {
         if (vinculo.revogado) return null;
         const nome = estado.nomes.get(vinculo.usuarioId.toLowerCase());

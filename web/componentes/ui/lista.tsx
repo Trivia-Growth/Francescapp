@@ -54,6 +54,12 @@ export type Coluna<T> = {
   celula: (item: T) => ReactNode;
   /** Colunas secundárias somem no celular, onde a linha empilha. */
   secundaria?: boolean;
+  /** Esta coluna não pode cortar o conteúdo com reticências: quando o espaço aperta, o
+   *  texto quebra em mais linhas em vez de virar `…`. Existe para o rótulo de uma ação
+   *  (um botão de ~220px não pode ser lido como outro rótulo) e para o identificador de
+   *  quem uma ação afeta — numa decisão de revogação de acesso, por exemplo, não dá para
+   *  decidir sem ler o e-mail inteiro. Não use para colunas onde a reticência já basta. */
+  semTruncamento?: boolean;
 };
 
 export function Lista<T>({
@@ -145,7 +151,10 @@ function Linha<T>({
     <span
       key={`celula-${String(indice)}`}
       className={juntar(
-        'min-w-0 flex-1 truncate',
+        'min-w-0 flex-1',
+        // `truncate` corta com reticência; `semTruncamento` quebra em vez de cortar. As
+        // outras colunas continuam cortando — é o que impede a linha de quebrar (VIS-016).
+        coluna.semTruncamento === true ? 'whitespace-normal break-words' : 'truncate',
         indice === 0 ? 'font-semibold' : 'text-texto-suave',
         coluna.secundaria === true ? 'hidden sm:block' : '',
       )}

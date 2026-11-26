@@ -124,6 +124,23 @@ it('não mostra cabeçalho de colunas quando não há registro', () => {
   expect(container.querySelector('[aria-hidden="true"]')?.hasAttribute('hidden')).toBe(false);
 });
 
+it('não corta com reticência a coluna marcada sem truncamento', () => {
+  /* Achado C1: um botão de ~220px era recortado pela célula `truncate`, e sobrava só
+     "Selecionar" em vez de "Selecionar para revogação". `semTruncamento` troca o corte
+     por quebra de linha; as demais colunas continuam truncando (`min-w-0 flex-1`). */
+  const comSemTruncamento: ReadonlyArray<Coluna<Pessoa>> = [
+    { titulo: 'Nome', celula: (p) => p.nome, semTruncamento: true },
+    { titulo: 'Situação', celula: (p) => p.estado },
+  ];
+  const { container } = render(
+    <Lista itens={itens} colunas={comSemTruncamento} chave={(p) => p.id} rotulo="Pessoas" />,
+  );
+  const celulas = container.querySelectorAll('ul li span');
+  expect(celulas[0]?.className).not.toContain('truncate');
+  expect(celulas[0]?.className).toContain('break-words');
+  expect(celulas[1]?.className).toContain('truncate');
+});
+
 it('dispensa a moldura própria quando já está dentro de uma superfície', () => {
   /* "Caixa dentro de caixa" foi a queixa literal de 24/11/2026, e voltou nas telas
      migradas: a `Superficie` tem moldura e a `Lista` tinha a sua, duas bordas para o
