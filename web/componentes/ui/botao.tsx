@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, MouseEvent, ReactNode } from 'react';
+import type { ComponentPropsWithRef, MouseEvent, ReactNode } from 'react';
 import { juntar } from './juntar.js';
 
 /** Botão da aplicação: três pesos e só três — a ação do assunto, a alternativa e o
@@ -14,7 +14,11 @@ import { juntar } from './juntar.js';
 
 export type PesoBotao = 'principal' | 'secundario' | 'discreto';
 
-export type PropsBotao = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type'> & {
+/* `ComponentPropsWithRef` e não `ButtonHTMLAttributes`, pelo mesmo motivo do `Campo`: o
+   segundo não inclui `ref`, e sem referência um botão não pode receber foco inicial por
+   código. Era o que mantinha o rodapé do diálogo preso ao `<button>` cru do kit antigo.
+   No React 19 `ref` é propriedade comum e segue no espalhamento, sem `forwardRef`. */
+export type PropsBotao = Omit<ComponentPropsWithRef<'button'>, 'type'> & {
   /** Peso da ação na página. Padrão `secundario`, como em `basicos.ts:25`. */
   peso?: PesoBotao;
   /** `type` do botão. Padrão `button`: submeter é decisão explícita. */

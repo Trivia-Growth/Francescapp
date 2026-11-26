@@ -19,14 +19,15 @@
  *  - `medida` continua com os três nomes em português (risco 26) e chega ao DOM como
  *    `data-medida`, que é o que as provas de tela procuram.
  *
- *  Botão: enquanto `botao.tsx` não existe, as ações são `<button>` cru com `data-peso` e
- *  `data-acao` — os mesmos ganchos de `dialogo.ts:92-95`. A composição com `botao.tsx` é
- *  trabalho de integração, não deste arquivo.
+ *  Botão: as ações do rodapé são `Botao` (`./botao.tsx`). Ele emite os mesmos ganchos de
+ *  `dialogo.ts:92-95` — `data-peso` e `data-acao` — e aceita `ref`, que é o que o foco
+ *  inicial do risco 8 precisa. Até 26/11/2026 eram `<button className="ui-botao">`, cru,
+ *  porque este arquivo nasceu numa frente paralela antes de `botao.tsx` existir.
  */
 import * as Radix from '@radix-ui/react-dialog';
 import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 import { classesSobreposicao, Folha, type MedidaSobreposicao, useFormaSobreposicao } from './folha';
-import { juntar } from './juntar';
+import { Botao } from './botao.js';
 import { useTravaRolagem } from './trava-rolagem';
 
 export type { MedidaSobreposicao };
@@ -120,22 +121,25 @@ export function Dialogo({
   const rodape = acoes.length ? (
     <>
       {acoes.map((acao, posicao) => (
-        <button
+        /* Até 26/11/2026 este rodapé montava `<button className="ui-botao">`, do kit
+           imperativo: foi escrito quando `botao.tsx` ainda não existia, numa frente
+           paralela. Era a última classe do sistema antigo saindo no marcador de um
+           componente que já vive em `componentes/ui`. */
+        <Botao
           key={acao.marca ?? acao.rotulo}
-          type="button"
           ref={posicao === indiceFoco ? focoInicial : undefined}
-          className={juntar('ui-botao', classes.acao)}
-          data-peso={acao.peso ?? 'secundario'}
-          {...(acao.marca ? { 'data-acao': acao.marca } : {})}
+          className={classes.acao}
+          peso={acao.peso ?? 'secundario'}
+          {...(acao.marca ? { marca: acao.marca } : {})}
           disabled={acao.desligada}
-          onClick={() => {
+          aoAtivar={() => {
             // Risco 8: a recusa da validação mantém o diálogo aberto.
             if (acao.aoAtivar?.() === false) return;
             if (acao.fecha !== false) fechar();
           }}
         >
           {acao.rotulo}
-        </button>
+        </Botao>
       ))}
     </>
   ) : null;
