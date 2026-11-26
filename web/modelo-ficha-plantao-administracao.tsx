@@ -118,7 +118,7 @@ function Tela({
                 {catalogo.dados.map((campo) => (
                   <li key={`${campo.campo_id}-${String(campo.versao)}`}>
                     <details className="rounded-cartao border border-borda bg-superficie px-5 py-4">
-                      <summary className="flex cursor-pointer flex-wrap items-center gap-2 font-semibold">
+                      <summary className="flex min-h-controle-md cursor-pointer flex-wrap items-center gap-2 py-2 font-semibold">
                         <span>{campo.nome}</span>
                         <MarcaEstado tom="suave">{`posição ${String(campo.ordem)}`}</MarcaEstado>
                         <MarcaEstado tom={campo.ativo ? 'padrao' : 'contorno'}>

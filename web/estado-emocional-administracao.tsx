@@ -91,7 +91,7 @@ function Tela({
                 {catalogo.dados.map((termo) => (
                   <li key={`${termo.estado_id}-${String(termo.versao)}`}>
                     <details className="rounded-cartao border border-borda bg-superficie px-5 py-4">
-                      <summary className="flex cursor-pointer flex-wrap items-center gap-2 font-semibold">
+                      <summary className="flex min-h-controle-md cursor-pointer flex-wrap items-center gap-2 py-2 font-semibold">
                         <span>{termo.estado}</span>
                         <MarcaEstado tom={termo.ativo ? 'padrao' : 'contorno'}>
                           {termo.ativo ? 'ativo' : 'desativado'}

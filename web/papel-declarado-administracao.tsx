@@ -88,7 +88,7 @@ function Tela({
                 {catalogo.dados.map((papel) => (
                   <li key={`${papel.papel_id}-${String(papel.versao)}`}>
                     <details className="rounded-cartao border border-borda bg-superficie px-5 py-4">
-                      <summary className="flex cursor-pointer flex-wrap items-center gap-2 font-semibold">
+                      <summary className="flex min-h-controle-md cursor-pointer flex-wrap items-center gap-2 py-2 font-semibold">
                         <span>{papel.nome}</span>
                         <MarcaEstado tom={papel.ativo ? 'padrao' : 'contorno'}>
                           {papel.ativo ? 'ativo' : 'desativado'}

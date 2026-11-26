@@ -382,6 +382,33 @@ Encontrados durante a execução, nenhum causado por esta mudança.
   `web/*.ts`** que precisa ser atualizada a cada módulo migrado, senão passa a provar
   literal em arquivo que já não roda.
 
+## Divisão por rota e portão de ativação — 26/11/2026
+
+- [x] **Divisão por rota, concluída.** Administração (13 telas) e as 19 seções da ficha
+  passam a chegar por importação dinâmica. Peso da primeira visita, comprimido:
+  185,4 kB antes de tudo, 297,6 kB sem divisão, 258,9 kB com Administração sob demanda,
+  **216,9 kB com a ficha também sob demanda** — dentro da régua de 255,4 kB, com folga de
+  38,5 kB. Medido somando TUDO que o HTML puxa, inclusive `modulepreload`; ler só o pedaço
+  de entrada daria 108,5 kB e seria falso.
+  Exceção declarada: `montarTranscricaoAudio` continua estático, porque é chamado de um
+  callback síncrono que o diário espera e a alternativa por áudio é requisito de produto.
+  Aviso em aberto do build: `turno-execucao-relatorios` não se move por ser importado
+  estaticamente por `turno-execucao.ts`.
+
+- [x] **`web/linha-tempo` migrado, com os primeiros testes que o módulo já teve.** Eram
+  zero. Seis provas, incluindo negativa de autorização que exige `acessoPerdido` chamado
+  **e** nenhuma mensagem genérica no lugar — distinguir recusa de permissão de falha de
+  rede era o que faltava.
+
+- [x] **Prova de celular consertada: 14 passam, eram 10 com 4 falhando.**
+  `scripts/prova-celular/ficha-plantao.ts` importava `consolidado-ficha-plantao.ts` depois
+  de o módulo virar `.tsx`. Nenhum dos 884 testes pegava; só apareceu quando
+  `verificar:celular` rodou.
+  **A causa de ter chegado tão longe foi a varredura que eu mesmo escrevi cobrir só
+  `web/`.** Varrer a pasta onde o arquivo mudou não encontra quem o consome de outra
+  pasta. Ampliada para `web/`, `scripts/` e `netlify/`, pegou um segundo caso no mesmo
+  minuto, de outra frente.
+
 ## Defeito encontrado ao integrar as frentes — 25/11/2026
 
 - [x] **Rascunho preso a versão vencida podia sobrescrever o cadastro.**
