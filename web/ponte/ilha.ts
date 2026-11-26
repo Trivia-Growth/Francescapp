@@ -52,7 +52,9 @@ export function ilha(raiz: HTMLElement, elemento: ReactElement): () => void {
     desmontada = true;
     // Só apaga o registro se ainda for esta árvore: uma remontagem já trocou o dono.
     if (raizesVivas.get(raiz) === arvore) raizesVivas.delete(raiz);
-    arvore.unmount();
+    flushSync(() => {
+      arvore.unmount();
+    });
   };
 }
 

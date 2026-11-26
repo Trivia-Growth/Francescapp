@@ -1605,7 +1605,10 @@ function apagarPacientes(): void {
   filtrosCarteira = {};
   desmontarFiltros?.();
   desmontarFiltros = null;
-  elemento('filtros-carteira').replaceChildren();
+  /* Sem `replaceChildren` aqui: a ilha é dona dos próprios nós e os retira ao desmontar.
+     Apagá-los por fora era uma corrida — medido em 26/11/2026, `unmount()` nem sempre
+     termina no mesmo quadro, e o React lançava `NotFoundError` ao procurar nós que esta
+     linha já havia removido. A barra fica escondida de qualquer forma. */
   elemento('filtros-carteira').hidden = true;
   fecharAdministracao();
   fecharRegras();
