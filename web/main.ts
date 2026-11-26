@@ -452,8 +452,12 @@ function aplicarNavegacaoRecolhida(recolhida: boolean): void {
     'aria-label',
     recolhida ? 'Expandir navegação' : 'Recolher navegação',
   );
-  const simbolo = collapseSidebar.querySelector('span');
-  if (simbolo) simbolo.textContent = recolhida ? '›' : '‹';
+  // Por classe, não por `querySelector('span')`: agora há dois filhos, e a busca pelo
+  // primeiro passaria a depender da ordem do HTML.
+  const sinal = collapseSidebar.querySelector('.sidebar-collapse-sinal');
+  if (sinal) sinal.textContent = recolhida ? '›' : '‹';
+  const rotulo = collapseSidebar.querySelector('.sidebar-collapse-rotulo');
+  if (rotulo) rotulo.textContent = recolhida ? 'Expandir' : 'Recolher';
 }
 
 try {
@@ -1675,8 +1679,26 @@ function mostrarAcesso(mensagem = '', tom: 'error' | 'success' | 'neutral' = 'ne
  */
 function acessoPerdido(erro: unknown): boolean {
   if (semPermissao(erro)) {
-    // A ficha do caso negado sai da tela: dado clínico não pode continuar visível depois de
-    // uma recusa. A lista e a sessão ficam — é só aquele caso, ou aquela área, que fechou.
+    /* Dado clínico não pode continuar visível depois de uma recusa. Mas o tamanho do que
+       sai da tela precisa corresponder ao tamanho da recusa.
+       Até 25/11/2026 qualquer 403 fechava a ficha inteira. Consequência medida: o
+       Administrador que abrisse uma aba não liberada era devolvido à lista, e não
+       conseguia alcançar "Equipe com acesso" do mesmo caso — a ficha fechava antes.
+       A recusa quase sempre é da ÁREA, não do caso. `visao` é a exceção, porque é a
+       leitura do caso em si: negá-la é negar o caso, e aí a ficha fecha mesmo. Para as
+       demais, `limparSecao()` apaga o conteúdo carregado E invalida as respostas
+       pendentes daquela seção, que é a garantia que importa; a moldura da ficha fica, e a
+       pessoa troca de aba. */
+    const secao = ficha?.secaoAtual();
+    if (ficha && secao !== undefined && secao !== 'visao') {
+      ficha.limparSecao();
+      aviso(
+        'workspace-feedback',
+        'Esta área não está liberada para o seu acesso. Sua sessão continua ativa, e as demais áreas deste caso seguem disponíveis.',
+        'error',
+      );
+      return true;
+    }
     fecharFicha();
     aviso(
       'workspace-feedback',
