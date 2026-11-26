@@ -86,7 +86,11 @@ export async function comporCampoExtraPlanoNativo(
         sessao.data.session_id.toLowerCase() !== alvo.toLowerCase()
       )
         return { estado: 'nao_autenticado' as const };
-      if (sessao.data.usuario.perfil !== 'administrador')
+      if (
+        comando.operacao === 'gravar'
+          ? sessao.data.usuario.perfil !== 'administrador'
+          : !['administrador', 'profissional'].includes(sessao.data.usuario.perfil)
+      )
         return { estado: 'sem_permissao' as const };
       return {
         estado: 'autorizado' as const,

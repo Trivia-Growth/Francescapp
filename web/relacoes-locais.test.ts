@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
+import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
 import { montarRelacoesLocais, type PessoaReferenciaLocal } from './relacoes-locais';
 
 it('guarda pessoa somente após persistência, preserva rascunho em falha e permite edição', async () => {
@@ -29,6 +30,7 @@ it('guarda pessoa somente após persistência, preserva rascunho em falha e perm
   });
   expect(raiz.querySelector('pessoa')).toBeNull();
   (raiz.querySelector('li button') as HTMLButtonElement).click();
+  await aguardarConfirmacao();
   campos[2].value = 'Contato fictício';
   form.dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() => expect(pessoas[0].contato).toBe('Contato fictício'));
@@ -39,7 +41,7 @@ it('guarda pessoa somente após persistência, preserva rascunho em falha e perm
   });
 });
 
-it('sinaliza descarte confirmado e mantém rascunho quando descarte é recusado', () => {
+it('sinaliza descarte confirmado e mantém rascunho quando descarte é recusado', async () => {
   const raiz = document.createElement('div');
   const aoLimpar = vi.fn();
   montarRelacoesLocais(raiz, {
@@ -49,22 +51,26 @@ it('sinaliza descarte confirmado e mantém rascunho quando descarte é recusado'
     aoLimpar,
   });
   (raiz.querySelector('li button') as HTMLButtonElement).click();
+  await aguardarConfirmacao();
   aoLimpar.mockClear();
   (raiz.querySelector('input') as HTMLInputElement).value = 'Rascunho fictício';
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const confirmacoes = responderConfirmacoes(false);
   const cancelar = Array.from(raiz.querySelectorAll('button')).find(
     (b) => b.textContent === 'Cancelar edição',
   ) as HTMLButtonElement;
   cancelar.click();
+  await aguardarConfirmacao();
   expect(aoLimpar).not.toHaveBeenCalled();
-  confirmar.mockReturnValue(true);
+  expect(confirmacoes.chamadas[0]).toContain('Descartar as alterações não salvas');
+  confirmacoes.resposta = true;
   cancelar.click();
+  await aguardarConfirmacao();
   expect(aoLimpar).toHaveBeenCalledOnce();
   expect((raiz.querySelector('input') as HTMLInputElement).value).toBe('');
-  confirmar.mockRestore();
+  confirmacoes.encerrar();
 });
 
-it('limpa estado sujo ao aceitar descarte na troca de pessoa', () => {
+it('limpa estado sujo ao aceitar descarte na troca de pessoa', async () => {
   const raiz = document.createElement('div');
   const aoLimpar = vi.fn();
   montarRelacoesLocais(raiz, {
@@ -78,14 +84,17 @@ it('limpa estado sujo ao aceitar descarte na troca de pessoa', () => {
   });
   const botoes = raiz.querySelectorAll('li button');
   (botoes[0] as HTMLButtonElement).click();
+  await aguardarConfirmacao();
   aoLimpar.mockClear();
   (raiz.querySelector('input') as HTMLInputElement).value = 'Rascunho';
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const confirmacoes = responderConfirmacoes(false);
   (botoes[1] as HTMLButtonElement).click();
+  await aguardarConfirmacao();
   expect(aoLimpar).not.toHaveBeenCalled();
-  confirmar.mockReturnValue(true);
+  confirmacoes.resposta = true;
   (botoes[1] as HTMLButtonElement).click();
+  await aguardarConfirmacao();
   expect(aoLimpar).toHaveBeenCalledOnce();
   expect((raiz.querySelector('input') as HTMLInputElement).value).toBe('Pessoa B');
-  confirmar.mockRestore();
+  confirmacoes.encerrar();
 });

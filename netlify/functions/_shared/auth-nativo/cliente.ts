@@ -139,11 +139,60 @@ export function criarContextoAuthNativo(
         }),
     },
   });
+  /**
+   * Cookies de sessão já estabelecidos no navegador que pertencem a OUTRO fluxo.
+   *
+   * O nome do cookie carrega o fluxo (`ffcm-auth-<fluxo>`), então cada entrada bem-sucedida
+   * grava um nome inédito e **nunca** sobrescreve o anterior. Sem expiração explícita eles
+   * ficam 400 dias no navegador, somando cerca de 4,6 KB por entrada. Na quarta entrada o
+   * cabeçalho `Cookie` passa do limite da plataforma e TODA requisição à origem — inclusive
+   * a página estática — volta `HTTP 400` antes de chegar a esta função. O navegador fica
+   * inutilizável para o aplicativo e não há como se recuperar de dentro dele: a limpeza tem
+   * de ser manual, nas configurações do Chrome. Observado em 22/11/2026 com oito cookies
+   * (18.920 bytes) em `ffcmapp.netlify.app`.
+   *
+   * O `-code-verifier` de outro fluxo é preservado: ele pertence a uma entrada ainda em
+   * andamento, dura dez minutos e some sozinho. O cookie do próprio fluxo também fica de
+   * fora, porque é o que está sendo gravado agora.
+   */
+  function sessoesDeOutrosFluxos(): string[] {
+    const nomes: string[] = [];
+    for (const nome of cookies.keys()) {
+      const parte = /^ffcm-auth-([A-Za-z0-9_-]{22})(\.\d+)?$/.exec(nome);
+      if (parte?.[1] && parte[1] !== fluxo) nomes.push(nome);
+    }
+    return nomes;
+  }
+
   return {
     cliente,
     origem: config.origem,
     get cookiesAlterados(): boolean {
       return alteracoes.size > 0;
+    },
+    /**
+     * Resposta de uma entrada recém-concluída: além dos cookies do SDK, expira as sessões
+     * de fluxos anteriores deste navegador.
+     *
+     * Consequência deliberada: um navegador passa a guardar uma sessão por vez. Entrar de
+     * novo numa segunda aba encerra a sessão da primeira *neste aparelho* — o registro no
+     * banco não é afetado. Entradas concorrentes continuam intactas: o cookie de um fluxo
+     * que ainda não terminou não está neste pedido, portanto não é alcançado aqui.
+     */
+    responderSessaoNova(resposta: Response): Response {
+      const comCookies = this.responder(resposta);
+      for (const nome of sessoesDeOutrosFluxos())
+        comCookies.headers.append(
+          'Set-Cookie',
+          serializeCookieHeader(nome, '', {
+            maxAge: 0,
+            httpOnly: true,
+            secure: config.https,
+            sameSite: 'lax',
+            path: '/',
+          }),
+        );
+      return comCookies;
     },
     responder(resposta: Response): Response {
       const headers = new Headers(resposta.headers);

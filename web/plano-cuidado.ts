@@ -1,12 +1,25 @@
 import {
   objetivoSchema,
+  validarCamposExtras,
+  type CampoExtraCatalogo,
+  type AprovadorPlano,
   type Objetivo,
   type RevisaoObjetivo,
+  type VisibilidadeObjetivo,
 } from '../packages/contracts/src/plano-cuidado.js';
 import type { criarCicloPlano } from './ciclo-plano.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
+import { confirmarDescarte } from './confirmacao.js';
 
-export type ObjetivoAtual = { objetivo_id: string; versao: number; objetivo: Objetivo };
+export type ObjetivoAtual = {
+  registro_id?: string;
+  aprovacoes?: { registro_id: string; aprovador_usuario_id: string; aprovado_em: string }[];
+  objetivo_id: string;
+  versao: number;
+  objetivo: Objetivo;
+  visibilidade: VisibilidadeObjetivo;
+};
 export type VersaoHistoricoObjetivo = ObjetivoAtual & {
   ator_usuario_id: string;
   data: string;
@@ -14,6 +27,19 @@ export type VersaoHistoricoObjetivo = ObjetivoAtual & {
 };
 export type Pagina<T> = { itens: T[]; proximo_cursor: string | null };
 export type ServicoPlanoCuidado = {
+  consultarCatalogo?(): Promise<CampoExtraCatalogo[]>;
+  gravarCampoExtra?(
+    entrada: Omit<CampoExtraCatalogo, 'versao'> & { versao_esperada: number },
+    chave: string,
+  ): Promise<void>;
+  consultarAprovadores?(): Promise<AprovadorPlano[]>;
+  gravarAprovador?(
+    entrada: { usuario_id_aprovador: string; ativo: boolean; versao_esperada: number },
+    chave: string,
+  ): Promise<void>;
+  aprovarObjetivo?(
+    registroId: string,
+  ): Promise<{ registro_id: string; aprovador_usuario_id: string; aprovado_em: string }>;
   consultarHistorico(
     pacienteId: string,
     objetivoId: string,
@@ -25,7 +51,7 @@ export type ServicoPlanoCuidado = {
     pacienteId: string,
     objetivoId: string,
     versaoEsperada: number,
-    revisao: RevisaoObjetivo,
+    revisao: RevisaoObjetivo & { visibilidade: VisibilidadeObjetivo },
   ): Promise<void>;
 };
 
@@ -36,7 +62,10 @@ export function montarPlanoCuidado(
   servico: ServicoPlanoCuidado,
   acessoPerdido: (erro: unknown) => void,
   alteracaoPendente: (pendente: boolean) => void = () => {},
+  ehFamilia = false,
+  nomeDoUsuario: (usuarioId: string) => string | undefined = () => undefined,
 ): () => void {
+  let catalogo: CampoExtraCatalogo[] = [];
   let ativa = true;
   let gravando = false;
   let bloqueada = false;
@@ -59,10 +88,11 @@ export function montarPlanoCuidado(
     if (!cursor) cursores = [];
     const status = elemento('p', 'Carregando plano de cuidado…');
     status.setAttribute('role', 'status');
-    raiz.replaceChildren(status);
+    raiz.replaceChildren(esqueletoCarregando(3, true), status);
     void servico
       .consultarObjetivos(pacienteId, cursor)
-      .then((pagina) => {
+      .then(async (pagina) => {
+        if (!ehFamilia && servico.consultarCatalogo) catalogo = await servico.consultarCatalogo();
         if (!ativa) return;
         desenhar(pagina, cursor);
       })
@@ -72,7 +102,7 @@ export function montarPlanoCuidado(
         const tentar = elemento('button', 'Tentar novamente');
         tentar.type = 'button';
         tentar.addEventListener('click', () => consultar(cursor));
-        raiz.append(tentar);
+        raiz.replaceChildren(status, tentar);
       });
   };
   const desenhar = (pagina: Pagina<ObjetivoAtual>, cursorAtual?: string) => {
@@ -83,13 +113,13 @@ export function montarPlanoCuidado(
       elemento('p', 'A lista pode mudar entre páginas. Atualize para consultar novamente.'),
     );
     const formulario = elemento('div');
-    if (criacaoIncerta) {
+    if (criacaoIncerta && !ehFamilia) {
       const aviso = elemento(
         'p',
-        'Confirme a situação de criação antes de adicionar outro objetivo.',
+        'Antes de criar um objetivo, confira se já existe algum envio aguardando resposta.',
       );
       aviso.setAttribute('role', 'status');
-      const recuperar = elemento('button', 'Confirmar situação de criação');
+      const recuperar = elemento('button', 'Conferir e liberar');
       recuperar.type = 'button';
       recuperar.dataset.recuperacaoPlano = '';
       recuperar.disabled = recuperando;
@@ -97,7 +127,7 @@ export function montarPlanoCuidado(
         if (recuperando || formulario.querySelector('form')) return;
         recuperando = true;
         recuperar.disabled = true;
-        aviso.textContent = 'Confirmando situação de criação…';
+        aviso.textContent = 'Conferindo…';
         void (async () => {
           let situacao = await servico.ciclo.consultar();
           if (!situacao.resultado_pendente) {
@@ -110,15 +140,15 @@ export function montarPlanoCuidado(
               situacao.resultado_pendente.paciente_id.toLowerCase() !== pacienteId.toLowerCase()
             ) {
               aviso.textContent =
-                'Resultado pendente pertence a outro paciente. Abra o plano correspondente para conferi-lo e reconhecê-lo.';
+                'O envio aguardando resposta é de outro paciente. Abra o plano dele para conferir antes de continuar aqui.';
               recuperar.hidden = true;
               return;
             }
             aviso.textContent =
               situacao.resultado_pendente.resultado === 'confirmada'
-                ? 'Uma criação anterior foi confirmada. Confira o plano correspondente.'
-                : 'Uma criação anterior foi cancelada.';
-            recuperar.textContent = 'Reconhecer resultado e liberar criação';
+                ? 'O objetivo enviado antes foi salvo. Confira-o na lista abaixo.'
+                : 'O objetivo enviado antes não foi salvo.';
+            recuperar.textContent = 'Entendi, liberar novo objetivo';
             let reconhecido = false;
             recuperar.onclick = () => {
               if (recuperando || formulario.querySelector('form')) return;
@@ -138,7 +168,7 @@ export function montarPlanoCuidado(
               })()
                 .catch((erro: unknown) => {
                   if (!ativa || perdeuAcesso(erro)) return;
-                  aviso.textContent = 'Não foi possível reconhecer o resultado. Tente novamente.';
+                  aviso.textContent = 'Não foi possível concluir. Tente novamente.';
                   recuperar.disabled = false;
                 })
                 .finally(() => {
@@ -155,7 +185,7 @@ export function montarPlanoCuidado(
         })()
           .catch((erro: unknown) => {
             if (!ativa || perdeuAcesso(erro)) return;
-            aviso.textContent = 'Não foi possível confirmar a situação. Tente novamente.';
+            aviso.textContent = 'Não foi possível conferir agora. Tente novamente.';
             recuperar.disabled = false;
           })
           .finally(() => {
@@ -205,6 +235,80 @@ export function montarPlanoCuidado(
       }
       labelEstado.append(estado);
       campos.append(labelEstado);
+      const labelVisibilidade = elemento('label', 'Visibilidade para a família');
+      const visibilidade = elemento('select');
+      for (const [valor, rotulo] of [
+        ['interna', 'Interna (só a equipe vê)'],
+        ['publica', 'Pública (a família também vê)'],
+      ] as const) {
+        const opcao = elemento('option', rotulo);
+        opcao.value = valor;
+        visibilidade.append(opcao);
+      }
+      labelVisibilidade.append(visibilidade);
+      campos.append(labelVisibilidade);
+      const extras = elemento('fieldset');
+      extras.append(elemento('legend', 'Campos adicionais (opcionais)'));
+      const controlesExtras = new Map<string, HTMLInputElement | HTMLSelectElement>();
+      const valoresAnteriores = atual?.objetivo.camposExtras ?? {};
+      const bloqueiosExtras: string[] = [];
+      for (const [id, valor] of Object.entries(valoresAnteriores)) {
+        const campo = catalogo.find((item) => item.campo_id === id);
+        if (!campo?.ativo) {
+          extras.append(elemento('p', `${campo?.nome ?? 'Campo indisponível'}: ${valor}`));
+          bloqueiosExtras.push(id);
+        }
+      }
+      for (const campo of catalogo.filter((item) => item.ativo)) {
+        const label = elemento('label', campo.nome);
+        const controle = campo.tipo === 'lista' ? elemento('select') : elemento('input');
+        if (controle instanceof HTMLSelectElement) {
+          const vazio = elemento('option', 'Não preenchido');
+          vazio.value = '';
+          controle.append(vazio);
+          for (const valor of campo.opcoes ?? []) {
+            const opcao = elemento('option', valor);
+            opcao.value = valor;
+            controle.append(opcao);
+          }
+          if (
+            valoresAnteriores[campo.campo_id] &&
+            !campo.opcoes?.includes(valoresAnteriores[campo.campo_id] ?? '')
+          ) {
+            const antiga = elemento(
+              'option',
+              `${valoresAnteriores[campo.campo_id]} (opção indisponível)`,
+            );
+            antiga.value = valoresAnteriores[campo.campo_id] ?? '';
+            controle.append(antiga);
+          }
+        } else {
+          controle.type =
+            campo.tipo === 'numero' ? 'number' : campo.tipo === 'data' ? 'date' : 'text';
+          if (campo.tipo === 'numero') controle.step = 'any';
+        }
+        const valorAnterior = valoresAnteriores[campo.campo_id];
+        // Tipo do catálogo pode mudar. Input number/date descartaria silenciosamente
+        // valor legado incompatível ao atribuir .value; exibir como texto até corrigir.
+        if (
+          controle instanceof HTMLInputElement &&
+          valorAnterior !== undefined &&
+          !validarCamposExtras({ [campo.campo_id]: valorAnterior }, [campo]).ok
+        )
+          controle.type = 'text';
+        controle.value = valorAnterior ?? '';
+        controlesExtras.set(campo.campo_id, controle);
+        label.append(controle);
+        extras.append(label);
+      }
+      if (bloqueiosExtras.length)
+        extras.append(
+          elemento(
+            'p',
+            'Este objetivo contém campos desativados ou indisponíveis. A revisão está bloqueada para preservar os valores. Solicite a regularização do catálogo.',
+          ),
+        );
+      campos.append(extras);
       const motivo = atual ? criarCampo('Motivo da revisão', 'textarea') : null;
       if (atual) {
         const objetivo = atual.objetivo;
@@ -215,6 +319,7 @@ export function montarPlanoCuidado(
         observacaoProgresso.value = objetivo.observacaoProgresso;
         dataRevisao.value = objetivo.dataRevisao;
         estado.value = objetivo.estado;
+        visibilidade.value = atual.visibilidade;
       }
       const salvar = elemento('button', atual ? 'Salvar revisão' : 'Salvar objetivo');
       salvar.type = 'submit';
@@ -229,6 +334,7 @@ export function montarPlanoCuidado(
       const carregarAtual = (cursor?: string) => {
         consultarAtual.disabled = true;
         recuperacao.replaceChildren(elemento('p', 'Consultando plano de cuidado…'));
+        const finalizar = iniciarAcao(consultarAtual);
         void servico
           .consultarObjetivos(pacienteId, cursor)
           .then((paginaAtual) => {
@@ -271,16 +377,22 @@ export function montarPlanoCuidado(
             if (!ativa || perdeuAcesso(erro)) return;
             recuperacao.replaceChildren(elemento('p', mensagemFalha(erro)));
             consultarAtual.disabled = false;
-          });
+          })
+          .finally(finalizar);
       };
       consultarAtual.addEventListener('click', () => carregarAtual());
       let rascunhoAlterado = false;
       cancelar.addEventListener('click', () => {
-        if (rascunhoAlterado && !window.confirm('Descartar alterações não salvas deste objetivo?'))
-          return;
-        formulario.replaceChildren();
-        if (botaoRecuperacao) botaoRecuperacao.disabled = false;
-        alteracaoPendente(false);
+        void (async () => {
+          if (
+            rascunhoAlterado &&
+            !(await confirmarDescarte('as alterações não salvas deste objetivo'))
+          )
+            return;
+          formulario.replaceChildren();
+          if (botaoRecuperacao) botaoRecuperacao.disabled = false;
+          alteracaoPendente(false);
+        })();
       });
       const marcarAlterado = () => {
         rascunhoAlterado = true;
@@ -291,7 +403,18 @@ export function montarPlanoCuidado(
       form.addEventListener('submit', (evento) => {
         evento.preventDefault();
         if (gravando || bloqueada) return;
+        const camposExtras = { ...valoresAnteriores };
+        for (const [id, controle] of controlesExtras) {
+          if (controle.value === '') delete camposExtras[id];
+          else camposExtras[id] = controle.value;
+        }
+        if (bloqueiosExtras.length || !validarCamposExtras(camposExtras, catalogo).ok) {
+          aviso.textContent =
+            'Confira os campos adicionais. Valores desativados precisam ser regularizados no catálogo antes da revisão.';
+          return;
+        }
         const validado = objetivoSchema.safeParse({
+          ...(Object.keys(camposExtras).length ? { camposExtras } : {}),
           descricao: descricao.value,
           area: area.value,
           responsavel: responsavel.value,
@@ -301,6 +424,7 @@ export function montarPlanoCuidado(
           estado: estado.value,
         });
         const razao = motivo?.value.trim();
+        const audiencia = visibilidade.value === 'publica' ? 'publica' : 'interna';
         if (!validado.success || (atual && !razao)) {
           aviso.textContent = 'Preencha todos os campos e confira a data de revisão.';
           return;
@@ -308,12 +432,14 @@ export function montarPlanoCuidado(
         gravando = true;
         campos.disabled = salvar.disabled = cancelar.disabled = true;
         aviso.textContent = 'Salvando objetivo…';
+        const finalizar = iniciarAcao(salvar);
         const operacao = atual
           ? servico.revisarObjetivo(pacienteId, atual.objetivo_id, atual.versao, {
               objetivo: validado.data,
               motivo: razao ?? '',
+              visibilidade: audiencia,
             })
-          : servico.ciclo.criar(pacienteId, validado.data);
+          : servico.ciclo.criar(pacienteId, validado.data, audiencia);
         void operacao
           .then(() => {
             if (!ativa) return;
@@ -352,7 +478,8 @@ export function montarPlanoCuidado(
             aviso.textContent = conflito
               ? 'O objetivo foi alterado por outra pessoa. Preserve seu rascunho e consulte a versão atual antes de revisar novamente.'
               : mensagemFalha(erro);
-          });
+          })
+          .finally(finalizar);
       });
       form.append(campos, salvar, cancelar, aviso, consultarAtual, recuperacao);
       formulario.replaceChildren(form);
@@ -368,8 +495,70 @@ export function montarPlanoCuidado(
         ['Como observar o progresso', atual.objetivo.observacaoProgresso],
         ['Data de revisão', atual.objetivo.dataRevisao],
         ['Estado', atual.objetivo.estado],
+        ...(ehFamilia
+          ? []
+          : [['Visibilidade', atual.visibilidade === 'publica' ? 'Pública' : 'Interna']]),
       ])
         item.append(elemento('p', `${rotulo}: ${valor}`));
+      for (const [id, valor] of Object.entries(atual.objetivo.camposExtras ?? {}))
+        item.append(
+          elemento(
+            'p',
+            `${catalogo.find((campo) => campo.campo_id === id)?.nome ?? 'Campo adicional'}: ${valor}`,
+          ),
+        );
+      if (ehFamilia) {
+        lista.append(item);
+        continue;
+      }
+      for (const aprovacao of atual.aprovacoes ?? [])
+        item.append(
+          elemento(
+            'p',
+            `Versão ${atual.versao} aprovada por ${nomeDoUsuario(aprovacao.aprovador_usuario_id) ?? 'Aprovador sem identificação disponível'} em ${new Date(aprovacao.aprovado_em).toLocaleString('pt-BR')}.`,
+          ),
+        );
+      if (servico.aprovarObjetivo && atual.registro_id) {
+        const aprovar = elemento('button', 'Aprovar esta versão');
+        aprovar.type = 'button';
+        const resultado = elemento('p');
+        resultado.setAttribute('role', 'status');
+        aprovar.onclick = () => {
+          aprovar.disabled = true;
+          resultado.textContent = 'Registrando aprovação…';
+          void servico
+            .aprovarObjetivo?.(atual.registro_id ?? '')
+            .then((carimbo) => {
+              if (!ativa) return;
+              resultado.textContent = `Versão ${atual.versao} aprovada por ${nomeDoUsuario(carimbo.aprovador_usuario_id) ?? 'Aprovador sem identificação disponível'} em ${new Date(carimbo.aprovado_em).toLocaleString('pt-BR')}.`;
+            })
+            .catch(async (erro: unknown) => {
+              if (!ativa) return;
+              if (
+                erro instanceof FalhaApi &&
+                erro.status === 403 &&
+                erro.codigo === 'sem_permissao'
+              ) {
+                // Não ser aprovador não revoga permissão de trabalhar no plano.
+                // Reconsultar para distinguir perda de acesso ao caso de negativa do carimbo.
+                try {
+                  await servico.consultarObjetivos(pacienteId);
+                } catch (falha) {
+                  if (perdeuAcesso(falha)) return;
+                }
+                if (!ativa) return;
+                resultado.textContent =
+                  'Você não possui permissão vigente para aprovar esta versão.';
+                aprovar.disabled = false;
+                return;
+              }
+              if (perdeuAcesso(erro)) return;
+              resultado.textContent = mensagemFalha(erro);
+              aprovar.disabled = false;
+            });
+        };
+        item.append(aprovar, resultado);
+      }
       const revisar = elemento('button', 'Revisar objetivo');
       revisar.type = 'button';
       revisar.addEventListener('click', () => abrir(atual));
@@ -382,6 +571,7 @@ export function montarPlanoCuidado(
         status.setAttribute('role', 'status');
         historico.querySelector('[data-status-historico]')?.remove();
         status.dataset.statusHistorico = '';
+        const finalizar = iniciarAcao(consultarHistorico);
         if (!cursor) historico.replaceChildren(status);
         else historico.append(status);
         void servico
@@ -408,6 +598,13 @@ export function montarPlanoCuidado(
                 ...(versao.motivo ? [['Motivo da revisão', versao.motivo]] : []),
               ])
                 registro.append(elemento('p', `${rotulo}: ${valor}`));
+              for (const [id, valor] of Object.entries(versao.objetivo.camposExtras ?? {}))
+                registro.append(
+                  elemento(
+                    'p',
+                    `${catalogo.find((campo) => campo.campo_id === id)?.nome ?? 'Campo adicional'}: ${valor}`,
+                  ),
+                );
               historico.append(registro);
             }
             if (paginaHistorico.proximo_cursor) {
@@ -425,16 +622,13 @@ export function montarPlanoCuidado(
             if (!ativa || perdeuAcesso(erro) || !raiz.contains(item)) return;
             status.textContent = mensagemFalha(erro);
             consultarHistorico.disabled = false;
-          });
+          })
+          .finally(finalizar);
       };
       consultarHistorico.onclick = () => carregarHistorico();
       item.append(revisar, consultarHistorico, historico);
       lista.append(item);
     }
-    const adicionar = elemento('button', 'Adicionar objetivo');
-    adicionar.type = 'button';
-    adicionar.disabled = criacaoIncerta;
-    adicionar.addEventListener('click', () => abrir());
     secao.append(lista);
     if (cursores.length) {
       const anterior = elemento('button', 'Página anterior de objetivos');
@@ -455,7 +649,13 @@ export function montarPlanoCuidado(
       });
       secao.append(proxima);
     }
-    secao.append(adicionar, formulario);
+    if (!ehFamilia) {
+      const adicionar = elemento('button', 'Adicionar objetivo');
+      adicionar.type = 'button';
+      adicionar.disabled = criacaoIncerta;
+      adicionar.addEventListener('click', () => abrir());
+      secao.append(adicionar, formulario);
+    }
     raiz.replaceChildren(secao);
   };
   consultar();

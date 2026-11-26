@@ -1,9 +1,17 @@
+import {
+  incluirSeletorExportacao,
+  conferirVersaoExportacao,
+  type SeletorVersaoExportacao,
+} from './turno-execucao-seletor-exportacao.ts';
 import { chaveIdempotenciaSchema, uuidSchema } from '../../../packages/contracts/src/comum.ts';
 import {
   objetivoSchema,
+  validarCamposExtras,
+  type CampoExtraCatalogo,
   motivoPlanoSchema,
   conteudoPlanoSchema,
   respostaPlanoPrivadaSchema,
+  visibilidadeObjetivoSchema,
   type Objetivo,
 } from '../../../packages/contracts/src/plano-cuidado.ts';
 import {
@@ -20,7 +28,12 @@ type Autorizacao =
   | { estado: 'autorizado'; identidade: Identidade }
   | { estado: 'nao_autenticado' | 'sem_permissao' | 'servico_indisponivel' };
 type Comando =
-  | { operacao: 'ler'; paciente_id: string; cursor?: string; limite?: number }
+  | ({
+      operacao: 'ler';
+      paciente_id: string;
+      cursor?: string;
+      limite?: number;
+    } & SeletorVersaoExportacao)
   | {
       operacao: 'historico';
       paciente_id: string;
@@ -37,6 +50,9 @@ type Comando =
       geracao_reserva?: number;
       objetivo: unknown;
       motivo?: unknown;
+      // Opcional aqui (testes internos chamam `Comando` direto, sem passar pela rota HTTP, que
+      // já exige o campo); ausência cai no mesmo padrão 'interna' da coluna no banco.
+      visibilidade?: unknown;
     };
 /** Operação interna sem rota ou grant; banco autoriza e audita antes da leitura. */
 export async function operarPlanoCuidadoNativo(
@@ -51,6 +67,7 @@ export async function operarPlanoCuidadoNativo(
       expira_em: string;
       request_id: string;
     };
+    consultarCatalogo?: () => Promise<readonly CampoExtraCatalogo[]>;
     cifra: {
       cifrar(valor: string, aad: Aad): Promise<CampoCifrado>;
       decifrar(valor: CampoCifrado, aad: Aad): Promise<string>;
@@ -104,6 +121,7 @@ export async function operarPlanoCuidadoNativo(
     let objetivoId: string | undefined;
     let objetivo: Objetivo | undefined;
     let motivo: string | undefined;
+    let visibilidade: 'interna' | 'publica' | undefined;
     let chaveIdempotencia: string | undefined;
     if (comando.operacao === 'historico') {
       const id = uuidSchema.safeParse(comando.objetivo_id);
@@ -118,9 +136,11 @@ export async function operarPlanoCuidadoNativo(
       const reserva = uuidSchema.safeParse(comando.reserva_id);
       const valor = objetivoSchema.safeParse(comando.objetivo);
       const razao = motivoPlanoSchema.safeParse(comando.motivo);
+      const audiencia = visibilidadeObjetivoSchema.safeParse(comando.visibilidade ?? 'interna');
       if (
         !id.success ||
         !valor.success ||
+        !audiencia.success ||
         (comando.versao_esperada === 0 &&
           (!reserva.success ||
             !Number.isSafeInteger(comando.geracao_reserva) ||
@@ -137,6 +157,7 @@ export async function operarPlanoCuidadoNativo(
       objetivoId = id.data.toLowerCase();
       objetivo = valor.data;
       motivo = razao.success ? razao.data : undefined;
+      visibilidade = audiencia.data;
       if (new TextEncoder().encode(JSON.stringify({ objetivo, motivo })).length > 23_000)
         return erro('entrada_invalida');
     }
@@ -152,6 +173,7 @@ export async function operarPlanoCuidadoNativo(
     )
       return erro('nao_autenticado');
     const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+    if (comando.operacao === 'ler') incluirSeletorExportacao(comando, entrada);
     let cursorInterno: string | number | null = null;
     let vinculoCursor: { usuarioId: string; sessaoId: string } | undefined;
     if (comando.operacao !== 'gravar') {
@@ -196,6 +218,19 @@ export async function operarPlanoCuidadoNativo(
     }
     if (comando.operacao === 'historico') entrada.objetivo_id = objetivoId;
     if (comando.operacao === 'gravar' && objetivoId && objetivo) {
+      // Catálogo é dado confiável do banco, nunca o catálogo enviado pelo navegador.
+      const extras = objetivo.camposExtras;
+      if (extras && Object.keys(extras).length) {
+        if (!portas.consultarCatalogo) return erro('servico_indisponivel');
+        const catalogo = await portas.consultarCatalogo();
+        if (!validarCamposExtras(extras, catalogo).ok) return erro('entrada_invalida');
+        entrada.campos_extras_catalogo = Object.fromEntries(
+          Object.keys(extras).map((id) => [
+            id,
+            catalogo.find((campo) => campo.campo_id === id)?.versao,
+          ]),
+        );
+      }
       const registroId = crypto.randomUUID();
       const aad: Aad = {
         tabela: 'cadastro.objetivo_cuidado_versao',
@@ -218,6 +253,7 @@ export async function operarPlanoCuidadoNativo(
           objetivo_id: objetivoId,
           versao_esperada: comando.versao_esperada,
           objetivo,
+          visibilidade,
           ...(motivo === undefined ? {} : { motivo }),
         }),
       );
@@ -232,6 +268,7 @@ export async function operarPlanoCuidadoNativo(
         objetivo_id: objetivoId,
         registro_id: registroId,
         versao_esperada: comando.versao_esperada,
+        visibilidade,
         conteudo: campoCifradoSchema.parse(
           await portas.cifra.cifrar(JSON.stringify(conteudo), aad),
         ),
@@ -282,6 +319,7 @@ export async function operarPlanoCuidadoNativo(
       );
     const pagina = 'itens' in resposta.dados ? resposta.dados : undefined;
     if ((comando.operacao !== 'gravar') !== (pagina !== undefined)) throw new Error();
+    if (comando.operacao === 'ler') conferirVersaoExportacao(comando, resposta.dados);
     const registros = pagina
       ? pagina.itens
       : [resposta.dados as Exclude<typeof resposta.dados, { itens: unknown }>];
@@ -323,11 +361,20 @@ export async function operarPlanoCuidadoNativo(
         campo: 'conteudo',
         formato: 1,
       };
+      if (registro.aprovacoes?.some((aprovacao) => aprovacao.registro_id !== registro.registro_id))
+        throw new Error();
       const conteudo = conteudoPlanoSchema.parse(
         JSON.parse(await portas.cifra.decifrar(registro.conteudo, aad)),
       );
       if (registro.versao > 1 && !conteudo.motivo) throw new Error();
-      resultado.push({ objetivo_id: aad.objetivo_id, versao: registro.versao, ...conteudo });
+      resultado.push({
+        registro_id: aad.registro_id,
+        aprovacoes: registro.aprovacoes ?? [],
+        objetivo_id: aad.objetivo_id,
+        versao: registro.versao,
+        visibilidade: registro.visibilidade,
+        ...conteudo,
+      });
     }
     let proximoCursor: string | null = null;
     if (

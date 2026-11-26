@@ -1,3 +1,5 @@
+import { confirmar } from './confirmacao.js';
+import { iniciarAcao } from './esqueleto.js';
 import { type ClienteFFCM, mensagemFalha } from './api.js';
 import { criarCicloAcesso } from './ciclo-acesso.js';
 import { montarRevogacaoVinculo } from './revogacao-vinculo.js';
@@ -34,12 +36,15 @@ export function montarSelecaoProfissional(
   seguinte.type = 'button';
   seguinte.className = 'button-secondary';
   seguinte.textContent = 'Próxima página';
+  // Paginação só aparece quando há mais de uma página: botões soltos sobre lista
+  // vazia davam a impressão de tela quebrada.
+  anterior.hidden = seguinte.hidden = true;
   const tentar = document.createElement('button');
   tentar.type = 'button';
   tentar.className = 'button-secondary';
   tentar.textContent = 'Tentar novamente';
   const explicacao = document.createElement('p');
-  explicacao.textContent = 'Verifique operações anteriores antes de conceder acesso.';
+  explicacao.textContent = 'Conferindo se há alguma concessão aguardando resposta…';
   const rotuloMotivo = document.createElement('label');
   rotuloMotivo.textContent = 'Motivo da concessão';
   const motivo = document.createElement('textarea');
@@ -52,7 +57,7 @@ export function montarSelecaoProfissional(
   rotuloMotivo.append(motivo);
   const recuperar = document.createElement('button');
   recuperar.type = 'button';
-  recuperar.textContent = 'Verificar operação pendente';
+  recuperar.textContent = 'Conferir novamente';
   const conceder = document.createElement('button');
   conceder.type = 'button';
   conceder.className = 'button-primary';
@@ -92,15 +97,21 @@ export function montarSelecaoProfissional(
     verificando = true;
     liberado = false;
     conceder.disabled = recuperar.disabled = true;
+    const terminarAcao = iniciarAcao(recuperar);
+    explicacao.textContent = 'Conferindo acesso…';
     try {
       let estado = await ciclo.consultar();
       if (!ativa) return;
       if (!estado.resultado_pendente) {
         if (
           estado.reserva &&
-          !window.confirm(
-            'Há uma tentativa em andamento que pode estar em outra aba. Encerrá-la afetará todas as abas. Deseja continuar?',
-          )
+          !(await confirmar({
+            titulo: 'Encerrar a tentativa em andamento?',
+            detalhe:
+              'A tentativa pode estar aberta em outra aba. Encerrá-la afeta todas as abas desta pessoa.',
+            acao: 'Encerrar a tentativa',
+            cancelar: 'Deixar como está',
+          }))
         )
           throw new Error('Encerramento não confirmado');
         await ciclo.encerrar();
@@ -132,9 +143,13 @@ export function montarSelecaoProfissional(
           if (
             !encontrado ||
             !nome ||
-            !window.confirm(
-              `${pendente.acao === 'revogar' ? 'Revogação' : 'Concessão'} anterior para ${nome}: ${encontrado.revogado ? 'revogada' : 'ativa'}. Confirmar verificação?`,
-            )
+            !(await confirmar({
+              titulo: `${pendente.acao === 'revogar' ? 'Revogação' : 'Concessão'} anterior para ${nome}: ${encontrado.revogado ? 'revogada' : 'ativa'}. Confere?`,
+              detalhe:
+                'Confirmar encerra a conferência e libera novas alterações de vínculo. Cancelar mantém tudo como está.',
+              acao: 'Confere, pode seguir',
+              cancelar: 'Não confere',
+            }))
           )
             throw new Error('Confirmação necessária');
         }
@@ -149,13 +164,14 @@ export function montarSelecaoProfissional(
       if (!ativa) return;
       liberado = true;
       revogacao.reconciliar();
-      explicacao.textContent = 'Operações anteriores verificadas.';
+      explicacao.textContent = 'Tudo conferido. Você já pode conceder acesso.';
       conceder.disabled = !selecao.value;
     } catch (erro) {
       if (!ativa || acessoPerdido(erro)) return;
       explicacao.textContent =
-        'Não foi possível confirmar a operação anterior. Consulte o paciente correspondente e tente novamente.';
+        'Não foi possível concluir a conferência. Confira o paciente correspondente e tente de novo.';
     } finally {
+      terminarAcao();
       verificando = false;
       if (ativa) recuperar.disabled = false;
     }
@@ -168,6 +184,8 @@ export function montarSelecaoProfissional(
     if (!liberado || !selecao.value || !motivo.value.trim()) return;
     liberado = false;
     conceder.disabled = true;
+    const terminarAcao = iniciarAcao(conceder);
+    explicacao.textContent = 'Enviando concessão…';
     const usuario = selecao.value;
     const razao = motivo.value;
     void ciclo
@@ -179,14 +197,15 @@ export function montarSelecaoProfissional(
           pendenciaConcessao = false;
           informarPendencia();
         }
-        explicacao.textContent = 'Concessão enviada. Verifique o resultado antes de continuar.';
+        explicacao.textContent = 'Concessão enviada. Confira o resultado antes de continuar.';
         void atualizarVinculos().catch(() => {});
       })
       .catch((erro) => {
         if (ativa && !acessoPerdido(erro))
           explicacao.textContent =
-            'Resultado incerto. Verifique a operação antes de tentar novamente.';
-      });
+            'Não deu para saber se a concessão foi registrada. Confira antes de tentar de novo.';
+      })
+      .finally(terminarAcao);
   });
   void verificarPendente();
 
@@ -209,7 +228,7 @@ export function montarSelecaoProfissional(
   vinculos.append(tituloVinculos, estadoVinculos, listaVinculos, maisVinculos, tentarVinculos);
   const areaRevogacao = document.createElement('section');
   const avisoRevogacao = document.createElement('p');
-  avisoRevogacao.textContent = 'Verifique operações anteriores antes de alterar vínculos.';
+  avisoRevogacao.textContent = 'Conclua a conferência acima antes de alterar vínculos.';
   vinculos.append(avisoRevogacao);
   raiz.prepend(vinculos);
   raiz.append(areaRevogacao);
@@ -311,6 +330,7 @@ export function montarSelecaoProfissional(
     const executar = async (): Promise<boolean> => {
       maisVinculos.disabled = tentarVinculos.disabled = true;
       estadoVinculos.textContent = 'Consultando vínculos…';
+      listaVinculos.setAttribute('aria-busy', 'true');
       const reiniciar = atualizacaoPendente;
       const geracao = geracaoAtualizacao;
       try {
@@ -336,7 +356,7 @@ export function montarSelecaoProfissional(
             botao.addEventListener('click', () => {
               const nome = nomesProfissionais.get(item.usuario_id.toLowerCase());
               if (nome && liberado)
-                revogacao.selecionar({ id: item.id, versao: item.versao, nome });
+                void revogacao.selecionar({ id: item.id, versao: item.versao, nome });
             });
             linha.append(botao);
           }
@@ -372,6 +392,7 @@ export function montarSelecaoProfissional(
         }
         return false;
       } finally {
+        listaVinculos.removeAttribute('aria-busy');
         maisVinculos.disabled = tentarVinculos.disabled = false;
       }
     };
@@ -390,6 +411,7 @@ export function montarSelecaoProfissional(
     const atual = ++consulta;
     status.textContent = 'Consultando equipe…';
     selecao.disabled = anterior.disabled = seguinte.disabled = true;
+    selecao.setAttribute('aria-busy', 'true');
     tentar.hidden = true;
     selecao.replaceChildren();
     try {
@@ -405,9 +427,12 @@ export function montarSelecaoProfissional(
       );
       const vazio = document.createElement('option');
       vazio.value = '';
+      const unicaPagina = pagina === 0 && !proximo;
       vazio.textContent = profissionais.length
         ? 'Selecione um profissional'
-        : 'Nenhum profissional elegível nesta página';
+        : unicaPagina
+          ? 'Nenhum profissional elegível'
+          : 'Nenhum profissional elegível nesta página';
       selecao.append(vazio);
       for (const profissional of profissionais) {
         const opcao = document.createElement('option');
@@ -418,14 +443,18 @@ export function montarSelecaoProfissional(
       selecao.disabled = profissionais.length === 0;
       anterior.disabled = pagina === 0;
       seguinte.disabled = !proximo;
+      anterior.hidden = seguinte.hidden = unicaPagina;
+      const paginaAtual = unicaPagina ? '' : `Página ${pagina + 1}. `;
       status.textContent = profissionais.length
-        ? `Página ${pagina + 1}. Selecione um profissional.`
-        : `Página ${pagina + 1}. Nenhum profissional elegível nesta página.`;
+        ? `${paginaAtual}Selecione o profissional que vai acompanhar o caso.`
+        : `${paginaAtual}Nenhum profissional da equipe pode receber acesso agora.`;
     } catch (erro) {
       if (!ativa || atual !== consulta || acessoPerdido(erro)) return;
       status.textContent = mensagemFalha(erro);
       tentar.hidden = false;
       anterior.disabled = pagina === 0;
+    } finally {
+      if (atual === consulta) selecao.removeAttribute('aria-busy');
     }
   }
   anterior.addEventListener('click', () => {
@@ -447,6 +476,8 @@ export function montarSelecaoProfissional(
   return () => {
     ativa = false;
     consulta += 1;
+    selecao.removeAttribute('aria-busy');
+    listaVinculos.removeAttribute('aria-busy');
     revogacao.destruir();
     raiz.replaceChildren();
   };

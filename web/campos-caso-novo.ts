@@ -93,6 +93,7 @@ export function montarCamposCasoNovo(
     equipeDisponivel = false;
     el.responsavel.replaceChildren(new Option('Selecione quem acompanha o caso', ''));
     el.responsavel.disabled = true;
+    el.responsavel.setAttribute('aria-busy', 'true');
     el.tentarNovamente.hidden = true;
     el.estadoResponsavel.textContent = 'Carregando equipe…';
     try {
@@ -109,6 +110,8 @@ export function montarCamposCasoNovo(
       el.estadoResponsavel.textContent =
         'Não foi possível carregar a equipe. O cadastro não pode ser enviado agora.';
       el.tentarNovamente.hidden = false;
+    } finally {
+      if (minhaCarga === carga) el.responsavel.removeAttribute('aria-busy');
     }
   };
   el.tentarNovamente.addEventListener('click', () => void carregarResponsaveis());
@@ -116,6 +119,7 @@ export function montarCamposCasoNovo(
   /** Sem permissão para listar a equipe não há como indicar o responsável: o cadastro não é enviado. */
   const equipeIndisponivel = (mensagem: string) => {
     carga += 1;
+    el.responsavel.removeAttribute('aria-busy');
     equipeDisponivel = false;
     el.responsavel.replaceChildren(new Option('Selecione quem acompanha o caso', ''));
     el.responsavel.disabled = true;
@@ -141,6 +145,7 @@ export function montarCamposCasoNovo(
     /** Descarta uma consulta de equipe em andamento, por exemplo ao encerrar a sessão. */
     cancelarCarga: () => {
       carga += 1;
+      el.responsavel.removeAttribute('aria-busy');
       equipeDisponivel = false;
       // Os e-mails da equipe não ficam no formulário oculto depois da saída.
       el.responsavel.replaceChildren(new Option('Selecione quem acompanha o caso', ''));

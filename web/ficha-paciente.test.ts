@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { aguardarConfirmacao } from './confirmacao-prova.js';
 import {
   hashFicha,
   iniciais,
@@ -43,7 +44,7 @@ function secao(nome: string, extra: Partial<SecaoFicha> = {}) {
 }
 
 function abrir(secoes: SecaoFicha[], extra: Partial<OpcoesFicha> = {}) {
-  const confirmar = vi.fn(() => true);
+  const confirmar = vi.fn(async () => true);
   const aoSelecionar = vi.fn();
   const aoVoltar = vi.fn();
   const ficha = montarFicha({
@@ -154,33 +155,38 @@ it('indica seção sem fonte como em breve, sem dados nem ação de gravação',
   expect(um.desmontar).toHaveBeenCalledTimes(1);
 });
 
-it('pede confirmação ao sair de seção com alteração pendente e respeita a recusa', () => {
+it('pede confirmação ao sair de seção com alteração pendente e respeita a recusa', async () => {
   const um = secao('anamnese', { descarte: 'Descartar anamnese?' });
   const dois = secao('plano');
   const { confirmar } = abrir([um.definicao, dois.definicao]);
   um.pendenteRef.atual?.(true);
-  confirmar.mockReturnValueOnce(false);
+  confirmar.mockResolvedValueOnce(false);
   aba('plano').click();
+  await aguardarConfirmacao();
   expect(confirmar).toHaveBeenCalledWith('Descartar anamnese?');
   expect(aba('anamnese').getAttribute('aria-selected')).toBe('true');
   expect(um.desmontar).not.toHaveBeenCalled();
   expect(document.activeElement).toBe(aba('anamnese'));
   aba('plano').click();
+  await aguardarConfirmacao();
   expect(um.desmontar).toHaveBeenCalledTimes(1);
   expect(aba('plano').getAttribute('aria-selected')).toBe('true');
 });
 
-it('pede confirmação ao voltar com alteração pendente e só então avisa a saída', () => {
+it('pede confirmação ao voltar com alteração pendente e só então avisa a saída', async () => {
   const um = secao('anamnese');
   const { confirmar, aoVoltar } = abrir([um.definicao]);
   document.getElementById('ficha-voltar')?.click();
+  await aguardarConfirmacao();
   expect(confirmar).not.toHaveBeenCalled();
   expect(aoVoltar).toHaveBeenCalledTimes(1);
   um.pendenteRef.atual?.(true);
-  confirmar.mockReturnValueOnce(false);
+  confirmar.mockResolvedValueOnce(false);
   document.getElementById('ficha-voltar')?.click();
+  await aguardarConfirmacao();
   expect(aoVoltar).toHaveBeenCalledTimes(1);
   document.getElementById('ficha-voltar')?.click();
+  await aguardarConfirmacao();
   expect(aoVoltar).toHaveBeenCalledTimes(2);
 });
 
@@ -234,6 +240,91 @@ it('mostra erro genérico quando a seção não consegue montar', () => {
   expect(painel.textContent).not.toContain('detalhe interno');
 });
 
+it('sem lista de primárias mantém todas as seções numa faixa só, como antes', () => {
+  abrir([secao('visao').definicao, secao('plano').definicao, secao('anamnese').definicao]);
+  expect(document.querySelector('.ficha-mais')).toBeNull();
+  expect(aba('visao').getAttribute('role')).toBe('tab');
+  expect(aba('anamnese').getAttribute('role')).toBe('tab');
+});
+
+it('separa seções primárias de "Mais seções" e permite acesso a todas as permitidas', () => {
+  const visao = secao('visao');
+  const plano = secao('plano');
+  const anamnese = secao('anamnese');
+  const rede = secao('rede');
+  const { aoSelecionar } = abrir(
+    [visao.definicao, plano.definicao, anamnese.definicao, rede.definicao],
+    {
+      primarias: ['visao', 'plano'],
+    },
+  );
+  const tablist = document.querySelector('[role="tablist"]') as HTMLElement;
+  expect(tablist.contains(aba('visao'))).toBe(true);
+  expect(tablist.contains(aba('plano'))).toBe(true);
+  expect(tablist.contains(aba('anamnese'))).toBe(false);
+  expect(tablist.contains(aba('rede'))).toBe(false);
+  const mais = document.querySelector('.ficha-mais') as HTMLDetailsElement;
+  expect(mais).not.toBeNull();
+  expect(mais.contains(aba('anamnese'))).toBe(true);
+  expect(mais.contains(aba('rede'))).toBe(true);
+  // Toda seção autorizada continua acessível, esteja na faixa primária ou em "Mais seções".
+  aba('rede').click();
+  expect(document.getElementById('ficha-painel')?.textContent).toBe('conteúdo de rede');
+  expect(aoSelecionar).toHaveBeenLastCalledWith('rede');
+});
+
+it('abre "Mais seções" sozinho quando a seção ativa vem do segundo nível (link direto ou troca)', () => {
+  const visao = secao('visao');
+  const plano = secao('plano');
+  const rede = secao('rede');
+  const { ficha } = abrir([visao.definicao, plano.definicao, rede.definicao], {
+    primarias: ['visao', 'plano'],
+    secaoInicial: 'rede',
+  });
+  const mais = document.querySelector('.ficha-mais') as HTMLDetailsElement;
+  expect(mais.open).toBe(true);
+  expect(aba('rede').getAttribute('aria-current')).toBe('true');
+  ficha.selecionar('visao');
+  expect(mais.open).toBe(false);
+  expect(aba('rede').getAttribute('aria-current')).toBe('false');
+});
+
+it('restringe a navegação por seta às abas primárias; as demais seguem a ordem de Tab', () => {
+  const visao = secao('visao');
+  const plano = secao('plano');
+  const rede = secao('rede');
+  abrir([visao.definicao, plano.definicao, rede.definicao], { primarias: ['visao', 'plano'] });
+  aba('visao').focus();
+  aba('visao').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+  expect(document.activeElement).toBe(aba('plano'));
+  aba('plano').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+  // Só duas primárias: o ciclo volta para "visao" e nunca alcança "rede" pela seta.
+  expect(document.activeElement).toBe(aba('visao'));
+});
+
+it('abre "Mais seções" antes de rolar até a aba secundária, não depois (senão o scroll é inútil)', () => {
+  const rolar = vi.fn(function (this: HTMLElement) {
+    // No instante da rolagem, "Mais seções" já precisa estar aberto — rolar até uma aba
+    // dentro de um <details> fechado não leva a nada à vista.
+    const mais = this.closest('.ficha-mais') as HTMLDetailsElement | null;
+    if (mais) estadoAoRolar.push(mais.open);
+  });
+  const estadoAoRolar: boolean[] = [];
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+    configurable: true,
+    value: rolar,
+  });
+  try {
+    abrir([secao('visao').definicao, secao('rede').definicao], {
+      primarias: ['visao'],
+      secaoInicial: 'rede',
+    });
+    expect(estadoAoRolar).toEqual([true]);
+  } finally {
+    Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+  }
+});
+
 it('traz a aba atual para a área visível da faixa de abas ao abrir e ao trocar de seção', () => {
   const rolar = vi.fn();
   Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
@@ -252,4 +343,17 @@ it('traz a aba atual para a área visível da faixa de abas ao abrir e ao trocar
   } finally {
     Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
   }
+});
+
+it('mantém entrada por Tab nas abas primárias com seção secundária ativa', () => {
+  abrir([secao('visao').definicao, secao('plano').definicao, secao('rede').definicao], {
+    primarias: ['visao', 'plano'],
+    secaoInicial: 'rede',
+  });
+  expect(aba('visao').tabIndex).toBe(0);
+  expect(aba('visao').getAttribute('aria-selected')).toBe('false');
+  expect(aba('plano').tabIndex).toBe(-1);
+  aba('visao').focus();
+  aba('visao').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+  expect(document.activeElement).toBe(aba('plano'));
 });

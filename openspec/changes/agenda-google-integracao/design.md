@@ -12,6 +12,17 @@ A fundação distingue sessão e concessões de aplicação do consentimento Cal
 
 ## Decisions
 
+- Revisão operacional 18/11/2026: estado OAuth, cookie e intenção de desconexão derivam
+  chaves efêmeras do HMAC existente do cofre com HKDF-SHA256, salt
+  `ffcmapp:agenda-google:v1` e infos distintos `state`, `cookie`, `desconexao`.
+  Substitui exigência anterior de segredo técnico exclusivo: não criar nem cadastrar nova
+  credencial. Rotacionar HMAC invalida fluxos temporários em andamento; usuário reconecta.
+  Teste comprova determinismo e separação entre finalidades. Chave base não sai do servidor.
+- Migration promovida para `20261125050000_agenda_google_conexao.sql` após revisão local
+  autorizada pela coordenação; flag `ffcm.agenda_google.ativa=false` e domínio editável
+  `ffcm.agenda_google.dominio_workspace` vazio. Rota consulta disponibilidade no banco;
+  faltando flag/segredo/domínio, falha fechada. OAuth Google real permanece não comprovado.
+
 - A operação futura valida sessão e concessões no servidor e banco; ACL Google e OAuth não substituem autorização da aplicação. Identidade, caso, audiência e permissão de agenda são controles distintos. Alternativa de depender apenas da interface ou de escopo OAuth não satisfaz revogação nem isolamento.
 - Tokens e integração permanecem no servidor; escopos Calendar exigem consentimento do próprio profissional, separados do login. Decisão autorizada: usar Supabase Vault para guarda das credenciais Google no servidor. Disponibilidade e limites no plano vigente, ciclo de renovação e revogação precisam de prova antes da ativação; não contratar recursos adicionais sem autorização.
 - Identificar origem, versão externa e operação idempotente; confirmação somente após resposta ou reconciliação na origem. Alternativa de presumir sucesso ou reenviar sem conferir pode gerar divergência ou duplicação.
@@ -31,3 +42,17 @@ Se uma operação incerta pertencer a conta Google anterior e não for possível
 ## Migration Plan
 
 A meta autoriza operações e migrações no projeto de teste e publicação manual. A ativação exige provas positivas e negativas e revisão independente; dados reais e limpeza não estão autorizados. Rollback e reconciliação dependem do desenho aprovado.
+
+
+## Implementação V1 para revisão — 18/11/2026
+
+A mutação consulta novamente o evento por ID na agenda `primary` após ACK e exige marcador
+privado da operação, ID e horários pedidos; falha retorna incerto. Alterar/cancelar série ou
+instância recorrente é recusado nesta V1. Endpoint da origem permanece fixo; ver
+[Calendar events.get](https://developers.google.com/workspace/calendar/api/v3/reference/events/get).
+
+Fronteira servidor/banco: executor usa atestado assinado em conexão PostgreSQL, sem JWT do
+PostgREST. Wrapper verifica HMAC antes de derivar contexto mínimo `sub`/`session_id` para as
+pontes Auth; estas consultam sessão/identidade atuais. Contexto fornecido pelo cliente não
+substitui assinatura. Novo teste SQL cobre wrapper e revogação; privilégio executor continua
+sem acesso direto a tabelas/Vault. Revisão independente e Google/Vault reais permanecem gates.

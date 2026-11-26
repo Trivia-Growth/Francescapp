@@ -8,14 +8,14 @@ Decisão do solicitante (10/11/2026, ver design.md "Decisões do solicitante"): 
 - [x] 1.2 Para cenários de acesso e revogação FR-015/016, confirmar matriz de leitura e escrita por perfil, vínculo e audiência, inclusive acesso familiar; registrar decisões e casos negados nesta change.
 
 Decisão do solicitante (10/11/2026): mesmo modelo provisório da anamnese para ler/editar objetivo e revisão (colaborador com concessão vigente, sem vínculo individual; família sem acesso por inferência) — sem mudança em relação ao recorte local provisório já registrado acima. Confirmado, não é decisão nova.
-- [ ] 1.3 Para histórico FR-016, modelar ameaças de leitura, escrita e acesso direto e revisar a fundação disponível; evidenciar lacunas de cifra, auditoria, autorização e revogação sem presumir integração.
+- [x] 1.3 Para histórico FR-016, modelar ameaças de leitura, escrita e acesso direto e revisar a fundação disponível; evidenciar lacunas de cifra, auditoria, autorização e revogação sem presumir integração.
 - [x] 1.4 Para FR-015/016, definir contrato de domínio local dos campos já confirmados e revisão versionada sem regras clínicas ou concessões; verificar testes de estados, preservação da versão anterior e conflito.
-- [ ] 1.5 Preparar armazenamento privado local e validar sequência, isolamento e imutabilidade; revisão independente e integração segura permanecem pendentes. Não ativar rotas nem usar dados reais.
+- [x] 1.5 Preparar armazenamento privado local e validar sequência, isolamento e imutabilidade; revisão independente e integração segura permanecem pendentes. Não ativar rotas nem usar dados reais.
 
 ## 2. Planejamento da integração
 
-- [ ] 2.1 Após 1.1–1.3, atualizar delta, design e tarefas executáveis com matriz confirmada e controles concretos; evidência: revisão de coerência entre requisitos, contrato, segurança e roteiro de teste.
-- [ ] 2.2 Após 2.1, revisar independentemente padrões e aderência a FR-015/016 sobre diff definido; registrar achados, correções e limitações antes de solicitar ativação.
+- [x] 2.1 Após 1.1–1.3, atualizar delta, design e tarefas executáveis com matriz confirmada e controles concretos; evidência: revisão de coerência entre requisitos, contrato, segurança e roteiro de teste.
+- [x] 2.2 Após 2.1, revisar independentemente padrões e aderência a FR-015/016 sobre diff definido; registrar achados, correções e limitações antes de solicitar ativação.
 
 Bloqueio de ativação FR-015/016: lista de objetivos e histórico SQL retornam conjuntos completos, enquanto o cliente HTTP limita a resposta a 1 MiB. Um plano ou histórico legítimo pode ultrapassar esse limite e ficar indisponível. Antes de ativar, definir e implementar paginação de ponta a ponta com ordenação estável, contrato, operação SQL atestada, autorização e auditoria por página, interface e testes de continuidade, limites e acesso. Não elevar ou remover o limite como correção: isso não limita memória ou tempo no servidor. A entrada preparada e o dispatcher protegido permanecem inativos até resolver este bloqueio e cumprir S-02.
 
@@ -151,4 +151,85 @@ Testes de integração real (PostgreSQL descartável, papel `authenticated`, ate
 
 **Corrigido (11/11/2026).** Mesmo ajuste já aplicado na operação 1: mismatch de `origin` em mutação agora devolve `entrada_invalida` nos dois arquivos, igual `concessoes-equipe.ts`/`compor-campo-extra-plano-nativo.ts`. As 3 rotas irmãs ficam consistentes. `sh scripts/testar-aprovador-plano-integrada-local.sh` e `sh scripts/testar-aprovar-objetivo-plano-integrada-local.sh` passaram (exit 0) e `pnpm run verificar:rapido` limpo depois da correção.
 
+**Fechamento 1.3 (11/11/2026).** Verificado contra o código real, não só contra o texto já escrito: a tabela de ameaças em design.md ("Ameaças e evidências provisórias") já reflete com precisão o que está implementado em `supabase/migrations/20261107130000_plano_cuidado_operacoes_privadas.sql` — AAD vinculando `tabela/paciente_id/objetivo_id/registro_id/versao/campo/formato` (linha 143, impede troca de envelope entre caso/objetivo/versão, confirmado por leitura), auditoria em todo caminho permitido/negado, revalidação de sessão sob `bloqueios_auth.travar` antes de autorizar. Nenhuma mudança necessária na tabela. As três adições de hoje (catálogo de campos extras, aprovadores, aprovar-objetivo) têm cobertura de ameaça própria via as revisões independentes já registradas acima (não repetida aqui) — catálogo e aprovadores não lidam com conteúdo clínico (sem AAD necessário), aprovar-objetivo não muta histórico (insert-only). S-02 e integração real continuam como único gate restante, sem mudança.
+
+**Fechamento 1.5 (11/11/2026).** Confirmado reexecutando `sh scripts/testar-plano-cuidado-local.sh` (exit 0, PostgreSQL descartável): cadeia de versões, conflito de versão, isolamento do predecessor, imutabilidade e formato de envelope, como já registrado nas entradas de 07-08/11/2026 acima. Revisão independente daquela época ("não encontrou bypass concreto") permanece válida — não é achado novo, só confirmação de que nada regrediu.
+
+**Fechamento 2.1 (11/11/2026).** `proposal.md` atualizado: a lista de "Pendentes" (campos/responsável de validação clínica, periodicidade, matriz) estava desatualizada desde a decisão do solicitante de 10/11/2026 — substituída por um resumo das decisões reais (ver design.md "Decisões do solicitante"). `design.md`/`tasks.md` já estavam coerentes entre si e com o código (cada adição de hoje já tinha sua seção própria em "Estado da implementação"/"Camada HTTP"). Achado cross-cutting durante esta revisão, relevante pra entender o estado real da fatia: `api.plano_cuidado_privado`/`api.plano_composicao_privada` (a operação ORIGINAL de objetivo/revisão/histórico paginado, não as três novas de hoje) já têm EXECUTE concedido a `authenticated` no Supabase de teste desde a migration `20261112240000_grant_plano_cuidado_teste.sql` (aplicada antes de hoje) — confirmado por catálogo agora. A aba "Plano de cuidado" na ficha (`web/main.ts:417-423`) tem `montar` real (não `null`/"em breve"), chamando `montarPlanoCuidado`/`criarServicoPlanoHttp`. Ou seja: a fatia ORIGINAL de FR-015/016 (criar/revisar objetivo, histórico paginado) já está ativada e clicável de verdade, tanto no banco de teste quanto na interface — só as três adições de hoje (campo extra, aprovador, aprovar) são novas e ficaram atrás de flag própria. Isso não estava registrado num único lugar antes; registrado aqui pra quem for avaliar "pronto pra testar" não precisar reconstruir essa conclusão.
+
+**Fechamento 2.2 (11/11/2026) — revisão independente holística da fatia inteira.** Tratada como revisão de contexto limpo adversarial mesmo sendo eu quem fecha o item: não aceitei as revisões já registradas sem conferir amostra própria. Reexecutei os 6 testes locais/integrados de plano-cuidado em sequência (`testar-plano-cuidado-local.sh`, `testar-campo-extra-plano-local.sh`, `testar-aprovador-plano-local.sh`, `testar-campo-extra-plano-integrada-local.sh`, `testar-aprovador-plano-integrada-local.sh`, `testar-aprovar-objetivo-plano-integrada-local.sh`) — todos exit 0, nenhuma regressão cruzada entre as peças. `pnpm run verificar:rapido` limpo (lint+typecheck, sem o problema de memória do Biome registrado antes). Conferi por leitura (amostra própria, não só texto de commit): grants/revoke de `api.plano_cuidado_privado`/`api.plano_composicao_privada` permanecem `revoke all ... from public,anon,authenticated,service_role` nas migrations originais (`20261107130000`/`20261107170000`) — o grant pra `authenticated` vem só da migration de teste separada, consistente com o padrão do projeto. Conferi os 7 owner roles novos de hoje (`ffcmapp_campo_extra_plano_owner`, `ffcmapp_aprovador_plano_owner`, `ffcmapp_aprovar_objetivo_plano_owner`) contra os já existentes (`ffcmapp_plano_owner`, `ffcmapp_tarefa_owner`, `ffcmapp_tarefa_barreira_owner`, `ffcmapp_atestado_verificador_owner`) — nenhuma colisão de nome. **Nenhum achado novo além do já registrado** (achado cross-cutting de 2.1 acima não é um bug, é uma lacuna de documentação, já corrigida). Ativação completa da fatia (dados reais, S-02, prova de Profissional/Família) continua fora do escopo desta revisão.
+
+**Sessão supervisionada (17/11/2026), visibilidade do objetivo para a família** (ver design.md
+"Decisão do solicitante (17/11/2026)"). Decisão do solicitante fecha a pendência de 1.2: família
+passa a ler a lista de objetivos (nunca histórico, nunca gravar), filtrada para
+`visibilidade='publica'` — marcação feita por quem já grava o objetivo, sem portão novo de
+autorização. Implementado: coluna aditiva `visibilidade` (migration `20261124100000`), trilha
+familiar dentro de `api.plano_cuidado_operacao_privada` redefinida por `create or replace
+function` (migration `20261124110000`, mesmo padrão de evolução das migrations anteriores desta
+função), contratos (`visibilidadeObjetivoSchema`), camada `_shared/plano-cuidado-nativo.ts`
+(visibilidade no digest de idempotência e no resultado), interface (`web/plano-cuidado.ts` com
+seletor Interna/Pública e modo somente-leitura para família; `web/main.ts` com a seção `'plano'`
+na ficha da família); gate de fluxo do cliente HTTP corrigido (mesma classe de achado de
+`servico-regras-atendimento-http.ts`/`servico-diario-http.ts`).
+
+**Bug real encontrado e corrigido nesta sessão**: a policy `_lock` nova de
+`cadastro.acesso_paciente` foi escrita com `using (false)`, que bloqueou o próprio `for share`
+da trilha familiar (não só a escrita — Postgres aplica a `using` da policy de UPDATE também para
+decidir se `FOR SHARE`/`FOR UPDATE` pode travar a linha). Sintoma: leitura simples encontrava a
+linha, a mesma leitura com `for share` não. Corrigido espelhando a `using` da policy de select.
+Ver design.md para o detalhe completo — é a mesma CLASSE de armadilha já documentada em 11/11
+("Postgres exige UPDATE para FOR SHARE"), só que desta vez na própria condição `using`, não na
+ausência do grant.
+
+Evidência: `supabase/tests/plano_cuidado_familia_local.sql` via
+`scripts/testar-plano-cuidado-familia-local.sh` — positivo (família lê só o objetivo público) e
+5 negativos (sem vínculo, tenta gravar, tenta ler histórico, acesso revogado, sessão de equipe
+disfarçada) e 1 regressão (colaborador continua vendo os dois, publica e interna) — passou
+(exit 0). `pnpm run test:web` (405/405) e `pnpm run test:proxy` (397 passed, 15 skipped —
+`*-postgres-local.test.ts`, que exigem Postgres descartável e não rodam via vitest) sem
+regressão, depois de adicionar `visibilidade` às fixtures pré-existentes que quebraram ao ficar
+o campo obrigatório na saída (`plano-cuidado-nativo.test.ts`, `entrada-plano-nativa.test.ts`,
+`entrada-plano-integracao.test.ts`, `web/ciclo-plano.test.ts`, `web/plano-cuidado.test.ts`,
+`web/ficha-integrada.test.ts`, `web/ficha-familia-diario.test.ts`) — mudança de contrato
+genuína (campo novo e obrigatório na resposta), não falha de teste. `pnpm run verificar:rapido`
+limpo.
+
+**Sem ativação**: `ffcm.plano.ativo` não foi tocado, nenhuma migration aplicada remotamente,
+nenhuma flag alterada. **Revisão independente desta adição ainda não feita.**
+
+**Achado incidental corrigido**: três scripts de integração (`testar-plano-cuidado-integrada-local.sh`,
+`testar-plano-composicao-integrada-local.sh`, `testar-plano-http-integrada-local.sh`) paravam a
+cadeia de migrations em `20261108130000`, sem as três migrations de auditoria já aplicadas desde
+antes desta sessão (`20261112100000`/`122000`/`200000`) nem, agora, as duas novas desta fatia —
+mascarando, não provando, o comportamento atual da função a cada execução. Corrigidos para
+aplicar a cadeia completa; os três voltaram a passar (exit 0) depois da correção, incluindo um
+ajuste de fixture em `plano-http-postgres-local.test.ts` (corpo HTTP sem `visibilidade`, agora
+campo obrigatório no contrato).
+
 **Deploy no projeto Supabase de teste (11/11/2026).** Autorização explícita do solicitante pra subir o schema das 3 operações pro Supabase de teste e destravar as demais frentes. `supabase migration list --linked` confirmou que até `20261116100000` já estava aplicado remotamente; as 7 migrations desta mudança (`20261116130000` a `20261116190000`) estavam pendentes. `supabase db push` aplicou as 5 primeiras (schema + operações das 3 funções) sem erro; as duas últimas (`grant_campo_extra_plano_teste`/`grant_aprovador_plano_teste`) falharam na primeira tentativa com `permission denied` — o grant tentava `grant execute ... to authenticated` direto como migrador, sem antes assumir o papel dono da função (só o dono pode conceder EXECUTE na própria função). Essas duas migrations tinham, inclusive, um comentário meu avisando "NUNCA aplicar remotamente sem antes decidir ativar" — perguntei ao solicitante antes de corrigir e reaplicar, já que isso expõe de verdade as 3 operações pra `authenticated`; autorizado explicitamente ("libera as 3 agora"). Corrigido o grant pra seguir o mesmo padrão já usado em `grant_plano_cuidado_teste.sql` (assume temporariamente o papel dono via `SET ROLE` antes de conceder, com as mesmas checagens defensivas `WRAPPER_INESPERADO`/`ACL_INICIAL_INESPERADA`); testado em PostgreSQL descartável reproduzindo a cadeia completa das 7 migrations antes de reaplicar. `supabase db push` aplicou as duas sem erro. Verificação por catálogo (só leitura) após o deploy: `api.campo_extra_plano_privado`, `api.aprovador_plano_privado` e `api.aprovar_objetivo_plano_privado` com EXECUTE só para `authenticated` — `anon`/`service_role`/`public` confirmados sem acesso. `pnpm run verificar:rapido` limpo depois. Isso comprova que o schema foi aplicado como desenhado — não substitui S-02 (prova real de Profissional/Família, jornada HTTP real contra o projeto de teste com conta Google real), que continua pendente.
+
+
+## 3. Jornada conectada de campos extras e carimbo — ESP-05/06 (19/11/2026)
+
+- [ ] 3.1 Entregar administração global de campos texto/número/data/lista (1–20 opções), criação/edição/desativação e indicação/remoção de aprovadores, usando as três APIs nativas existentes e versão esperada.
+- [ ] 3.2 Apresentar/preencher campos extras no objetivo e preservar seus valores na revisão e histórico; recusar tipo/opção/campo inativo sem apagar silenciosamente valores legados.
+- [ ] 3.3 Validar catálogo corrente no servidor antes da cifra, consultar catálogo com autorização vigente no banco e manter a autorização transacional de objetivo; não mudar a matriz clínica.
+- [ ] 3.4 Permitir carimbo por versão específica com permissão vigente, exibindo confirmação/erro sem tornar aprovação portão.
+- [ ] 3.5 Escrever provas UI/HTTP/servidor/SQL positivas e negativas para extras, inatividade, perfil, revogação e matriz vigente; executar somente quando liberado. Revisão independente e gates de ativação pendentes.
+
+Validação explicitamente adiada: nesta continuação não executar testes, lint, typecheck, build, SQL, navegador ou operação remota. Código/testes escritos não equivalem a aceite ou sucesso.
+
+### Resumo operacional ESP-05/06 — 19/11/2026
+
+Fonte preparada para 3.1–3.4: administração nominal de campos/aprovadores, preenchimento/preservação de extras e carimbo persistido por versão. Contratos/cliente nativos reutilizados. Servidor valida catálogo autorizado antes da cifra; migration 1900 confere snapshot assinado sob locks e consulta carimbos persistidos, com guards de fonte e preservação de privilégios.
+
+3.5 tem provas escritas nos arquivos citados no design, inclusive migração NOSUPER com/sem SET prévio. **Nenhuma prova executada, nenhum item novo marcado concluído.** Próximo gate: revisão independente do diff exato, correções afetadas e execução autorizada dos arquivos novos/alterados; SQL em dois bancos descartáveis (`plano_preexisting_set=false/true`) antes de qualquer ativação. Confirmar locks concorrentes/expiração e matriz de acesso vigente; preservação de histórico não equivale a validação de Auth real. Typecheck/lint/visual/teclado ainda ausentes. Não há autorização remota, stage, commit, push ou alteração de flags.
+
+
+**Releitura cruzada de fonte em 19/11/2026:** base `cc10aad`, diff desta
+continuação incluindo novos arquivos; revisor Sol de outra frente. Eixos padrões
+e especificação conferidos sem aceitar a própria implementação. Correções e
+limites no [relatório complementar](../../../docs/processo/entrega-complementar-19-11-2026.md).
+Nenhum P1/P2 confirmado restante no recorte relido; não é aceite em runtime.
+Nenhum teste manual/SQL/build/Deno/browser executado; hooks Git preservados.
+Provas positivas e negativas permanecem obrigatórias antes da ativação.

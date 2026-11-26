@@ -1,6 +1,8 @@
+import { iniciarAcao } from './esqueleto.js';
 import { criarConcessaoEquipeSchema } from '../packages/contracts/src/index.js';
 import type { ClienteFFCM } from './api.js';
 import { criarCicloConcessaoEquipe } from './ciclo-concessao-equipe.js';
+import { confirmar } from './confirmacao.js';
 
 // Preparação isolada: não montar até existir capacidade e recuperação entre sessões comprovadas.
 export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () => void {
@@ -50,28 +52,132 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
   status.setAttribute('aria-live', 'polite');
   const enviar = document.createElement('button');
   enviar.type = 'submit';
+  enviar.className = 'button-primary';
   enviar.textContent = 'Pré-conceder acesso';
   const verificar = document.createElement('button');
   verificar.type = 'button';
-  verificar.textContent = 'Verificar operação anterior';
+  verificar.className = 'button-secondary';
+  verificar.textContent = 'Conferir novamente';
   campos.disabled = enviar.disabled = true;
-  formulario.append(campos, enviar, verificar, status);
-  raiz.replaceChildren(formulario);
+  campos.append(enviar);
+  formulario.append(campos, verificar, status);
+  const legenda = document.createElement('legend');
+  legenda.textContent = 'Convidar alguém da equipe';
+  campos.prepend(legenda);
+
+  // A área da equipe mostrava só o formulário de convite: não havia como ver quem já
+  // tem acesso sem abrir outra tela. A listagem já existia no serviço e era consultada
+  // só por dentro, para conferir um convite; aqui ela aparece.
+  const titulo = document.createElement('h2');
+  titulo.textContent = 'Equipe';
+  const listaStatus = document.createElement('p');
+  listaStatus.className = 'visao-estado';
+  listaStatus.setAttribute('role', 'status');
+  listaStatus.setAttribute('aria-live', 'polite');
+  const lista = document.createElement('ul');
+  lista.className = 'lista-registros';
+  lista.setAttribute('aria-label', 'Pessoas com acesso concedido');
+  const atualizarLista = document.createElement('button');
+  atualizarLista.type = 'button';
+  atualizarLista.className = 'button-secondary';
+  atualizarLista.textContent = 'Atualizar lista';
+  const maisLista = document.createElement('button');
+  maisLista.type = 'button';
+  maisLista.className = 'button-secondary';
+  maisLista.textContent = 'Carregar mais';
+  maisLista.hidden = true;
+  raiz.replaceChildren(titulo, atualizarLista, listaStatus, lista, maisLista, formulario);
+
+  const perfisEquipe = { profissional: 'Profissional', administrador: 'Administrador' };
+  const estadosEquipe = {
+    pendente: 'Convite pendente',
+    vinculada: 'Acesso ativo',
+    revogada: 'Acesso revogado',
+  };
+  type ItemEquipe = Awaited<ReturnType<ClienteFFCM['listarProfissionais']>>['itens'][number];
+
+  function linhaEquipe(item: ItemEquipe): HTMLLIElement {
+    const linha = document.createElement('li');
+    linha.className = 'lista-registros__linha';
+    const principal = document.createElement('span');
+    principal.className = 'lista-registros__principal';
+    principal.textContent = item.email;
+    const papel = document.createElement('span');
+    papel.className = 'lista-registros__secundario';
+    papel.textContent = perfisEquipe[item.perfil];
+    const estado = document.createElement('span');
+    estado.className = 'lista-registros__marca';
+    estado.dataset.estado = item.estado;
+    estado.textContent = estadosEquipe[item.estado];
+    linha.append(principal, papel);
+    if (item.ativo === false) {
+      const conta = document.createElement('span');
+      conta.className = 'lista-registros__secundario';
+      conta.textContent = 'Conta desativada';
+      linha.append(conta);
+    }
+    // A marca de estado fecha a linha: entra depois do que for opcional para ficar
+    // sempre na mesma coluna, em todas as linhas.
+    linha.append(estado);
+    return linha;
+  }
+
+  let cursorLista: string | undefined;
+  let consultandoLista = false;
+
+  async function carregarLista(continuar = false): Promise<void> {
+    if (consultandoLista) return;
+    consultandoLista = true;
+    atualizarLista.disabled = maisLista.disabled = true;
+    if (!continuar) {
+      cursorLista = undefined;
+      lista.replaceChildren();
+    }
+    lista.setAttribute('aria-busy', 'true');
+    listaStatus.textContent = 'Carregando a equipe…';
+    listaStatus.removeAttribute('data-tone');
+    try {
+      const pagina = await api.listarProfissionais(continuar ? cursorLista : undefined);
+      if (!ativa) return;
+      for (const item of pagina.itens) lista.append(linhaEquipe(item));
+      cursorLista = pagina.proximo_cursor ?? undefined;
+      maisLista.hidden = !cursorLista;
+      listaStatus.textContent = lista.childElementCount
+        ? `${lista.childElementCount} pessoas com acesso concedido.`
+        : 'Nenhum acesso concedido ainda. Convide alguém da equipe abaixo.';
+    } catch {
+      if (!ativa) return;
+      listaStatus.dataset.tone = 'error';
+      listaStatus.textContent = 'Não foi possível carregar a equipe. Tente atualizar a lista.';
+    } finally {
+      lista.removeAttribute('aria-busy');
+      consultandoLista = false;
+      if (ativa) atualizarLista.disabled = maisLista.disabled = false;
+    }
+  }
+
+  atualizarLista.addEventListener('click', () => void carregarLista());
+  maisLista.addEventListener('click', () => void carregarLista(true));
   const recuperar = async () => {
     if (ocupada) return;
     ocupada = true;
     liberada = false;
     campos.disabled = enviar.disabled = verificar.disabled = true;
-    status.textContent = 'Verificando operação anterior…';
+    status.textContent = 'Conferindo se há algum convite aguardando resposta…';
+    const finalizar = iniciarAcao(verificar);
     try {
       let estado = await ciclo.consultar();
       if (!ativa) return;
       if (!estado.resultado_pendente) {
         if (
           estado.reserva &&
-          !window.confirm(
-            'Há uma operação em andamento, possivelmente em outra aba. Encerrá-la afetará todas as abas. Continuar?',
-          )
+          !(await confirmar({
+            titulo: 'Encerrar a operação em andamento?',
+            detalhe:
+              'A operação pode estar aberta em outra aba. Encerrá-la afeta todas as abas desta pessoa.',
+            acao: 'Encerrar a operação',
+            cancelar: 'Deixar como está',
+          }))
         )
           throw new Error();
         await ciclo.encerrar();
@@ -98,9 +204,13 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
           } while (!encontrada && cursor);
           if (
             !encontrada ||
-            !window.confirm(
-              `Operação anterior para ${encontrada.email}: ${encontrada.estado}, perfil ${encontrada.perfil}, versão ${encontrada.versao}. Confirma a verificação?`,
-            )
+            !(await confirmar({
+              titulo: `O convite enviado antes para ${encontrada.email} está ${encontrada.estado}, como ${encontrada.perfil}. Confere?`,
+              detalhe:
+                'Confirmar encerra a conferência e libera novos convites. Cancelar mantém a tela conferindo.',
+              acao: 'Confere, pode seguir',
+              cancelar: 'Não confere',
+            }))
           )
             throw new Error();
         }
@@ -111,12 +221,13 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
       ciclo.liberar();
       liberada = true;
       campos.disabled = enviar.disabled = false;
-      status.textContent = 'Operações anteriores verificadas.';
+      status.textContent = 'Tudo conferido. Você já pode convidar alguém da equipe.';
     } catch {
       if (ativa)
         status.textContent =
-          'Não foi possível confirmar a operação anterior. Verifique novamente antes de continuar.';
+          'Não foi possível concluir a conferência. Tente de novo antes de continuar.';
     } finally {
+      finalizar();
       ocupada = false;
       if (ativa) verificar.disabled = false;
     }
@@ -139,6 +250,7 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
     liberada = false;
     campos.disabled = enviar.disabled = verificar.disabled = true;
     status.textContent = 'Enviando…';
+    const finalizar = iniciarAcao(enviar);
     void ciclo
       .criar(validacao.data)
       .then((resultado) => {
@@ -146,18 +258,21 @@ export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () =
         formulario.reset();
         const estados = { pendente: 'Pendente', vinculada: 'Vinculada', revogada: 'Revogada' };
         const perfis = { profissional: 'Profissional', administrador: 'Administrador' };
-        status.textContent = `Estado atual: ${estados[resultado.estado]}. Perfil: ${perfis[resultado.perfil]}. Versão: ${resultado.versao}. Verifique a operação antes de continuar.`;
+        status.textContent = `Convite ${estados[resultado.estado].toLocaleLowerCase('pt-BR')} para ${perfis[resultado.perfil].toLocaleLowerCase('pt-BR')}. Confira antes de continuar.`;
       })
       .catch(() => {
         if (ativa)
-          status.textContent = 'Resultado não confirmado. Verifique a operação antes de continuar.';
+          status.textContent =
+            'Não deu para saber se o convite foi registrado. Confira antes de continuar.';
       })
       .finally(() => {
+        finalizar();
         ocupada = false;
         if (ativa) verificar.disabled = false;
       });
   });
   void recuperar();
+  void carregarLista();
   return () => {
     ativa = false;
     raiz.replaceChildren();

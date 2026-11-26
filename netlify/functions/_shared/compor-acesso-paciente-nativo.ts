@@ -7,6 +7,7 @@ import { credencialAuthRejeitada, criarContextoAuthNativo } from './auth-nativo/
 import { carregarCofreNativo } from './cofre-nativo.ts';
 import { metadadosAtestadoNativo } from './compor-pacientes-nativo.ts';
 import type { configurarDependenciasNativas } from './configurar-dependencias-nativas.ts';
+import { causaDaFalha, registrarFalhaOperacional } from './falha-operacional.ts';
 import { criarIdempotenciaNativa } from './idempotencia-nativa.ts';
 import { executarRpcAcessoPaciente } from './acesso-paciente-rpc.ts';
 
@@ -140,7 +141,16 @@ export async function comporAcessoPacienteNativo(
         request_id: requestId,
       };
     return resultado;
-  } catch {
+  } catch (falha) {
+    // Este `catch` cobria a operação inteira sem deixar rastro, e a resposta opaca
+    // `pendencia_externa` era tudo o que sobrava. Mesmo defeito já corrigido na fatia de
+    // credenciais em 24/11/2026.
+    registrarFalhaOperacional({
+      rota: 'acesso-paciente',
+      etapa: 'operacao',
+      request_id: requestId,
+      causa: causaDaFalha(falha),
+    });
     return {
       ok: false as const,
       erro: {

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
+import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
 const sessionId = '20000000-0000-4000-8000-000000000001';
@@ -76,7 +77,7 @@ it('protege edição não salva ao trocar de seção, fechar, sair ou recarregar
   sessionStorage.setItem('modo-acesso', 'tecnica');
   sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
   sessionStorage.setItem('sessao-tecnica', sessionId);
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const confirmacoes = responderConfirmacoes(false);
   vi.stubGlobal('fetch', async (url: URL) => {
     if (url.pathname === '/api/sessao')
       return envelope({
@@ -102,21 +103,27 @@ it('protege edição não salva ao trocar de seção, fechar, sair ou recarregar
   campo.value = 'Seção fictícia';
   campo.dispatchEvent(new Event('input', { bubbles: true }));
   document.getElementById('ficha-aba-plano')?.click();
-  expect(confirmar).toHaveBeenCalledTimes(1);
-  expect(document.getElementById('ficha-aba-anamnese')?.getAttribute('aria-selected')).toBe('true');
+  await aguardarConfirmacao();
+  expect(confirmacoes.chamadas).toHaveLength(1);
+  // Anamnese vive em "Mais seções" (destinos primários de 3.1): "aria-current" marca a
+  // seção ativa ali, "aria-selected" é só da tablist.
+  expect(document.getElementById('ficha-aba-anamnese')?.getAttribute('aria-current')).toBe('true');
   document.getElementById('ficha-voltar')?.click();
-  expect(confirmar).toHaveBeenCalledTimes(2);
+  await aguardarConfirmacao();
+  expect(confirmacoes.chamadas).toHaveLength(2);
   expect(document.getElementById('ficha-view')?.hidden).toBe(false);
   document.getElementById('logout')?.click();
-  expect(confirmar).toHaveBeenCalledTimes(3);
+  await aguardarConfirmacao();
+  expect(confirmacoes.chamadas).toHaveLength(3);
   expect(document.getElementById('patients-view')?.hidden).toBe(false);
   const saida = new Event('beforeunload', { cancelable: true });
   expect(window.dispatchEvent(saida)).toBe(false);
-  confirmar.mockReturnValue(true);
+  confirmacoes.resposta = true;
   document.getElementById('ficha-voltar')?.click();
+  await aguardarConfirmacao();
   expect(document.getElementById('ficha-view')?.hidden).toBe(true);
   expect(window.dispatchEvent(new Event('beforeunload', { cancelable: true }))).toBe(true);
-  confirmar.mockRestore();
+  confirmacoes.encerrar();
 });
 
 it.each([true, false])('exibe histórico apenas quando disponibilidade é %s', async (disponivel) => {

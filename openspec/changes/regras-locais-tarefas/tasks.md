@@ -1,5 +1,20 @@
 # Tasks
 
+**Resumo operacional — 18/11/2026:** o histórico de 11/11 registra grants de
+escrita/barreira aplicados; as rotas HTTP também já existem no código atual. Isso
+não foi revalidado remotamente nesta retomada. O bloqueio fixo da interface foi
+substituído por disponibilidade autorizada por caso. Nenhuma flag foi ligada e
+nenhum teste novo executado; autorização/RLS e integração reais seguem gates.
+
+- [ ] 2.4 Concluir a fiação de escrita pela capability por paciente, sem tratar
+  perfil ou flag da interface como autorização. **Código escrito:** GET de
+  disponibilidade, consulta somente de autorização no banco, transporte/contrato
+  estritos, carregamento/erro/retry, ciclo existente de reserva/idempotência e
+  descarte por troca de identidade/caso. Migration `20261125110000` preparada,
+  não aplicada. Provas servidor, cliente, UI, SQL e migrador NOSUPER escritas;
+  runner `scripts/testar-tarefa-autorizacao-somente-local.sh`. **Execução e revisão
+  adiadas** por instrução do solicitante; não considerar escrita ativada.
+
 ## 1. Regras locais e prévia
 
 - [x] 1.1 Implementar regras locais dos estados e conclusão de FR-017, sem transições adicionais presumidas; dependência: nenhuma. Evidência: testes positivos com ação ou justificativa e negativos com ambos vazios, preservando estado anterior.

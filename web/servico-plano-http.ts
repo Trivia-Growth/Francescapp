@@ -1,3 +1,10 @@
+import type { z } from 'zod';
+import type {
+  CampoExtraCatalogo,
+  AprovadorPlano,
+  aprovacaoObjetivoPlanoSchema,
+} from '../packages/contracts/src/plano-cuidado.ts';
+import { contratosRotas } from '../packages/contracts/src/rotas.ts';
 import { planoHttp } from '../packages/contracts/src/plano-http.ts';
 import {
   sucessoRespostaSchema,
@@ -10,7 +17,15 @@ import { statusErroHttp } from '../packages/contracts/src/erros.ts';
 import type { ServicoPlanoCuidado } from './plano-cuidado.ts';
 
 type Identidade = { usuario_id: string; session_id: string };
-type Nome = keyof typeof planoHttp;
+const rotasPlano = {
+  ...planoHttp,
+  listarCampoExtraPlano: contratosRotas.listarCampoExtraPlano,
+  gravarCampoExtraPlano: contratosRotas.gravarCampoExtraPlano,
+  listarAprovadorPlano: contratosRotas.listarAprovadorPlano,
+  gravarAprovadorPlano: contratosRotas.gravarAprovadorPlano,
+  aprovarObjetivoPlano: contratosRotas.aprovarObjetivoPlano,
+};
+type Nome = keyof typeof rotasPlano;
 /** Serviço isolado para montagem futura. A sessão e autorização são verificadas no servidor. */
 export function criarServicoPlanoHttp(
   identidadeAtual: () => Identidade | null,
@@ -24,7 +39,7 @@ export function criarServicoPlanoHttp(
     objetivo?: string,
     chave?: string,
   ) => {
-    const rota = planoHttp[nome];
+    const rota = rotasPlano[nome];
     const corpo = rota.entrada.parse(entrada);
     const atual = identidadeAtual();
     if (
@@ -50,11 +65,25 @@ export function criarServicoPlanoHttp(
     let fluxo: string | null;
     try {
       modo = sessionStorage.getItem('modo-acesso');
-      fluxo = sessionStorage.getItem(modo === 'tecnica' ? 'fluxo-tecnico' : 'fluxo-google');
+      // Leitura (`ler_plano_cuidado`) já tem a trilha familiar no banco (`visibilidade`, ver
+      // migration `20261124110000`); família também passa por aqui para consultar objetivos.
+      fluxo = sessionStorage.getItem(
+        modo === 'interno'
+          ? 'fluxo-interno'
+          : modo === 'tecnica'
+            ? 'fluxo-tecnico'
+            : modo === 'familiar'
+              ? 'fluxo-familiar'
+              : 'fluxo-google',
+      );
     } catch {
       throw new FalhaApi('nao_autenticado', 401);
     }
-    if ((modo !== 'google' && modo !== 'tecnica') || !fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo))
+    if (
+      (modo !== 'google' && modo !== 'interno' && modo !== 'tecnica' && modo !== 'familiar') ||
+      !fluxo ||
+      !/^[A-Za-z0-9_-]{22}$/.test(fluxo)
+    )
       throw new FalhaApi('nao_autenticado', 401);
     headers.set('x-fluxo', fluxo);
     if (chave) headers.set('x-chave-idempotencia', uuidSchema.parse(chave));
@@ -124,10 +153,16 @@ export function criarServicoPlanoHttp(
     identidadeAtual,
     consultar: () => enviar('consultarReserva', {}),
     reservar: async (entrada) => ((await enviar('reservar', entrada)) as { estado: string }).estado,
-    criar: async ({ entrada, paciente_id, chave, reserva_id, geracao_reserva }) =>
+    criar: async ({ entrada, visibilidade, paciente_id, chave, reserva_id, geracao_reserva }) =>
       enviar(
         'criar',
-        { objetivo_id: crypto.randomUUID(), objetivo: entrada, reserva_id, geracao_reserva },
+        {
+          objetivo_id: crypto.randomUUID(),
+          objetivo: entrada,
+          visibilidade,
+          reserva_id,
+          geracao_reserva,
+        },
         paciente_id,
         undefined,
         chave,
@@ -138,6 +173,24 @@ export function criarServicoPlanoHttp(
   });
   return {
     ciclo,
+    consultarCatalogo: async () =>
+      (await enviar('listarCampoExtraPlano', {})) as CampoExtraCatalogo[],
+    gravarCampoExtra: async (entrada, chave) => {
+      await enviar('gravarCampoExtraPlano', entrada, undefined, undefined, chave);
+    },
+    consultarAprovadores: async () =>
+      (await enviar('listarAprovadorPlano', {})) as AprovadorPlano[],
+    gravarAprovador: async (entrada, chave) => {
+      await enviar('gravarAprovadorPlano', entrada, undefined, undefined, chave);
+    },
+    aprovarObjetivo: async (registro_id) =>
+      (await enviar(
+        'aprovarObjetivoPlano',
+        { registro_id },
+        undefined,
+        undefined,
+        crypto.randomUUID(),
+      )) as z.output<typeof aprovacaoObjetivoPlanoSchema>,
     consultarObjetivos: async (paciente, cursor) =>
       (await enviar(
         'consultar',

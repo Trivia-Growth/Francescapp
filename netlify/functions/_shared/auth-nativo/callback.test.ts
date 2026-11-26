@@ -142,19 +142,37 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
     expect(rede).toHaveBeenCalledTimes(4);
   });
 
+  // Em 24/11/2026 sete entradas seguidas foram negadas porque o seletor do Google escolheu
+  // uma conta pessoal, e a tela respondia "Tente novamente" — convite a repetir uma coisa que
+  // nunca ia dar certo. A recusa do banco passou a ter destino próprio. O que NÃO muda em
+  // nenhum caso: nenhuma sessão é publicada.
   it.each([
-    { admissao: null },
-    { admissao: { ...autorizada, usuario: { ...autorizada.usuario, id: outraId } } },
-    { admissao: { ...autorizada, usuario: { ...autorizada.usuario, ativo: false } } },
-    { admissao: { ...autorizada, access_token: 'campo-indevido' } },
-  ])('não publica sessão sem admissão válida e vinculada à identidade: %j', async (opcoes) => {
-    const pedido = await callback();
-    fornecedor(opcoes);
-    const resposta = await concluirGoogleNativo(pedido, fonte);
-    expect(resposta.status).toBe(303);
-    somenteVerificadoresExpirados(resposta);
-    expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel#');
-  });
+    { admissao: null, destino: '/?acesso=sem_autorizacao#' },
+    {
+      admissao: { ...autorizada, usuario: { ...autorizada.usuario, ativo: false } },
+      destino: '/?acesso=sem_autorizacao#',
+    },
+    // Identidade divergente e resposta fora do contrato são anomalia, não recusa de acesso:
+    // seguem no destino genérico, sem contar nada a quem chamou.
+    {
+      admissao: { ...autorizada, usuario: { ...autorizada.usuario, id: outraId } },
+      destino: '/?acesso=indisponivel#',
+    },
+    {
+      admissao: { ...autorizada, access_token: 'campo-indevido' },
+      destino: '/?acesso=indisponivel#',
+    },
+  ])(
+    'não publica sessão sem admissão válida e vinculada à identidade: %j',
+    async ({ destino, ...opcoes }) => {
+      const pedido = await callback();
+      fornecedor(opcoes);
+      const resposta = await concluirGoogleNativo(pedido, fonte);
+      expect(resposta.status).toBe(303);
+      somenteVerificadoresExpirados(resposta);
+      expect(resposta.headers.get('location')).toBe(destino);
+    },
+  );
 
   it.each(['troca', 'usuario', 'banco', 'normalizacao', 'rede'] as const)(
     'preserva cookies anteriores quando falha %s, sem signOut ou tokens na resposta',
@@ -239,17 +257,25 @@ describe('callback nativo com SDK real e transporte HTTP fictício', () => {
         new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/callback${sufixo}`),
         fonte,
       );
-      expect(resposta.status).toBe(422);
+      // Navegação de volta do Google é uma PESSOA olhando a tela: ela volta para o acesso,
+      // como nos demais caminhos de falha, em vez de receber o JSON de erro como página.
+      // Até 24/11/2026 `?error=access_denied` sozinho voltava para a tela e
+      // `?error=access_denied&code=a` despejava JSON cru — mesma situação, duas saídas.
+      expect(resposta.status, sufixo).toBe(303);
+      // A propriedade que importa continua sendo esta: o destino é fixo e interno, mesmo
+      // quando o pedido traz `next=https://malicioso.test`.
+      expect(resposta.headers.get('location'), sufixo).toBe('/?acesso=indisponivel#');
+      expect(await resposta.text()).toBe('');
       expect(resposta.headers.getSetCookie()).toEqual([]);
     }
-    expect(
-      (
-        await concluirGoogleNativo(
-          new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/callback?code=a`, { method: 'POST' }),
-          fonte,
-        )
-      ).status,
-    ).toBe(422);
+    // Método errado não é navegação de pessoa: segue recusado com JSON, agora com o charset
+    // declarado, porque sem ele o Safari decodifica o acento como latin-1.
+    const porPost = await concluirGoogleNativo(
+      new Request(`${fonte.FFCM_APP_ORIGIN}/api/auth/callback?code=a`, { method: 'POST' }),
+      fonte,
+    );
+    expect(porPost.status).toBe(422);
+    expect(porPost.headers.get('content-type')).toBe('application/json; charset=utf-8');
     expect(rede).not.toHaveBeenCalled();
   });
 });
@@ -318,9 +344,11 @@ describe('limpeza da tentativa encerrada', () => {
     expect(expirados(resposta)).toEqual([]);
   });
 
+  // A recusa do banco tem destino próprio desde 24/11/2026; a limpeza da tentativa
+  // encerrada vale para ele do mesmo jeito.
   it('expira a própria tentativa quando o banco nega a admissão', async () => {
     const { resposta } = await pedidoComVizinhos();
-    expect(resposta.headers.get('location')).toBe('/?acesso=indisponivel#');
+    expect(resposta.headers.get('location')).toBe('/?acesso=sem_autorizacao#');
     expect(expirados(resposta).length).toBeGreaterThan(0);
   });
 

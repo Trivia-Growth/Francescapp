@@ -20,6 +20,5 @@ rtk proxy initdb -D "$temporario/data" -U cofre_admin --no-instructions --auth=t
 rtk proxy pg_ctl -D "$temporario/data" -t 30 -o "-k $temporario -p 5432 -c listen_addresses= -c unix_socket_permissions=0700" -l "$temporario/postgres.log" start >/dev/null
 iniciado=1
 rtk proxy createdb -h "$temporario" -p 5432 -U cofre_admin ffcm_cadeia_local
-rtk proxy psql -X -h "$temporario" -p 5432 -U cofre_admin -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/tests/cadeia_migrations_local.sql"
-rtk proxy psql -X -h "$temporario" -p 5432 -U cofre_admin -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/tests/cofre_nativo_integracao_local.sql"
+rtk proxy psql -X -h "$temporario" -p 5432 -U cofre_admin -d ffcm_cadeia_local -v ON_ERROR_STOP=1 -q -f "$projeto/supabase/tests/pacientes_integracao_fundacao_local.sql"
 FFCM_PACIENTES_SOCKET="$temporario" rtk proxy pnpm exec vitest run netlify/functions/_shared/pacientes-integracao-local.test.ts --reporter=minimal --silent=passed-only

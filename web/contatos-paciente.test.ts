@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
+import { responderConfirmacoes } from './confirmacao-prova.js';
 import { montarContatoPaciente } from './contatos-paciente.ts';
 import type { ClienteFFCM } from './api.ts';
 const id = '10000000-0000-4000-8000-000000000001';
@@ -27,13 +28,15 @@ function montarApi(estado: unknown) {
   };
 }
 it('não encerra reserva aberta sem confirmação', async () => {
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const confirmacoes = responderConfirmacoes(false);
   const api = montarApi({ epoca: 1, reserva: { id, estado: 'aberta' }, resultado_pendente: null });
   const raiz = document.createElement('div');
   montarContatoPaciente(raiz, id, api as unknown as ClienteFFCM, vi.fn(), vi.fn());
-  await vi.waitFor(() => expect(confirmar).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(confirmacoes.chamadas).toHaveLength(1));
+  expect(confirmacoes.chamadas[0]).toContain('Encerrar a tentativa em andamento?');
   expect(api.encerrarBarreiraContato).not.toHaveBeenCalled();
   expect(raiz.querySelector('fieldset')?.disabled).toBe(true);
+  confirmacoes.encerrar();
 });
 it('não reconhece resultado de outro paciente', async () => {
   const api = montarApi({
@@ -54,7 +57,7 @@ it('não reconhece resultado de outro paciente', async () => {
   expect(raiz.textContent).not.toContain(outro);
 });
 it('exige conferência do contato correspondente antes de reconhecer', async () => {
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const confirmacoes = responderConfirmacoes(false);
   const api = montarApi({
     epoca: 2,
     reserva: null,
@@ -68,11 +71,10 @@ it('exige conferência do contato correspondente antes de reconhecer', async () 
   });
   const raiz = document.createElement('div');
   montarContatoPaciente(raiz, id, api as unknown as ClienteFFCM, vi.fn(), vi.fn());
-  await vi.waitFor(() => expect(confirmar).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(confirmacoes.chamadas).toHaveLength(1));
   expect(api.reconhecerBarreiraContato).not.toHaveBeenCalled();
-  confirmar.mockReturnValue(true);
-  [...raiz.querySelectorAll('button')]
-    .find((b) => b.textContent === 'Verificar operação pendente')
-    ?.click();
+  confirmacoes.resposta = true;
+  [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Conferir novamente')?.click();
   await vi.waitFor(() => expect(api.reconhecerBarreiraContato).toHaveBeenCalledOnce());
+  confirmacoes.encerrar();
 });

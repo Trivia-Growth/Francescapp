@@ -4,6 +4,38 @@ import {
   type SalvarAnamnese,
 } from '../packages/contracts/src/index.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
+
+/** Roteiro sugerido de FR-003. Vem do banco (`ffcm.anamnese.roteiro`), editável na tela de
+ *  administração pela diretriz de 11/11/2026 — a estrutura de seis seções foi aprovada pelo
+ *  solicitante em 13/11/2026 e mora na migration `20261123100000`, não aqui.
+ *
+ *  Continua sendo sugestão, não formulário fixo: quem preencher mantém "Outra seção" e
+ *  "Outro campo" livres logo abaixo. Lista vazia é estado legítimo — a tela deixa de sugerir
+ *  e nada mais muda. */
+type Sugestao = { secao: string; campo: string };
+
+const SEPARADOR_ROTEIRO = '::';
+
+/** Converte as linhas `Seção :: Pergunta` do catálogo. Linha sem separador, sem seção ou sem
+ *  pergunta é ignorada em silêncio: é configuração digitada por pessoa, e uma entrada torta
+ *  não pode derrubar a tela inteira da anamnese. */
+export function lerRoteiroAnamnese(linhas: readonly string[]): Sugestao[] {
+  const vistas = new Set<string>();
+  const sugestoes: Sugestao[] = [];
+  for (const linha of linhas) {
+    const corte = linha.indexOf(SEPARADOR_ROTEIRO);
+    if (corte < 0) continue;
+    const secao = linha.slice(0, corte).trim();
+    const campo = linha.slice(corte + SEPARADOR_ROTEIRO.length).trim();
+    if (!secao || !campo) continue;
+    const chave = `${secao}${SEPARADOR_ROTEIRO}${campo}`;
+    if (vistas.has(chave)) continue;
+    vistas.add(chave);
+    sugestoes.push({ secao, campo });
+  }
+  return sugestoes;
+}
 
 type Servico = {
   consultarAnamnese(pacienteId: string): Promise<Anamnese | null>;
@@ -19,10 +51,13 @@ export function montarAnamnese(
   acessoPerdido: (erro: unknown) => void,
   alteracaoPendente: (pendente: boolean) => void = () => {},
   historicoHabilitado: boolean | Promise<boolean> = false,
+  roteiroSugerido: readonly string[] | Promise<readonly string[]> = [],
 ): () => void {
   let ativa = true;
   let versao = 0;
   let conflitoVersao = false;
+  let sugestoes: Sugestao[] = [];
+  let redesenharSugeridas: (() => void) | undefined;
   let pendente: { entrada: SalvarAnamnese; chave: string } | null = null;
   const descartarAcesso = (erro: unknown): boolean => {
     if (!exigeNovoAcesso(erro)) return false;
@@ -39,7 +74,7 @@ export function montarAnamnese(
   };
   const status = elemento('p', 'Carregando anamnese…');
   status.setAttribute('role', 'status');
-  raiz.replaceChildren(status);
+  raiz.replaceChildren(esqueletoCarregando(3, true), status);
   let historicoDisponivel = false;
   let mostrarHistorico: (() => void) | undefined;
   const desenhar = (resultado: Anamnese | null) => {
@@ -58,7 +93,7 @@ export function montarAnamnese(
     const secoes = resultado?.secoes ?? [];
     const resumoPendencias = elemento('p');
     form.append(resumoPendencias);
-    if (!secoes.length) form.append(elemento('p', 'Nenhuma seção registrada.'));
+    if (!secoes.length) form.append(elemento('p', 'Nenhuma pergunta registrada ainda.'));
     type Campo = {
       secao: string;
       campo: string;
@@ -99,7 +134,7 @@ export function montarAnamnese(
       ];
       resumoPendencias.textContent =
         !entradas.length && !secoes.length
-          ? 'Adicione uma seção e um campo para começar.'
+          ? 'Escolha uma pergunta sugerida ou crie a sua para começar.'
           : secoesPendentes.length
             ? `Seções com pendências: ${secoesPendentes.join(', ')}.`
             : 'Nenhuma pendência identificada nos campos informados.';
@@ -174,8 +209,56 @@ export function montarAnamnese(
       form.append(label);
     };
     form.append(campos);
-    rotularNovo('Seção', novaSecao);
-    rotularNovo('Campo', novoCampo);
+
+    const sugeridas = elemento('div');
+    const existe = (secao: string, campo: string) =>
+      entradas.some((entrada) => entrada.secao === secao && entrada.campo === campo);
+    const atualizarSugeridas = () => {
+      const faltantes = sugestoes.filter(({ secao, campo }) => !existe(secao, campo));
+      if (!faltantes.length) {
+        sugeridas.replaceChildren();
+        return;
+      }
+      const escolha = elemento('select');
+      const vazia = elemento('option', 'Escolha uma pergunta sugerida');
+      vazia.value = '';
+      escolha.append(vazia);
+      faltantes.forEach(({ secao, campo }, indice) => {
+        const opcao = elemento('option', `${secao} — ${campo}`);
+        opcao.value = String(indice);
+        escolha.append(opcao);
+      });
+      escolha.addEventListener('change', () => {
+        const escolhida = faltantes[Number(escolha.value)];
+        if (!escolhida) return;
+        const { secao, campo } = escolhida;
+        if (existe(secao, campo)) return;
+        adicionar(secao, campo, true);
+        alteracaoPendente(true);
+        aviso.textContent = '';
+        atualizarSugeridas();
+      });
+      const rotuloEscolha = elemento('label', 'Perguntas sugeridas');
+      rotuloEscolha.append(escolha);
+      const todas = elemento('button', 'Adicionar todas as sugeridas');
+      todas.type = 'button';
+      todas.addEventListener('click', () => {
+        for (const { secao, campo } of faltantes)
+          if (!existe(secao, campo)) adicionar(secao, campo, true);
+        alteracaoPendente(true);
+        aviso.textContent = '';
+        atualizarSugeridas();
+      });
+      sugeridas.replaceChildren(rotuloEscolha, todas);
+    };
+    atualizarSugeridas();
+    // O roteiro chega do servidor depois do primeiro desenho; guardar o redesenho aqui faz as
+    // sugestões aparecerem sem recarregar a aba.
+    redesenharSugeridas = atualizarSugeridas;
+    form.append(sugeridas);
+
+    rotularNovo('Outra seção', novaSecao);
+    rotularNovo('Outro campo', novoCampo);
     const adicionarBotao = elemento('button', 'Adicionar campo');
     adicionarBotao.type = 'button';
     adicionarBotao.addEventListener('click', () => {
@@ -190,6 +273,7 @@ export function montarAnamnese(
       novaSecao.value = '';
       novoCampo.value = '';
       aviso.textContent = '';
+      atualizarSugeridas();
     });
     form.append(adicionarBotao, salvar, retry, aviso);
     mostrarHistorico = () => {
@@ -213,6 +297,7 @@ export function montarAnamnese(
         if (!servico.consultarHistoricoAnamnese) return;
         anterior.disabled = true;
         historicoStatus.textContent = 'Carregando histórico…';
+        const finalizar = iniciarAcao(anterior);
         try {
           const pagina = await servico.consultarHistoricoAnamnese(pacienteId, cursor);
           if (!ativa) return;
@@ -239,6 +324,8 @@ export function montarAnamnese(
           if (!ativa || descartarAcesso(erro)) return;
           historicoStatus.textContent = mensagemFalha(erro);
           anterior.disabled = false;
+        } finally {
+          finalizar();
         }
       });
       historico.append(anterior, historicoStatus, conteudo);
@@ -249,6 +336,7 @@ export function montarAnamnese(
       if (!pendente) return;
       salvar.disabled = retry.disabled = adicionarBotao.disabled = true;
       aviso.textContent = 'Salvando anamnese…';
+      const finalizar = iniciarAcao(retry.hidden ? salvar : retry);
       try {
         const salvo = await servico.salvarAnamnese(pacienteId, pendente.entrada, pendente.chave);
         if (!ativa) return;
@@ -276,6 +364,8 @@ export function montarAnamnese(
             ? 'A anamnese foi alterada por outra pessoa. Copie seu rascunho antes de recarregar a página para consultar a versão atual; suas alterações ainda não foram salvas.'
             : mensagemFalha(erro);
         }
+      } finally {
+        finalizar();
       }
     };
     form.addEventListener('input', () => {
@@ -326,7 +416,7 @@ export function montarAnamnese(
   };
   const consultar = () => {
     status.textContent = 'Carregando anamnese…';
-    raiz.replaceChildren(status);
+    raiz.replaceChildren(esqueletoCarregando(3, true), status);
     void servico
       .consultarAnamnese(pacienteId)
       .then(desenhar)
@@ -336,7 +426,7 @@ export function montarAnamnese(
         const tentarNovamente = elemento('button', 'Tentar novamente');
         tentarNovamente.type = 'button';
         tentarNovamente.addEventListener('click', consultar);
-        raiz.append(tentarNovamente);
+        raiz.replaceChildren(status, tentarNovamente);
       });
   };
   void Promise.resolve(historicoHabilitado)
@@ -344,6 +434,13 @@ export function montarAnamnese(
       if (!ativa) return;
       historicoDisponivel = disponivel;
       mostrarHistorico?.();
+    })
+    .catch(() => {});
+  void Promise.resolve(roteiroSugerido)
+    .then((linhas) => {
+      if (!ativa) return;
+      sugestoes = lerRoteiroAnamnese(linhas);
+      redesenharSugeridas?.();
     })
     .catch(() => {});
   consultar();

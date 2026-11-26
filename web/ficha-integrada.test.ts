@@ -40,6 +40,9 @@ function preparar(
   lista: unknown[] = pacientes,
 ) {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
+  // A rota inicial passou a ser a home; quem não escolheu rota aqui exercita a carteira.
+  // Os casos que abrem a ficha direto já definiram o fragmento antes de chamar.
+  if (!window.location.hash) window.location.hash = '#carteira';
   sessionStorage.setItem('modo-acesso', 'tecnica');
   sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
   sessionStorage.setItem('sessao-tecnica', sessionId);
@@ -62,6 +65,10 @@ function preparar(
       return envelope({ itens: [], proximo_cursor: null });
     if (caminho === `/api/pacientes/${A}/tarefas`) return envelope([tarefa('Tarefa de Helena')]);
     if (caminho === `/api/pacientes/${B}/tarefas`) return envelope([tarefa('Tarefa de Bruno')]);
+    if (caminho.endsWith('/execucao-turno/reconciliar'))
+      return envelope({ epoca: 1, resultado_pendente: null });
+    if (caminho.endsWith('/execucao-turno/catalogo')) return envelope([]);
+    if (caminho.endsWith('/execucao-turno/consentimento')) return envelope(null);
     if (caminho.endsWith('/anamnese')) return envelope(null);
     return new Response(null, { status: 404 });
   });
@@ -90,7 +97,8 @@ it('abre a ficha pela lista, atualiza o fragmento e volta com foco na linha', as
   el('ficha-voltar').click();
   expect(el('ficha-view').hidden).toBe(true);
   expect(el('lista-view').hidden).toBe(false);
-  expect(window.location.hash).toBe('');
+  // Sem fragmento seria a home; sair da ficha volta para a lista, que agora se nomeia.
+  expect(window.location.hash).toBe('#carteira');
   expect(document.activeElement).toBe(document.querySelector(linha(A)));
   expect(el('crumb-paciente').hidden).toBe(true);
 });
@@ -114,7 +122,10 @@ it('reabre na mesma seção ao recarregar, revalidando a sessão antes de mostra
   const caminhos = preparar('profissional', []);
   await import('./main.js');
   await vi.waitFor(() => expect(el('ficha-view').hidden).toBe(false));
-  expect(el('ficha-aba-anamnese').getAttribute('aria-selected')).toBe('true');
+  // Anamnese fica em "Mais seções" (destinos primários de 3.1): o destaque de quem está
+  // ativa ali usa "aria-current", não "aria-selected" (reservado à tablist).
+  expect(el('ficha-aba-anamnese').getAttribute('aria-current')).toBe('true');
+  expect(document.querySelector('.ficha-mais')?.hasAttribute('open')).toBe(true);
   expect(el('ficha-title').textContent).toBe('Helena Souza');
   await vi.waitFor(() => expect(caminhos).toContain(`/api/pacientes/${A}/anamnese`));
   expect(caminhos.indexOf('/api/sessao')).toBeLessThan(
@@ -132,7 +143,8 @@ it('não consulta o endpoint de paciente para profissional fora da página carre
   );
   expect(el('ficha-view').hidden).toBe(true);
   expect(el('lista-view').hidden).toBe(false);
-  expect(window.location.hash).toBe('');
+  // Sem fragmento seria a home; sair da ficha volta para a lista, que agora se nomeia.
+  expect(window.location.hash).toBe('#carteira');
   expect(caminhos).not.toContain(`/api/pacientes/${C}`);
   expect(el('login-view').hidden).toBe(true);
 });
@@ -164,40 +176,82 @@ it.each([
   {
     perfil: 'profissional' as const,
     capacidades: [],
-    abas: [
-      'Visão do caso',
+    // Destinos primários (decisão de design 3.1): Visão do caso, Diário, Plano de cuidado
+    // e Pendências. O restante fica em "Mais seções", sem mudar o que o perfil acessa.
+    primarias: ['Visão do caso', 'Diário', 'Plano de cuidado', 'Pendências'],
+    secundarias: [
+      'Linha do tempo',
       'Anamnese',
-      'Plano de cuidado',
+      'Saúde',
+      'Plano de crise',
       'Tarefas',
-      'Diário em breve',
-      'Rede de cuidado em breve',
+      'Meu turno',
+      'Escala de turnos',
+      'Encaminhamentos',
+      'Orientações',
+      'Rotina e recursos',
+      'Rede de cuidado',
+      'Documentos',
     ],
   },
   {
     perfil: 'administrador' as const,
     capacidades: ['administrar_cadastro', 'administrar_concessoes'],
-    abas: [
-      'Visão do caso',
+    primarias: ['Visão do caso', 'Diário', 'Plano de cuidado', 'Pendências'],
+    secundarias: [
+      'Linha do tempo',
       'Anamnese',
-      'Plano de cuidado',
+      'Saúde',
+      'Plano de crise',
+      'Execução e relatórios',
+      'Escala de turnos',
       'Cadastro',
       'Equipe com acesso',
-      'Diário em breve',
-      'Rede de cuidado em breve',
+      'Exportação',
+      'Acesso da família',
+      'Encaminhamentos',
+      'Orientações',
+      'Rotina e recursos',
+      'Rede de cuidado',
+      'Documentos',
     ],
   },
 ])(
   'oferece ao perfil $perfil só as seções que ele já usa',
-  async ({ perfil, capacidades, abas }) => {
+  async ({ perfil, capacidades, primarias, secundarias }) => {
     preparar(perfil, capacidades);
     await import('./main.js');
     await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
     document.querySelector<HTMLButtonElement>(linha(A))?.click();
     expect([...document.querySelectorAll('[role="tab"]')].map((aba) => aba.textContent)).toEqual(
-      abas,
+      primarias,
     );
+    expect(
+      [...document.querySelectorAll('.ficha-aba-secundaria')].map((aba) => aba.textContent),
+    ).toEqual(secundarias);
   },
 );
+
+it('monta Meu turno no caso atual e desmonta ao sair da seção', async () => {
+  const caminhos = preparar('profissional', [], (caminho) =>
+    caminho === '/api/turnos/barreira'
+      ? envelope({ epoca: 1, reserva: null, resultado_pendente: null })
+      : caminho === `/api/pacientes/${A}/turnos/atual` ||
+          caminho === `/api/pacientes/${A}/turnos/ultimo`
+        ? envelope(null)
+        : undefined,
+  );
+  await import('./main.js');
+  await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
+  document.querySelector<HTMLButtonElement>(linha(A))?.click();
+  el('ficha-aba-meu-turno').click();
+  await vi.waitFor(() => expect(painel()).toContain('Você não tem turno aberto neste caso.'));
+  expect(caminhos).toContain(`/api/pacientes/${A}/turnos/atual`);
+  expect(caminhos).not.toContain(`/api/pacientes/${B}/turnos/atual`);
+  expect(painel()).toContain('Encerrar exige síntese de passagem publicada');
+  el('ficha-aba-visao').click();
+  expect(document.querySelector('.turno-proprio')).toBeNull();
+});
 
 it('só mostra a seção da visão de tarefas ao profissional', async () => {
   preparar('administrador', ['administrar_cadastro']);
@@ -230,9 +284,18 @@ it('mostra à família só os dados do paciente vinculado', async () => {
   await import('./main.js');
   await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
   document.querySelector<HTMLButtonElement>(linha(A))?.click();
+  // FR-008: além dos dados do paciente, família tem Diário, Plano de cuidado, Documentos e
+  // Orientações (sem Mais seções — `destinosPrimarios` exige "visao" para dividir e família
+  // não tem).
   expect([...document.querySelectorAll('[role="tab"]')].map((aba) => aba.textContent)).toEqual([
     'Dados do paciente',
+    'Diário',
+    'Relatórios do cuidado',
+    'Plano de cuidado',
+    'Documentos',
+    'Orientações',
   ]);
+  expect(document.querySelector('.ficha-mais')).toBeNull();
   await vi.waitFor(() => expect(painel()).toContain('Helena Souza'));
   expect(painel()).toContain('Lena');
   expect(painel()).not.toContain('Plano de cuidado');
@@ -298,7 +361,9 @@ it('não consulta nem mostra situação e responsável para o Profissional', asy
   document.querySelector<HTMLButtonElement>(linha(A))?.click();
   await vi.waitFor(() => expect(painel()).toContain('Tarefa de Helena'));
   expect(document.querySelector('[data-bloco="situacao"]')).toBeNull();
-  expect(painel()).toContain('Situação do caso e responsável: indisponíveis nesta versão');
+  // Sem fonte, a visão não mostra o bloco nem anuncia que ele falta.
+  expect(painel()).not.toContain('Situação do caso');
+  expect(painel()).not.toContain('Responsável');
   expect(caminhos).not.toContain(`/api/pacientes/${A}`);
 });
 

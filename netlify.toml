@@ -26,3 +26,17 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
+
+# Service worker da casca offline (FR-071). `no-cache` obriga a revalidação do próprio script a
+# cada atualização: sem isso o aparelho pode ficar preso numa versão antiga do worker, e a
+# reversão da tarefa 1.6 depende de o navegador buscar o conteúdo novo deste endereço.
+# Não altera os cabeçalhos de `/api/*`, que continuam `no-store`.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/casca-regras.js"
+  [headers.values]
+    Cache-Control = "no-cache"

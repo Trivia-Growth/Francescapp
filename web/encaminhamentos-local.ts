@@ -1,3 +1,5 @@
+import { confirmarDescarte } from './confirmacao.js';
+
 export type EstadoEncaminhamento =
   | 'sugerido'
   | 'agendado'
@@ -77,7 +79,9 @@ export function montarEncaminhamentosLocais(
     [destino.value, motivo.value, responsavel.value, estado.value].some(
       (valor, indice) => valor !== original[indice],
     );
-  const confirmarDescarte = () => !alterado() || window.confirm('Descartar alterações não salvas?');
+  // A confirmação deixou de ser síncrona: quem pergunta precisa esperar a resposta.
+  const confirmarSaida = async () =>
+    !alterado() || (await confirmarDescarte('as alterações não salvas deste encaminhamento'));
   const limpar = () => {
     editando = null;
     formulario.reset();
@@ -86,9 +90,11 @@ export function montarEncaminhamentosLocais(
     cancelar.hidden = true;
   };
   cancelar.addEventListener('click', () => {
-    if (!confirmarDescarte()) return;
-    limpar();
-    mensagem.textContent = '';
+    void (async () => {
+      if (!(await confirmarSaida())) return;
+      limpar();
+      mensagem.textContent = '';
+    })();
   });
   const atualizarLista = () => {
     lista.replaceChildren();
@@ -112,17 +118,19 @@ export function montarEncaminhamentosLocais(
       editar.textContent = 'Editar';
       editar.setAttribute('aria-label', `Editar encaminhamento para ${encaminhamento.destino}`);
       editar.addEventListener('click', () => {
-        if (!confirmarDescarte()) return;
-        editando = encaminhamento.id;
-        destino.value = encaminhamento.destino;
-        motivo.value = encaminhamento.motivo;
-        responsavel.value = encaminhamento.responsavel;
-        estado.value = encaminhamento.estado;
-        original = [destino.value, motivo.value, responsavel.value, estado.value];
-        salvar.textContent = 'Salvar alterações';
-        cancelar.hidden = false;
-        mensagem.textContent = '';
-        destino.focus();
+        void (async () => {
+          if (!(await confirmarSaida())) return;
+          editando = encaminhamento.id;
+          destino.value = encaminhamento.destino;
+          motivo.value = encaminhamento.motivo;
+          responsavel.value = encaminhamento.responsavel;
+          estado.value = encaminhamento.estado;
+          original = [destino.value, motivo.value, responsavel.value, estado.value];
+          salvar.textContent = 'Salvar alterações';
+          cancelar.hidden = false;
+          mensagem.textContent = '';
+          destino.focus();
+        })();
       });
       item.append(descricao, editar);
       lista.append(item);

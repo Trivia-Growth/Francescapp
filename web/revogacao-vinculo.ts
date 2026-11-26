@@ -1,3 +1,6 @@
+import { confirmar } from './confirmacao.js';
+import { iniciarAcao } from './esqueleto.js';
+
 /** A autorização permanece no servidor. Reconsulta informa somente o estado observado. */
 export function montarRevogacaoVinculo(
   raiz: HTMLElement,
@@ -9,7 +12,7 @@ export function montarRevogacaoVinculo(
   acessoPerdido: (erro: unknown) => boolean,
   alteracaoPendente: (pendente: boolean) => void,
 ): {
-  selecionar: (acesso: { id: string; versao: number; nome: string }) => void;
+  selecionar: (acesso: { id: string; versao: number; nome: string }) => Promise<void>;
   invalidarSelecao: () => void;
   reconciliar: () => void;
   destruir: () => void;
@@ -18,6 +21,7 @@ export function montarRevogacaoVinculo(
   let alvo: { id: string; versao: number; nome: string } | undefined;
   let enviando = false;
   let incerto = false;
+  let perguntando = false;
   let selecaoValida = false;
   const titulo = document.createElement('h3');
   titulo.textContent = 'Revogar acesso';
@@ -40,14 +44,29 @@ export function montarRevogacaoVinculo(
   botao.addEventListener('click', () => {
     const atual = alvo;
     const razao = motivo.value;
-    if (!atual || enviando || incerto || !selecaoValida || !razao.trim()) return;
-    if (!window.confirm(`Revogar o acesso de ${atual.nome}?`)) return;
-    enviando = true;
-    botao.disabled = true;
-    status.textContent = 'Enviando revogação…';
-    let perdeuAcesso = false;
-    let concluida = false;
+    if (!atual || enviando || incerto || perguntando || !selecaoValida || !razao.trim()) return;
+    // A confirmação deixou de ser síncrona: enquanto a pergunta está na tela, nenhum
+    // segundo clique entra, e só depois da resposta o envio começa.
+    perguntando = true;
     void (async () => {
+      let seguir: boolean;
+      try {
+        seguir = await confirmar({
+          titulo: `Revogar o acesso de ${atual.nome}?`,
+          detalhe: 'A pessoa perde o acesso a este caso assim que a revogação for aceita.',
+          acao: 'Revogar acesso',
+          cancelar: 'Manter o acesso',
+        });
+      } finally {
+        perguntando = false;
+      }
+      if (!seguir || !ativa || enviando || incerto || !selecaoValida) return;
+      enviando = true;
+      botao.disabled = true;
+      const terminarAcao = iniciarAcao(botao);
+      status.textContent = 'Enviando revogação…';
+      let perdeuAcesso = false;
+      let concluida = false;
       try {
         await revogar(atual.id, { versao_esperada: atual.versao, motivo: razao });
         if (!ativa) return;
@@ -66,6 +85,7 @@ export function montarRevogacaoVinculo(
         status.textContent =
           'Resultado desconhecido. O pedido ainda pode ser concluído. Consulte o estado atual antes de agir.';
       } finally {
+        terminarAcao();
         if (ativa && !perdeuAcesso) {
           try {
             await atualizarVinculos();
@@ -83,13 +103,18 @@ export function montarRevogacaoVinculo(
     })();
   });
   return {
-    selecionar(acesso) {
+    async selecionar(acesso) {
       if (enviando || incerto) return;
       if (
         alvo &&
         alvo.id !== acesso.id &&
         motivo.value.trim() &&
-        !window.confirm('Descartar motivo de revogação digitado?')
+        !(await confirmar({
+          titulo: 'Descartar o motivo de revogação já digitado?',
+          detalhe: 'Trocar de vínculo apaga o motivo escrito para o vínculo anterior.',
+          acao: 'Descartar o motivo',
+          cancelar: 'Continuar neste vínculo',
+        }))
       )
         return;
       if (!alvo || alvo.id !== acesso.id) {
@@ -108,8 +133,7 @@ export function montarRevogacaoVinculo(
       incerto = false;
       selecaoValida = false;
       botao.disabled = true;
-      status.textContent =
-        'Operação anterior verificada. Selecione o vínculo para uma nova alteração.';
+      status.textContent = 'Tudo conferido. Selecione o vínculo que deseja alterar.';
     },
     invalidarSelecao() {
       selecaoValida = false;

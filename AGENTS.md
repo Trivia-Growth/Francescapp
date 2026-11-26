@@ -27,7 +27,7 @@
 - Preserve os IDs FR/SC, fases Inicial/Evolução e hipóteses. Evoluções propostas não viram tarefas de produção sem confirmação.
 - Planeje fatias verticais demonstráveis e confira a coerência entre proposta, requisitos, design e tarefas antes da implementação.
 - Separe responsabilidade de decisão/revisão e execução delimitada. Uma passagem de trabalho deve informar tarefa, requisito/cenário, decisão aplicável, arquivos permitidos, limites e evidência esperada.
-- Não fixe nomes de modelos copiados do HED nem troque modelos silenciosamente. Por solicitação explícita de 01/11/2026, delegue a agentes as frentes independentes sempre que isso acelerar a entrega sem duplicação ou conflito; use `gpt-6.1-terra` (Terra 6.1) na implementação. Passe contratos, arquivos exclusivos e evidência esperada. Se esse modelo não estiver disponível, informe antes de substituí-lo. A coordenação permanece responsável pela integração e pelas revisões independentes; não prometa trocar o modelo do chat principal por uma ferramenta que só configura subagentes.
+- Não fixe nomes de modelos copiados do HED nem troque modelos silenciosamente. Por solicitação explícita de 01/11/2026, delegue a agentes as frentes independentes sempre que isso acelerar a entrega sem duplicação ou conflito. **Modelo de implementação revisado em 17/11/2026: use Sol**, inclusive nas frentes com frontend ou de maior complexidade, substituindo a indicação anterior de `gpt-6.1-terra` (Terra 6.1). Passe contratos, arquivos exclusivos e evidência esperada. Se o modelo indicado não estiver disponível, informe antes de substituí-lo. A coordenação permanece responsável pela integração e pelas revisões independentes; não prometa trocar o modelo do chat principal por uma ferramenta que só configura subagentes.
 - Não declare conclusão por checkboxes ou existência de arquivos: confira os critérios de aceite e registre resultados, achados e limitações.
 
 ## Estado e passagem entre sessões
@@ -78,9 +78,20 @@
 - Apontar gargalos observados antes de adicionar ferramentas, automações ou camadas de orquestração.
 - Manter decisões vigentes, bloqueadores e evidências em resumo operacional curto no artefato existente; preservar histórico sem exigir sua releitura integral em cada retomada. Reabrir investigação somente diante de mudança relevante, contradição ou evidência nova. Resolver detalhes técnicos rotineiros dentro do escopo aprovado sem pedir nova autorização a cada função; dúvidas materiais e operações externas continuam sujeitas às regras abaixo.
 
+## Fluxo git e ativação
+
+- `main` deve permanecer verde e recebe alterações somente por PR aprovado pelo solicitante, com CI verde.
+- Um PR corresponde a uma fatia vertical com valor testável pelo solicitante, mesmo que seja grande. Infraestrutura sem resultado testável só entra quando solicitada.
+- Use branches `codex/<fatia>` ou `claude/<fatia>` e abra o PR como draft no início da fatia. Faça push ao fim de cada dia de trabalho.
+- Dentro do PR, faça um commit por tarefa concluída e não deixe passar mais de um dia sem commit.
+- Se uma fatia passar de aproximadamente dez dias, pare e proponha ao solicitante dividi-la em duas fatias, ambas testáveis.
+- A descrição do PR inclui **Como testar**: ambiente ou URL, usuário fictício, passos numerados, resultado esperado e ao menos um caso negativo de permissão. Se ainda não for testável, registre a pendência com clareza.
+- Após o teste do solicitante, faça merge por squash e apague a branch, somente com a autorização exigida abaixo.
+- Estão autorizados push de branch e abertura ou atualização de PR draft. Merge, force-push, deploy, migração remota e alteração de secrets exigem autorização explícita prévia.
+
 ## Autonomia e operações externas
 
 - Conclua o trabalho aprovado e corrija problemas encontrados na validação, preservando mudanças do usuário.
-- Não faça deploy, push, merge, provisionamento ou migrações remotas sem autorização explícita para essas operações.
+- Não faça deploy, merge, provisionamento ou migrações remotas sem autorização explícita para essas operações; push segue o fluxo git acima.
 - Carregue referências sob demanda e evite duplicação de documentação e verificações sem ganho.
 - Dados reais só entram após validar permissões, integração de arquivos, políticas de dados e recuperação aplicáveis.

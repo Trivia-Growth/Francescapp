@@ -118,3 +118,25 @@ export const paginaSchema = <T extends z.ZodType>(item: T) =>
       proximo_cursor: cursorSchema.nullable(),
     })
     .strict();
+
+// Envelope de cifra. Mora aqui, e não em `rpc.ts`, porque `identidade.ts` precisa dele e
+// `rpc.ts` importa `identidade.ts`: deixá-lo lá fecha um ciclo de módulos que o typecheck não
+// acusa e que, em tempo de execução, deixa um schema `undefined` conforme a ordem de avaliação.
+export const formatoCifraSchema = z.literal(1);
+export const base64UrlSchema = z
+  .string()
+  .min(1)
+  .max(32_768)
+  .regex(/^[A-Za-z0-9_-]+$/);
+export const keyIdSchema = z.string().min(1).max(128);
+
+/** Persistência e transporte interno; nunca enviado ao navegador. */
+export const campoCifradoSchema = z
+  .object({
+    formato: formatoCifraSchema,
+    key_id: keyIdSchema,
+    nonce: base64UrlSchema,
+    ciphertext: base64UrlSchema,
+    tag: base64UrlSchema,
+  })
+  .strict();

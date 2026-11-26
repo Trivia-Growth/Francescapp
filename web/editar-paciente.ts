@@ -9,13 +9,22 @@ import {
   type ResponsavelOpcao,
 } from './acompanhamento-caso.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
+import { montarSubstituicaoCaseManager } from './substituicao-case-manager.js';
+import type { ServicoSubstituicaoCaseManager } from './servico-substituicao-cm-http.js';
 import type { criarCicloEdicaoPaciente } from './ciclo-edicao-paciente.js';
 import { dataDeInstante } from './datas.js';
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
+import { confirmar } from './confirmacao.js';
 
 export type ServicoEdicaoPaciente = {
   consultarPaciente(pacienteId: string): Promise<PacienteEdicao>;
   /** Ausente quando o perfil não pode listar a equipe: a situação segue editável, o responsável não. */
   listarResponsaveis?: () => Promise<ResponsavelOpcao[]>;
+  /** FR-037: ausente enquanto a fatia da substituição temporária está desligada. A seção
+   *  só aparece quando o serviço é passado; a autorização continua no servidor e no banco. */
+  /** `null` = fatia desligada: a seção é montada em estado honesto de indisponibilidade.
+   * Ausente = o perfil não administra o caso e a seção não existe. */
+  substituicao?: ServicoSubstituicaoCaseManager | null;
   ciclo: ReturnType<typeof criarCicloEdicaoPaciente>;
 };
 
@@ -46,7 +55,11 @@ export function montarEdicaoPaciente(
     acessoPerdido(erro);
     return true;
   };
-  const status = elemento('p', 'Carregando cadastro…');
+  // A aba abre SEM carregar: ela espera a conferência do botão abaixo, porque pode haver uma
+  // edição anterior sem resposta. Dizer "Carregando cadastro…" aqui era mentira — a tela ficava
+  // parada e parecia travada (smoke de 13/11/2026). O texto agora diz o que a pessoa precisa
+  // fazer; "Carregando cadastro…" ficou só onde há leitura de verdade em curso.
+  const status = elemento('p', 'Confira o cadastro para começar a editar.');
   status.setAttribute('role', 'status');
   let equipe: ResponsavelOpcao[] = [];
   const textoSituacao = (mudanca: PacienteEdicao['acompanhamento'][number] | undefined) =>
@@ -171,20 +184,23 @@ export function montarEdicaoPaciente(
     form.append(campos, salvar, aviso);
     const enviar = async (entrada: AtualizarPaciente) => {
       campos.disabled = salvar.disabled = true;
+      const terminarAcao = iniciarAcao(salvar);
       aviso.textContent = 'Salvando cadastro…';
       try {
         await servico.ciclo.editar(pacienteId, entrada);
         if (!ativa) return;
-        aviso.textContent = 'Envio realizado. Confirme o resultado antes de continuar.';
+        aviso.textContent = 'Alterações enviadas. Confira o resultado antes de continuar.';
       } catch (erro) {
         if (!ativa || descartarAcesso(erro)) return;
         aviso.textContent =
           erro instanceof FalhaApi && !resultadoIncerto(erro)
-            ? `${mensagemFalha(erro)} Nada foi alterado; confirme a situação da edição e tente de novo. O rascunho permanece nesta tela.`
-            : 'Não foi possível confirmar o salvamento. Confira o resultado antes de editar novamente; o rascunho permanece nesta tela.';
+            ? `${mensagemFalha(erro)} Nada foi alterado; confira o cadastro e tente de novo. O rascunho permanece nesta tela.`
+            : 'Não deu para saber se as alterações foram salvas. Confira o cadastro antes de editar de novo; o rascunho permanece nesta tela.';
+      } finally {
+        terminarAcao();
       }
       bloqueada = true;
-      recuperar.textContent = 'Confirmar situação da edição';
+      recuperar.textContent = 'Conferir o que foi salvo';
       recuperar.hidden = false;
       recuperar.disabled = false;
     };
@@ -221,10 +237,23 @@ export function montarEdicaoPaciente(
     desenharResumo();
     status.textContent = '';
     raiz.replaceChildren(resumo, form, recuperar, status);
+    desmontarSubstituicao?.();
+    desmontarSubstituicao = null;
+    if (servico.substituicao !== undefined) {
+      const substituicaoRaiz = elemento('div');
+      substituicaoRaiz.className = 'ficha-subsecao';
+      raiz.append(substituicaoRaiz);
+      desmontarSubstituicao = montarSubstituicaoCaseManager(
+        substituicaoRaiz,
+        servico.substituicao,
+        { paciente_id: pacienteId, equipe },
+      );
+    }
   };
+  let desmontarSubstituicao: (() => void) | null = null;
   const consultar = () => {
     status.textContent = 'Carregando cadastro…';
-    raiz.replaceChildren(status);
+    raiz.replaceChildren(esqueletoCarregando(3, true), status);
     void servico
       .consultarPaciente(pacienteId)
       .then(desenhar)
@@ -234,10 +263,10 @@ export function montarEdicaoPaciente(
         const tentar = elemento('button', 'Tentar novamente');
         tentar.type = 'button';
         tentar.addEventListener('click', consultar);
-        raiz.append(tentar);
+        raiz.replaceChildren(status, tentar);
       });
   };
-  const recuperar = elemento('button', 'Confirmar situação da edição');
+  const recuperar = elemento('button', 'Conferir o que foi salvo');
   recuperar.type = 'button';
   let reconhecido = false;
   const concluirRecuperacao = () => {
@@ -251,7 +280,8 @@ export function montarEdicaoPaciente(
     // Versão pode ter mudado; permitir copiar o rascunho, sem permitir sobrescrita.
     const campos = form.querySelector('fieldset');
     if (campos) campos.disabled = false;
-    status.textContent = 'Situação confirmada. Copie o rascunho antes de recarregar o cadastro.';
+    status.textContent =
+      'Conferência concluída. Copie seu rascunho antes de recarregar o cadastro.';
     const recarregar = elemento('button', 'Recarregar cadastro');
     recarregar.type = 'button';
     recarregar.onclick = () => {
@@ -265,7 +295,8 @@ export function montarEdicaoPaciente(
     if (recuperando) return;
     recuperando = true;
     recuperar.disabled = true;
-    status.textContent = 'Confirmando situação da edição…';
+    const terminarAcao = iniciarAcao(recuperar);
+    status.textContent = 'Conferindo o cadastro…';
     void (async () => {
       if (reconhecido) {
         await servico.ciclo.consultar();
@@ -275,9 +306,13 @@ export function montarEdicaoPaciente(
         if (!situacao.resultado_pendente) {
           if (
             situacao.reserva &&
-            !window.confirm(
-              'Há uma tentativa em andamento que pode estar em outra aba. Encerrá-la afetará todas as abas. Deseja continuar?',
-            )
+            !(await confirmar({
+              titulo: 'Encerrar a tentativa em andamento?',
+              detalhe:
+                'A tentativa pode estar aberta em outra aba. Encerrá-la afeta todas as abas desta pessoa.',
+              acao: 'Encerrar a tentativa',
+              cancelar: 'Deixar como está',
+            }))
           )
             throw new Error('Encerramento não confirmado');
           await servico.ciclo.encerrar();
@@ -288,7 +323,7 @@ export function montarEdicaoPaciente(
           const resultado = situacao.resultado_pendente;
           if (resultado.paciente_id.toLowerCase() !== pacienteId.toLowerCase()) {
             status.textContent =
-              'Resultado pendente pertence a outro paciente. Abra o cadastro correspondente para conferi-lo e reconhecê-lo.';
+              'A edição aguardando resposta é de outro paciente. Abra o cadastro dele para conferir antes de continuar aqui.';
             recuperar.hidden = true;
             return;
           }
@@ -304,13 +339,15 @@ export function montarEdicaoPaciente(
           raiz.append(conferencia);
           status.textContent =
             resultado.resultado === 'confirmada'
-              ? `Uma edição anterior foi confirmada na versão ${resultado.versao}. ${atual.versao !== resultado.versao ? 'O cadastro atual está em outra versão; alterações posteriores podem ter ocorrido.' : 'Confira o cadastro correspondente.'}`
-              : 'Uma edição anterior foi cancelada.';
-          recuperar.textContent = 'Reconhecer resultado e liberar edição';
+              ? `As alterações enviadas antes foram salvas (versão ${resultado.versao}). ${atual.versao !== resultado.versao ? 'O cadastro já está em outra versão: alguém pode ter alterado depois.' : 'Confira os dados acima.'}`
+              : 'As alterações enviadas antes não foram salvas.';
+          recuperar.textContent = 'Entendi, liberar a edição';
           recuperar.onclick = () => {
             if (recuperando) return;
             recuperando = true;
             recuperar.disabled = true;
+            const terminarReconhecimento = iniciarAcao(recuperar);
+            status.textContent = 'Concluindo conferência…';
             void (async () => {
               if (!reconhecido) {
                 await servico.ciclo.reconhecer();
@@ -325,10 +362,11 @@ export function montarEdicaoPaciente(
             })()
               .catch((erro: unknown) => {
                 if (!ativa || descartarAcesso(erro)) return;
-                status.textContent = 'Não foi possível reconhecer o resultado. Tente novamente.';
+                status.textContent = 'Não foi possível concluir. Tente novamente.';
                 recuperar.disabled = false;
               })
               .finally(() => {
+                terminarReconhecimento();
                 recuperando = false;
               });
           };
@@ -346,6 +384,7 @@ export function montarEdicaoPaciente(
         recuperar.disabled = false;
       })
       .finally(() => {
+        terminarAcao();
         recuperando = false;
       });
   };
@@ -353,6 +392,8 @@ export function montarEdicaoPaciente(
   raiz.replaceChildren(status, recuperar);
   return () => {
     ativa = false;
+    desmontarSubstituicao?.();
+    desmontarSubstituicao = null;
     raiz.replaceChildren();
   };
 }

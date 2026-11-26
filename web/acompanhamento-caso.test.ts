@@ -24,9 +24,9 @@ it('percorre as páginas, mantém só concessão vinculada com usuário e marca 
   const opcoes = await criarCatalogoResponsaveis(listar)();
   expect(listar.mock.calls.map(([cursor]) => cursor)).toEqual([undefined, 'p2']);
   expect(opcoes).toEqual([
-    { usuario_id: 'a', ativo: true, rotulo: 'a@exemplo.test (Profissional)' },
-    { usuario_id: 'c', ativo: false, rotulo: 'c@exemplo.test (Profissional)' },
-    { usuario_id: 'd', ativo: true, rotulo: 'd@exemplo.test (Administrador)' },
+    { usuario_id: 'a', ativo: true, rotulo: 'A · Profissional' },
+    { usuario_id: 'c', ativo: false, rotulo: 'C · Profissional' },
+    { usuario_id: 'd', ativo: true, rotulo: 'D · Administrador' },
   ]);
 });
 

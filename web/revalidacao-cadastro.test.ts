@@ -103,7 +103,7 @@ it('revalida acesso ao retornar à aba durante cadastro ainda em andamento', asy
   await vi.waitFor(() => expect(elemento('patients-view').hidden).toBe(false));
   expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(true);
   await vi.waitFor(() =>
-    expect(elemento('create-feedback').textContent).toContain('Cadastro anterior confirmado'),
+    expect(elemento('create-feedback').textContent).toContain('O cadastro enviado antes foi salvo'),
   );
   expect(elemento<HTMLInputElement>('patient-name').value).toBe('');
   await preencherCasoNovo('Paciente fictício');

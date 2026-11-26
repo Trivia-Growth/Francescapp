@@ -7,6 +7,7 @@ import {
 } from '../../../packages/contracts/src/erros.ts';
 import { consultarHistoricoAnamneseSchema } from '../../../packages/contracts/src/anamnese.ts';
 import { comporAnamneseNativa } from './compor-anamnese-nativa.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -128,8 +129,11 @@ export function criarEntradaAnamneseNativa(dependencias: Dependencias) {
             : contratosRotas.salvarAnamnese.saida;
         const dados = schema.parse(resultado.dados);
         return Response.json({ dados, request_id: resultado.request_id }, { headers });
-      } catch {
-        return erro(request.method === 'PATCH' ? 'pendencia_externa' : 'servico_indisponivel');
+      } catch (erroResposta) {
+        return erro(
+          request.method === 'PATCH' ? 'pendencia_externa' : 'servico_indisponivel',
+          registrarFalhaDeResposta('anamnese', erroResposta),
+        );
       }
     },
   };

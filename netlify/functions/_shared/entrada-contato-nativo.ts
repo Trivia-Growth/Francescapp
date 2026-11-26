@@ -8,6 +8,7 @@ import {
   type CodigoErro,
 } from '../../../packages/contracts/src/index.ts';
 import { comporContatoNativo } from './compor-contato-nativo.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 type Dependencias = Parameters<typeof comporContatoNativo>[2];
 const headers = {
@@ -97,8 +98,8 @@ export function criarEntradaContatoNativo(dependencias: Dependencias) {
           },
           { headers },
         );
-      } catch {
-        return erro('pendencia_externa');
+      } catch (erroResposta) {
+        return erro('pendencia_externa', registrarFalhaDeResposta('contato', erroResposta));
       }
     },
   };

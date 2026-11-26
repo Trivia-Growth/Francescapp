@@ -1,4 +1,21 @@
-export type PacienteFicha = { id: string; nome: string; nome_preferencia: string | null };
+import type { SituacaoCaso } from '../packages/contracts/src/index.js';
+import { rotulosSituacao } from './acompanhamento-caso.js';
+
+export type PacienteFicha = {
+  id: string;
+  nome: string;
+  nome_preferencia: string | null;
+  /** Só a lista do Administrador traz a situação; sem ela o cabeçalho não afirma nada. */
+  situacao?: SituacaoCaso | null;
+};
+
+/** Ação rápida de cada seção, no cabeçalho, para não obrigar a procurar a aba certa. */
+const ATALHOS: Readonly<Record<string, string>> = Object.freeze({
+  diario: 'Novo relato',
+  tarefas: 'Nova tarefa',
+  plano: 'Novo objetivo',
+});
+const LIMITE_ATALHOS = 2;
 
 export type SecaoFicha = {
   id: string;
@@ -14,7 +31,11 @@ export type OpcoesFicha = {
   paciente: PacienteFicha;
   secoes: SecaoFicha[];
   secaoInicial?: string;
-  confirmar: (mensagem: string) => boolean;
+  /** Ids que ficam na primeira faixa; os demais entram em "Mais seções". Sem esta lista, ou
+   * se ela cobrir todas as seções recebidas, a ficha mantém a faixa única de sempre. */
+  primarias?: readonly string[];
+  /** Assíncrona desde que a confirmação passou a ser desenhada na própria página. */
+  confirmar: (mensagem: string) => Promise<boolean>;
   aoSelecionar: (secao: string) => void;
   aoVoltar: () => void;
 };
@@ -22,7 +43,7 @@ export type OpcoesFicha = {
 export type Ficha = {
   secaoAtual(): string;
   pendencia(): { secao: string; mensagem: string } | null;
-  selecionar(secao: string, opcoes?: { confirmar?: boolean }): boolean;
+  selecionar(secao: string, opcoes?: { confirmar?: boolean }): Promise<boolean>;
   /** Remove o conteúdo carregado da seção atual e invalida respostas pendentes. */
   limparSecao(): void;
   remontarSecao(): void;
@@ -105,36 +126,96 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
   const identidade = elemento('div', 'ficha-identidade');
   const textoIdentidade = elemento('div');
   textoIdentidade.append(titulo, preferencia);
+  if (paciente.situacao) {
+    const situacao = elemento('span', 'pessoa-situacao', rotulosSituacao[paciente.situacao]);
+    situacao.dataset.situacao = paciente.situacao;
+    textoIdentidade.append(situacao);
+  }
   identidade.append(criarAvatar(paciente.nome), textoIdentidade);
+  const acoes = elemento('div', 'ficha-acoes');
+  for (const secao of secoes) {
+    if (acoes.childElementCount >= LIMITE_ATALHOS) break;
+    const rotulo = ATALHOS[secao.id];
+    if (!rotulo || !secao.montar) continue;
+    const atalho = elemento('button', 'button-secondary', rotulo);
+    atalho.type = 'button';
+    atalho.addEventListener('click', () => {
+      void selecionar(secao.id);
+    });
+    acoes.append(atalho);
+  }
+  if (acoes.childElementCount) identidade.append(acoes);
   const cabecalho = elemento('header', 'ficha-cabecalho');
   cabecalho.append(voltar, identidade);
+
+  // A ordem da faixa primária segue a prioridade informada pelo chamador (decisão de
+  // design), não a ordem em que as seções chegam — essa continua livre para o segundo nível.
+  // Se nenhum id de `primarias` corresponder a uma seção recebida (lista vazia, desatualizada
+  // ou sem nenhuma seção em comum), a divisão não faz sentido: cai no comportamento de faixa
+  // única de sempre, em vez de deixar a tablist vazia e tudo em "Mais seções".
+  const porId = new Map(secoes.map((secao) => [secao.id, secao] as const));
+  const primariosEncontrados = (opcoes.primarias ?? [])
+    .map((id) => porId.get(id))
+    .filter((secao): secao is SecaoFicha => secao !== undefined);
+  const grupoPrimario = primariosEncontrados.length ? primariosEncontrados : secoes;
+  const idsPrimarios = new Set(grupoPrimario.map((secao) => secao.id));
+  const grupoSecundario = secoes.filter((secao) => !idsPrimarios.has(secao.id));
+  const idsSecundarios = new Set(grupoSecundario.map((secao) => secao.id));
 
   const abas = elemento('div', 'ficha-abas');
   abas.setAttribute('role', 'tablist');
   abas.setAttribute('aria-label', 'Seções da ficha');
   const botoes = new Map<string, HTMLButtonElement>();
-  for (const secao of secoes) {
-    const aba = elemento('button', 'ficha-aba');
+
+  /** Única fonte da diferença de papel entre as duas faixas: fora da tablist, "aria-selected"
+   * exigiria o papel "tab", então o destaque de quem está ativa usa "aria-current" — chamada
+   * tanto na criação quanto em `marcarAbas`, para as duas não poderem divergir. */
+  function aplicarEstadoAba(
+    aba: HTMLButtonElement,
+    secundaria: boolean,
+    selecionada: boolean,
+  ): void {
+    if (secundaria) aba.setAttribute('aria-current', String(selecionada));
+    else {
+      aba.setAttribute('aria-selected', String(selecionada));
+      aba.tabIndex = selecionada ? 0 : -1;
+    }
+  }
+
+  function criarAba(secao: SecaoFicha, secundaria: boolean): HTMLButtonElement {
+    const aba = elemento('button', secundaria ? 'ficha-aba ficha-aba-secundaria' : 'ficha-aba');
     aba.type = 'button';
     aba.id = `ficha-aba-${secao.id}`;
-    aba.setAttribute('role', 'tab');
     aba.setAttribute('aria-controls', 'ficha-painel');
-    aba.setAttribute('aria-selected', 'false');
-    aba.tabIndex = -1;
+    if (!secundaria) aba.setAttribute('role', 'tab');
+    aplicarEstadoAba(aba, secundaria, false);
     aba.append(secao.rotulo);
     if (!secao.montar) aba.append(' ', elemento('span', 'ficha-aba-estado', 'em breve'));
     aba.addEventListener('click', () => {
-      if (!selecionar(secao.id)) botoes.get(atual)?.focus();
+      void (async () => {
+        if (!(await selecionar(secao.id))) botoes.get(atual)?.focus();
+      })();
     });
     botoes.set(secao.id, aba);
-    abas.append(aba);
+    return aba;
+  }
+
+  for (const secao of grupoPrimario) abas.append(criarAba(secao, false));
+
+  let mais: HTMLDetailsElement | null = null;
+  if (grupoSecundario.length > 0) {
+    mais = elemento('details', 'ficha-mais');
+    const resumo = elemento('summary', 'ficha-mais-resumo', 'Mais seções');
+    const lista = elemento('div', 'ficha-mais-lista');
+    for (const secao of grupoSecundario) lista.append(criarAba(secao, true));
+    mais.append(resumo, lista);
   }
 
   const painel = elemento('div', 'ficha-painel');
   painel.id = 'ficha-painel';
   painel.setAttribute('role', 'tabpanel');
   painel.tabIndex = 0;
-  raiz.replaceChildren(cabecalho, abas, painel);
+  raiz.replaceChildren(cabecalho, abas, ...(mais ? [mais] : []), painel);
 
   const mensagemAtual = (): string =>
     secoes.find((secao) => secao.id === atual)?.descarte ?? DESCARTE_PADRAO;
@@ -149,10 +230,14 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
   }
 
   function marcarAbas(): void {
+    // Seção ativa vinda do segundo nível precisa estar visível antes do scrollIntoView
+    // abaixo, senão o scroll na aba ainda dentro do <details> fechado não faz nada.
+    if (mais) mais.open = idsSecundarios.has(atual);
     for (const [id, aba] of botoes) {
       const selecionada = id === atual;
-      aba.setAttribute('aria-selected', String(selecionada));
-      aba.tabIndex = selecionada ? 0 : -1;
+      aplicarEstadoAba(aba, idsSecundarios.has(id), selecionada);
+      if (!idsSecundarios.has(id) && idsSecundarios.has(atual) && id === grupoPrimario[0]?.id)
+        aba.tabIndex = 0;
       // Na faixa rolável do celular, a aba atual precisa estar à vista, também depois de recarregar.
       if (selecionada) aba.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     }
@@ -188,12 +273,18 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
     }
   }
 
-  function selecionar(id: string, { confirmar = true }: { confirmar?: boolean } = {}): boolean {
+  // Sem confirmação a troca continua acontecendo no mesmo quadro: nenhum `await` é
+  // avaliado antes de montar a seção, então a aba responde na hora como sempre respondeu.
+  async function selecionar(
+    id: string,
+    { confirmar = true }: { confirmar?: boolean } = {},
+  ): Promise<boolean> {
     if (!ativa) return false;
     const alvo = secoes.find((secao) => secao.id === id);
     if (!alvo) return false;
     if (id === atual) return true;
-    if (confirmar && pendente && !opcoes.confirmar(mensagemAtual())) return false;
+    if (confirmar && pendente && !(await opcoes.confirmar(mensagemAtual()))) return false;
+    if (!ativa || atual === id) return false;
     descartarSecao();
     atual = id;
     marcarAbas();
@@ -203,12 +294,20 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
   }
 
   voltar.addEventListener('click', () => {
-    if (pendente && !opcoes.confirmar(mensagemAtual())) return;
-    opcoes.aoVoltar();
+    void (async () => {
+      if (pendente && !(await opcoes.confirmar(mensagemAtual()))) return;
+      opcoes.aoVoltar();
+    })();
   });
 
+  // Restrito à faixa primária: as demais seções vivem em "Mais seções" e seguem a ordem
+  // natural de Tab, não o ciclo de setas de uma tablist. `grupoPrimario`/`botoes` não mudam
+  // depois da montagem, então a ordem é calculada uma vez, não a cada tecla.
+  const ordemTeclado = grupoPrimario
+    .map((secao) => botoes.get(secao.id))
+    .filter((aba) => aba !== undefined);
   abas.addEventListener('keydown', (evento) => {
-    const ordem = secoes.map((secao) => botoes.get(secao.id)).filter((aba) => aba !== undefined);
+    const ordem = ordemTeclado;
     const foco = ordem.indexOf(document.activeElement as HTMLButtonElement);
     if (foco < 0) return;
     const destino =
@@ -231,7 +330,7 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
   });
 
   const inicial = secoes.find((secao) => secao.id === opcoes.secaoInicial) ?? secoes[0];
-  if (inicial) selecionar(inicial.id, { confirmar: false });
+  if (inicial) void selecionar(inicial.id, { confirmar: false });
 
   return {
     secaoAtual: () => atual,

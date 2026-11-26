@@ -32,6 +32,7 @@ it('abre plano do paciente pela rota HTTP e trata dispatcher inativo sem simular
         itens: [{ id, nome: 'Paciente fictício', nome_preferencia: null, versao: 1 }],
         proximo_cursor: null,
       });
+    if (caminho === '/api/admin/campo-extra-plano') return envelope([]);
     if (caminho === `/api/pacientes/${id}/plano`) return new Response(null, { status: 404 });
     throw new Error('Rota inesperada');
   });
@@ -80,6 +81,7 @@ it('encerra acesso e limpa plano quando permissão é revogada após retorno à 
         itens: [{ id, nome: 'Paciente fictício', nome_preferencia: null, versao: 1 }],
         proximo_cursor: null,
       });
+    if (caminho === '/api/admin/campo-extra-plano') return envelope([]);
     if (caminho === `/api/pacientes/${id}/plano`) {
       consultasPlano++;
       // Visão do caso e Plano consultam uma vez cada; a terceira é a revalidação.
@@ -118,12 +120,17 @@ it('encerra acesso e limpa plano quando permissão é revogada após retorno à 
       { status: 403 },
     ),
   );
-  await vi.waitFor(() => expect(document.getElementById('login-view')?.hidden).toBe(false));
-  expect(document.getElementById('patients-view')?.hidden).toBe(true);
-  expect(document.getElementById('ficha-view')?.hidden).toBe(true);
-  expect(document.getElementById('ficha-view')?.textContent).toBe('');
-  expect(document.getElementById('login-feedback')?.textContent).toContain(
-    'Seu acesso precisa ser validado novamente',
+  // Desde 24/11/2026 permissão revogada limpa o conteúdo sem derrubar a sessão: a pessoa
+  // continua dentro e a área diz que não está liberada. Derrubar mentia sobre a causa.
+  await vi.waitFor(() =>
+    expect(document.getElementById('workspace-feedback')?.textContent).toContain(
+      'não está liberada',
+    ),
   );
+  expect(document.getElementById('login-view')?.hidden).toBe(true);
+  expect(document.getElementById('ficha-view')?.textContent).toBe('');
+  // A tela de acesso não é mais usada aqui, então não há mensagem de login a conferir: o
+  // aviso que importa é o da área de trabalho, já verificado acima.
+  expect(document.getElementById('login-feedback')?.textContent).toBe('');
   Reflect.deleteProperty(document, 'hidden');
 });

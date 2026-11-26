@@ -6,6 +6,7 @@ import {
   type CodigoErro,
 } from '../../../packages/contracts/src/erros.ts';
 import { comporAprovarObjetivoPlanoNativo } from './compor-aprovar-objetivo-plano-nativo.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -101,8 +102,11 @@ export function criarEntradaAprovarObjetivoPlanoNativa(dependencias: Dependencia
         if (!resultado.ok) return erro(resultado.erro.codigo, resultado.request_id);
         const dados = contratosRotas.aprovarObjetivoPlano.saida.parse(resultado.dados);
         return Response.json({ dados, request_id: resultado.request_id }, { headers });
-      } catch {
-        return erro('pendencia_externa');
+      } catch (erroResposta) {
+        return erro(
+          'pendencia_externa',
+          registrarFalhaDeResposta('aprovar-objetivo-plano', erroResposta),
+        );
       }
     },
   };

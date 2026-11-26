@@ -23,3 +23,10 @@ supabase/.temp/
 .env
 .env.*
 !.env.example
+
+# Saídas da prova de conforto no celular (Playwright).
+test-results/
+playwright-report/
+
+# Local Netlify folder
+.netlify

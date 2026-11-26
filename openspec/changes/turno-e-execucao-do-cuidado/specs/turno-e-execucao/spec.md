@@ -130,22 +130,22 @@ O produto SHALL registrar aferições com tipo de medida, valor, unidade, instan
 
 **Fase de origem**: Evolução.
 
-O produto SHALL permitir que pessoa de perfil habilitado — Administrador ou case manager com a concessão de execução de medicação vigente — registre itens de medicação prescrita do caso, com nome, dose prescrita, via, horários previstos, período de vigência, fonte documental da prescrição e autor do registro. O sistema SHALL apenas transcrever prescrição externa existente: NÃO SHALL sugerir, calcular, alterar ou suspender medicamento ou dose.
+O produto SHALL permitir que profissional autenticado com vínculo ativo no caso registre itens de medicação prescrita do caso, com nome, dose prescrita, via, horários previstos, período de vigência, fonte documental da prescrição e autor do registro. O sistema SHALL apenas transcrever prescrição externa existente: NÃO SHALL sugerir, calcular, alterar ou suspender medicamento ou dose.
 
 #### Scenario: Item de medicação prescrita registrado
-- **WHEN** Administrador ou case manager com concessão vigente registra item fictício com nome, dose, via, horários, vigência e fonte documental
+- **WHEN** profissional com vínculo ativo no caso registra item fictício com nome, dose, via, horários, vigência e fonte documental
 - **THEN** o item é persistido com autor e data e passa a constar na lista de medicação prescrita do caso
 
 #### Scenario: Registro sem fonte documental é recusado
 - **WHEN** o item é enviado sem fonte documental da prescrição
 - **THEN** o registro é recusado e nenhum item é criado
 
-#### Scenario: Perfil não habilitado é negado
-- **WHEN** profissional sem a concessão de execução de medicação, familiar ou pessoa com acesso revogado tenta criar ou alterar item de medicação prescrita, inclusive por acesso direto ao servidor ou ao banco
+#### Scenario: Pessoa sem vínculo é negada
+- **WHEN** profissional sem vínculo ativo no caso, familiar ou pessoa com acesso revogado tenta criar ou alterar item de medicação prescrita, inclusive por acesso direto ao servidor ou ao banco
 - **THEN** a operação é negada, nada é persistido e a negação é registrada
 
 #### Scenario: Alteração preserva histórico
-- **WHEN** profissional habilitado altera ou encerra a vigência de um item
+- **WHEN** profissional com vínculo ativo altera ou encerra a vigência de um item
 - **THEN** a versão anterior permanece consultável com autor, data e motivo, e administrações já registradas continuam referenciando a versão vigente à época
 
 #### Scenario: Sistema não propõe medicamento nem dose
@@ -156,10 +156,10 @@ O produto SHALL permitir que pessoa de perfil habilitado — Administrador ou ca
 
 **Fase de origem**: Evolução.
 
-O produto SHALL registrar administração referenciando item de medicação prescrita vigente, com **executor** — quem administrou, identificado por nome e vínculo, podendo ser profissional externo sem conta no sistema — e **registrador** — quem gravou, autenticado e com a concessão de execução de medicação. O registro SHALL guardar instante do servidor, turno, e situação entre administrado, recusado, adiado e não administrado; situação diferente de administrado SHALL exigir motivo.
+O produto SHALL registrar administração referenciando item de medicação prescrita vigente, com **executor** — quem administrou, identificado por nome e vínculo, podendo ser profissional externo sem conta no sistema — e **registrador** — quem gravou, autenticado, profissional com vínculo ativo no caso. O registro SHALL guardar instante do servidor, turno, e situação entre administrado, recusado, adiado e não administrado; situação diferente de administrado SHALL exigir motivo.
 
 #### Scenario: Administração registrada com executor e registrador distintos
-- **WHEN** Administrador ou case manager com concessão vigente e turno aberto registra administração de item prescrito fictício vigente, informando o executor que administrou
+- **WHEN** profissional com vínculo ativo no caso e turno aberto registra administração de item prescrito fictício vigente, informando o executor que administrou
 - **THEN** o registro é persistido com executor informado, registrador autenticado, instante do servidor, turno, item referenciado e situação administrado, e o relatório do turno apresenta executor e registrador como papéis distintos
 
 #### Scenario: Registro sem executor identificado é recusado
@@ -174,12 +174,12 @@ O produto SHALL registrar administração referenciando item de medicação pres
 - **WHEN** a administração é registrada como recusada, adiada ou não administrada sem motivo
 - **THEN** o registro é recusado e nada é persistido
 
-#### Scenario: Registrador sem concessão é negado
-- **WHEN** profissional sem a concessão de execução de medicação, familiar ou pessoa com acesso revogado tenta registrar administração, inclusive por acesso direto ao servidor ou ao banco
+#### Scenario: Registrador sem vínculo é negado
+- **WHEN** profissional sem vínculo ativo no caso, familiar ou pessoa com acesso revogado tenta registrar administração, inclusive por acesso direto ao servidor ou ao banco
 - **THEN** a operação é negada, nada é persistido, o evento de negação é auditado e nenhum dado da prescrição é exposto na resposta
 
 #### Scenario: Administração sem turno aberto é recusada
-- **WHEN** registrador com concessão vigente e sem turno aberto tenta registrar administração
+- **WHEN** profissional com vínculo ativo e sem turno aberto tenta registrar administração
 - **THEN** o registro é recusado e a interface indica que é necessário abrir turno
 
 #### Scenario: Item inexistente ou fora de vigência
@@ -187,7 +187,7 @@ O produto SHALL registrar administração referenciando item de medicação pres
 - **THEN** o registro é recusado sem revelar a existência de itens de outro caso
 
 #### Scenario: Retificação preserva o registro original
-- **WHEN** registrador com concessão vigente retifica uma administração já registrada informando motivo
+- **WHEN** profissional com vínculo ativo retifica uma administração já registrada informando motivo
 - **THEN** o registro original permanece consultável, a retificação preserva quem retificou, motivo e data, o executor originalmente informado continua visível, e nenhum registro de administração é apagado
 
 #### Scenario: Falha de persistência na administração
@@ -214,7 +214,11 @@ O produto SHALL permitir que o profissional do turno aberto registre ocorrência
 
 #### Scenario: Anexo da ocorrência segue as regras de documentos
 - **WHEN** a ocorrência recebe imagem ou documento
-- **THEN** o anexo é tratado pelas regras de FR-011 e FR-029 a FR-031, com audiência e revogação aplicáveis
+- **THEN** o anexo é tratado pelas regras de FR-011 e FR-029 a FR-031, com audiência e revogação aplicáveis, e é guardado em repositório privado do Supabase sujeito à mesma autorização do caso enquanto a raiz do Drive institucional de FR-030 não estiver definida
+
+#### Scenario: Anexo não é servido por URL pública
+- **WHEN** alguém tenta obter o arquivo da ocorrência por endereço direto, sem autorização vigente no caso
+- **THEN** o acesso é negado, nenhuma URL pública ou assinada de longa duração é emitida, e a tentativa é auditada
 
 #### Scenario: Ocorrência em turno encerrado é recusada
 - **WHEN** o profissional tenta registrar ocorrência vinculada a turno já encerrado
@@ -283,6 +287,172 @@ O produto SHALL autorizar abertura de turno, registro de aferição, medicação
 #### Scenario: Registros preservados após encerramento do vínculo
 - **WHEN** o vínculo do profissional é encerrado e um relatório anterior é consultado por pessoa autorizada
 - **THEN** o relatório mantém o autor original de cada registro, sem anonimizar, reatribuir ou remover os lançamentos
+
+### Requirement: FR-064 — Registrar a rotina do turno em campos estruturados de alimentação, hidratação, sono e eliminações
+
+**Fase de origem**: Evolução.
+
+O produto SHALL permitir que o profissional do turno aberto registre a rotina do período nos campos estruturados confirmados em 17/11/2026 — refeição por momento (café, almoço, lanche, jantar, ceia) com aceitação em total, parcial, mínima ou recusou; hidratação em mililitros; sono com início, fim e qualidade observada em tranquilo, agitado ou não dormiu; e eliminações como contagem por tipo (urina, fezes) — cada registro com instante de ocorrência informado, instante de gravação do servidor e autor identificado.
+
+Cada registro de rotina SHALL admitir um campo textual livre de observações adicionais, opcional, cifrado como os demais textos livres do produto e sujeito à mesma audiência do conteúdo do turno. Esse campo NÃO SHALL ser usado para substituir os campos estruturados, e a série consultável SHALL continuar funcionando quando ele estiver vazio. Esses campos SHALL ser consultáveis como série por período, independentemente do texto da passagem. O sistema NÃO SHALL derivar diagnóstico, gravidade, adequação nutricional ou alerta a partir desses valores.
+
+#### Scenario: Rotina do turno registrada
+- **WHEN** profissional com turno aberto registra refeição fictícia com momento e aceitação observada, hidratação em mililitros, sono com início, fim e qualidade, e eliminação por tipo
+- **THEN** cada item é persistido vinculado ao turno e ao caso, com instante informado, instante do servidor e autor identificado
+
+#### Scenario: Observação livre acompanha o registro estruturado
+- **WHEN** o profissional preenche a observação adicional de um registro de rotina
+- **THEN** o texto é persistido cifrado, vinculado ao registro, sujeito à mesma audiência do conteúdo do turno, e os campos estruturados permanecem preenchidos e consultáveis como série
+
+#### Scenario: Registro sem observação é válido
+- **WHEN** o registro de rotina é enviado sem a observação adicional
+- **THEN** o registro é aceito e a consulta por período funciona normalmente
+
+#### Scenario: Valor fora do conjunto confirmado é recusado
+- **WHEN** o registro informa momento de refeição, nível de aceitação, qualidade de sono ou tipo de eliminação fora do conjunto administrado
+- **THEN** o registro é recusado e nada é persistido
+
+#### Scenario: Rotina consultável como série
+- **WHEN** pessoa autorizada consulta a rotina do caso por período
+- **THEN** os registros são apresentados em ordem cronológica com autor e turno de origem, sem depender da leitura do texto da passagem
+
+#### Scenario: Instante informado fora da janela do turno
+- **WHEN** o instante de ocorrência informado está fora da janela do turno aberto
+- **THEN** o registro é recusado e nada é persistido
+
+#### Scenario: Sistema não interpreta a rotina
+- **WHEN** a rotina do período é apresentada em tela, relatório ou exportação
+- **THEN** nenhum rótulo de gravidade, adequação, alerta ou recomendação é derivado dos valores, e nenhum campo é preenchido automaticamente a partir de histórico
+
+#### Scenario: Registro de rotina sem turno aberto é recusado
+- **WHEN** profissional sem turno aberto tenta registrar rotina
+- **THEN** o registro é recusado e a interface indica que é necessário abrir turno
+
+#### Scenario: Pessoa sem vínculo é negada
+- **WHEN** profissional sem vínculo ativo, familiar ou pessoa com acesso revogado tenta registrar rotina, inclusive por acesso direto ao servidor ou ao banco
+- **THEN** a operação é negada, nada é persistido e a negação é auditada
+
+#### Scenario: Retificação preserva o registro original
+- **WHEN** o autor retifica um registro de rotina informando motivo
+- **THEN** o registro original permanece consultável com autor e data, e nenhum lançamento é apagado
+
+### Requirement: FR-065 — Produzir consolidado semanal por caso
+
+**Fase de origem**: Evolução.
+
+O produto SHALL produzir consolidado de sete dias por caso, reunindo os turnos do período, a rotina de FR-064, as aferições de FR-058, as administrações de FR-060 e as ocorrências de FR-061, indicando lacunas de cobertura. O consolidado semanal SHALL respeitar a mesma audiência do consolidado diário de FR-062, SHALL ser calculado a partir dos registros existentes e NÃO SHALL conter conclusão clínica, tendência interpretada ou recomendação gerada pelo sistema.
+
+#### Scenario: Consolidado semanal apresentado à equipe
+- **WHEN** profissional autorizado consulta o consolidado de sete dias do caso
+- **THEN** turnos, rotina, aferições, administrações e ocorrências do período são apresentados em ordem cronológica, com autores identificados e lacunas de cobertura indicadas
+
+#### Scenario: Audiência familiar no consolidado semanal
+- **WHEN** familiar com fundamento de autorização vigente consulta o consolidado semanal
+- **THEN** o conteúdo da sua audiência é apresentado sob as mesmas condições de FR-062, e a revogação do fundamento nega as consultas seguintes imediatamente
+
+#### Scenario: Semana sem registro
+- **WHEN** o consolidado semanal é consultado para um período sem turno registrado
+- **THEN** o estado vazio é apresentado após consulta real bem-sucedida, sem dados de exemplo e sem confundir vazio com falha
+
+#### Scenario: Consolidado não interpreta
+- **WHEN** o consolidado semanal é apresentado ou exportado
+- **THEN** nenhuma tendência, evolução clínica, melhora, piora ou recomendação é afirmada pelo sistema, e os valores aparecem como registrados
+
+#### Scenario: Período parcialmente autorizado
+- **WHEN** parte do período contém conteúdo fora da audiência de quem consulta
+- **THEN** somente o conteúdo da audiência aplicável é apresentado, sem indicar o teor do que foi omitido
+
+### Requirement: FR-066 — Emitir relatório e exportação em PDF gerados no servidor, com auditoria
+
+**Fase de origem**: Evolução.
+
+O produto SHALL emitir relatório de turno, consolidado diário, consolidado semanal e exportação de caso em PDF gerado no servidor, aplicando a mesma autorização e a mesma audiência da consulta correspondente. O conteúdo do PDF SHALL ser montado a partir dos registros persistidos, NÃO SHALL ser montado a partir do que o cliente enviar, e cada emissão SHALL ser registrada como exportação conforme FR-039 e FR-032. O PDF SHALL identificar caso, período, autores dos registros e instante de emissão.
+
+#### Scenario: PDF emitido por pessoa autorizada
+- **WHEN** pessoa autorizada solicita o PDF do relatório de um turno encerrado
+- **THEN** o PDF é gerado no servidor com caso, período, registros do turno, autores identificados e instante de emissão, e a emissão é registrada como exportação com identidade, ação, caso e instante
+
+#### Scenario: Conteúdo do PDF não vem do cliente
+- **WHEN** a requisição de emissão inclui conteúdo, registros ou identidade próprios no corpo
+- **THEN** esses dados são descartados e o PDF é montado exclusivamente a partir dos registros persistidos e da identidade autenticada
+
+#### Scenario: Audiência limita o PDF
+- **WHEN** familiar com fundamento de autorização vigente solicita o PDF do período
+- **THEN** o PDF contém somente o conteúdo da audiência familiar, sem indicar o teor do conteúdo omitido
+
+#### Scenario: Emissão sem autorização é negada
+- **WHEN** pessoa sem vínculo ativo, com acesso revogado ou sem fundamento de autorização aplicável solicita o PDF, inclusive por acesso direto ao servidor
+- **THEN** a emissão é negada, nenhum arquivo é produzido, nenhum dado do caso é exposto na resposta e a tentativa é auditada
+
+#### Scenario: Falha na geração não é apresentada como sucesso
+- **WHEN** a geração do PDF ou o registro da exportação não é confirmado
+- **THEN** a interface informa falha, nenhum arquivo parcial é entregue e a operação não consta como exportação realizada
+
+#### Scenario: Executor e registrador no PDF de medicação
+- **WHEN** o PDF apresenta administrações de medicação
+- **THEN** executor e registrador aparecem como papéis distintos, sem atribuir o ato de administrar a quem apenas registrou
+
+### Requirement: FR-067 — Registrar check-in e check-out do turno com localização declarada e consentida
+
+**Fase de origem**: Evolução.
+
+O produto SHALL registrar, na abertura e no encerramento do turno de FR-055, a localização informada pelo aparelho do profissional, com latitude, longitude, precisão informada e instante do servidor. A localização SHALL ser tratada como **dado declarado pelo aparelho, nunca como prova de presença**: nenhuma superfície, relatório ou exportação SHALL afirmar que o profissional esteve no local.
+
+A coleta SHALL depender de consentimento prévio do profissional, registrado com identidade, finalidade, audiência, prazo de retenção e data, obtido antes do primeiro check-in e revogável. A localização SHALL ser retida por 90 dias contados do turno a que pertence, e SHALL ser descartada após esse prazo; o turno e seus demais registros permanecem íntegros sem ela. A ausência de localização — permissão negada, recurso indisponível, falha ou consentimento revogado — NÃO SHALL impedir a abertura ou o encerramento do turno; o registro SHALL guardar a ausência com o motivo correspondente.
+
+A localização SHALL ser visível apenas a Administrador e case manager. Perfil familiar NÃO SHALL ter acesso à localização em nenhuma superfície, relatório ou exportação, ainda que tenha fundamento de autorização para o restante do conteúdo do turno.
+
+#### Scenario: Check-in com localização consentida
+- **WHEN** profissional com consentimento vigente e permissão concedida no aparelho abre turno em caso fictício
+- **THEN** o turno é aberto e a localização é persistida com latitude, longitude, precisão informada e instante do servidor, identificada como dado declarado pelo aparelho
+
+#### Scenario: Check-out registra a localização do encerramento
+- **WHEN** o mesmo profissional encerra o turno
+- **THEN** a localização do encerramento é persistida separadamente da localização de abertura, sem sobrescrevê-la
+
+#### Scenario: Permissão negada não impede o turno
+- **WHEN** o profissional nega a permissão de localização, ou o recurso está indisponível, e abre turno
+- **THEN** o turno é aberto normalmente, o registro guarda "localização não informada" com o motivo, e nenhuma coordenada é inventada, estimada ou derivada de endereço de rede
+
+#### Scenario: Sem consentimento não há coleta
+- **WHEN** profissional sem consentimento registrado abre turno
+- **THEN** nenhuma localização é solicitada nem persistida, e o turno é aberto sem o dado
+
+#### Scenario: Consentimento revogado interrompe a coleta
+- **WHEN** o profissional revoga o consentimento
+- **THEN** os turnos seguintes são registrados sem localização, as localizações anteriores permanecem íntegras com a sua base de consentimento à época, e nenhuma nova coleta ocorre
+
+#### Scenario: Família não vê localização
+- **WHEN** familiar com fundamento de autorização vigente consulta o relatório, o consolidado ou o PDF do turno
+- **THEN** horários de abertura e encerramento são apresentados, nenhuma coordenada, endereço, mapa ou indicação de distância é exibida, e a omissão não revela o teor do dado
+
+#### Scenario: Profissional sem perfil de coordenação não vê localização alheia
+- **WHEN** profissional que não é Administrador nem case manager consulta turnos de outros profissionais do caso
+- **THEN** a localização alheia não é retornada, inclusive por acesso direto ao servidor ou ao banco
+
+#### Scenario: Localização não é apresentada como prova de presença
+- **WHEN** a localização é exibida em tela, relatório ou exportação
+- **THEN** ela é apresentada como informada pelo aparelho, sem rótulo de confirmação, validação, conformidade ou presença comprovada, e sem cálculo automático de atraso ou falta a partir dela
+
+#### Scenario: Coordenada enviada sem coleta real é tratada como declarada
+- **WHEN** a requisição informa coordenada própria
+- **THEN** o valor é persistido como dado declarado junto da precisão informada, sem ser tratado como verificado, e o instante continua sendo exclusivamente o do servidor
+
+#### Scenario: Consentimento registrado com finalidade e audiência
+- **WHEN** o profissional concede o consentimento
+- **THEN** o aceite é persistido com identidade, data, finalidade declarada, audiência informada e prazo de retenção, e fica consultável por ele e pela coordenação
+
+#### Scenario: Localização descartada após 90 dias
+- **WHEN** passam 90 dias do turno a que a localização pertence
+- **THEN** a localização é descartada, o turno e seus demais registros permanecem íntegros e consultáveis, e a consulta de localização daquele turno retorna ausência por retenção expirada, sem erro
+
+#### Scenario: Retenção informada no consentimento
+- **WHEN** o profissional concede o consentimento
+- **THEN** o prazo de retenção de 90 dias é apresentado junto da finalidade e da audiência, e fica registrado na versão de consentimento aceita
+
+#### Scenario: Auditoria da localização
+- **WHEN** uma localização de turno é registrada, consultada ou exportada
+- **THEN** o evento é registrado com identidade, ação, caso e instante, conforme FR-039
 
 ## Jornadas e testes independentes preservados
 

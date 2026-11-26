@@ -10,6 +10,7 @@ import {
   type CodigoErro,
 } from '../../../packages/contracts/src/erros.ts';
 import { comporTarefaCuidadoNativo } from './compor-tarefa-cuidado-nativo.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 const headers = {
   'Cache-Control': 'private, no-store',
@@ -113,8 +114,11 @@ export function criarEntradaTarefaCuidadoNativa(dependencias: Dependencias) {
           { dados: resultado.dados, request_id: resultado.request_id },
           { headers },
         );
-      } catch {
-        return erro('servico_indisponivel');
+      } catch (erroResposta) {
+        return erro(
+          'servico_indisponivel',
+          registrarFalhaDeResposta('tarefa-cuidado', erroResposta),
+        );
       }
     },
     async atender(request: Request): Promise<Response> {
@@ -148,8 +152,11 @@ export function criarEntradaTarefaCuidadoNativa(dependencias: Dependencias) {
           { dados: resultado.dados, request_id: resultado.request_id },
           { headers },
         );
-      } catch {
-        return erro('servico_indisponivel');
+      } catch (erroResposta) {
+        return erro(
+          'servico_indisponivel',
+          registrarFalhaDeResposta('tarefa-cuidado', erroResposta),
+        );
       }
     },
   };

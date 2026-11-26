@@ -1,3 +1,6 @@
+import { esqueletoCarregando } from './esqueleto.js';
+import { confirmar } from './confirmacao.js';
+
 type Pagina = { itens: readonly { id: string; nome: string }[]; proximo_cursor: string | null };
 
 export function montarVinculoAgenda(
@@ -44,9 +47,12 @@ export function montarVinculoAgenda(
     lista.replaceChildren();
     anterior.disabled = seguinte.disabled = true;
     estado.textContent = 'Consultando pacientes…';
+    lista.setAttribute('aria-busy', 'true');
+    lista.append(esqueletoCarregando(2, true));
     try {
       const dados = await listar(cursores[pagina]);
       if (!ativa || numero !== revisao) return;
+      lista.replaceChildren();
       proximo = dados.proximo_cursor;
       for (const paciente of dados.itens) {
         const botao = document.createElement('button');
@@ -62,16 +68,36 @@ export function montarVinculoAgenda(
       anterior.disabled = pagina === 0;
       seguinte.disabled = !proximo;
     } catch {
-      if (ativa && numero === revisao)
+      if (ativa && numero === revisao) {
+        lista.replaceChildren();
         estado.textContent = 'Não foi possível consultar pacientes. Feche e tente novamente.';
+      }
+    } finally {
+      if (numero === revisao) lista.removeAttribute('aria-busy');
     }
   }
   async function vincular(pacienteId: string, nome: string) {
-    if (ocupado || !eventoId || !window.confirm(`Vincular este compromisso a ${nome}?`)) return;
+    if (ocupado || !eventoId) return;
+    if (
+      !(await confirmar({
+        titulo: `Vincular este compromisso a ${nome}?`,
+        detalhe: 'O compromisso passa a aparecer na agenda desta pessoa.',
+        acao: 'Vincular',
+        cancelar: 'Não vincular',
+      }))
+    )
+      return;
+    // A pergunta é assíncrona: o estado pode ter mudado enquanto ela estava na tela.
+    if (ocupado || !eventoId) return;
     ocupado = true;
     lista.replaceChildren();
     anterior.disabled = seguinte.disabled = fechar.disabled = true;
     estado.textContent = 'Aguardando confirmação do vínculo…';
+    lista.setAttribute('aria-busy', 'true');
+    const indicador = document.createElement('span');
+    indicador.className = 'loading-indicator';
+    indicador.setAttribute('aria-hidden', 'true');
+    estado.after(indicador);
     try {
       const headers = cabecalhos();
       headers.set('Content-Type', 'application/json');
@@ -109,6 +135,8 @@ export function montarVinculoAgenda(
         lista.replaceChildren(repetir);
       }
     } finally {
+      indicador.remove();
+      lista.removeAttribute('aria-busy');
       if (ativa) {
         ocupado = false;
         fechar.disabled = false;
@@ -134,6 +162,7 @@ export function montarVinculoAgenda(
       revisao += 1;
       secao.hidden = true;
       lista.replaceChildren();
+      lista.removeAttribute('aria-busy');
     }
   });
   return {
@@ -152,6 +181,7 @@ export function montarVinculoAgenda(
       revisao += 1;
       secao.hidden = true;
       lista.replaceChildren();
+      lista.removeAttribute('aria-busy');
       evento.textContent = '';
     },
     desmontar: () => {

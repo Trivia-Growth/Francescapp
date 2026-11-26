@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
+import { responderConfirmacoes } from './confirmacao-prova.ts';
 import { montarSelecaoProfissional } from './selecao-profissional.ts';
 import type { ClienteFFCM } from './api.ts';
 
@@ -125,7 +126,9 @@ it('bloqueia nova tentativa quando envio perde resposta', async () => {
     listarVinculosProfissionais: async () => ({ itens: [], proximo_cursor: null }),
   } as unknown as ClienteFFCM;
   montarSelecaoProfissional(raiz, id, api, () => false);
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Operações anteriores verificadas.'));
+  await vi.waitFor(() =>
+    expect(raiz.textContent).toContain('Tudo conferido. Você já pode conceder acesso.'),
+  );
   const selecao = raiz.querySelector('select') as HTMLSelectElement;
   selecao.value = id;
   selecao.dispatchEvent(new Event('change'));
@@ -134,14 +137,16 @@ it('bloqueia nova tentativa quando envio perde resposta', async () => {
     (b) => b.textContent === 'Conceder acesso',
   ) as HTMLButtonElement;
   botao.click();
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Resultado incerto'));
+  await vi.waitFor(() =>
+    expect(raiz.textContent).toContain('Não deu para saber se a concessão foi registrada'),
+  );
   expect(botao.disabled).toBe(true);
 });
 
 it('não encerra reserva existente sem confirmação e informa rascunho digitado', async () => {
   const raiz = document.createElement('div');
   const id = 'a0000000-0000-4000-8000-000000000001';
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const confirmacoes = responderConfirmacoes(false);
   const encerrar = vi.fn();
   const pendente = vi.fn();
   const api = {
@@ -156,7 +161,8 @@ it('não encerra reserva existente sem confirmação e informa rascunho digitado
     listarVinculosProfissionais: async () => ({ itens: [], proximo_cursor: null }),
   } as unknown as ClienteFFCM;
   montarSelecaoProfissional(raiz, id, api, () => false, pendente);
-  await vi.waitFor(() => expect(confirmar).toHaveBeenCalled());
+  await vi.waitFor(() => expect(confirmacoes.chamadas).not.toHaveLength(0));
+  expect(confirmacoes.chamadas[0]).toContain('Encerrar a tentativa em andamento?');
   expect(encerrar).not.toHaveBeenCalled();
   const motivo = raiz.querySelector('textarea') as HTMLTextAreaElement;
   motivo.value = 'Motivo fictício';
@@ -165,7 +171,7 @@ it('não encerra reserva existente sem confirmação e informa rascunho digitado
   expect(
     [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Conceder acesso')?.disabled,
   ).toBe(true);
-  confirmar.mockRestore();
+  confirmacoes.encerrar();
 });
 
 it('resposta tardia não apaga motivo editado depois do envio', async () => {
@@ -204,7 +210,9 @@ it('resposta tardia não apaga motivo editado depois do envio', async () => {
     listarVinculosProfissionais: async () => ({ itens: [], proximo_cursor: null }),
   } as unknown as ClienteFFCM;
   montarSelecaoProfissional(raiz, id, api, () => false, pendente);
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Operações anteriores verificadas.'));
+  await vi.waitFor(() =>
+    expect(raiz.textContent).toContain('Tudo conferido. Você já pode conceder acesso.'),
+  );
   const selecao = raiz.querySelector('select') as HTMLSelectElement;
   selecao.value = id;
   selecao.dispatchEvent(new Event('change'));
@@ -256,7 +264,9 @@ it('atualiza vínculos após concessão sem apagar rascunho mais recente', async
     listarVinculosProfissionais: listar,
   } as unknown as ClienteFFCM;
   montarSelecaoProfissional(raiz, id, api, () => false);
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Operações anteriores verificadas.'));
+  await vi.waitFor(() =>
+    expect(raiz.textContent).toContain('Tudo conferido. Você já pode conceder acesso.'),
+  );
   const anteriores = listar.mock.calls.length;
   listar.mockResolvedValue({
     itens: [{ id, usuario_id: id, revogado: false, versao: 1 }],
@@ -319,9 +329,11 @@ it('aguarda atualização concorrente e repete reinício após falha sem usar cu
   montarSelecaoProfissional(raiz, id, api, () => false);
   resolverPrimeira({ itens: [], proximo_cursor: null });
   await vi.waitFor(() => expect(listar).toHaveBeenCalledTimes(2));
-  expect(raiz.textContent).not.toContain('Operações anteriores verificadas.');
+  expect(raiz.textContent).not.toContain('Tudo conferido. Você já pode conceder acesso.');
   resolverReinicio({ itens: [], proximo_cursor: 'cursor-inicial' });
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Operações anteriores verificadas.'));
+  await vi.waitFor(() =>
+    expect(raiz.textContent).toContain('Tudo conferido. Você já pode conceder acesso.'),
+  );
   [...raiz.querySelectorAll('button')]
     .find((b) => b.textContent === 'Carregar mais vínculos')
     ?.click();
@@ -432,11 +444,11 @@ it('atualiza identificação após consultar novamente vínculos', async () => {
   } as unknown as ClienteFFCM;
   montarSelecaoProfissional(raiz, id, api, () => false);
   await vi.waitFor(() => expect(raiz.textContent).toContain('antes@example.test · Ativo'));
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Operações anteriores verificadas.'));
+  await vi.waitFor(() =>
+    expect(raiz.textContent).toContain('Tudo conferido. Você já pode conceder acesso.'),
+  );
   nome = 'depois@example.test';
-  [...raiz.querySelectorAll('button')]
-    .find((b) => b.textContent === 'Verificar operação pendente')
-    ?.click();
+  [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Conferir novamente')?.click();
   await vi.waitFor(() => expect(raiz.textContent).toContain('depois@example.test · Ativo'));
   expect(raiz.textContent).not.toContain('antes@example.test · Ativo');
 });
@@ -445,7 +457,7 @@ it('revoga vínculo selecionado com motivo e atualiza estado observado', async (
   const raiz = document.createElement('div');
   const id = 'a0000000-0000-4000-8000-000000000001';
   let revogado = false;
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  const confirmacoes = responderConfirmacoes(true);
   const revogar = vi.fn().mockImplementation(async () => {
     revogado = true;
     return { id, versao: 2 };
@@ -475,7 +487,9 @@ it('revoga vínculo selecionado com motivo e atualiza estado observado', async (
   } as unknown as ClienteFFCM;
   montarSelecaoProfissional(raiz, id, api, () => false);
   await vi.waitFor(() => expect(raiz.textContent).toContain('pessoa@example.test · Ativo'));
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Operações anteriores verificadas.'));
+  await vi.waitFor(() =>
+    expect(raiz.textContent).toContain('Tudo conferido. Você já pode conceder acesso.'),
+  );
   [...raiz.querySelectorAll('button')]
     .find((b) => b.textContent === 'Selecionar para revogação')
     ?.click();
@@ -490,5 +504,5 @@ it('revoga vínculo selecionado com motivo e atualiza estado observado', async (
     expect.any(String),
     { reserva_id: expect.any(String), geracao_reserva: 1 },
   );
-  confirmar.mockRestore();
+  confirmacoes.encerrar();
 });

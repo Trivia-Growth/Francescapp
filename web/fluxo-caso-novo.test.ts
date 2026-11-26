@@ -102,6 +102,16 @@ const CONTROLES = [
   { controle: 'case-manager', erro: 'manager-error' },
 ] as const;
 
+/** O controle que de fato recebe o foco. `birth-date`, `case-status` e `case-manager`
+ *  continuam donos do valor, mas saíram da vista: quem aparece é a seleção/data da
+ *  aplicação (`web/ui/`), e é nela que o foco precisa cair para a pessoa ver o erro.
+ *  Focar um elemento invisível seria o mesmo defeito do `window.confirm` que já saiu. */
+const visivel = (controle: string): HTMLElement => {
+  const nativo = el(controle);
+  const grupo = nativo.closest('.ui-selecao, .ui-data');
+  return grupo?.querySelector<HTMLElement>('.ui-selecao__gatilho, .ui-data__texto') ?? nativo;
+};
+
 const invalidos = () =>
   CONTROLES.filter(({ controle }) => el(controle).getAttribute('aria-invalid') === 'true').map(
     ({ controle }) => controle,
@@ -130,7 +140,7 @@ describe('envio incompleto', () => {
     expect(invalidos()).toEqual(CONTROLES.map(({ controle }) => controle));
     for (const { erro } of CONTROLES) expect(el(erro).textContent, erro).not.toBe('');
     expect(el('create-feedback').textContent).toContain('Confira os campos');
-    expect(document.activeElement).toBe(el('patient-name'));
+    expect(document.activeElement).toBe(visivel('patient-name'));
   });
 
   it.each(CONTROLES)(
@@ -147,7 +157,7 @@ describe('envio incompleto', () => {
       expect(invalidos()).toEqual([controle]);
       for (const outro of CONTROLES)
         expect(el(outro.erro).textContent === '', outro.erro).toBe(outro.erro !== erro);
-      expect(document.activeElement).toBe(el(controle));
+      expect(document.activeElement).toBe(visivel(controle));
       expect(el('create-feedback').textContent).toContain('Confira os campos');
     },
   );
@@ -414,14 +424,16 @@ describe('fim da sessão', () => {
     expect(document.documentElement.innerHTML).not.toContain('segundo@exemplo.test');
   });
 
-  it('sair remove da tela os e-mails da equipe carregados para o responsável', async () => {
+  it('sair remove da tela a equipe carregada para o responsável', async () => {
     await abrir();
     await preencherCasoNovo();
-    expect(document.documentElement.innerHTML).toContain('equipe@exemplo.test');
+    // O rótulo é derivado do e-mail da equipe; nem ele nem o endereço podem sobreviver à saída.
+    expect(document.documentElement.innerHTML).toContain('Equipe · Profissional');
 
     el('logout').click();
     await vi.waitFor(() => expect(el('login-view').hidden).toBe(false));
 
+    expect(document.documentElement.innerHTML).not.toContain('Equipe · Profissional');
     expect(document.documentElement.innerHTML).not.toContain('equipe@exemplo.test');
   });
 });

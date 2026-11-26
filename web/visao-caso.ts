@@ -4,9 +4,16 @@ import {
   rotulosSituacao,
   type ResponsavelOpcao,
 } from './acompanhamento-caso.js';
+import {
+  avisoSinalOperacional,
+  rotulosEstadoSinal,
+  rotulosTipoPendencia,
+  type SinalOperacional,
+} from '../packages/contracts/src/pendencia.js';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { dataDeInstante } from './datas.js';
-import type { PacienteFicha } from './ficha-paciente.js';
+import { esqueletoCarregando } from './esqueleto.js';
+import { hashFicha, type PacienteFicha } from './ficha-paciente.js';
 import type { ObjetivoAtual, Pagina, ServicoPlanoCuidado } from './plano-cuidado.js';
 import type { RegistroTarefaCuidado as RegistroTarefa } from '../packages/contracts/src/tarefa-cuidado.js';
 import type { ServicoTarefasCuidado } from './tarefas-cuidado.js';
@@ -21,6 +28,9 @@ export type FontesVisaoCaso = {
     consultarPaciente(pacienteId: string): Promise<PacienteEdicao>;
     listarResponsaveis?: () => Promise<ResponsavelOpcao[]>;
   };
+  /** FR-006: pendências, próxima revisão e data da última mudança do caso. As três vinham
+   * anunciadas como indisponíveis; agora têm fonte real no sinal operacional do caso. */
+  pendencias?: { consultar(pacienteId: string): Promise<SinalOperacional> };
 };
 
 const LIMITE_TAREFAS = 8;
@@ -62,10 +72,22 @@ export function montarVisaoCaso(
     for (const item of itens) ul.append(elemento('li', item));
     return ul;
   };
-  const blocoBase = (id: string, titulo: string) => {
+  /** Seção da ficha onde o bloco tem a leitura completa (decisão de design 4: toda
+   * leitura de FR-006 oferece acesso à origem). `rotulo` repete o texto do `SecaoFicha`
+   * correspondente em `secoesDaFicha` (`web/main.ts`); os dois não são o mesmo módulo de
+   * propósito, então renomear uma aba lá exige atualizar o rótulo aqui também. */
+  type Origem = { secao: string; rotulo: string };
+
+  const blocoBase = (id: string, titulo: string, origem?: Origem) => {
     const secao = elemento('section', undefined, 'visao-bloco');
     secao.dataset.bloco = id;
-    const cabecalho = elemento('h3', titulo);
+    const cabecalho = elemento('div', undefined, 'visao-bloco-cabecalho');
+    cabecalho.append(elemento('h3', titulo));
+    if (origem) {
+      const link = elemento('a', `Ver em ${origem.rotulo}`, 'visao-bloco-link');
+      link.href = hashFicha(paciente.id, origem.secao);
+      cabecalho.append(link);
+    }
     const corpo = elemento('div', undefined, 'visao-corpo');
     secao.append(cabecalho, corpo);
     return { secao, corpo };
@@ -76,13 +98,14 @@ export function montarVisaoCaso(
     titulo: string,
     consultar: () => Promise<T>,
     desenhar: (dados: T, corpo: HTMLElement) => Corpo,
+    origem?: Origem,
   ): HTMLElement {
-    const { secao, corpo } = blocoBase(id, titulo);
+    const { secao, corpo } = blocoBase(id, titulo, origem);
     const carregar = (): void => {
       const numero = (geracoes.get(id) ?? 0) + 1;
       geracoes.set(id, numero);
       corpo.setAttribute('aria-busy', 'true');
-      corpo.replaceChildren(elemento('p', 'Carregando…', 'visao-estado'));
+      corpo.replaceChildren(esqueletoCarregando(2, true), elemento('p', 'Carregando…', 'sr-only'));
       consultar().then(
         (dados) => {
           if (!ativa || geracoes.get(id) !== numero) return;
@@ -90,15 +113,10 @@ export function montarVisaoCaso(
           corpo.replaceChildren();
           const { aviso, atualizadoEm } = desenhar(dados, corpo);
           if (aviso) corpo.append(elemento('p', aviso, 'visao-aviso'));
-          corpo.append(
-            elemento(
-              'p',
-              dataDeInstante(atualizadoEm)
-                ? `Atualizado em ${dataDeInstante(atualizadoEm)}.`
-                : 'Data da última atualização indisponível.',
-              'visao-data',
-            ),
-          );
+          // Sem data conhecida o bloco não diz nada: repetir "indisponível" em cada
+          // bloco faz a tela principal do caso parecer um relatório de falhas.
+          const data = dataDeInstante(atualizadoEm);
+          if (data) corpo.append(elemento('p', `Atualizado em ${data}.`, 'visao-data'));
         },
         (erro: unknown) => {
           if (!ativa || geracoes.get(id) !== numero) return;
@@ -137,11 +155,49 @@ export function montarVisaoCaso(
         ? `Nome de preferência: ${paciente.nome_preferencia}`
         : 'Nome de preferência não informado.',
     ),
-    elemento('p', 'Data da última atualização indisponível.', 'visao-data'),
   );
   blocos.push(identificacao.secao);
 
-  const { objetivos, tarefas, anamnese, situacao } = fontes;
+  const { objetivos, tarefas, anamnese, situacao, pendencias } = fontes;
+  if (pendencias)
+    blocos.push(
+      bloco<SinalOperacional>(
+        'pendencias',
+        'Pendências e próxima revisão',
+        () => pendencias.consultar(paciente.id),
+        (sinal, corpo) => {
+          const destaque = elemento('p', rotulosEstadoSinal[sinal.estado], 'visao-destaque');
+          destaque.dataset.estado = sinal.estado;
+          corpo.append(destaque, elemento('p', avisoSinalOperacional, 'visao-aviso'));
+          const abertas = sinal.pendencias.filter((item) => item.estado !== 'resolvida');
+          const linhas = [
+            ...(sinal.acordo?.proxima_revisao_em
+              ? [`Próxima revisão: ${dataCivil(sinal.acordo.proxima_revisao_em)}`]
+              : []),
+            ...abertas.map(
+              (item) =>
+                `${rotulosTipoPendencia[item.tipo]}: ${item.motivo}${
+                  item.estado === 'aberta' ? '' : ` (${item.estado})`
+                }`,
+            ),
+          ];
+          if (linhas.length) corpo.append(lista(linhas));
+          else
+            corpo.append(
+              elemento(
+                'p',
+                sinal.estado === 'informacao_insuficiente'
+                  ? 'Periodicidade do acompanhamento ainda não acordada: não há como apurar pendências.'
+                  : 'Nenhuma pendência operacional em aberto.',
+              ),
+            );
+          // "Mudanças recentes" de FR-006: a data da última gravação em qualquer fatia do
+          // caso. Mostra quando o caso mudou, sem repetir o conteúdo que já tem tela própria.
+          return sinal.ultima_atualizacao_em ? { atualizadoEm: sinal.ultima_atualizacao_em } : {};
+        },
+        { secao: 'pendencias', rotulo: 'Pendências' },
+      ),
+    );
   if (situacao)
     blocos.push(
       bloco<{ edicao: PacienteEdicao; opcoes: ResponsavelOpcao[] }>(
@@ -176,6 +232,7 @@ export function montarVisaoCaso(
           );
           return { atualizadoEm: atual.criado_em };
         },
+        { secao: 'cadastro', rotulo: 'Cadastro' },
       ),
     );
   if (objetivos)
@@ -210,6 +267,7 @@ export function montarVisaoCaso(
               : {}),
           };
         },
+        { secao: 'plano', rotulo: 'Plano de cuidado' },
       ),
     );
   if (tarefas)
@@ -244,6 +302,7 @@ export function montarVisaoCaso(
             ...(recente ? { atualizadoEm: recente } : {}),
           };
         },
+        { secao: 'tarefas', rotulo: 'Tarefas' },
       ),
     );
   if (anamnese)
@@ -273,21 +332,12 @@ export function montarVisaoCaso(
           if (incompletas.length) corpo.append(lista(incompletas));
           return registro.criado_em ? { atualizadoEm: registro.criado_em } : {};
         },
+        { secao: 'anamnese', rotulo: 'Anamnese' },
       ),
     );
 
-  const indisponiveis = blocoBase('indisponivel', 'Ainda sem fonte nesta versão');
-  indisponiveis.corpo.append(
-    lista([
-      ...(situacao ? [] : ['Situação do caso e responsável: indisponíveis nesta versão']),
-      'Mudanças recentes: indisponíveis nesta versão',
-      'Atenção sinalizada por profissional: indisponível nesta versão',
-      'Agenda: indisponível nesta versão',
-      'Próxima revisão: indisponível nesta versão',
-    ]),
-  );
-  blocos.push(indisponiveis.secao);
-
+  // Bloco sem fonte não aparece: a visão mostra o que o perfil lê, e nunca anuncia
+  // o que falta nem inventa valor de exemplo para atenção, agenda ou próxima revisão.
   raiz.replaceChildren(elemento('h2', 'Visão do caso'), ...blocos);
 
   return () => {

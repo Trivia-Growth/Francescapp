@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
+import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
 import { type EncaminhamentoLocal, montarEncaminhamentosLocais } from './encaminhamentos-local';
 
 it('registra e atualiza somente após gravação, preservando rascunho em falha', async () => {
@@ -29,6 +30,7 @@ it('registra e atualiza somente após gravação, preservando rascunho em falha'
   expect(raiz.textContent).toContain('<destino fictício>');
   expect(raiz.querySelector('destino')).toBeNull();
   (raiz.querySelector('li button') as HTMLButtonElement).click();
+  await aguardarConfirmacao();
   (raiz.querySelector('select') as HTMLSelectElement).value = 'retorno pendente';
   form.dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() => expect(encaminhamentos[0].estado).toBe('retorno pendente'));
@@ -71,7 +73,7 @@ it('filtra encaminhamentos com retorno pendente', () => {
   expect(raiz.textContent).toContain('Destino A');
 });
 
-it('preserva rascunho ao recusar descarte e só pergunta quando alterado', () => {
+it('preserva rascunho ao recusar descarte e só pergunta quando alterado', async () => {
   const raiz = document.createElement('div');
   const encaminhamentos: EncaminhamentoLocal[] = [
     {
@@ -94,24 +96,28 @@ it('preserva rascunho ao recusar descarte e só pergunta quando alterado', () =>
     aoRegistrar: async (dados) => ({ id: '3', ...dados }),
     aoAtualizar: async () => {},
   });
-  const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const confirmacoes = responderConfirmacoes(false);
   const botoes = raiz.querySelectorAll('li button');
   (botoes[0] as HTMLButtonElement).click();
-  expect(confirmar).not.toHaveBeenCalled();
+  await aguardarConfirmacao();
+  expect(confirmacoes.chamadas).toHaveLength(0);
   const destino = raiz.querySelector('input') as HTMLInputElement;
   destino.value = 'Rascunho';
   (botoes[1] as HTMLButtonElement).click();
+  await aguardarConfirmacao();
   expect(destino.value).toBe('Rascunho');
   const cancelar = Array.from(raiz.querySelectorAll('form button')).find(
     (botao) => botao.textContent === 'Cancelar edição',
   ) as HTMLButtonElement;
   cancelar.click();
+  await aguardarConfirmacao();
   expect(destino.value).toBe('Rascunho');
-  expect(confirmar).toHaveBeenCalledTimes(2);
-  confirmar.mockReturnValue(true);
+  expect(confirmacoes.chamadas).toHaveLength(2);
+  confirmacoes.resposta = true;
   cancelar.click();
+  await aguardarConfirmacao();
   expect(destino.value).toBe('');
-  confirmar.mockRestore();
+  confirmacoes.encerrar();
 });
 
 it('bloqueia filtro e edição enquanto salva, inclusive após renderização da lista', async () => {
@@ -135,6 +141,7 @@ it('bloqueia filtro e edição enquanto salva, inclusive após renderização da
       }),
   });
   (raiz.querySelector('li button') as HTMLButtonElement).click();
+  await aguardarConfirmacao();
   raiz.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
   const filtro = raiz.querySelector('input[type=checkbox]') as HTMLInputElement;
   expect(filtro.disabled).toBe(true);

@@ -99,6 +99,88 @@ Seguindo o padrão já estabelecido (não exposto) de `plano-cuidado-nativo.ts`/
 
 **Não feito nesta rodada, fica para continuar**: operação 2 (lista de aprovadores: `listar_aprovador_plano`/`gravar_aprovador_plano`, administrador-only, mesmo padrão exato da operação 1 — só trocar nomes de campo) e operação 3 (`aprovar_objetivo_plano`, autorização administrador-ou-aprovador, sem idempotência por chave — ver nota no código sobre `x-chave-idempotencia` exigido pelo envelope padrão mas não usado pela operação). Os contratos de rotas das três já existem (`contratosRotas`), faltando só operar/compor/executor/entrada/rota/teste das operações 2 e 3, seguindo o mesmo molde desta. Interface web (tela da Edilaine, formulário do profissional) continua totalmente pendente — depende desta camada HTTP existir primeiro, que agora existe parcialmente (1 de 3). Revisão independente desta camada HTTP ainda não feita.
 
+## Decisão do solicitante (17/11/2026) — visibilidade do objetivo para a família
+
+Fecha a pendência registrada em 1.2/"Recorte local provisório" ("família sem acesso por
+inferência; matriz definitiva... permanece pendente"): a família passa a poder ler objetivos,
+mas só por marcação explícita, nunca por inferência de perfil — consistente com o que já estava
+decidido, não uma mudança dele. Resposta literal do solicitante: **"Na anotacoes criar opcao de
+marcar como Interna ou publica"**.
+
+- Quem já grava objetivo/revisão (colaborador com concessão vigente) marca cada versão como
+  `interna` (padrão, preserva o comportamento anterior à coluna existir) ou `publica`.
+- Família só lê a **lista** de objetivos (`api.ler_plano_cuidado`), filtrada para
+  `visibilidade='publica'` da última versão de cada objetivo. Família não lê histórico
+  (`api.ler_historico_objetivo_cuidado`) nem grava — nenhuma dessas duas capacidades foi pedida;
+  manter o recorte mínimo evita inventar superfície de autorização não solicitada (YAGNI).
+- Sem admin-only: ao contrário de documentos (onde o solicitante foi explícito sobre ser o admin
+  quem alterna o flag), aqui qualquer colaborador que já tem autorização de escrita no objetivo
+  decide a visibilidade dele — mesma autorização existente, campo adicional.
+
+## Implementação (17/11/2026)
+
+- `supabase/migrations/20261124100000_objetivo_cuidado_visibilidade.sql`: coluna aditiva
+  `visibilidade text not null default 'interna' check (in ('interna','publica'))` em
+  `cadastro.objetivo_cuidado_versao` — em claro (fora do envelope cifrado), porque o banco
+  precisa filtrar por ela sem decifrar.
+- `supabase/migrations/20261124110000_plano_cuidado_familia_privada.sql`: `create or replace
+  function api.plano_cuidado_operacao_privada` (redefine a função já existente, como todas as
+  evoluções anteriores desta mesma função) adicionando uma trilha familiar **só para
+  `api.ler_plano_cuidado`** — mesma prova de `api.consultar_paciente_familiar_privado`
+  (`cadastro.acesso_paciente` vigente, `identidade.sessao` método `familia` sem concessão,
+  `amr=password`), nunca estendida a `gravar`/`historico` (a condição já checa
+  `acao='api.ler_plano_cuidado'` antes de tentar autorizar como família, então os outros dois
+  ramos nunca a alcançam — sem precisar repetir o gate de papel na validação de escrita). Filtro
+  de visibilidade aplicado só na leitura da lista, via `filter (where papel='colaborador' or
+  v.visibilidade='publica')` dentro do `jsonb_agg` — deliberadamente feito no agregado de saída,
+  não na CTE de paginação por cursor, para o `proximo_cursor` continuar contando a partir do
+  conjunto completo de ids (senão uma página inteira de objetivos internos faria o cursor
+  "sumir" mesmo havendo mais objetivos à frente). Novas policies (RLS): `plano_owner_paciente_familiar`
+  (segunda policy PERMISSIVE em `cadastro.paciente`, somada por OR à já existente do colaborador,
+  sem tocar nela) e `plano_owner_acesso_familiar`/`_lock` em `cadastro.acesso_paciente`.
+- **Bug real encontrado e corrigido na própria sessão**: a policy `_lock` nova foi escrita
+  primeiro como `using (false) with check (false)` — e isso quebrou o `for share` da própria
+  trilha familiar (não só a escrita), porque o Postgres aplica a `using` da policy de UPDATE
+  (não só a de SELECT) para decidir se uma linha pode ser travada por `FOR SHARE`/`FOR UPDATE`.
+  Sintoma: uma leitura simples (sem lock) encontrava a linha, a mesma leitura com `for share`
+  não. Corrigido espelhando a `using` da policy de select (`usuario_id = auth_privado.uid()`),
+  mantendo só o `with check (false)` para barrar escrita de fato — mesmo padrão que as outras
+  policies `_lock` deste projeto já usam (`using(true)` ou a condição da policy de select, nunca
+  `using(false)`); eu tinha generalizado errado a partir de um exemplo que coincidentemente usava
+  `using(true)`.
+- Contratos: `visibilidadeObjetivoSchema` (`plano-cuidado.ts`), adicionado como campo em claro
+  irmão de `objetivo_id`/`versao` em `registroPlanoSchema` e no `registro` de `plano-http.ts`
+  (nunca dentro de `objetivoSchema`/`conteudoPlanoSchema`, que vão para o envelope cifrado);
+  `criar`/`revisar` passam a exigir `visibilidade` na entrada HTTP (opcional só na camada interna
+  `Comando` do `_shared/plano-cuidado-nativo.ts`, para não quebrar testes unitários que chamam
+  essa camada direto sem passar pelo contrato HTTP — default `'interna'` espelhando o default da
+  coluna). `visibilidade` entrou também no digest de idempotência (`calcularDigestIdempotencia`)
+  — sem isso, duas gravações com a mesma chave de idempotência mas `visibilidade` diferente
+  seriam tratadas como repetição e a segunda seria silenciosamente ignorada.
+- `web/plano-cuidado.ts`: seletor "Visibilidade para a família" (Interna/Pública) no formulário
+  de criar/revisar; parâmetro `ehFamilia` oculta formulário, histórico e "Revisar objetivo",
+  mostrando só a lista (com o rótulo de visibilidade) e a paginação. `web/ciclo-plano.ts`/
+  `web/servico-plano-http.ts`: `visibilidade` roteado através do ciclo de criação; gate de fluxo
+  do cliente HTTP corrigido para aceitar `modo-acesso==='familiar'` (mesma classe de achado já
+  corrigida em `servico-regras-atendimento-http.ts`/`servico-diario-http.ts`). `web/main.ts`:
+  `secoesDaFicha` da família ganhou a seção `'plano'` (não entra em `planoAberto` nem no
+  mecanismo de reconfirmação de acesso do colaborador, que leva a `'visao'` — seção que família
+  não tem; família não grava, não tem rascunho nem reserva a perder).
+- Evidência: `supabase/tests/plano_cuidado_familia_local.sql` via
+  `scripts/testar-plano-cuidado-familia-local.sh` (positivo: família lê só o objetivo público;
+  negativos: sem `acesso_paciente` nega, tenta gravar nega e não persiste, tenta ler histórico
+  nega, acesso revogado nega mesmo com sessão viva, sessão de equipe disfarçada — `amr=oauth` —
+  não passa pela trilha familiar; regressão: colaborador continua lendo os dois objetivos,
+  publica e interna, sem filtro) — passou (exit 0) depois de corrigir o bug da policy `_lock`
+  acima. `pnpm run test:web` (405/405) e `pnpm run test:proxy` (397 passed/15 skipped, os
+  skipped são os `*-postgres-local.test.ts` que exigem Postgres descartável e não rodam via
+  vitest) sem regressão nos testes já existentes de plano-cuidado, depois de atualizar fixtures
+  pré-existentes que não tinham `visibilidade` (ver tasks.md). `pnpm run verificar:rapido` limpo.
+- **Sem ativação**: `ffcm.plano.ativo` não foi tocado; nenhuma migration aplicada remotamente;
+  nenhuma flag alterada. Código pronto, decisão de subir é do solicitante.
+- **Revisão independente desta adição ainda não feita** — quem implementou não aprova a própria
+  revisão, mesma regra das adições anteriores desta fatia.
+
 ## Camada HTTP de aprovador e aprovar-objetivo (11/11/2026) — operações 2 e 3, provadas
 
 Replicando o mesmo molde da operação 1 (lido como template literal), em paralelo à revisão independente da operação 1 (sem tocar nos arquivos dela):
@@ -113,3 +195,24 @@ Replicando o mesmo molde da operação 1 (lido como template literal), em parale
 **Typecheck e lint**: `tsc --project netlify/tsconfig.json` limpo; `biome check netlify/functions` limpo nos arquivos desta tarefa (um achado de formatação pré-existente em `compor-campo-extra-plano-nativo.ts`, fora do escopo — pertence à operação 1, não corrigido aqui pra não interferir na revisão independente em andamento dela).
 
 **Ainda pendente**: interface web (tela da Edilaine pro catálogo/aprovadores, campos extras e botão de aprovar no formulário do profissional) — depende da camada HTTP completa, que agora existe (3 de 3). Revisão independente desta camada HTTP (operações 2 e 3) ainda não feita.
+
+## Continuação ESP-05/06 — fonte preparada em 19/11/2026, sem execução
+
+Registro operacional atual substitui apenas o estado histórico de UI ausente acima:
+
+- A área administrativa `Plano de cuidado` usa as três APIs nativas existentes. Catálogo global: criação/edição/desativação, quatro tipos, lista de 1–20 opções. Indicação/remoção de aprovadores usa nomes do catálogo de equipe existente, sem entrada manual de UUID. Sem catálogo disponível, mostra erro e recuperação; nenhuma lista fictícia.
+- Coordenação confirmou leitura dos metadados do catálogo por Administrador/Profissional admitidos (Google ou interno DF-023), mantendo escrita somente Administrador e negando família. Nenhuma regra clínica, periodicidade ou vínculo individual novo: leitura/escrita clínica mantém matriz vigente; família mantém somente objetivos públicos com vínculo aplicável.
+- Formulário apresenta e conserva valores extras na revisão. Campo desconhecido/desativado permanece visível e bloqueia revisão até regularização do catálogo; não há descarte implícito. Mudança de tipo/opção mantém valor legado visível e exige correção explícita. Histórico apresenta valores, inclusive de campos inativos. Família vê valores de objetivo público, sem consultar catálogo administrativo.
+- Servidor consulta catálogo autorizado antes de cifrar, rejeita tipo/opção desconhecidos, inatividade ou indisponibilidade. Atestado inclui somente IDs e versões usados, sem valores clínicos em claro. Migration `20261125190000_plano_campos_extras.sql` revalida esse snapshot sob locks na transação do objetivo para negar alteração/desativação concorrente. Ausência de snapshot mantém compatibilidade com chamadas antigas sem extras; assinante servidor continua fronteira confiável para conteúdo cifrado.
+- Servidor retorna `registro_id` derivado da versão autorizada pelo banco. Carimbo usa essa versão específica; SQL existente reautoriza aprovador e caso. Consulta do plano passa a apresentar carimbos persistidos, sem torná-los portão. Negativa apenas da aprovação reconsulta autorização de leitura antes de conservar tela; revogação de acesso elimina conteúdo.
+- Migration é transacional, exige hashes anteriores/posteriores fixados e âncoras únicas, preserva owner/ACL/proconfig/tipos. Grant de UPDATE da coluna `versao` do catálogo permite `FOR SHARE` somente ao owner privado com policy `WITH CHECK(false)`; nenhum grant novo aos papéis aplicação. Membership/CREATE temporários seguem restauração do padrão 1700.
+
+### Ameaças do recorte e evidência escrita
+
+Fronteiras: navegador não confiável para BFF autenticado; BFF/atestado para RPC; owner privado para tabelas RLS. Ativos: integridade e histórico clínico, configuração global, permissões de aprovação e auditoria. Sessão própria pode adulterar tipo/opção/UUID, omitir extras ou repetir escrita após revogação; não controla chaves nem owner.
+
+Mitigações preparadas: validação dinâmica antes cifra (`plano-cuidado-nativo.ts`), IDs/versões assinados e locks SQL (1900), escrita de catálogo/aprovadores administrador-only, autorização vigente das RPCs clínicas preservada, renderização por `textContent`, preservação/bloqueio explícito de extras incompatíveis, aprovação referenciada por versão. Tipo/opção não são validados pelo banco em texto claro: o banco recebe envelope e snapshot do assinante confiável. Não alegar prova de conteúdo cifrado pela SQL.
+
+Provas escritas: `web/plano-cuidado.test.ts` (preservação, inatividade, mudança de tipo, negativa de carimbo), `web/campo-extra-plano-administracao.test.ts` (catálogo, seleção nominal, limites de opções, perda de acesso), `web/servico-plano-http.test.ts` (rotas/sessão/corpo mínimo), `netlify/functions/_shared/plano-cuidado-nativo.test.ts` (tipos/opções/desconhecido/inativo/indisponível antes cifra), `supabase/tests/plano_campos_extras_local.sql` (Google/interno, perfil/família/revogação, conflito de versão/inativo, histórico, ACL e migrador NOSUPER; duas variantes para SET prévio).
+
+**Nenhuma prova nova executada.** Não foram executados testes, lint, typecheck, build, SQL, navegador ou operações remotas. Gates e revisão independente permanecem abertos em 3.5; sem ativação, dados reais ou certificação. Reversão preserva objetivos/versões/carimbos; não excluir conteúdo nem reativar valores antigos automaticamente.

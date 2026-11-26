@@ -1,0 +1,50 @@
+{
+  "id": "daf1281af5f8563a",
+  "digest": "bc928b3eac7c7820",
+  "comps": [
+    ".impeccable/mocks/decision/assigned.png",
+    ".impeccable/mocks/decision/model-pick.png",
+    ".impeccable/mocks/decision/glass-timetable.png",
+    ".impeccable/mocks/decision/canon.png"
+  ],
+  "sketches": [
+    ".impeccable/mocks/decision/assigned.html",
+    ".impeccable/mocks/decision/model-pick.html",
+    ".impeccable/mocks/decision/glass-timetable.html",
+    ".impeccable/mocks/decision/canon.html"
+  ],
+  "pre": {},
+  "startedAt": 1794956948874,
+  "worlds": [
+    {
+      "id": "ikeda-datamatics",
+      "board": "https://impeccable.style/worlds/cards/ikeda-datamatics.webp",
+      "hero": "https://impeccable.style/worlds/cards/ikeda-datamatics-hero.webp"
+    },
+    {
+      "id": "emigre-bitmap-specimen",
+      "board": "https://impeccable.style/worlds/cards/emigre-bitmap-specimen.webp",
+      "hero": "https://impeccable.style/worlds/cards/emigre-bitmap-specimen-hero.webp"
+    },
+    {
+      "id": "pop-culture-shelf-doujin-event-catalog",
+      "board": "https://impeccable.style/worlds/cards/pop-culture-shelf-doujin-event-catalog.webp",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-doujin-event-catalog-hero.webp"
+    },
+    {
+      "id": "crouwel-grid-specimen",
+      "board": "https://impeccable.style/worlds/cards/crouwel-grid-specimen.webp",
+      "hero": "https://impeccable.style/worlds/cards/crouwel-grid-specimen-hero.webp"
+    },
+    {
+      "id": "rw-timetable-slide-rack",
+      "board": "https://impeccable.style/worlds/cards/rw-timetable-slide-rack.webp",
+      "hero": "https://impeccable.style/worlds/cards/rw-timetable-slide-rack-hero.webp"
+    },
+    {
+      "id": "wayfinding-cartography-signage-terminal-yellow-wayfinding",
+      "board": "https://impeccable.style/worlds/cards/wayfinding-cartography-signage-terminal-yellow-wayfinding.webp",
+      "hero": "https://impeccable.style/worlds/cards/wayfinding-cartography-signage-terminal-yellow-wayfinding-hero.webp"
+    }
+  ]
+}

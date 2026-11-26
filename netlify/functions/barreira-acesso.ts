@@ -2,6 +2,7 @@ import { criarErroPublicoSemCampos } from '../../packages/contracts/src/erros.ts
 import { contratosBarreiraAcessoHttp } from '../../packages/contracts/src/barreira-acesso-servidor.ts';
 import { comporBarreiraAcessoNativa } from './_shared/compor-barreira-acesso-nativa.ts';
 import { configurarDependenciasNativas } from './_shared/configurar-dependencias-nativas.ts';
+import { servicoAtivo } from './_shared/configuracao-servidor.ts';
 
 export const config = {
   path: [
@@ -25,11 +26,6 @@ export default async function barreiraAcesso(request: Request): Promise<Response
         'Referrer-Policy': 'no-referrer',
       },
     });
-  if (
-    process.env.FFCM_ACESSO_PACIENTE_ATIVADO !== 'true' ||
-    process.env.FFCM_BARREIRA_ACESSO_ATIVADA !== 'true'
-  )
-    return falha('servico_indisponivel', 503);
   const rota = Object.entries(contratosBarreiraAcessoHttp).find(
     ([, contrato]) =>
       contrato.metodo === request.method && contrato.caminho === new URL(request.url).pathname,
@@ -40,5 +36,20 @@ export default async function barreiraAcesso(request: Request): Promise<Response
   } catch {
     return falha('configuracao_indisponivel', 503);
   }
+  // Dois interruptores administrados pela tela, com as variáveis de ambiente como padrão quando
+  // o banco não responde. Não são autorização.
+  const [acesso, barreira] = await Promise.all([
+    servicoAtivo(
+      dependencias.pool,
+      'ffcm.acesso_paciente.ativo',
+      process.env.FFCM_ACESSO_PACIENTE_ATIVADO === 'true',
+    ),
+    servicoAtivo(
+      dependencias.pool,
+      'ffcm.acesso_paciente.barreira_ativa',
+      process.env.FFCM_BARREIRA_ACESSO_ATIVADA === 'true',
+    ),
+  ]);
+  if (!acesso || !barreira) return falha('servico_indisponivel', 503);
   return comporBarreiraAcessoNativa(request, rota, dependencias);
 }

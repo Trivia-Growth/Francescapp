@@ -1,0 +1,214 @@
+import { chaveIdempotenciaSchema, uuidSchema } from '../../../packages/contracts/src/comum.ts';
+import {
+  respostaSegredosIntegracoesPrivadaSchema,
+  estadoExpurgoAudioSchema,
+  segredosIntegracoesSchema,
+  valorSegredoSchema,
+} from '../../../packages/contracts/src/segredos-integracoes.ts';
+import {
+  dadosAtestadoSchema,
+  resultadoAtestacaoSchema,
+} from '../../../packages/contracts/src/rpc.ts';
+import { causaDaFalha, registrarFalhaOperacional } from './falha-operacional.ts';
+
+type Identidade = { usuario_id: string; session_id: string };
+type Autorizacao =
+  | { estado: 'autorizado'; identidade: Identidade }
+  | { estado: 'nao_autenticado' | 'sem_permissao' | 'servico_indisponivel' };
+type Comando =
+  | { operacao: 'listar' | 'expurgo' }
+  | {
+      operacao: 'gravar';
+      segredo_chave: string;
+      valor: unknown;
+      versao_esperada: number;
+    };
+
+const chaveRegex = /^[a-z0-9][a-z0-9._-]{0,99}$/;
+
+/** Banco verifica Administrador, atestado e versão. Valor é somente entrada para Vault;
+ * saída strict contém metadados, jamais valor. Digest de idempotência usa HMAC existente. */
+export async function operarSegredosIntegracoesNativo(
+  request: Request,
+  comando: Comando,
+  portas: {
+    autorizar(request: Request): Promise<Autorizacao>;
+    revalidar(request: Request): Promise<Autorizacao>;
+    metadados(requestId: string): {
+      key_id: string;
+      emitido_em: string;
+      expira_em: string;
+      request_id: string;
+    };
+    idempotencia: { calcularDigestIdempotencia(comandoLogico: string): Promise<string> };
+    atestador: {
+      canonicalizar(valor: unknown): string;
+      atestarEntrada(dados: unknown, entrada: Record<string, unknown>): Promise<unknown>;
+    };
+    executar(
+      request: Request,
+      transporte: {
+        p_transporte: {
+          entrada: Record<string, unknown>;
+          entrada_canonica: string;
+          dados_canonicos: string;
+        };
+      },
+    ): Promise<unknown>;
+  },
+) {
+  const requestId = crypto.randomUUID();
+  const erro = (
+    codigo:
+      | 'entrada_invalida'
+      | 'nao_autenticado'
+      | 'sem_permissao'
+      | 'servico_indisponivel'
+      | 'conflito_versao'
+      | 'conflito_idempotencia'
+      | 'pendencia_externa',
+  ) => ({ ok: false as const, erro: { codigo }, request_id: requestId });
+  let iniciada = false;
+  try {
+    if (request.signal.aborted) return erro('servico_indisponivel');
+    if (
+      comando.operacao !== 'listar' &&
+      comando.operacao !== 'gravar' &&
+      comando.operacao !== 'expurgo'
+    )
+      return erro('entrada_invalida');
+    let chaveConfiguracao: string | undefined;
+    let valor: unknown;
+    let chaveIdempotencia: string | undefined;
+    if (comando.operacao === 'gravar') {
+      const chave = chaveIdempotenciaSchema.safeParse(request.headers.get('x-chave-idempotencia'));
+      const valorValidado = valorSegredoSchema.safeParse(comando.valor);
+      if (
+        !chave.success ||
+        typeof comando.segredo_chave !== 'string' ||
+        !chaveRegex.test(comando.segredo_chave) ||
+        !valorValidado.success ||
+        !Number.isInteger(comando.versao_esperada) ||
+        comando.versao_esperada < 0 ||
+        comando.versao_esperada >= 2147483647
+      )
+        return erro('entrada_invalida');
+      chaveIdempotencia = chave.data;
+      chaveConfiguracao = comando.segredo_chave;
+      // Preserva JSON/bytes textuais da credencial; nunca devolve este valor.
+      valor = valorValidado.data;
+    }
+    const autorizacao = await portas.autorizar(request);
+    if (autorizacao.estado !== 'autorizado') return erro(autorizacao.estado);
+    const identidade = {
+      usuario_id: uuidSchema.parse(autorizacao.identidade.usuario_id).toLowerCase(),
+      session_id: uuidSchema.parse(autorizacao.identidade.session_id).toLowerCase(),
+    };
+    if (
+      request.signal.aborted ||
+      request.headers.get('x-sessao')?.toLowerCase() !== identidade.session_id
+    )
+      return erro('nao_autenticado');
+    const entrada: Record<string, unknown> = { request_id: requestId };
+    if (comando.operacao === 'gravar' && chaveConfiguracao !== undefined) {
+      const digest = await portas.idempotencia.calcularDigestIdempotencia(
+        portas.atestador.canonicalizar({
+          segredo_chave: chaveConfiguracao,
+          valor,
+          versao_esperada: comando.versao_esperada,
+        }),
+      );
+      if (!/^[A-Za-z0-9_-]{43}$/.test(digest)) throw new Error();
+      Object.assign(entrada, {
+        segredo_chave: chaveConfiguracao,
+        valor,
+        versao_esperada: comando.versao_esperada,
+        chave_idempotencia: chaveIdempotencia,
+        digest_idempotencia: digest,
+        auditoria_id: crypto.randomUUID(),
+      });
+    }
+    const metadados = dadosAtestadoSchema.omit({ digest_entrada: true }).parse({
+      ...portas.metadados(requestId),
+      ...identidade,
+      operacao:
+        comando.operacao === 'expurgo'
+          ? 'api.consultar_expurgo_audio'
+          : comando.operacao === 'listar'
+            ? 'api.listar_segredos_integracoes'
+            : 'api.gravar_segredos_integracoes',
+    });
+    if (metadados.request_id !== requestId) throw new Error();
+    const prova = resultadoAtestacaoSchema.parse(
+      await portas.atestador.atestarEntrada(metadados, entrada),
+    );
+    const dados = dadosAtestadoSchema.parse(JSON.parse(prova.dadosCanonicos));
+    if (
+      portas.atestador.canonicalizar(entrada) !== prova.entradaCanonica ||
+      portas.atestador.canonicalizar(dados) !== prova.dadosCanonicos ||
+      Object.entries(metadados).some(([k, v]) => dados[k as keyof typeof dados] !== v) ||
+      Object.entries(dados).some(([k, v]) => prova.atestado[k as keyof typeof dados] !== v)
+    )
+      throw new Error();
+    if (request.signal.aborted) throw new Error();
+    iniciada = comando.operacao === 'gravar';
+    const resposta = respostaSegredosIntegracoesPrivadaSchema.parse(
+      await portas.executar(request, {
+        p_transporte: {
+          entrada: { ...entrada, atestado: prova.atestado },
+          entrada_canonica: prova.entradaCanonica,
+          dados_canonicos: prova.dadosCanonicos,
+        },
+      }),
+    );
+    if (request.signal.aborted || resposta.request_id !== requestId) throw new Error();
+    if (!resposta.ok)
+      return erro(
+        resposta.erro.codigo === 'conflito'
+          ? 'conflito_versao'
+          : resposta.erro.codigo === 'conflito_idempotencia'
+            ? 'conflito_idempotencia'
+            : 'sem_permissao',
+      );
+    if (comando.operacao === 'expurgo') estadoExpurgoAudioSchema.parse(resposta.dados);
+    else if ((comando.operacao === 'listar') !== Array.isArray(resposta.dados)) throw new Error();
+    if (
+      comando.operacao === 'gravar' &&
+      !Array.isArray(resposta.dados) &&
+      (segredosIntegracoesSchema.parse(resposta.dados).chave !== chaveConfiguracao ||
+        segredosIntegracoesSchema.parse(resposta.dados).versao !== comando.versao_esperada + 1)
+    )
+      throw new Error();
+    const atual = await portas.revalidar(request);
+    if (
+      request.signal.aborted ||
+      atual.estado !== 'autorizado' ||
+      atual.identidade.usuario_id.toLowerCase() !== identidade.usuario_id ||
+      atual.identidade.session_id.toLowerCase() !== identidade.session_id
+    ) {
+      registrarFalhaOperacional({
+        rota: 'segredos-integracoes',
+        etapa: 'autorizacao',
+        request_id: requestId,
+        causa: `revalidacao_${atual.estado}`,
+      });
+      return erro(iniciada ? 'pendencia_externa' : 'nao_autenticado');
+    }
+    return { ok: true as const, dados: resposta.dados, request_id: requestId };
+  } catch (falha) {
+    // Este `catch` cobre a operação inteira — contrato da resposta, revalidação da sessão e
+    // a escrita no cofre — e até 24/11/2026 descartava o erro sem deixar rastro. Quem tentou
+    // cadastrar a chave da OpenRouter recebeu `pendencia_externa`, e o log do servidor ficou
+    // MUDO: as duas outras camadas registram, esta não registrava, então não havia o que ler.
+    //
+    // É o mesmo defeito que `registrarFalhaDeResposta` já tinha corrigido nas entradas
+    // nativas. Só a causa reduzida entra aqui, pelas regras de `falha-operacional.ts`.
+    registrarFalhaOperacional({
+      rota: 'segredos-integracoes',
+      etapa: 'operacao',
+      request_id: requestId,
+      causa: causaDaFalha(falha),
+    });
+    return erro(iniciada ? 'pendencia_externa' : 'servico_indisponivel');
+  }
+}

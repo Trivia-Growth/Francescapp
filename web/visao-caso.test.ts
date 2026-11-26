@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
 import { FalhaApi } from './api.js';
+import { hashFicha } from './ficha-paciente.js';
 import { montarVisaoCaso, type FontesVisaoCaso } from './visao-caso.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
@@ -102,15 +103,60 @@ it('apresenta cada bloco com dados consultados e a data da última atualização
   expect(bloco('anamnese').textContent).toContain('Atualizado em 03/11/2026.');
 });
 
-it('indica atenção, agenda e próxima revisão como indisponíveis, sem valor de exemplo', async () => {
+it('cada bloco com origem oferece link para a seção correspondente na ficha', async () => {
+  montarVisaoCaso(raiz, paciente, fontes(), () => false);
+  await vi.waitFor(() => expect(bloco('anamnese').textContent).toContain('Atualizado em'));
+  expect(bloco('objetivos').querySelector('a')?.getAttribute('href')).toBe(hashFicha(id, 'plano'));
+  expect(bloco('objetivos').querySelector('a')?.textContent).toBe('Ver em Plano de cuidado');
+  expect(bloco('tarefas').querySelector('a')?.getAttribute('href')).toBe(hashFicha(id, 'tarefas'));
+  expect(bloco('anamnese').querySelector('a')?.getAttribute('href')).toBe(
+    hashFicha(id, 'anamnese'),
+  );
+  // Identificação não tem uma seção própria de origem: nenhum link de acesso aqui.
+  expect(bloco('identificacao').querySelector('a')).toBeNull();
+});
+
+it('pendências e situação também linkam para a origem (Pendências e Cadastro)', async () => {
+  montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      pendencias: {
+        consultar: async () => ({
+          paciente_id: id,
+          estado: 'em_dia' as const,
+          acordo: null,
+          ultima_atualizacao_em: '2026-11-04T10:00:00Z',
+          pendencias: [],
+          perfil_escrita_acordo: false,
+        }),
+      },
+      situacao: { consultarPaciente: async () => edicao([mudanca()]) },
+    }),
+    () => false,
+  );
+  await vi.waitFor(() => expect(bloco('pendencias').textContent).toContain('Atualizado em'));
+  expect(bloco('pendencias').querySelector('a')?.getAttribute('href')).toBe(
+    hashFicha(id, 'pendencias'),
+  );
+  await vi.waitFor(() => expect(bloco('situacao').textContent).toContain('Atualizado em'));
+  expect(bloco('situacao').querySelector('a')?.getAttribute('href')).toBe(
+    hashFicha(id, 'cadastro'),
+  );
+});
+
+it('omite o que não tem fonte, sem anunciar a ausência nem inventar valor de exemplo', async () => {
   montarVisaoCaso(raiz, paciente, fontes(), () => false);
   await vi.waitFor(() => expect(bloco('objetivos').textContent).toContain('Caminhar'));
-  const texto = bloco('indisponivel').textContent ?? '';
-  expect(texto).toContain('Situação do caso e responsável: indisponíveis nesta versão');
-  expect(texto).toContain('Mudanças recentes: indisponíveis nesta versão');
-  expect(texto).toContain('Atenção sinalizada por profissional: indisponível nesta versão');
-  expect(texto).toContain('Agenda: indisponível nesta versão');
-  expect(texto).toContain('Próxima revisão: indisponível nesta versão');
+  expect(raiz.querySelector('[data-bloco="indisponivel"]')).toBeNull();
+  const texto = raiz.textContent ?? '';
+  expect(texto).not.toContain('indisponível');
+  expect(texto).not.toContain('indisponíveis');
+  expect(texto).not.toContain('Atenção sinalizada');
+  expect(texto).not.toContain('Agenda');
+  expect(texto).not.toContain('Próxima revisão');
+  // Sem fonte de situação o bloco nem é montado; nada afirma responsável.
+  expect(raiz.querySelector('[data-bloco="situacao"]')).toBeNull();
 });
 
 it('distingue carregando, vazio e erro com nova tentativa só no bloco que falhou', async () => {
@@ -250,7 +296,7 @@ const mudanca = (parcial: Record<string, unknown> = {}) => ({
   ...parcial,
 });
 
-it('Administrador vê situação e responsável persistidos com a data e sem a linha de indisponível', async () => {
+it('Administrador vê situação e responsável persistidos com a data da última atualização', async () => {
   montarVisaoCaso(
     raiz,
     paciente,
@@ -268,9 +314,7 @@ it('Administrador vê situação e responsável persistidos com a data e sem a l
   expect(texto).toContain('Responsável: ana@exemplo.test (Profissional)');
   expect(texto).toContain('Atualizado em 06/11/2026.');
   expect(texto).not.toContain('Pausa fictícia');
-  const indisponivel = bloco('indisponivel').textContent ?? '';
-  expect(indisponivel).not.toContain('Situação do caso e responsável');
-  expect(indisponivel).toContain('Mudanças recentes: indisponíveis nesta versão');
+  expect(raiz.querySelector('[data-bloco="indisponivel"]')).toBeNull();
 });
 
 it('indica a completar sem acompanhamento e sinaliza responsável inativo, sem inventar valor', async () => {
@@ -283,7 +327,9 @@ it('indica a completar sem acompanhamento e sinaliza responsável inativo, sem i
   await vi.waitFor(() =>
     expect(bloco('situacao').textContent).toContain('A completar: situação do caso e responsável'),
   );
-  expect(bloco('situacao').textContent).toContain('Data da última atualização indisponível.');
+  // Sem data conhecida o bloco cala: não repete "indisponível" em cada seção.
+  expect(bloco('situacao').textContent).not.toContain('Atualizado em');
+  expect(bloco('situacao').textContent).not.toContain('indisponível');
   raiz.replaceChildren();
   montarVisaoCaso(
     raiz,

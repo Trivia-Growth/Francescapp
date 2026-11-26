@@ -94,8 +94,14 @@ function pedido(
   const caminho = `/api/pacientes/${usuarioId}/plano${metodo === 'PATCH' ? `/${outroId}` : ''}`;
   const corpo =
     metodo === 'POST'
-      ? { objetivo_id: outroId, objetivo, reserva_id: outroId, geracao_reserva: 1 }
-      : { versao_esperada: 1, objetivo, motivo: 'Revisão' };
+      ? {
+          objetivo_id: outroId,
+          objetivo,
+          visibilidade: 'interna',
+          reserva_id: outroId,
+          geracao_reserva: 1,
+        }
+      : { versao_esperada: 1, objetivo, motivo: 'Revisão', visibilidade: 'interna' };
   return new Request(origem + caminho, { method: metodo, headers, body: JSON.stringify(corpo) });
 }
 it.each([null, 'https://estrangeira.example'])(

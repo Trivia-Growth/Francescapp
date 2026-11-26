@@ -8,6 +8,7 @@ import {
   type ResultadoAtestacao,
 } from '../../../packages/contracts/src/index.ts';
 import { prepararCarteiraNativa } from './carteira-nativa.ts';
+import { lerConsultaCarteira } from './consulta-carteira.ts';
 
 type Identidade = { usuario_id: string; session_id: string };
 type Autorizacao =
@@ -66,20 +67,15 @@ async function executarCarteiraNativa(
     )
       return erro('nao_autenticado');
     const url = new URL(request.url);
-    const consulta: Record<string, unknown> = {};
     if (
       request.method !== 'GET' ||
       url.pathname !== contratosRotas.listarPacientes.caminho ||
       url.hash
     )
       return erro('entrada_invalida');
-    for (const [chave, valor] of url.searchParams) {
-      if ((chave !== 'cursor' && chave !== 'limite') || Object.hasOwn(consulta, chave))
-        return erro('entrada_invalida');
-      consulta[chave] = chave === 'limite' && /^\d{1,3}$/.test(valor) ? Number(valor) : valor;
-    }
-    if (!contratosRotas.listarPacientes.entrada.safeParse(consulta).success)
-      return erro('entrada_invalida');
+    // Mesma leitura que a preparação do atestado usa, para que não exista versão da
+    // consulta que foi validada aqui e outra que foi assinada lá.
+    if (!lerConsultaCarteira(url)) return erro('entrada_invalida');
     let entrada: Awaited<ReturnType<typeof prepararCarteiraNativa>>;
     try {
       entrada = await prepararCarteiraNativa(request, identidadeInicial, {

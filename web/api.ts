@@ -1,6 +1,7 @@
 import { contratosBarreiraEquipeHttp } from '../packages/contracts/src/barreira-equipe-servidor.ts';
 import { contratosBarreiraTarefaHttp } from '../packages/contracts/src/barreira-tarefa-cuidado-servidor.ts';
 import { z } from 'zod';
+import { entrarInternoSchema } from '../packages/contracts/src/acessos.ts';
 import {
   consultarHistoricoAnamneseSchema,
   anamneseSchema,
@@ -10,6 +11,7 @@ import {
   paginaVinculosProfissionaisSchema,
 } from '../packages/contracts/src/vinculos-profissionais.js';
 import { criarContatoReservadoHttpSchema } from '../packages/contracts/src/barreira-contato-servidor.js';
+import type { FiltrosCarteira } from '../packages/contracts/src/cadastro.js';
 import {
   criarAcessoReservadoHttpSchema,
   revogarAcessoReservadoHttpSchema,
@@ -48,6 +50,12 @@ export class FalhaApi extends Error {
 
 const rotas = {
   sessaoAtual: { ...contratosRotas.sessaoAtual, saida: sessaoNativaSchema },
+  entrarInterno: {
+    metodo: 'POST',
+    caminho: '/api/auth/interno',
+    entrada: entrarInternoSchema,
+    saida: sessaoNativaSchema,
+  },
   entrarTecnico: {
     metodo: 'POST',
     caminho: '/api/auth/tecnica',
@@ -98,7 +106,9 @@ const rotas = {
     metodo: 'GET',
     caminho: '/api/anamnese/historico/disponibilidade',
     entrada: z.object({}).strict(),
-    saida: z.object({ disponivel: z.boolean() }).strict(),
+    // `roteiro` é opcional de propósito: o caminho de emergência da rota (banco fora do ar)
+    // responde sem ele, e a tela não deve quebrar por causa de uma sugestão.
+    saida: z.object({ disponivel: z.boolean(), roteiro: z.array(z.string()).optional() }).strict(),
   },
   disponibilidadeEdicao: {
     metodo: 'GET',
@@ -255,6 +265,13 @@ export function mensagemFalha(erro: unknown): string {
   return 'Serviço indisponível. Tente novamente em alguns instantes.';
 }
 
+/** Recusa de permissão com a sessão viva: o servidor respondeu `sem_permissao`, não
+ * `nao_autenticado`. Continua dentro de `exigeNovoAcesso` para que as 53 leituras que
+ * dependem disso sigam limpando o conteúdo negado — o que muda é só quem decide expulsar. */
+export function semPermissao(erro: unknown): boolean {
+  return erro instanceof FalhaApi && erro.status === 403 && !erro.exigeReautenticacao;
+}
+
 export function exigeNovoAcesso(erro: unknown): boolean {
   return (
     erro instanceof FalhaApi &&
@@ -276,6 +293,7 @@ export function resultadoIncerto(erro: unknown): boolean {
 export class ClienteFFCM {
   #sessionId: string | null = null;
   #usuarioId: string | null = null;
+  #familiaConta = false;
   // Contador de respostas da interface; não é credencial nem geração de sessão.
   #revisao = 0;
   #tentativaEntrada = 0;
@@ -287,6 +305,7 @@ export class ClienteFFCM {
   limpar(): void {
     this.#sessionId = null;
     this.#usuarioId = null;
+    this.#familiaConta = false;
     this.#saindo = false;
     this.#revisao += 1;
   }
@@ -354,7 +373,7 @@ export class ClienteFFCM {
       // Compara o alvo com o cookie atual no servidor; nunca concede autorização.
       headers.set('x-sessao', sessionId);
     }
-    if (rota === 'entrarTecnico' || rota === 'entrarFamiliar') {
+    if (rota === 'entrarInterno' || rota === 'entrarTecnico' || rota === 'entrarFamiliar') {
       if (!opcoes.fluxoEntrada || !/^[A-Za-z0-9_-]{22}$/.test(opcoes.fluxoEntrada))
         throw new FalhaApi('nao_autenticado', 401);
       headers.set('x-fluxo', opcoes.fluxoEntrada);
@@ -366,14 +385,17 @@ export class ClienteFFCM {
         fluxo = sessionStorage.getItem(
           modo === 'familiar' || modo === 'saindo-familiar'
             ? 'fluxo-familiar'
-            : modo === 'tecnica' || modo === 'saindo-tecnica'
-              ? 'fluxo-tecnico'
-              : 'fluxo-google',
+            : modo === 'interno' || modo === 'saindo-interno'
+              ? 'fluxo-interno'
+              : modo === 'tecnica' || modo === 'saindo-tecnica'
+                ? 'fluxo-tecnico'
+                : 'fluxo-google',
         );
       } catch {
         throw new FalhaApi('nao_autenticado', 401);
       }
       const google = modo === 'google' || (opcoes.encerramento && modo === 'saindo-google');
+      const interno = modo === 'interno' || (opcoes.encerramento && modo === 'saindo-interno');
       const tecnica = modo === 'tecnica' || (opcoes.encerramento && modo === 'saindo-tecnica');
       const familiar = modo === 'familiar' || (opcoes.encerramento && modo === 'saindo-familiar');
       const rotaFamiliar =
@@ -382,7 +404,10 @@ export class ClienteFFCM {
         rota === 'listarPacientesFamiliar' ||
         rota === 'consultarPacienteFamiliar';
       if (familiar && !rotaFamiliar) throw new FalhaApi('servico_indisponivel', 503);
-      if ((!google && !tecnica && !familiar) || (!familiar && rotaFamiliar))
+      if (
+        (!google && !interno && !tecnica && !familiar) ||
+        (!familiar && !((interno || google) && this.#familiaConta) && rotaFamiliar)
+      )
         throw new FalhaApi('nao_autenticado', 401);
       if (!fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo)) throw new FalhaApi('nao_autenticado', 401);
       headers.set('x-fluxo', fluxo);
@@ -391,7 +416,17 @@ export class ClienteFFCM {
     let corpo: string | undefined;
     if (contrato.metodo === 'GET') {
       for (const [campo, valor] of Object.entries(validada.data)) {
-        if (valor !== undefined) url.searchParams.set(campo, String(valor));
+        if (valor === undefined) continue;
+        // Os filtros da carteira viajam achatados como `filtro_<nome>`, porque é assim que
+        // o servidor os lê e os assina; serializar o objeto inteiro mandaria um valor que
+        // nenhum dos dois lados entende.
+        if (campo === 'filtros' && valor !== null && typeof valor === 'object') {
+          for (const [nome, escolha] of Object.entries(valor as Record<string, unknown>)) {
+            if (escolha !== undefined) url.searchParams.set(`filtro_${nome}`, String(escolha));
+          }
+          continue;
+        }
+        url.searchParams.set(campo, String(valor));
       }
     } else {
       headers.set('Content-Type', 'application/json');
@@ -457,6 +492,10 @@ export class ClienteFFCM {
     return this.#entrar(email, senha, 'tecnica');
   }
 
+  async entrarInterno(email: string, senha: string): Promise<Dados<'sessaoAtual'>> {
+    return this.#entrar(email, senha, 'interno');
+  }
+
   async entrarFamiliar(email: string, senha: string): Promise<Dados<'sessaoFamiliar'>> {
     return this.#entrar(email, senha, 'familiar');
   }
@@ -464,7 +503,7 @@ export class ClienteFFCM {
   async #entrar(
     email: string,
     senha: string,
-    modo: 'tecnica' | 'familiar',
+    modo: 'tecnica' | 'familiar' | 'interno',
   ): Promise<Dados<'sessaoAtual'>> {
     const tentativa = ++this.#tentativaEntrada;
     this.limpar();
@@ -472,6 +511,8 @@ export class ClienteFFCM {
       sessionStorage.setItem('modo-acesso', 'bloqueada');
       sessionStorage.removeItem('fluxo-google');
       sessionStorage.removeItem('sessao-tecnica');
+      sessionStorage.removeItem('sessao-interno');
+      sessionStorage.removeItem('fluxo-interno');
       sessionStorage.removeItem('fluxo-familiar');
       sessionStorage.removeItem('sessao-familiar');
       const bytes = crypto.getRandomValues(new Uint8Array(16));
@@ -479,21 +520,44 @@ export class ClienteFFCM {
         .replaceAll('+', '-')
         .replaceAll('/', '_')
         .replaceAll('=', '');
-      const chaveFluxo = modo === 'tecnica' ? 'fluxo-tecnico' : 'fluxo-familiar';
+      const chaveFluxo =
+        modo === 'interno'
+          ? 'fluxo-interno'
+          : modo === 'tecnica'
+            ? 'fluxo-tecnico'
+            : 'fluxo-familiar';
       sessionStorage.setItem(chaveFluxo, fluxo);
       if (sessionStorage.getItem(chaveFluxo) !== fluxo) throw new Error();
       const entrada = await this.#enviar(
-        modo === 'tecnica' ? 'entrarTecnico' : 'entrarFamiliar',
+        modo === 'interno'
+          ? 'entrarInterno'
+          : modo === 'tecnica'
+            ? 'entrarTecnico'
+            : 'entrarFamiliar',
         { email, senha },
         { fluxoEntrada: fluxo },
       );
       sessionStorage.setItem('modo-acesso', modo);
+      this.#familiaConta = entrada.usuario.perfil === 'familia';
       // Consulta independente confirma concessão e perfil atuais; não confia só no login.
       return await this.#consultarSessao(entrada, modo === 'familiar');
     } catch (erro) {
       try {
-        if (tentativa === this.#tentativaEntrada)
+        if (tentativa === this.#tentativaEntrada) {
+          // `bloqueada` continua: sem entrada concluída não há sessão, e afrouxar isso é
+          // justamente o que deixaria uma sessão ambígua passar por válida. O que sai são as
+          // marcas da tentativa que falhou — não valem mais, e deixá-las para trás atrapalha a
+          // próxima entrada (smoke de 13/11/2026: sobrou `fluxo-google` órfão de uma tentativa
+          // abandonada). A entrada pelo Google segue se recuperando sozinha: o envio do
+          // formulário grava um fluxo novo.
           sessionStorage.setItem('modo-acesso', 'bloqueada');
+          sessionStorage.removeItem('fluxo-tecnico');
+          sessionStorage.removeItem('fluxo-familiar');
+          sessionStorage.removeItem('sessao-tecnica');
+          sessionStorage.removeItem('sessao-interno');
+          sessionStorage.removeItem('fluxo-interno');
+          sessionStorage.removeItem('sessao-familiar');
+        }
       } catch {
         /* falha fechada */
       }
@@ -526,13 +590,15 @@ export class ClienteFFCM {
     let esperada: string | null;
     try {
       modo = sessionStorage.getItem('modo-acesso');
-      esperada = sessionStorage.getItem(familiar ? 'sessao-familiar' : 'sessao-tecnica');
+      esperada = sessionStorage.getItem(
+        modo === 'interno' ? 'sessao-interno' : familiar ? 'sessao-familiar' : 'sessao-tecnica',
+      );
     } catch {
       throw new FalhaApi('nao_autenticado', 401);
     }
     if (
       (familiar ? modo !== 'familiar' : modo === 'familiar') ||
-      ((modo === 'tecnica' || modo === 'familiar') && !entrada && !esperada)
+      ((modo === 'interno' || modo === 'tecnica' || modo === 'familiar') && !entrada && !esperada)
     )
       throw new FalhaApi('nao_autenticado', 401);
     let atual: Dados<'sessaoAtual'>;
@@ -551,7 +617,9 @@ export class ClienteFFCM {
     if (revisao !== this.#revisao) throw new FalhaApi('nao_autenticado', 401);
     if (
       !atual.usuario.ativo ||
-      ((modo === 'tecnica' || modo === 'familiar') && !entrada && atual.session_id !== esperada) ||
+      ((modo === 'interno' || modo === 'tecnica' || modo === 'familiar') &&
+        !entrada &&
+        atual.session_id !== esperada) ||
       (entrada &&
         (atual.session_id !== entrada.session_id || atual.usuario.id !== entrada.usuario.id)) ||
       (anterior && (atual.session_id !== anterior || atual.usuario.id !== this.#usuarioId))
@@ -559,9 +627,10 @@ export class ClienteFFCM {
       this.limpar();
       throw new FalhaApi('nao_autenticado', 401);
     }
-    if ((modo === 'tecnica' || modo === 'familiar') && entrada) {
+    if ((modo === 'interno' || modo === 'tecnica' || modo === 'familiar') && entrada) {
       try {
-        const chaveSessao = familiar ? 'sessao-familiar' : 'sessao-tecnica';
+        const chaveSessao =
+          modo === 'interno' ? 'sessao-interno' : familiar ? 'sessao-familiar' : 'sessao-tecnica';
         sessionStorage.setItem(chaveSessao, atual.session_id);
         if (sessionStorage.getItem(chaveSessao) !== atual.session_id) throw new Error();
       } catch {
@@ -569,21 +638,23 @@ export class ClienteFFCM {
         throw new FalhaApi('nao_autenticado', 401);
       }
     }
+    this.#familiaConta = atual.usuario.perfil === 'familia';
     this.#sessionId = atual.session_id;
     this.#usuarioId = atual.usuario.id;
     return atual;
   }
 
-  listarPacientes(cursor?: string): Promise<Dados<'listarPacientes'>> {
+  listarPacientes(cursor?: string, filtros?: FiltrosCarteira): Promise<Dados<'listarPacientes'>> {
     let familiar: boolean;
     try {
-      familiar = sessionStorage.getItem('modo-acesso') === 'familiar';
+      familiar = sessionStorage.getItem('modo-acesso') === 'familiar' || this.#familiaConta;
     } catch {
       throw new FalhaApi('nao_autenticado', 401);
     }
+    const recorte = filtros && Object.keys(filtros).length > 0 ? { filtros } : {};
     return this.#enviar(
       familiar ? 'listarPacientesFamiliar' : 'listarPacientes',
-      { limite: 25, ...(cursor ? { cursor } : {}) },
+      { limite: 25, ...(cursor ? { cursor } : {}), ...recorte },
       { protegido: true },
     );
   }
@@ -862,12 +933,16 @@ export class ClienteFFCM {
     if (!this.#sessionId) throw new FalhaApi('nao_autenticado', 401);
     try {
       const modo = sessionStorage.getItem('modo-acesso');
-      if (familiar ? modo === 'familiar' : modo === 'google' || modo === 'tecnica')
+      if (
+        familiar
+          ? modo === 'familiar'
+          : modo === 'google' || modo === 'tecnica' || modo === 'interno'
+      )
         sessionStorage.setItem('modo-acesso', `saindo-${modo}`);
       else if (
         familiar
           ? modo !== 'saindo-familiar'
-          : modo !== 'saindo-google' && modo !== 'saindo-tecnica'
+          : modo !== 'saindo-google' && modo !== 'saindo-tecnica' && modo !== 'saindo-interno'
       )
         throw new Error();
     } catch {
@@ -885,6 +960,8 @@ export class ClienteFFCM {
       sessionStorage.setItem('modo-acesso', 'bloqueada');
       sessionStorage.removeItem('fluxo-google');
       sessionStorage.removeItem('sessao-tecnica');
+      sessionStorage.removeItem('sessao-interno');
+      sessionStorage.removeItem('fluxo-interno');
       sessionStorage.removeItem('fluxo-tecnico');
       sessionStorage.removeItem('fluxo-familiar');
       sessionStorage.removeItem('sessao-familiar');
