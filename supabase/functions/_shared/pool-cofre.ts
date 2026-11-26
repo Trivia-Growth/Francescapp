@@ -34,6 +34,19 @@ export function criarPoolCofre(configuracao: ConfiguracaoPoolCofre): pg.Pool {
     )
   )
     throw new ErroCofreIndisponivel();
+  // D8 manda usar o Supavisor em **transaction mode**. A porta 5432 do pooler é session
+  // mode, com teto de 15 clientes para o projeto inteiro. Cada instância de função guarda
+  // uma conexão (`max: 1`), e são dezenas de funções: o teto estoura, a leitura de
+  // configuração falha com XX000 e cada rota cai no padrão de ambiente — que é `false`.
+  //
+  // O efeito não é um erro visível: a tela diz que a FUNCIONALIDADE está desligada, em
+  // telas diferentes a cada recarga, conforme qual instância pegou conexão. Observado em
+  // produção em 22/11/2026: avisos, documentos, acessos e realização de compromisso
+  // apareciam desligados com as chaves do banco todas em `true`.
+  //
+  // Falhar aqui troca uma degradação silenciosa e intermitente por uma recusa determinística
+  // e registrada. A porta 5432 continua válida para conexão direta ao banco, que não é pooler.
+  if (/\.pooler\.supabase\.com$/i.test(host) && porta === 5432) throw new ErroCofreIndisponivel();
   return new pg.Pool({
     host,
     port: porta,

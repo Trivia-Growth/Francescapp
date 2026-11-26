@@ -50,6 +50,7 @@ export async function consultarPacienteFamiliar(
       request_id: requestId,
       paciente_id: paciente.data.toLowerCase(),
     });
+    if (request.signal.aborted) return erro('nao_autenticado');
     if (!resposta || typeof resposta !== 'object' || Array.isArray(resposta)) throw new Error();
     const valor = resposta as Record<string, unknown>;
     if (valor.request_id !== requestId) throw new Error();

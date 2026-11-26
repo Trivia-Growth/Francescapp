@@ -34,4 +34,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
         env:
           LEFTHOOK: '0'
+      # `verificar:ativacao` inclui `verificar:celular`, que mede layout em navegador de
+      # verdade — jsdom não faz layout, e medir rolagem ou alvo de toque ali seria evidência
+      # falsa. O runner não traz o navegador, então ele é baixado aqui. Sem esta etapa os 14
+      # cenários falham com "Executable doesn't exist", que foi o que derrubou o gate na
+      # primeira execução depois de a prova de celular entrar na cadeia.
+      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm run verificar:ativacao

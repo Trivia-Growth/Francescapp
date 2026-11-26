@@ -11,12 +11,14 @@ import {
   type MetadadosAad,
   type ResultadoAtestacao,
 } from '@ffcmapp/contratos';
+import { prepararNovoContatoCifrado } from './preparar-contato.ts';
 
 type CifraPaciente = {
   cifrar(valor: string, aad: MetadadosAad): Promise<CampoCifrado>;
 };
 
-/** Preparação interna ainda não autorizada para uso em RPC; não executar antes de S-02. */
+/** Preparação interna ainda não autorizada para uso em RPC; não executar antes de S-02.
+ * Caso novo atômico: todos os campos são exigidos e cada contato recebe id e AAD próprios. */
 export async function prepararPacienteCifrado(corpo: unknown, cifra: CifraPaciente) {
   try {
     const paciente = criarPacienteSchema.parse(corpo);
@@ -28,24 +30,24 @@ export async function prepararPacienteCifrado(corpo: unknown, cifra: CifraPacien
         campo,
         formato: 1 as const,
       });
-    const aadPreferencia = aadCampo('nome_preferencia');
-    const aadNascimento = aadCampo('data_nascimento');
     const aad = Object.freeze({
       nome: aadCampo('nome'),
-      ...(paciente.nome_preferencia === undefined ? {} : { nome_preferencia: aadPreferencia }),
-      ...(paciente.data_nascimento === undefined ? {} : { data_nascimento: aadNascimento }),
+      nome_preferencia: aadCampo('nome_preferencia'),
+      data_nascimento: aadCampo('data_nascimento'),
     });
     const cifrar = async (metadados: MetadadosAad, valor: string) =>
       campoCifradoSchema.parse(await cifra.cifrar(valor, metadados));
+    const contatos = [];
+    for (const contato of paciente.contatos)
+      contatos.push(await prepararNovoContatoCifrado(contato, cifra));
     return {
       paciente_id,
       nome: await cifrar(aad.nome, paciente.nome),
-      ...(paciente.nome_preferencia === undefined
-        ? {}
-        : { nome_preferencia: await cifrar(aadPreferencia, paciente.nome_preferencia) }),
-      ...(paciente.data_nascimento === undefined
-        ? {}
-        : { data_nascimento: await cifrar(aadNascimento, paciente.data_nascimento) }),
+      nome_preferencia: await cifrar(aad.nome_preferencia, paciente.nome_preferencia),
+      data_nascimento: await cifrar(aad.data_nascimento, paciente.data_nascimento),
+      contatos,
+      situacao: paciente.situacao,
+      responsavel_id: paciente.responsavel_id.toLowerCase(),
       aad,
     };
   } catch {
@@ -69,7 +71,9 @@ export async function prepararComandoCriarPaciente(
   },
 ) {
   try {
-    const corpo = criarPacienteSchema.parse(solicitacao.corpo);
+    const corpoLido = criarPacienteSchema.parse(solicitacao.corpo);
+    // A caixa do UUID não pode mudar o digest de um reenvio idêntico.
+    const corpo = { ...corpoLido, responsavel_id: corpoLido.responsavel_id.toLowerCase() };
     const cabecalhos = cabecalhosMutacaoSchema.parse(solicitacao.cabecalhos);
     // Esta validação é estrutural: procedência e vínculo à sessão precisam ser
     // comprovados pelo servidor/banco antes de chamar o preparador.

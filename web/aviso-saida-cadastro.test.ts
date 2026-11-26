@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { CAMINHO_EQUIPE, preencherCasoNovo, respostaEquipe } from './teste-caso-novo.js';
 
 beforeEach(() => {
   sessionStorage.clear();
   sessionStorage.setItem('modo-acesso', 'tecnica');
   sessionStorage.setItem('sessao-tecnica', '20000000-0000-4000-8000-000000000001');
+  // A rota inicial passou a ser a home; estes casos exercitam a carteira, e dizem isso.
+  window.location.hash = '#carteira';
 });
 
 afterEach(() => {
@@ -22,7 +25,7 @@ it.each(['403', 'logout'])(
     const sessao = {
       session_id: '20000000-0000-4000-8000-000000000001',
       usuario: { id, perfil: 'administrador', ativo: true, versao: 1 },
-      capacidades: ['administrar_cadastro'],
+      capacidades: ['administrar_cadastro', 'administrar_concessoes'],
     };
     const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
     let terminarLista: ((resposta: Response) => void) | undefined;
@@ -37,6 +40,7 @@ it.each(['403', 'logout'])(
       }
 
       if (url.pathname === '/api/sessao') return envelope(sessao);
+      if (url.pathname === CAMINHO_EQUIPE) return respostaEquipe();
       if (url.pathname === '/api/cadastro/barreira')
         return envelope({ epoca: 1, reserva: null, resultado_pendente: null });
       if (url.pathname === '/api/cadastro/barreira/encerrar') return envelope({ estado: 'vazia' });
@@ -79,19 +83,30 @@ it.each(['403', 'logout'])(
     await vi.waitFor(() =>
       expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(false),
     );
-    elemento<HTMLInputElement>('patient-name').value = 'Pessoa fictícia';
+    await preencherCasoNovo('Pessoa fictícia');
     elemento('create-form').dispatchEvent(new Event('submit', { cancelable: true }));
     await vi.waitFor(() => expect(terminarLista).toBeDefined());
     const evento = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(evento);
     expect(evento.defaultPrevented).toBe(false);
-    if (situacao === '403') terminarLista?.(Response.json({}, { status: 403 }));
-    else elemento('logout').click();
+    if (situacao === '403') {
+      // `sem_permissao` não derruba a sessão desde 24/11/2026: a pessoa continua dentro, e a
+      // área recusada avisa o motivo. O que esta prova guarda é o outro ponto — um cadastro
+      // sem confirmação não pode ser anunciado como incerto por causa de uma recusa de
+      // permissão numa LISTA.
+      terminarLista?.(Response.json({}, { status: 403 }));
+      await vi.waitFor(() => expect(elemento('patients-view').hidden).toBe(false));
+      expect(elemento('login-view').hidden).toBe(true);
+      expect(elemento('workspace-feedback').textContent).not.toContain('sem confirmação');
+      expect(elemento('login-feedback').textContent).not.toContain('sem confirmação');
+      return;
+    }
+    elemento('logout').click();
     await vi.waitFor(() => expect(elemento('login-view').hidden).toBe(false));
     expect(elemento('login-feedback').textContent).not.toContain('sem confirmação');
     await entrar();
     expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(true);
-    if (situacao === 'logout') terminarLista?.(envelope({ itens: [], proximo_cursor: null }));
+    terminarLista?.(envelope({ itens: [], proximo_cursor: null }));
   },
 );
 
@@ -101,7 +116,7 @@ it('avisa antes de sair durante cadastro sem confirmação sem persistir dados p
   const sessao = {
     session_id: '20000000-0000-4000-8000-000000000001',
     usuario: { id, perfil: 'administrador', ativo: true, versao: 1 },
-    capacidades: ['administrar_cadastro'],
+    capacidades: ['administrar_cadastro', 'administrar_concessoes'],
   };
   const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
   let terminar: ((resposta: Response) => void) | undefined;
@@ -113,6 +128,7 @@ it('avisa antes de sair durante cadastro sem confirmação sem persistir dados p
       autenticada = true;
       return envelope(sessao);
     }
+    if (url.pathname === CAMINHO_EQUIPE) return respostaEquipe();
     if (url.pathname === '/api/sessao') return envelope(sessao);
     if (url.pathname === '/api/cadastro/barreira')
       return envelope({
@@ -156,14 +172,14 @@ it('avisa antes de sair durante cadastro sem confirmação sem persistir dados p
   document.querySelector<HTMLButtonElement>('[data-acao="encerrar"]')?.click();
   await vi.waitFor(() => expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(false));
   expect(sair()).toBe(false);
-  elemento<HTMLInputElement>('patient-name').value = 'Pessoa fictícia';
+  await preencherCasoNovo('Pessoa fictícia');
   elemento('create-form').dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() => expect(terminar).toBeDefined());
   expect(sair()).toBe(true);
   pendente = true;
   terminar?.(new Response(null, { status: 503 }));
   await vi.waitFor(() =>
-    expect(elemento('create-feedback').textContent).toContain('Cadastro anterior confirmado'),
+    expect(elemento('create-feedback').textContent).toContain('O cadastro enviado antes foi salvo'),
   );
   expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(true);
   expect(JSON.stringify(window.localStorage)).not.toContain('Pessoa fictícia');
@@ -172,7 +188,7 @@ it('avisa antes de sair durante cadastro sem confirmação sem persistir dados p
   await vi.waitFor(() => expect(elemento<HTMLButtonElement>('create-submit').disabled).toBe(false));
   expect(sair()).toBe(false);
   terminar = undefined;
-  elemento<HTMLInputElement>('patient-name').value = 'Outra pessoa fictícia';
+  await preencherCasoNovo('Outra pessoa fictícia');
   elemento('create-form').dispatchEvent(new Event('submit', { cancelable: true }));
   await vi.waitFor(() => expect(terminar).toBeDefined());
   elemento('logout').click();

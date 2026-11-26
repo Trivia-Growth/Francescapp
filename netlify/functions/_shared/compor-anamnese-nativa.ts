@@ -110,7 +110,11 @@ export async function comporAnamneseNativa(
         executar: (_request, transporte) => {
           verificarCancelamento();
           mutacaoIniciada = comando.operacao === 'gravar';
-          return executarAnamneseNativa(contexto.cliente, transporte);
+          return executarAnamneseNativa(
+            contexto.cliente,
+            transporte,
+            comando.operacao === 'historico',
+          );
         },
       }),
     );

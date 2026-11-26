@@ -22,3 +22,21 @@ update identidade.sessao set encerrada_em=null where session_id='20000000-0000-4
 update public.usuario set perfil='familia' where id='10000000-0000-4000-8000-000000000002';
 set role ffcmapp_tarefa_owner;
 do $$ begin if exists(select 1 from cadastro.tarefa_cuidado) then raise exception 'PERFIL_FALHOU'; end if; end $$;
+reset role;
+update public.usuario set perfil='profissional' where id='10000000-0000-4000-8000-000000000002';
+\ir ../migrations/20261111190000_tarefa_cuidado_idempotencia_privada.sql
+do $$
+declare ator uuid:='10000000-0000-4000-8000-000000000002'; sessao uuid:='20000000-0000-4000-8000-000000000002';
+ paciente uuid:='40000000-0000-4000-8000-000000000001'; tarefa uuid:=gen_random_uuid(); registro uuid; entrada jsonb; resposta jsonb; versao integer;
+begin
+ for versao in 0..2 loop
+  registro:=gen_random_uuid();
+  entrada:=jsonb_build_object('request_id',gen_random_uuid(),'paciente_id',paciente,'tarefa_id',tarefa,'registro_id',registro,
+   'versao_esperada',versao,'chave_idempotencia','tarefa-fixture-'||versao,'digest_idempotencia',repeat('a',43),
+   'conteudo',jsonb_build_object('formato',1,'key_id','teste','nonce',repeat('a',16),'ciphertext','YQ','tag',repeat('a',22)),
+   'aad',jsonb_build_object('tabela','cadastro.tarefa_cuidado_versao','paciente_id',paciente,'tarefa_id',tarefa,'registro_id',registro,'versao',versao+1,'campo','conteudo','formato',1));
+  resposta:=api.tarefa_cuidado_privado(public.assinar_anamnese_fixture(entrada,'api.gravar_tarefa_cuidado',ator,sessao));
+  if resposta->>'ok' is distinct from 'true' or (resposta#>>'{dados,versao}')::integer <> versao+1 then raise exception 'GRAVACAO_TAREFA_FALHOU: %',resposta; end if;
+ end loop;
+ if (select count(*) from cadastro.tarefa_cuidado_versao where tarefa_id=tarefa) <> 3 then raise exception 'VERSOES_AUSENTES'; end if;
+end $$;

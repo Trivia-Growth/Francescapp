@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
+import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
 import { FalhaApi } from './api.js';
 import { montarPlanoCuidado as montar, type ServicoPlanoCuidado } from './plano-cuidado.js';
 
@@ -28,7 +29,7 @@ const objetivo = {
   dataRevisao: '2026-12-01',
   estado: 'proposto' as const,
 };
-const atual = { objetivo_id: 'objetivo', versao: 1, objetivo };
+const atual = { objetivo_id: 'objetivo', versao: 1, objetivo, visibilidade: 'interna' as const };
 
 it('mostra texto como texto e envia revisão com versão esperada', async () => {
   const raiz = document.createElement('div');
@@ -57,6 +58,7 @@ it('mostra texto como texto e envia revisão com versão esperada', async () => 
     expect(revisarObjetivo).toHaveBeenCalledWith('paciente', 'objetivo', 1, {
       objetivo,
       motivo: 'Ajuste',
+      visibilidade: 'interna',
     }),
   );
 });
@@ -152,9 +154,7 @@ it('mantém criação bloqueada após consulta quando salvamento pode concluir d
     vi.fn(),
   );
   await vi.waitFor(() => expect(raiz.textContent).toContain('Adicionar objetivo'));
-  [...raiz.querySelectorAll('button')]
-    .find((b) => b.textContent === 'Confirmar situação de criação')
-    ?.click();
+  [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Conferir e liberar')?.click();
   await vi.waitFor(() =>
     expect(
       [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Adicionar objetivo')
@@ -193,8 +193,52 @@ it('mantém criação bloqueada após consulta quando salvamento pode concluir d
     (b) => b.textContent === 'Adicionar objetivo',
   );
   expect(adicionar?.disabled).toBe(true);
-  expect(raiz.textContent).toContain('Confirme a situação de criação');
+  expect(raiz.textContent).toContain('confira se já existe algum envio aguardando resposta');
   expect(criarObjetivo).toHaveBeenCalledTimes(1);
+});
+
+it('impede reconhecimento de resultado de criação de outro paciente', async () => {
+  const id = '00000000-0000-4000-8000-000000000001';
+  const outro = '00000000-0000-4000-8000-000000000002';
+  const ciclo = {
+    consultar: vi.fn().mockResolvedValue({
+      epoca: 1,
+      reserva: null,
+      resultado_pendente: {
+        recibo_id: id,
+        reserva_id: id,
+        resultado: 'confirmada',
+        paciente_id: outro,
+        objetivo_id: id,
+      },
+    }),
+    encerrar: vi.fn(),
+    reconhecer: vi.fn(),
+    liberar: vi.fn(),
+    criar: vi.fn(),
+  };
+  const raiz = document.createElement('div');
+  montar(
+    raiz,
+    id,
+    {
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi.fn().mockResolvedValue({ itens: [], proximo_cursor: null }),
+      revisarObjetivo: vi.fn(),
+      ciclo,
+    } as unknown as ServicoPlanoCuidado,
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Conferir e liberar'));
+  const recuperar = [...raiz.querySelectorAll('button')].find(
+    (b) => b.textContent === 'Conferir e liberar',
+  );
+  recuperar?.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('outro paciente'));
+  expect(raiz.textContent).not.toContain(outro);
+  expect(ciclo.reconhecer).not.toHaveBeenCalled();
+  expect(ciclo.liberar).not.toHaveBeenCalled();
+  expect(recuperar?.hidden).toBe(true);
 });
 
 it('consulta histórico sob demanda e limpa dados ao perder acesso', async () => {
@@ -295,13 +339,9 @@ it('mantém criação bloqueada após recarga quando confirmação da barreira f
     },
     vi.fn(),
   );
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Confirmar situação de criação'));
-  [...raiz.querySelectorAll('button')]
-    .find((b) => b.textContent === 'Confirmar situação de criação')
-    ?.click();
-  await vi.waitFor(() =>
-    expect(raiz.textContent).toContain('Não foi possível confirmar a situação'),
-  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Conferir e liberar'));
+  [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Conferir e liberar')?.click();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Não foi possível conferir agora'));
   expect(
     [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Adicionar objetivo')
       ?.disabled,
@@ -318,7 +358,7 @@ it('mantém criação bloqueada após recarga quando confirmação da barreira f
     },
     vi.fn(),
   );
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Confirmar situação de criação'));
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Conferir e liberar'));
   expect(
     [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Adicionar objetivo')
       ?.disabled,
@@ -365,14 +405,225 @@ it('preserva rascunho de revisão e impede abertura durante reconciliação', as
     ?.querySelector('textarea');
   if (!motivo) throw new Error('Motivo ausente');
   motivo.value = 'Rascunho';
-  expect(botao('Confirmar situação de criação')?.disabled).toBe(true);
-  botao('Confirmar situação de criação')?.click();
+  expect(botao('Conferir e liberar')?.disabled).toBe(true);
+  botao('Conferir e liberar')?.click();
   expect(ciclo.consultar).not.toHaveBeenCalled();
   expect(motivo.value).toBe('Rascunho');
   botao('Cancelar')?.click();
-  botao('Confirmar situação de criação')?.click();
+  botao('Conferir e liberar')?.click();
   botao('Revisar objetivo')?.click();
   expect(raiz.querySelector('form')).toBeNull();
   concluir({ epoca: 1, reserva: null, resultado_pendente: null });
   await vi.waitFor(() => expect(botao('Adicionar objetivo')?.disabled).toBe(false));
+});
+
+it('confirma antes de descartar alterações ao cancelar revisão', async () => {
+  const raiz = document.createElement('div');
+  montarPlanoCuidado(
+    raiz,
+    'paciente',
+    {
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi.fn().mockResolvedValue({ itens: [atual], proximo_cursor: null }),
+      criarObjetivo: vi.fn(),
+      revisarObjetivo: vi.fn(),
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Revisar objetivo'));
+  [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Revisar objetivo')?.click();
+  const campo = raiz.querySelector('form textarea');
+  if (!campo) throw new Error('Campo ausente');
+  campo.value = 'Rascunho fictício';
+  campo.dispatchEvent(new Event('input', { bubbles: true }));
+  const confirmacoes = responderConfirmacoes(false);
+  const cancelar = [...raiz.querySelectorAll('button')].find((b) => b.textContent === 'Cancelar');
+  cancelar?.click();
+  await aguardarConfirmacao();
+  expect(campo.value).toBe('Rascunho fictício');
+  expect(raiz.querySelector('form')).not.toBeNull();
+  expect(confirmacoes.chamadas[0]).toContain('Descartar as alterações não salvas deste objetivo');
+  confirmacoes.resposta = true;
+  cancelar?.click();
+  await aguardarConfirmacao();
+  expect(raiz.querySelector('form')).toBeNull();
+  confirmacoes.encerrar();
+});
+
+const campoExtraId = 'e0000000-0000-4000-8000-000000000005';
+const campoExtra = {
+  campo_id: campoExtraId,
+  nome: 'Observação adicional',
+  tipo: 'texto' as const,
+  opcoes: null,
+  ativo: true,
+  versao: 1,
+};
+
+it('ESP-06: mostra e preserva extras ao revisar campos fixos', async () => {
+  const raiz = document.createElement('div');
+  const revisarObjetivo = vi.fn().mockResolvedValue(undefined);
+  const comExtras = { ...objetivo, camposExtras: { [campoExtraId]: 'Valor fictício preservado' } };
+  montarPlanoCuidado(
+    raiz,
+    'paciente',
+    {
+      consultarCatalogo: vi.fn().mockResolvedValue([campoExtra]),
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi
+        .fn()
+        .mockResolvedValue({ itens: [{ ...atual, objetivo: comExtras }], proximo_cursor: null }),
+      criarObjetivo: vi.fn(),
+      revisarObjetivo,
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Valor fictício preservado'));
+  [...raiz.querySelectorAll('button')]
+    .find((item) => item.textContent === 'Revisar objetivo')
+    ?.click();
+  const motivo = [...raiz.querySelectorAll('label')]
+    .find((item) => item.textContent?.includes('Motivo da revisão'))
+    ?.querySelector('textarea');
+  if (!motivo) throw new Error('Motivo ausente');
+  motivo.value = 'Revisão fictícia';
+  raiz.querySelector('form')?.requestSubmit();
+  await vi.waitFor(() =>
+    expect(revisarObjetivo).toHaveBeenCalledWith('paciente', 'objetivo', 1, {
+      objetivo: comExtras,
+      motivo: 'Revisão fictícia',
+      visibilidade: 'interna',
+    }),
+  );
+});
+
+it('ESP-06: campo inativo permanece visível e bloqueia revisão sem apagar valor', async () => {
+  const raiz = document.createElement('div');
+  const revisarObjetivo = vi.fn();
+  montarPlanoCuidado(
+    raiz,
+    'paciente',
+    {
+      consultarCatalogo: vi.fn().mockResolvedValue([{ ...campoExtra, ativo: false }]),
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi.fn().mockResolvedValue({
+        itens: [
+          {
+            ...atual,
+            objetivo: { ...objetivo, camposExtras: { [campoExtraId]: 'Valor antigo' } },
+          },
+        ],
+        proximo_cursor: null,
+      }),
+      criarObjetivo: vi.fn(),
+      revisarObjetivo,
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Valor antigo'));
+  [...raiz.querySelectorAll('button')]
+    .find((item) => item.textContent === 'Revisar objetivo')
+    ?.click();
+  raiz.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+  expect(raiz.textContent).toContain('A revisão está bloqueada');
+  expect(revisarObjetivo).not.toHaveBeenCalled();
+  expect(raiz.textContent).toContain('Valor antigo');
+});
+
+it('aprovação usa registro confiável da versão e negativa não bloqueia revisão', async () => {
+  const raiz = document.createElement('div');
+  const aprovarObjetivo = vi.fn().mockRejectedValue(new FalhaApi('sem_permissao', 403));
+  montarPlanoCuidado(
+    raiz,
+    'paciente',
+    {
+      aprovarObjetivo,
+      consultarCatalogo: vi.fn().mockResolvedValue([]),
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi.fn().mockResolvedValue({
+        itens: [{ ...atual, registro_id: campoExtraId }],
+        proximo_cursor: null,
+      }),
+      criarObjetivo: vi.fn(),
+      revisarObjetivo: vi.fn(),
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Aprovar esta versão'));
+  [...raiz.querySelectorAll('button')]
+    .find((item) => item.textContent === 'Aprovar esta versão')
+    ?.click();
+  await vi.waitFor(() => expect(aprovarObjetivo).toHaveBeenCalledWith(campoExtraId));
+  expect(
+    [...raiz.querySelectorAll('button')].find((item) => item.textContent === 'Revisar objetivo')
+      ?.disabled,
+  ).toBe(false);
+});
+
+it('mudança de tipo no catálogo mantém valor legado visível e exige correção explícita', async () => {
+  const raiz = document.createElement('div');
+  const revisarObjetivo = vi.fn();
+  montarPlanoCuidado(
+    raiz,
+    'paciente',
+    {
+      consultarCatalogo: vi.fn().mockResolvedValue([{ ...campoExtra, tipo: 'numero' }]),
+      consultarHistorico: vi.fn(),
+      consultarObjetivos: vi.fn().mockResolvedValue({
+        itens: [
+          {
+            ...atual,
+            objetivo: { ...objetivo, camposExtras: { [campoExtraId]: 'Texto legado' } },
+          },
+        ],
+        proximo_cursor: null,
+      }),
+      criarObjetivo: vi.fn(),
+      revisarObjetivo,
+    },
+    vi.fn(),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Texto legado'));
+  [...raiz.querySelectorAll('button')]
+    .find((item) => item.textContent === 'Revisar objetivo')
+    ?.click();
+  const extra = [...raiz.querySelectorAll('label')]
+    .find((item) => item.textContent === campoExtra.nome)
+    ?.querySelector('input');
+  expect(extra?.value).toBe('Texto legado');
+  raiz.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+  expect(revisarObjetivo).not.toHaveBeenCalled();
+  expect(extra?.value).toBe('Texto legado');
+});
+
+it('família consulta objetivo público com extras sem acessar catálogo administrativo', async () => {
+  const raiz = document.createElement('div');
+  const consultarCatalogo = vi.fn();
+  montar(
+    raiz,
+    'paciente',
+    {
+      consultarCatalogo,
+      consultarHistorico: vi.fn(),
+      revisarObjetivo: vi.fn(),
+      ciclo: {} as ServicoPlanoCuidado['ciclo'],
+      consultarObjetivos: vi.fn().mockResolvedValue({
+        itens: [
+          {
+            ...atual,
+            visibilidade: 'publica',
+            objetivo: { ...objetivo, camposExtras: { [campoExtraId]: 'Extra público' } },
+          },
+        ],
+        proximo_cursor: null,
+      }),
+    },
+    vi.fn(),
+    () => {},
+    true,
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Extra público'));
+  expect(consultarCatalogo).not.toHaveBeenCalled();
+  expect(raiz.textContent).not.toContain('Revisar objetivo');
+  expect(raiz.textContent).not.toContain('Aprovar esta versão');
 });

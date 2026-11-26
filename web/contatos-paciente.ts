@@ -1,6 +1,9 @@
 import { novoContatoSchema, type PacienteAdministrativo } from '../packages/contracts/src/index.js';
 import { exigeNovoAcesso, FalhaApi, mensagemFalha, type ClienteFFCM } from './api.js';
+import { confirmar } from './confirmacao.js';
 import { criarCicloContato } from './ciclo-contato.js';
+import { esqueletoCarregando } from './esqueleto.js';
+import type { consultaBarreiraContatoSchema } from '../packages/contracts/src/barreira-contato.js';
 
 /** Montagem preparada para quando a rota de contatos estiver autorizada. */
 export function montarContatoPaciente(
@@ -28,7 +31,7 @@ export function montarContatoPaciente(
   const tituloLista = document.createElement('h3');
   tituloLista.textContent = 'Contatos cadastrados';
   const conteudoLista = document.createElement('div');
-  conteudoLista.textContent = 'Carregando contatos…';
+  conteudoLista.replaceChildren(esqueletoCarregando(2, true));
   lista.append(tituloLista, conteudoLista);
   let contatosAtualizados = false;
   let identidadeInvalidada = false;
@@ -112,29 +115,77 @@ export function montarContatoPaciente(
   status.setAttribute('aria-live', 'polite');
   const recuperar = document.createElement('button');
   recuperar.type = 'button';
-  recuperar.textContent = 'Verificar operação pendente';
+  recuperar.textContent = 'Conferir novamente';
   recuperar.hidden = true;
   campos.disabled = salvar.disabled = true;
   let etapa: 'encerrar' | 'reconhecer' | null = null;
   let contatoConfirmado = false;
+  let resultadoPendente: ReturnType<
+    typeof consultaBarreiraContatoSchema.parse
+  >['resultado_pendente'] = null;
+  const conferirResultado = async () => {
+    if (!resultadoPendente) throw new Error('Resultado indisponível');
+    if (resultadoPendente.paciente_id.toLowerCase() !== pacienteId.toLowerCase()) {
+      throw new Error('Outro paciente');
+    }
+    if (resultadoPendente.resultado === 'confirmada') {
+      verificarIdentidade();
+      const paciente = await api.consultarPaciente(pacienteId);
+      if (!ativa) throw new Error('Tela encerrada');
+      mostrarContatos(paciente);
+      const contato = paciente.contatos.find(
+        (item) => item.id.toLowerCase() === resultadoPendente?.contato_id?.toLowerCase(),
+      );
+      if (
+        !contato ||
+        !(await confirmar({
+          titulo: `Este contato foi adicionado antes — ${contato.tipo === 'email' ? 'e-mail' : 'telefone'}: ${contato.valor}. Confere?`,
+          detalhe:
+            'Confirmar encerra a conferência e libera novos contatos. Cancelar mantém a tela conferindo.',
+          acao: 'Confere, pode seguir',
+          cancelar: 'Não confere',
+        }))
+      )
+        throw new Error('Conferência necessária');
+      contatoConfirmado = true;
+    }
+  };
   const reconciliar = async () => {
     bloqueada = true;
     campos.disabled = salvar.disabled = recuperar.disabled = true;
-    status.textContent = 'Verificando operação pendente…';
+    status.textContent = 'Conferindo os contatos…';
     try {
       if (!etapa) {
         const estado = await ciclo.consultar();
-        contatoConfirmado ||= estado.resultado_pendente?.resultado === 'confirmada';
-        etapa = estado.resultado_pendente ? 'reconhecer' : 'encerrar';
+        resultadoPendente = estado.resultado_pendente;
+        etapa = resultadoPendente ? 'reconhecer' : 'encerrar';
+        if (
+          estado.reserva &&
+          !(await confirmar({
+            titulo: 'Encerrar a tentativa em andamento?',
+            detalhe:
+              'A tentativa pode estar aberta em outra aba. Encerrá-la afeta todas as abas desta pessoa.',
+            acao: 'Encerrar a tentativa',
+            cancelar: 'Deixar como está',
+          }))
+        ) {
+          etapa = null;
+          throw new Error('Encerramento não confirmado');
+        }
       }
-      if (etapa === 'reconhecer') await ciclo.reconhecer();
-      else await ciclo.encerrar();
+      if (etapa === 'reconhecer') {
+        await conferirResultado();
+        await ciclo.reconhecer();
+        resultadoPendente = null;
+      } else await ciclo.encerrar();
       etapa = null;
       const atualizado = await ciclo.consultar();
       if (atualizado.resultado_pendente) {
-        contatoConfirmado ||= atualizado.resultado_pendente.resultado === 'confirmada';
+        resultadoPendente = atualizado.resultado_pendente;
         etapa = 'reconhecer';
+        await conferirResultado();
         await ciclo.reconhecer();
+        resultadoPendente = null;
         etapa = null;
         await ciclo.consultar();
       }
@@ -148,8 +199,8 @@ export function montarContatoPaciente(
       campos.disabled = salvar.disabled = false;
       recuperar.hidden = true;
       status.textContent = contatoConfirmado
-        ? 'Um contato anterior foi adicionado. Confira o cadastro antes de adicionar novamente.'
-        : 'Operações anteriores verificadas. Você pode adicionar um contato.';
+        ? 'O contato enviado antes foi adicionado. Confira a lista antes de adicionar outro.'
+        : 'Tudo conferido. Você já pode adicionar um contato.';
       contatoConfirmado = false;
     } catch (erro) {
       if (!ativa) return;
@@ -167,7 +218,7 @@ export function montarContatoPaciente(
         conteudoLista.textContent = 'Não foi possível carregar os contatos.';
       recuperar.hidden = false;
       status.textContent =
-        'Não foi possível verificar a operação. Tente novamente antes de adicionar contato.';
+        'Não foi possível concluir a conferência. Se o envio foi de outro paciente, abra o cadastro dele antes de continuar.';
     } finally {
       if (ativa) recuperar.disabled = false;
     }

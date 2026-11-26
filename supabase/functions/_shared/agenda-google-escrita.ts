@@ -65,7 +65,10 @@ export async function escreverAgendaGoogle(
         !('etag' in evento) ||
         typeof evento.etag !== 'string' ||
         evento.etag !== operacao.etag ||
-        ('recurrence' in evento && Array.isArray(evento.recurrence) && evento.recurrence.length > 0)
+        ('recurrence' in evento &&
+          Array.isArray(evento.recurrence) &&
+          evento.recurrence.length > 0) ||
+        ('recurringEventId' in evento && evento.recurringEventId !== undefined)
       )
         return { estado: 'conflito_versao' };
       if ('extendedProperties' in evento && evento.extendedProperties !== undefined) {
@@ -108,19 +111,46 @@ export async function escreverAgendaGoogle(
     if (resposta.status === 412) return { estado: 'conflito_versao' };
     if (resposta.status === 409 || resposta.status >= 500) return incerto;
     if (!resposta.ok) return indisponivel;
-    if (operacao.acao === 'cancelar') return { estado: 'confirmado', evento_id: id };
-    const dados: unknown = await resposta.json();
+    // O ACK da mutação não comprova o estado observado na origem. Reconsultar,
+    // sem repetir escrita se resposta/versão/horário não puderem ser confirmados.
+    const confirmacao = await fetch(alvo, {
+      headers: { Authorization: `Bearer ${token}` },
+      redirect: 'error',
+      signal: controle.signal,
+    });
+    if (operacao.acao === 'cancelar') {
+      if (confirmacao.status === 404 || confirmacao.status === 410)
+        return { estado: 'confirmado', evento_id: id };
+      if (!confirmacao.ok) return incerto;
+      const cancelado: unknown = await confirmacao.json();
+      return cancelado &&
+        typeof cancelado === 'object' &&
+        'status' in cancelado &&
+        cancelado.status === 'cancelled'
+        ? { estado: 'confirmado', evento_id: id }
+        : incerto;
+    }
+    if (!confirmacao.ok) return incerto;
+    const dados: unknown = await confirmacao.json();
+    if (!dados || typeof dados !== 'object') return incerto;
+    const evento = dados as Record<string, unknown>;
+    const inicio = evento.start as Record<string, unknown> | undefined;
+    const fim = evento.end as Record<string, unknown> | undefined;
+    const estendidas = evento.extendedProperties as Record<string, unknown> | undefined;
+    const privadas = estendidas?.private as Record<string, unknown> | undefined;
     if (
-      typeof dados !== 'object' ||
-      dados === null ||
-      !('id' in dados) ||
-      dados.id !== id ||
-      !('etag' in dados) ||
-      typeof dados.etag !== 'string' ||
-      !dados.etag
+      evento.id !== id ||
+      evento.status === 'cancelled' ||
+      typeof evento.etag !== 'string' ||
+      !evento.etag ||
+      privadas?.ffcm_operacao !== operacao.operacaoId.toLowerCase() ||
+      typeof inicio?.dateTime !== 'string' ||
+      typeof fim?.dateTime !== 'string' ||
+      Date.parse(inicio.dateTime) !== Date.parse(operacao.inicio ?? '') ||
+      Date.parse(fim.dateTime) !== Date.parse(operacao.fim ?? '')
     )
       return incerto;
-    return { estado: 'confirmado', evento_id: id, etag: dados.etag };
+    return { estado: 'confirmado', evento_id: id, etag: evento.etag };
   } catch {
     return enviada ? incerto : indisponivel;
   } finally {

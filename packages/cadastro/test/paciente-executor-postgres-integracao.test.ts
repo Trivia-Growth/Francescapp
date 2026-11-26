@@ -54,7 +54,14 @@ it.skipIf(!socket || !admin)(
       },
     };
     const solicitacao = {
-      corpo: { nome: 'Paciente Fictício' },
+      corpo: {
+        nome: 'Paciente Fictício',
+        nome_preferencia: 'Pac',
+        data_nascimento: '2000-01-31',
+        contatos: [{ tipo: 'email', valor: 'contato@exemplo.test' }],
+        situacao: 'ativo',
+        responsavel_id: '10000000-0000-4000-8000-000000000001',
+      },
       cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
     };
     const contexto = (request_id: string) => ({

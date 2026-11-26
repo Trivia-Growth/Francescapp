@@ -94,6 +94,11 @@ export async function comporBarreiraContatoNativa(
         sessao.data.session_id.toLowerCase() !== alvo.toLowerCase()
       )
         return { estado: 'nao_autenticado' as const };
+      if (
+        sessao.data.usuario.perfil !== 'administrador' ||
+        !sessao.data.capacidades.includes('administrar_cadastro')
+      )
+        return { estado: 'sem_permissao' as const };
       return {
         estado: 'autorizado' as const,
         identidade: { usuario_id: sessao.data.usuario.id, session_id: sessao.data.session_id },

@@ -1,7 +1,11 @@
 \set ON_ERROR_STOP on
 \ir fundacao_carteira_nativa_autorizacao_fixture.sql
 alter table identidade.configuracao_auth_nativo enable row level security;
+\ir ../migrations/20261105120000_auth_privado.sql
+\ir ../migrations/20261106180000_bloqueios_auth.sql
 \ir ../migrations/20261106130000_carteira_nativa.sql
+grant usage on schema bloqueios_auth to ffcmapp_carteira_owner;
+grant execute on function bloqueios_auth.travar(uuid,uuid) to ffcmapp_carteira_owner;
 begin;
 do $$ begin
  execute 'set local role ffcmapp_carteira_owner';

@@ -14,6 +14,8 @@ beforeEach(() => {
   sessionStorage.clear();
   sessionStorage.setItem('modo-acesso', 'tecnica');
   sessionStorage.setItem('sessao-tecnica', '20000000-0000-4000-8000-000000000001');
+  // A rota inicial passou a ser a home; estes casos exercitam a carteira, e dizem isso.
+  window.location.hash = '#carteira';
 });
 
 afterEach(() => {

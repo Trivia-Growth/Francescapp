@@ -1,5 +1,26 @@
 # Design
 
+## Capability de escrita por caso — retomada local de 18/11/2026
+
+A interface mantinha escrita fixamente indisponível apesar do ciclo e HTTP já
+existentes. GET de disponibilidade por paciente combina autorização vigente e as
+três flags de tarefas, escrita e barreira. O resultado só informa os controles;
+POST/barreira continuam autorizando cada operação no servidor e banco.
+
+Reuso com minimização: `autorizacao_somente:true` estende apenas a leitura da RPC
+existente, depois das guardas Auth/vínculo/locks e com auditoria transacional. Essa
+modalidade devolve array vazio sem consultar ou decifrar tarefas; não se lê a lista
+clínica inteira para obter um booleano. A migration `20261125110000` preserva
+assinatura/owner/ACL e listagem anterior; flag malformada ou uso fora da ação de
+leitura é recusado. Sem migration, disponibilidade falha fechada.
+
+Ameaças: perfil/caso indevido exige negativa no banco; resposta tardia de outro
+caso/sessão é descartada na interface; mudança posterior à capability não autoriza
+a gravação, que refaz as barreiras. **SUPOSIÇÃO CONSERVADORA:** disponibilidade é
+somente informativa, com padrão falso e sem exceção para Administrador. Provas
+positivas/negativas, minimização sem SELECT clínico, instalação NOSUPER, revisão e
+integração real foram preparadas, não executadas nesta retomada.
+
 ## Context
 
 FR-017 é referência funcional, não evidência de implementação. Há uma demonstração local existente em `web/demonstracao.html` e `web/demonstracao.ts`; o projeto também mantém regras de domínio em pacotes próprios. Ver proposta e delta para o recorte.

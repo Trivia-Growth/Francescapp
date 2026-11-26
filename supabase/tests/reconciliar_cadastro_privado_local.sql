@@ -1,10 +1,11 @@
 \set ON_ERROR_STOP on
 create role anon; create role authenticated; create role service_role;
-create schema auth; create schema operacao; create schema cadastro; create schema auditoria;
+create schema auth; create schema auth_privado; create schema operacao; create schema cadastro; create schema auditoria;
 create table public.usuario(id uuid primary key);
 create table cadastro.paciente(id uuid primary key);
 create table auditoria.evento(id uuid primary key,ator_usuario_id uuid,acao text,tipo_objeto text,objeto_id uuid,resultado text,request_id uuid);
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('teste.ator',true),'')::uuid $$;
+create function auth_privado.uid() returns uuid language sql stable as $$ select auth.uid() $$;
 \ir ../migrations/20261106140000_criar_paciente_privado.sql
 \ir ../migrations/20261106160000_reconciliar_cadastro.sql
 insert into public.usuario values ('10000000-0000-4000-8000-000000000001'),('10000000-0000-4000-8000-000000000002');

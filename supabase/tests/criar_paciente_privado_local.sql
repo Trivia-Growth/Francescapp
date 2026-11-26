@@ -18,6 +18,10 @@ create function bloqueios_auth.travar(p_usuario uuid,p_sessao uuid) returns bool
 $$;
 grant usage on schema bloqueios_auth to public;
 create function auth.jwt() returns jsonb language sql stable as $$ select current_setting('teste.jwt',true)::jsonb $$;
+-- Adapters locais de Auth; não comprovam o Supabase ou seus privilégios.
+create function auth_privado.jwt() returns jsonb language sql stable as $$ select auth.jwt() $$;
+create function auth_privado.sessoes() returns setof auth.sessions language sql stable as $$ select s.* from auth.sessions s where s.user_id=auth.uid() and s.id::text=auth.jwt()->>'session_id' $$;
+create function auth_privado.identidades() returns setof auth.identities language sql stable as $$ select i.* from auth.identities i where i.user_id=auth.uid() and i.provider='google' $$;
 -- Apenas fixture: não comprova verificação criptográfica ou Vault.
 create function identidade.verificar_assinatura_atestado(text,text,jsonb,jsonb,text) returns boolean language sql as $$ select $5='valido' $$;
 \ir ../migrations/20261106150000_criar_paciente.sql

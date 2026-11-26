@@ -34,10 +34,63 @@ it('não oferece edição enquanto as rotas de paciente não estão disponíveis
   await import('./main.js');
   await vi.waitFor(() =>
     expect(
-      document.querySelector('[aria-label="Abrir anamnese de Paciente fictício"]'),
+      document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
     ).not.toBeNull(),
   );
-  expect(document.querySelector('[aria-label="Editar cadastro de Paciente fictício"]')).toBeNull();
-  expect(document.getElementById('edicao-panel')?.hidden).toBe(true);
+  document
+    .querySelector<HTMLButtonElement>('[aria-label="Abrir ficha de Paciente fictício"]')
+    ?.click();
+  document.getElementById('ficha-aba-cadastro')?.click();
+  expect(document.getElementById('ficha-painel')?.textContent).toContain(
+    'A edição do cadastro ainda não está disponível neste ambiente.',
+  );
   expect(fetch.mock.calls.some(([url]) => url.pathname === `/api/pacientes/${id}`)).toBe(false);
 });
+
+it.each([
+  { perfil: 'administrador', capacidades: ['administrar_cadastro'], visivel: true },
+  { perfil: 'profissional', capacidades: [], visivel: false },
+])(
+  'oferece edição somente com disponibilidade e autorização: $perfil',
+  async ({ perfil, capacidades, visivel }) => {
+    document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
+    sessionStorage.setItem('modo-acesso', 'tecnica');
+    sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
+    sessionStorage.setItem('sessao-tecnica', sessionId);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: URL) => {
+        if (url.pathname === '/api/sessao')
+          return envelope({
+            session_id: sessionId,
+            usuario: { id, perfil, ativo: true, versao: 1 },
+            capacidades,
+          });
+        if (url.pathname === '/api/pacientes')
+          return envelope({
+            itens: [{ id, nome: 'Paciente fictício', nome_preferencia: null, versao: 1 }],
+            proximo_cursor: null,
+          });
+        if (url.pathname === '/api/pacientes/edicao/disponibilidade')
+          return envelope({ disponivel: true });
+        return new Response(null, { status: 404 });
+      }),
+    );
+    await import('./main.js');
+    await vi.waitFor(() =>
+      expect(
+        document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
+      ).not.toBeNull(),
+    );
+    document
+      .querySelector<HTMLButtonElement>('[aria-label="Abrir ficha de Paciente fictício"]')
+      ?.click();
+    expect(Boolean(document.getElementById('ficha-aba-cadastro'))).toBe(visivel);
+    if (visivel) {
+      document.getElementById('ficha-aba-cadastro')?.click();
+      expect(document.getElementById('ficha-painel')?.textContent).not.toContain(
+        'A edição do cadastro ainda não está disponível neste ambiente.',
+      );
+    }
+  },
+);

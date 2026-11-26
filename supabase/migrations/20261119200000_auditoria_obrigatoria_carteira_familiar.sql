@@ -1,0 +1,61 @@
+-- Torna a auditoria obrigatoria na carteira familiar (FR-039/FR-054): sem evento gravado, nada retorna.
+-- Promovido de supabase/drafts/corrigir_auditoria_carteira_familiar.sql sem alteração do corpo SQL.
+-- Draft: não ativa acesso. Preserva privilégios existentes durante substituição.
+select set_config('ffcmapp.familiar_auditoria_migrador',current_user,false);
+select set_config('ffcmapp.familiar_auditoria_tinha_owner',pg_has_role(current_user,'ffcmapp_carteira_familiar_owner','SET')::text,false);
+select set_config('ffcmapp.familiar_auditoria_tinha_create',has_schema_privilege('ffcmapp_carteira_familiar_owner','api','CREATE')::text,false);
+do $$ begin
+ if current_setting('ffcmapp.familiar_auditoria_tinha_owner')='false' then
+  if exists(select 1 from pg_auth_members m join pg_roles r on r.oid=m.roleid join pg_roles u on u.oid=m.member join pg_roles g on g.oid=m.grantor where r.rolname='ffcmapp_carteira_familiar_owner' and u.rolname=current_user and g.rolname=current_user) then raise exception 'MEMBERSHIP_EXISTENTE_SEM_SET'; end if;
+  execute format('grant ffcmapp_carteira_familiar_owner to %I with inherit false, set true granted by %I',current_user,current_user);
+ end if;
+ if current_setting('ffcmapp.familiar_auditoria_tinha_create')='false' then grant create on schema api to ffcmapp_carteira_familiar_owner; end if;
+end $$;
+set role ffcmapp_carteira_familiar_owner;
+create or replace function api.listar_pacientes_familiar_privado(p_request_id uuid, p_limite integer, p_cursor uuid default null)
+returns jsonb language plpgsql security definer set search_path = '' set row_security = on as $$
+declare
+  v_ator uuid := auth_privado.uid(); v_sessao uuid; v_texto text := auth_privado.jwt()->>'session_id';
+  v_autorizado boolean := false; v_criado timestamptz; v_pagina jsonb;
+begin
+  if p_request_id is null or p_limite is null or p_limite < 1 or p_limite > 100 then
+    raise exception using errcode = '22023', message = 'PARAMETRO_INVALIDO';
+  end if;
+  if v_texto ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then v_sessao := v_texto::uuid; end if;
+  if v_ator is not null and v_sessao is not null and bloqueios_auth.travar(v_ator, v_sessao) is true
+    and exists (select 1 from auth_privado.sessoes() s where s.id = v_sessao and s.user_id = v_ator and (s.not_after is null or s.not_after > clock_timestamp()))
+    and exists (select 1 from jsonb_array_elements(case when jsonb_typeof(auth_privado.jwt()->'amr') = 'array' then auth_privado.jwt()->'amr' else '[]'::jsonb end) m where m->>'method' = 'password') then
+    perform 1 from public.usuario u where u.id = v_ator and u.ativo and u.perfil = 'familia' for share;
+    if found then
+      perform 1 from cadastro.acesso_paciente a where a.usuario_id = v_ator and a.revogada_em is null order by a.id limit 1 for share;
+      if found then
+        perform 1 from identidade.sessao s where s.session_id = v_sessao and s.usuario_id = v_ator and s.metodo = 'familia' and s.concessao_id is null and s.concessao_versao_admissao is null and s.revogada_em is null and s.encerrada_em is null for share;
+        v_autorizado := found;
+      end if;
+    end if;
+  end if;
+  if v_autorizado and p_cursor is not null then
+    perform 1 from cadastro.acesso_paciente a where a.usuario_id = v_ator and a.paciente_id = p_cursor and a.revogada_em is null for share;
+    v_autorizado := found;
+    if v_autorizado then select p.criado_em into v_criado from cadastro.paciente p where p.id = p_cursor; v_autorizado := found; end if;
+  end if;
+  if v_autorizado then
+    with s as (select p.id, p.criado_em, p.nome_cifrado, p.nome_preferencia_cifrado, p.versao from cadastro.paciente p join cadastro.acesso_paciente a on a.paciente_id = p.id where a.usuario_id = v_ator and a.revogada_em is null and (p_cursor is null or (p.criado_em, p.id) > (v_criado, p_cursor)) order by p.criado_em, p.id limit p_limite + 1 for share of a),
+    n as (select *, row_number() over (order by criado_em, id) ordem from s)
+    select jsonb_build_object('itens', coalesce(jsonb_agg(jsonb_build_object('paciente_id', id, 'nome', nome_cifrado, 'nome_preferencia', nome_preferencia_cifrado, 'versao', versao) order by criado_em, id) filter (where ordem <= p_limite), '[]'::jsonb), 'proximo_cursor', case when count(*) > p_limite then max(id::text) filter (where ordem = p_limite) end) into v_pagina from n;
+    v_autorizado := exists (select 1 from auth_privado.sessoes() s where s.id = v_sessao and s.user_id = v_ator and (s.not_after is null or s.not_after > clock_timestamp()));
+  end if;
+  -- Identidade inexistente não pode ser referenciada em auditoria; nenhum dado é retornado.
+  if v_ator is not null and exists (select 1 from public.usuario u where u.id = v_ator) then
+    insert into auditoria.evento(id, ator_usuario_id, acao, tipo_objeto, objeto_id, resultado, request_id) values (gen_random_uuid(), v_ator, 'api.listar_pacientes_familiar', 'carteira', null, case when v_autorizado then 'permitido' else 'negado' end, p_request_id);
+    if not found then raise exception using errcode = 'P0002', message = 'AUDITORIA_NAO_INSERIDA'; end if;
+  end if;
+  if not v_autorizado then return jsonb_build_object('ok', false, 'erro', jsonb_build_object('codigo', 'sem_permissao'), 'request_id', p_request_id); end if;
+  return jsonb_build_object('ok', true, 'dados', v_pagina, 'request_id', p_request_id);
+end $$;
+reset role;
+select set_config('role',current_setting('ffcmapp.familiar_auditoria_migrador'),false);
+do $$ begin
+ if current_setting('ffcmapp.familiar_auditoria_tinha_create')='false' then revoke create on schema api from ffcmapp_carteira_familiar_owner; end if;
+ if current_setting('ffcmapp.familiar_auditoria_tinha_owner')='false' then execute format('revoke ffcmapp_carteira_familiar_owner from %I granted by %I',current_user,current_user); end if;
+end $$;

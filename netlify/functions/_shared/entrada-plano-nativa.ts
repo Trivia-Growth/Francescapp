@@ -7,6 +7,7 @@ import {
 } from '../../../packages/contracts/src/erros.ts';
 import { comporPlanoCuidadoNativo } from './compor-plano-cuidado-nativo.ts';
 import { comporBarreiraPlanoNativa } from './compor-barreira-plano-nativa.ts';
+import { registrarFalhaDeResposta } from './falha-operacional.ts';
 
 type Dependencias = Parameters<typeof comporPlanoCuidadoNativo>[2];
 const headers = {
@@ -173,8 +174,11 @@ export function criarEntradaPlanoNativa(
           { dados: planoHttp[nome].saida.parse(resultado.dados), request_id: resultado.request_id },
           { headers },
         );
-      } catch {
-        return erro(request.method === 'GET' ? 'servico_indisponivel' : 'pendencia_externa');
+      } catch (erroResposta) {
+        return erro(
+          request.method === 'GET' ? 'servico_indisponivel' : 'pendencia_externa',
+          registrarFalhaDeResposta('plano', erroResposta),
+        );
       }
     },
   };

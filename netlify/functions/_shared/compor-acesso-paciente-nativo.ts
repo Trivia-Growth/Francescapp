@@ -7,7 +7,9 @@ import { credencialAuthRejeitada, criarContextoAuthNativo } from './auth-nativo/
 import { carregarCofreNativo } from './cofre-nativo.ts';
 import { metadadosAtestadoNativo } from './compor-pacientes-nativo.ts';
 import type { configurarDependenciasNativas } from './configurar-dependencias-nativas.ts';
+import { causaDaFalha, registrarFalhaOperacional } from './falha-operacional.ts';
 import { criarIdempotenciaNativa } from './idempotencia-nativa.ts';
+import { executarRpcAcessoPaciente } from './acesso-paciente-rpc.ts';
 
 /** Preparação server-only: sem rota, grant ou ativação das RPCs futuras. */
 export async function comporAcessoPacienteNativo(
@@ -16,6 +18,8 @@ export async function comporAcessoPacienteNativo(
     acao: 'conceder' | 'revogar';
     pacienteId: unknown;
     acessoId: unknown;
+    reservaId?: unknown;
+    geracaoReserva?: unknown;
     corpo: unknown;
     cabecalhos: unknown;
   },
@@ -122,11 +126,7 @@ export async function comporAcessoPacienteNativo(
       executarAcessoPacientePrivado(transporte, async (rota, entrada) => {
         verificarCancelamento();
         mutacaoIniciada = true;
-        const rpc =
-          rota === 'criarAcessoPaciente' ? 'conceder_acesso_paciente' : 'revogar_acesso_paciente';
-        const resposta = await contexto.cliente.schema('api').rpc(rpc, { p_entrada: entrada });
-        if (resposta.error) throw new Error('Operação indisponível.');
-        return resposta.data;
+        return executarRpcAcessoPaciente(contexto.cliente.schema('api'), rota, entrada);
       }),
     );
     const atual = await noPrazo(autorizar);
@@ -141,7 +141,16 @@ export async function comporAcessoPacienteNativo(
         request_id: requestId,
       };
     return resultado;
-  } catch {
+  } catch (falha) {
+    // Este `catch` cobria a operação inteira sem deixar rastro, e a resposta opaca
+    // `pendencia_externa` era tudo o que sobrava. Mesmo defeito já corrigido na fatia de
+    // credenciais em 24/11/2026.
+    registrarFalhaOperacional({
+      rota: 'acesso-paciente',
+      etapa: 'operacao',
+      request_id: requestId,
+      causa: causaDaFalha(falha),
+    });
     return {
       ok: false as const,
       erro: {

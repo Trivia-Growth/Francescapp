@@ -45,15 +45,29 @@ export async function executarCriacaoContatoPrivado(
     );
     const requestId = transporte.p_entrada.entrada.request_id;
     rpcIniciada = true;
-    const resultado = assinaturasRpc.criarContato.saida.parse(
-      await dependencias.rpc.executar(transporte),
-    );
+    const resposta = await dependencias.rpc.executar(transporte);
+    // SQL usa conflito para reserva antiga; o contrato público usa conflito_versao.
+    const ajustada =
+      resposta &&
+      typeof resposta === 'object' &&
+      'erro' in resposta &&
+      resposta.erro &&
+      typeof resposta.erro === 'object' &&
+      'codigo' in resposta.erro &&
+      resposta.erro.codigo === 'conflito'
+        ? { ...resposta, erro: { ...resposta.erro, codigo: 'conflito_versao' } }
+        : resposta;
+    const resultado = assinaturasRpc.criarContato.saida.parse(ajustada);
     if (resultado.request_id !== requestId) throw new Error('Resposta incompatível.');
     if (!resultado.ok) {
       if (
-        !['entrada_invalida', 'sem_permissao', 'nao_encontrado', 'conflito_idempotencia'].includes(
-          resultado.erro.codigo,
-        )
+        ![
+          'entrada_invalida',
+          'sem_permissao',
+          'nao_encontrado',
+          'conflito_idempotencia',
+          'conflito_versao',
+        ].includes(resultado.erro.codigo)
       ) {
         throw new ResultadoContatoIncerto();
       }

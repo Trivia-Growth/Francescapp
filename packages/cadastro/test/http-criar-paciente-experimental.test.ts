@@ -7,7 +7,34 @@ import { criarHandlerCriarPacienteExperimental } from '../src/http-criar-pacient
 
 const caminho = 'https://app.example.test/api/pacientes';
 const reserva = { reserva_id: 'd0000000-0000-4000-8000-000000000001', geracao_reserva: 1 };
-const pedido = (body = JSON.stringify({ entrada: { nome: 'Paciente fictício' }, ...reserva })) =>
+/** Caso novo completo e fictício: todos os campos do contrato são obrigatórios. */
+const casoNovo = {
+  nome: 'Paciente fictício',
+  nome_preferencia: 'Nome fictício',
+  data_nascimento: '2000-01-01',
+  contatos: [
+    { tipo: 'email', valor: 'paciente.ficticio@exemplo.test' },
+    { tipo: 'telefone', valor: '+55 11 90000-0000' },
+  ],
+  situacao: 'entrada',
+  responsavel_id: 'e0000000-0000-4000-8000-000000000001',
+};
+const dadosCriados = {
+  id: '10000000-0000-4000-8000-000000000001',
+  nome: 'Paciente fictício',
+  nome_preferencia: 'Nome fictício',
+  data_nascimento: '2000-01-01',
+  contatos: [
+    {
+      id: '20000000-0000-4000-8000-000000000001',
+      tipo: 'email',
+      valor: 'paciente.ficticio@exemplo.test',
+      versao: 1,
+    },
+  ],
+  versao: 1,
+};
+const pedido = (body = JSON.stringify({ entrada: casoNovo, ...reserva })) =>
   new Request(caminho, {
     method: 'POST',
     headers: {
@@ -52,14 +79,7 @@ describe('borda experimental de criação de paciente', () => {
     const executar = vi.fn(async (_solicitacao, _contexto, request_id: string) => ({
       ok: true,
       request_id,
-      dados: {
-        id: '10000000-0000-4000-8000-000000000001',
-        nome: 'Paciente fictício',
-        nome_preferencia: null,
-        data_nascimento: null,
-        contatos: [],
-        versao: 1,
-      },
+      dados: dadosCriados,
     }));
     const revalidar = vi.fn(async () => true);
     const handler = criarHandlerCriarPacienteExperimental({
@@ -69,7 +89,7 @@ describe('borda experimental de criação de paciente', () => {
     });
     const resposta = await handler(pedido());
     expect(resposta.status).toBe(200);
-    expect((await resposta.json()).dados.nome).toBe('Paciente fictício');
+    expect((await resposta.json()).dados).toEqual(dadosCriados);
     expect(revalidar).toHaveBeenCalledTimes(1);
     revalidar.mockResolvedValue(false);
     const negada = await handler(pedido());
@@ -85,22 +105,14 @@ describe('borda experimental de criação de paciente', () => {
       executar,
       revalidar: async () => true,
     });
-    expect(
-      (await handler(pedido(JSON.stringify({ entrada: { nome: '' }, ...reserva })))).status,
-    ).toBe(422);
-    expect(
-      (
-        await handler(
-          pedido(
-            JSON.stringify({
-              entrada: { nome: 'Paciente fictício' },
-              ...reserva,
-              geracao_reserva: 0,
-            }),
-          ),
-        )
-      ).status,
-    ).toBe(422);
+    const corpoCom = (entrada: unknown, extra: object = {}) =>
+      pedido(JSON.stringify({ entrada, ...reserva, ...extra }));
+    expect((await handler(corpoCom({ ...casoNovo, nome: '' }))).status).toBe(422);
+    // O cadastro antigo, somente com nome, não é mais um caso novo válido.
+    expect((await handler(corpoCom({ nome: 'Paciente fictício' }))).status).toBe(422);
+    expect((await handler(corpoCom({ ...casoNovo, contatos: [] }))).status).toBe(422);
+    expect((await handler(corpoCom({ ...casoNovo, responsavel_id: undefined }))).status).toBe(422);
+    expect((await handler(corpoCom(casoNovo, { geracao_reserva: 0 }))).status).toBe(422);
     expect((await handler(pedido('x'.repeat(16_385)))).status).toBe(422);
     expect(autorizar).not.toHaveBeenCalled();
     expect(executar).not.toHaveBeenCalled();
@@ -144,16 +156,25 @@ describe('borda experimental de criação de paciente', () => {
                 const entrada = transporte.p_entrada.entrada;
                 expect(entrada).toMatchObject(reserva);
                 expect(entrada.chave_idempotencia).toBe('chave_ficticia_123456');
-                expect(JSON.stringify(entrada)).not.toContain('Paciente fictício');
+                for (const claro of ['Paciente fictício', 'Nome fictício', 'ficticio@exemplo.test'])
+                  expect(JSON.stringify(entrada)).not.toContain(claro);
+                expect(entrada.situacao).toBe('entrada');
+                expect(entrada.responsavel_id).toBe(casoNovo.responsavel_id);
+                expect(entrada.contatos).toHaveLength(2);
                 return {
                   ok: true,
                   request_id,
                   dados: {
                     paciente_id: entrada.paciente_id,
                     nome: entrada.nome,
-                    nome_preferencia: null,
-                    data_nascimento: null,
-                    contatos: [],
+                    nome_preferencia: entrada.nome_preferencia,
+                    data_nascimento: entrada.data_nascimento,
+                    contatos: entrada.contatos.map(({ contato_id, tipo, valor }) => ({
+                      contato_id,
+                      tipo,
+                      valor,
+                      versao: 1,
+                    })),
                     versao: 1,
                   },
                 };
@@ -164,7 +185,15 @@ describe('borda experimental de criação de paciente', () => {
     });
     const resposta = await handler(pedido());
     expect(resposta.status).toBe(200);
-    expect((await resposta.json()).dados.nome).toBe('Paciente fictício');
+    const { dados } = await resposta.json();
+    expect(dados).toMatchObject({
+      nome: 'Paciente fictício',
+      nome_preferencia: 'Nome fictício',
+      data_nascimento: '2000-01-01',
+    });
+    expect(dados.contatos.map((c: { tipo: string; valor: string }) => [c.tipo, c.valor])).toEqual(
+      casoNovo.contatos.map((c) => [c.tipo, c.valor]),
+    );
   });
 
   it('não inicia mutação quando autorização só termina após o prazo', async () => {
@@ -212,6 +241,33 @@ describe('borda experimental de criação de paciente', () => {
       }),
     });
     expect((await negada(pedido())).status).toBe(403);
+    const semResponsavel = criarHandlerCriarPacienteExperimental({
+      autorizar,
+      revalidar: async () => true,
+      executar: async (_, __, request_id) => ({
+        ok: false,
+        request_id,
+        erro: { codigo: 'responsavel_invalido' },
+      }),
+    });
+    const recusado = await semResponsavel(pedido());
+    expect(recusado.status).toBe(422);
+    const corpoRecusado = await recusado.json();
+    expect(corpoRecusado.erro.codigo).toBe('responsavel_invalido');
+    expect(JSON.stringify(corpoRecusado)).not.toContain(casoNovo.responsavel_id);
+    // Código fora da lista de negativas definitivas continua sendo pendência, não resposta final.
+    const naoPrevista = criarHandlerCriarPacienteExperimental({
+      autorizar,
+      revalidar: async () => true,
+      executar: async (_, __, request_id) => ({
+        ok: false,
+        request_id,
+        erro: { codigo: 'nao_encontrado' },
+      }),
+    });
+    const pendente = await naoPrevista(pedido());
+    expect(pendente.status).toBe(503);
+    expect((await pendente.json()).erro.codigo).toBe('pendencia_externa');
     const invalida = criarHandlerCriarPacienteExperimental({
       autorizar,
       revalidar: async () => true,
@@ -297,14 +353,7 @@ describe('borda experimental de criação de paciente', () => {
         executar: async (_, __, request_id) => ({
           ok: true,
           request_id,
-          dados: {
-            id: '10000000-0000-4000-8000-000000000001',
-            nome: 'Paciente fictício',
-            nome_preferencia: null,
-            data_nascimento: null,
-            contatos: [],
-            versao: 1,
-          },
+          dados: dadosCriados,
         }),
         revalidar: async () => {
           iniciou();

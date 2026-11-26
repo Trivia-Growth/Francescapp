@@ -1,0 +1,12 @@
+{
+  "pid": 28658,
+  "port": 53815,
+  "url": "http://127.0.0.1:53815/",
+  "comps": [
+    ".impeccable/mocks/decision/assigned.png",
+    ".impeccable/mocks/decision/model-pick.png",
+    ".impeccable/mocks/decision/glass-timetable.png",
+    ".impeccable/mocks/decision/canon.png"
+  ],
+  "lastBeat": 1794957368030
+}

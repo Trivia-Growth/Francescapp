@@ -197,3 +197,67 @@ describe('cifra autenticada de campos', () => {
     );
   });
 });
+
+describe('cifra autenticada do rascunho de diário (AAD paciente/autor/rascunho/versão)', () => {
+  const aadDiario: MetadadosAad = {
+    tabela: 'cadastro.diario_rascunho_textual',
+    paciente_id: 'd3bc7baf-8868-44ca-97a2-a5dfe73e567a',
+    autor_usuario_id: 'd3bc7baf-8868-44ca-97a2-a5dfe73e567b',
+    registro_id: 'd3bc7baf-8868-44ca-97a2-a5dfe73e567c',
+    versao: 1,
+    campo: 'conteudo',
+    formato: 1,
+  };
+
+  it('recupera o rascunho fictício no mesmo AAD', async () => {
+    const cifra = criarCifraParaTeste();
+    const campo = await cifra.cifrar('Rascunho fictício', aadDiario);
+
+    await expect(cifra.decifrar(campo, aadDiario)).resolves.toBe('Rascunho fictício');
+  });
+
+  it('recusa substituição de paciente_id', async () => {
+    const cifra = criarCifraParaTeste();
+    const campo = await cifra.cifrar('Rascunho fictício', aadDiario);
+
+    await expect(
+      cifra.decifrar(campo, {
+        ...aadDiario,
+        paciente_id: 'd3bc7baf-8868-44ca-97a2-a5dfe73e567d',
+      }),
+    ).rejects.toThrow('Não foi possível processar o campo cifrado.');
+  });
+
+  it('recusa substituição de autor_usuario_id', async () => {
+    const cifra = criarCifraParaTeste();
+    const campo = await cifra.cifrar('Rascunho fictício', aadDiario);
+
+    await expect(
+      cifra.decifrar(campo, {
+        ...aadDiario,
+        autor_usuario_id: 'd3bc7baf-8868-44ca-97a2-a5dfe73e567d',
+      }),
+    ).rejects.toThrow('Não foi possível processar o campo cifrado.');
+  });
+
+  it('recusa substituição de registro_id (outro rascunho)', async () => {
+    const cifra = criarCifraParaTeste();
+    const campo = await cifra.cifrar('Rascunho fictício', aadDiario);
+
+    await expect(
+      cifra.decifrar(campo, {
+        ...aadDiario,
+        registro_id: 'd3bc7baf-8868-44ca-97a2-a5dfe73e567d',
+      }),
+    ).rejects.toThrow('Não foi possível processar o campo cifrado.');
+  });
+
+  it('recusa substituição de versão', async () => {
+    const cifra = criarCifraParaTeste();
+    const campo = await cifra.cifrar('Rascunho fictício', aadDiario);
+
+    await expect(cifra.decifrar(campo, { ...aadDiario, versao: 2 })).rejects.toThrow(
+      'Não foi possível processar o campo cifrado.',
+    );
+  });
+});

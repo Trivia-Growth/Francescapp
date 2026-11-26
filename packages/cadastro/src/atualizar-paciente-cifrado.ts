@@ -54,6 +54,11 @@ export async function prepararCamposPacienteCifradosParciais(
                 ? null
                 : await cifrar(nascimento, dados.data_nascimento),
           }),
+      // Situação e responsável ficam em colunas abertas (decisão H1); só o motivo é cifrado.
+      ...(dados.situacao === undefined ? {} : { situacao: dados.situacao }),
+      ...(dados.responsavel_id === undefined
+        ? {}
+        : { responsavel_id: dados.responsavel_id.toLowerCase() }),
       aad,
     };
   } catch {

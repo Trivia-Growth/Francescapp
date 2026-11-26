@@ -1,5 +1,6 @@
 import {
   validarSecoesAnamnese,
+  consultarHistoricoAnamneseSchema,
   respostaAnamnesePrivadaSchema,
 } from '../../../packages/contracts/src/anamnese.ts';
 import {
@@ -24,6 +25,7 @@ type Autorizacao =
   | { estado: 'nao_autenticado' | 'sem_permissao' | 'servico_indisponivel' };
 type Comando =
   | { operacao: 'ler'; paciente_id: string }
+  | { operacao: 'historico'; paciente_id: string; antes_versao?: number }
   | { operacao: 'gravar'; paciente_id: string; versao_esperada: number; secoes: unknown };
 /** Composição interna, sem rota ou privilégio de banco. A execução deve usar o
  * contexto autenticado da mesma requisição; autorização e auditoria são do banco. */
@@ -77,9 +79,19 @@ export async function operarAnamneseNativa(
   try {
     if (request.signal.aborted) return erro('servico_indisponivel');
     const paciente = uuidSchema.safeParse(comando.paciente_id);
-    if (!paciente.success || (comando.operacao !== 'ler' && comando.operacao !== 'gravar'))
+    if (
+      !paciente.success ||
+      (comando.operacao !== 'ler' &&
+        comando.operacao !== 'gravar' &&
+        comando.operacao !== 'historico')
+    )
       return erro('entrada_invalida');
     const pacienteId = paciente.data.toLowerCase();
+    if (
+      comando.operacao === 'historico' &&
+      !consultarHistoricoAnamneseSchema.safeParse({ antes_versao: comando.antes_versao }).success
+    )
+      return erro('entrada_invalida');
     let secoes: ReturnType<typeof validarSecoesAnamnese> | undefined;
     let chaveIdempotencia: string | undefined;
     if (comando.operacao === 'gravar') {
@@ -110,6 +122,8 @@ export async function operarAnamneseNativa(
     if (request.headers.get('x-sessao')?.toLowerCase() !== identidade.session_id)
       return erro('nao_autenticado');
     const entrada: Record<string, unknown> = { request_id: requestId, paciente_id: pacienteId };
+    if (comando.operacao === 'historico' && comando.antes_versao !== undefined)
+      entrada.antes_versao = comando.antes_versao;
     if (comando.operacao === 'gravar') {
       const registroId = crypto.randomUUID();
       const aad: Aad = {
@@ -140,7 +154,7 @@ export async function operarAnamneseNativa(
     const metadados = dadosAtestadoSchema.omit({ digest_entrada: true }).parse({
       ...portas.metadados(requestId),
       ...identidade,
-      operacao: comando.operacao === 'ler' ? 'api.ler_anamnese' : 'api.gravar_anamnese',
+      operacao: comando.operacao === 'gravar' ? 'api.gravar_anamnese' : 'api.ler_anamnese',
     });
     if (metadados.request_id !== requestId) throw new Error();
     const prova = resultadoAtestacaoSchema.parse(
@@ -188,7 +202,13 @@ export async function operarAnamneseNativa(
     let resultado = null;
     if (resposta.dados) {
       const registro = resposta.dados;
-      if (registro.paciente_id.toLowerCase() !== pacienteId) throw new Error();
+      if (
+        registro.paciente_id.toLowerCase() !== pacienteId ||
+        (comando.operacao === 'historico' &&
+          comando.antes_versao !== undefined &&
+          registro.versao >= comando.antes_versao)
+      )
+        throw new Error();
       const aad: Aad = {
         tabela: 'cadastro.anamnese_versao',
         paciente_id: pacienteId,
@@ -198,7 +218,18 @@ export async function operarAnamneseNativa(
         formato: 1,
       };
       const conteudo = await portas.cifra.decifrar(registro.conteudo, aad);
-      resultado = { versao: registro.versao, secoes: validarSecoesAnamnese(JSON.parse(conteudo)) };
+      if (
+        comando.operacao === 'historico' &&
+        (!registro.criado_por_usuario_id || !registro.criado_em)
+      )
+        throw new Error();
+      resultado = {
+        versao: registro.versao,
+        secoes: validarSecoesAnamnese(JSON.parse(conteudo)),
+        ...(comando.operacao === 'historico'
+          ? { criado_por_usuario_id: registro.criado_por_usuario_id, criado_em: registro.criado_em }
+          : {}),
+      };
     }
     const atual = await portas.revalidar(request);
     if (

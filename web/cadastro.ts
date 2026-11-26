@@ -1,15 +1,22 @@
 import { criarPacienteSchema } from '../packages/contracts/src/index.js';
+import type { ContatoDigitado } from './campos-caso-novo.js';
 
-/** Campos opcionais vazios são omitidos, como exige o contrato de criação. */
+/** Caso novo: o contrato exige todos os campos. Nada é omitido nem preenchido por padrão;
+ * campo vazio chega ao contrato como veio e é recusado por ele. */
 export function lerCadastro(campos: {
   nome: string;
   nomePreferencia: string;
   nascimento: string;
+  contatos: ContatoDigitado[];
+  situacao: string | undefined;
+  responsavelId: string | undefined;
 }) {
-  const preferencia = campos.nomePreferencia.trim();
   return criarPacienteSchema.safeParse({
     nome: campos.nome.trim(),
-    ...(preferencia ? { nome_preferencia: preferencia } : {}),
-    ...(campos.nascimento ? { data_nascimento: campos.nascimento } : {}),
+    nome_preferencia: campos.nomePreferencia.trim(),
+    data_nascimento: campos.nascimento,
+    contatos: campos.contatos,
+    situacao: campos.situacao,
+    responsavel_id: campos.responsavelId,
   });
 }

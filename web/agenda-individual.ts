@@ -1,7 +1,20 @@
+import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import { montarVinculoAgenda } from './agenda-vinculo.js';
 import { montarOperacoesAgenda } from './agenda-operacoes.js';
+import { descreverRealizacao, montarRealizacaoAgenda } from './realizacao-compromisso.js';
+import { criarServicoRealizacaoCompromissoHttp } from './servico-realizacao-compromisso-http.js';
+import type { RealizacaoCompromisso } from '../packages/contracts/src/realizacao-compromisso.ts';
+import { confirmar } from './confirmacao.js';
 
 type Compromisso = { id: string; inicio: string; fim: string; titulo: string; etag?: string };
+
+/** O Google devolve `fim` como instante ou como data (evento de dia inteiro, fim exclusivo).
+ * A derivação de "realização não confirmada" só precisa saber se já terminou. */
+function instanteFim(fim: string): string | null {
+  const texto = /^\d{4}-\d{2}-\d{2}$/.test(fim) ? `${fim}T00:00:00Z` : fim;
+  const instante = new Date(texto);
+  return Number.isNaN(instante.getTime()) ? null : instante.toISOString();
+}
 
 export function montarAgendaIndividual(
   raiz: HTMLElement,
@@ -13,6 +26,7 @@ export function montarAgendaIndividual(
 ): () => void {
   let ativa = true;
   let consulta = 0;
+  let finalizarConsulta: (() => void) | undefined;
   let suspensa = true;
   const marcadorDesconexao = `ffcm-agenda-desconexao-incerta:${usuarioId}`;
   type PedidoDesconexao = { operacao_id: string; versao: string };
@@ -45,6 +59,30 @@ export function montarAgendaIndividual(
   titulo.textContent = 'Minha agenda';
   const descricao = document.createElement('p');
   descricao.textContent = 'Consulte os compromissos da sua agenda Google para os próximos 30 dias.';
+  // O callback pode preservar a conexão anterior quando Google não entrega refresh token.
+  // Este aviso é separado do status consultado: não comprova conexão nem deve sumir
+  // quando a consulta assíncrona informa a situação atual.
+  const retornoConsentimento = document.createElement('p');
+  retornoConsentimento.className = 'feedback';
+  retornoConsentimento.setAttribute('role', 'status');
+  const retornosAgenda = new URL(window.location.href).searchParams.getAll('agenda');
+  retornoConsentimento.hidden =
+    retornosAgenda.length !== 1 || retornosAgenda[0] !== 'autorizar-novamente';
+  if (!retornoConsentimento.hidden)
+    retornoConsentimento.textContent =
+      'A nova autorização da agenda não foi concluída: o Google não forneceu acesso para manter a conexão. Uma conexão anterior, se existir, foi preservada. Se a agenda estiver desconectada, use “Conectar agenda Google” para tentar autorizar novamente. Se persistir, peça ao administrador para conferir a configuração da integração.';
+  if (!retornoConsentimento.hidden) {
+    const ajuda = document.createElement('a');
+    ajuda.href = 'https://support.google.com/accounts/answer/13533235?hl=pt-BR';
+    ajuda.target = '_blank';
+    ajuda.rel = 'noopener noreferrer';
+    ajuda.textContent = 'Entenda as conexões da Conta Google';
+    retornoConsentimento.append(
+      ' ',
+      ajuda,
+      '. Alterar ou remover acesso pode afetar outros acessos do projeto e não garante que uma nova autorização seja concluída.',
+    );
+  }
   const status = document.createElement('p');
   status.className = 'feedback';
   status.setAttribute('role', 'status');
@@ -76,7 +114,7 @@ export function montarAgendaIndividual(
   const acoes = document.createElement('div');
   acoes.className = 'agenda-acoes';
   acoes.append(atualizar, conectar, desconectar, reconciliarDesconexao, cancelarDesconexao);
-  raiz.replaceChildren(titulo, descricao, acoes, status, lista);
+  raiz.replaceChildren(titulo, descricao, retornoConsentimento, acoes, status, lista);
 
   function cabecalhos(): Headers {
     const fluxo = sessionStorage.getItem('fluxo-google');
@@ -90,18 +128,36 @@ export function montarAgendaIndividual(
   }
   const operacoesRaiz = document.createElement('div');
   raiz.append(operacoesRaiz);
-  const operacoes = montarOperacoesAgenda(operacoesRaiz, cabecalhos, () => void carregar());
+  const operacoes = montarOperacoesAgenda(
+    operacoesRaiz,
+    cabecalhos,
+    () => void carregar(),
+    usuarioId,
+  );
   const vinculos = montarVinculoAgenda(
     operacoesRaiz,
     cabecalhos,
     listarPacientes,
     () => void carregar(),
   );
+  // FR-024: a situação de realização tem rota e flag próprias, independentes da integração
+  // Google. Ela não carrega paciente nenhum — correlacionar caso e agenda é da carteira.
+  const realizacao = montarRealizacaoAgenda(
+    operacoesRaiz,
+    criarServicoRealizacaoCompromissoHttp(cabecalhos),
+    () => void carregar(),
+  );
   async function carregar(): Promise<void> {
     const versao = ++consulta;
     lista.replaceChildren();
     status.textContent = 'Consultando agenda…';
+    lista.setAttribute('aria-busy', 'true');
+    const placeholder = document.createElement('li');
+    placeholder.append(esqueletoCarregando(2, true));
+    lista.append(placeholder);
     atualizar.disabled = true;
+    const finalizar = iniciarAcao(atualizar);
+    finalizarConsulta = finalizar;
     try {
       const inicio = new Date();
       const fim = new Date(inicio.getTime() + 30 * 86400000);
@@ -141,6 +197,8 @@ export function montarAgendaIndividual(
       if (!ativa || versao !== consulta) return;
       const itens = corpo.dados as Compromisso[];
       const estadosVinculo = new Map<string, HTMLElement>();
+      const estadosRealizacao = new Map<string, HTMLElement>();
+      const situacoes = new Map<string, RealizacaoCompromisso>();
       const data = new Intl.DateTimeFormat('pt-BR', {
         dateStyle: 'full',
         timeStyle: 'short',
@@ -165,7 +223,23 @@ export function montarAgendaIndividual(
         const estadoVinculo = document.createElement('span');
         estadoVinculo.textContent = 'Consultando vínculo…';
         estadosVinculo.set(item.id, estadoVinculo);
-        linha.append(nome, horario, estadoVinculo);
+        const estadoRealizacao = document.createElement('span');
+        estadoRealizacao.className = 'agenda-realizacao';
+        estadoRealizacao.textContent = 'Consultando situação…';
+        estadosRealizacao.set(item.id, estadoRealizacao);
+        linha.append(nome, horario, estadoVinculo, estadoRealizacao);
+        const registrarRealizacao = document.createElement('button');
+        registrarRealizacao.type = 'button';
+        registrarRealizacao.className = 'button-secondary';
+        registrarRealizacao.textContent = 'Registrar realização';
+        registrarRealizacao.setAttribute(
+          'aria-label',
+          `Registrar realização do compromisso de ${horario.textContent}`,
+        );
+        registrarRealizacao.addEventListener('click', () =>
+          realizacao.abrir(item.id, horario.textContent ?? '', situacoes.get(item.id)),
+        );
+        linha.append(registrarRealizacao);
         if (item.etag) {
           const editar = document.createElement('button');
           editar.type = 'button';
@@ -195,6 +269,21 @@ export function montarAgendaIndividual(
         );
         linha.append(vincular);
         lista.append(linha);
+      }
+      try {
+        const registros = await realizacao.consultar(
+          itens.map((item) => ({ evento_id: item.id, fim: instanteFim(item.fim) })),
+        );
+        if (!ativa || versao !== consulta) return;
+        for (const [id, destino] of estadosRealizacao) {
+          const registro = registros.get(id);
+          if (registro) situacoes.set(id, registro);
+          destino.textContent = descreverRealizacao(registro);
+        }
+      } catch {
+        if (!ativa || versao !== consulta) return;
+        for (const destino of estadosRealizacao.values())
+          destino.textContent = 'Não foi possível consultar a situação de realização';
       }
       for (let indice = 0; indice < itens.length; indice += 250) {
         const lote = itens.slice(indice, indice + 250).map((item) => item.id);
@@ -263,13 +352,18 @@ export function montarAgendaIndividual(
             retirar.setAttribute('aria-label', `Retirar vínculo com ${vinculo.nome}`);
             retirar.addEventListener('click', async () => {
               if (
-                !window.confirm(
-                  `Retirar o vínculo com ${vinculo.nome}? O compromisso permanecerá no Google Calendar.`,
-                )
+                !(await confirmar({
+                  titulo: `Retirar o vínculo com ${vinculo.nome}?`,
+                  detalhe:
+                    'O compromisso continua existindo no Google Calendar; ele apenas deixa de aparecer ligado a esta pessoa.',
+                  acao: 'Retirar vínculo',
+                  cancelar: 'Manter vínculo',
+                }))
               )
                 return;
               retirar.disabled = true;
               destino.textContent = 'Retirando vínculo…';
+              const finalizar = iniciarAcao(retirar);
               try {
                 const headers = cabecalhos();
                 headers.set('Content-Type', 'application/json');
@@ -308,6 +402,8 @@ export function montarAgendaIndividual(
                     'Não foi possível confirmar a retirada. Tente novamente ou atualize a agenda.';
                   retirar.disabled = false;
                 }
+              } finally {
+                finalizar();
               }
             });
             destino.after(retirar);
@@ -328,14 +424,24 @@ export function montarAgendaIndividual(
         status.textContent =
           'Não foi possível consultar a agenda. Conecte sua conta Google ou tente atualizar novamente.';
     } finally {
-      if (ativa && versao === consulta) atualizar.disabled = false;
+      finalizar();
+      if (versao === consulta) finalizarConsulta = undefined;
+      if (ativa && versao === consulta) {
+        lista.removeAttribute('aria-busy');
+        placeholder.remove();
+        atualizar.disabled = false;
+      }
     }
   }
   const ocultarDados = () => {
     if (document.hidden) {
       consulta += 1;
+      finalizarConsulta?.();
+      finalizarConsulta = undefined;
+      lista.removeAttribute('aria-busy');
       lista.replaceChildren();
       vinculos.ocultar();
+      realizacao.ocultar();
     } else if (ativa && !suspensa) void carregar();
   };
   document.addEventListener('visibilitychange', ocultarDados);
@@ -394,6 +500,7 @@ export function montarAgendaIndividual(
     if (!pedidoDesconexao || !autorizacaoDesconexao) return;
     reconciliarDesconexao.disabled = true;
     status.textContent = 'Verificando desconexão…';
+    const finalizar = iniciarAcao(desconectar);
     try {
       const headers = cabecalhos();
       headers.set('Content-Type', 'application/json');
@@ -440,40 +547,52 @@ export function montarAgendaIndividual(
           'Não foi possível confirmar a desconexão. Use “Verificar desconexão” para consultar o resultado da mesma operação.';
       }
     } finally {
+      finalizar();
       if (ativa) reconciliarDesconexao.disabled = false;
     }
   }
   desconectar.addEventListener('click', () => {
-    if (
-      !versaoConexao ||
-      !operacaoConexao ||
-      !autorizacaoDesconexao ||
-      !armazenamentoDisponivel ||
-      !window.confirm(
-        'Desconectar a agenda Google? Será necessário autorizar novamente para voltar a usá-la.',
+    void (async () => {
+      if (
+        !versaoConexao ||
+        !operacaoConexao ||
+        !autorizacaoDesconexao ||
+        !armazenamentoDisponivel ||
+        !(await confirmar({
+          titulo: 'Desconectar a agenda Google?',
+          detalhe:
+            'Os compromissos deixam de ser sincronizados e será necessário autorizar o Google de novo para voltar a usá-la.',
+          acao: 'Desconectar a agenda',
+          cancelar: 'Manter conectada',
+        }))
       )
-    )
-      return;
-    const pedido = { operacao_id: operacaoConexao, versao: versaoConexao };
-    try {
-      localStorage.setItem(marcadorDesconexao, JSON.stringify(pedido));
-    } catch {
-      status.textContent = 'Não foi possível preparar a desconexão com segurança.';
-      return;
-    }
-    pedidoDesconexao = pedido;
-    suspensa = true;
-    conectar.disabled = desconectar.disabled = atualizar.disabled = true;
-    consulta += 1;
-    lista.replaceChildren();
-    vinculos.ocultar();
-    operacoesRaiz.hidden = true;
-    void enviarDesconexao();
+        return;
+      const pedido = { operacao_id: operacaoConexao, versao: versaoConexao };
+      try {
+        localStorage.setItem(marcadorDesconexao, JSON.stringify(pedido));
+      } catch {
+        status.textContent = 'Não foi possível preparar a desconexão com segurança.';
+        return;
+      }
+      pedidoDesconexao = pedido;
+      suspensa = true;
+      conectar.disabled = desconectar.disabled = atualizar.disabled = true;
+      consulta += 1;
+      finalizarConsulta?.();
+      finalizarConsulta = undefined;
+      lista.removeAttribute('aria-busy');
+      lista.replaceChildren();
+      vinculos.ocultar();
+      realizacao.ocultar();
+      operacoesRaiz.hidden = true;
+      void enviarDesconexao();
+    })();
   });
   reconciliarDesconexao.addEventListener('click', async () => {
     if (!pedidoDesconexao) return;
     reconciliarDesconexao.disabled = true;
     status.textContent = 'Consultando recibo…';
+    const finalizar = iniciarAcao(reconciliarDesconexao);
     try {
       const url = new URL('/api/agenda/google/desconexao/recibo', window.location.origin);
       url.searchParams.set('operacao_id', pedidoDesconexao.operacao_id);
@@ -523,14 +642,25 @@ export function montarAgendaIndividual(
       if (ativa)
         status.textContent = 'Não foi possível consultar o recibo. Tente novamente mais tarde.';
     } finally {
+      finalizar();
       if (ativa) reconciliarDesconexao.disabled = false;
     }
   });
   cancelarDesconexao.addEventListener('click', async () => {
-    if (!pedidoDesconexao || !window.confirm('Cancelar a tentativa pendente de desconexão?'))
+    if (!pedidoDesconexao) return;
+    if (
+      !(await confirmar({
+        titulo: 'Cancelar a tentativa pendente de desconexão?',
+        detalhe: 'A agenda continua conectada e a desconexão não será concluída.',
+        acao: 'Cancelar a desconexão',
+        cancelar: 'Manter a tentativa',
+      }))
+    )
       return;
+    if (!pedidoDesconexao) return;
     cancelarDesconexao.disabled = reconciliarDesconexao.disabled = true;
     status.textContent = 'Cancelando tentativa…';
+    const finalizar = iniciarAcao(cancelarDesconexao);
     try {
       const headers = cabecalhos();
       headers.set('Content-Type', 'application/json');
@@ -576,12 +706,14 @@ export function montarAgendaIndividual(
         status.textContent =
           'Não foi possível confirmar o cancelamento. Tente novamente ou consulte o recibo.';
     } finally {
+      finalizar();
       if (ativa) cancelarDesconexao.disabled = reconciliarDesconexao.disabled = false;
     }
   });
   conectar.addEventListener('click', async () => {
     conectar.disabled = true;
     status.textContent = 'Preparando conexão com Google…';
+    const finalizar = iniciarAcao(conectar);
     try {
       const headers = cabecalhos();
       headers.set('Content-Type', 'application/json');
@@ -608,6 +740,7 @@ export function montarAgendaIndividual(
         status.textContent =
           'Não foi possível iniciar a conexão. Tente novamente quando o serviço estiver disponível.';
     } finally {
+      finalizar();
       if (ativa && !pedidoDesconexao) conectar.disabled = false;
     }
   });
@@ -626,7 +759,10 @@ export function montarAgendaIndividual(
     document.removeEventListener('visibilitychange', ocultarDados);
     operacoes.desmontar();
     vinculos.desmontar();
+    realizacao.desmontar();
     consulta += 1;
+    finalizarConsulta?.();
+    lista.removeAttribute('aria-busy');
     raiz.replaceChildren();
   };
 }

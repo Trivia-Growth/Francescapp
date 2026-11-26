@@ -1,7 +1,32 @@
 import { z } from 'zod';
 import { eventoAuditoriaSchema } from './auditoria.ts';
 import { anamneseSchema, salvarAnamneseSchema } from './anamnese.ts';
+import {
+  consultarEncaminhamentosSchema,
+  encaminhamentoSchema,
+  salvarEncaminhamentoSchema,
+} from './encaminhamento.ts';
+import {
+  consultarOrientacoesSchema,
+  orientacaoSchema,
+  salvarOrientacaoSchema,
+} from './orientacao.ts';
+import {
+  consultarDiarioSchema,
+  registroDiarioSchema,
+  salvarRegistroDiarioSchema,
+} from './diario.ts';
+import {
+  configuracaoSistemaSchema,
+  gravarConfiguracaoSistemaSchema,
+} from './configuracao-sistema.ts';
+import { regrasAtendimentoSchema } from './regras-atendimento.ts';
 import { reservaCadastroSchema } from './rpc.ts';
+import {
+  aprovadorPlanoSchema,
+  aprovacaoObjetivoPlanoSchema,
+  campoExtraCatalogoSchema,
+} from './plano-cuidado.ts';
 
 import {
   atualizarAcessoUsuarioSchema,
@@ -28,6 +53,7 @@ import {
   novoContatoSchema,
   pacienteAdministrativoSchema,
   pacienteBasicoSchema,
+  pacienteListaSchema,
   revogarAcessoPacienteSchema,
 } from './cadastro.ts';
 import {
@@ -80,15 +106,54 @@ const consultaConcessoesSchema = z
     estado: z.enum(['pendente', 'vinculada', 'revogada']).optional(),
   })
   .strict();
+/** Filtros de FR-039: "identidade, data e objeto". `ator_id` casa tanto `ator_usuario_id`
+ * quanto `ator_auth_id` (identidade Auth não admitida).
+ *
+ * `paciente_id` filtra por CASO. Veio da decisão do solicitante de 12/11/2026, que trocou a
+ * nota 3 de `20261119300000` (onde o filtro não existia): a trilha passou a gravar o caso no
+ * evento (`20261120200000`). Eventos anteriores àquela migration não têm caso e, por isso, não
+ * aparecem neste filtro — aparecem nos demais. */
 const consultaAuditoriaSchema = z
   .object({
     cursor: cursorSchema.optional(),
     limite: limitePaginaSchema,
     ator_id: uuidSchema.optional(),
     objeto_id: uuidSchema.optional(),
+    paciente_id: uuidSchema.optional(),
     acao: z.string().trim().min(1).max(120).optional(),
+    resultado: z.enum(['permitido', 'negado', 'falhou']).optional(),
+    instante_de: z.iso.datetime({ offset: true }).optional(),
+    instante_ate: z.iso.datetime({ offset: true }).optional(),
+  })
+  .strict()
+  .refine(
+    (v) =>
+      !v.instante_de || !v.instante_ate || Date.parse(v.instante_de) <= Date.parse(v.instante_ate),
+    'O início do período não pode ser depois do fim.',
+  );
+const versaoEsperadaSchema = z.number().int().min(0).max(2147483646);
+const gravarCampoExtraPlanoSchema = z
+  .object({
+    campo_id: uuidSchema,
+    nome: z.string().trim().min(1).max(120),
+    tipo: z.enum(['texto', 'numero', 'data', 'lista']),
+    opcoes: z.array(z.string().trim().min(1).max(120)).min(1).max(20).nullable(),
+    ativo: z.boolean(),
+    versao_esperada: versaoEsperadaSchema,
+  })
+  .strict()
+  .refine(
+    (v) => (v.tipo === 'lista') === (v.opcoes !== null),
+    'opcoes é obrigatório só para tipo lista.',
+  );
+const gravarAprovadorPlanoSchema = z
+  .object({
+    usuario_id_aprovador: uuidSchema,
+    ativo: z.boolean(),
+    versao_esperada: versaoEsperadaSchema,
   })
   .strict();
+const aprovarObjetivoPlanoSchema = z.object({ registro_id: uuidSchema }).strict();
 
 export type MetodoHttp = 'GET' | 'POST' | 'PATCH';
 
@@ -220,7 +285,10 @@ const operacaoConcluidaSchema = z
   .object({ id: uuidSchema, versao: z.number().int().positive() })
   .strict();
 
-/** Catálogo completo das rotas D-09; handlers não devem declarar DTOs próprios. */
+/** Catálogo D-09 ligado às assinaturas RPC desse protocolo.
+ * Turno e conversão atômica usam contratos/compositores nativos próprios; não declarar
+ * aqui endpoints preparados órfãos nem fingir uma RPC simples para esses protocolos.
+ */
 export const contratosRotas = {
   desafioTecnico: comandoDeSessao(
     '/api/sessao/desafio-tecnico',
@@ -341,7 +409,7 @@ export const contratosRotas = {
   listarPacientes: consulta(
     '/api/pacientes',
     consultaPacientesSchema,
-    paginaSchema(pacienteBasicoSchema),
+    paginaSchema(pacienteListaSchema),
   ),
   // Contrato planejado, sem handler ou RPC; exposição exige S-02 e autorização.
   consultarOperacoesCadastro: consulta(
@@ -429,6 +497,91 @@ export const contratosRotas = {
     '/api/admin/auditoria',
     consultaAuditoriaSchema,
     paginaSchema(eventoAuditoriaSchema),
+  ),
+  // FR-041: não é rota de administração. Qualquer sessão autenticada lê — é o ponto do
+  // requisito. A edição continua em `gravarConfiguracaoSistema`, administrador-only.
+  consultarRegrasAtendimento: consulta(
+    '/api/regras-atendimento',
+    vazioSchema,
+    regrasAtendimentoSchema,
+  ),
+  listarConfiguracaoSistema: consulta(
+    '/api/admin/configuracao-sistema',
+    vazioSchema,
+    z.array(configuracaoSistemaSchema),
+  ),
+  gravarConfiguracaoSistema: mutacaoIdempotente(
+    'POST',
+    '/api/admin/configuracao-sistema',
+    gravarConfiguracaoSistemaSchema,
+    configuracaoSistemaSchema,
+  ),
+  listarCampoExtraPlano: consulta(
+    '/api/admin/campo-extra-plano',
+    vazioSchema,
+    z.array(campoExtraCatalogoSchema),
+  ),
+  gravarCampoExtraPlano: mutacaoIdempotente(
+    'POST',
+    '/api/admin/campo-extra-plano',
+    gravarCampoExtraPlanoSchema,
+    campoExtraCatalogoSchema,
+  ),
+  listarAprovadorPlano: consulta(
+    '/api/admin/aprovador-plano',
+    vazioSchema,
+    z.array(aprovadorPlanoSchema),
+  ),
+  gravarAprovadorPlano: mutacaoIdempotente(
+    'POST',
+    '/api/admin/aprovador-plano',
+    gravarAprovadorPlanoSchema,
+    aprovadorPlanoSchema,
+  ),
+  aprovarObjetivoPlano: mutacaoIdempotente(
+    'POST',
+    '/api/plano/aprovar-objetivo',
+    aprovarObjetivoPlanoSchema,
+    aprovacaoObjetivoPlanoSchema,
+  ),
+  consultarEncaminhamentos: consulta(
+    '/api/pacientes/:paciente_id/encaminhamentos',
+    consultarEncaminhamentosSchema,
+    z.array(encaminhamentoSchema),
+    pacienteParametrosSchema,
+  ),
+  salvarEncaminhamento: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/encaminhamentos',
+    salvarEncaminhamentoSchema,
+    encaminhamentoSchema,
+    pacienteParametrosSchema,
+  ),
+  consultarOrientacoes: consulta(
+    '/api/pacientes/:paciente_id/orientacoes',
+    consultarOrientacoesSchema,
+    z.array(orientacaoSchema),
+    pacienteParametrosSchema,
+  ),
+  salvarOrientacao: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/orientacoes',
+    salvarOrientacaoSchema,
+    orientacaoSchema,
+    pacienteParametrosSchema,
+  ),
+  consultarDiario: consulta(
+    '/api/pacientes/:paciente_id/diario',
+    consultarDiarioSchema,
+    z.array(registroDiarioSchema),
+    pacienteParametrosSchema,
+  ),
+  salvarRegistroDiario: mutacaoIdempotente(
+    'POST',
+    '/api/pacientes/:paciente_id/diario',
+    salvarRegistroDiarioSchema,
+    registroDiarioSchema,
+    pacienteParametrosSchema,
   ),
 } as const;
 

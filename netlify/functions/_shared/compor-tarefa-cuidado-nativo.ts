@@ -116,7 +116,7 @@ export async function comporTarefaCuidadoNativo(
         executar: (_request, transporte) => {
           verificarCancelamento();
           mutacaoIniciada = comando.operacao === 'gravar';
-          return executarTarefaCuidadoNativo(contexto.cliente, transporte);
+          return executarTarefaCuidadoNativo(contexto.cliente, transporte, comando.operacao);
         },
       }),
     );

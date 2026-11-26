@@ -1,4 +1,22 @@
+import { contratosBarreiraEquipeHttp } from '../packages/contracts/src/barreira-equipe-servidor.ts';
+import { contratosBarreiraTarefaHttp } from '../packages/contracts/src/barreira-tarefa-cuidado-servidor.ts';
+import { z } from 'zod';
+import { entrarInternoSchema } from '../packages/contracts/src/acessos.ts';
+import {
+  consultarHistoricoAnamneseSchema,
+  anamneseSchema,
+} from '../packages/contracts/src/anamnese.js';
+import {
+  consultaVinculosProfissionaisSchema,
+  paginaVinculosProfissionaisSchema,
+} from '../packages/contracts/src/vinculos-profissionais.js';
 import { criarContatoReservadoHttpSchema } from '../packages/contracts/src/barreira-contato-servidor.js';
+import type { FiltrosCarteira } from '../packages/contracts/src/cadastro.js';
+import {
+  criarAcessoReservadoHttpSchema,
+  revogarAcessoReservadoHttpSchema,
+  contratosBarreiraAcessoHttp,
+} from '../packages/contracts/src/barreira-acesso-servidor.js';
 import {
   contratosRotas,
   contratosBarreiraHttp,
@@ -11,11 +29,12 @@ import {
   entrarTecnicoSchema,
   entrarFamiliarSchema,
   chaveIdempotenciaSchema,
-  pacienteAdministrativoSchema,
+  pacienteEdicaoSchema,
   pacienteBasicoSchema,
   type novoContatoSchema,
   type AtualizarPaciente,
   type CriarPaciente,
+  type CriarConcessaoEquipe,
   type SalvarAnamnese,
 } from '../packages/contracts/src/index.js';
 
@@ -31,6 +50,12 @@ export class FalhaApi extends Error {
 
 const rotas = {
   sessaoAtual: { ...contratosRotas.sessaoAtual, saida: sessaoNativaSchema },
+  entrarInterno: {
+    metodo: 'POST',
+    caminho: '/api/auth/interno',
+    entrada: entrarInternoSchema,
+    saida: sessaoNativaSchema,
+  },
   entrarTecnico: {
     metodo: 'POST',
     caminho: '/api/auth/tecnica',
@@ -51,11 +76,57 @@ const rotas = {
   sairFamiliar: { ...contratosRotas.sairSessao, caminho: '/api/familiar/sessao/sair' },
   listarPacientes: contratosRotas.listarPacientes,
   listarConcessoes: contratosRotas.listarConcessoes,
+  criarConcessao: {
+    ...contratosRotas.criarConcessao,
+    entrada: z
+      .object({
+        entrada: contratosRotas.criarConcessao.entrada,
+        reserva_id: z.string().uuid(),
+        geracao_reserva: z.number().int().positive().safe(),
+      })
+      .strict(),
+  },
+  consultarBarreiraEquipe: {
+    ...contratosBarreiraEquipeHttp.consultar,
+    saida: contratosBarreiraEquipeHttp.consultar.saida.shape.dados,
+  },
+  reservarBarreiraEquipe: {
+    ...contratosBarreiraEquipeHttp.reservar,
+    saida: contratosBarreiraEquipeHttp.reservar.saida.shape.dados,
+  },
+  encerrarBarreiraEquipe: {
+    ...contratosBarreiraEquipeHttp.encerrar,
+    saida: contratosBarreiraEquipeHttp.encerrar.saida.shape.dados,
+  },
+  reconhecerBarreiraEquipe: {
+    ...contratosBarreiraEquipeHttp.reconhecer,
+    saida: contratosBarreiraEquipeHttp.reconhecer.saida.shape.dados,
+  },
+  disponibilidadeHistoricoAnamnese: {
+    metodo: 'GET',
+    caminho: '/api/anamnese/historico/disponibilidade',
+    entrada: z.object({}).strict(),
+    // `roteiro` é opcional de propósito: o caminho de emergência da rota (banco fora do ar)
+    // responde sem ele, e a tela não deve quebrar por causa de uma sugestão.
+    saida: z.object({ disponivel: z.boolean(), roteiro: z.array(z.string()).optional() }).strict(),
+  },
+  disponibilidadeEdicao: {
+    metodo: 'GET',
+    caminho: '/api/pacientes/edicao/disponibilidade',
+    entrada: z.object({}).strict(),
+    saida: z.object({ disponivel: z.boolean() }).strict(),
+  },
+  listarVinculosProfissionais: {
+    metodo: 'GET',
+    caminho: '/api/pacientes/:paciente_id/vinculos-profissionais',
+    entrada: consultaVinculosProfissionaisSchema,
+    saida: paginaVinculosProfissionaisSchema,
+  },
   listarPacientesFamiliar: {
     ...contratosRotas.listarPacientes,
     caminho: '/api/familiar/pacientes',
   },
-  consultarPaciente: { ...contratosRotas.consultarPaciente, saida: pacienteAdministrativoSchema },
+  consultarPaciente: { ...contratosRotas.consultarPaciente, saida: pacienteEdicaoSchema },
   consultarPacienteFamiliar: {
     ...contratosRotas.consultarPaciente,
     caminho: '/api/familiar/pacientes/:paciente_id',
@@ -63,7 +134,53 @@ const rotas = {
   },
   atualizarPaciente: contratosRotas.atualizarPaciente,
   criarContato: { ...contratosRotas.criarContato, entrada: criarContatoReservadoHttpSchema },
+  criarAcessoPaciente: {
+    ...contratosRotas.criarAcessoPaciente,
+    entrada: criarAcessoReservadoHttpSchema,
+  },
+  revogarAcessoPaciente: {
+    ...contratosRotas.revogarAcessoPaciente,
+    entrada: revogarAcessoReservadoHttpSchema,
+  },
+  consultarBarreiraTarefa: {
+    ...contratosBarreiraTarefaHttp.consultar,
+    saida: contratosBarreiraTarefaHttp.consultar.saida.shape.dados,
+  },
+  reservarBarreiraTarefa: {
+    ...contratosBarreiraTarefaHttp.reservar,
+    saida: contratosBarreiraTarefaHttp.reservar.saida.shape.dados,
+  },
+  encerrarBarreiraTarefa: {
+    ...contratosBarreiraTarefaHttp.encerrar,
+    saida: contratosBarreiraTarefaHttp.encerrar.saida.shape.dados,
+  },
+  reconhecerBarreiraTarefa: {
+    ...contratosBarreiraTarefaHttp.reconhecer,
+    saida: contratosBarreiraTarefaHttp.reconhecer.saida.shape.dados,
+  },
+  consultarBarreiraAcesso: {
+    ...contratosBarreiraAcessoHttp.consultar,
+    saida: contratosBarreiraAcessoHttp.consultar.saida.shape.dados,
+  },
+  reservarBarreiraAcesso: {
+    ...contratosBarreiraAcessoHttp.reservar,
+    saida: contratosBarreiraAcessoHttp.reservar.saida.shape.dados,
+  },
+  encerrarBarreiraAcesso: {
+    ...contratosBarreiraAcessoHttp.encerrar,
+    saida: contratosBarreiraAcessoHttp.encerrar.saida.shape.dados,
+  },
+  reconhecerBarreiraAcesso: {
+    ...contratosBarreiraAcessoHttp.reconhecer,
+    saida: contratosBarreiraAcessoHttp.reconhecer.saida.shape.dados,
+  },
   consultarAnamnese: contratosRotas.consultarAnamnese,
+  consultarHistoricoAnamnese: {
+    metodo: 'GET',
+    caminho: '/api/pacientes/:paciente_id/anamnese/historico',
+    entrada: consultarHistoricoAnamneseSchema,
+    saida: anamneseSchema.nullable(),
+  },
   salvarAnamnese: contratosRotas.salvarAnamnese,
   criarPaciente: contratosRotas.criarPaciente,
   sairSessao: contratosRotas.sairSessao,
@@ -148,6 +265,13 @@ export function mensagemFalha(erro: unknown): string {
   return 'Serviço indisponível. Tente novamente em alguns instantes.';
 }
 
+/** Recusa de permissão com a sessão viva: o servidor respondeu `sem_permissao`, não
+ * `nao_autenticado`. Continua dentro de `exigeNovoAcesso` para que as 53 leituras que
+ * dependem disso sigam limpando o conteúdo negado — o que muda é só quem decide expulsar. */
+export function semPermissao(erro: unknown): boolean {
+  return erro instanceof FalhaApi && erro.status === 403 && !erro.exigeReautenticacao;
+}
+
 export function exigeNovoAcesso(erro: unknown): boolean {
   return (
     erro instanceof FalhaApi &&
@@ -169,6 +293,7 @@ export function resultadoIncerto(erro: unknown): boolean {
 export class ClienteFFCM {
   #sessionId: string | null = null;
   #usuarioId: string | null = null;
+  #familiaConta = false;
   // Contador de respostas da interface; não é credencial nem geração de sessão.
   #revisao = 0;
   #tentativaEntrada = 0;
@@ -180,6 +305,7 @@ export class ClienteFFCM {
   limpar(): void {
     this.#sessionId = null;
     this.#usuarioId = null;
+    this.#familiaConta = false;
     this.#saindo = false;
     this.#revisao += 1;
   }
@@ -192,6 +318,7 @@ export class ClienteFFCM {
       protegido?: boolean;
       encerramento?: boolean;
       pacienteId?: string;
+      acessoId?: string;
       fluxoEntrada?: string;
     } = {},
   ): Promise<Dados<R>> {
@@ -214,18 +341,29 @@ export class ClienteFFCM {
     };
     let caminho: string = contrato.caminho;
     if (
+      rota === 'listarVinculosProfissionais' ||
       rota === 'consultarAnamnese' ||
       rota === 'salvarAnamnese' ||
       rota === 'consultarPaciente' ||
       rota === 'consultarPacienteFamiliar' ||
       rota === 'atualizarPaciente' ||
-      rota === 'criarContato'
+      rota === 'criarContato' ||
+      rota === 'criarAcessoPaciente' ||
+      rota === 'revogarAcessoPaciente'
     ) {
       const parametros = contratosRotas.consultarAnamnese.parametros.safeParse({
         paciente_id: opcoes.pacienteId,
       });
       if (!parametros.success) throw new FalhaApi('entrada_invalida', 422);
       caminho = caminho.replace(':paciente_id', encodeURIComponent(parametros.data.paciente_id));
+    }
+    if (rota === 'revogarAcessoPaciente') {
+      const parametros = contratosRotas.revogarAcessoPaciente.parametros.safeParse({
+        paciente_id: opcoes.pacienteId,
+        acesso_id: opcoes.acessoId,
+      });
+      if (!parametros.success) throw new FalhaApi('entrada_invalida', 422);
+      caminho = caminho.replace(':acesso_id', encodeURIComponent(parametros.data.acesso_id));
     }
     const url = new URL(caminho, window.location.origin);
     const headers = new Headers({ Accept: 'application/json' });
@@ -235,7 +373,7 @@ export class ClienteFFCM {
       // Compara o alvo com o cookie atual no servidor; nunca concede autorização.
       headers.set('x-sessao', sessionId);
     }
-    if (rota === 'entrarTecnico' || rota === 'entrarFamiliar') {
+    if (rota === 'entrarInterno' || rota === 'entrarTecnico' || rota === 'entrarFamiliar') {
       if (!opcoes.fluxoEntrada || !/^[A-Za-z0-9_-]{22}$/.test(opcoes.fluxoEntrada))
         throw new FalhaApi('nao_autenticado', 401);
       headers.set('x-fluxo', opcoes.fluxoEntrada);
@@ -247,14 +385,17 @@ export class ClienteFFCM {
         fluxo = sessionStorage.getItem(
           modo === 'familiar' || modo === 'saindo-familiar'
             ? 'fluxo-familiar'
-            : modo === 'tecnica' || modo === 'saindo-tecnica'
-              ? 'fluxo-tecnico'
-              : 'fluxo-google',
+            : modo === 'interno' || modo === 'saindo-interno'
+              ? 'fluxo-interno'
+              : modo === 'tecnica' || modo === 'saindo-tecnica'
+                ? 'fluxo-tecnico'
+                : 'fluxo-google',
         );
       } catch {
         throw new FalhaApi('nao_autenticado', 401);
       }
       const google = modo === 'google' || (opcoes.encerramento && modo === 'saindo-google');
+      const interno = modo === 'interno' || (opcoes.encerramento && modo === 'saindo-interno');
       const tecnica = modo === 'tecnica' || (opcoes.encerramento && modo === 'saindo-tecnica');
       const familiar = modo === 'familiar' || (opcoes.encerramento && modo === 'saindo-familiar');
       const rotaFamiliar =
@@ -263,7 +404,10 @@ export class ClienteFFCM {
         rota === 'listarPacientesFamiliar' ||
         rota === 'consultarPacienteFamiliar';
       if (familiar && !rotaFamiliar) throw new FalhaApi('servico_indisponivel', 503);
-      if ((!google && !tecnica && !familiar) || (!familiar && rotaFamiliar))
+      if (
+        (!google && !interno && !tecnica && !familiar) ||
+        (!familiar && !((interno || google) && this.#familiaConta) && rotaFamiliar)
+      )
         throw new FalhaApi('nao_autenticado', 401);
       if (!fluxo || !/^[A-Za-z0-9_-]{22}$/.test(fluxo)) throw new FalhaApi('nao_autenticado', 401);
       headers.set('x-fluxo', fluxo);
@@ -272,7 +416,17 @@ export class ClienteFFCM {
     let corpo: string | undefined;
     if (contrato.metodo === 'GET') {
       for (const [campo, valor] of Object.entries(validada.data)) {
-        if (valor !== undefined) url.searchParams.set(campo, String(valor));
+        if (valor === undefined) continue;
+        // Os filtros da carteira viajam achatados como `filtro_<nome>`, porque é assim que
+        // o servidor os lê e os assina; serializar o objeto inteiro mandaria um valor que
+        // nenhum dos dois lados entende.
+        if (campo === 'filtros' && valor !== null && typeof valor === 'object') {
+          for (const [nome, escolha] of Object.entries(valor as Record<string, unknown>)) {
+            if (escolha !== undefined) url.searchParams.set(`filtro_${nome}`, String(escolha));
+          }
+          continue;
+        }
+        url.searchParams.set(campo, String(valor));
       }
     } else {
       headers.set('Content-Type', 'application/json');
@@ -338,6 +492,10 @@ export class ClienteFFCM {
     return this.#entrar(email, senha, 'tecnica');
   }
 
+  async entrarInterno(email: string, senha: string): Promise<Dados<'sessaoAtual'>> {
+    return this.#entrar(email, senha, 'interno');
+  }
+
   async entrarFamiliar(email: string, senha: string): Promise<Dados<'sessaoFamiliar'>> {
     return this.#entrar(email, senha, 'familiar');
   }
@@ -345,7 +503,7 @@ export class ClienteFFCM {
   async #entrar(
     email: string,
     senha: string,
-    modo: 'tecnica' | 'familiar',
+    modo: 'tecnica' | 'familiar' | 'interno',
   ): Promise<Dados<'sessaoAtual'>> {
     const tentativa = ++this.#tentativaEntrada;
     this.limpar();
@@ -353,6 +511,8 @@ export class ClienteFFCM {
       sessionStorage.setItem('modo-acesso', 'bloqueada');
       sessionStorage.removeItem('fluxo-google');
       sessionStorage.removeItem('sessao-tecnica');
+      sessionStorage.removeItem('sessao-interno');
+      sessionStorage.removeItem('fluxo-interno');
       sessionStorage.removeItem('fluxo-familiar');
       sessionStorage.removeItem('sessao-familiar');
       const bytes = crypto.getRandomValues(new Uint8Array(16));
@@ -360,21 +520,44 @@ export class ClienteFFCM {
         .replaceAll('+', '-')
         .replaceAll('/', '_')
         .replaceAll('=', '');
-      const chaveFluxo = modo === 'tecnica' ? 'fluxo-tecnico' : 'fluxo-familiar';
+      const chaveFluxo =
+        modo === 'interno'
+          ? 'fluxo-interno'
+          : modo === 'tecnica'
+            ? 'fluxo-tecnico'
+            : 'fluxo-familiar';
       sessionStorage.setItem(chaveFluxo, fluxo);
       if (sessionStorage.getItem(chaveFluxo) !== fluxo) throw new Error();
       const entrada = await this.#enviar(
-        modo === 'tecnica' ? 'entrarTecnico' : 'entrarFamiliar',
+        modo === 'interno'
+          ? 'entrarInterno'
+          : modo === 'tecnica'
+            ? 'entrarTecnico'
+            : 'entrarFamiliar',
         { email, senha },
         { fluxoEntrada: fluxo },
       );
       sessionStorage.setItem('modo-acesso', modo);
+      this.#familiaConta = entrada.usuario.perfil === 'familia';
       // Consulta independente confirma concessão e perfil atuais; não confia só no login.
       return await this.#consultarSessao(entrada, modo === 'familiar');
     } catch (erro) {
       try {
-        if (tentativa === this.#tentativaEntrada)
+        if (tentativa === this.#tentativaEntrada) {
+          // `bloqueada` continua: sem entrada concluída não há sessão, e afrouxar isso é
+          // justamente o que deixaria uma sessão ambígua passar por válida. O que sai são as
+          // marcas da tentativa que falhou — não valem mais, e deixá-las para trás atrapalha a
+          // próxima entrada (smoke de 13/11/2026: sobrou `fluxo-google` órfão de uma tentativa
+          // abandonada). A entrada pelo Google segue se recuperando sozinha: o envio do
+          // formulário grava um fluxo novo.
           sessionStorage.setItem('modo-acesso', 'bloqueada');
+          sessionStorage.removeItem('fluxo-tecnico');
+          sessionStorage.removeItem('fluxo-familiar');
+          sessionStorage.removeItem('sessao-tecnica');
+          sessionStorage.removeItem('sessao-interno');
+          sessionStorage.removeItem('fluxo-interno');
+          sessionStorage.removeItem('sessao-familiar');
+        }
       } catch {
         /* falha fechada */
       }
@@ -407,13 +590,15 @@ export class ClienteFFCM {
     let esperada: string | null;
     try {
       modo = sessionStorage.getItem('modo-acesso');
-      esperada = sessionStorage.getItem(familiar ? 'sessao-familiar' : 'sessao-tecnica');
+      esperada = sessionStorage.getItem(
+        modo === 'interno' ? 'sessao-interno' : familiar ? 'sessao-familiar' : 'sessao-tecnica',
+      );
     } catch {
       throw new FalhaApi('nao_autenticado', 401);
     }
     if (
       (familiar ? modo !== 'familiar' : modo === 'familiar') ||
-      ((modo === 'tecnica' || modo === 'familiar') && !entrada && !esperada)
+      ((modo === 'interno' || modo === 'tecnica' || modo === 'familiar') && !entrada && !esperada)
     )
       throw new FalhaApi('nao_autenticado', 401);
     let atual: Dados<'sessaoAtual'>;
@@ -432,7 +617,9 @@ export class ClienteFFCM {
     if (revisao !== this.#revisao) throw new FalhaApi('nao_autenticado', 401);
     if (
       !atual.usuario.ativo ||
-      ((modo === 'tecnica' || modo === 'familiar') && !entrada && atual.session_id !== esperada) ||
+      ((modo === 'interno' || modo === 'tecnica' || modo === 'familiar') &&
+        !entrada &&
+        atual.session_id !== esperada) ||
       (entrada &&
         (atual.session_id !== entrada.session_id || atual.usuario.id !== entrada.usuario.id)) ||
       (anterior && (atual.session_id !== anterior || atual.usuario.id !== this.#usuarioId))
@@ -440,9 +627,10 @@ export class ClienteFFCM {
       this.limpar();
       throw new FalhaApi('nao_autenticado', 401);
     }
-    if ((modo === 'tecnica' || modo === 'familiar') && entrada) {
+    if ((modo === 'interno' || modo === 'tecnica' || modo === 'familiar') && entrada) {
       try {
-        const chaveSessao = familiar ? 'sessao-familiar' : 'sessao-tecnica';
+        const chaveSessao =
+          modo === 'interno' ? 'sessao-interno' : familiar ? 'sessao-familiar' : 'sessao-tecnica';
         sessionStorage.setItem(chaveSessao, atual.session_id);
         if (sessionStorage.getItem(chaveSessao) !== atual.session_id) throw new Error();
       } catch {
@@ -450,31 +638,71 @@ export class ClienteFFCM {
         throw new FalhaApi('nao_autenticado', 401);
       }
     }
+    this.#familiaConta = atual.usuario.perfil === 'familia';
     this.#sessionId = atual.session_id;
     this.#usuarioId = atual.usuario.id;
     return atual;
   }
 
-  listarPacientes(cursor?: string): Promise<Dados<'listarPacientes'>> {
+  listarPacientes(cursor?: string, filtros?: FiltrosCarteira): Promise<Dados<'listarPacientes'>> {
     let familiar: boolean;
     try {
-      familiar = sessionStorage.getItem('modo-acesso') === 'familiar';
+      familiar = sessionStorage.getItem('modo-acesso') === 'familiar' || this.#familiaConta;
     } catch {
       throw new FalhaApi('nao_autenticado', 401);
     }
+    const recorte = filtros && Object.keys(filtros).length > 0 ? { filtros } : {};
     return this.#enviar(
       familiar ? 'listarPacientesFamiliar' : 'listarPacientes',
-      { limite: 25, ...(cursor ? { cursor } : {}) },
+      { limite: 25, ...(cursor ? { cursor } : {}), ...recorte },
       { protegido: true },
     );
+  }
+
+  listarVinculosProfissionais(pacienteId: string, cursor?: string) {
+    return this.#enviar('listarVinculosProfissionais', cursor ? { cursor } : {}, {
+      protegido: true,
+      pacienteId,
+    });
+  }
+
+  disponibilidadeEdicao() {
+    return this.#enviar('disponibilidadeEdicao', {}, { protegido: true });
   }
 
   listarProfissionais(cursor?: string): Promise<Dados<'listarConcessoes'>> {
     return this.#enviar(
       'listarConcessoes',
-      { estado: 'vinculada', limite: 25, ...(cursor ? { cursor } : {}) },
+      { limite: 25, ...(cursor ? { cursor } : {}) },
       { protegido: true },
     );
+  }
+
+  criarConcessaoEquipe(
+    entrada: CriarConcessaoEquipe,
+    chave: string,
+    reserva: { reserva_id: string; geracao_reserva: number },
+  ) {
+    if (!chaveIdempotenciaSchema.safeParse(chave).success)
+      return Promise.reject(new FalhaApi('entrada_invalida', 422));
+    return this.#enviar('criarConcessao', { entrada, ...reserva }, { protegido: true, chave });
+  }
+
+  consultarBarreiraEquipe() {
+    return this.#enviar('consultarBarreiraEquipe', {}, { protegido: true });
+  }
+  reservarBarreiraEquipe(entrada: { epoca: number; reserva_id: string }) {
+    return this.#enviar('reservarBarreiraEquipe', entrada, { protegido: true });
+  }
+  encerrarBarreiraEquipe(entrada: {
+    epoca: number;
+    reserva_id: string | null;
+    comando_id: string;
+  }) {
+    return this.#enviar('encerrarBarreiraEquipe', entrada, { protegido: true });
+  }
+  reconhecerBarreiraEquipe(entrada: { comando_id: string }) {
+    return this.#enviar('reconhecerBarreiraEquipe', entrada, { protegido: true });
   }
 
   consultarPacienteFamiliar(pacienteId: string): Promise<Dados<'consultarPacienteFamiliar'>> {
@@ -520,8 +748,100 @@ export class ClienteFFCM {
     );
   }
 
+  criarAcessoPaciente(
+    pacienteId: string,
+    entrada: { acesso_id: string; usuario_id: string; motivo: string },
+    chave: string,
+    reserva: { reserva_id: string; geracao_reserva: number },
+  ) {
+    return this.#enviar(
+      'criarAcessoPaciente',
+      { entrada, ...reserva },
+      { protegido: true, pacienteId, chave },
+    );
+  }
+  revogarAcessoPaciente(
+    pacienteId: string,
+    acessoId: string,
+    entrada: { versao_esperada: number; motivo: string },
+    chave: string,
+    reserva: { reserva_id: string; geracao_reserva: number },
+  ) {
+    return this.#enviar(
+      'revogarAcessoPaciente',
+      { entrada, ...reserva },
+      {
+        protegido: true,
+        pacienteId,
+        acessoId,
+        chave,
+      },
+    );
+  }
+  consultarBarreiraTarefa() {
+    return this.#enviar('consultarBarreiraTarefa', {}, { protegido: true });
+  }
+  reservarBarreiraTarefa(entrada: {
+    epoca: number;
+    reserva_id: string;
+    paciente_id: string;
+    tarefa_id: string;
+    versao_esperada: number;
+  }) {
+    return this.#enviar('reservarBarreiraTarefa', entrada, { protegido: true });
+  }
+  encerrarBarreiraTarefa(entrada: {
+    epoca: number;
+    reserva_id: string | null;
+    comando_id: string;
+  }) {
+    return this.#enviar('encerrarBarreiraTarefa', entrada, { protegido: true });
+  }
+  reconhecerBarreiraTarefa(entrada: { comando_id: string }) {
+    return this.#enviar('reconhecerBarreiraTarefa', entrada, { protegido: true });
+  }
+  consultarBarreiraAcesso() {
+    return this.#enviar('consultarBarreiraAcesso', {}, { protegido: true });
+  }
+  reservarBarreiraAcesso(
+    entrada:
+      | { epoca: number; reserva_id: string; paciente_id: string; acao: 'conceder' }
+      | {
+          epoca: number;
+          reserva_id: string;
+          paciente_id: string;
+          acao: 'revogar';
+          acesso_id: string;
+          versao_esperada: number;
+        },
+  ) {
+    return this.#enviar('reservarBarreiraAcesso', entrada, { protegido: true });
+  }
+  encerrarBarreiraAcesso(entrada: {
+    epoca: number;
+    reserva_id: string | null;
+    comando_id: string;
+  }) {
+    return this.#enviar('encerrarBarreiraAcesso', entrada, { protegido: true });
+  }
+  reconhecerBarreiraAcesso(entrada: { comando_id: string }) {
+    return this.#enviar('reconhecerBarreiraAcesso', entrada, { protegido: true });
+  }
+
+  disponibilidadeHistoricoAnamnese() {
+    return this.#enviar('disponibilidadeHistoricoAnamnese', {}, { protegido: true });
+  }
+
   consultarAnamnese(pacienteId: string): Promise<Dados<'consultarAnamnese'>> {
     return this.#enviar('consultarAnamnese', {}, { protegido: true, pacienteId });
+  }
+
+  consultarHistoricoAnamnese(pacienteId: string, antesVersao?: number) {
+    return this.#enviar(
+      'consultarHistoricoAnamnese',
+      antesVersao === undefined ? {} : { antes_versao: antesVersao },
+      { protegido: true, pacienteId },
+    );
   }
 
   salvarAnamnese(
@@ -613,12 +933,16 @@ export class ClienteFFCM {
     if (!this.#sessionId) throw new FalhaApi('nao_autenticado', 401);
     try {
       const modo = sessionStorage.getItem('modo-acesso');
-      if (familiar ? modo === 'familiar' : modo === 'google' || modo === 'tecnica')
+      if (
+        familiar
+          ? modo === 'familiar'
+          : modo === 'google' || modo === 'tecnica' || modo === 'interno'
+      )
         sessionStorage.setItem('modo-acesso', `saindo-${modo}`);
       else if (
         familiar
           ? modo !== 'saindo-familiar'
-          : modo !== 'saindo-google' && modo !== 'saindo-tecnica'
+          : modo !== 'saindo-google' && modo !== 'saindo-tecnica' && modo !== 'saindo-interno'
       )
         throw new Error();
     } catch {
@@ -636,6 +960,8 @@ export class ClienteFFCM {
       sessionStorage.setItem('modo-acesso', 'bloqueada');
       sessionStorage.removeItem('fluxo-google');
       sessionStorage.removeItem('sessao-tecnica');
+      sessionStorage.removeItem('sessao-interno');
+      sessionStorage.removeItem('fluxo-interno');
       sessionStorage.removeItem('fluxo-tecnico');
       sessionStorage.removeItem('fluxo-familiar');
       sessionStorage.removeItem('sessao-familiar');

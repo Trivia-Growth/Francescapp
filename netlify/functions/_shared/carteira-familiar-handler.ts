@@ -73,6 +73,7 @@ export async function consultarCarteiraFamiliar(
       ...(cursor === undefined ? {} : { cursor }),
       request_id: requestId,
     });
+    if (request.signal.aborted) return erro('nao_autenticado');
     const pagina = await processarCarteiraExperimental(
       resposta,
       { requestId, limite: validada.data.limite, signal: request.signal },

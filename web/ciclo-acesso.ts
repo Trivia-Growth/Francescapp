@@ -1,0 +1,305 @@
+import { consultaBarreiraAcessoSchema } from '../packages/contracts/src/barreira-acesso.ts';
+import {
+  criarAcessoPacienteSchema,
+  revogarAcessoPacienteSchema,
+  contratosRotas,
+  estadoEncerramentoCadastroSchema,
+  estadoReconhecimentoCadastroSchema,
+  estadoReservaCadastroSchema,
+  uuidSchema,
+} from '../packages/contracts/src/index.ts';
+
+type Consulta = ReturnType<typeof consultaBarreiraAcessoSchema.parse>;
+type Identidade = Readonly<{ usuario_id: string; session_id: string }>;
+type Portas = {
+  identidadeAtual(): Identidade | null;
+  consultar(identidade: Identidade): Promise<unknown>;
+  reservar(
+    entrada:
+      | { epoca: number; reserva_id: string; paciente_id: string; acao: 'conceder' }
+      | {
+          epoca: number;
+          reserva_id: string;
+          paciente_id: string;
+          acao: 'revogar';
+          acesso_id: string;
+          versao_esperada: number;
+        },
+    identidade: Identidade,
+  ): Promise<unknown>;
+  criar(
+    entrada: {
+      entrada: ReturnType<typeof criarAcessoPacienteSchema.parse> & { acesso_id: string };
+      paciente_id: string;
+      chave: string;
+      reserva_id: string;
+      geracao_reserva: number;
+    },
+    identidade: Identidade,
+  ): Promise<unknown>;
+  revogar(
+    entrada: {
+      paciente_id: string;
+      acesso_id: string;
+      entrada: ReturnType<typeof revogarAcessoPacienteSchema.parse>;
+      chave: string;
+      reserva_id: string;
+      geracao_reserva: number;
+    },
+    identidade: Identidade,
+  ): Promise<unknown>;
+  encerrar(
+    entrada: {
+      epoca: number;
+      reserva_id: string | null;
+      comando_id: string;
+    },
+    identidade: Identidade,
+  ): Promise<unknown>;
+  reconhecer(entrada: { comando_id: string }, identidade: Identidade): Promise<unknown>;
+};
+
+/** Não persiste dados. Portas devem vincular cada pedido à identidade capturada,
+ * autenticar, autorizar e validar transporte no servidor.
+ * Resultado incerto exige encerramento autorizado e consulta, inclusive após recarga. */
+export function criarCicloAcesso(portas: Portas, novoId: () => string = () => crypto.randomUUID()) {
+  const inicial = portas.identidadeAtual();
+  if (!inicial) throw new Error('Sessão indisponível');
+  const identidade = Object.freeze({
+    usuario_id: uuidSchema.parse(inicial.usuario_id).toLowerCase(),
+    session_id: uuidSchema.parse(inicial.session_id).toLowerCase(),
+  });
+  let ocupado = false;
+  let invalidado = false;
+  let consulta: Consulta | null = null;
+  let inseguro = true;
+  let cercado = false;
+  let encerramento: { epoca: number; reserva_id: string | null; comando_id: string } | null = null;
+  let reconhecimento: string | null = null;
+  const id = () => uuidSchema.parse(novoId());
+  const verificarIdentidade = () => {
+    let atual: Identidade | null = null;
+    try {
+      atual = portas.identidadeAtual();
+    } catch {
+      // Indisponibilidade não prova identidade vigente.
+    }
+    if (
+      invalidado ||
+      !atual ||
+      typeof atual.usuario_id !== 'string' ||
+      atual.usuario_id.toLowerCase() !== identidade.usuario_id ||
+      typeof atual.session_id !== 'string' ||
+      atual.session_id.toLowerCase() !== identidade.session_id
+    ) {
+      invalidado = true;
+      consulta = null;
+      encerramento = null;
+      reconhecimento = null;
+      inseguro = true;
+      cercado = false;
+      throw new Error('Sessão alterada');
+    }
+  };
+  const chamar = async <T>(acao: () => Promise<T>): Promise<T> => {
+    verificarIdentidade();
+    try {
+      const resultado = await acao();
+      verificarIdentidade();
+      return resultado;
+    } catch (erro) {
+      verificarIdentidade();
+      throw erro;
+    }
+  };
+  const executar = async <T>(acao: () => Promise<T>): Promise<T> => {
+    verificarIdentidade();
+    if (ocupado) throw new Error('Operação em andamento');
+    ocupado = true;
+    try {
+      return await acao();
+    } finally {
+      ocupado = false;
+    }
+  };
+
+  return {
+    consultar: () =>
+      executar(async () => {
+        consulta = null;
+        try {
+          const atual = consultaBarreiraAcessoSchema.parse(
+            await chamar(() => portas.consultar(identidade)),
+          );
+          verificarIdentidade();
+          consulta = atual;
+          return atual;
+        } catch (erro) {
+          inseguro = true;
+          throw erro;
+        }
+      }),
+    criar: (pacienteId: string, dados: ReturnType<typeof criarAcessoPacienteSchema.parse>) =>
+      executar(async () => {
+        const paciente_id = uuidSchema.parse(pacienteId);
+        const entrada = criarAcessoPacienteSchema.parse(dados);
+        if (
+          !consulta ||
+          consulta.reserva ||
+          consulta.resultado_pendente ||
+          inseguro ||
+          encerramento ||
+          reconhecimento
+        )
+          throw new Error('Acesso bloqueado');
+        const epoca = consulta.epoca;
+        const reserva_id = id();
+        const chave = id();
+        const acesso_id = id();
+        // A chamada pode chegar ao servidor mesmo quando sua resposta se perde.
+        inseguro = true;
+        cercado = false;
+        consulta = null;
+        const estado = estadoReservaCadastroSchema.parse(
+          await chamar(() =>
+            portas.reservar({ epoca, reserva_id, paciente_id, acao: 'conceder' }, identidade),
+          ),
+        );
+        verificarIdentidade();
+        if (estado !== 'aberta') throw new Error('Reserva não confirmada');
+        const acesso = contratosRotas.criarAcessoPaciente.saida.parse(
+          await chamar(() =>
+            portas.criar(
+              {
+                entrada: { ...entrada, acesso_id },
+                paciente_id,
+                chave,
+                reserva_id,
+                geracao_reserva: epoca,
+              },
+              identidade,
+            ),
+          ),
+        );
+        verificarIdentidade();
+        if (acesso.id.toLowerCase() !== acesso_id.toLowerCase())
+          throw new Error('Resultado divergente');
+        return acesso;
+      }),
+    revogar: (
+      pacienteId: string,
+      acessoId: string,
+      dados: ReturnType<typeof revogarAcessoPacienteSchema.parse>,
+    ) =>
+      executar(async () => {
+        const paciente_id = uuidSchema.parse(pacienteId);
+        const acesso_id = uuidSchema.parse(acessoId);
+        const entrada = revogarAcessoPacienteSchema.parse(dados);
+        if (
+          !consulta ||
+          consulta.reserva ||
+          consulta.resultado_pendente ||
+          inseguro ||
+          encerramento ||
+          reconhecimento
+        )
+          throw new Error('Acesso bloqueado');
+        const epoca = consulta.epoca;
+        const reserva_id = id();
+        const chave = id();
+        inseguro = true;
+        cercado = false;
+        consulta = null;
+        const estado = estadoReservaCadastroSchema.parse(
+          await chamar(() =>
+            portas.reservar(
+              {
+                acao: 'revogar',
+                epoca,
+                reserva_id,
+                paciente_id,
+                acesso_id,
+                versao_esperada: entrada.versao_esperada,
+              },
+              identidade,
+            ),
+          ),
+        );
+        if (estado !== 'aberta') throw new Error('Reserva não confirmada');
+        const resultado = contratosRotas.revogarAcessoPaciente.saida.parse(
+          await chamar(() =>
+            portas.revogar(
+              {
+                paciente_id,
+                acesso_id,
+                entrada,
+                chave,
+                reserva_id,
+                geracao_reserva: epoca,
+              },
+              identidade,
+            ),
+          ),
+        );
+        if (resultado.id.toLowerCase() !== acesso_id.toLowerCase())
+          throw new Error('Resultado divergente');
+        return resultado;
+      }),
+    encerrar: () =>
+      executar(async () => {
+        if (!encerramento) {
+          if (!consulta || consulta.resultado_pendente) throw new Error('Consulta necessária');
+          encerramento = {
+            epoca: consulta.epoca,
+            reserva_id: consulta.reserva?.id ?? null,
+            comando_id: id(),
+          };
+        }
+        inseguro = true;
+        const comando = encerramento;
+        const estado = estadoEncerramentoCadastroSchema.parse(
+          await chamar(() => portas.encerrar(comando, identidade)),
+        );
+        verificarIdentidade();
+        if (estado !== 'vazia' && estado !== 'cancelada' && estado !== 'confirmada')
+          throw new Error('Encerramento não confirmado');
+        encerramento = null;
+        cercado = true;
+        consulta = null;
+        return estado;
+      }),
+    reconhecer: () =>
+      executar(async () => {
+        if (!reconhecimento) {
+          if (!consulta?.resultado_pendente) throw new Error('Resultado pendente necessário');
+          reconhecimento = consulta.resultado_pendente.recibo_id;
+        }
+        inseguro = true;
+        const comando_id = reconhecimento;
+        const estado = estadoReconhecimentoCadastroSchema.parse(
+          await chamar(() => portas.reconhecer({ comando_id }, identidade)),
+        );
+        verificarIdentidade();
+        if (estado !== 'reconhecido') throw new Error('Reconhecimento não confirmado');
+        reconhecimento = null;
+        cercado = true;
+        consulta = null;
+        return estado;
+      }),
+    /** Só após encerramento/reconhecimento confirmado e nova consulta vazia. */
+    liberar: () => {
+      verificarIdentidade();
+      if (
+        ocupado ||
+        !cercado ||
+        encerramento ||
+        reconhecimento ||
+        !consulta ||
+        consulta.reserva ||
+        consulta.resultado_pendente
+      )
+        throw new Error('Acesso bloqueado');
+      inseguro = false;
+    },
+  };
+}

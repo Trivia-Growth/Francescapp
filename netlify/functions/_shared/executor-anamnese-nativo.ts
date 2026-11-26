@@ -8,9 +8,12 @@ type TransporteAnamnese = Parameters<Parameters<typeof operarAnamneseNativa>[2][
 export async function executarAnamneseNativa(
   cliente: ReturnType<typeof criarContextoAuthNativo>['cliente'],
   transporte: TransporteAnamnese,
+  historico = false,
 ): Promise<unknown> {
   try {
-    const resultado = await cliente.schema('api').rpc('anamnese_privada', transporte);
+    const resultado = await cliente
+      .schema('api')
+      .rpc(historico ? 'historico_anamnese_privada' : 'anamnese_privada', transporte);
     if (resultado.error) throw new Error();
     return resultado.data;
   } catch {

@@ -165,6 +165,7 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
           body: JSON.stringify({
             objetivo_id: objetivoId,
             objetivo,
+            visibilidade: 'interna',
             reserva_id: reserva,
             geracao_reserva: 1,
           }),
@@ -191,7 +192,12 @@ it.skipIf(!process.env.FFCM_PG_SOCKET)(
       const revisao = await fetch(`${url}/${objetivoId}`, {
         method: 'PATCH',
         headers: { ...headers, 'x-chave-idempotencia': crypto.randomUUID() },
-        body: JSON.stringify({ versao_esperada: 1, objetivo: revisado, motivo: 'revisão' }),
+        body: JSON.stringify({
+          versao_esperada: 1,
+          objetivo: revisado,
+          motivo: 'revisão',
+          visibilidade: 'interna',
+        }),
       });
       expect(revisao.status).toBe(200);
       const historico = `${url}/${objetivoId}/historico`;

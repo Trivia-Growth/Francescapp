@@ -2,18 +2,30 @@
 
 ## 1. Decisões para abertura da implementação
 
-- [ ] 1.1 Confirmar bloqueadores materiais do design para FR-023/025/049/050 e registrar decisões verificáveis; evidência: respostas reconciliadas entre proposta, spec e design.
-- [ ] 1.2 Após 1.1, detalhar fatia e revisão independente com autorização positiva e negativa, acesso direto, outro paciente/perfil, revogação, ACL Google, falha e resposta incerta; evidência: tarefas com dependências e critérios de aceite sem presumir integração.
+- [x] 1.1 (17/11/2026) Escopo da V1 confirmado: **somente evento único na agenda individual do profissional** — consultar, criar, alterar e cancelar uma ocorrência, com confirmação na origem antes de informar sucesso. É o recorte já descrito como demonstrável nesta change.
 
-Preparação local com Vault no servidor e integração desligada até configuração e prova real. Leitura HTTP da agenda primária iniciada em módulo interno: paginação e título genérico; ainda não conectada à sessão, Vault ou interface, portanto não constitui jornada funcional nem prova de autorização. Permanecem pendentes consentimento, renovação e revogação, vinculação, escrita, autorização no servidor e banco, provas reais e revisão independente. Nenhuma operação remota está autorizada por esta mudança.
+  **Ficam fora da V1, com seus requisitos preservados**: recorrência e séries (e as decisões de alterar uma ocorrência ou a série toda, preservando as demais), agenda global compartilhada com consulta e edição separadas, e lembretes — estes últimos também porque dependem de canal, e notificação externa está fora da V1 por decisão de 17/11/2026. Cada um volta como recorte próprio; nenhum é promovido por inferência.
+- [x] 1.2 Após 1.1, detalhar fatia e revisão independente com autorização positiva e negativa, acesso direto, outro paciente/perfil, revogação, ACL Google, falha e resposta incerta; evidência: tarefas com dependências e critérios de aceite sem presumir integração.
+
+### Recorte demonstrável: agenda individual
+
+Preparação conectada usa consentimento do profissional, Vault, agenda primária e títulos genéricos. O gate da rota continua fechado até as evidências abaixo e revisão independente; serviços e configurações de teste autorizados não equivalem a aprovação dos testes. Séries além de uma ocorrência, agenda global e lembretes mantêm seus requisitos e dependem de detalhamento próprio.
+
+- [ ] Conferir contrato individual e acesso a paciente, incluindo decisões restantes de 1.1; revisar SQL privado, grants e isolamento do executor antes de aplicá-los. Nenhum papel de login deve obter acesso direto a segredos ou funções privadas.
+- [ ] Em ambiente de teste autorizado, comprovar OAuth, renovação, Vault e ACL Calendar com conta do profissional; provar falha fechada para outro usuário/perfil, acesso direto e revogação de sessão, concessão ou credencial, inclusive concorrente. Registrar configuração, limites do plano, resultados e limpeza seletiva sem segredos ou dados reais.
+- [ ] Provar consulta, criação, alteração, cancelamento e vínculo manual com dados fictícios; testar concorrência, versão desatualizada, conflito, recorrência individual e preservação das demais ocorrências. Google deve confirmar escrita antes de sucesso.
+- [ ] Provar timeout e resposta perdida, reconsulta e reserva persistente: sem repetição automática ou liberação por ausência; troca de conta não divulga dados anteriores e permanece bloqueada até comprovação na origem. Testar desconexão, repetição e corrida; revogação Google permanece não comprovada.
+- [ ] Realizar revisão independente de padrões e especificação do diff exato, incluindo SQL e fronteiras de segurança; corrigir achados e repetir verificações afetadas. Executar verificação de ativação e roteiro de teste, incluindo autorização e RLS positivos e negativos. Registrar bloqueios antes de decidir abertura do gate.
+
+Preparação local com Vault no servidor e integração desligada até configuração e prova real. Leitura HTTP da agenda primária iniciada em módulo interno: paginação e título genérico; ainda não conectada à sessão, Vault ou interface, portanto não constitui jornada funcional nem prova de autorização. Permanecem pendentes consentimento, renovação e revogação, vinculação, escrita, autorização no servidor e banco, provas reais e revisão independente. A meta autoriza operações no projeto de teste; ativação exige provas e revisão, sem autorização para dados reais ou limpeza.
 
 Preparação OAuth interna: geração de state e PKCE, troca de código e renovação implementadas sem rota. Não existe persistência ou consumo único de state, vínculo com sessão ou usuário, guarda de tokens no Vault, revogação, nem prova real; os módulos não podem ser expostos ou ativados neste estado.
 
 Reconexão solicita consentimento explícito para obter novo refresh token. Se Google não o fornecer, a troca falha fechada; nenhum token anterior é presumido nem substituído. A experiência de reconexão e a preservação da credencial vigente ainda dependem da integração com Vault e de prova real.
 
-Nenhuma tarefa de integração é executável enquanto 1.1 estiver pendente.
+As decisões já registradas no design delimitam a preparação individual; 1.1 e 1.2 permanecem abertas até conciliar o recorte completo e detalhar revisão e provas. A preparação local existente não comprova condições para ativação nem autoriza dados reais ou limpeza.
 
-Preparação posterior, ainda sem ativação: rota com bloqueio explícito, consentimento OAuth, state e PKCE vinculados à sessão, cookie temporário cifrado, verificação de ID token/JWKS e executor privado foram compostos localmente. O SQL de state, geração de revogação, atestado e Vault por usuário permanece em `supabase/drafts/20261115100000_agenda_google_conexao.sql`, sem migração ou concessão de papel a login. `pnpm run verificar:rapido` passou; o teste isolado do state passou antes de mudanças posteriores e não prova o estado atual. Não houve teste SQL, Google ou Vault real, credenciais, configuração remota, revisão final ou integração ativada. Permanecem necessários provas de autorização, concorrência e revogação no banco e servidor, ACL Google, logs de parâmetros, isolamento do executor, recuperação/limpeza e revisão independente; revogação local ainda não revoga consentimento no Google. Nenhuma checkbox foi concluída.
+Preparação posterior, ainda sem ativação: rota com bloqueio explícito, consentimento OAuth, state e PKCE vinculados à sessão, cookie temporário cifrado, verificação de ID token/JWKS e executor privado foram compostos localmente. Naquela etapa, o SQL de state, geração de revogação, atestado e Vault por usuário estava em rascunho, sem concessão de papel a login. `pnpm run verificar:rapido` passou; o teste isolado do state passou antes de mudanças posteriores e não prova o estado atual. Não houve teste SQL, Google ou Vault real, credenciais, configuração remota, revisão final ou integração ativada. Permanecem necessários provas de autorização, concorrência e revogação no banco e servidor, ACL Google, logs de parâmetros, isolamento do executor, recuperação/limpeza e revisão independente; revogação local ainda não revoga consentimento no Google. Nenhuma checkbox foi concluída.
 
 Consulta individual preparada na rota protegida: obtém refresh token do Vault via executor privado, renova acesso e consulta agenda primária, com título genérico; revalida sessão e credencial antes da resposta. Gate permanece fechado. A jornada ainda não foi comprovada contra Google, Vault, ACL ou sessão reais; provas de autorização positiva/negativa e revogação continuam pendentes.
 
@@ -25,7 +37,7 @@ A escrita revalida sessão e geração após consultas prévias, imediatamente a
 
 Preparação de reconciliação: reserva privada por operação antes do contato com Google bloqueia nova escrita enquanto pendente. Criação/alteração carregam marcador; consulta confirmada na origem pode resolver, mas ausência, erro ou 404 mantêm pendência. Não há liberação automática para pedido que não foi enviado ou cujo resultado não pode ser comprovado. Um timeout antes da reserva ainda pode anteceder a chegada tardia da requisição; a interface deve preservar o identificador e não interpretar ausência de pendência como prova de segurança. SQL e concorrência não foram executados; ativação depende de provas reais e revisão.
 
-Falhas comprovadas antes do envio tentam resolver a reserva como não realizada; se a autorização estiver revogada ou a resolução falhar, o bloqueio permanece. Após mudança de subject, API informa apenas `conta_anterior`, sem ID nem dados da agenda antiga, e mantém pendência. Recuperação requer restabelecer acesso autorizado à conta anterior e comprovar resultado na origem; caso isso não seja possível, ainda não existe procedimento administrativo seguro de desbloqueio e o caso permanece pendente para decisão e revisão.
+Falhas comprovadas antes do envio tentam resolver a reserva como não realizada; se a autorização estiver revogada ou a resolução falhar, o bloqueio permanece. Após mudança de subject, API informa apenas `conta_anterior`, sem ID nem dados da agenda antiga, e mantém pendência. Recuperação requer restabelecer acesso autorizado à conta anterior e comprovar resultado na origem; se isso não for possível, a operação permanece bloqueada até essa comprovação, sem desbloqueio administrativo presumido. Implementação e revisão independente dessa regra continuam pendentes.
 
 Vínculo manual local preparado: servidor consulta evento na agenda da conta, revalida sessão e credencial; SQL privado exige profissional, subject vigente e acesso ativo ao paciente, registra auditoria e trata repetição do mesmo par como idempotente. Outro paciente resulta em conflito sem divulgar identidade. Não altera nem envia dados clínicos ao Google. Leitura do vínculo após recarga, provas SQL/Google, corrida de revogação e revisão independente permanecem pendentes; gate continua fechado.
 
@@ -36,6 +48,13 @@ Leitura em lote preparada para vínculos locais: até 250 eventos por chamada, s
 Desconexão local preparada sob geração e subject, com revogação do segredo e dos states no Vault/banco e auditoria; pendências de escrita são preservadas. Cliente de revogação Google preparado, mas gate específico permanece fechado: [Google informa](https://developers.google.com/identity/protocols/oauth2/web-server#tokenrevoke) que a revogação afeta escopos e tokens de todos os clientes do projeto. Antes de habilitar é preciso comprovar isolamento do projeto e impedir reconexão durante resultado externo incerto. Resposta informa `nao_comprovada`; nenhum pedido remoto foi executado. Provas SQL, ACL e concorrência continuam pendentes.
 
 Reconexão usa `prompt=consent`, sem presumir que Google emitirá refresh token. Após validar ID token, audiência, nonce e subject, ausência de refresh leva a `?agenda=autorizar-novamente` sem substituir credencial anterior. A orientação deve apontar para [conexões da Conta Google](https://support.google.com/accounts/answer/13533235?hl=pt-BR), explicar que remover acesso pode afetar outros acessos do projeto e não garantir emissão posterior. Prova Google real permanece pendente.
+
+**Retomada de implementação — 18/11/2026:** `web/agenda-individual.ts` agora
+apresenta orientação persistente para esse retorno, separada do estado real da
+conexão, com link informativo e aviso de impacto. Não recomenda nem executa
+revogação. `web/agenda-consentimento.test.ts` foi escrito para conexão anterior,
+ausência/ambiguidade do parâmetro e orientação. **Não executado:** solicitante
+adiou validações. A prova anterior da UI não cobre essa alteração.
 
 Desconexão local agora exige versão observada e UUID de operação; recibo transacional permite repetir o mesmo pedido após timeout e compara geração sob lock, impedindo pedido antigo de apagar conexão posterior. Resposta inclui estado atual além do resultado anterior. SQL, concorrência e recuperação após falhas ainda exigem prova; revogação Google segue não comprovada e gate fechado.
 
@@ -48,3 +67,102 @@ Limitação identificada antes da preparação de cancelamento — desconexão: 
 Preparação posterior: cancelamento autenticado de intenção de desconexão grava recibo `cancelada` sob o mesmo bloqueio do POST original. Se cancelar vencer, POST atrasado encontra o recibo e não altera credencial; se desconexão vencer, cancelamento devolve o desfecho anterior. Operação não depende do comprovante antigo e não altera conexão nova. Implementação SQL local ainda requer provas de corrida, isolamento entre usuários e revisão antes da ativação.
 
 Retirada de vínculo manual preparada com UUID por associação, exclusão lógica e auditoria: exige profissional, paciente vinculado, subject e geração vigentes; repetição de vínculo antigo não remove outro posterior. Não modifica Google. Provas de acesso direto, revogação concorrente, histórico e repetição permanecem pendentes; gate fechado.
+
+Marcador local de resultado incerto foi isolado por usuário; marcador antigo sem autoria permanece bloqueado para recuperação. Teste focado passou. A agenda continua desativada e sem prova Google real.
+
+Teste local de privilégios aplicou o rascunho de Agenda em PostgreSQL descartável: verificou SELECT, INSERT, UPDATE e DELETE em nível de tabela para anon, authenticated, service_role e executor; execução do wrapper nesses papéis e do helper de leitura de credencial pelo executor. Não cobre todos os privilégios ou concessões por coluna. Interface Vault foi simulada para instalar o SQL; isso não comprova Vault, autorização funcional, RLS, concorrência ou integração reais. Não foi concedido papel ao login nem alterado o gate.
+
+Teste local de privilégios ampliado para cada privilégio de tabela, concessões por coluna e todas as funções `identidade.agenda_google_*` existentes, incluindo executor e papéis de API; somente o wrapper é executável pelo executor. Script passou em PostgreSQL descartável com Vault simulado. A prova continua restrita ao catálogo local e não substitui testes funcionais, de concorrência ou Vault real.
+
+Após revisão, teste exige presença da assinatura exata `identidade.agenda_google_operacao_privada(jsonb,text)` e EXECUTE positivo do executor; comparação por OID rejeita overloads. Script focal passou novamente em PostgreSQL descartável com Vault simulado.
+
+Teste funcional local dos helpers de state passou em PostgreSQL descartável: usuário e sessão diferentes não consomem state; consumo único, expiração, revogação e incremento de geração foram verificados. Contexto foi definido artificialmente e Vault simulado; teste não comprova wrapper, atestado, autorização real, concorrência ou integração externa. Gate permanece fechado.
+
+SQL privado retornou a `supabase/drafts/20261115100000_agenda_google_conexao.sql`, fora da cadeia automática, sem conceder executor a login. Revisão independente, teste em ambiente real, isolamento do executor e demais provas continuam obrigatórios antes de aplicar ou abrir gate.
+
+Revisão local: membership preexistente do migrador no owner do verificador é preservada com opções e concedente; removido grant desnecessário de `vault.update_secret`. Teste focal passou com Vault simulado. Bloqueador de privilégio permanece: owner da agenda tem SELECT amplo em `vault.decrypted_secrets` e DELETE em `vault.secrets`; operações precisam ler e excluir refresh por UUID, mas grants atuais não limitam linhas. Definir e revisar isolamento verificável antes de aplicar migration ou ativar; papel sem login não prova isolamento. Privilégios e comportamento do Vault real não foram comprovados.
+
+Isolamento preparado: owner da agenda não recebe leitura direta nem exclusão no Vault; helper de owner sem login verifica vínculo entre usuário do contexto e UUID do segredo antes de ler ou excluir. Owner do helper ainda possui privilégio amplo no Vault: segurança depende de isolamento de papel, integridade da função e contexto autenticado. Teste local com Vault simulado confirmou leitura/exclusão própria, rejeição de outro usuário e ausência de acesso direto do owner da agenda. Revisão independente, concorrência, privilégios reais e prova real continuam pendentes.
+
+Bloqueador confirmado na revisão: helper não constitui isolamento contra comprometimento do owner da agenda. Esse papel controla tabela `agenda_google_credencial` e pode alterar `ffcmapp.agenda_usuario`; consegue associar UUID de outro segredo e chamar helper. Experimento local reproduziu leitura indevida com Vault simulado e desfez a manipulação; cenário exploratório não foi mantido como teste que exige sucesso da exploração. Isolamento exige autoridade independente para vínculo e autenticação verificável, não GUC controlável pelo chamador; isso amplia arquitetura e ainda não foi projetado ou revisado. Rascunho permanece inadequado para aplicação e gate fechado.
+
+Correção do isolamento ainda não implementada: a prova assinada é recebida apenas no wrapper, enquanto helpers de salvar, ler e revogar recebem contexto mutável. Revogação também ocorre durante leitura por troca de subject e durante desconexão, que mantém recibo e geração transacionais. Solução precisa transferir propriedade e mutação do vínculo a autoridade independente, verificar atestado e operação vinculados diretamente nessa autoridade, validar sessão/revogação e antireplay, e manter locks, geração e recibo coerentes. Simples troca de owner ou passagem de UUID/GUC não satisfaz esses controles. Cenário de comprometimento segue reproduzido; não há teste de correção nem autorização para aplicar draft.
+
+Isolamento corrigido (10/11/2026): papel independente `ffcmapp_agenda_vault_owner`, dono de tabelas próprias (`agenda_google_vault_vinculo`, `agenda_google_vault_requisicao`, `agenda_google_vault_desconexao`) e da função `identidade.agenda_google_vault(jsonb,text,text)`, que verifica o atestado assinado diretamente (não confia no GUC `ffcmapp.agenda_usuario` que o papel dono da agenda controla) e confere subject/geração sob trava antes de ler, salvar ou excluir. `scripts/testar-agenda-google-state-local.sh` agora mantém o cenário de comprometimento da revisão anterior como teste permanente (contexto forjado, vínculo forjado por insert direto, subject alheio na revogação, replay do mesmo envelope, geração desatualizada) e confirma bloqueio (`insufficient_privilege`) em cada caso; passou. `scripts/testar-agenda-google-privilegios-local.sh` também passou. Dois defeitos de ligação TS corrigidos nesta revisão: `agenda-google-canal.ts` não tinha entrada de parâmetros permitidos para `agenda_google_revogar_credencial` (toda chamada falhava com "Conexão indisponível."); `agenda-google-repositorio.ts` passava `subject`/`geracao` sem o prefixo `p_` exigido pelo canal. `revogarCredencial` continua sem nenhum chamador no repositório (função pronta, ainda não ligada a nenhuma rota); typecheck Deno e lint limpos após o ajuste. Pendente: 1.1/1.2, revisão independente, prova em ambiente Google/Vault real, e todos os demais itens já listados acima — gate continua fechado, migration continua em `supabase/drafts/`, sem promoção nem operação remota.
+
+
+## Retomada 18/11/2026 — fatia V1 executável para revisão
+
+1.2 detalhada: consultar agenda `primary`; criar, alterar e cancelar somente evento único;
+recorrência e instância de série recusadas; consentimento do próprio usuário, título genérico,
+reserva persistente e UUID por escrita; conflito de horário exige decisão; `If-Match` protege
+versão; reconsulta GET da origem confirma marcador/horários antes de sucesso. Cancelamento
+exige GET com ausência 404/410 ou estado `cancelled`; ACK sozinho não basta. Resposta perdida
+mantém pendência sem repetir mutação. ACL Google não substitui autorização do banco.
+
+Dependências: `supabase/drafts/20261115100000_agenda_google_conexao.sql` sobre cadeia de
+fundação/Auth/atestado; cadastro de segredos deve autorizar os nomes canônicos
+`ffcmapp.integracao.google_calendar_client_id` e
+`ffcmapp.integracao.google_calendar_client_secret`. Composição já lê ambos pelo leitor privado
+Vault, sem fallback para variáveis de credencial. Permanecem configuração técnica de domínio
+Workspace e referência exclusiva da chave de state; não são as duas credenciais OAuth.
+
+Correção comprovada: wrapper privado precisava alimentar `request.jwt.claims` das pontes Auth
+com usuário/sessão do atestado **após** verificar HMAC. Sem isso, executor PostgreSQL sem JWT
+PostgREST recebia `SEM_PERMISSAO` mesmo com identidade válida. Novo teste exercita o wrapper,
+não só helpers artificialmente contextualizados.
+
+Provas executadas nesta passagem:
+- `scripts/testar-agenda-google-autorizacao-local.sh`: exit 0 / `AGENDA_AUTORIZACAO_OK`.
+  Registro/consumo positivos; replay, outro usuário, perfil Família, sessão encerrada e
+  concessão revogada negados. Inclui catálogo de privilégios diretos da fixture existente.
+- `scripts/testar-agenda-google-state-local.sh`: exit 0; isolamento Vault e state existentes.
+- `agenda-google-escrita.test.ts`: 5 testes focais passando; confirmação GET, perda da
+  confirmação sem novo POST, cancelamento, série recusada e revogação antes do envio.
+
+Gate ainda fechado. Coordenação deve revisar o diff exato, promover o SQL para migrations,
+conceder executor ao login técnico conforme isolamento aprovado e executar ativação. Faltam
+provas de outro paciente/vínculo e corrida do wrapper; Vault/Auth nas provas são fictícios.
+OAuth, ACL e escrita Google reais não foram exercitados, nem limites do projeto/plano.
+Não marcar estes itens como provados por mocks ou por existirem arquivos.
+
+### Correções após revisão independente — 18/11/2026
+
+- GET de confirmação de criação/alteração recusa `status: cancelled`, mesmo com UUID,
+  marcador, etag e horários iguais. Estado `incerto`, sem repetir escrita. Teste parametrizado
+  criar/alterar passou no arquivo afetado; total atual 7 testes.
+- `scripts/testar-agenda-google-autorizacao-local.sh`: exit 0. Matriz ampliada comprova vínculo
+  ativo para associar/ler paciente, nega outro paciente, revogação impede nova associação e
+  suprime nomes, outro profissional não lê evento alheio.
+- Duas conexões reais via dblink provam seis corridas: concessão, sessão e vínculo nas duas
+  ordens (revogação primeiro/escrita primeiro). Verifica bloqueio real com pg_blocking_pids,
+  negação posterior à revogação e quantidade de vínculos. Assim, lacuna de prova local
+  paciente/vínculo/concorrência registrada acima está resolvida; prova Google/Vault continua aberta.
+- Testes localizaram bug adicional no draft: PostgreSQL rejeita regex `{1,1024}`. Agora
+  caracteres são validados por regex e tamanho por `length <= 1024`, em tabelas e wrapper.
+- Nenhuma operação externa, credencial real, promoção de draft, commit ou push. Revisão
+  independente do diff corrigido e ativação continuam com coordenação.
+
+### Promoção autorizada pela coordenação — 18/11/2026
+
+- SQL movido, sem segunda cópia ativa, para `supabase/migrations/20261125050000_agenda_google_conexao.sql`.
+  Fixtures atualizadas; matriz vínculo/perfis/concorrência executada novamente, exit 0.
+- Rota deixa hardfalse e consulta `ffcm.agenda_google.ativa` (false inicial). Configure
+  `ffcm.agenda_google.dominio_workspace` na tela, além dos client ID/client secret já listados.
+  Valores ausentes retornam serviço indisponível, nunca conexão comprovada.
+- **SUPOSIÇÃO conservadora autorizada:** não gerar segredo técnico adicional. HKDF deriva do
+  HMAC existente chaves efêmeras separadas para state/cookie/desconexão. Teste focal
+  `chaves-agenda-google.test.ts`: 1 passou. Referência `FFCM_AGENDA_STATE_VAULT_REFERENCIA`
+  e domínio por variável deixam de ser necessários; documentação anterior é histórico.
+- `scripts/autorizar-agenda-executor.sql` prepara grant operacional estreito ao login pool
+  existente, com preflight de role/login/Vault e sem criar login, senha ou segredo. Coordenação
+  fornece nome já existente e executa. Este script ainda não foi exercitado remotamente.
+- Sem remoto. Nova alteração composição/KDF/flag/grant exige revisão focal antes ativação;
+  logs reais, extensão Vault, OAuth e confirmação Google continuam limitações externas.
+
+Evidência final local desta passagem: `verificar:rapido` passou lint e typecheck completos.
+`testar-agenda-google-autorizacao-local.sh`, `testar-agenda-google-state-local.sh` e
+`testar-agenda-google-privilegios-local.sh` passaram após promoção. Preflight/grant operacional
+foi exercitado com login fictício NOSUPERUSER sem membership owner ou leitura direta Vault;
+script de autorização passou e membership SET no executor foi confirmada. Nome do login real
+não foi inferido nem credencial acessada; coordenação executará explicitamente no remoto.

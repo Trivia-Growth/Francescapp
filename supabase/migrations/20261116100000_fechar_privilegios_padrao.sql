@@ -1,0 +1,31 @@
+-- Tarefa 2.2 (fundar-identidade-e-seguranca-backend): fecha privilégio padrão de PUBLIC em
+-- funções futuras criadas pelo migrador (postgres). Toda função já existente nos schemas
+-- internos e em api já revoga PUBLIC/anon/authenticated/service_role explicitamente
+-- (conferido por catálogo em 10/11/2026: zero EXECUTE de anon/authenticated/public em 76
+-- funções de identidade/cadastro/auditoria/operacao/bloqueios_auth/auth_privado, e nenhuma
+-- concessão fora do previsto em api). Esta migration fecha a lacuna para funções futuras que
+-- não repitam esse revoke explícito: sem isso, o comportamento padrão do PostgreSQL concede
+-- EXECUTE a PUBLIC em toda função nova.
+--
+-- Testado isoladamente nesta versão do PostgreSQL (17.11) antes de escolher a forma abaixo:
+-- `ALTER DEFAULT PRIVILEGES ... IN SCHEMA x ...`, tanto com GRANT quanto com REVOKE, NUNCA
+-- exclui o PUBLIC embutido em funções — GRANT é só aditivo sobre o padrão embutido
+-- (owner+PUBLIC), e REVOKE sem uma entrada global prévia não persiste (a ACL resultante
+-- colapsa para NULL na criação da função, que o PostgreSQL interpreta como "usar o padrão
+-- embutido", incluindo PUBLIC). Isso vale mesmo para o próprio catálogo deste projeto: as
+-- entradas já existentes de `public`/`storage`/`graphql` (GRANT explícito por schema) NÃO
+-- excluem PUBLIC das funções que o Supabase cria ali -- são só aditivas, não um allowlist.
+-- A única forma que de fato funciona é o REVOKE sem `IN SCHEMA` (escopo global do papel,
+-- confirmado por teste: a função nova resultante tem `proacl` igual a `{postgres=X/postgres}`,
+-- sem PUBLIC, com o dono mantendo a própria execução). Por isso o escopo aqui é o papel
+-- `postgres` (quem roda toda migration deste projeto), não um schema específico -- mais
+-- amplo do que o desenho original pretendia, mas é o único mecanismo que o PostgreSQL aceita.
+--
+-- Não afeta objetos já existentes (privilégio padrão só vale na criação) nem outros papéis;
+-- o `search_path` fixo de cada função e o grant explícito de cada migration continuam sendo
+-- a defesa primária -- esta migration é uma segunda camada contra esquecimento futuro, não
+-- substitui a disciplina de revogar explicitamente em cada função nova.
+-- Reversão: `alter default privileges for role postgres grant execute on functions to
+-- public;` (volta ao comportamento padrão do PostgreSQL para novas funções).
+alter default privileges for role postgres
+revoke execute on functions from public;

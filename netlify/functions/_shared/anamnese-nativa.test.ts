@@ -169,3 +169,55 @@ describe('composição interna da anamnese', () => {
     expect(resultado).toMatchObject({ ok: false, erro: { codigo: 'nao_autenticado' } });
   });
 });
+
+describe('histórico privado', () => {
+  it('atesta cursor e decifra versão com proveniência, recusando resposta fora da página', async () => {
+    const deps = portas();
+    const registro_id = 'd0000000-0000-4000-8000-000000000004';
+    const conteudo = await deps.cifra.cifrar(JSON.stringify(secoes), {
+      tabela: 'cadastro.anamnese_versao',
+      paciente_id,
+      registro_id,
+      versao: 2,
+      campo: 'conteudo',
+      formato: 1,
+    });
+    const executar = vi.fn(
+      async (
+        _request: Request,
+        { p_transporte }: { p_transporte: { entrada: Record<string, unknown> } },
+      ) => ({
+        ok: true,
+        repeticao: false,
+        request_id: p_transporte.entrada.request_id,
+        dados: {
+          registro_id,
+          paciente_id,
+          versao: 2,
+          conteudo,
+          criado_por_usuario_id: usuario_id,
+          criado_em: '2026-11-04T12:00:00Z',
+        },
+      }),
+    );
+    const r = await operarAnamneseNativa(
+      request(),
+      { operacao: 'historico', paciente_id, antes_versao: 3 },
+      { ...deps, executar },
+    );
+    expect(r).toMatchObject({
+      ok: true,
+      dados: { versao: 2, secoes, criado_por_usuario_id: usuario_id },
+    });
+    expect(executar.mock.calls[0]?.[1].p_transporte.entrada).toMatchObject({
+      antes_versao: 3,
+      atestado: { operacao: 'api.ler_anamnese' },
+    });
+    const fora = await operarAnamneseNativa(
+      request(),
+      { operacao: 'historico', paciente_id, antes_versao: 2 },
+      { ...deps, executar },
+    );
+    expect(fora).toMatchObject({ ok: false, erro: { codigo: 'servico_indisponivel' } });
+  });
+});

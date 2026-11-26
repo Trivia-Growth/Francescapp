@@ -26,10 +26,22 @@ async function jwt(sub = usuario) {
     .setExpirationTime('5m')
     .sign(chave);
 }
+/** Caso novo completo e fictício: todos os campos do contrato são obrigatórios. */
+const casoNovo = {
+  nome: 'Pessoa fictícia',
+  nome_preferencia: 'Nome fictício',
+  data_nascimento: '2000-01-01',
+  contatos: [
+    { tipo: 'email', valor: 'pessoa.ficticia@exemplo.test' },
+    { tipo: 'telefone', valor: '+55 11 90000-0000' },
+  ],
+  situacao: 'entrada',
+  responsavel_id: '65000000-0000-4000-8000-000000000001',
+};
 async function transporte() {
   return prepararComandoCriarPaciente(
     {
-      corpo: { nome: 'Pessoa fictícia' },
+      corpo: casoNovo,
       cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
       reserva: { reserva_id: '68000000-0000-4000-8000-000000000001', geracao_reserva: 1 },
       contexto: {
@@ -56,7 +68,7 @@ async function transporte() {
     },
   );
 }
-function poolFixture(comando = 'COMMIT') {
+function poolFixture(comando = 'COMMIT', codigo = 'sem_permissao') {
   const consultas: string[] = [];
   let descarte: boolean | undefined;
   const pool = {
@@ -73,7 +85,7 @@ function poolFixture(comando = 'COMMIT') {
                     resultado: {
                       ok: false,
                       request_id: request,
-                      erro: { codigo: 'sem_permissao' },
+                      erro: { codigo },
                     },
                   },
                 ]
@@ -127,4 +139,38 @@ it('não conecta para JWT de outra pessoa', async () => {
     }),
   ).rejects.toThrow();
   expect(f.consultas).toHaveLength(0);
+});
+it('devolve responsavel_invalido do banco somente após COMMIT, sem tratá-lo como incerto', async () => {
+  const f = poolFixture('COMMIT', 'responsavel_invalido');
+  expect(
+    await criarExecutorPacientePostgresExperimental(
+      f.pool,
+      config,
+    )({ jwt: await jwt(), prova: 'A'.repeat(43), geracao: 1, transporte: await transporte() }),
+  ).toMatchObject({ ok: false, erro: { codigo: 'responsavel_invalido' } });
+  expect(f.consultas).toContain('COMMIT');
+  expect(f.descarte()).toBe(false);
+});
+it('não conecta quando o comando assinado não traz os campos do caso novo', async () => {
+  for (const campo of ['contatos', 'situacao', 'responsavel_id', 'nome_preferencia']) {
+    const f = poolFixture();
+    const completo = await transporte();
+    const { [campo]: _removido, ...entrada } = completo.p_entrada.entrada as Record<
+      string,
+      unknown
+    >;
+    await expect(
+      criarExecutorPacientePostgresExperimental(
+        f.pool,
+        config,
+      )({
+        jwt: await jwt(),
+        prova: 'A'.repeat(43),
+        geracao: 1,
+        transporte: { p_entrada: { ...completo.p_entrada, entrada } },
+      }),
+      `sem ${campo}`,
+    ).rejects.toThrow('Cadastro indisponível.');
+    expect(f.consultas, `sem ${campo}`).toHaveLength(0);
+  }
 });

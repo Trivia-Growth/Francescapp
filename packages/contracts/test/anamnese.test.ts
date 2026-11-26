@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   anamneseSchema,
+  consultarHistoricoAnamneseSchema,
   respostaAnamnesePrivadaSchema,
   salvarAnamneseSchema,
 } from '../src/anamnese.ts';
@@ -86,5 +87,21 @@ describe('resposta privada da anamnese', () => {
         request_id,
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('cursor do histórico de anamnese', () => {
+  it('aceita apenas versão inteira positiva no limite do banco', () => {
+    for (const entrada of [{}, { antes_versao: 1 }, { antes_versao: 2147483647 }])
+      expect(consultarHistoricoAnamneseSchema.safeParse(entrada).success).toBe(true);
+    for (const entrada of [
+      { antes_versao: 0 },
+      { antes_versao: -1 },
+      { antes_versao: 1.5 },
+      { antes_versao: 2147483648 },
+      { antes_versao: '2' },
+      { outro: 1 },
+    ])
+      expect(consultarHistoricoAnamneseSchema.safeParse(entrada).success).toBe(false);
   });
 });

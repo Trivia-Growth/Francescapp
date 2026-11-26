@@ -1,5 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import { criarCicloCadastro } from './ciclo-cadastro.js';
+import { entradaCasoNovo } from './teste-caso-novo.js';
 
 const ids = [
   '10000000-0000-4000-8000-000000000001',
@@ -29,22 +30,22 @@ it('cerca a época antes de criar e conserva identificadores na chamada', async 
   let indice = 0;
   const ciclo = criarCicloCadastro(portas, () => ids[indice++]);
   await ciclo.consultar();
-  await expect(ciclo.criar({ nome: 'Fictício' })).rejects.toThrow('bloqueado');
+  await expect(ciclo.criar(entradaCasoNovo('Fictício'))).rejects.toThrow('bloqueado');
   await ciclo.encerrar();
   await ciclo.consultar();
   ciclo.liberar();
-  await ciclo.criar({ nome: 'Fictício' });
+  await ciclo.criar(entradaCasoNovo('Fictício'));
   expect(portas.reservar).toHaveBeenCalledWith({ epoca: 1, reserva_id: ids[1] }, identidade);
   expect(portas.criar).toHaveBeenCalledWith(
     {
-      entrada: { nome: 'Fictício' },
+      entrada: entradaCasoNovo('Fictício'),
       chave: ids[2],
       reserva_id: ids[1],
       geracao_reserva: 1,
     },
     identidade,
   );
-  await expect(ciclo.criar({ nome: 'Outro' })).rejects.toThrow('bloqueado');
+  await expect(ciclo.criar(entradaCasoNovo('Outro'))).rejects.toThrow('bloqueado');
 });
 
 it('não libera após resposta perdida e repete encerramento com mesmo comando', async () => {
@@ -82,7 +83,7 @@ it('resposta perdida da reserva não libera por consulta vazia', async () => {
   await ciclo.encerrar();
   await ciclo.consultar();
   ciclo.liberar();
-  await expect(ciclo.criar({ nome: 'Fictício' })).rejects.toThrow('resposta perdida');
+  await expect(ciclo.criar(entradaCasoNovo('Fictício'))).rejects.toThrow('resposta perdida');
   await ciclo.consultar();
   expect(() => ciclo.liberar()).toThrow('bloqueado');
   expect(portas.criar).not.toHaveBeenCalled();
@@ -104,7 +105,9 @@ it.each(['confirmada', 'cancelada', 'negada', 'id_reutilizado', 'epoca_antiga', 
     await ciclo.encerrar();
     await ciclo.consultar();
     ciclo.liberar();
-    await expect(ciclo.criar({ nome: 'Fictício' })).rejects.toThrow('Reserva não confirmada');
+    await expect(ciclo.criar(entradaCasoNovo('Fictício'))).rejects.toThrow(
+      'Reserva não confirmada',
+    );
     expect(portas.criar).not.toHaveBeenCalled();
     await ciclo.consultar();
     expect(() => ciclo.liberar()).toThrow('bloqueado');
@@ -135,13 +138,13 @@ it('invalida o ciclo se a sessão mudar durante reserva ou antes de criar', asyn
   await ciclo.encerrar();
   await ciclo.consultar();
   ciclo.liberar();
-  const pedido = ciclo.criar({ nome: 'Fictício' });
+  const pedido = ciclo.criar(entradaCasoNovo('Fictício'));
   atual = { ...identidade, session_id: ids[2] };
   concluir('aberta');
   await expect(pedido).rejects.toThrow('Sessão alterada');
   expect(portas.criar).not.toHaveBeenCalled();
   atual = identidade;
-  await expect(ciclo.criar({ nome: 'Fictício' })).rejects.toThrow('Sessão alterada');
+  await expect(ciclo.criar(entradaCasoNovo('Fictício'))).rejects.toThrow('Sessão alterada');
 });
 
 it('impede envio quando outra identidade assume antes da criação', async () => {
@@ -160,6 +163,6 @@ it('impede envio quando outra identidade assume antes da criação', async () =>
   await ciclo.consultar();
   ciclo.liberar();
   atual = { ...identidade, usuario_id: ids[2] };
-  await expect(ciclo.criar({ nome: 'Fictício' })).rejects.toThrow('Sessão alterada');
+  await expect(ciclo.criar(entradaCasoNovo('Fictício'))).rejects.toThrow('Sessão alterada');
   expect(portas.reservar).not.toHaveBeenCalled();
 });

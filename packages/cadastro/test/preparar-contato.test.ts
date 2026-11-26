@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import {
+  executarCriacaoContatoPrivado,
+  ResultadoContatoIncerto,
+} from '../src/executor-contato-privado.ts';
 import { createHmac } from 'node:crypto';
 import { criarCifraAutenticada } from '../../../supabase/functions/_shared/cifra-autenticada.ts';
 import { criarAtestadorOperacao } from '../../../supabase/functions/_shared/atestado-operacao.ts';
@@ -73,6 +77,45 @@ describe('preparo de contato de paciente', () => {
       primeiro.p_entrada.entrada.aad,
     );
     expect(primeiro.p_entrada.entrada.aad.registro_id).toBe(primeiro.p_entrada.entrada.contato_id);
+  });
+  it('traduz conflito da reserva e mantém falhas incertas bloqueadas', async () => {
+    const solicitacao = {
+      pacienteId: 'a0000000-0000-4000-8000-000000000001',
+      reservaId: 'c0000000-0000-4000-8000-000000000001',
+      geracaoReserva: 1,
+      corpo: { tipo: 'email', valor: 'pessoa@example.test' },
+      cabecalhos: { 'x-chave-idempotencia': 'chave-ficticia-123456' },
+    };
+    const contexto = {
+      key_id: 'atestado',
+      usuario_id: 'b0000000-0000-4000-8000-000000000001',
+      session_id: '10000000-0000-4000-8000-000000000002',
+      request_id: '10000000-0000-4000-8000-000000000003',
+      emitido_em: '2026-10-29T12:00:00Z',
+      expira_em: '2026-10-29T12:01:00Z',
+    };
+    const dependencias = {
+      cifra,
+      atestador: criarAtestadorOperacao({ keyId: 'atestado', chave: new Uint8Array(32).fill(3) }),
+      idempotencia: {
+        async calcularDigestIdempotencia(comando: string) {
+          return createHmac('sha256', Buffer.alloc(32, 4)).update(comando).digest('base64url');
+        },
+      },
+    };
+    const executar = (resposta: unknown) =>
+      executarCriacaoContatoPrivado(solicitacao, contexto, {
+        ...dependencias,
+        rpc: { executar: async () => resposta },
+      });
+    const negacao = { ok: false, erro: { codigo: 'conflito' }, request_id: contexto.request_id };
+    await expect(executar(negacao)).resolves.toMatchObject({ erro: { codigo: 'conflito_versao' } });
+    await expect(executar({ ...negacao, extra: true })).rejects.toBeInstanceOf(
+      ResultadoContatoIncerto,
+    );
+    await expect(executar({ ...negacao, request_id: crypto.randomUUID() })).rejects.toBeInstanceOf(
+      ResultadoContatoIncerto,
+    );
   });
   it('valida e cifra e-mail usando a identidade do contato', async () => {
     const contato = await prepararNovoContatoCifrado(

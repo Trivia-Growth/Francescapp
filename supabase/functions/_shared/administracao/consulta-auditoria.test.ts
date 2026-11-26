@@ -15,6 +15,7 @@ describe('consulta administrativa de auditoria', () => {
               acao: 'bootstrap.tecnico',
               tipo_objeto: 'usuario',
               objeto_id: null,
+              paciente_id: null,
               resultado: 'permitido',
               ator_usuario_id: null,
               operador_restrito: 'texto fictício que não deve aparecer',
@@ -33,6 +34,7 @@ describe('consulta administrativa de auditoria', () => {
       acao: 'api.criar_paciente',
       tipo_objeto: 'paciente',
       objeto_id: null,
+      paciente_id: null,
       resultado: 'permitido',
       ator_usuario_id: '10000000-0000-4000-8000-000000000002',
       operador_restrito: null,
@@ -60,6 +62,7 @@ describe('consulta administrativa de auditoria', () => {
       acao: 'api.criar_paciente',
       tipo_objeto: 'paciente',
       objeto_id: null,
+      paciente_id: null,
       resultado: 'permitido',
     };
     const validar = (ator_usuario_id: string | null, operador_restrito: string | null) =>
@@ -72,6 +75,34 @@ describe('consulta administrativa de auditoria', () => {
     expect(validar(null, null)).toBe(false);
     expect(validar('10000000-0000-4000-8000-000000000002', 'operador autorizado')).toBe(false);
     expect(validar(null, '   ')).toBe(false);
+  });
+  it('preserva identidade Auth não admitida sem aceitar mais de um autor', async () => {
+    const evento = {
+      id: '10000000-0000-4000-8000-000000000001',
+      instante: '2026-10-29T12:00:00Z',
+      acao: 'api.listar_pacientes',
+      tipo_objeto: 'carteira',
+      objeto_id: null,
+      paciente_id: null,
+      resultado: 'negado',
+      ator_usuario_id: null,
+      ator_auth_id: '10000000-0000-4000-8000-000000000099',
+      operador_restrito: null,
+    };
+    const consultar = async (_consulta: unknown, requestId: string) => ({
+      ok: true,
+      dados: { itens: [evento], proximo_cursor: null },
+      request_id: requestId,
+    });
+    const resultado = await consultarAuditoriaExperimental({ limite: 10 }, consultar);
+    if (!resultado.ok) throw new Error('Consulta recusada.');
+    expect(resultado.dados.itens).toEqual([evento]);
+    expect(
+      contratosRotas.consultarAuditoria.saida.safeParse({
+        itens: [{ ...evento, ator_usuario_id: evento.ator_auth_id }],
+        proximo_cursor: null,
+      }).success,
+    ).toBe(false);
   });
   it('retorna a página da RPC com o identificador gerado pelo servidor', async () => {
     const resultado = await consultarAuditoriaExperimental(

@@ -1,28 +1,55 @@
+@font-face {
+  font-family: "Cormorant Garamond";
+  src: url("./assets/cormorant-garamond-latin.woff2") format("woff2");
+  font-weight: 400 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: Raleway;
+  src: url("./assets/raleway-latin.woff2") format("woff2");
+  font-weight: 400 700;
+  font-display: swap;
+}
 :root {
   color-scheme: light;
-  font-family: system-ui, sans-serif;
+  font-family: Raleway, Arial, sans-serif;
   color: #263024;
-  background: #f5f6f1;
+  background: #fbfcf8;
 }
 * {
   box-sizing: border-box;
+}
+[hidden] {
+  display: none !important;
 }
 body {
   margin: 0;
 }
 header {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
   gap: 1rem;
   padding: 1.2rem clamp(1rem, 5vw, 3rem);
-  background: #344832;
-  color: white;
-  font-weight: 600;
+  background: white;
+  border-bottom: 1px solid #dfe5d4;
+  color: #475436;
+  font: 600 1.6rem / 1 "Cormorant Garamond", Georgia, serif;
 }
 main {
   max-width: 36rem;
   margin: clamp(2rem, 9vh, 5rem) auto;
   padding: 0 1.25rem;
+}
+header img {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+h1,
+h2 {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 600;
 }
 h1 {
   font-size: clamp(1.8rem, 5vw, 2.4rem);
@@ -44,7 +71,7 @@ input {
   min-height: 2.75rem;
   margin-bottom: 0.8rem;
   border: 1px solid #aebca8;
-  border-radius: 5px;
+  border-radius: 8px;
   padding: 0.6rem;
   font: inherit;
   background: white;
@@ -59,12 +86,12 @@ input[type="checkbox"] {
 button {
   min-height: 2.75rem;
   border: 0;
-  border-radius: 5px;
+  border-radius: 8px;
   padding: 0.7rem 1rem;
   font: inherit;
   font-weight: 700;
   color: white;
-  background: #344832;
+  background: #475436;
   cursor: pointer;
 }
 button:disabled {
@@ -72,9 +99,55 @@ button:disabled {
   cursor: wait;
 }
 a {
-  color: #344832;
+  color: #475436;
 }
 :focus-visible {
   outline: 3px solid #6d855e;
   outline-offset: 3px;
+}
+
+/* Indicador local acompanha o texto de progresso anunciado pela página. */
+.loading-indicator {
+  display: inline-block;
+  width: .8em;
+  height: .8em;
+  margin-inline-end: .5em;
+  vertical-align: -.1em;
+  pointer-events: none;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: loading-reveal 0s linear 300ms backwards, loading-spin .8s linear 300ms infinite;
+}
+@keyframes loading-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-indicator {
+    animation: none;
+  }
+}
+
+button:has(> .loading-indicator),
+label:has(> .loading-indicator) {
+  position: relative;
+}
+button > .loading-indicator,
+label > .loading-indicator {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 8px;
+  height: 8px;
+  margin: 0;
 }

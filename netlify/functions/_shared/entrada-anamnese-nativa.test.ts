@@ -83,3 +83,29 @@ describe('entrada interna de anamnese', () => {
     });
   });
 });
+
+it('encaminha cursor de histórico validado e rejeita parâmetros ambíguos', async () => {
+  const compor = vi
+    .spyOn(composicao, 'comporAnamneseNativa')
+    .mockResolvedValue({ ok: true, dados: null, request_id: requestId });
+  const entrada = criarEntradaAnamneseNativa(dependencias);
+  const headers = { 'x-sessao': sessao };
+  expect(
+    (await entrada.atender(new Request(`${url}/historico?antes_versao=2`, { headers }))).status,
+  ).toBe(200);
+  expect(compor).toHaveBeenCalledWith(
+    expect.any(Request),
+    { operacao: 'historico', paciente_id: paciente, antes_versao: 2 },
+    dependencias,
+  );
+  for (const query of [
+    'antes_versao=0',
+    'antes_versao=2&antes_versao=1',
+    'antes_versao=2147483648',
+    'x=1',
+  ])
+    expect(
+      (await entrada.atender(new Request(`${url}/historico?${query}`, { headers }))).status,
+    ).toBeGreaterThanOrEqual(400);
+  expect(compor).toHaveBeenCalledTimes(1);
+});

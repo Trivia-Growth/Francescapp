@@ -1,0 +1,172 @@
+[
+  {
+    "tipo": "diario",
+    "viewport": "desktop",
+    "render": {
+      "largura": 1366,
+      "scroll": 1366,
+      "focusVisible": true,
+      "foco": "<select><option value=\"Psicologia\">Psicologia</option></select>",
+      "outline": "rgb(71, 84, 54) solid 3px",
+      "elementosFora": [],
+      "controlesSemRotulo": [],
+      "status": [
+        "Ao publicar, este registro ficará visível para: Equipe do caso.",
+        "",
+        "",
+        "Enviado · ainda não consultado."
+      ]
+    }
+  },
+  {
+    "tipo": "diario",
+    "viewport": "desktop",
+    "erro": {
+      "status": ["Serviço indisponível. Tente novamente em alguns instantes."],
+      "overflow": false
+    }
+  },
+  {
+    "tipo": "diario",
+    "viewport": "mobile",
+    "render": {
+      "largura": 390,
+      "scroll": 390,
+      "focusVisible": true,
+      "foco": "<select><option value=\"Psicologia\">Psicologia</option></select>",
+      "outline": "rgb(71, 84, 54) solid 3px",
+      "elementosFora": [],
+      "controlesSemRotulo": [],
+      "status": [
+        "Ao publicar, este registro ficará visível para: Equipe do caso.",
+        "",
+        "",
+        "Enviado · ainda não consultado."
+      ]
+    }
+  },
+  {
+    "tipo": "diario",
+    "viewport": "mobile",
+    "erro": {
+      "status": ["Serviço indisponível. Tente novamente em alguns instantes."],
+      "overflow": false
+    }
+  },
+  {
+    "tipo": "saude",
+    "viewport": "desktop",
+    "render": {
+      "largura": 1366,
+      "scroll": 1366,
+      "focusVisible": true,
+      "foco": "<select><option value=\"historico\">Histórico</option><option value=\"avaliacao\">Avaliação</option><option value=\"diagnostico\">Diagnóstico</option></select>",
+      "outline": "rgb(71, 84, 54) solid 3px",
+      "elementosFora": [],
+      "controlesSemRotulo": [],
+      "status": [""]
+    }
+  },
+  {
+    "tipo": "saude",
+    "viewport": "desktop",
+    "metadados": {
+      "legendas": ["Diagnóstico — Relato de quem convive — Hipótese"],
+      "campos": [
+        {
+          "rotulo": "Origem",
+          "valor": "Familiar fictício",
+          "display": "block",
+          "visibility": "visible",
+          "hidden": false,
+          "top": 409.953125,
+          "bottom": 481.953125
+        },
+        {
+          "rotulo": "Natureza da origem",
+          "valor": "relato_leigo",
+          "display": "block",
+          "visibility": "visible",
+          "hidden": false,
+          "top": 493.953125,
+          "bottom": 565.953125
+        },
+        {
+          "rotulo": "Situação",
+          "valor": "hipotese",
+          "display": "block",
+          "visibility": "visible",
+          "hidden": false,
+          "top": 663.546875,
+          "bottom": 735.546875
+        }
+      ]
+    }
+  },
+  {
+    "tipo": "saude",
+    "viewport": "desktop",
+    "erro": {
+      "status": ["Serviço indisponível. Tente novamente em alguns instantes."],
+      "overflow": false
+    }
+  },
+  {
+    "tipo": "saude",
+    "viewport": "mobile",
+    "render": {
+      "largura": 390,
+      "scroll": 390,
+      "focusVisible": true,
+      "foco": "<select><option value=\"historico\">Histórico</option><option value=\"avaliacao\">Avaliação</option><option value=\"diagnostico\">Diagnóstico</option></select>",
+      "outline": "rgb(71, 84, 54) solid 3px",
+      "elementosFora": [],
+      "controlesSemRotulo": [],
+      "status": [""]
+    }
+  },
+  {
+    "tipo": "saude",
+    "viewport": "mobile",
+    "metadados": {
+      "legendas": ["Diagnóstico — Relato de quem convive — Hipótese"],
+      "campos": [
+        {
+          "rotulo": "Origem",
+          "valor": "Familiar fictício",
+          "display": "block",
+          "visibility": "visible",
+          "hidden": false,
+          "top": 483.53125,
+          "bottom": 555.53125
+        },
+        {
+          "rotulo": "Natureza da origem",
+          "valor": "relato_leigo",
+          "display": "block",
+          "visibility": "visible",
+          "hidden": false,
+          "top": 567.53125,
+          "bottom": 639.53125
+        },
+        {
+          "rotulo": "Situação",
+          "valor": "hipotese",
+          "display": "block",
+          "visibility": "visible",
+          "hidden": false,
+          "top": 737.125,
+          "bottom": 809.125
+        }
+      ]
+    }
+  },
+  {
+    "tipo": "saude",
+    "viewport": "mobile",
+    "erro": {
+      "status": ["Serviço indisponível. Tente novamente em alguns instantes."],
+      "overflow": false
+    }
+  }
+]

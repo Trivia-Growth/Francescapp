@@ -14,6 +14,18 @@ alter table cadastro.contato_paciente enable row level security;
 alter table auditoria.evento enable row level security;
 create function identidade.listar_carteira_privada(jsonb) returns jsonb language sql security definer as $$ select $1 $$;
 revoke all on function identidade.listar_carteira_privada(jsonb) from public, anon, authenticated, service_role;
+-- Como a ponte e o bloqueio reais, os adapters rodam como definer: owners sem USAGE em auth não leem Auth diretamente.
+alter function auth_privado.uid() security definer set search_path='';
+alter function auth_privado.jwt() security definer set search_path='';
+alter function auth_privado.sessoes() security definer set search_path='';
+alter function auth_privado.identidades() security definer set search_path='';
+alter function bloqueios_auth.travar(uuid,uuid) security definer set search_path='';
+-- Papéis donos criados antes por carteira_nativa e verificador; aqui apenas fixtures sem login.
+create role ffcmapp_carteira_owner nologin;
+create role ffcmapp_atestado_verificador_owner nologin;
+grant usage on schema identidade to ffcmapp_carteira_owner, ffcmapp_atestado_verificador_owner;
+alter function identidade.listar_carteira_privada(jsonb) owner to ffcmapp_carteira_owner;
+alter function identidade.verificar_assinatura_atestado(text,text,jsonb,jsonb,text) owner to ffcmapp_atestado_verificador_owner;
 \ir ../migrations/20261106190000_wrappers_privados.sql
 update identidade.sessao set revogada_em=null;
 do $$

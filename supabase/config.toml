@@ -1,23 +1,51 @@
 project_id = "ffcmapp"
 
+# Faixa de portas locais: 554xx.
+#
+# Decisão de 19/11/2026. O bloco anterior era 553xx (55321-55324) e colidia com
+# a pilha local de outro projeto do usuário (`supabase_*_Sinergica-SO`), que usa
+# exatamente as mesmas portas e já estava de pé — `supabase start` abortava com
+# "Bind for :::55322 failed: port is already allocated".
+#
+# Em vez de parar a pilha alheia, o conjunto inteiro foi deslocado +100, de forma
+# previsível: cada serviço mantém a mesma posição relativa (API .21, banco .22,
+# Studio .23, SMTP .24) e só o prefixo muda, 553 -> 554. A faixa 55421-55425
+# estava integralmente livre na verificação feita nesta data.
+#
+# Efeito colateral aceito pelo solicitante: a porta local muda para todo mundo
+# que rodar este repositório. Quem tiver URL de banco local anotada precisa
+# trocar 55322 por 55422.
+
 [api]
 enabled = true
-port = 55321
+port = 55421
 schemas = ["api"]
 extra_search_path = []
 max_rows = 1000
 
 [db]
-port = 55322
-major_version = 15
+port = 55422
+# PostgreSQL 17: o projeto remoto usa 17 (docs/processo/revisao-s02-fundacao-ffcmapp.md)
+# e as migrações do repositório usam sintaxe de 16+ ("grant ... with inherit false,
+# set true"). Com `major_version = 15` o banco novo recusava a migração
+# 20261104120000_vault_atestado.sql com `syntax error at or near "inherit"`.
+# Ver achado registrado em migrar-rotas-para-edge-functions/tasks.md 0.2.
+major_version = 17
+
+# Supavisor local em transaction mode (D8): a conexão do isolate não deve usar
+# pool próprio, então a prova precisa passar pelo pooler, não pelo banco direto.
+[db.pooler]
+enabled = true
+port = 55425
+pool_mode = "transaction"
 
 [studio]
 enabled = true
-port = 55323
+port = 55423
 
 [local_smtp]
 enabled = true
-port = 55324
+port = 55424
 
 [auth]
 enabled = true

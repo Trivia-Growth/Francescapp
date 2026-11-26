@@ -14,7 +14,11 @@ for (const arquivo of arquivos) {
     assert.equal(configuracao.api.enabled, true);
     assert.deepEqual(configuracao.api.schemas, ['api']);
     assert.deepEqual(configuracao.api.extra_search_path, []);
-    assert.equal(configuracao.db.major_version, 15);
+    // 17 porque é o do projeto remoto (PostgreSQL 17.11, registrado em
+    // docs/processo/revisao-s02-fundacao-ffcmapp.md). Estava 15 e nenhuma migração
+    // aplicava num banco local novo: `grant ... with inherit false, set true` é
+    // sintaxe de PostgreSQL 16 em diante.
+    assert.equal(configuracao.db.major_version, 17);
     assert.equal(configuracao.edge_runtime.enabled, true);
     assert.equal(configuracao.auth.site_url, 'http://localhost:5173');
   } else {

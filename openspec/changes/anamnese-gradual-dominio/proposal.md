@@ -10,7 +10,7 @@ FR-003 exige anamnese gradual e identificação de seções incompletas. Um reco
 - Preservar fonte e data associadas às respostas resolvidas; não inferir diagnóstico ou conteúdo.
 - Registrar que o módulo local existente é trabalho em andamento, sem comprovar integração nem FR-003 completo.
 - Preparar persistência local com dados fictícios, preservando histórico versionado e controle de acesso; não definir seções, campos ou critérios clínicos de completude.
-- Decisão provisória de 04/11/2026: todos os colaboradores ativos com concessão vigente podem consultar e editar anamnese, sem exigir vínculo individual por paciente; regra sujeita à definição da FFCM. Família não recebe acesso por inferência.
+- Decisão definitiva de 17/11/2026: equipe ativa com concessão vigente exige vínculo ativo ao caso para consultar, editar e consultar histórico. Família não recebe acesso por inferência.
 
 ## Capabilities
 
@@ -25,3 +25,5 @@ Nenhuma.
 ## Impact
 
 Domínio TypeScript e testes locais em `packages/cadastro`; a persistência local requer integração segura ainda pendente. Antes de dados reais, definir regras de preenchimento, audiência, proteção e recuperação de dados, além de comprovar autorização no servidor e banco e integração real. Não há autorização para operação remota.
+
+A preparação inclui consulta paginada das versões existentes, com dados fictícios e acesso fechado até os gates de segurança e integração.

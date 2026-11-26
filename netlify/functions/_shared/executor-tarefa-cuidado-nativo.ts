@@ -8,9 +8,15 @@ type TransporteTarefa = Parameters<Parameters<typeof operarTarefaCuidadoNativo>[
 export async function executarTarefaCuidadoNativo(
   cliente: ReturnType<typeof criarContextoAuthNativo>['cliente'],
   transporte: TransporteTarefa,
+  operacao: 'ler' | 'gravar',
 ): Promise<unknown> {
   try {
-    const resultado = await cliente.schema('api').rpc('tarefa_cuidado_privado', transporte);
+    const resultado = await cliente
+      .schema('api')
+      .rpc(
+        operacao === 'ler' ? 'ler_tarefas_cuidado_privado' : 'tarefa_cuidado_privado',
+        transporte,
+      );
     if (resultado.error) throw new Error();
     return resultado.data;
   } catch {

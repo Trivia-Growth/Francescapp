@@ -1,0 +1,392 @@
+// @vitest-environment jsdom
+import { beforeEach, expect, it, vi } from 'vitest';
+import { FalhaApi } from './api.js';
+import { hashFicha } from './ficha-paciente.js';
+import { montarVisaoCaso, type FontesVisaoCaso } from './visao-caso.js';
+
+const id = '10000000-0000-4000-8000-000000000001';
+const paciente = { id, nome: 'Helena Fictícia', nome_preferencia: 'Lena' };
+
+let raiz: HTMLElement;
+beforeEach(() => {
+  document.body.innerHTML = '<div id="raiz"></div>';
+  raiz = document.getElementById('raiz') as HTMLElement;
+});
+
+const objetivo = (descricao: string, estado: string, data = '2026-11-02T12:00:00Z') => ({
+  objetivo_id: id,
+  versao: 1,
+  data,
+  objetivo: {
+    descricao,
+    area: 'rotina',
+    responsavel: 'Equipe',
+    situacaoInicial: 'inicial',
+    observacaoProgresso: 'nenhuma',
+    dataRevisao: '2026-12-01',
+    estado,
+  },
+});
+const tarefa = (descricao: string, estado: string, data = '2026-11-05T12:00:00Z') => ({
+  tarefa_id: id,
+  versao: 1,
+  ator_usuario_id: id,
+  data,
+  tarefa: { descricao, responsavel: 'Equipe', prazo: '2026-11-20', prioridade: 'alta', estado },
+});
+const anamnese = {
+  versao: 1,
+  criado_em: '2026-11-03T12:00:00Z',
+  secoes: [
+    {
+      id: 'Rotina',
+      camposEsperados: ['sono', 'alimentacao'],
+      respostas: [
+        {
+          campo: 'sono',
+          estado: 'informado',
+          valor: 'regular',
+          fonte: 'familia',
+          data: '2026-11-01',
+        },
+      ],
+    },
+    {
+      id: 'Saúde',
+      camposEsperados: ['alergias'],
+      respostas: [
+        { campo: 'alergias', estado: 'nao_se_aplica', fonte: 'familia', data: '2026-11-01' },
+      ],
+    },
+  ],
+};
+
+const fontes = (parcial: Record<string, unknown> = {}) =>
+  ({
+    objetivos: {
+      consultarObjetivos: async () => ({
+        itens: [
+          objetivo('Caminhar todos os dias', 'em andamento'),
+          objetivo('Objetivo já encerrado', 'encerrado'),
+        ],
+        proximo_cursor: null,
+      }),
+    },
+    tarefas: {
+      consultarTarefas: async () => [
+        tarefa('Ligar para a família', 'pendente'),
+        tarefa('Tarefa concluída', 'concluida'),
+      ],
+    },
+    anamnese: { consultarAnamnese: async () => anamnese },
+    ...parcial,
+  }) as unknown as FontesVisaoCaso;
+
+const bloco = (nome: string) => raiz.querySelector(`[data-bloco="${nome}"]`) as HTMLElement;
+const aguardar = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+it('apresenta cada bloco com dados consultados e a data da última atualização', async () => {
+  montarVisaoCaso(raiz, paciente, fontes(), () => false);
+  await vi.waitFor(() => expect(bloco('anamnese').textContent).toContain('Atualizado em'));
+  expect(bloco('identificacao').textContent).toContain('Helena Fictícia');
+  expect(bloco('identificacao').textContent).toContain('Nome de preferência: Lena');
+  expect(bloco('objetivos').textContent).toContain('Caminhar todos os dias');
+  expect(bloco('objetivos').textContent).not.toContain('Objetivo já encerrado');
+  expect(bloco('objetivos').textContent).toContain('Revisão prevista: 01/12/2026');
+  expect(bloco('objetivos').textContent).toContain('Atualizado em 02/11/2026.');
+  expect(bloco('tarefas').textContent).toContain('Ligar para a família');
+  expect(bloco('tarefas').textContent).not.toContain('Tarefa concluída');
+  expect(bloco('tarefas').textContent).toContain('Atualizado em 05/11/2026.');
+  expect(bloco('anamnese').textContent).toContain('Seções com pendências:');
+  expect(bloco('anamnese').textContent).toContain('Rotina');
+  expect(bloco('anamnese').textContent).not.toContain('Saúde');
+  expect(bloco('anamnese').textContent).toContain('Atualizado em 03/11/2026.');
+});
+
+it('cada bloco com origem oferece link para a seção correspondente na ficha', async () => {
+  montarVisaoCaso(raiz, paciente, fontes(), () => false);
+  await vi.waitFor(() => expect(bloco('anamnese').textContent).toContain('Atualizado em'));
+  expect(bloco('objetivos').querySelector('a')?.getAttribute('href')).toBe(hashFicha(id, 'plano'));
+  expect(bloco('objetivos').querySelector('a')?.textContent).toBe('Ver em Plano de cuidado');
+  expect(bloco('tarefas').querySelector('a')?.getAttribute('href')).toBe(hashFicha(id, 'tarefas'));
+  expect(bloco('anamnese').querySelector('a')?.getAttribute('href')).toBe(
+    hashFicha(id, 'anamnese'),
+  );
+  // Identificação não tem uma seção própria de origem: nenhum link de acesso aqui.
+  expect(bloco('identificacao').querySelector('a')).toBeNull();
+});
+
+it('pendências e situação também linkam para a origem (Pendências e Cadastro)', async () => {
+  montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      pendencias: {
+        consultar: async () => ({
+          paciente_id: id,
+          estado: 'em_dia' as const,
+          acordo: null,
+          ultima_atualizacao_em: '2026-11-04T10:00:00Z',
+          pendencias: [],
+          perfil_escrita_acordo: false,
+        }),
+      },
+      situacao: { consultarPaciente: async () => edicao([mudanca()]) },
+    }),
+    () => false,
+  );
+  await vi.waitFor(() => expect(bloco('pendencias').textContent).toContain('Atualizado em'));
+  expect(bloco('pendencias').querySelector('a')?.getAttribute('href')).toBe(
+    hashFicha(id, 'pendencias'),
+  );
+  await vi.waitFor(() => expect(bloco('situacao').textContent).toContain('Atualizado em'));
+  expect(bloco('situacao').querySelector('a')?.getAttribute('href')).toBe(
+    hashFicha(id, 'cadastro'),
+  );
+});
+
+it('omite o que não tem fonte, sem anunciar a ausência nem inventar valor de exemplo', async () => {
+  montarVisaoCaso(raiz, paciente, fontes(), () => false);
+  await vi.waitFor(() => expect(bloco('objetivos').textContent).toContain('Caminhar'));
+  expect(raiz.querySelector('[data-bloco="indisponivel"]')).toBeNull();
+  const texto = raiz.textContent ?? '';
+  expect(texto).not.toContain('indisponível');
+  expect(texto).not.toContain('indisponíveis');
+  expect(texto).not.toContain('Atenção sinalizada');
+  expect(texto).not.toContain('Agenda');
+  expect(texto).not.toContain('Próxima revisão');
+  // Sem fonte de situação o bloco nem é montado; nada afirma responsável.
+  expect(raiz.querySelector('[data-bloco="situacao"]')).toBeNull();
+});
+
+it('distingue carregando, vazio e erro com nova tentativa só no bloco que falhou', async () => {
+  let tentativa = 0;
+  let liberar!: () => void;
+  const espera = new Promise<void>((resolve) => {
+    liberar = resolve;
+  });
+  montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      objetivos: {
+        consultarObjetivos: async () => {
+          await espera;
+          return { itens: [], proximo_cursor: null };
+        },
+      },
+      tarefas: {
+        consultarTarefas: async () => {
+          tentativa += 1;
+          if (tentativa === 1) throw new FalhaApi('servico_indisponivel', 503);
+          return [tarefa('Ligar para a família', 'pendente')];
+        },
+      },
+    }),
+    () => false,
+  );
+  expect(bloco('objetivos').textContent).toContain('Carregando…');
+  expect(bloco('objetivos').textContent).not.toContain('Nenhum objetivo');
+  await vi.waitFor(() => expect(bloco('tarefas').textContent).toContain('Tentar novamente'));
+  expect(bloco('tarefas').textContent).toContain('Este bloco não foi carregado.');
+  expect(bloco('tarefas').textContent).not.toContain('Nenhuma tarefa');
+  await vi.waitFor(() => expect(bloco('anamnese').textContent).toContain('Atualizado em'));
+  liberar();
+  await vi.waitFor(() =>
+    expect(bloco('objetivos').textContent).toContain('Nenhum objetivo ativo nesta consulta.'),
+  );
+  bloco('tarefas').querySelector('button')?.click();
+  await vi.waitFor(() => expect(bloco('tarefas').textContent).toContain('Ligar para a família'));
+  expect(bloco('tarefas').textContent).not.toContain('Tentar novamente');
+});
+
+it('não mostra título nem contagem de bloco que o perfil não lê', async () => {
+  montarVisaoCaso(raiz, paciente, fontes({ tarefas: undefined, anamnese: undefined }), () => false);
+  await vi.waitFor(() => expect(bloco('objetivos').textContent).toContain('Caminhar'));
+  expect(raiz.textContent).not.toContain('Tarefas');
+  expect(raiz.textContent).not.toContain('Ligar para a família');
+  expect(raiz.textContent).not.toContain('Anamnese');
+  expect(bloco('tarefas')).toBeNull();
+  expect(bloco('anamnese')).toBeNull();
+});
+
+it('avisa quando há mais objetivos do que a consulta mostra', async () => {
+  montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      objetivos: {
+        consultarObjetivos: async () => ({
+          itens: [objetivo('Caminhar todos os dias', 'em andamento')],
+          proximo_cursor: 'proximo',
+        }),
+      },
+    }),
+    () => false,
+  );
+  await vi.waitFor(() =>
+    expect(bloco('objetivos').textContent).toContain(
+      'Há mais objetivos no Plano de cuidado; esta visão mostra só os primeiros.',
+    ),
+  );
+});
+
+it('ao perder o acesso remove o conteúdo e aciona o fluxo de nova entrada', async () => {
+  const acessoPerdido = vi.fn(() => true);
+  montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      tarefas: {
+        consultarTarefas: async () => {
+          throw new FalhaApi('sem_permissao', 403);
+        },
+      },
+    }),
+    acessoPerdido,
+  );
+  await vi.waitFor(() => expect(acessoPerdido).toHaveBeenCalledTimes(1));
+  expect(raiz.textContent).toBe('');
+  await aguardar();
+  expect(raiz.textContent).toBe('');
+});
+
+it('invalida respostas pendentes ao desmontar', async () => {
+  let responder!: (valor: unknown) => void;
+  const desmontar = montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      tarefas: {
+        consultarTarefas: () =>
+          new Promise((resolve) => {
+            responder = resolve;
+          }),
+      },
+    }),
+    () => false,
+  );
+  await vi.waitFor(() => expect(responder).toBeDefined());
+  desmontar();
+  expect(raiz.textContent).toBe('');
+  responder([tarefa('Dado do paciente anterior', 'pendente')]);
+  await aguardar();
+  expect(raiz.textContent).toBe('');
+});
+
+const ana = '30000000-0000-4000-8000-000000000003';
+const equipe = [{ usuario_id: ana, rotulo: 'ana@exemplo.test (Profissional)', ativo: true }];
+const edicao = (acompanhamento: unknown[]) => ({
+  id,
+  nome: 'Helena Fictícia',
+  nome_preferencia: 'Lena',
+  data_nascimento: null,
+  contatos: [],
+  versao: 3,
+  acompanhamento,
+});
+const mudanca = (parcial: Record<string, unknown> = {}) => ({
+  versao: 3,
+  situacao: 'pausado',
+  responsavel_id: ana,
+  responsavel_ativo: true,
+  ator_id: id,
+  criado_em: '2026-11-06T15:00:00.000000+00:00',
+  motivo: 'Pausa fictícia',
+  ...parcial,
+});
+
+it('Administrador vê situação e responsável persistidos com a data da última atualização', async () => {
+  montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      situacao: {
+        consultarPaciente: async () => edicao([mudanca()]),
+        listarResponsaveis: async () => equipe,
+      },
+    }),
+    () => false,
+  );
+  await vi.waitFor(() => expect(bloco('situacao').textContent).toContain('Atualizado em'));
+  const texto = bloco('situacao').textContent ?? '';
+  expect(texto).toContain('Situação: Pausado');
+  expect(texto).toContain('Responsável: ana@exemplo.test (Profissional)');
+  expect(texto).toContain('Atualizado em 06/11/2026.');
+  expect(texto).not.toContain('Pausa fictícia');
+  expect(raiz.querySelector('[data-bloco="indisponivel"]')).toBeNull();
+});
+
+it('indica a completar sem acompanhamento e sinaliza responsável inativo, sem inventar valor', async () => {
+  montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({ situacao: { consultarPaciente: async () => edicao([]) } }),
+    () => false,
+  );
+  await vi.waitFor(() =>
+    expect(bloco('situacao').textContent).toContain('A completar: situação do caso e responsável'),
+  );
+  // Sem data conhecida o bloco cala: não repete "indisponível" em cada seção.
+  expect(bloco('situacao').textContent).not.toContain('Atualizado em');
+  expect(bloco('situacao').textContent).not.toContain('indisponível');
+  raiz.replaceChildren();
+  montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      situacao: {
+        consultarPaciente: async () => edicao([mudanca({ responsavel_ativo: false })]),
+        listarResponsaveis: async () => {
+          throw new FalhaApi('servico_indisponivel', 503);
+        },
+      },
+    }),
+    () => false,
+  );
+  await vi.waitFor(() => expect(bloco('situacao').textContent).toContain('Situação: Pausado'));
+  expect(bloco('situacao').textContent).toContain(
+    'Responsável: Responsável indicado (inativo: indique um novo responsável)',
+  );
+});
+
+it('falha da leitura de situação aparece só nesse bloco, com nova tentativa', async () => {
+  let tentativa = 0;
+  montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      situacao: {
+        consultarPaciente: async () => {
+          tentativa += 1;
+          if (tentativa === 1) throw new FalhaApi('servico_indisponivel', 503);
+          return edicao([mudanca()]);
+        },
+      },
+    }),
+    () => false,
+  );
+  await vi.waitFor(() => expect(bloco('situacao').textContent).toContain('Tentar novamente'));
+  expect(bloco('situacao').textContent).not.toContain('A completar');
+  await vi.waitFor(() => expect(bloco('objetivos').textContent).toContain('Caminhar'));
+  bloco('situacao').querySelector('button')?.click();
+  await vi.waitFor(() => expect(bloco('situacao').textContent).toContain('Situação: Pausado'));
+});
+
+it('leitura negada da situação leva à nova entrada e limpa o conteúdo', async () => {
+  const acessoPerdido = vi.fn(() => true);
+  montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      situacao: {
+        consultarPaciente: async () => {
+          throw new FalhaApi('sem_permissao', 403);
+        },
+      },
+    }),
+    acessoPerdido,
+  );
+  await vi.waitFor(() => expect(acessoPerdido).toHaveBeenCalledTimes(1));
+  expect(raiz.textContent).toBe('');
+});

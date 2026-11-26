@@ -17,6 +17,7 @@ vi.mock('./cliente.ts', () => ({
       schema: () => ({ rpc: mocks.rpc }),
     },
     responder: mocks.responder,
+    responderSessaoNova: mocks.responder,
   }),
 }));
 const id = '11111111-1111-4111-8111-111111111111';

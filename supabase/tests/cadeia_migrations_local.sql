@@ -1,5 +1,19 @@
 \set ON_ERROR_STOP on
 -- Apenas interfaces externas Auth/Vault são simuladas; funções da aplicação vêm das migrations.
+--
+-- ALCANCE DESTA FIXTURE (ler antes de usá-la como prova):
+-- PROVA: que as ~20 primeiras migrations da fundação aplicam numa base nova e que
+--   20261106210000 não altera dono nem ACL de operacao.criar_paciente_privado(jsonb).
+--   Serve de preâmbulo para as fixtures que encadeiam o restante da cadeia.
+-- NÃO PROVA: que a cadeia completa aplica, porque só carrega o começo dela; e NÃO PROVA
+--   nada sobre privilégios do migrador, porque o papel `postgres` criado aqui é
+--   SUPERUSER. No projeto remoto (PostgreSQL 17.11) o migrador tem CREATEROLE e NÃO é
+--   superusuário, então não herda os direitos dos papéis `ffcmapp_*_owner` (membership
+--   com inherit false) e falha em `revoke`/`grant` que esta fixture aceita em silêncio.
+--   Essa falsa segurança escondeu, até 19/11/2026, quatro migrations que não aplicavam
+--   no remoto. Ver docs/processo/frentes-abertas-19-11-2026.md.
+-- PROVA DE VERDADE DA CADEIA COMPLETA: scripts/testar-cadeia-migrations-sem-superusuario-local.sh,
+--   que aplica todas as migrations do diretório sob um migrador sem SUPERUSER.
 do $$ begin
   if current_database() <> 'ffcm_cadeia_local' or inet_server_addr() is not null then
     raise exception 'ALVO_LOCAL_DESCARTAVEL_OBRIGATORIO';

@@ -56,15 +56,17 @@ export function criarCanalAgenda(config: {
                       ? ['p_evento_id', 'p_paciente_id', 'p_vinculo_id', 'p_subject', 'p_geracao']
                       : nome === 'agenda_google_desconectar'
                         ? ['p_subject', 'p_geracao', 'p_operacao_id']
-                        : nome === 'agenda_google_status_conexao'
-                          ? ['p_subject']
-                          : nome === 'agenda_google_consultar_desconexao'
-                            ? ['p_subject', 'p_operacao_id']
-                            : nome === 'agenda_google_cancelar_desconexao'
-                              ? ['p_subject', 'p_geracao', 'p_operacao_id']
-                              : nome === 'agenda_google_consultar_vinculos'
-                                ? ['p_eventos', 'p_subject', 'p_geracao']
-                                : [];
+                        : nome === 'agenda_google_revogar_credencial'
+                          ? ['p_subject', 'p_geracao']
+                          : nome === 'agenda_google_status_conexao'
+                            ? ['p_subject']
+                            : nome === 'agenda_google_consultar_desconexao'
+                              ? ['p_subject', 'p_operacao_id']
+                              : nome === 'agenda_google_cancelar_desconexao'
+                                ? ['p_subject', 'p_geracao', 'p_operacao_id']
+                                : nome === 'agenda_google_consultar_vinculos'
+                                  ? ['p_eventos', 'p_subject', 'p_geracao']
+                                  : [];
       if (
         Object.keys(argumentos).some((campo) => !permitidos.includes(campo)) ||
         permitidos.some((campo) => typeof argumentos[campo] !== 'string')

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { uuidSchema } from './comum.ts';
 import { campoCifradoSchema } from './rpc.ts';
 
+const reserva = { reserva_id: uuidSchema, geracao_reserva: z.number().int().positive().safe() };
 const texto = z.string().trim().min(1).max(4000);
 export const tarefaCuidadoSchema = z
   .object({
@@ -19,12 +20,13 @@ export const tarefaCuidadoSchema = z
   );
 export type TarefaCuidado = z.infer<typeof tarefaCuidadoSchema>;
 export const criacaoTarefaCuidadoSchema = z
-  .object({ tarefa_id: uuidSchema, tarefa: tarefaCuidadoSchema })
+  .object({ tarefa_id: uuidSchema, tarefa: tarefaCuidadoSchema, ...reserva })
   .strict();
 export const atualizacaoTarefaCuidadoSchema = z
   .object({
     tarefa_id: uuidSchema,
     versao_esperada: z.number().int().positive().max(2147483646),
+    ...reserva,
     tarefa: tarefaCuidadoSchema,
   })
   .strict();

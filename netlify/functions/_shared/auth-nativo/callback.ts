@@ -2,6 +2,7 @@ import { criarErroPublicoSemCampos } from '../../../../packages/contracts/src/er
 import { sessaoNativaSchema } from '../../../../packages/contracts/src/identidade.ts';
 import type { FonteDeConfiguracao } from '../../../../supabase/functions/_shared/configuracao.ts';
 import { criarContextoAuthNativo, fluxoValido } from './cliente.ts';
+import { registrarFalhaOperacional } from '../falha-operacional.ts';
 
 /** Cookies ficam retidos no contexto até a autorização no banco. Erros não
  * sobrescrevem nem encerram uma sessão anterior do navegador. */
@@ -10,6 +11,10 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
     'Cache-Control': 'private, no-store',
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'no-referrer',
+    // `Response.json` não declara charset, e o Safari então decodifica a resposta com a
+    // codificação padrão do documento. Em 24/11/2026 "Dados inválidos." chegou a um iPhone
+    // como "Dados invÃ¡lidos.".
+    'Content-Type': 'application/json; charset=utf-8',
   };
   const erro = (
     codigo: 'entrada_invalida' | 'sem_permissao' | 'servico_indisponivel',
@@ -19,6 +24,23 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
     new Response(null, {
       status: 303,
       headers: { ...headers, Location: '/?acesso=indisponivel#' },
+    });
+  /**
+   * A pessoa provou no Google que é dona daquela conta, e o banco recusou a admissão: a
+   * conta não tem acesso liberado aqui.
+   *
+   * Até 24/11/2026 esse caso caía em `falha()`, e a tela dizia "Tente novamente" — um convite
+   * a repetir uma coisa que nunca vai dar certo. Em 24/11/2026 sete tentativas seguidas
+   * foram registradas como `admitir_sessao_nativa` negado, porque o seletor do Google
+   * escolhia uma conta pessoal em vez da conta da organização.
+   *
+   * Dizer isso não vaza nada: a pessoa acabou de autenticar essa conta, e a resposta é sobre
+   * a conta que ela já tem em mãos. Não afirma se existe cadastro de alguém, nem qual.
+   */
+  const semAutorizacao = () =>
+    new Response(null, {
+      status: 303,
+      headers: { ...headers, Location: '/?acesso=sem_autorizacao#' },
     });
   const url = new URL(request.url);
   // O fragmento não chega ao servidor; um fragmento vazio impede sua herança no redirect.
@@ -66,8 +88,26 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
     ) ||
     url.searchParams.getAll('sb_flow_id').length > 1 ||
     (flowId !== null && !/^[A-Za-z0-9_-]{8,64}$/.test(flowId))
-  )
+  ) {
+    // Uma navegação de volta do Google que cai aqui é uma PESSOA olhando a tela, não um
+    // cliente de API. Até 24/11/2026 ela recebia o JSON de erro cru — chaves, código e
+    // `request_id` — como página. Quem tentou entrar viu isso, e o servidor não registrou
+    // nada: não havia como descobrir qual parâmetro o retorno trouxe de diferente.
+    //
+    // Agora a navegação volta para a tela de acesso, como já faziam os outros caminhos de
+    // falha deste arquivo, e o servidor anota os NOMES dos parâmetros recebidos. Nomes, não
+    // valores: `code` é credencial de uso único e `error_description` é texto do provedor.
+    if (request.method === 'GET' && url.pathname === '/api/auth/callback') {
+      registrarFalhaOperacional({
+        rota: 'auth-callback',
+        etapa: 'resposta',
+        request_id: crypto.randomUUID(),
+        causa: `parametros_${[...new Set(url.searchParams.keys())].sort().join('-') || 'nenhum'}`,
+      });
+      return falha();
+    }
     return erro('entrada_invalida', 422);
+  }
 
   try {
     const contexto = criarContextoAuthNativo(request, fonte, fluxo);
@@ -82,14 +122,14 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
     const admissao = await contexto.cliente
       .schema('api')
       .rpc('admitir_sessao_nativa', { p_request_id: crypto.randomUUID() });
-    if (admissao.error || admissao.data === null) return falha();
+    // `error` é falha de infraestrutura; `data === null` é a recusa do banco, que é a
+    // resposta normal para quem entrou com uma conta sem acesso.
+    if (admissao.error) return falha();
+    if (admissao.data === null) return semAutorizacao();
     const autorizada = sessaoNativaSchema.safeParse(admissao.data);
-    if (
-      !autorizada.success ||
-      !autorizada.data.usuario.ativo ||
-      autorizada.data.usuario.id !== identidade.data.user.id
-    )
+    if (!autorizada.success || autorizada.data.usuario.id !== identidade.data.user.id)
       return falha();
+    if (!autorizada.data.usuario.ativo) return semAutorizacao();
 
     // O SDK salva tokens Google no exchange. Regravar somente a sessão Auth
     // pelo SDK impede transportá-los ao navegador. Integrações Google terão
@@ -109,7 +149,7 @@ export async function concluirGoogleNativo(request: Request, fonte: FonteDeConfi
       normalizada.data.session.provider_refresh_token
     )
       return falha();
-    return contexto.responder(
+    return contexto.responderSessaoNova(
       new Response(null, { status: 303, headers: { Location: `/?fluxo=${fluxo}#` } }),
     );
   } catch {

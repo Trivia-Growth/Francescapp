@@ -46,6 +46,9 @@ vi.mock('./cliente.ts', () => ({
         response.headers.append('Set-Cookie', `ffcm-auth-${fluxo}=${codigo}; HttpOnly; Secure`);
         return response;
       },
+      responderSessaoNova(response: Response) {
+        return this.responder(response);
+      },
     };
   },
 }));
