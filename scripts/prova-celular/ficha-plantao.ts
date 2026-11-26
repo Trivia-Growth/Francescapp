@@ -9,7 +9,7 @@
  * de servidor e de banco.
  */
 import { montarFichaPlantao, type ServicosFichaPlantao } from '../../web/ficha-plantao.ts';
-import { apresentarConsolidadoFicha } from '../../web/consolidado-ficha-plantao.ts';
+import { apresentarConsolidadoFicha } from '../../web/consolidado-ficha-plantao.js';
 import type { CampoExtraCatalogoGeneralizado } from '../../packages/contracts/src/campo-extra-catalogo.ts';
 import type { RelatorioTurnoPublico } from '../../packages/contracts/src/turno-execucao-http.ts';
 import type { Turno } from '../../packages/contracts/src/turno.ts';

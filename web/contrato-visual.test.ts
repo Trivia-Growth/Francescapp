@@ -210,17 +210,37 @@ it('não deixa import apontar para extensão de arquivo que foi renomeado', () =
 
      A forma de não depender de ninguém lembrar é esta: escrever `.js` no especificador,
      que resolve `.ts` e `.tsx` igualmente. */
-  const raiz = resolve(import.meta.dirname);
-  const arquivos = readdirSync(raiz).filter((nome) => /\.tsx?$/.test(nome));
+  /* A varredura cobre `web/` E quem importa de `web/` de fora. Medido em 26/11/2026:
+     limitada a `web/`, ela deixou passar
+     `scripts/prova-celular/ficha-plantao.ts` apontando para
+     `../../web/consolidado-ficha-plantao.ts` depois de o módulo virar `.tsx`, e as quatro
+     provas de celular da ficha de plantão quebraram só quando `verificar:ativacao` rodou.
+     Varrer só a pasta onde o arquivo mudou não encontra quem o consome de outra pasta. */
+  const web = resolve(import.meta.dirname);
+  const projeto = resolve(web, '..');
+  const pastas = [web, resolve(projeto, 'scripts'), resolve(projeto, 'netlify')];
   const quebrados: string[] = [];
-  for (const nome of arquivos) {
-    const texto = readFileSync(resolve(raiz, nome), 'utf8');
-    for (const achado of texto.matchAll(/from '\.\/([a-z0-9-]+)\.ts'/g)) {
-      const alvo = achado[1] ?? '';
-      const existeTs = existsSync(resolve(raiz, `${alvo}.ts`));
-      const existeTsx = existsSync(resolve(raiz, `${alvo}.tsx`));
-      if (!existeTs && existeTsx) quebrados.push(`${nome} → ./${alvo}.ts (hoje é .tsx)`);
+
+  const varrer = (pasta: string): void => {
+    for (const entrada of readdirSync(pasta, { withFileTypes: true })) {
+      if (entrada.name === 'node_modules' || entrada.name.startsWith('.')) continue;
+      const caminho = resolve(pasta, entrada.name);
+      if (entrada.isDirectory()) {
+        varrer(caminho);
+        continue;
+      }
+      if (!/\.(tsx?|mjs)$/.test(entrada.name)) continue;
+      const texto = readFileSync(caminho, 'utf8');
+      for (const achado of texto.matchAll(/from '([^']+)\.ts'/g)) {
+        const alvo = resolve(pasta, `${achado[1] ?? ''}`);
+        if (!existsSync(`${alvo}.ts`) && existsSync(`${alvo}.tsx`)) {
+          quebrados.push(
+            `${caminho.slice(projeto.length + 1)} → ${achado[1] ?? ''}.ts (hoje é .tsx)`,
+          );
+        }
+      }
     }
-  }
+  };
+  for (const pasta of pastas) if (existsSync(pasta)) varrer(pasta);
   expect(quebrados).toEqual([]);
 });
