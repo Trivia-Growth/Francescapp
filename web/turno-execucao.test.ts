@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
 import { montarExecucaoTurno } from './turno-execucao.ts';
-import { montarEditorExecucao } from './turno-execucao-editor.ts';
-import { apresentarRegistroTurno } from './turno-execucao-leitura.ts';
+import { montarEditorExecucao } from './turno-execucao-editor.js';
+import { apresentarRegistroTurno } from './turno-execucao-leitura.js';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
 import type { RegistroExecucaoPublico } from '../packages/contracts/src/turno-execucao-http.ts';
 import { FalhaApi } from './api.ts';
@@ -54,12 +54,23 @@ const catalogo = [
     referencia_informativa: null,
   },
 ];
+/* O rótulo mora dentro do controle na camada imperativa ainda em uso por
+ * `turno-execucao.ts` (o filtro de série), e como IRMÃO do controle no envelope React de
+ * `turno-execucao-editor.tsx` (`EnvelopeCampo`, em `web/componentes/ui/campo.tsx`) — a
+ * mesma estrutura que os outros módulos já migrados desta área usam. Esta prova exercita
+ * as duas camadas no mesmo arquivo, então o auxiliar confere a aninhada primeiro e cai
+ * para o irmão quando não encontra. */
 const campo = (raiz: HTMLElement, nome: string) => {
-  const controle = [...raiz.querySelectorAll('label')]
-    .find((item) => item.firstChild?.textContent === nome)
-    ?.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+  const rotulo = [...raiz.querySelectorAll('label')].find(
+    (item) => item.firstChild?.textContent === nome,
+  );
+  const controle =
+    rotulo?.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
       'input,textarea,select',
-    );
+    ) ??
+    rotulo?.parentElement?.querySelector<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >('input,textarea,select');
   if (!controle) throw new Error(`Campo ausente: ${nome}`);
   return controle;
 };

@@ -12,8 +12,8 @@ import {
   dataLocalTurno,
   botaoTurno,
   estadoTurno,
-} from './turno-execucao-campos.ts';
-import { rotuloSinal } from './turno-execucao-editor.ts';
+} from './turno-execucao-campos.js';
+import { rotuloSinal } from './turno-execucao-editor.js';
 import { confirmarDescarte } from './confirmacao.js';
 import { botao } from './ui/basicos.js';
 

@@ -16,18 +16,18 @@ import {
   dataLocalTurno,
   estadoTurno,
   botaoTurno,
-} from './turno-execucao-campos.ts';
+} from './turno-execucao-campos.js';
 import {
   montarEditorExecucao,
   rotulosClasse,
   type ClasseExecucao,
-} from './turno-execucao-editor.ts';
-import { apresentarRegistroTurno } from './turno-execucao-leitura.ts';
+} from './turno-execucao-editor.js';
+import { apresentarRegistroTurno } from './turno-execucao-leitura.js';
 import { montarAnexosOcorrencia } from './turno-execucao-arquivos.ts';
 import {
   montarConversaoOcorrenciaTurno,
   type PortasConversaoOcorrencia,
-} from './turno-execucao-conversao.ts';
+} from './turno-execucao-conversao.js';
 import { montarRelatoriosTurno } from './turno-execucao-relatorios.ts';
 import { montarLocalizacaoCoordenacao } from './turno-execucao-localizacao-coordenacao.ts';
 import { montarGestaoExecucaoTurno } from './turno-execucao-gestao.ts';
