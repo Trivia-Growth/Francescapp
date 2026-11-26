@@ -13,10 +13,13 @@
  * a paginação de objetivos com guarda de cursor repetido, a recusa de elemento em branco,
  * e o aviso de conflito de versão sem perder o rascunho.
  *
- * Classes CSS preservadas como estavam (`contexto-cuidado`, `contexto-cuidado__item`,
- * `ui-botao`, `list-loading`, `loading-indicator`): esta tela usa o sistema visual antigo
- * de `web/ui/basicos.ts` (não o `componentes/ui` em Tailwind), e trocar o sistema seria
- * mudança de apresentação fora do pedido.
+ * Botões passaram a ser o `Botao` de `componentes/ui` em 26/11/2026. Antes desta data a
+ * tela montava `<button className="ui-botao">`, do kit imperativo antigo: marcador React
+ * com aparência vinda de `web/ui/ui.css`. Dois sistemas visuais na mesma tela é
+ * exatamente a falta de padronização que o solicitante pediu para eliminar, e era
+ * invisível numa revisão de código React.
+ * As classes de layout da própria tela (`contexto-cuidado`, `contexto-cuidado__item`,
+ * `list-loading`, `loading-indicator`) continuam como estavam.
  *
  * Os campos continuam NÃO controlados — o DOM é quem tem o valor — pela mesma razão de
  * `anamnese.tsx`: `coletar()` lê o formulário no envio, e os testes atribuem `.value` e
@@ -33,6 +36,7 @@ import {
   type ColetaEditorDocumento,
   usarEditorDocumentoPaciente,
 } from './editor-documento-paciente.js';
+import { Botao } from './componentes/ui/botao.js';
 import { ilha } from './ponte/ilha.js';
 import type { ServicoDocumentoPaciente } from './servico-documento-paciente-http.js';
 import { Formulario } from './telas/formulario.js';
@@ -130,17 +134,15 @@ function LinhaContexto({
           ? `${preservados.length} objetivo(s) vinculado(s) fora desta lista continuam guardados.`
           : ''}
       </p>
-      <button
-        type="button"
-        className="ui-botao"
-        data-peso="discreto"
-        aria-label={`Remover de ${ROTULOS[linha.categoria].toLowerCase()}: ${
+      <Botao
+        peso="discreto"
+        rotuloLeitura={`Remover de ${ROTULOS[linha.categoria].toLowerCase()}: ${
           nomeAtual.trim() || 'elemento em branco'
         }`}
-        onClick={aoRemover}
+        aoAtivar={aoRemover}
       >
         Remover
-      </button>
+      </Botao>
     </li>
   );
 }
@@ -325,16 +327,14 @@ const CorpoContextoCuidado = forwardRef<
           <p role="status" aria-live="polite">
             {avisoObjetivos}
           </p>
-          <button
-            type="button"
-            className="ui-botao"
-            data-peso="secundario"
+          <Botao
+            peso="secundario"
             hidden={!carregarMaisVisivel}
             disabled={carregandoObjetivos}
-            onClick={() => void carregarObjetivos()}
+            aoAtivar={() => void carregarObjetivos()}
           >
             {carregarMaisTexto}
-          </button>
+          </Botao>
         </div>
       ) : null}
       {CATEGORIAS_CONTEXTO.map((categoria) => {
@@ -353,15 +353,9 @@ const CorpoContextoCuidado = forwardRef<
                 />
               ))}
             </ul>
-            <button
-              type="button"
-              className="ui-botao"
-              data-peso="secundario"
-              disabled={bloqueado}
-              onClick={() => adicionar(categoria)}
-            >
+            <Botao peso="secundario" disabled={bloqueado} aoAtivar={() => adicionar(categoria)}>
               {`Adicionar em ${ROTULOS[categoria].toLowerCase()}`}
-            </button>
+            </Botao>
           </fieldset>
         );
       })}
@@ -417,14 +411,9 @@ function TelaContextoCuidado({
       <>
         {/* biome-ignore lint/a11y/useSemanticElements: idem. */}
         <p role="status">{mensagemFalha(editor.consulta.erro)}</p>
-        <button
-          type="button"
-          className="ui-botao"
-          data-peso="secundario"
-          onClick={editor.tentarNovamenteConsulta}
-        >
+        <Botao peso="secundario" aoAtivar={editor.tentarNovamenteConsulta}>
           Tentar novamente
-        </button>
+        </Botao>
       </>
     );
 
@@ -457,26 +446,15 @@ function TelaContextoCuidado({
       <p role="status" aria-live="polite" data-tone={editor.conflitoVersao ? 'error' : undefined}>
         {editor.aviso}
       </p>
-      <button
-        type="submit"
-        className="ui-botao"
-        data-peso="principal"
-        disabled={travado || editor.conflitoVersao}
-      >
+      <Botao tipo="submit" peso="principal" disabled={travado || editor.conflitoVersao}>
         Salvar contexto
         {editor.enviando && !editor.retryVisivel ? <IndicadorAcao /> : null}
-      </button>
+      </Botao>
       {editor.retryVisivel ? (
-        <button
-          type="button"
-          className="ui-botao"
-          data-peso="secundario"
-          disabled={editor.enviando}
-          onClick={editor.confirmarRetry}
-        >
+        <Botao peso="secundario" disabled={editor.enviando} aoAtivar={editor.confirmarRetry}>
           Tentar confirmar salvamento
           {editor.enviando ? <IndicadorAcao /> : null}
-        </button>
+        </Botao>
       ) : null}
     </Formulario>
   );

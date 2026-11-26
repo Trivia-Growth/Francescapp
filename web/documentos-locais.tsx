@@ -13,6 +13,7 @@
  * Metadados fictícios; não armazena arquivos nem autoriza acesso. Os anexos ficam no
  * Google Drive institucional — aqui é só a prévia local de feedback. */
 import { useState } from 'react';
+import { Botao } from './componentes/ui/botao.js';
 import { ilha } from './ponte/ilha.js';
 import { Formulario } from './telas/formulario.js';
 
@@ -113,9 +114,9 @@ function TelaDocumentosLocais({ dados }: { dados: DadosDocumentosLocais }) {
           Metadados (opcional)
           <input name="metadados" disabled={enviando} />
         </label>
-        <button type="submit" className="ui-botao" data-peso="principal" disabled={enviando}>
+        <Botao tipo="submit" peso="principal" disabled={enviando}>
           Registrar documento
-        </button>
+        </Botao>
       </Formulario>
       {/* biome-ignore lint/a11y/useSemanticElements: `role="status"` no `<p>` é o gancho que a prévia já usa. */}
       <p role="status">{mensagem}</p>
@@ -148,9 +149,9 @@ function TelaDocumentosLocais({ dados }: { dados: DadosDocumentosLocais }) {
                 disabled={anexando}
               />
             </label>
-            <button type="submit" className="ui-botao" data-peso="secundario" disabled={anexando}>
+            <Botao tipo="submit" peso="secundario" disabled={anexando}>
               Anexar arquivo
-            </button>
+            </Botao>
           </Formulario>
           {/* biome-ignore lint/a11y/useSemanticElements: idem. */}
           <p role="status">{statusAnexo}</p>

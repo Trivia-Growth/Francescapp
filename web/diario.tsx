@@ -66,6 +66,7 @@ import type {
 import { relatoTextualSchema } from '../packages/contracts/src/relato-textual.ts';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { Botao } from './componentes/ui/botao.js';
+import { EstadoVazio } from './componentes/ui/estado-vazio.js';
 import { confirmar, confirmarDescarte } from './confirmacao.js';
 import type { MontagemConversaoDiario } from './conversao-diario.js';
 import { montarCamposSintese } from './modelo-sintese.js';
@@ -1230,11 +1231,7 @@ function TelaDiario({
               </div>
             ) : null}
             {estadoLeituras === 'pronto' && registros.length === 0 ? (
-              <div className="ui-vazio">
-                <h3 className="ui-vazio__titulo">
-                  Nenhum registro no diário deste paciente ainda.
-                </h3>
-              </div>
+              <EstadoVazio titulo="Nenhum registro no diário deste paciente ainda." />
             ) : null}
             {estadoLeituras === 'pronto' && registros.length > 0 ? (
               <ul>

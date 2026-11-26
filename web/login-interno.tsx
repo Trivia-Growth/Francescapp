@@ -2,6 +2,8 @@ import { useCallback, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { ClienteFFCM } from './api.ts';
 import { exigeNovoAcesso, mensagemFalha } from './api.ts';
+import { Botao } from './componentes/ui/botao.js';
+import { Campo } from './componentes/ui/campo.js';
 import { ilha } from './ponte/ilha.js';
 import { criarServicoConfirmacaoInterna } from './servico-acessos-http.js';
 import { Formulario } from './telas/formulario.js';
@@ -222,41 +224,31 @@ function TelaLoginInterno({
       >
         <fieldset id="interno-login-fields" disabled={ocupada}>
           <legend className="sr-only">Credenciais da conta interna</legend>
-          <div className="ui-campo">
-            <label className="ui-campo__rotulo" htmlFor="interno-email">
-              E-mail
-            </label>
-            <input
-              ref={emailRef}
-              className="ui-campo__controle"
-              id="interno-email"
-              name="email"
-              type="email"
-              autoComplete="username"
-              required
-              maxLength={254}
-              autoCapitalize="none"
-              spellCheck={false}
-            />
-          </div>
-          <div className="ui-campo">
-            <label className="ui-campo__rotulo" htmlFor="interno-senha">
-              Senha
-            </label>
-            <input
-              ref={senhaRef}
-              className="ui-campo__controle"
-              id="interno-senha"
-              name="senha"
-              type="password"
-              autoComplete="current-password"
-              required
-              maxLength={1024}
-            />
-          </div>
-          <button className="ui-botao ui-botao--largo" data-peso="principal" type="submit">
+          <Campo
+            ref={emailRef}
+            id="interno-email"
+            rotulo="E-mail"
+            name="email"
+            tipo="email"
+            autoComplete="username"
+            required
+            maxLength={254}
+            autoCapitalize="none"
+            spellCheck={false}
+          />
+          <Campo
+            ref={senhaRef}
+            id="interno-senha"
+            rotulo="Senha"
+            name="senha"
+            tipo="password"
+            autoComplete="current-password"
+            required
+            maxLength={1024}
+          />
+          <Botao largo peso="principal" tipo="submit">
             Entrar com e-mail e senha
-          </button>
+          </Botao>
         </fieldset>
       </Formulario>
 
@@ -283,61 +275,47 @@ function TelaLoginInterno({
           aria-describedby="interno-confirmacao-feedback"
           aoEnviar={aoEnviarConfirmacao}
         >
-          <div className="ui-campo">
-            <label className="ui-campo__rotulo" htmlFor="interno-confirmacao-email">
-              E-mail da conta interna
-            </label>
-            <input
-              ref={emailConfirmacaoRef}
-              className="ui-campo__controle"
-              id="interno-confirmacao-email"
-              type="email"
-              required
-              maxLength={254}
-              autoComplete="email"
-              autoCapitalize="none"
-              spellCheck={false}
-              disabled={ocupada}
-            />
-          </div>
-          <button
-            id="interno-confirmacao-solicitar"
-            className="ui-botao"
-            data-peso="secundario"
-            type="button"
+          <Campo
+            ref={emailConfirmacaoRef}
+            id="interno-confirmacao-email"
+            rotulo="E-mail da conta interna"
+            tipo="email"
+            required
+            maxLength={254}
+            autoComplete="email"
+            autoCapitalize="none"
+            spellCheck={false}
             disabled={ocupada}
-            onClick={aoClicarSolicitar}
+          />
+          <Botao
+            id="interno-confirmacao-solicitar"
+            peso="secundario"
+            disabled={ocupada}
+            aoAtivar={aoClicarSolicitar}
           >
             Enviar código de confirmação
-          </button>
-          <div className="ui-campo">
-            <label className="ui-campo__rotulo" htmlFor="interno-confirmacao-codigo">
-              Código recebido por e-mail
-            </label>
-            <input
-              ref={codigoRef}
-              className="ui-campo__controle"
-              id="interno-confirmacao-codigo"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]{6,10}"
-              minLength={6}
-              maxLength={10}
-              required
-              autoComplete="one-time-code"
-              spellCheck={false}
-              disabled={ocupada}
-            />
-          </div>
-          <button
+          </Botao>
+          <Campo
+            ref={codigoRef}
+            id="interno-confirmacao-codigo"
+            rotulo="Código recebido por e-mail"
+            inputMode="numeric"
+            pattern="[0-9]{6,10}"
+            minLength={6}
+            maxLength={10}
+            required
+            autoComplete="one-time-code"
+            spellCheck={false}
+            disabled={ocupada}
+          />
+          <Botao
             id="interno-confirmacao-verificar"
-            className="ui-botao"
-            data-peso="secundario"
-            type="submit"
+            peso="secundario"
+            tipo="submit"
             disabled={ocupada}
           >
             Verificar código
-          </button>
+          </Botao>
         </Formulario>
 
         {/* biome-ignore lint/a11y/useSemanticElements: idem. */}

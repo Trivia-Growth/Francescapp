@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode } from 'react';
+import type { ComponentPropsWithRef, ReactNode } from 'react';
 import { juntar } from './juntar.js';
 
 /** Campo de texto: rótulo acima, controle, dica e erro na mesma coluna
@@ -87,7 +87,11 @@ export function descritores(id: string, dica?: string): string {
   return dica ? `${id}-dica ${id}-erro` : `${id}-erro`;
 }
 
-export type PropsCampo = Omit<InputHTMLAttributes<HTMLInputElement>, 'id' | 'type'> & {
+/* `ComponentPropsWithRef` e não `InputHTMLAttributes`: o segundo não inclui `ref`, e por
+   isso o campo não podia ser referenciado. Telas que precisam mover o foco ou limpar o
+   controle — a de acesso, por exemplo — ficavam presas ao `<input>` cru do kit antigo.
+   No React 19 `ref` é propriedade comum e segue no espalhamento, sem `forwardRef`. */
+export type PropsCampo = Omit<ComponentPropsWithRef<'input'>, 'id' | 'type'> & {
   id: string;
   rotulo: string;
   tipo?: string;

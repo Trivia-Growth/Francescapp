@@ -32,6 +32,8 @@ import type {
   EstadoDocumento,
 } from '../packages/contracts/src/documento-caso.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
+import { Botao } from './componentes/ui/botao.js';
+import { EstadoVazio } from './componentes/ui/estado-vazio.js';
 import { ilha } from './ponte/ilha.js';
 import type { ServicoDocumentos } from './servico-documentos-http.js';
 import { Formulario } from './telas/formulario.js';
@@ -196,15 +198,10 @@ function FormularioEnvio({
           </option>
         ))}
       </select>
-      <button
-        type="submit"
-        className="ui-botao"
-        data-peso="principal"
-        disabled={enviando || categorias.length === 0}
-      >
+      <Botao tipo="submit" peso="principal" disabled={enviando || categorias.length === 0}>
         Anexar
         {enviando ? <IndicadorAcao /> : null}
-      </button>
+      </Botao>
       {/* biome-ignore lint/a11y/useSemanticElements: `role="status"` no `<p>` é o gancho que a tela já usa. */}
       <p role="status">
         {categorias.length === 0
@@ -416,21 +413,19 @@ function EditorDocumentoCaso({
           Alterar dados mantém o arquivo e o histórico. Removido oculta o acesso pelo app; não
           exclui o arquivo do Drive.
         </p>
-        <button type="submit" className="ui-botao" data-peso="principal" disabled={ocupada}>
+        <Botao tipo="submit" peso="principal" disabled={ocupada}>
           {salvarTexto}
           {ocupada ? <IndicadorAcao /> : null}
-        </button>
-        <button
-          type="button"
-          className="ui-botao"
-          data-peso="secundario"
+        </Botao>
+        <Botao
+          peso="secundario"
           hidden={!conferirVisivel}
           disabled={ocupada}
-          onClick={() => void conferirResultado()}
+          aoAtivar={() => void conferirResultado()}
         >
           Conferir resultado
           {ocupada ? <IndicadorAcao /> : null}
-        </button>
+        </Botao>
         {/* biome-ignore lint/a11y/useSemanticElements: idem. */}
         <p role="status">{aviso}</p>
       </Formulario>
@@ -498,17 +493,15 @@ function BotaoBaixar({
 
   return (
     <>
-      <button
-        type="button"
-        className="ui-botao"
-        data-peso="discreto"
-        aria-label={`Baixar ${documento.nome_visivel}`}
+      <Botao
+        peso="discreto"
+        rotuloLeitura={`Baixar ${documento.nome_visivel}`}
         disabled={ocupado}
-        onClick={() => void aoClicar()}
+        aoAtivar={() => void aoClicar()}
       >
         Baixar arquivo
         {ocupado ? <IndicadorAcao /> : null}
-      </button>
+      </Botao>
       {/* biome-ignore lint/a11y/useSemanticElements: idem. */}
       <p role="status">{feedback}</p>
     </>
@@ -609,11 +602,7 @@ function ListaDocumentos(props: {
   descartarAcesso: (erro: unknown) => boolean;
 }) {
   if (!props.documentos.length)
-    return (
-      <div className="ui-vazio">
-        <h3 className="ui-vazio__titulo">Nenhum documento anexado a este caso ainda.</h3>
-      </div>
-    );
+    return <EstadoVazio titulo="Nenhum documento anexado a este caso ainda." />;
   return (
     <ul className="documentos-lista">
       {props.documentos.map((documento) => (

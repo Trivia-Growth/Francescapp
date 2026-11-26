@@ -39,6 +39,7 @@ import {
   montarPacoteExportacao,
   nomeDoArquivoPacote,
 } from './pacote-exportacao.js';
+import { Botao } from './componentes/ui/botao.js';
 import { ilha } from './ponte/ilha.js';
 import { Formulario } from './telas/formulario.js';
 
@@ -456,10 +457,10 @@ function TelaExportacao({
           maxLength={2000}
           onChange={(evento) => marcarPendente(evento.currentTarget.form as HTMLFormElement)}
         />
-        <button type="submit" className="ui-botao" data-peso="principal" disabled={enviando}>
+        <Botao tipo="submit" peso="principal" disabled={enviando}>
           Registrar exportação
           {enviando ? <IndicadorAcao /> : null}
-        </button>
+        </Botao>
       </Formulario>
       {fase === 'carregando' ? (
         <ol className="exportacao__lista">

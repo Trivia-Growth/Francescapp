@@ -8,7 +8,8 @@
  * sem vínculo marcado, o aviso de que vínculo é descritivo e não concede acesso, e a
  * ausência de qualquer campo de permissão na estrutura enviada.
  *
- * Mesmo sistema visual antigo (`ui-botao`, `list-loading`, `loading-indicator`) e mesmos
+ * Botões passaram ao `Botao` de `componentes/ui` em 26/11/2026; as classes de layout da
+ * própria tela (`list-loading`, `loading-indicator`) continuam. Mesmos
  * campos não controlados de `contexto-cuidado.tsx`, pela mesma razão. */
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
@@ -22,6 +23,7 @@ import {
   type ColetaEditorDocumento,
   usarEditorDocumentoPaciente,
 } from './editor-documento-paciente.js';
+import { Botao } from './componentes/ui/botao.js';
 import { ilha } from './ponte/ilha.js';
 import type { ServicoDocumentoPaciente } from './servico-documento-paciente-http.js';
 import { Formulario } from './telas/formulario.js';
@@ -113,15 +115,13 @@ function LinhaRede({ linha, aoRemover }: { linha: LinhaLocal; aoRemover: () => v
       </fieldset>
       {/* Sem isto, um leitor de tela anuncia "Remover pessoa" N vezes iguais para uma ação
           destrutiva e sem confirmação. */}
-      <button
-        type="button"
-        className="ui-botao"
-        data-peso="discreto"
-        aria-label={`Remover ${nomeAtual.trim() || 'pessoa sem nome'} da rede de cuidado`}
-        onClick={aoRemover}
+      <Botao
+        peso="discreto"
+        rotuloLeitura={`Remover ${nomeAtual.trim() || 'pessoa sem nome'} da rede de cuidado`}
+        aoAtivar={aoRemover}
       >
         Remover pessoa
-      </button>
+      </Botao>
     </li>
   );
 }
@@ -231,15 +231,9 @@ const CorpoRedeCuidado = forwardRef<RefCorpoDocumento<PessoaRede[]>, PropsCorpoR
             <LinhaRede key={linha.id} linha={linha} aoRemover={() => remover(linha.id)} />
           ))}
         </ul>
-        <button
-          type="button"
-          className="ui-botao"
-          data-peso="secundario"
-          disabled={bloqueado}
-          onClick={adicionar}
-        >
+        <Botao peso="secundario" disabled={bloqueado} aoAtivar={adicionar}>
           Adicionar pessoa
-        </button>
+        </Botao>
       </div>
     );
   },
@@ -289,14 +283,9 @@ function TelaRedeCuidado({
       <>
         {/* biome-ignore lint/a11y/useSemanticElements: idem. */}
         <p role="status">{mensagemFalha(editor.consulta.erro)}</p>
-        <button
-          type="button"
-          className="ui-botao"
-          data-peso="secundario"
-          onClick={editor.tentarNovamenteConsulta}
-        >
+        <Botao peso="secundario" aoAtivar={editor.tentarNovamenteConsulta}>
           Tentar novamente
-        </button>
+        </Botao>
       </>
     );
 
@@ -325,26 +314,15 @@ function TelaRedeCuidado({
       <p role="status" aria-live="polite" data-tone={editor.conflitoVersao ? 'error' : undefined}>
         {editor.aviso}
       </p>
-      <button
-        type="submit"
-        className="ui-botao"
-        data-peso="principal"
-        disabled={travado || editor.conflitoVersao}
-      >
+      <Botao tipo="submit" peso="principal" disabled={travado || editor.conflitoVersao}>
         Salvar rede de cuidado
         {editor.enviando && !editor.retryVisivel ? <IndicadorAcao /> : null}
-      </button>
+      </Botao>
       {editor.retryVisivel ? (
-        <button
-          type="button"
-          className="ui-botao"
-          data-peso="secundario"
-          disabled={editor.enviando}
-          onClick={editor.confirmarRetry}
-        >
+        <Botao peso="secundario" disabled={editor.enviando} aoAtivar={editor.confirmarRetry}>
           Tentar confirmar salvamento
           {editor.enviando ? <IndicadorAcao /> : null}
-        </button>
+        </Botao>
       ) : null}
     </Formulario>
   );
