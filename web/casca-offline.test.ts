@@ -3,8 +3,10 @@ import { afterEach, expect, it, vi } from 'vitest';
 import './public/casca-regras.js';
 import './public/sw-reversao.js';
 import {
+  ENDERECO_WORKER,
   limparAparelho,
   montarEstadoDeRede,
+  NOME_POLITICA,
   PREFIXOS_PRESERVADOS,
   registrarCascaOffline,
 } from './casca-offline.js';
@@ -430,4 +432,58 @@ it('segunda pessoa no mesmo aparelho não encontra nada da sessão anterior', as
   // O único resíduo é o marcador do usuário anterior, lido só por ele.
   expect(Object.keys({ ...localStorage })).toEqual([`ffcm-agenda-operacao-incerta:${usuarioA}`]);
   expect(PREFIXOS_PRESERVADOS.every((prefixo) => prefixo.endsWith(':'))).toBe(true);
+});
+
+it('mina o endereço do worker por política estreita e recusa qualquer outro', async () => {
+  /* Medido em Chromium em 25/11/2026: com `trusted-types 'none'` o navegador recusava
+     `register('/sw.js')` e o `catch` devolvia 'falhou' sem avisar ninguém — FR-071 estava
+     morto em produção, em silêncio. A saída não foi afrouxar a diretiva: é UMA política
+     nomeada que aceita um endereço só. O segundo `expect` é o que importa de verdade:
+     se alguém alargar a regra para aceitar qualquer entrada, este teste reprova. */
+  const minados: string[] = [];
+  let regrasGuardadas: { createScriptURL(entrada: string): string } | undefined;
+  const janela = {
+    trustedTypes: {
+      createPolicy(nome: string, regras: { createScriptURL(entrada: string): string }) {
+        expect(nome).toBe(NOME_POLITICA);
+        regrasGuardadas = regras;
+        return {
+          createScriptURL(entrada: string) {
+            const saida = regras.createScriptURL(entrada);
+            minados.push(saida);
+            return saida;
+          },
+        };
+      },
+    },
+  } as unknown as Window;
+
+  const registros: string[] = [];
+  const navegador = {
+    serviceWorker: {
+      register: (url: string) => {
+        registros.push(url);
+        return Promise.resolve({} as ServiceWorkerRegistration);
+      },
+    },
+  } as unknown as Navigator;
+
+  expect(await registrarCascaOffline(navegador, janela)).toBe('registrada');
+  expect(registros).toEqual([ENDERECO_WORKER]);
+  expect(minados).toEqual([ENDERECO_WORKER]);
+  expect(() => regrasGuardadas?.createScriptURL('/outro.js')).toThrow();
+});
+
+it('continua registrando onde Trusted Types não existe', async () => {
+  const registros: string[] = [];
+  const navegador = {
+    serviceWorker: {
+      register: (url: string) => {
+        registros.push(url);
+        return Promise.resolve({} as ServiceWorkerRegistration);
+      },
+    },
+  } as unknown as Navigator;
+  expect(await registrarCascaOffline(navegador, {} as Window)).toBe('registrada');
+  expect(registros).toEqual([ENDERECO_WORKER]);
 });
