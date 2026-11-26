@@ -1,4 +1,3 @@
-import { montarAcessosAdministracao } from './acessos-administracao.js';
 import { criarServicoAcessosHttp } from './servico-acessos-http.js';
 import { montarLoginInterno } from './login-interno.js';
 import { iniciarAcao } from './esqueleto.js';
@@ -17,7 +16,6 @@ import { lerCadastro } from './cadastro.js';
 import { montarCamposCasoNovo } from './campos-caso-novo.js';
 import { montarAnamnese } from './anamnese.js';
 import { criarCicloCadastro } from './ciclo-cadastro.js';
-import { montarAdministracaoPlano } from './campo-extra-plano-administracao.js';
 import { montarPlanoCuidado } from './plano-cuidado.js';
 import { criarServicoPlanoHttp } from './servico-plano-http.js';
 import {
@@ -25,9 +23,6 @@ import {
   criarServicoModeloFormularioHttp,
   criarServicoPapelDeclaradoHttp,
 } from './servico-catalogo-administrado-http.js';
-import { montarModeloFichaPlantao } from './modelo-ficha-plantao-administracao.js';
-import { montarPapelDeclaradoAdministracao } from './papel-declarado-administracao.js';
-import { montarEstadoEmocionalAdministracao } from './estado-emocional-administracao.js';
 import { criarServicoEdicaoPacienteHttp } from './servico-edicao-paciente-http.js';
 import { montarTarefasCuidado } from './tarefas-cuidado.js';
 import { criarServicoTarefasHttp } from './servico-tarefas-http.js';
@@ -57,13 +52,10 @@ import { documentoRedeCuidadoSchema } from '../packages/contracts/src/rede-cuida
 import { documentoContextoCuidadoSchema } from '../packages/contracts/src/contexto-cuidado.js';
 import { montarPlanoCrise } from './plano-crise.js';
 import { criarServicoPlanoCriseHttp } from './servico-plano-crise-http.js';
-import { montarHabilitacaoPlanoCrise } from './habilitacao-plano-crise.js';
 import { criarServicoHabilitacaoPlanoCriseHttp } from './servico-habilitacao-plano-crise-http.js';
 import { criarServicoSubstituicaoCmHttp } from './servico-substituicao-cm-http.js';
-import { montarFinanceiro } from './financeiro.js';
 import { criarServicoFinanceiroHttp } from './servico-financeiro-http.js';
 import { criarAudienciaFinanceira } from './financeiro-audiencia.js';
-import { montarFinanceiroConcessaoAdministracao } from './financeiro-concessao-administracao.js';
 import { montarDiario } from './diario.js';
 import { montarTurnoComExecucao } from './turno-execucao-integracao.js';
 import { montarExecucaoTurno } from './turno-execucao.js';
@@ -95,18 +87,13 @@ import { criarServicoPendenciasHttp } from './servico-pendencias-http.js';
 import { montarAvisos } from './avisos.js';
 import { limparAparelho, montarEstadoDeRede, registrarCascaOffline } from './casca-offline.js';
 import { criarServicoAvisosHttp } from './servico-avisos-http.js';
-import { montarAuditoria } from './auditoria.js';
 import { criarServicoAuditoriaHttp } from './servico-auditoria-http.js';
 import { montarRegrasAtendimento } from './regras-atendimento.js';
 import { criarServicoRegrasAtendimentoHttp } from './servico-regras-atendimento-http.js';
 import { montarHomeProfissional } from './home-profissional.js';
-import { montarSolicitacoesTitular } from './solicitacoes-titular.js';
 import { criarServicoSolicitacaoTitularHttp } from './servico-solicitacao-titular-http.js';
-import { montarConfiguracaoSistema } from './configuracao-sistema.js';
-import { montarSegredosIntegracoes } from './segredos-integracoes.js';
 import { criarServicoSegredosIntegracoesHttp } from './servico-segredos-integracoes-http.js';
 import { criarServicoConfiguracaoSistemaHttp } from './servico-configuracao-sistema-http.js';
-import { montarConcessaoEquipe } from './concessao-equipe.js';
 import { montarFiltrosCarteira, montarSinalCarteira } from './filtros-carteira.js';
 import { montarTranscricaoAudio } from './transcricao-audio.js';
 import { criarServicoTranscricaoHttp } from './servico-transcricao-http.js';
@@ -1814,7 +1801,11 @@ type AreaAdministracao = {
   id: string;
   rotulo: string;
   disponivel: (atual: Sessao) => boolean;
-  montar: (raiz: HTMLElement) => () => void;
+  /* Promete a desmontagem porque o módulo da área chega por importação dinâmica: o código
+     de cada tela de Administração só desce quando alguém abre aquela tela. Medido em
+     26/11/2026: as 13 telas pesam ~67 kB comprimidos, e quem não administra nunca as
+     abre — era peso na primeira carga de todo mundo, inclusive no celular da família. */
+  montar: (raiz: HTMLElement) => Promise<() => void>;
 };
 
 const nomeDoUsuarioNaEquipe = (() => {
@@ -1849,8 +1840,8 @@ const areasAdministracao: AreaAdministracao[] = [
     id: 'plano-cuidado',
     rotulo: 'Plano de cuidado',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: (raiz) =>
-      montarAdministracaoPlano(
+    montar: async (raiz) =>
+      (await import('./campo-extra-plano-administracao.js')).montarAdministracaoPlano(
         raiz,
         criarServicoPlanoHttp(identidadeAtual),
         acessoPerdido,
@@ -1867,8 +1858,8 @@ const areasAdministracao: AreaAdministracao[] = [
     id: 'modelo-ficha-plantao',
     rotulo: 'Ficha de plantão — modelo',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: (raiz) =>
-      montarModeloFichaPlantao(
+    montar: async (raiz) =>
+      (await import('./modelo-ficha-plantao-administracao.js')).montarModeloFichaPlantao(
         raiz,
         criarServicoModeloFormularioHttp(identidadeAtual, 'ficha_plantao'),
         acessoPerdido,
@@ -1879,8 +1870,8 @@ const areasAdministracao: AreaAdministracao[] = [
     id: 'papel-declarado',
     rotulo: 'Papéis declarados',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: (raiz) =>
-      montarPapelDeclaradoAdministracao(
+    montar: async (raiz) =>
+      (await import('./papel-declarado-administracao.js')).montarPapelDeclaradoAdministracao(
         raiz,
         criarServicoPapelDeclaradoHttp(identidadeAtual),
         acessoPerdido,
@@ -1892,8 +1883,8 @@ const areasAdministracao: AreaAdministracao[] = [
     id: 'estado-emocional',
     rotulo: 'Estado emocional observado',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: (raiz) =>
-      montarEstadoEmocionalAdministracao(
+    montar: async (raiz) =>
+      (await import('./estado-emocional-administracao.js')).montarEstadoEmocionalAdministracao(
         raiz,
         criarServicoEstadoEmocionalHttp(identidadeAtual),
         acessoPerdido,
@@ -1905,29 +1896,41 @@ const areasAdministracao: AreaAdministracao[] = [
     disponivel: (atual) =>
       atual.usuario.perfil === 'administrador' &&
       atual.capacidades.includes('administrar_concessoes'),
-    montar: (raiz) =>
-      montarAcessosAdministracao(raiz, criarServicoAcessosHttp(identidadeAtual), {
-        identidadeAtual,
-        acessoPerdido,
-      }),
+    montar: async (raiz) =>
+      (await import('./acessos-administracao.js')).montarAcessosAdministracao(
+        raiz,
+        criarServicoAcessosHttp(identidadeAtual),
+        {
+          identidadeAtual,
+          acessoPerdido,
+        },
+      ),
   },
   {
     id: 'integracoes',
     rotulo: 'Credenciais das integrações',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: (raiz) =>
-      montarSegredosIntegracoes(raiz, criarServicoSegredosIntegracoesHttp(identidadeAtual), {
-        nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
-      }),
+    montar: async (raiz) =>
+      (await import('./segredos-integracoes.js')).montarSegredosIntegracoes(
+        raiz,
+        criarServicoSegredosIntegracoesHttp(identidadeAtual),
+        {
+          nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
+        },
+      ),
   },
   {
     id: 'configuracao',
     rotulo: 'Configuração',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: (raiz) =>
-      montarConfiguracaoSistema(raiz, criarServicoConfiguracaoSistemaHttp(identidadeAtual), {
-        nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
-      }),
+    montar: async (raiz) =>
+      (await import('./configuracao-sistema.js')).montarConfiguracaoSistema(
+        raiz,
+        criarServicoConfiguracaoSistemaHttp(identidadeAtual),
+        {
+          nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
+        },
+      ),
   },
   {
     id: 'equipe',
@@ -1935,7 +1938,8 @@ const areasAdministracao: AreaAdministracao[] = [
     disponivel: (atual) =>
       atual.usuario.perfil === 'administrador' &&
       atual.capacidades.includes('administrar_concessoes'),
-    montar: (raiz) => montarConcessaoEquipe(raiz, api),
+    montar: async (raiz) =>
+      (await import('./concessao-equipe.js')).montarConcessaoEquipe(raiz, api),
   },
   {
     id: 'plano-de-crise',
@@ -1943,8 +1947,11 @@ const areasAdministracao: AreaAdministracao[] = [
     disponivel: (atual) =>
       atual.usuario.perfil === 'administrador' &&
       atual.capacidades.includes('administrar_concessoes'),
-    montar: (raiz) =>
-      montarHabilitacaoPlanoCrise(raiz, criarServicoHabilitacaoPlanoCriseHttp(identidadeAtual)),
+    montar: async (raiz) =>
+      (await import('./habilitacao-plano-crise.js')).montarHabilitacaoPlanoCrise(
+        raiz,
+        criarServicoHabilitacaoPlanoCriseHttp(identidadeAtual),
+      ),
   },
   {
     // FR-068. Conceder a audiência financeira é ato de Administrador, e não decorre de
@@ -1956,8 +1963,10 @@ const areasAdministracao: AreaAdministracao[] = [
     disponivel: (atual) =>
       atual.usuario.perfil === 'administrador' &&
       atual.capacidades.includes('administrar_concessoes'),
-    montar: (raiz) =>
-      montarFinanceiroConcessaoAdministracao(raiz, criarServicoFinanceiroHttp(identidadeAtual)),
+    montar: async (raiz) =>
+      (
+        await import('./financeiro-concessao-administracao.js')
+      ).montarFinanceiroConcessaoAdministracao(raiz, criarServicoFinanceiroHttp(identidadeAtual)),
   },
   {
     id: 'financeiro',
@@ -1967,30 +1976,41 @@ const areasAdministracao: AreaAdministracao[] = [
     // chamada financeira continua sendo autorizada no servidor e no banco.
     disponivel: (atual) =>
       atual.usuario.perfil !== 'familia' && audienciaFinanceira.permitidaPara(atual.session_id),
-    montar: (raiz) => montarFinanceiro(raiz, criarServicoFinanceiroHttp(identidadeAtual)),
+    montar: async (raiz) =>
+      (await import('./financeiro.js')).montarFinanceiro(
+        raiz,
+        criarServicoFinanceiroHttp(identidadeAtual),
+      ),
   },
   {
     id: 'auditoria',
     rotulo: 'Auditoria',
     disponivel: (atual) => atual.capacidades.includes('consultar_auditoria'),
-    montar: (raiz) =>
-      montarAuditoria(raiz, criarServicoAuditoriaHttp(identidadeAtual), {
-        nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
-        // Só para dar nome ao filtro por caso. A carteira já é autorizada no servidor, e a
-        // auditoria autoriza de novo: a lista aqui não concede nada.
-        listarCasos: async () =>
-          (await api.listarPacientes()).itens.map((item) => ({
-            id: item.id,
-            nome: item.nome_preferencia ?? item.nome,
-          })),
-      }),
+    montar: async (raiz) =>
+      (await import('./auditoria.js')).montarAuditoria(
+        raiz,
+        criarServicoAuditoriaHttp(identidadeAtual),
+        {
+          nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
+          // Só para dar nome ao filtro por caso. A carteira já é autorizada no servidor, e a
+          // auditoria autoriza de novo: a lista aqui não concede nada.
+          listarCasos: async () =>
+            (await api.listarPacientes()).itens.map((item) => ({
+              id: item.id,
+              nome: item.nome_preferencia ?? item.nome,
+            })),
+        },
+      ),
   },
   {
     id: 'solicitacoes',
     rotulo: 'Solicitações do titular',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: (raiz) =>
-      montarSolicitacoesTitular(raiz, criarServicoSolicitacaoTitularHttp(identidadeAtual)),
+    montar: async (raiz) =>
+      (await import('./solicitacoes-titular.js')).montarSolicitacoesTitular(
+        raiz,
+        criarServicoSolicitacaoTitularHttp(identidadeAtual),
+      ),
   },
 ];
 
@@ -2119,9 +2139,34 @@ function mostrarAdministracao(areaId: string): void {
   // branco até a primeira consulta responder, e o branco era lido como erro.
   conteudo.setAttribute('aria-busy', 'true');
   conteudo.replaceChildren();
-  painelAdministracao = { area: area.id, desmontar: area.montar(conteudo) };
-  if (conteudo.hasChildNodes()) conteudo.removeAttribute('aria-busy');
-  elemento('administracao-title').focus({ preventScroll: true });
+  /* O módulo da área chega por importação dinâmica, então a montagem deixou de ser
+     síncrona. Duas coisas precisam continuar valendo, e são o motivo deste cuidado:
+
+     1. Trocar de aba durante o carregamento não pode deixar a tela errada aparecer
+        depois. `area.id !== painelAdministracao?.area` é a conferência: se outra área
+        tomou o lugar enquanto o módulo descia, esta montagem é descartada e desmontada
+        na hora, sem tocar na tela.
+     2. A região fica `aria-busy` até o conteúdo existir, como já ficava — sem isso a
+        área ficava em branco até a primeira consulta responder, e o branco era lido
+        como erro. */
+  const emCarregamento = { area: area.id, desmontar: () => {} };
+  painelAdministracao = emCarregamento;
+  void area.montar(conteudo).then(
+    (desmontar) => {
+      if (painelAdministracao !== emCarregamento) {
+        desmontar();
+        return;
+      }
+      emCarregamento.desmontar = desmontar;
+      if (conteudo.hasChildNodes()) conteudo.removeAttribute('aria-busy');
+      elemento('administracao-title').focus({ preventScroll: true });
+    },
+    (erro: unknown) => {
+      if (painelAdministracao !== emCarregamento || acessoPerdido(erro)) return;
+      conteudo.removeAttribute('aria-busy');
+      aviso('workspace-feedback', `${mensagemFalha(erro)} Tente abrir a área de novo.`, 'error');
+    },
+  );
 }
 
 function mostrarRegras(): void {
