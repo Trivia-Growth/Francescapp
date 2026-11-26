@@ -395,6 +395,14 @@ Encontrados durante a execução, nenhum causado por esta mudança.
   Aviso em aberto do build: `turno-execucao-relatorios` não se move por ser importado
   estaticamente por `turno-execucao.ts`.
 
+  **Remedido em 26/11/2026, depois da padronização: 217,5 kB.** A diferença de 0,7 kB é o
+  custo da troca das classes do kit antigo pelos componentes, e ela não se paga nesta
+  fatia: `web/ui/ui.css` continua descendo enquanto os 23 módulos imperativos usarem
+  `web/ui/`. Saldo sobre os 185,4 kB de referência: **+32,1 kB**, primeira faixa da régua
+  de D8. Método: gzip nível 9 sobre `index.html` e tudo que ele referencia, incluindo os
+  quatro `modulepreload`. CSS (16,4 kB) e HTML (5,7 kB) ficam fora da conta porque a régua
+  de D8 é de JavaScript; somando tudo, a primeira visita traz 239,5 kB.
+
 - [x] **`web/linha-tempo` migrado, com os primeiros testes que o módulo já teve.** Eram
   zero. Seis provas, incluindo negativa de autorização que exige `acessoPerdido` chamado
   **e** nenhuma mensagem genérica no lugar — distinguir recusa de permissão de falha de
@@ -445,19 +453,26 @@ contratos Zod. Onze telas de administração conferidas em Chromium com conteúd
 Resolvidos no mesmo dia: a casca offline bloqueada, a rolagem horizontal da Auditoria e a
 caixa dentro de caixa em seis telas. Ficam estes:
 
-- [ ] **C1. Botão de revogar vínculo cortado no celular.** A célula da lista é
+- [x] **C1. Botão de revogar vínculo cortado no celular — CORRIGIDO em 26/11/2026
+  (`e9bf1ff`): rótulo e endereço inteiros em 390px.** Era assim: a célula da lista é
   `min-w-0 flex-1 truncate` e o botão de 220px é recortado: lê-se "Selecionar" em vez de
   "Selecionar para revogação". Agravante na mesma lista: os e-mails aparecem como
   `ana.ficticia…`. Numa ação de revogação, não dá para saber quem se está revogando.
   Precisa de coluna que não trunca.
-- [ ] **C2. Campos de filtro da Auditoria a 13px.** `input#auditoria-acao` e os dois do
+- [x] **C2. Campos de filtro da Auditoria a 13px — CORRIGIDO: 16px por `classeControle`,
+  junto da migração da tela.** Eram `input#auditoria-acao` e os dois do
   componente de data. O iOS dá zoom ao focar. Única tela com campo abaixo de 16px.
-- [ ] **C3. `<summary>` com 26px de altura** nas listas administradas, contra os 46 de alvo
-  de toque. É o controle que abre cada item do catálogo.
-- [ ] **C4. Caixas de marcação com 24px de largura** em modelo de ficha, plano e financeiro.
-- [ ] **C5. Zod usa `new Function`**, bloqueado pela mesma diretiva de Trusted Types em
-  todas as telas. Zod tem caminho alternativo e nada quebrou visivelmente, mas convém
-  confirmar no build de produção, que não foi rodado.
+- [x] **C3. `<summary>` com 26px de altura — CORRIGIDO em 26/11/2026 (`d90a475`): 46px.**
+  Nas listas administradas, contra os 46px de alvo de toque. É o controle que abre cada
+  item do catálogo.
+- [x] **C4. Caixas de marcação com 24px de largura — CORRIGIDO em 26/11/2026 (`475a364`):
+  46px.** Em modelo de ficha, plano e financeiro.
+- [ ] **C5. Zod usa `new Function`** — as 14 provas de celular rodam em Chromium com a
+  diretiva ativa (o `<meta>` de CSP está em `web/index.html:5`, então vale também no
+  servidor de desenvolvimento) e a validação das fixtures passa. **Falta confirmar no
+  pacote de produção**, que é onde o Zod minificado pode escolher outro caminho.
+  Texto original do achado: `new Function` é bloqueado pela diretiva de Trusted Types em
+  todas as telas; Zod tem caminho alternativo e nada quebrou visivelmente.
 
 ## Suíte de testes — contenção sob paralelismo
 
