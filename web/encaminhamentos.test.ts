@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
 import { aguardarConfirmacao } from './confirmacao-prova.js';
-import { montarEncaminhamentos } from './encaminhamentos';
+import { montarEncaminhamentos } from './encaminhamentos.tsx';
 
 const registro = (sobrepor: Record<string, unknown> = {}) => ({
   encaminhamento_id: '00000000-0000-4000-8000-000000000001',

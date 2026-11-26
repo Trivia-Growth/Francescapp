@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { montarSubstituicaoCaseManager } from './substituicao-case-manager';
+import { montarSubstituicaoCaseManager } from './substituicao-case-manager.tsx';
 import { FalhaApi } from './api';
 import type { PainelSubstituicao } from '../packages/contracts/src/substituicao-case-manager.ts';
 

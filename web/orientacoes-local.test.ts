@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { montarOrientacoesLocais, type OrientacaoLocal } from './orientacoes-local';
+import { montarOrientacoesLocais, type OrientacaoLocal } from './orientacoes-local.tsx';
 
 it('preserva versões e rascunho quando gravação falha', async () => {
   const raiz = document.createElement('div');
