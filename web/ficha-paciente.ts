@@ -21,8 +21,18 @@ const LIMITE_ATALHOS = 2;
 export type SecaoFicha = {
   id: string;
   rotulo: string;
-  /** Sem `montar`, a seção é indicada como indisponível nesta versão, sem dados nem ação. */
-  montar: ((raiz: HTMLElement, pendente: (pendente: boolean) => void) => () => void) | null;
+  /** Sem `montar`, a seção é indicada como indisponível nesta versão, sem dados nem ação.
+   *
+   *  Pode devolver a desmontagem direto ou uma promessa dela. A promessa existe para a
+   *  seção poder chegar por importação dinâmica: o código de uma aba só desce quando
+   *  alguém abre aquela aba. Seção leve continua síncrona — não há ganho em adiar o que
+   *  já está no pacote, e manter as duas formas evita converter o que não precisa. */
+  montar:
+    | ((
+        raiz: HTMLElement,
+        pendente: (pendente: boolean) => void,
+      ) => (() => void) | Promise<() => void>)
+    | null;
   /** Aviso de descarte quando a seção tem alteração não confirmada. */
   descarte?: string;
 };
@@ -261,15 +271,43 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
       );
       return;
     }
-    try {
-      desmontarSecao = secao.montar(conteudo, (valor) => {
-        if (ativa && marca === montagem) pendente = valor;
-      });
-    } catch {
+    const falhar = () => {
       desmontarSecao = null;
+      conteudo.removeAttribute('aria-busy');
       const erro = elemento('p', undefined, 'Não foi possível abrir esta seção. Tente novamente.');
       erro.dataset.tone = 'error';
       conteudo.replaceChildren(erro);
+    };
+    try {
+      const montada = secao.montar(conteudo, (valor) => {
+        if (ativa && marca === montagem) pendente = valor;
+      });
+      if (typeof montada === 'function') {
+        desmontarSecao = montada;
+        return;
+      }
+      /* A seção chega por importação dinâmica. Enquanto o módulo desce, a região fica
+         `aria-busy`: sem isso a aba fica em branco até o download terminar, e branco é
+         lido como erro.
+         `marca === montagem` é a guarda da corrida, e já existia: trocar de aba durante o
+         download não pode deixar a aba anterior aparecer depois. A que perdeu a corrida é
+         desmontada na hora, sem tocar na tela. */
+      conteudo.setAttribute('aria-busy', 'true');
+      void montada.then(
+        (desmontar) => {
+          if (!ativa || marca !== montagem) {
+            desmontar();
+            return;
+          }
+          desmontarSecao = desmontar;
+          conteudo.removeAttribute('aria-busy');
+        },
+        () => {
+          if (ativa && marca === montagem) falhar();
+        },
+      );
+    } catch {
+      falhar();
     }
   }
 

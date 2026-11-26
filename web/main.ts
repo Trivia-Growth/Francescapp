@@ -4,7 +4,6 @@ import { iniciarAcao } from './esqueleto.js';
 import { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.js';
 import { montarAgendaIndividual } from './agenda-individual.js';
 import { montarContatoPaciente } from './contatos-paciente.js';
-import { montarSelecaoProfissional } from './selecao-profissional.js';
 import { montarEdicaoPaciente } from './editar-paciente.js';
 import type {
   sessaoNativaSchema,
@@ -14,9 +13,7 @@ import type {
 import { ClienteFFCM, exigeNovoAcesso, FalhaApi, mensagemFalha, semPermissao } from './api.js';
 import { lerCadastro } from './cadastro.js';
 import { montarCamposCasoNovo } from './campos-caso-novo.js';
-import { montarAnamnese } from './anamnese.js';
 import { criarCicloCadastro } from './ciclo-cadastro.js';
-import { montarPlanoCuidado } from './plano-cuidado.js';
 import { criarServicoPlanoHttp } from './servico-plano-http.js';
 import {
   criarServicoEstadoEmocionalHttp,
@@ -37,52 +34,36 @@ import {
   type PacienteFicha,
   type SecaoFicha,
 } from './ficha-paciente.js';
-import { montarDadosFamiliar } from './secao-dados-familiar.js';
-import { montarVisaoCaso } from './visao-caso.js';
-import { montarSaude } from './saude.js';
 import { criarServicoSaudeHttp } from './servico-saude-http.js';
-import { montarEncaminhamentos } from './encaminhamentos.js';
 import { criarServicoEncaminhamentosHttp } from './servico-encaminhamentos-http.js';
-import { montarOrientacoes } from './orientacoes.js';
 import { criarServicoOrientacoesHttp } from './servico-orientacoes-http.js';
-import { montarRedeCuidado } from './rede-cuidado.js';
-import { montarContextoCuidado } from './contexto-cuidado.js';
 import { criarServicoDocumentoPacienteHttp } from './servico-documento-paciente-http.js';
 import { documentoRedeCuidadoSchema } from '../packages/contracts/src/rede-cuidado.js';
 import { documentoContextoCuidadoSchema } from '../packages/contracts/src/contexto-cuidado.js';
-import { montarPlanoCrise } from './plano-crise.js';
 import { criarServicoPlanoCriseHttp } from './servico-plano-crise-http.js';
 import { criarServicoHabilitacaoPlanoCriseHttp } from './servico-habilitacao-plano-crise-http.js';
 import { criarServicoSubstituicaoCmHttp } from './servico-substituicao-cm-http.js';
 import { criarServicoFinanceiroHttp } from './servico-financeiro-http.js';
 import { criarAudienciaFinanceira } from './financeiro-audiencia.js';
-import { montarDiario } from './diario.js';
 import { montarTurnoComExecucao } from './turno-execucao-integracao.js';
 import { montarExecucaoTurno } from './turno-execucao.js';
-import { montarRelatoriosTurno } from './turno-execucao-relatorios.js';
 import { criarServicoTurnoExecucaoHttp } from './servico-turno-execucao-http.js';
 import { criarServicoFichaPlantaoHttp } from './servico-ficha-plantao-http.js';
-import { montarEscalaTurno } from './escala-turno.js';
 import { criarServicoTurnoHttp } from './servico-turno-http.js';
 import './turno-proprio.css';
 import './turno-execucao.css';
 import { montarConversaoDiario } from './conversao-diario.js';
 import { criarServicoConversaoDiarioHttp } from './servico-conversao-diario-http.js';
 import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
-import { montarLinhaTempo } from './linha-tempo.js';
 import { aplicarControlesProprios } from './ui/controles.js';
 import { botao, linhaLista } from './ui/basicos.js';
 import { criarServicoLinhaTempoHttp } from './servico-linha-tempo-http.js';
-import { montarExportacao } from './exportacao.js';
 import { criarServicoExportacaoHttp } from './servico-exportacao-http.js';
-import { montarPreautorizacoesFamiliares } from './preautorizacoes-familiares.js';
 import { criarServicoPreautorizacoesHttp } from './servico-preautorizacoes-http.js';
-import { montarDocumentosCaso } from './documentos-caso.js';
 import {
   consultarDisponibilidadeDocumentos,
   criarServicoDocumentosHttp,
 } from './servico-documentos-http.js';
-import { montarPendenciasCaso } from './pendencias-caso.js';
 import { criarServicoPendenciasHttp } from './servico-pendencias-http.js';
 import { montarAvisos } from './avisos.js';
 import { limparAparelho, montarEstadoDeRede, registrarCascaOffline } from './casca-offline.js';
@@ -937,17 +918,23 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       {
         id: 'dados',
         rotulo: 'Dados do paciente',
-        montar: (raiz) => montarDadosFamiliar(raiz, paciente.id, api, acessoPerdido),
+        montar: async (raiz) =>
+          (await import('./secao-dados-familiar.js')).montarDadosFamiliar(
+            raiz,
+            paciente.id,
+            api,
+            acessoPerdido,
+          ),
       },
       {
         id: 'diario',
         rotulo: 'Diário',
         descarte: descarteDiario,
-        montar: (raiz, pendente) => {
+        montar: async (raiz, pendente) => {
           pedirAreasDoDiario();
           // Sem entrada por áudio aqui de propósito: `transcricao-audio-relato` ainda não
           // tem o planejamento fechado nem cobre sessão familiar — família digita o relato.
-          return montarDiario(
+          return (await import('./diario.js')).montarDiario(
             raiz,
             paciente.id,
             atual.usuario.id,
@@ -964,13 +951,17 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       {
         id: 'relatorios-turno',
         rotulo: 'Relatórios do cuidado',
-        montar: (raiz, pendente) => {
+        montar: async (raiz, pendente) => {
           const servico = criarServicoTurnoExecucaoHttp(paciente.id, identidadeAtual);
-          const desmontar = montarRelatoriosTurno(raiz, servico, {
-            familia: true,
-            acessoPerdido,
-            alteracaoPendente: pendente,
-          });
+          const desmontar = (await import('./turno-execucao-relatorios.js')).montarRelatoriosTurno(
+            raiz,
+            servico,
+            {
+              familia: true,
+              acessoPerdido,
+              alteracaoPendente: pendente,
+            },
+          );
           return () => {
             desmontar();
             servico.desmontar();
@@ -980,12 +971,12 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       {
         id: 'plano',
         rotulo: 'Plano de cuidado',
-        montar: (raiz) =>
+        montar: async (raiz) =>
           // Família só lê (banco filtra por `visibilidade='publica'`, migration
           // `20261124110000`); por isso não entra em `planoAberto` nem no mecanismo de
           // reconfirmação de acesso do rascunho do colaborador (que leva a `'visao'`, seção
           // que a família não tem) — família não grava, não tem rascunho nem reserva a perder.
-          montarPlanoCuidado(
+          (await import('./plano-cuidado.js')).montarPlanoCuidado(
             raiz,
             paciente.id,
             criarServicoPlanoHttp(identidadeAtual),
@@ -997,11 +988,11 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       {
         id: 'documentos',
         rotulo: 'Documentos',
-        montar: (raiz) =>
+        montar: async (raiz) =>
           // Família só lê (banco filtra por `audiencia='equipe_e_familia'`, migration
           // `20261124120000`); nunca anexa, então as categorias (só usadas pelo formulário de
           // envio) não precisam ser pedidas.
-          montarDocumentosCaso(
+          (await import('./documentos-caso.js')).montarDocumentosCaso(
             raiz,
             paciente.id,
             criarServicoDocumentosHttp(identidadeAtual),
@@ -1014,10 +1005,10 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       {
         id: 'orientacoes',
         rotulo: 'Orientações',
-        montar: (raiz) =>
+        montar: async (raiz) =>
           // Família só lê (banco filtra por `visibilidade='publica'`, migration
           // `20261124140000`); nunca registra orientação.
-          montarOrientacoes(
+          (await import('./orientacoes.js')).montarOrientacoes(
             raiz,
             paciente.id,
             criarServicoOrientacoesHttp(identidadeAtual),
@@ -1039,8 +1030,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'visao',
       rotulo: 'Visão do caso',
-      montar: (raiz) =>
-        montarVisaoCaso(
+      montar: async (raiz) =>
+        (await import('./visao-caso.js')).montarVisaoCaso(
           raiz,
           paciente,
           {
@@ -1065,8 +1056,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'linha-tempo',
       rotulo: 'Linha do tempo',
-      montar: (raiz) =>
-        montarLinhaTempo(
+      montar: async (raiz) =>
+        (await import('./linha-tempo.js')).montarLinhaTempo(
           raiz,
           paciente.id,
           criarServicoLinhaTempoHttp(identidadeAtual),
@@ -1077,11 +1068,11 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'anamnese',
       rotulo: 'Anamnese',
       descarte: descarteAnamnese,
-      montar: (raiz, pendente) => {
+      montar: async (raiz, pendente) => {
         // Uma consulta só serve as duas coisas: se o histórico está ligado e o roteiro
         // sugerido (FR-003), que vem do catálogo em banco e é editável na administração.
         const disponibilidade = api.disponibilidadeHistoricoAnamnese();
-        return montarAnamnese(
+        return (await import('./anamnese.js')).montarAnamnese(
           raiz,
           paciente.id,
           api,
@@ -1096,8 +1087,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'saude',
       rotulo: 'Saúde',
       descarte: descarteSaude,
-      montar: (raiz, pendente) =>
-        montarSaude(
+      montar: async (raiz, pendente) =>
+        (await import('./saude.js')).montarSaude(
           raiz,
           paciente.id,
           criarServicoSaudeHttp(identidadeAtual),
@@ -1109,10 +1100,10 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'plano',
       rotulo: 'Plano de cuidado',
       descarte: descartePlano,
-      montar: (raiz, pendente) => {
+      montar: async (raiz, pendente) => {
         const servico = criarServicoPlanoHttp(identidadeAtual);
         planoAberto = { pacienteId: paciente.id, servico };
-        const desmontar = montarPlanoCuidado(
+        const desmontar = (await import('./plano-cuidado.js')).montarPlanoCuidado(
           raiz,
           paciente.id,
           servico,
@@ -1131,8 +1122,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'crise',
       rotulo: 'Plano de crise',
       descarte: descarteCrise,
-      montar: (raiz, pendente) =>
-        montarPlanoCrise(
+      montar: async (raiz, pendente) =>
+        (await import('./plano-crise.js')).montarPlanoCrise(
           raiz,
           paciente.id,
           criarServicoPlanoCriseHttp(identidadeAtual),
@@ -1146,38 +1137,43 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'tarefas',
       rotulo: 'Tarefas',
       descarte: descarteTarefa,
-      montar: (raiz, pendente) => montarSecaoTarefas(raiz, paciente.id, pendente),
+      montar: async (raiz, pendente) => montarSecaoTarefas(raiz, paciente.id, pendente),
     });
   if (atual.usuario.perfil === 'profissional')
     secoes.push({
       id: 'meu-turno',
       rotulo: 'Meu turno',
       // Visibilidade organiza a ficha; autorização continua no servidor e banco.
-      montar: (raiz, pendente) =>
+      montar: async (raiz, pendente) =>
         montarSecaoExecucaoTurno(raiz, paciente.id, atual, pendente, true),
     });
   if (atual.usuario.perfil === 'administrador')
     secoes.push({
       id: 'execucao-cuidado',
       rotulo: 'Execução e relatórios',
-      montar: (raiz, pendente) =>
+      montar: async (raiz, pendente) =>
         montarSecaoExecucaoTurno(raiz, paciente.id, atual, pendente, false),
     });
   secoes.push({
     id: 'escala-turnos',
     rotulo: 'Escala de turnos',
-    montar: (raiz, pendente) =>
-      montarEscalaTurno(raiz, paciente.id, criarServicoTurnoHttp(identidadeAtual), {
-        acessoPerdido: () => acessoPerdido(new FalhaApi('nao_autenticado', 401)),
-        alteracaoPendente: pendente,
-      }),
+    montar: async (raiz, pendente) =>
+      (await import('./escala-turno.js')).montarEscalaTurno(
+        raiz,
+        paciente.id,
+        criarServicoTurnoHttp(identidadeAtual),
+        {
+          acessoPerdido: () => acessoPerdido(new FalhaApi('nao_autenticado', 401)),
+          alteracaoPendente: pendente,
+        },
+      ),
   });
   if (administraCadastro)
     secoes.push({
       id: 'cadastro',
       rotulo: 'Cadastro',
       descarte: descarteCadastro,
-      montar: (raiz, pendente) =>
+      montar: async (raiz, pendente) =>
         montarSecaoCadastro(raiz, paciente.id, pendente, catalogoResponsaveis),
     });
   if (administraConcessoes)
@@ -1185,15 +1181,21 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'equipe',
       rotulo: 'Equipe com acesso',
       descarte: descarteEquipe,
-      montar: (raiz, pendente) =>
-        montarSelecaoProfissional(raiz, paciente.id, api, acessoPerdido, pendente),
+      montar: async (raiz, pendente) =>
+        (await import('./selecao-profissional.js')).montarSelecaoProfissional(
+          raiz,
+          paciente.id,
+          api,
+          acessoPerdido,
+          pendente,
+        ),
     });
   if (administraCadastro)
     secoes.push({
       id: 'exportacao',
       rotulo: 'Exportação',
-      montar: (raiz, pendente) =>
-        montarExportacao(
+      montar: async (raiz, pendente) =>
+        (await import('./exportacao.js')).montarExportacao(
           raiz,
           paciente.id,
           criarServicoExportacaoHttp(identidadeAtual),
@@ -1206,8 +1208,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     secoes.push({
       id: 'acesso-familia',
       rotulo: 'Acesso da família',
-      montar: (raiz) =>
-        montarPreautorizacoesFamiliares(
+      montar: async (raiz) =>
+        (await import('./preautorizacoes-familiares.js')).montarPreautorizacoesFamiliares(
           raiz,
           paciente.id,
           criarServicoPreautorizacoesHttp(identidadeAtual),
@@ -1218,8 +1220,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'pendencias',
       rotulo: 'Pendências',
-      montar: (raiz) =>
-        montarPendenciasCaso(
+      montar: async (raiz) =>
+        (await import('./pendencias-caso.js')).montarPendenciasCaso(
           raiz,
           paciente.id,
           criarServicoPendenciasHttp(identidadeAtual),
@@ -1233,8 +1235,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'encaminhamentos',
       rotulo: 'Encaminhamentos',
-      montar: (raiz) =>
-        montarEncaminhamentos(
+      montar: async (raiz) =>
+        (await import('./encaminhamentos.js')).montarEncaminhamentos(
           raiz,
           paciente.id,
           criarServicoEncaminhamentosHttp(identidadeAtual),
@@ -1244,8 +1246,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'orientacoes',
       rotulo: 'Orientações',
-      montar: (raiz) =>
-        montarOrientacoes(
+      montar: async (raiz) =>
+        (await import('./orientacoes.js')).montarOrientacoes(
           raiz,
           paciente.id,
           criarServicoOrientacoesHttp(identidadeAtual),
@@ -1257,8 +1259,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'contexto',
       rotulo: 'Rotina e recursos',
-      montar: (raiz, pendente) =>
-        montarContextoCuidado(
+      montar: async (raiz, pendente) =>
+        (await import('./contexto-cuidado.js')).montarContextoCuidado(
           raiz,
           paciente.id,
           criarServicoDocumentoPacienteHttp(
@@ -1288,8 +1290,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'rede',
       rotulo: 'Rede de cuidado',
-      montar: (raiz, pendente) =>
-        montarRedeCuidado(
+      montar: async (raiz, pendente) =>
+        (await import('./rede-cuidado.js')).montarRedeCuidado(
           raiz,
           paciente.id,
           criarServicoDocumentoPacienteHttp(
@@ -1306,9 +1308,9 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
   secoes.push({
     id: 'documentos',
     rotulo: 'Documentos',
-    montar: (raiz, pendente) => {
+    montar: async (raiz, pendente) => {
       pedirCategoriasDeDocumento();
-      return montarDocumentosCaso(
+      return (await import('./documentos-caso.js')).montarDocumentosCaso(
         raiz,
         paciente.id,
         criarServicoDocumentosHttp(identidadeAtual),
@@ -1322,9 +1324,9 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     id: 'diario',
     rotulo: 'Diário',
     descarte: descarteDiario,
-    montar: (raiz, pendente) => {
+    montar: async (raiz, pendente) => {
       pedirAreasDoDiario();
-      return montarDiario(
+      return (await import('./diario.js')).montarDiario(
         raiz,
         paciente.id,
         atual.usuario.id,
