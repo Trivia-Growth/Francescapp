@@ -7,7 +7,7 @@ import {
 import { criarCicloEdicaoPaciente } from './ciclo-edicao-paciente.ts';
 import { FalhaApi } from './api.ts';
 import { statusErroHttp } from '../packages/contracts/src/erros.ts';
-import type { ServicoEdicaoPaciente } from './editar-paciente.ts';
+import type { ServicoEdicaoPaciente } from './editar-paciente.js';
 
 type Identidade = { usuario_id: string; session_id: string };
 type Nome = keyof typeof edicaoPacienteHttp;

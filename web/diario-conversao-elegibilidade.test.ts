@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
 import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
-import { montarDiario, type ConversaoEmTarefa } from './diario.ts';
+import { montarDiario, type ConversaoEmTarefa } from './diario.js';
 import { registroDiarioSchema, type RegistroDiario } from '../packages/contracts/src/diario.ts';
 
 const paciente = 'c0000000-0000-4000-8000-000000000003';

@@ -8,9 +8,9 @@ import {
   dataLocalTurno,
   estadoTurno,
   botaoTurno,
-} from './turno-execucao-campos.ts';
+} from './turno-execucao-campos.js';
 import { criarEntregaArquivoTurno } from './turno-execucao-arquivos.ts';
-import { dataTurno } from './turno-execucao-leitura.ts';
+import { dataTurno } from './turno-execucao-leitura.js';
 import { botao } from './ui/basicos.js';
 export function montarLocalizacaoCoordenacao(
   raiz: HTMLElement,

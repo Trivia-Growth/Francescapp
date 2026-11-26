@@ -28,7 +28,7 @@ import {
   dataLocalTurno,
   botaoTurno,
   estadoTurno,
-} from './turno-execucao-campos.ts';
+} from './turno-execucao-campos.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
 import { botao } from './ui/basicos.js';
 

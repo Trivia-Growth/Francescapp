@@ -7,7 +7,7 @@ import {
 } from '../packages/contracts/src/comum.ts';
 import { FalhaApi } from './api.ts';
 import { statusErroHttp } from '../packages/contracts/src/erros.ts';
-import type { ServicoPlanoCrise } from './plano-crise.ts';
+import type { ServicoPlanoCrise } from './plano-crise.js';
 
 type Identidade = { usuario_id: string; session_id: string };
 type Nome = keyof typeof planoCriseHttp;

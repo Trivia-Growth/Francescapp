@@ -9,7 +9,7 @@ import {
   selecaoTurno,
   estadoTurno,
   botaoTurno,
-} from './turno-execucao-campos.ts';
+} from './turno-execucao-campos.js';
 import { botao } from './ui/basicos.js';
 
 export function criarEntregaArquivoTurno() {

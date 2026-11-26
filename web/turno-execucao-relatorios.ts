@@ -9,9 +9,9 @@ import {
   dataLocalTurno,
   botaoTurno,
   estadoTurno,
-} from './turno-execucao-campos.ts';
-import { apresentarRelatorioTurno, dataTurno } from './turno-execucao-leitura.ts';
-import { apresentarConsolidadoFicha, type FichaDoPlantao } from './consolidado-ficha-plantao.ts';
+} from './turno-execucao-campos.js';
+import { apresentarRelatorioTurno, dataTurno } from './turno-execucao-leitura.js';
+import { apresentarConsolidadoFicha, type FichaDoPlantao } from './consolidado-ficha-plantao.js';
 import { criarEntregaArquivoTurno } from './turno-execucao-arquivos.ts';
 import { botao } from './ui/basicos.js';
 export function montarRelatoriosTurno(

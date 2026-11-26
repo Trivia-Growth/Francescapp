@@ -11,7 +11,16 @@ afterEach(() => {
 });
 
 function servidorFicticio(autenticado = true, legado = false, situacao = false) {
+  /* `userAgent` existe no dublê porque `react-dom/client` o lê na avaliação do módulo
+     (`navigator.userAgent.indexOf(...)`), antes de qualquer teste rodar. Sem ele, qualquer
+     módulo alcançado por `demonstracao.ts` que migre para React derruba as provas daqui
+     com `TypeError` — foi o que travou `busca-pacientes-local` na Fase 3.3 e
+     `documentos-locais` na Fase 6, as duas vezes com o diagnóstico certo e a saída
+     adiada. Dublê de `navigator` sem `userAgent` não representa navegador nenhum.
+     String vazia de propósito: nenhum código de produção lê `userAgent` (conferido em
+     25/11/2026), e assim toda busca por marca de navegador devolve -1. */
   vi.stubGlobal('navigator', {
+    userAgent: '',
     locks: { request: async (_nome: string, executar: () => Promise<void>) => executar() },
   });
   const pacientes = [

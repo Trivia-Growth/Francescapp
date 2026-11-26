@@ -24,28 +24,28 @@ const RAIZ = new URL('../', import.meta.url).pathname;
 const OBRIGATORIOS: readonly { arquivo: string; trecho: string }[] = [
   // FR-020 — avisos do plano de crise.
   {
-    arquivo: 'web/plano-crise.ts',
+    arquivo: 'web/plano-crise.tsx',
     trecho:
       'O diário não garante resposta imediata. Em emergência, procure os contatos de urgência listados aqui.',
   },
   {
-    arquivo: 'web/plano-crise.ts',
+    arquivo: 'web/plano-crise.tsx',
     trecho:
       'A case manager coordena o cuidado e não emite conduta clínica por assumir a coordenação.',
   },
   // Ressalvas de "sem interpretação clínica automática".
   {
-    arquivo: 'web/turno-execucao-editor.ts',
+    arquivo: 'web/turno-execucao-editor.tsx',
     trecho:
       'O sistema registra o valor informado, sem interpretar gravidade ou recomendar conduta.',
   },
   {
-    arquivo: 'web/turno-execucao-editor.ts',
+    arquivo: 'web/turno-execucao-editor.tsx',
     trecho:
       'Transcreva uma prescrição externa já existente. Nenhuma dose, via ou decisão clínica é sugerida pelo sistema.',
   },
   {
-    arquivo: 'web/turno-execucao-editor.ts',
+    arquivo: 'web/turno-execucao-editor.tsx',
     trecho:
       'Observações registradas sem avaliação automática de adequação, gravidade ou recomendação.',
   },
@@ -55,20 +55,20 @@ const OBRIGATORIOS: readonly { arquivo: string; trecho: string }[] = [
   },
   // Aviso de audiência do diário.
   {
-    arquivo: 'web/diario.ts',
+    arquivo: 'web/diario.tsx',
     trecho: 'O retorno a um relato da família é sempre visto por quem o escreveu, além da equipe.',
   },
   {
-    arquivo: 'web/diario.ts',
+    arquivo: 'web/diario.tsx',
     trecho: 'Ao publicar, este registro ficará visível para:',
   },
   // Consentimento da localização, com a retenção que foi consentida.
   {
-    arquivo: 'web/turno-execucao-localizacao.ts',
+    arquivo: 'web/turno-execucao-localizacao.tsx',
     trecho: 'Retenção: 90 dias após o turno.',
   },
   {
-    arquivo: 'web/turno-execucao-localizacao.ts',
+    arquivo: 'web/turno-execucao-localizacao.tsx',
     trecho: 'Localização é declarada pelo aparelho, sem comprovar presença.',
   },
 ];
@@ -87,9 +87,9 @@ it('não deixa nenhum desses textos ser lido de uma chave de configuração', ()
   // consentimento e de ressalva clínica não chamem leitor de configuração nenhum.
   const leitores = /(?:textoConfigurado|listaConfigurada|carregarConfiguracaoServidor)\s*\(/;
   const comLeitor = [
-    'web/plano-crise.ts',
-    'web/turno-execucao-editor.ts',
-    'web/turno-execucao-localizacao.ts',
+    'web/plano-crise.tsx',
+    'web/turno-execucao-editor.tsx',
+    'web/turno-execucao-localizacao.tsx',
     'netlify/functions/_shared/turno-execucao-pdf.ts',
   ].filter((arquivo) => leitores.test(readFileSync(join(RAIZ, arquivo), 'utf8')));
   expect(comLeitor).toEqual([]);
