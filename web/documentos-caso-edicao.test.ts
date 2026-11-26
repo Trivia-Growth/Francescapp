@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
-import { montarDocumentosCaso } from './documentos-caso.ts';
+import { montarDocumentosCaso } from './documentos-caso.tsx';
 import { criarServicoDocumentosHttp, type ServicoDocumentos } from './servico-documentos-http.ts';
 import { FalhaApi } from './api.ts';
 import type { DocumentoCaso } from '../packages/contracts/src/documento-caso.ts';
