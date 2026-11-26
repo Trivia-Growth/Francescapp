@@ -1440,6 +1440,17 @@ let proximoCursor: string | null = null;
 let filtrosCarteira: FiltrosCarteira = {};
 let filtrosMontadosPara: string | null = null;
 let desmontarFiltros: (() => void) | null = null;
+/* Geração da barra de filtros, no mesmo idioma de `consulta` e `consultaFicha`.
+   `filtrosMontadosPara` guarda uma ASSINATURA — `${id}|${administrador}|${disponivel}` —
+   e assinatura é valor, não identidade: perder o acesso e entrar de novo com a MESMA
+   conta reproduz a mesma string. Uma consulta de responsáveis disparada antes da queda
+   resolvia depois da volta, comparava string com string, passava, e desenhava usando o
+   fechamento da montagem ANTIGA. Nascia uma segunda ilha na mesma raiz, e a desmontagem
+   corrente só conhecia a dela — ABA clássico: o valor voltou, a identidade não.
+   A desmontagem também sobe para o módulo: enquanto era local a cada invocação, cada
+   chamada abria um rastreamento novo e perdia a ilha da anterior. */
+let geracaoFiltros = 0;
+let desmontarBarraAtual: (() => void) | null = null;
 type PedidoCadastro = { entrada: CriarPaciente; chave: string };
 let cadastroPendente: PedidoCadastro | null = null;
 let cadastroEmRevalidacao: { usuarioId: string; pedido: PedidoCadastro } | null = null;
@@ -1763,6 +1774,7 @@ function montarFiltrosDaCarteira(atual: Sessao): void {
   const assinatura = `${atual.usuario.id}|${administrador}|${disponivel}`;
   if (filtrosMontadosPara === assinatura) return;
   filtrosMontadosPara = assinatura;
+  geracaoFiltros += 1;
   desmontarFiltros?.();
   desmontarFiltros = null;
   if (!disponivel) {
@@ -1783,10 +1795,9 @@ function montarFiltrosDaCarteira(atual: Sessao): void {
      lista de responsáveis chega. A montagem anterior precisa ser desfeita de verdade, não
      só ter os filhos apagados: a raiz React continua viva depois de `replaceChildren()`, e
      quando o React vai remover os próprios nós eles já saíram. */
-  let desmontarBarra: (() => void) | null = null;
   const desenhar = (responsaveis?: readonly ResponsavelOpcao[]) => {
-    desmontarBarra?.();
-    desmontarBarra = montarFiltrosCarteira(
+    desmontarBarraAtual?.();
+    desmontarBarraAtual = montarFiltrosCarteira(
       raiz,
       {
         administrador,
@@ -1802,11 +1813,14 @@ function montarFiltrosDaCarteira(atual: Sessao): void {
   // justifica percorrer a equipe inteira, e revalidar o acesso não repete a consulta.
   // Até lá o filtro de responsável existe com a opção "sem responsável indicado".
   const catalogo = administrador ? catalogoDaEquipe(atual) : null;
+  const geracao = geracaoFiltros;
   const carregarResponsaveis = () => {
     raiz.removeEventListener('focusin', carregarResponsaveis);
     void catalogo?.()
       .then((responsaveis) => {
-        if (filtrosMontadosPara === assinatura) desenhar(responsaveis);
+        // Geração, não assinatura: a string volta a ser igual depois de um novo acesso
+        // da mesma conta, a identidade da montagem não.
+        if (geracao === geracaoFiltros) desenhar(responsaveis);
       })
       .catch(() => {
         /* a barra continua útil sem a lista de responsáveis */
@@ -1814,12 +1828,19 @@ function montarFiltrosDaCarteira(atual: Sessao): void {
   };
   if (catalogo) raiz.addEventListener('focusin', carregarResponsaveis);
   desmontarFiltros = () => {
+    /* Encerrar também INVALIDA o que está em voo. Sem esta linha a consulta de
+       responsáveis disparada antes da queda resolvia depois dela, passava na guarda —
+       porque a geração só avançava ao montar, nunca ao desmontar — e desenhava uma ilha
+       nova numa barra que já tinha sido encerrada. `desmontarFiltros` já era nulo nesse
+       ponto, então nada mais alcançava essa ilha, e o `replaceChildren` seguinte
+       encontrava uma raiz React viva. Era a origem dos 3 `NotFoundError` restantes. */
+    geracaoFiltros += 1;
     raiz.removeEventListener('focusin', carregarResponsaveis);
     // Desmontar a ilha ANTES de esvaziar. Até 26/11/2026 esta função só apagava os
     // filhos, e a raiz React ficava órfã — era a origem do `NotFoundError` que derrubava
     // o portão de ativação sem quebrar uma única asserção.
-    desmontarBarra?.();
-    desmontarBarra = null;
+    desmontarBarraAtual?.();
+    desmontarBarraAtual = null;
     raiz.replaceChildren();
   };
 }
