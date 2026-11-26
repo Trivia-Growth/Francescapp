@@ -1,4 +1,4 @@
-import type { SelectHTMLAttributes } from 'react';
+import type { ComponentPropsWithRef } from 'react';
 import { EnvelopeCampo, classeControle, descritores } from './campo.js';
 import { juntar } from './juntar.js';
 
@@ -14,7 +14,11 @@ import { juntar } from './juntar.js';
  *  oliva — o único tom de marca que serve para isso — não pode virar cor de texto
  *  (`design.md:78-80`). Sem `appearance-none`, não há seta a repor. */
 
-export type PropsSelecaoSimples = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'id'> & {
+/* `ComponentPropsWithRef` e não `SelectHTMLAttributes`: o segundo não inclui `ref`. Mesma
+   armadilha de `campo.tsx` e `botao.tsx` — sem referência a tela não move o foco nem
+   limpa o controle por código, e acaba presa ao marcador cru do kit antigo. No React 19
+   `ref` é propriedade comum e segue no espalhamento, sem `forwardRef`. */
+export type PropsSelecaoSimples = Omit<ComponentPropsWithRef<'select'>, 'id'> & {
   id: string;
   rotulo: string;
   marcaRotulo?: string;

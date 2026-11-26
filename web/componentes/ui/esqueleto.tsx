@@ -1,4 +1,4 @@
-import { Children, type HTMLAttributes, type ReactNode } from 'react';
+import { Children, type ComponentPropsWithRef, type ReactNode } from 'react';
 import { juntar } from './juntar.js';
 
 /** Espera com forma. Envolve a região que está consultando e mantém `aria-busy` como o
@@ -20,7 +20,11 @@ import { juntar } from './juntar.js';
 
 export type FormaEsqueleto = 'vazio' | 'recuo';
 
-export type PropsEsqueleto = HTMLAttributes<HTMLDivElement> & {
+/* `ComponentPropsWithRef` e não `HTMLAttributes`: o segundo não inclui `ref`. Mesma
+   armadilha de `campo.tsx` e `botao.tsx` — sem referência a tela não move o foco nem
+   limpa o controle por código, e acaba presa ao marcador cru do kit antigo. No React 19
+   `ref` é propriedade comum e segue no espalhamento, sem `forwardRef`. */
+export type PropsEsqueleto = ComponentPropsWithRef<'div'> & {
   /** Há consulta em curso. */
   ocupado: boolean;
   children?: ReactNode;

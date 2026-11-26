@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from 'react';
+import type { ComponentPropsWithRef, ReactNode } from 'react';
 import { juntar } from './juntar.js';
 
 /** Marca de estado: a pílula curta que diz em que ponto um caso, uma aba ou um registro
@@ -19,7 +19,11 @@ import { juntar } from './juntar.js';
 
 export type TomMarcaEstado = 'padrao' | 'contorno' | 'suave';
 
-export type PropsMarcaEstado = HTMLAttributes<HTMLSpanElement> & {
+/* `ComponentPropsWithRef` e não `HTMLAttributes`: o segundo não inclui `ref`. Mesma
+   armadilha de `campo.tsx` e `botao.tsx` — sem referência a tela não move o foco nem
+   limpa o controle por código, e acaba presa ao marcador cru do kit antigo. No React 19
+   `ref` é propriedade comum e segue no espalhamento, sem `forwardRef`. */
+export type PropsMarcaEstado = ComponentPropsWithRef<'span'> & {
   tom?: TomMarcaEstado;
   children: ReactNode;
 };

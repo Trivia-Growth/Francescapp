@@ -1,4 +1,4 @@
-import type { TextareaHTMLAttributes } from 'react';
+import type { ComponentPropsWithRef } from 'react';
 import { EnvelopeCampo, classeControle, descritores } from './campo.js';
 import { juntar } from './juntar.js';
 
@@ -9,7 +9,11 @@ import { juntar } from './juntar.js';
  *  (`web/styles.css:1157, 1392, 1582, 1616, 2800, 2868`). A altura passa a ser prop:
  *  `linhas`. O tamanho de fonte continua `--texto-2` pela mesma razão do iOS. */
 
-export type PropsAreaTexto = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'id' | 'rows'> & {
+/* `ComponentPropsWithRef` e não `TextareaHTMLAttributes`: o segundo não inclui `ref`. Mesma
+   armadilha de `campo.tsx` e `botao.tsx` — sem referência a tela não move o foco nem
+   limpa o controle por código, e acaba presa ao marcador cru do kit antigo. No React 19
+   `ref` é propriedade comum e segue no espalhamento, sem `forwardRef`. */
+export type PropsAreaTexto = Omit<ComponentPropsWithRef<'textarea'>, 'id' | 'rows'> & {
   id: string;
   rotulo: string;
   marcaRotulo?: string;
