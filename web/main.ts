@@ -1076,6 +1076,16 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         // Uma consulta só serve as duas coisas: se o histórico está ligado e o roteiro
         // sugerido (FR-003), que vem do catálogo em banco e é editável na administração.
         const disponibilidade = api.disponibilidadeHistoricoAnamnese();
+        /* A consulta parte ANTES da importação dinâmica de propósito: as duas correm
+           juntas, e a seção abre mais cedo. O preço é uma janela em que a promessa existe
+           e ninguém a escuta — os tratadores de verdade só são anexados nos argumentos
+           abaixo, depois do `await`. Se ela falhar nessa janela, vira rejeição não
+           tratada, que derruba o processo sem quebrar asserção nenhuma. Medido em
+           26/11/2026 no portão de ativação.
+           Este `catch` vazio não engole erro: ele apenas marca a promessa como escutada.
+           Quem decide o que fazer com a falha continua sendo o `.catch` de cada argumento,
+           que devolve `false` e lista vazia. */
+        disponibilidade.catch(() => undefined);
         return (await import('./anamnese.js')).montarAnamnese(
           raiz,
           paciente.id,
