@@ -21,7 +21,12 @@ export function CaixaDeMarcacao({
 }) {
   return (
     <div className="grid gap-1">
-      <div className="flex min-h-controle-md items-center gap-2">
+      {/* O quadradinho mede 20px — é o rótulo que precisa do alvo de 46px, e por isso é
+       *  ELE quem vira `<label>`: tocar em qualquer ponto da linha (o vão entre o
+       *  quadradinho e o texto incluído) marca a caixa. Antes, só o texto do rótulo e o
+       *  próprio quadradinho de 20px respondiam ao toque — o vão entre os dois, dentro da
+       *  mesma linha de 46px, não fazia nada. */}
+      <label htmlFor={id} className="flex min-h-controle-md cursor-pointer items-center gap-2">
         <input
           id={id}
           type="checkbox"
@@ -29,10 +34,8 @@ export function CaixaDeMarcacao({
           className={juntar('h-5 w-5 flex-none accent-primaria', className)}
           {...resto}
         />
-        <label htmlFor={id} className="m-0 cursor-pointer text-(length:--texto-2) leading-[1.4]">
-          {rotulo}
-        </label>
-      </div>
+        <span className="text-(length:--texto-2) leading-[1.4]">{rotulo}</span>
+      </label>
       {ajuda === undefined ? null : (
         <p id={`${id}-ajuda`} className="m-0 max-w-[68ch] text-(length:--texto-1) text-texto-suave">
           {ajuda}
