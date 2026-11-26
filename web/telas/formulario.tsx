@@ -1,4 +1,4 @@
-import { useEffect, useRef, type FormHTMLAttributes, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, type FormHTMLAttributes, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { juntar } from '../componentes/ui/juntar.js';
 
@@ -31,7 +31,13 @@ export function Formulario({
   const referencia = useRef<HTMLFormElement>(null);
   const guardado = useRef(aoEnviar);
   guardado.current = aoEnviar;
-  useEffect(() => {
+  /* `useLayoutEffect` e não `useEffect`, medido em 26/11/2026: efeito passivo é agendado
+     numa tarefa SEPARADA da confirmação. Entre o formulário aparecer no DOM e o ouvinte
+     ser instalado cabe uma tarefa inteira, e um envio nessa janela não é só perdido — o
+     `submit` segue sem `preventDefault` e vira navegação de verdade. Foi o que o portão do
+     CI pegou e esta máquina não: lá a janela abriu, aqui não. O efeito de disposição corre
+     dentro da confirmação, então quem vê o formulário já vê o ouvinte. */
+  useLayoutEffect(() => {
     const formulario = referencia.current;
     if (!formulario) return;
     const ouvir = (evento: Event) => {
