@@ -6,28 +6,20 @@
 
 Bloco turno/plantão (tarefa 5.2, leva 2) em migração, um commit por módulo. Alvo da
 sequência de blocos: `web/ui/` sem importador, para apagar `ui/` e `ui.css`.
-Importadores de `web/ui/` fora de testes: **16** (eram 22 na `main` `80f7583`).
+Importadores de `web/ui/` fora de testes: **15** (eram 22 na `main` `80f7583`).
 
 ## Última tarefa concluída
 
-- 5.2 leva 2 — `turno-execucao` migrado para `.tsx` (`ExecucaoTurno`). O protocolo de
-  barreira foi transportado sem reescrita: estado mutável num ref, repintura síncrona onde a
-  versão imperativa chamava `controles()`. Fotos, conversão, relatórios, ficha, gestão,
-  localização e editor passam a ser COMPOSTOS na mesma árvore — nenhum `montar*` é chamado
-  de dentro de `.tsx` neste bloco. `EditorExecucao` e `TelaConversao` exportados; o editor
-  aceita trava externa (`travado`). Gestão e ficha disparam a carga inicial fora do efeito.
-  Antes: `-arquivos` (`89777de`), `-localizacao-coordenacao` (`1f6fc3a`),
-  `-relatorios` (`97c0710`), `-gestao` (`6dd2f59`), `ficha-plantao` (`507c53d`).
-- Evidência: 12 arquivos de prova do turno/plantão, 64/64, sem mudança de asserção
-  (`turno-execucao.test.ts` só mudou o especificador). Avisos de `flushSync` em ciclo de
-  vida: 3 em `turno-proprio.test.ts`, idênticos na `main` `80f7583` (pré-existentes),
-  nenhum novo. `pnpm run verificar:rapido` verde.
+- 5.2 leva 2 — fábricas imperativas de `turno-execucao-campos.tsx` retiradas (sem
+  consumidor desde `turno-execucao`, `826b29b`); o arquivo deixa de importar `web/ui/`.
+- Evidência: provas do turno/plantão 58/58; `pnpm run verificar:rapido` verde.
 
 ## Próximo passo
 
-- `turno-execucao-integracao`; depois retirar as fábricas imperativas de
-  `turno-execucao-campos.tsx` e resolver a costura da síntese (`modelo-sintese.ts` em
-  `diario.tsx` e `passagem-turno.tsx`).
+- Costura da síntese: `modelo-sintese.ts` montado à mão em `diario.tsx` e `passagem-turno.tsx`.
+- `turno-execucao-integracao.ts` e a costura nova achada em `turno-proprio.tsx`
+  (`opcoes.montarExecucao` e `montarPassagemTurno` montados em `div` de ref) — reportada à
+  coordenação antes de resolver.
 
 ## Bloqueadores
 

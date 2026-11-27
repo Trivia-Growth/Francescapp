@@ -25,8 +25,6 @@ import {
   usarProtocoloTurno,
 } from './turno-execucao-campos.js';
 
-export { criarEntregaArquivoTurno } from './turno-execucao-campos.js';
-
 type AnexoTurnoPublico = Awaited<ReturnType<ServicoTurnoExecucao['anexos']>>['itens'][number];
 type Tentativa = {
   entrada: Parameters<ServicoTurnoExecucao['enviarAnexo']>[0];

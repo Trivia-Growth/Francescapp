@@ -1,23 +1,17 @@
-/** Controles compartilhados pelas superfícies de execução do cuidado.
+/** Controles compartilhados pelas superfícies de execução do cuidado (VIS-018).
  *
- * Este arquivo é a FRONTEIRA da migração do bloco `turno-execucao-*` (VIS-018). Ele
- * carrega duas camadas de propósito e por tempo determinado:
+ * `CampoTurno`, `SelecaoTurno` e `EstadoTurno` não desenham controle nenhum por conta
+ * própria: delegam a `web/componentes/ui/`, de onde vêm as medidas, o `aria-describedby`
+ * com dica e erro, e o tamanho de fonte que impede o iOS de dar zoom ao focar.
  *
- * 1. **A camada React** — `CampoTurno`, `SelecaoTurno`, `EstadoTurno` —, que não desenha
- *    controle nenhum por conta própria: delega a `web/componentes/ui/`, de onde vêm as
- *    medidas, o `aria-describedby` com dica e erro, e o tamanho de fonte que impede o
- *    iOS de dar zoom ao focar. É o que os módulos já migrados consomem.
+ * `usarProtocoloTurno` reúne o que cada superfície imperativa repetia à mão — `ativa`,
+ * `ocupada`, a linha de situação e a falha que distingue perda de acesso de recusa comum.
  *
- * 2. **As fábricas imperativas** — `elementoTurno`, `campoTurno`, `selecaoTurno`,
- *    `botaoTurno`, `estadoTurno` —, ainda consumidas por `-gestao`, `-relatorios`,
- *    `-arquivos`, `-localizacao-coordenacao` e `turno-execucao.ts`. `-editor` migrou em
- *    25/11/2026 e já consome só a camada React. Elas NÃO foram reescritas: reescrevê-las
- *    mudaria o DOM de módulos que esta frente não migrou, e quem muda o DOM de um módulo
- *    é a migração dele, não a de um vizinho. Saem inteiras quando o último consumidor
- *    migrar — não antes, e não por partes.
+ * As fábricas imperativas (`elementoTurno`, `campoTurno`, `selecaoTurno`, `botaoTurno`,
+ * `estadoTurno`) saíram em 27/11/2026 com o último consumidor, `turno-execucao`.
  *
- * Os validadores (`numeroTurno`, `instanteTurno`, `dataLocalTurno`) são lógica pura e
- * servem às duas camadas sem mudança: são regra de dado clínico, não de desenho.
+ * Os validadores (`numeroTurno`, `instanteTurno`, `dataLocalTurno`) são lógica pura: são
+ * regra de dado clínico, não de desenho.
  */
 import {
   useCallback,
@@ -35,7 +29,6 @@ import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Campo } from './componentes/ui/campo.js';
 import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
 import './estilos/tema.css';
-import { botao as botaoDaCamada } from './ui/basicos.js';
 
 /** Uma opção de `SelecaoTurno`, no vocabulário das telas de turno. */
 export type OpcaoTurno<T extends string = string> = { valor: T; rotulo: string };
@@ -269,65 +262,6 @@ export function usarEntregaArquivoTurno() {
   return entrega.current;
 }
 
-/* ——— Camada imperativa em extinção. Ver o cabeçalho: sai com o último consumidor. ——— */
-
-export function elementoTurno<K extends keyof HTMLElementTagNameMap>(tipo: K, texto?: string) {
-  const elemento = document.createElement(tipo);
-  if (texto !== undefined) elemento.textContent = texto;
-  return elemento;
-}
-export function campoTurno(
-  destino: HTMLElement,
-  rotulo: string,
-  opcoes: {
-    tipo?: string;
-    valor?: string;
-    obrigatorio?: boolean;
-    longo?: boolean;
-    ajuda?: string;
-  } = {},
-): HTMLInputElement | HTMLTextAreaElement {
-  const label = elementoTurno('label', rotulo);
-  const controle = opcoes.longo ? elementoTurno('textarea') : elementoTurno('input');
-  if (controle instanceof HTMLInputElement) controle.type = opcoes.tipo ?? 'text';
-  controle.required = opcoes.obrigatorio ?? true;
-  controle.value = opcoes.valor ?? '';
-  controle.id = `turno-campo-${crypto.randomUUID()}`;
-  label.htmlFor = controle.id;
-  label.append(controle);
-  if (opcoes.ajuda) {
-    const ajuda = elementoTurno('small', opcoes.ajuda);
-    ajuda.id = `${controle.id}-ajuda`;
-    controle.setAttribute('aria-describedby', ajuda.id);
-    label.append(ajuda);
-  }
-  destino.append(label);
-  return controle;
-}
-export function selecaoTurno<T extends string>(
-  destino: HTMLElement,
-  rotulo: string,
-  opcoes: readonly { valor: T; rotulo: string }[],
-  valor?: T,
-) {
-  const label = elementoTurno('label', rotulo);
-  const controle = elementoTurno('select');
-  controle.required = true;
-  controle.id = `turno-campo-${crypto.randomUUID()}`;
-  label.htmlFor = controle.id;
-  const vazio = elementoTurno('option', 'Selecione');
-  vazio.value = '';
-  controle.append(vazio);
-  for (const item of opcoes) {
-    const opcao = elementoTurno('option', item.rotulo);
-    opcao.value = item.valor;
-    controle.append(opcao);
-  }
-  controle.value = valor ?? '';
-  label.append(controle);
-  destino.append(label);
-  return controle;
-}
 export function numeroTurno(controle: HTMLInputElement | HTMLTextAreaElement): number {
   if (!controle.value.trim() || !/^-?\d+(\.\d+)?$/.test(controle.value.trim()))
     throw new Error('Informe um número válido.');
@@ -347,20 +281,4 @@ export function dataLocalTurno(valor?: string): string {
   if (!Number.isFinite(data.getTime())) return '';
   const local = new Date(data.getTime() - data.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 16);
-}
-/** Única fábrica de botão de plantão e turno: trocá-la aqui troca os quarenta botões
- *  dessas telas de uma vez. Passa a devolver o botão da camada de componente, para a ação
- *  do turno ser a mesma peça da ação do cadastro e da carteira. `onclick` continua sendo
- *  atribuição, e não `addEventListener`: há chamador que troca a ação do botão depois de
- *  montá-lo, e com dois registros a ação antiga continuaria disparando. */
-export function botaoTurno(texto: string, acao: () => void, principal = false) {
-  const elemento = botaoDaCamada({ rotulo: texto, peso: principal ? 'principal' : 'secundario' });
-  elemento.onclick = acao;
-  return elemento;
-}
-export function estadoTurno(texto = '') {
-  const estado = elementoTurno('p', texto);
-  estado.setAttribute('role', 'status');
-  estado.setAttribute('aria-live', 'polite');
-  return estado;
 }
