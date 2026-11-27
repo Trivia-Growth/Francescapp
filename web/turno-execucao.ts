@@ -31,7 +31,7 @@ import {
 import { montarRelatoriosTurno } from './turno-execucao-relatorios.js';
 import { montarLocalizacaoCoordenacao } from './turno-execucao-localizacao-coordenacao.js';
 import { montarGestaoExecucaoTurno } from './turno-execucao-gestao.js';
-import { montarFichaPlantao, type ServicosFichaPlantao } from './ficha-plantao.ts';
+import { montarFichaPlantao, type ServicosFichaPlantao } from './ficha-plantao.js';
 import { confirmarDescarte } from './confirmacao.js';
 import { botao } from './ui/basicos.js';
 

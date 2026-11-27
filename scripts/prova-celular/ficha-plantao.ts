@@ -2,13 +2,13 @@
  * Bancada da prova de conforto no celular para a ficha de plantão e para o consolidado
  * diário no formato da ficha (mudança OpenSpec `diario-de-plantao`, FR-073 e FR-080).
  *
- * Monta o código real de `web/ficha-plantao.ts` e `web/consolidado-ficha-plantao.ts` com as
+ * Monta o código real de `web/ficha-plantao.tsx` e `web/consolidado-ficha-plantao.ts` com as
  * folhas de estilo reais e dublês de rede: nenhuma requisição sai daqui, nenhuma credencial
  * é usada e todos os dados são fictícios. O dublê existe só para alcançar o estado de
  * sucesso das duas telas — ele não autoriza nada e não substitui os testes de autorização
  * de servidor e de banco.
  */
-import { montarFichaPlantao, type ServicosFichaPlantao } from '../../web/ficha-plantao.ts';
+import { montarFichaPlantao, type ServicosFichaPlantao } from '../../web/ficha-plantao.js';
 import { apresentarConsolidadoFicha } from '../../web/consolidado-ficha-plantao.js';
 import type { CampoExtraCatalogoGeneralizado } from '../../packages/contracts/src/campo-extra-catalogo.ts';
 import type { RelatorioTurnoPublico } from '../../packages/contracts/src/turno-execucao-http.ts';

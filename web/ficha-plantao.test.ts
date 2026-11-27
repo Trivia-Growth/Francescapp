@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
-import { montarFichaPlantao, type ServicosFichaPlantao } from './ficha-plantao.ts';
+import { montarFichaPlantao, type ServicosFichaPlantao } from './ficha-plantao.js';
 import type { CampoExtraCatalogoGeneralizado } from '../packages/contracts/src/campo-extra-catalogo.ts';
 import type { Turno } from '../packages/contracts/src/turno.ts';
 import { FalhaApi } from './api.ts';

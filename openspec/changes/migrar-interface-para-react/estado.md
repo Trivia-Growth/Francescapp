@@ -6,22 +6,23 @@
 
 Bloco turno/plantão (tarefa 5.2, leva 2) em migração, um commit por módulo. Alvo da
 sequência de blocos: `web/ui/` sem importador, para apagar `ui/` e `ui.css`.
-Importadores de `web/ui/` fora de testes: **18** (eram 22 na `main` `80f7583`).
+Importadores de `web/ui/` fora de testes: **17** (eram 22 na `main` `80f7583`).
 
 ## Última tarefa concluída
 
-- 5.2 leva 2 — `turno-execucao-gestao` migrado para `.tsx` (`GestaoExecucaoTurno`).
-  Recarregar continua redesenhando (chave `geracao`) depois da confirmação de descarte.
+- 5.2 leva 2 — `ficha-plantao` migrado para `.tsx` (`FichaPlantao`). Rascunho do servidor
+  entra como valor inicial dos controles, por cima do publicado; cada recarga troca a chave
+  do formulário. `scripts/prova-celular/ficha-plantao.ts` passa a importar por `.js`.
   Antes: `-arquivos` (`89777de`), `-localizacao-coordenacao` (`1f6fc3a`),
-  `-relatorios` (`97c0710`).
-- Evidência: `turno-execucao-gestao.test.ts` 3/3 — as 2 existentes sem mudança de asserção e
-  1 nova (concessão de medicação incerta bloqueia alterações e só se repete igual);
-  `turno-execucao.test.ts` verde; `pnpm run verificar:rapido` verde.
+  `-relatorios` (`97c0710`), `-gestao` (`6dd2f59`).
+- Evidência: `ficha-plantao.test.ts` 8/8 sem mudança de asserção (só o especificador);
+  `contrato-visual.test.ts` e `textos-obrigatorios-nao-configuraveis.test.ts` verdes;
+  `pnpm run verificar:rapido` verde. Prova de celular da ficha ainda não executada nesta
+  branch (entra no portão de fechamento do bloco).
 
 ## Próximo passo
 
-- `ficha-plantao`,
-  `turno-execucao`, `turno-execucao-integracao`; depois retirar as fábricas imperativas de
+- `turno-execucao`, `turno-execucao-integracao`; depois retirar as fábricas imperativas de
   `turno-execucao-campos.tsx` e resolver a costura da síntese (`modelo-sintese.ts` em
   `diario.tsx` e `passagem-turno.tsx`).
 
