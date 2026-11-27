@@ -205,6 +205,8 @@ export function criarServicoPapelDeclaradoHttp(
 }
 
 export type ServicoEstadoEmocional = {
+  /** A identidade que criou o serviço; é dela, e só dela, a chave do cache de leitura. */
+  identidade: Identidade;
   consultar(): Promise<EstadoEmocional[]>;
   gravar(entrada: GravarEstadoEmocional, chave: string): Promise<void>;
 };
@@ -217,6 +219,7 @@ export function criarServicoEstadoEmocionalHttp(
   const identidade = identidadeAtual();
   if (!identidade) throw new FalhaApi('nao_autenticado', 401);
   return {
+    identidade,
     consultar: async () =>
       (
         (await enviar(identidadeAtual, identidade, {

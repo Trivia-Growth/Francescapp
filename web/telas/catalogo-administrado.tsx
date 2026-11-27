@@ -21,6 +21,16 @@ export type ServicoCatalogo<D, E> = {
   gravar(entrada: E, chave: string): Promise<void>;
 };
 
+/** Leitura guardada fora da tela (o cache de `web/consultas.ts`). Com ela, a montagem
+ *  usa o que já foi lido em vez de consultar de novo; `atualizar`, o envio e a repetição
+ *  continuam relendo sempre pelo `servico`. */
+export type LeituraRetida<D> = {
+  /** O que a identidade atual já leu, se ainda estiver guardado. */
+  retida(): D | undefined;
+  /** Esquece a leitura: chamada quando o acesso é recusado. */
+  descartar(): void;
+};
+
 export type TentativaCatalogo<E> = { entrada: E; chave: string; consultada: boolean };
 
 export const AVISO_SEM_CONFIRMACAO =
@@ -61,19 +71,23 @@ export function useCatalogoAdministrado<D, E>(
   textos: { carregando: string; atualizado: string; salvando: string },
   confirmado: (entrada: E, dados: D) => boolean,
   inicial: D,
+  leitura?: LeituraRetida<D>,
 ): Catalogo<D, E> {
   const [, repintar] = useState(0);
+  // Lida UMA vez, na montagem: é o que faz a volta à tela desenhar a lista já no primeiro
+  // quadro, sem esqueleto e sem GET.
+  const [retida] = useState(() => leitura?.retida());
   const estado = useRef<Maquina<D, E>>({
-    dados: inicial,
-    geracao: 0,
+    dados: retida ?? inicial,
+    geracao: retida === undefined ? 0 : 1,
     ocupado: false,
     status: '',
     tentativa: null,
     ativa: true,
     perdido: false,
   });
-  const dependencias = useRef({ servico, acessoPerdido, textos, confirmado });
-  dependencias.current = { servico, acessoPerdido, textos, confirmado };
+  const dependencias = useRef({ servico, acessoPerdido, textos, confirmado, leitura });
+  dependencias.current = { servico, acessoPerdido, textos, confirmado, leitura };
 
   const pintar = () => {
     if (estado.current.ativa) repintar((volta) => volta + 1);
@@ -87,6 +101,8 @@ export function useCatalogoAdministrado<D, E>(
     ) {
       estado.current.ativa = false;
       estado.current.perdido = true;
+      // A recusa vale para a identidade: o que foi lido não volta na próxima montagem.
+      dependencias.current.leitura?.descartar();
       // A tela precisa estar VAZIA quando `acessoPerdido` corre: quem o recebe decide
       // navegar, e conteúdo negado não pode sobreviver nem por um quadro.
       flushSync(() => repintar((volta) => volta + 1));
@@ -153,7 +169,7 @@ export function useCatalogoAdministrado<D, E>(
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: é a montagem da tela, e só ela. A máquina lê serviço, textos e estado por referência viva, então uma lista de dependências aqui só criaria releitura a cada repintura.
   useEffect(() => {
-    void carregar();
+    if (estado.current.geracao === 0) void carregar();
     return () => {
       estado.current.ativa = false;
     };
