@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
-import { montarAgendaIndividual } from './agenda-individual.ts';
+import { montarAgendaIndividual } from './agenda-individual.tsx';
 
 let desmontar: (() => void) | undefined;
 

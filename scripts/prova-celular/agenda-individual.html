@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>Bancada de medição | Agenda individual com controles próprios</title>
+    <!-- A folha real de `web/index.html`: `tema.css` importa `styles.css` E `ui/ui.css`
+         (`@import "../ui/ui.css" layer(legado);`), que é o que o observador de controles
+         próprios espera encontrar — sem ela a prova testaria um produto que não existe. -->
+    <link rel="stylesheet" href="/web/estilos/tema.css">
+    <script type="module" src="./agenda-individual.ts"></script>
+  </head>
+  <body>
+    <main id="conteudo" tabindex="-1">
+      <h1 id="bancada-title" tabindex="-1">Agenda individual</h1>
+      <div id="agenda-individual"></div>
+    </main>
+  </body>
+</html>
