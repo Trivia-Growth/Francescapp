@@ -465,3 +465,32 @@ it('no histórico, só o primeiro retrato sem motivo mostra o registro do cadast
   expect(itens[1]).not.toContain('Motivo');
   expect(resumoDe(raiz)).not.toContain('null');
 });
+
+/* A seção de substituição era montada por efeito numa `div` de ref e passou a ser composta.
+ * Sem prova, um erro de composição a faria sumir em silêncio: com o serviço presente ela
+ * aparece com o cadastro pronto, e sem o serviço ela não aparece. */
+it.each([
+  ['com', null, true],
+  ['sem', undefined, false],
+] as const)(
+  '%s serviço de substituição, a seção acompanha o cadastro pronto',
+  async (_rotulo, substituicao, aparece) => {
+    const ciclo = {
+      consultar: vi.fn().mockResolvedValue(vazio),
+      encerrar: vi.fn().mockResolvedValue('vazia'),
+      reconhecer: vi.fn(),
+      liberar: vi.fn(),
+      editar: vi.fn(),
+    };
+    const servico = {
+      ciclo,
+      consultarPaciente: vi.fn().mockResolvedValue(paciente),
+      ...(substituicao === undefined ? {} : { substituicao }),
+    } as unknown as ServicoEdicaoPaciente;
+    const raiz = document.createElement('div');
+    montarEdicaoPaciente(raiz, id, servico, vi.fn());
+    raiz.querySelector('button')?.click();
+    await vi.waitFor(() => expect(raiz.querySelector('form')).not.toBeNull());
+    expect(raiz.textContent?.includes('ainda não está disponível neste ambiente')).toBe(aparece);
+  },
+);

@@ -53,7 +53,7 @@
  * system colocam o rótulo como irmão do controle. Mesma razão de `web/conversao-diario.tsx`:
  * manter o invólucro evita quebrar a prova por estrutura, não por comportamento.
  */
-import { useEffect, useId, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type {
   AudienciaDiario,
@@ -88,11 +88,9 @@ export type ConversaoEmTarefa = (
 
 /** FR-010: ditar o registro em vez de digitá-lo. A gravação, o envio e a transcrição
  * pertencem à fatia de áudio; o diário só recebe o texto já revisado e confirmado pelo
- * autor, e devolve a função que desmonta o componente. */
-export type EntradaPorAudio = (
-  raiz: HTMLElement,
-  aoConfirmar: (texto: string) => void,
-) => () => void;
+ * autor. Desde 27/11/2026 a entrada chega como componente, composto na árvore do
+ * formulário — antes era uma função que montava DOM numa `div` de ref. */
+export type EntradaPorAudio = (aoConfirmar: (texto: string) => void) => ReactNode;
 
 const rotuloEstado: Record<RegistroDiario['estado'], string> = {
   rascunho: 'Rascunho',
@@ -158,8 +156,8 @@ function Procedencia({ partes }: { partes: readonly string[] }) {
   return <p className="diario-procedencia">{partes.join(' · ')}</p>;
 }
 
-/** Entrada por áudio (FR-010): raiz React independente, montada/desmontada junto da vida
- *  LÓGICA do formulário que a contém (troca ao trocar `montar`), não da vida da ilha-pai. */
+/** Entrada por áudio (FR-010), composta no formulário. `onTexto` passa por ref: a entrada
+ *  recebe uma função estável e não nasce de novo a cada repintura do formulário. */
 function AudioOuAtalho({
   montar,
   onTexto,
@@ -167,16 +165,11 @@ function AudioOuAtalho({
   montar?: EntradaPorAudio;
   onTexto: (texto: string) => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const onTextoRef = useRef(onTexto);
   onTextoRef.current = onTexto;
-  useEffect(() => {
-    const no = containerRef.current;
-    if (!montar || !no) return;
-    return montar(no, (texto) => onTextoRef.current(texto));
-  }, [montar]);
+  const [confirmar] = useState(() => (texto: string) => onTextoRef.current(texto));
   if (!montar) return null;
-  return <div className="diario-entrada-audio" ref={containerRef} />;
+  return <div className="diario-entrada-audio">{montar(confirmar)}</div>;
 }
 
 type Gravar = (entrada: SalvarRegistroDiario) => Promise<RegistroDiario>;
@@ -827,6 +820,19 @@ function RegistroArtigo({
         ) : null}
         {!ehFamilia && registro.estado !== 'rascunho' && temConversao ? (
           <>
+            {/* EXCEÇÃO DOCUMENTADA — NÃO "CONSERTAR" COMO AS OUTRAS COSTURAS.
+                Esta `div` é SEMPRE VAZIA NO JSX; os filhos pertencem a outra raiz, a da
+                conversão em tarefa (`converterEmTarefa`, montada pela gerência em
+                `useEffect` mais abaixo). Não mova nem renderize nada aqui dentro.
+                É o caso que a documentação do React declara seguro: "if some <div> is
+                always empty in the JSX, React won't have a reason to touch its children
+                list. Therefore, it is safe to manually add or remove elements there"
+                (react.dev, "Manipulating the DOM with Refs", seção "Best practices for DOM
+                manipulation with refs"). Decisão da coordenação em 27/11/2026: trocar por
+                componente obrigaria a reescrever as provas de
+                `diario-conversao-elegibilidade.test.ts`, que afirmam sobre o contrato
+                posicional do callback e sobre quantas vezes ele monta — um render-prop é
+                chamado a cada render, e as contagens deixariam de medir o que medem. */}
             <div
               ref={(no) => {
                 if (no) onAoRegistrarNoConversao(registro.diario_registro_id, no);

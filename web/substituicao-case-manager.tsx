@@ -432,6 +432,21 @@ function TelaIndisponivel() {
  * substitui e até quando — e repete em texto que substituir não concede acesso ao caso
  * nem alcança a carteira. Esconder controle não é autorização: o botão aparece e a recusa
  * do servidor é explicada. */
+/** A seção composta por quem já está em React: `null` é a fatia desligada, e a tela diz
+ *  isso em vez de oferecer um formulário que responderia 503. */
+export function SecaoSubstituicaoCaseManager({
+  servico,
+  pacienteId,
+  equipe = [],
+}: {
+  servico: ServicoSubstituicaoCaseManager | null;
+  pacienteId: string;
+  equipe?: readonly ResponsavelOpcao[];
+}) {
+  if (servico === null) return <TelaIndisponivel />;
+  return <TelaSubstituicaoCaseManager pacienteId={pacienteId} servico={servico} equipe={equipe} />;
+}
+
 export function montarSubstituicaoCaseManager(
   raiz: HTMLElement,
   servicoOuNulo: ServicoSubstituicaoCaseManager | null,

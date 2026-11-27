@@ -34,7 +34,7 @@
  * momento da confirmação — nunca de um estado React espelhado, que a atribuição crua de
  * `.value` nas provas não alcançaria.
  */
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
   AUDIO_BYTES_MAXIMO,
@@ -537,5 +537,47 @@ export function montarTranscricaoAudio(
       acessoPerdido={acessoPerdido}
       opcoes={opcoes}
     />,
+  );
+}
+
+/** A entrada por áudio composta por quem já está em React (o diário). O serviço é criado
+ *  uma vez por montagem da entrada, como `montarTranscricaoAudio` fazia a cada montagem. */
+function EntradaTranscricaoAudio({
+  pacienteId,
+  criarServico,
+  aoConfirmar,
+  acessoPerdido,
+}: {
+  pacienteId: string;
+  criarServico: () => ServicoTranscricao;
+  aoConfirmar: (texto: string) => void;
+  acessoPerdido: (erro: unknown) => void;
+}) {
+  const [servico] = useState(criarServico);
+  return (
+    <TelaTranscricaoAudio
+      pacienteId={pacienteId}
+      servico={servico}
+      aoConfirmar={aoConfirmar}
+      acessoPerdido={acessoPerdido}
+      opcoes={{}}
+    />
+  );
+}
+
+/** Fábrica para `web/main.ts`, que não escreve JSX: devolve a entrada no formato que o
+ *  diário compõe (`EntradaPorAudio`). */
+export function entradaTranscricaoAudio(
+  pacienteId: string,
+  criarServico: () => ServicoTranscricao,
+  acessoPerdido: (erro: unknown) => void,
+): (aoConfirmar: (texto: string) => void) => ReactNode {
+  return (aoConfirmar) => (
+    <EntradaTranscricaoAudio
+      pacienteId={pacienteId}
+      criarServico={criarServico}
+      aoConfirmar={aoConfirmar}
+      acessoPerdido={acessoPerdido}
+    />
   );
 }
