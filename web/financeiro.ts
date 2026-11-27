@@ -9,7 +9,7 @@ import {
   TAMANHO_MAXIMO_COMPROVANTE_BYTES,
 } from '../packages/contracts/src/financeiro.ts';
 import { nomeComprovante, type ServicoFinanceiro } from './servico-financeiro-http.js';
-import { botao as botaoDaCamada } from './ui/basicos.js';
+import { botao as botaoDaCamada } from './ponte/botao-imperativo.js';
 
 /** Valor é inteiro em centavos no contrato. A conversão vive só aqui: nenhuma tela manda
  * número com vírgula para o servidor, e nenhum contrato carrega texto formatado. */
