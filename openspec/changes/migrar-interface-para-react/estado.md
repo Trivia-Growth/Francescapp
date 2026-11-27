@@ -2,6 +2,20 @@
 
 **Atualizado em:** 27/11/2026 · **Branch:** `codex/remover-web-ui` · **Por:** Codex
 
+## Fatia 8d do plano visual — moldura da ficha
+
+Cabeçalho, abas, atalhos e painel da ficha passam para a raiz da casca. A ficha
+mantém as confirmações de descarte e a invalidação de seção durante a revalidação.
+As seções que ainda usam `montar*` mantêm contêiner próprio. Tarefa 7.2 aberta.
+
+- Chromium a 390 px chegou por link antigo de Anamnese, reteve o módulo e abriu
+  Plano. Após liberar a importação antiga, Plano permaneceu como a única seção
+  e a navegação continuou viva. Sem a guarda de geração, a contraprova encontrou
+  `data-secao="anamnese"` no painel de Plano. A guarda foi restaurada.
+- Passaram 37 testes da ficha, da integração e da gaveta, e seis cenários
+  Chromium de ficha e da casca. Próximo passo: ativação e conversão das seções
+  internas. A moldura preserva os estilos anteriores.
+
 ## Fatia 8c do plano visual — painéis administrativos
 
 Treze painéis administrativos passam para a raiz da casca, preservando links

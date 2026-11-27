@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
+import { createElement, createRef } from 'react';
+import { render } from '@testing-library/react';
+import { secaoInicialDaFicha, TelaFicha } from './ficha.js';
+import type { Ficha } from './ficha-paciente.js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { aguardarConfirmacao } from './confirmacao-prova.js';
 import {
   hashFicha,
   iniciais,
   lerRotaFicha,
-  montarFicha,
   type OpcoesFicha,
   type SecaoFicha,
 } from './ficha-paciente.js';
@@ -47,7 +50,11 @@ function abrir(secoes: SecaoFicha[], extra: Partial<OpcoesFicha> = {}) {
   const confirmar = vi.fn(async () => true);
   const aoSelecionar = vi.fn();
   const aoVoltar = vi.fn();
-  const ficha = montarFicha({
+  const {
+    secaoInicial,
+    raiz: destino,
+    ...opcoes
+  } = {
     raiz,
     paciente,
     secoes,
@@ -55,7 +62,21 @@ function abrir(secoes: SecaoFicha[], extra: Partial<OpcoesFicha> = {}) {
     aoSelecionar,
     aoVoltar,
     ...extra,
-  });
+  };
+  const comando = createRef<Ficha>();
+  const painel = render(createElement(TelaFicha, { ...opcoes, comando }), { container: destino });
+  const controlador = comando.current;
+  if (!controlador) throw new Error('Ficha indisponível no teste.');
+  const inicial = secaoInicialDaFicha(opcoes.secoes, secaoInicial);
+  if (inicial) void controlador.selecionar(inicial, { confirmar: false });
+  const ficha: Ficha = {
+    ...controlador,
+    desmontar() {
+      controlador.desmontar();
+      painel.rerender(null);
+    },
+  };
+
   return { ficha, confirmar, aoSelecionar, aoVoltar };
 }
 

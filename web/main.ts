@@ -1,4 +1,4 @@
-import { createElement, type ReactElement } from 'react';
+import { createElement, createRef, type ReactElement } from 'react';
 import { criarServicoAcessosHttp } from './servico-acessos-http.js';
 import { montarLoginInterno } from './login-interno.js';
 import { iniciarAcao } from './esqueleto.js';
@@ -29,11 +29,11 @@ import { correspondeBuscaPacienteLocal } from './busca-pacientes-local.js';
 import {
   hashFicha,
   lerRotaFicha,
-  montarFicha,
   type Ficha,
   type PacienteFicha,
   type SecaoFicha,
 } from './ficha-paciente.js';
+import { secaoInicialDaFicha, TelaFicha } from './ficha.js';
 import { criarServicoSaudeHttp } from './servico-saude-http.js';
 import { criarServicoEncaminhamentosHttp } from './servico-encaminhamentos-http.js';
 import { criarServicoOrientacoesHttp } from './servico-orientacoes-http.js';
@@ -225,6 +225,7 @@ const casoNovo = montarCamposCasoNovo(
 );
 export function desmontarCamposDeCadastro(): void {
   casoNovo.desmontar();
+  fecharFicha();
   casca.encerrar();
 }
 const {
@@ -380,7 +381,10 @@ function trocarRota(hash: string): void {
 
 function fecharFicha(): void {
   consultaFicha += 1;
-  ficha?.desmontar();
+  if (ficha) {
+    ficha.desmontar();
+    casca.desenhar(null);
+  }
   ficha = null;
   fichaPaciente = null;
   planoAberto = null;
@@ -1183,21 +1187,30 @@ function abrirFicha(paciente: PacienteFicha, secao: string | undefined, empilhar
   casca.atualizarNavegacao({ pessoa: paciente.nome, busca: null });
   let primeira = empilhar;
   const secoesAtual = secoesDaFicha(paciente, atual);
-  ficha = montarFicha({
-    raiz: fichaView,
-    paciente,
-    secoes: secoesAtual,
-    primarias: destinosPrimarios(secoesAtual),
-    nivelTitulo: 2,
-    ...(secao ? { secaoInicial: secao } : {}),
-    confirmar: confirmarSaidaDaSecao,
-    aoSelecionar: (escolhida) => {
-      registrarRota(paciente.id, escolhida, primeira);
-      primeira = false;
-    },
-    aoVoltar: voltarParaLista,
+  const comando = createRef<Ficha>();
+  casca.desenhar({
+    tipo: 'ficha',
+    destino: fichaView,
+    chave: paciente.id,
+    aoTentarNovamente: () => abrirFicha(paciente, ficha?.secaoAtual() || secao, false),
+    tela: createElement(TelaFicha, {
+      comando,
+      paciente,
+      secoes: secoesAtual,
+      primarias: destinosPrimarios(secoesAtual),
+      nivelTitulo: 2,
+      confirmar: confirmarSaidaDaSecao,
+      aoSelecionar: (escolhida) => {
+        registrarRota(paciente.id, escolhida, primeira);
+        primeira = false;
+      },
+      aoVoltar: voltarParaLista,
+    }),
   });
-  ficha.focarTitulo();
+  ficha = comando.current;
+  const inicial = secaoInicialDaFicha(secoesAtual, secao);
+  if (inicial) void ficha?.selecionar(inicial, { confirmar: false });
+  ficha?.focarTitulo();
 }
 
 type Sessao = ReturnType<typeof sessaoNativaSchema.parse>;
@@ -1985,7 +1998,7 @@ function mostrarAdministracao(areaId: string): void {
         casca.desenhar({
           tipo: 'administracao',
           destino: conteudo,
-          area: area.id,
+          chave: area.id,
           tela,
           aoTentarNovamente: () => {
             if (painelAdministracao !== emCarregamento) return;
