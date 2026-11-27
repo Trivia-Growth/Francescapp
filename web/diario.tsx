@@ -830,6 +830,19 @@ function RegistroArtigo({
         ) : null}
         {!ehFamilia && registro.estado !== 'rascunho' && temConversao ? (
           <>
+            {/* EXCEÇÃO DOCUMENTADA — NÃO "CONSERTAR" COMO AS OUTRAS COSTURAS.
+                Esta `div` é SEMPRE VAZIA NO JSX; os filhos pertencem a outra raiz, a da
+                conversão em tarefa (`converterEmTarefa`, montada pela gerência em
+                `useEffect` mais abaixo). Não mova nem renderize nada aqui dentro.
+                É o caso que a documentação do React declara seguro: "if some <div> is
+                always empty in the JSX, React won't have a reason to touch its children
+                list. Therefore, it is safe to manually add or remove elements there"
+                (react.dev, "Manipulating the DOM with Refs", seção "Best practices for DOM
+                manipulation with refs"). Decisão da coordenação em 27/11/2026: trocar por
+                componente obrigaria a reescrever as provas de
+                `diario-conversao-elegibilidade.test.ts`, que afirmam sobre o contrato
+                posicional do callback e sobre quantas vezes ele monta — um render-prop é
+                chamado a cada render, e as contagens deixariam de medir o que medem. */}
             <div
               ref={(no) => {
                 if (no) onAoRegistrarNoConversao(registro.diario_registro_id, no);
