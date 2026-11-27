@@ -1,6 +1,6 @@
 # Estado — migrar-interface-para-react
 
-**Atualizado em:** 27/11/2026 · **Branch:** `codex/controles-ficha` · **Por:** Codex
+**Atualizado em:** 27/11/2026 · **Branch:** `codex/sincronizar-controles-aprimorados` · **Por:** Codex
 
 ## Retirada do observador de controles
 
@@ -36,12 +36,20 @@ a convivência. Regras e Início não renderizam os tipos de controle observados
   a sentinela comprovou o observador ativo e a seleção de profissionais foi
   remontada ao avançar a página. A Linha do tempo preservou a data nos GETs e
   as seleções da ficha de plantão mantiveram a interação no celular.
-- Orientações e Encaminhamentos optam pelo aprimoramento na Ficha. A
-  demonstração mantém campos nativos. Os 37 testes de Orientações,
-  Encaminhamentos e demonstração passaram. O preenchimento legado de
-  Orientações pode mostrar datas vazias e visibilidade Interna com valores
-  diferentes no formulário, reproduzido na base anterior à migração. Retestar
-  na main após o #39 e corrigir em PR próprio se persistir.
+- Orientações e Encaminhamentos optam pelo aprimoramento na Ficha. Os 37 testes
+  das duas seções e da demonstração passaram no #39. A comparação em Chromium
+  na `main` em `99fd4a1` confirmou três divergências de preenchimento
+  programático: datas vazias e audiência Interna em Orientações, etapa
+  sugerido em Encaminhamentos e o familiar errado ao manter o rascunho na
+  Gestão do Turno. Os valores nativos estavam corretos.
+- O preenchimento programático agora notifica os controles aprimorados pelo
+  mesmo evento local. `pnpm run verificar:celular preenchimento-controles.pw.ts`
+  passou nos três cenários. Remover apenas o envio desse evento reproduziu
+  as três divergências na comparação imediata, com opacidade calculada zero.
+  Restaurado o evento, os três cenários passaram. As provas SQL
+  `orientacao_operacoes_local`, `orientacao_familia_local`,
+  `encaminhamento_operacoes_local` e `turno_execucao_clinica_local` passaram
+  em PostgreSQL 17 descartável. Próxima fatia: Cadastro.
 - Reprodução anterior à migração da ficha: com a chave no invólucro antigo,
   Equipe com acesso abriu e avançou à página 2. Mover somente a mesma chave
   para o select nativo lançou `NotFoundError` em `removeChild` na montagem.

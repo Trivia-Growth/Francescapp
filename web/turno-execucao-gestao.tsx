@@ -15,6 +15,7 @@ import type {
 } from '../packages/contracts/src/turno-execucao-http.ts';
 import { resultadoIncerto } from './api.ts';
 import { Botao } from './componentes/ui/botao.js';
+import { definirValorNativo } from './componentes/ui/valor-nativo.js';
 import { confirmarDescarte } from './confirmacao.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
@@ -256,7 +257,7 @@ export function GestaoExecucaoTurno({
       const seletor = envolucroRef.current?.querySelector<HTMLSelectElement>(`#${ID_FAMILIAR}`);
       if (ocupadaRef.current || tentativaRef.current || !id) return;
       if (!(await podeRedesenhar())) {
-        if (seletor) seletor.value = consultadoRef.current?.id ?? '';
+        definirValorNativo(seletor, consultadoRef.current?.id ?? '');
         return;
       }
       if (ocupadaRef.current || tentativaRef.current || seletor?.value !== id) return;

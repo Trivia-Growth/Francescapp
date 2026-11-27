@@ -32,6 +32,7 @@ import { CampoData } from './componentes/ui/campo-data.js';
 import { Campo } from './componentes/ui/campo.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { definirValorNativo } from './componentes/ui/valor-nativo.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
@@ -114,15 +115,8 @@ function TelaOrientacoesLocaisEdicao({
     // `flushSync`: o clique e o envio seguinte podem acontecer na mesma passagem síncrona
     // (como nas provas de tela), e o envio precisa ler `substituindo` já commitado.
     flushSync(() => definirSubstituindo(item.id));
-    const definir = (nome: string, valor: string) => {
-      const controle = formulario.elements.namedItem(nome);
-      if (
-        controle instanceof HTMLInputElement ||
-        controle instanceof HTMLSelectElement ||
-        controle instanceof HTMLTextAreaElement
-      )
-        controle.value = valor;
-    };
+    const definir = (nome: string, valor: string) =>
+      definirValorNativo(formulario.elements.namedItem(nome), valor);
     definir('texto', item.texto);
     definir('autor', item.autor);
     definir('data', item.data);
