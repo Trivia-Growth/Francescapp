@@ -260,7 +260,7 @@ it('mantém a visão administrativa quando somente a Anamnese é recusada', asyn
     paciente,
     fontes({
       anamnese: {
-        recusaSomenteNoBloco: true,
+        confirmarRecusaIsolada: async () => true,
         consultarAnamnese: async () => {
           throw new FalhaApi('sem_permissao', 403);
         },
@@ -274,6 +274,34 @@ it('mantém a visão administrativa quando somente a Anamnese é recusada', asyn
   expect(raiz.textContent).toContain(paciente.nome);
   expect(bloco('anamnese').textContent).not.toContain('Nenhuma anamnese registrada');
   expect(acessoPerdido).not.toHaveBeenCalled();
+});
+
+it.each([
+  ['elegibilidade perdida', async () => false, new FalhaApi('sem_permissao', 403)],
+  [
+    'sessão encerrada',
+    async () => {
+      throw new FalhaApi('nao_autenticado', 401);
+    },
+    new FalhaApi('nao_autenticado', 401),
+  ],
+])('retira a visão após recusa de Anamnese com %s', async (_, confirmarRecusaIsolada, falha) => {
+  const acessoPerdido = vi.fn(() => true);
+  desmontarAtual = montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      anamnese: {
+        confirmarRecusaIsolada,
+        consultarAnamnese: async () => {
+          throw new FalhaApi('sem_permissao', 403);
+        },
+      },
+    }),
+    acessoPerdido,
+  );
+  await vi.waitFor(() => expect(acessoPerdido).toHaveBeenCalledWith(falha));
+  expect(raiz.textContent).toBe('');
 });
 
 it('invalida respostas pendentes ao desmontar', async () => {

@@ -140,6 +140,10 @@ try {
     await conferirNegacao(caso);
     await admin.goto(`${origem.origin}/?prova=admin#carteira`);
     await abrirFicha(admin);
+    await expect(
+      admin.locator('[data-bloco="anamnese"]').getByText('Este bloco não foi carregado.'),
+    ).toBeVisible();
+    await expect(admin.locator('#ficha-title')).toHaveText('Caso Fictício A');
     await admin.getByText('Mais seções', { exact: true }).click();
     await admin.getByText('Equipe com acesso', { exact: true }).click();
     const liberado = admin.getByText('Tudo conferido. Você já pode conceder acesso.');
@@ -158,6 +162,9 @@ try {
     assert.equal(await statusAnamnese(caso), 200);
     await conferirNegacao(outroCaso);
     assert.equal(await statusAnamnese(outroCaso), 403);
+    await profissional.goto(`${origem.origin}/?prova=ficha-aberta#carteira`);
+    await abrirFicha(profissional);
+    await profissional.getByRole('tab', { name: 'Pendências' }).click();
     await admin.getByRole('button', { name: 'Conferir novamente' }).click();
     await tentativaAnterior.click();
     const conferir = admin.getByRole('dialog', { name: /Concessão anterior/ });
@@ -168,6 +175,9 @@ try {
     await admin.getByRole('button', { name: 'Revogar acesso', exact: true }).click();
     await admin.getByRole('dialog').getByRole('button', { name: 'Revogar acesso' }).click();
     await expect(admin.getByText('Revogado', { exact: true })).toBeVisible();
+    await expect(profissional.locator('#ficha-title')).toHaveText('Caso Fictício A');
+    await profissional.getByRole('tab', { name: 'Visão do caso' }).click();
+    await expect(profissional.locator('#ficha-view')).toBeHidden();
     await conferirNegacao(caso);
     assert.equal(await statusAnamnese(caso), 403);
     await admin.getByRole('button', { name: 'Conferir novamente' }).click();
@@ -177,6 +187,44 @@ try {
       .getByRole('button', { name: 'Confere, pode seguir' })
       .click();
     await expect(liberado).toBeVisible();
+    // Segura a resposta real de Anamnese até a sessão ser encerrada pelo handler real.
+    // Exercita o intervalo entre a primeira autorização e a confirmação da exceção.
+    const outrasLeituras = Promise.all(
+      ['plano', 'pendencias'].map((secao) =>
+        admin.waitForResponse(
+          (resposta) =>
+            new URL(resposta.url()).pathname === `/api/pacientes/${caso}/${secao}` &&
+            resposta.status() === 200,
+        ),
+      ),
+    );
+    const sessaoRecusada = admin.waitForResponse(
+      (resposta) => new URL(resposta.url()).pathname === '/api/sessao' && resposta.status() === 401,
+    );
+    await admin.route(
+      `**/api/pacientes/${caso}/anamnese`,
+      async (rota) => {
+        const resposta = await rota.fetch();
+        assert.equal(resposta.status(), 403);
+        await outrasLeituras;
+        const cabecalhos = await rota.request().allHeaders();
+        const saida = await admin.request.post(`${origem.origin}/api/sessao/sair`, {
+          data: {},
+          headers: {
+            origin: origem.origin,
+            'x-sessao': cabecalhos['x-sessao'],
+            'x-fluxo': cabecalhos['x-fluxo'],
+          },
+        });
+        assert.equal(saida.status(), 200);
+        await rota.fulfill({ response: resposta });
+      },
+      { times: 1 },
+    );
+    await admin.getByRole('tab', { name: 'Visão do caso' }).click();
+    await sessaoRecusada;
+    await expect(admin.locator('#login-view')).toBeVisible();
+    await expect(admin.locator('#ficha-view')).toBeHidden();
     console.log('Jornada integrada de vínculo passou com dois atores fictícios.');
   } finally {
     await navegador.close();

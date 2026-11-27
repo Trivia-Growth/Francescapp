@@ -70,7 +70,7 @@ export type FontesVisaoCaso = {
   tarefas?: Pick<ServicoTarefasCuidado, 'consultarTarefas'>;
   anamnese?: {
     consultarAnamnese(pacienteId: string): Promise<Anamnese | null>;
-    recusaSomenteNoBloco?: boolean;
+    confirmarRecusaIsolada?: () => Promise<boolean>;
   };
   /** Só o Administrador: situação e responsável vêm da leitura de edição, que o servidor nega aos demais. */
   situacao?: {
@@ -181,7 +181,7 @@ function Bloco<T>({
   consultar,
   desenhar,
   aoPerderAcesso,
-  recusaSomenteNoBloco = false,
+  confirmarRecusaIsolada,
 }: {
   id: string;
   titulo: string;
@@ -190,7 +190,7 @@ function Bloco<T>({
   consultar: () => Promise<T>;
   desenhar: (dados: T) => Corpo;
   aoPerderAcesso: (erro: unknown) => void;
-  recusaSomenteNoBloco?: boolean;
+  confirmarRecusaIsolada?: () => Promise<boolean>;
 }) {
   const [tentativa, definirTentativa] = useState(0);
   const [estado, definirEstado] = useState<Fase<T>>({ fase: 'carregando' });
@@ -201,6 +201,8 @@ function Bloco<T>({
   consultarAgora.current = consultar;
   const perderAcesso = useRef(aoPerderAcesso);
   perderAcesso.current = aoPerderAcesso;
+  const confirmarAgora = useRef(confirmarRecusaIsolada);
+  confirmarAgora.current = confirmarRecusaIsolada;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `tentativa` não é lida no corpo de propósito — é o GATILHO de recarga do bloco, o que o botão "Tentar novamente" incrementa. Tirá-la daqui faria a nova tentativa não acontecer.
   useEffect(() => {
@@ -214,11 +216,23 @@ function Bloco<T>({
         // agendador do React. Sem isto a pintura cairia numa macrotarefa posterior.
         flushSync(() => definirEstado({ fase: 'pronto', dados }));
       },
-      (erro: unknown) => {
+      async (erro: unknown) => {
         if (!valida) return;
-        if (exigeNovoAcesso(erro) && !(recusaSomenteNoBloco && semPermissao(erro))) {
-          perderAcesso.current(erro);
-          return;
+        if (exigeNovoAcesso(erro)) {
+          let preservaBloco = false;
+          let recusa = erro;
+          if (semPermissao(erro) && confirmarAgora.current) {
+            try {
+              preservaBloco = await confirmarAgora.current();
+            } catch (falha) {
+              if (exigeNovoAcesso(falha)) recusa = falha;
+            }
+          }
+          if (!valida) return;
+          if (!preservaBloco) {
+            perderAcesso.current(recusa);
+            return;
+          }
         }
         flushSync(() => definirEstado({ fase: 'erro', erro }));
       },
@@ -226,7 +240,7 @@ function Bloco<T>({
     return () => {
       valida = false;
     };
-  }, [tentativa, recusaSomenteNoBloco]);
+  }, [tentativa]);
 
   function corpo(): ReactNode {
     if (estado.fase === 'carregando')
@@ -491,7 +505,7 @@ function TelaVisaoCaso({
           id="anamnese"
           titulo="Anamnese"
           origem={{ secao: 'anamnese', rotulo: 'Anamnese' }}
-          recusaSomenteNoBloco={anamnese.recusaSomenteNoBloco}
+          confirmarRecusaIsolada={anamnese.confirmarRecusaIsolada}
           consultar={() => anamnese.consultarAnamnese(paciente.id)}
           desenhar={(registro) => {
             if (!registro)

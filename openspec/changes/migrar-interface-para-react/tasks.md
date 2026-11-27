@@ -737,3 +737,24 @@ Depois da prova integrada, `pnpm run verificar:ativacao` saiu com código 0.
 Passaram 898 testes web, 736 do proxy, 324 das funções, 207 de contrato,
 137 de cadastro, o build, C5 e 14 cenários de celular. Permaneceram 30 testes
 pulados nas suítes de cadastro, funções e proxy. A stack descartável foi encerrada.
+
+### Revisão da recusa isolada de Anamnese
+
+Em `ffecb168`, o perfil e a capacidade capturados na montagem bastavam para
+absorver um `403`. A RPC reúne motivos de recusa e o proxy devolve esse erro antes
+da revalidação final do caminho de sucesso. A Visão do caso agora conserva a ficha
+somente após `consultarSessao()` confirmar a mesma sessão e o mesmo usuário,
+administrador com carteira integral. Perda de elegibilidade ou falha de confirmação
+retira a visão. Uma sessão recusada segue o fluxo existente de nova entrada.
+
+Com Chromium, handlers Netlify e Auth/PostgreSQL reais no Docker rootless, a
+recusa isolada retornou `403`, a consulta posterior de sessão retornou `200`
+e a ficha ficou disponível. Na corrida controlada, o roteiro segurou esse mesmo
+`403` real, esperou as demais leituras retornarem `200`, encerrou a sessão pelo
+handler real e liberou a resposta. A reconsulta retornou `401`, retirou a ficha
+e mostrou a entrada. O profissional recebeu `403` no outro caso e, após
+revogação, perdeu a ficha já aberta ao voltar à Visão do caso sem recarregar.
+Reserva, autorização, revogação e conferência do recibo passaram pelo proxy real.
+As quatro provas de navegador continuam dependentes do bootstrap descartável
+descrito acima. A suíte focada de Visão do caso passou com 16 testes e
+`verificar:rapido` passou.
