@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import AxeBuilder from '@axe-core/playwright';
 import { chromium } from '@playwright/test';
@@ -9,8 +9,9 @@ import { responder } from '../../web/fixtures/despachante.ts';
 import { sessaoAdministrador } from '../../web/fixtures/sessao.ts';
 
 // Capturas da casca com o build real e dados fictícios, sem tráfego externo.
-const [build, destino, opcao] = process.argv.slice(2);
-assert.ok(build && destino, 'Informe o diretório do build e o destino das capturas.');
+const [caminhoBuild, destino, opcao] = process.argv.slice(2);
+assert.ok(caminhoBuild && destino, 'Informe o diretório do build e o destino das capturas.');
+const build = resolve(caminhoBuild);
 mkdirSync(destino, { recursive: true });
 const html = readFileSync(join(build, 'index.html'), 'utf8');
 const iniciais = [
@@ -95,6 +96,7 @@ try {
         const cascaReact = (await pagina.locator('#titulo-casca').count()) === 1;
         if (cascaReact) {
           assert.equal(await pagina.locator('h1:visible').count(), 1);
+          await pagina.waitForFunction(() => document.activeElement?.id === 'titulo-casca');
           const barra = await pagina.locator('.casca-topbar').boundingBox();
           assert.ok(barra && barra.height >= (largura === 390 ? 64 : 72));
           assert.equal(Math.round(barra.x), largura === 390 ? 0 : 240);
@@ -104,6 +106,9 @@ try {
             assert.equal(lateral?.width, 240);
           }
         }
+        await pagina.evaluate(() => {
+          if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        });
         await pagina.screenshot({
           path: join(destino, `${nome}-${largura}.png`),
           animations: 'disabled',

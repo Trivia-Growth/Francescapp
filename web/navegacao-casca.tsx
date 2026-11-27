@@ -13,8 +13,10 @@ import {
 import {
   type MouseEvent,
   type Ref,
+  useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -59,11 +61,6 @@ function preferenciaRecolhida(): boolean {
   }
 }
 
-function assinarJanela(notificar: () => void) {
-  window.addEventListener('resize', notificar);
-  return () => window.removeEventListener('resize', notificar);
-}
-
 const janelaEstreita = () => window.innerWidth < 1024;
 
 function Marca() {
@@ -94,13 +91,36 @@ export function NavegacaoCasca({
   aoSair: () => void;
   aoBuscar: (texto: string) => void;
 }) {
-  const estreita = useSyncExternalStore(assinarJanela, janelaEstreita);
   const [recolhida, definirRecolhida] = useState(preferenciaRecolhida);
   const [aberta, definirAberta] = useState(false);
   const menu = useRef<HTMLButtonElement>(null);
+  const recolher = useRef<HTMLButtonElement>(null);
+  const gaveta = useRef<HTMLDivElement>(null);
   const primeiroControle = useRef<HTMLButtonElement>(null);
   const conta = useRef<HTMLDetailsElement>(null);
   const devolverFoco = useRef(true);
+  const transferirFoco = useRef(false);
+  const assinarJanela = useCallback(
+    (notificar: () => void) => {
+      let eraEstreita = janelaEstreita();
+      const redimensionar = () => {
+        const agoraEstreita = janelaEstreita();
+        if (agoraEstreita !== eraEstreita) {
+          const ativo = document.activeElement;
+          transferirFoco.current =
+            lateral.contains(ativo) ||
+            Boolean(gaveta.current?.contains(ativo)) ||
+            ativo === menu.current;
+          eraEstreita = agoraEstreita;
+        }
+        notificar();
+      };
+      window.addEventListener('resize', redimensionar);
+      return () => window.removeEventListener('resize', redimensionar);
+    },
+    [lateral],
+  );
+  const estreita = useSyncExternalStore(assinarJanela, janelaEstreita);
   const gavetaVisivel = estado.visivel && estreita && aberta;
   const avisos = estado.avisos ? (
     <div className="avisos" id="avisos" key={estado.avisos.identidade}>
@@ -108,6 +128,12 @@ export function NavegacaoCasca({
     </div>
   ) : null;
   useTravaRolagem(gavetaVisivel);
+
+  useLayoutEffect(() => {
+    if (!transferirFoco.current) return;
+    transferirFoco.current = false;
+    (estreita ? menu.current : recolher.current)?.focus();
+  }, [estreita]);
 
   useEffect(() => {
     document.body.classList.toggle('casca-recolhida', recolhida && !estreita);
@@ -169,6 +195,11 @@ export function NavegacaoCasca({
             >
               <Icone aria-hidden="true" size={20} />
               <span>{rotulo}</span>
+              {movel ? null : (
+                <span className="casca-rotulo-trilho" aria-hidden="true">
+                  {rotulo}
+                </span>
+              )}
             </a>
           </div>
         ))}
@@ -246,6 +277,7 @@ export function NavegacaoCasca({
           <Dialog.Overlay id="sidebar-backdrop" className="casca-fundo-gaveta" />
           <Dialog.Content
             id="patients-sidebar"
+            ref={gaveta}
             className="casca-lateral casca-gaveta"
             aria-describedby={undefined}
             onOpenAutoFocus={(evento) => {
@@ -285,6 +317,7 @@ export function NavegacaoCasca({
             <button
               type="button"
               id="collapse-sidebar"
+              ref={recolher}
               className="casca-recolher casca-menu"
               aria-controls="patients-sidebar"
               aria-expanded={!recolhida}

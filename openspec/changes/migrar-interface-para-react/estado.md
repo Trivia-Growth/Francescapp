@@ -11,14 +11,22 @@ ser migrados para cumprir a tarefa 7.2.
 
 - Chromium, build de produção: 240 px de lateral em 1440 px, gaveta de 358 px em
   390 px, barra sticky de no mínimo 72/64 px e um título principal nas seis capturas.
-  As folhas carregadas foram `index-X-zgnAef.css` na base e `index-BceTrjlW.css`
-  na fatia. O JavaScript inicial passou de 242.878 a 245.169 bytes gzip em seis arquivos.
+  As folhas carregadas foram `index-X-zgnAef.css` na base e `index-B-X97JSR.css`
+  na fatia. O JavaScript inicial passou de 242.878 a 245.220 bytes gzip em seis arquivos.
 - Axe integral sem violações nas seis vistas e na gaveta. Na base, os cinco botões
   da Carteira tinham nome incompatível com o texto visível, e o corpo do diálogo
   de cadastro era rolável sem foco. Reintroduzir o rótulo anterior nos botões
   reproduziu a violação a 390 e 1440 px. Alteração temporária revertida.
-- Próximo passo: ativação da fatia, aprovação das capturas e portabilidade dos
-  painéis restantes. O corte preexistente do sinal operacional fica no PR #51.
+- Ativação inicial de `50e4880`: 929 testes web e 52 cenários Chromium aprovados
+  (um cenário preexistente pulado), build e Trusted Types aprovados. A prova SQL
+  de concessão e recusa passou em PostgreSQL 17 descartável sem rede.
+- Revisão do PR #53: título visível e foco preservado ao cruzar 1024 px, rótulo
+  do trilho reaparece com hover e foco, e a seta da Carteira usa um único desenho.
+  Os cinco cenários da casca passaram; sem a transferência de foco, o Chromium
+  falhou em `toBeFocused` para Menu. A prova do catálogo confirmou um GET inicial,
+  cinco voltas sem GET e descarte após 403. Capturas refeitas com CSS aplicado.
+- Próximo passo: CI e aprovação das capturas. A tarefa 7.2 segue com os painéis
+  restantes, e o corte preexistente do sinal operacional fica no PR #51.
 
 ## Fatia 8a do plano visual — roteador por fragmento
 

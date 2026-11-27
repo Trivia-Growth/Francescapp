@@ -1,4 +1,3 @@
-import { ChevronRight } from 'lucide-react';
 import type { PacienteLista } from '../packages/contracts/src/cadastro.js';
 import { rotulosSituacao } from './acompanhamento-caso.js';
 import { iniciais } from './ficha-paciente.js';
@@ -39,7 +38,7 @@ export function LinhasCarteira({
           {paciente.sinal ? <SinalCarteira sinal={paciente.sinal} /> : null}
           <span className="sr-only">Abrir ficha</span>
         </span>
-        <ChevronRight className="ui-linha__seta" aria-hidden="true" size={16} />
+        <span className="ui-linha__seta" aria-hidden="true" />
       </button>
     </li>
   ));

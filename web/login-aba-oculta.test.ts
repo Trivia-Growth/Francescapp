@@ -74,7 +74,7 @@ it.each([true, false])(
       await vi.waitFor(() => expect(el('patients-view').hidden).toBe(false));
       expect(listas).toBe(1);
       expect(document.title).toBe('FFCMApp | Pacientes');
-      expect(document.activeElement).toBe(el('patients-title'));
+      expect(document.activeElement).toBe(el('titulo-casca'));
     } else {
       await vi.waitFor(() => expect(el('login-view').hidden).toBe(false));
       expect(el('patients-view').hidden).toBe(true);

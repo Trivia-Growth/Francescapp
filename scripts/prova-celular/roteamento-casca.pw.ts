@@ -102,6 +102,35 @@ test('volta da ficha devolve foco à linha da Carteira', async ({ page }) => {
   await expect(linha).toBeFocused();
 });
 
+test('trilho revela rótulo e preserva foco ao cruzar 1024 px', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await prepararSessao(page, 'tecnica');
+  await page.route('**/api/**', (rota) => {
+    const fixture = responder(rota.request().url());
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  await page.goto('/web/index.html#carteira');
+  const titulo = page.getByRole('heading', { name: 'Pessoas acompanhadas', level: 1 });
+  await expect(titulo).toBeFocused();
+  await page.getByRole('button', { name: 'Recolher navegação' }).click();
+  const link = page.getByRole('link', { name: 'Pessoas acompanhadas' });
+  const rotulo = link.locator('.casca-rotulo-trilho');
+  await link.hover();
+  await expect(rotulo).toBeVisible();
+  await page.mouse.move(800, 200);
+  await link.focus();
+  await expect(rotulo).toBeVisible();
+  await page.setViewportSize({ width: 1023, height: 900 });
+  const menu = page.getByRole('button', { name: 'Menu', exact: true });
+  await expect(menu).toBeFocused();
+  await menu.click();
+  await expect(page.getByRole('button', { name: 'Fechar menu' })).toBeFocused();
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await expect(page.getByRole('button', { name: 'Expandir navegação' })).toBeFocused();
+});
+
 test('link de Seu dia mantém uma vista enquanto a ficha carrega', async ({ page }) => {
   await prepararSessao(page, 'tecnica');
   let carteiraJaConsultada = false;

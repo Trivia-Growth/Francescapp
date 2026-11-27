@@ -186,9 +186,9 @@ const loginInterno = montarLoginInterno(
     patientsView.hidden = false;
     casca.atualizarNavegacao({ visivel: true });
     document.title = 'FFCMApp | Pacientes';
-    elemento('patients-title').focus();
     if (await carregarPacientes()) await abrirFichaPelaRota();
     navegarPelaRota();
+    focarDestinoDaCasca();
   },
   {
     podeIniciar: () => !loginOcupado,
@@ -396,7 +396,8 @@ function voltarParaLista(): void {
   trocarRota('#carteira');
   aviso('workspace-feedback', '');
   const linha = id ? listaPacientes.querySelector<HTMLElement>(`[data-paciente-id="${id}"]`) : null;
-  (linha ?? elemento('patients-title')).focus();
+  if (linha) linha.focus();
+  else focarTituloCasca();
 }
 
 function montarConversaoDaFicha(
@@ -2038,10 +2039,14 @@ function irPara(hash: string): void {
   focarDestinoDaCasca();
 }
 
+function focarTituloCasca(): void {
+  document.getElementById('titulo-casca')?.focus();
+}
+
 function focarDestinoDaCasca(): void {
   if (!fichaView.hidden || (!listaView.hidden && listaView.contains(document.activeElement)))
     return;
-  document.getElementById('titulo-casca')?.focus();
+  focarTituloCasca();
 }
 
 function navegarPelaRota(): void {
@@ -2244,9 +2249,9 @@ async function entrar(evento: SubmitEvent): Promise<void> {
     casca.atualizarNavegacao({ visivel: true });
     document.title = 'FFCMApp | Pacientes';
     aviso('login-feedback', '');
-    elemento('patients-title').focus();
     if (await carregarPacientes()) await abrirFichaPelaRota();
     navegarPelaRota();
+    focarDestinoDaCasca();
   } catch (erro) {
     if (versao !== revisao) return;
     api.limpar();
@@ -2297,9 +2302,9 @@ async function entrarFamiliar(evento: SubmitEvent): Promise<void> {
     casca.atualizarNavegacao({ visivel: true });
     document.title = 'FFCMApp | Pacientes';
     aviso('familiar-feedback', '');
-    elemento('patients-title').focus();
     if (await carregarPacientes()) await abrirFichaPelaRota();
     navegarPelaRota();
+    focarDestinoDaCasca();
   } catch (erro) {
     if (versao !== revisao) return;
     api.limpar();
@@ -2778,7 +2783,8 @@ async function revalidarAcesso(): Promise<void> {
       if (focoAposLoginOculto) {
         focoAposLoginOculto = false;
         document.title = 'FFCMApp | Pacientes';
-        elemento(ficha ? 'ficha-title' : 'patients-title').focus();
+        if (ficha) ficha.focarTitulo();
+        else focarTituloCasca();
       }
     }
   } catch (erro) {
@@ -3002,6 +3008,7 @@ async function restaurarSessao(): Promise<void> {
     document.title = 'FFCMApp | Pacientes';
     if (await carregarPacientes()) await abrirFichaPelaRota();
     navegarPelaRota();
+    focarDestinoDaCasca();
   } catch (erro) {
     if (versao !== revisao) return;
     mostrarAcesso(

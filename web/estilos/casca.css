@@ -39,6 +39,7 @@ body:not(:has(#patients-view:not([hidden]))) .footer .chip-ambiente {
   border-bottom: 1px solid var(--color-sistema-divisor);
 }
 .casca-topbar h1 {
+  justify-self: start;
   font-size: 2.5rem;
   line-height: 1.1;
   text-wrap: balance;
@@ -171,6 +172,21 @@ body:not(:has(#patients-view:not([hidden]))) .footer .chip-ambiente {
 .casca-destino svg {
   flex: none;
 }
+.casca-rotulo-trilho {
+  display: none;
+}
+.casca-recolhida .casca-destino:is(:hover, :focus) .casca-rotulo-trilho {
+  display: block;
+  position: fixed;
+  inset-inline-start: calc(var(--largura-casca) + var(--spacing-sistema-2));
+  padding: var(--spacing-sistema-2) var(--spacing-sistema-3);
+  border: 1px solid var(--color-sistema-divisor);
+  border-radius: var(--radius-sistema-controle);
+  background: var(--color-sistema-superficie);
+  color: var(--color-sistema-texto);
+  box-shadow: var(--sombra-menu);
+  pointer-events: none;
+}
 .casca-destino:hover,
 .casca-destino[aria-current="page"] {
   background: var(--color-sistema-hoje);
@@ -238,6 +254,7 @@ body:not(:has(#patients-view:not([hidden]))) .footer .chip-ambiente {
     grid-template-columns: minmax(84px, 1fr) minmax(0, max-content) minmax(84px, 1fr);
   }
   .casca-topbar h1 {
+    justify-self: center;
     font-size: 1.5rem;
     line-height: 1.1667;
     text-align: center;
