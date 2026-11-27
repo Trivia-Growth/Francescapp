@@ -1,10 +1,16 @@
 /** Apoio de teste: responde às confirmações da própria tela.
  *
  *  As provas antigas trocavam `window.confirm` por um espião e liam o retorno. Agora a
- *  confirmação é um `<dialog>` no documento e a resposta é um clique — este auxiliar
- *  clica por elas e guarda o texto de cada decisão oferecida, para que a prova continue
- *  afirmando o que afirmava: que a tela perguntou, e o quê. Não é usado em produção.
- */
+ *  confirmação é o `Dialogo` real (Radix) montado por `web/confirmacao.tsx` num contêiner
+ *  próprio fora de toda árvore React, e a resposta é um clique — este auxiliar clica por
+ *  elas e guarda o texto de cada decisão oferecida, para que a prova continue afirmando o
+ *  que afirmava: que a tela perguntou, e o quê. Não é usado em produção.
+ *
+ *  `.dialogo-confirmacao` é a classe que `web/confirmacao.tsx` passa a `Dialogo`
+ *  (`classe="dialogo-confirmacao"`); não existe mais um `<dialog>` nativo — o Radix
+ *  desenha um `<div role="dialog">` em portal, direto em `document.body`. `data-acao`
+ *  sobrevive porque vem do `Botao` em cada ação do diálogo (`componentes/ui/botao.tsx`),
+ *  não do kit antigo. */
 
 export type RespostaDeProva = {
   /** Resposta dada às próximas confirmações; pode mudar no meio do teste. */
@@ -21,9 +27,7 @@ export function responderConfirmacoes(resposta = true): RespostaDeProva {
     encerrar: () => observador.disconnect(),
   };
   const atender = () => {
-    for (const dialogo of document.querySelectorAll<HTMLDialogElement>(
-      'dialog[data-confirmacao]',
-    )) {
+    for (const dialogo of document.querySelectorAll<HTMLElement>('.dialogo-confirmacao')) {
       controle.chamadas.push(dialogo.textContent ?? '');
       const alvo = controle.resposta ? 'confirmar' : 'cancelar';
       dialogo.querySelector<HTMLButtonElement>(`[data-acao="${alvo}"]`)?.click();
@@ -37,5 +41,5 @@ export function responderConfirmacoes(resposta = true): RespostaDeProva {
 
 /** Espera as microtarefas da confirmação: clicar passou a ter resposta assíncrona. */
 export function aguardarConfirmacao(): Promise<void> {
-  return new Promise((resolver) => setTimeout(resolver, 0));
+  return new Promise((resolver) => requestAnimationFrame(() => setTimeout(resolver, 0)));
 }
