@@ -12,10 +12,10 @@
  * 2. A árvore de leitura — passagem anterior, autoria, ciência, recebimento — deixa de ser
  *    montada nó a nó e passa a ser descrita uma vez só.
  *
- * O editor de síntese continua sendo `web/modelo-sintese.ts`, montado à mão numa raiz
- * própria: ele é compartilhado com o Diário, é dono dos `id` que as provas alcançam, e
- * migrá-lo não é desta frente. O React não desenha dentro daquela raiz — só a cria, a
- * remonta quando a carga pede, e lê os valores por `ler()`.
+ * Os campos da síntese (`web/modelo-sintese.tsx`) são compostos nesta árvore desde
+ * 27/11/2026. Antes eram montados à mão num contêiner com ref — DOM escrito por fora numa
+ * árvore do React, a direção que produziu os `NotFoundError` desta migração. Os `id`, a
+ * precedência dos valores e a remontagem a cada consulta continuam os mesmos.
  *
  * O que NÃO mudou, de propósito (VIS-018): consultar NÃO registra ciência; sem publicação
  * confirmada não há encerramento; o encerramento exige confirmação explícita em caixa; a
@@ -35,7 +35,13 @@ import type { Turno } from '../packages/contracts/src/turno.js';
 import { FalhaApi } from './api.js';
 import { Botao } from './componentes/ui/botao.js';
 import './estilos/tema.css';
-import { montarCamposSintese } from './modelo-sintese.js';
+import {
+  CAMPOS_SINTESE,
+  CamposSintese,
+  type ValoresSintese,
+  controleSintese,
+  lerSintese,
+} from './modelo-sintese.js';
 import { ilha } from './ponte/ilha.js';
 import type { ServicoTurnoHttp } from './servico-turno-http.js';
 import { Formulario } from './telas/formulario.js';
@@ -45,8 +51,6 @@ type OpcoesPassagem = {
   alteracaoPendente?(valor: boolean): void;
   encerrar(registroId: string): Promise<void>;
 };
-
-type Campos = ReturnType<typeof montarCamposSintese>;
 
 function Linha({ children }: { children: React.ReactNode }) {
   return <p className="m-0 max-w-[68ch] text-(length:--texto-2)">{children}</p>;
@@ -168,7 +172,6 @@ function TelaPassagemTurno({
   /** Troca a chave do editor e o remonta: cada consulta reconstrói os campos, como antes. */
   const [carga, definirCarga] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
-  const camposRef = useRef<Campos | null>(null);
 
   const controladorRef = useRef<AbortController | null>(null);
   controladorRef.current ??= new AbortController();
@@ -275,63 +278,39 @@ function TelaPassagemTurno({
     raiz.setAttribute('aria-busy', String(ocupada));
   }, [raiz, ocupada]);
 
-  /* O editor imperativo, remontado a cada consulta e preenchido pela mesma ordem de
-     precedência de antes: a tentativa pendente, depois o rascunho descartado, depois o
-     que estava digitado. */
   const areaPassagem = passagem?.area_passagem ?? null;
   const mostraEditor =
     passagem !== null &&
     (!passagem.propria || novaVersaoRef.current || publicacaoRef.current !== null) &&
     turno.situacao === 'aberto' &&
     areaPassagem !== null;
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `carga` não é lida no corpo de propósito — é o gatilho de remontagem do editor; cada consulta reconstrói os campos, como a versão imperativa fazia.
-  useEffect(() => {
-    const destino = editorRef.current;
-    if (!destino || !mostraEditor || areaPassagem === null) return;
-    const campos = montarCamposSintese(destino, [areaPassagem], `passagem-${turno.turno_id}`);
-    camposRef.current = campos;
+  const prefixoSintese = `passagem-${turno.turno_id}`;
+  /* Os campos nascem de novo a cada consulta (a chave é `carga`), preenchidos pela mesma
+     ordem de precedência de antes: a tentativa pendente, depois o rascunho descartado,
+     depois o que estava digitado. A área não vem do rascunho: é a configurada agora, e um
+     valor guardado só vale se ainda for uma das opções. */
+  function valoresIniciais(): ValoresSintese {
     const pendente = publicacaoRef.current;
     const valores = pendente?.entrada.conteudo ?? rascunhoRef.current;
-    if (valores) {
-      campos.data.value = valores.data;
-      campos.atividade.value = valores.atividade ?? '';
-      for (const [campo, valor] of [
-        ['observacoes', valores.observacoesCompartilhaveis],
-        ['progresso', valores.progresso],
-        ['orientacao', valores.orientacao],
-        ['proximo', valores.proximoPasso],
-        ['objetivo', valores.objetivoRelacionado],
-      ] as const) {
-        const controle = destino.querySelector<HTMLInputElement | HTMLTextAreaElement>(
-          `[id$="-${campo}"]`,
-        );
-        if (controle) controle.value = valor ?? '';
+    const iniciais: ValoresSintese = valores
+      ? {
+          data: valores.data,
+          atividade: valores.atividade ?? '',
+          observacoes: valores.observacoesCompartilhaveis ?? '',
+          progresso: valores.progresso ?? '',
+          orientacao: valores.orientacao ?? '',
+          proximo: valores.proximoPasso ?? '',
+          objetivo: valores.objetivoRelacionado ?? '',
+        }
+      : {};
+    const guardado = camposRascunhoRef.current;
+    if (!pendente && guardado)
+      for (const campo of CAMPOS_SINTESE) {
+        const valor = guardado[`${prefixoSintese}-${campo}`];
+        if (valor !== undefined) iniciais[campo] = valor;
       }
-    }
-    if (!pendente && camposRascunhoRef.current) {
-      const guardado = camposRascunhoRef.current;
-      for (const controle of destino.querySelectorAll<
-        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-      >('input,textarea,select')) {
-        const valor = guardado[controle.id];
-        if (
-          valor !== undefined &&
-          (!(controle instanceof HTMLSelectElement) ||
-            [...controle.options].some((opcao) => opcao.value === valor))
-        )
-          controle.value = valor;
-      }
-    }
-    if (pendente)
-      for (const controle of destino.querySelectorAll<
-        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-      >('input,textarea,select'))
-        controle.disabled = true;
-    return () => {
-      camposRef.current = null;
-      destino.replaceChildren();
-    };
-  }, [carga, mostraEditor, areaPassagem, turno.turno_id]);
+    return iniciais;
+  }
 
   if (perdido) return null;
 
@@ -365,10 +344,10 @@ function TelaPassagemTurno({
 
   function publicar() {
     if (ocupadaRef.current) return;
-    const valor = camposRef.current?.ler();
+    const valor = lerSintese(editorRef.current, prefixoSintese);
     if (!publicacaoRef.current && (!valor || !valor.atividade)) {
       definirStatus('Informe data, área e atividade para publicar.');
-      camposRef.current?.atividade.focus();
+      controleSintese(editorRef.current, prefixoSintese, 'atividade')?.focus();
       return;
     }
     if (!publicacaoRef.current && valor) {
@@ -496,7 +475,17 @@ function TelaPassagemTurno({
                 onInput={() => fora((destino) => destino.alteracaoPendente?.(true))}
                 aoEnviar={publicar}
               >
-                <div ref={editorRef} className="grid min-w-0 gap-4" />
+                <div ref={editorRef} className="grid min-w-0 gap-4">
+                  {areaPassagem !== null ? (
+                    <CamposSintese
+                      key={carga}
+                      areas={[areaPassagem]}
+                      prefixo={prefixoSintese}
+                      iniciais={valoresIniciais()}
+                      desabilitado={pendente !== null}
+                    />
+                  ) : null}
+                </div>
                 {avisoArea ? <Linha>{avisoArea}</Linha> : null}
                 <Linha>
                   A síntese será publicada no Diário para a equipe e vinculada a este turno na mesma

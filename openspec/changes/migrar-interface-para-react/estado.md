@@ -10,16 +10,21 @@ Importadores de `web/ui/` fora de testes: **15** (eram 22 na `main` `80f7583`).
 
 ## Última tarefa concluída
 
-- 5.2 leva 2 — fábricas imperativas de `turno-execucao-campos.tsx` retiradas (sem
-  consumidor desde `turno-execucao`, `826b29b`); o arquivo deixa de importar `web/ui/`.
-- Evidência: provas do turno/plantão 58/58; `pnpm run verificar:rapido` verde.
+- Costura da síntese desarmada: `modelo-sintese.ts` vira `modelo-sintese.tsx`
+  (`CamposSintese`, `lerSintese`, `controleSintese`), composto em `diario.tsx` e
+  `passagem-turno.tsx` — nenhum dos dois monta mais DOM à mão num contêiner com ref. Ids,
+  precedência de valores da Passagem (tentativa → rascunho → digitado) e remontagem por
+  consulta preservados. `montarCamposSintese` continua exportada como ilha, só para a prova.
+- Evidência: 21 arquivos de prova que tocam Diário, Passagem e Turno, 139/139, sem mudança de
+  asserção (`modelo-sintese.test.ts` só mudou o especificador); `verificar:rapido` verde.
 
 ## Próximo passo
 
-- Costura da síntese: `modelo-sintese.ts` montado à mão em `diario.tsx` e `passagem-turno.tsx`.
-- `turno-execucao-integracao.ts` e a costura nova achada em `turno-proprio.tsx`
-  (`opcoes.montarExecucao` e `montarPassagemTurno` montados em `div` de ref) — reportada à
-  coordenação antes de resolver.
+- `turno-execucao-integracao` em `.tsx`, com a costura de `turno-proprio.tsx` desarmada:
+  `renderizarExecucao` no lugar de `montarExecucao`, Passagem composta direto, e
+  `montarConsentimentoTurno` virando hook com componente. Aprovado pela coordenação em
+  27/11/2026 com a condição de não mudar asserção de `turno-proprio`, `-abertura` e
+  `-localizacao`.
 
 ## Bloqueadores
 
