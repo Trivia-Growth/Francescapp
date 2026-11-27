@@ -1,3 +1,4 @@
+import { Bell } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { rotulosTipoAviso, type Aviso, type ListaAvisos } from '../packages/contracts/src/aviso.ts';
@@ -156,9 +157,14 @@ function TelaAvisos({
         className="avisos-sino"
         aria-expanded={painelAberto}
         aria-controls="avisos-painel"
-        aria-label={naoLidos > 0 ? `Avisos: ${naoLidos} não lidos` : 'Avisos'}
+        aria-label={
+          naoLidos > 0
+            ? `Avisos ${naoLidos} ${naoLidos === 1 ? 'não lido' : 'não lidos'}`
+            : undefined
+        }
         onClick={aoClicarSino}
       >
+        <Bell aria-hidden="true" className="chrome-icon" size={16} />
         <span className="avisos-sino-rotulo">Avisos</span>
         <span id="avisos-indicador" className="avisos-indicador" hidden={naoLidos <= 0}>
           {naoLidos > 0 ? String(naoLidos) : ''}

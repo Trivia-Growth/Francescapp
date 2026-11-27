@@ -801,6 +801,18 @@ body:has(#patients-view:not([hidden])) .topbar .brand-organization {
 .toggle-sidebar {
   display: none;
 }
+.toggle-sidebar,
+#logout,
+.sidebar-close {
+  align-items: center;
+  gap: var(--espaco-2);
+}
+#logout {
+  display: inline-flex;
+}
+.chrome-icon {
+  flex: none;
+}
 .sidebar-backdrop {
   position: fixed;
   inset: 0;
@@ -2421,7 +2433,7 @@ body:has(#patients-view:not([hidden])) .footer {
   align-items: center;
   gap: var(--espaco-2);
   width: 100%;
-  min-height: 44px;
+  min-height: var(--spacing-alvo-toque);
   padding: 0 var(--espaco-3);
   margin: var(--espaco-3) 0 0;
   border: 1px solid var(--line);
@@ -2430,9 +2442,8 @@ body:has(#patients-view:not([hidden])) .footer {
   color: var(--primary);
   font: 600 var(--texto-1) / 1.2 var(--font-body);
 }
-.sidebar-collapse-sinal {
-  font-size: var(--texto-3);
-  line-height: 1;
+.sidebar-collapse[aria-expanded="false"] .sidebar-collapse-sinal {
+  transform: scaleX(-1);
 }
 .sidebar-collapse:hover {
   border-color: var(--field-line);
@@ -3005,8 +3016,8 @@ label > .loading-indicator {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  min-height: 2.75rem;
-  min-width: 2.75rem;
+  min-height: var(--spacing-alvo-toque);
+  min-width: var(--spacing-alvo-toque);
   padding: 0 0.6rem;
   border: 1px solid var(--line);
   border-radius: 0.5rem;

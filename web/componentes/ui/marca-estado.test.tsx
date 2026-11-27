@@ -29,17 +29,17 @@ it('cada tom muda a superfície, e o contorno é contínuo', () => {
   const padrao = screen.getByText('Em acompanhamento').className;
   const contorno = screen.getByText('Completar cadastro').className;
   const suave = screen.getByText('3').className;
-  expect(padrao).toContain('bg-superficie-3');
-  expect(padrao).toContain('text-texto');
-  expect(contorno).toContain('border-borda');
-  expect(contorno).toContain('bg-superficie');
+  expect(padrao).toContain('bg-sistema-hoje');
+  expect(padrao).toContain('text-sistema-acao');
+  expect(contorno).toContain('border-sistema-contorno');
+  expect(contorno).toContain('bg-sistema-superficie');
   // A borda tracejada saiu por parecer defeito de renderização.
   expect(contorno).not.toContain('border-dashed');
-  expect(suave).toContain('bg-superficie-2');
-  expect(suave).toContain('text-texto-suave');
+  expect(suave).toContain('bg-sistema-fundo-desabilitado');
+  expect(suave).toContain('text-sistema-desabilitado');
 });
 
-it('mantém a pílula e o tamanho de metadado em todos os tons', () => {
+it('mantém pílulas de 16 px para estados e usa metadado no tom suave', () => {
   render(
     <>
       <MarcaEstado>Em acompanhamento</MarcaEstado>
@@ -52,9 +52,10 @@ it('mantém a pílula e o tamanho de metadado em todos os tons', () => {
     screen.getByText('Completar'),
     screen.getByText('3'),
   ]) {
-    expect(marca.className).toContain('rounded-[20px]');
-    expect(marca.className).toContain('--texto-1');
+    expect(marca.className).toContain('rounded-pilula');
   }
+  expect(screen.getByText('Completar').className).toContain('text-controle');
+  expect(screen.getByText('3').className).toContain('text-meta');
 });
 
 it('nenhum tom escreve cor literal nem usa o oliva como cor de texto', () => {

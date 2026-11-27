@@ -64,7 +64,7 @@ it('aria-invalid anda junto com a frase do erro: nunca cor sozinha', () => {
 it('o erro muda a borda por token, sem cor literal', () => {
   render(<Campo id="nome" rotulo="Nome" erro="Informe o nome." />);
   const classes = screen.getByLabelText('Nome').className;
-  expect(classes).toContain('aria-invalid:border-erro');
+  expect(classes).toContain('aria-invalid:border-sistema-erro');
   expect(classes).not.toMatch(/#[0-9a-f]{3,8}\b|rgb\(|hsl\(/i);
 });
 
@@ -73,15 +73,15 @@ it('desabilitado não recebe digitação e recua por token', async () => {
   const controle = screen.getByLabelText('Nome') as HTMLInputElement;
   await usuario.type(controle, 'Ana');
   expect(controle.value).toBe('');
-  expect(controle.className).toContain('disabled:bg-superficie-3');
-  expect(controle.className).toContain('disabled:text-texto-suave');
+  expect(controle.className).toContain('disabled:bg-sistema-fundo-desabilitado');
+  expect(controle.className).toContain('disabled:text-sistema-desabilitado');
 });
 
 it('o alvo de toque é o controle padrão e a fonte é 16px por causa do iOS', () => {
   render(<Campo id="nome" rotulo="Nome" />);
   const classes = screen.getByLabelText('Nome').className;
-  expect(classes).toContain('min-h-controle-md');
-  expect(classes).toContain('--texto-2');
+  expect(classes).toContain('min-h-alvo-toque');
+  expect(classes).toContain('text-corpo');
 });
 
 it('o invólucro não deixa o campo estourar a grade do diálogo', () => {

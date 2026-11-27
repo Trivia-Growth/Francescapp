@@ -1,3 +1,4 @@
+import { cva } from 'class-variance-authority';
 import type { ComponentPropsWithRef, ReactNode } from 'react';
 import { juntar } from './juntar.js';
 
@@ -15,12 +16,6 @@ import { juntar } from './juntar.js';
  *  O tamanho de fonte do controle é `--texto-2` (16px) por obrigação: menos que isso faz
  *  o iOS dar zoom ao focar (`web/styles.css:476`). */
 
-/* `text-(length:--texto-N)` e não `text-N`: `juntar` usa a configuração padrão do
-   tailwind-merge, que não conhece a escala tipográfica da Francescato e classifica
-   `text-1`/`text-2` como COR. Escritos junto de `text-texto` ou `text-contraste`, eles
-   eram descartados na junção e o controle perdia o tamanho de fonte — no campo isso
-   significa o iOS dar zoom ao focar. A forma com tipo explícito cai no grupo certo.
-   A correção definitiva é ensinar a escala ao `juntar`, fora do alcance desta frente. */
 /** Medidas do controle, compartilhadas por campo, área de texto e seleção simples. */
 export const classeControle = juntar(
   'block w-full min-h-controle-md px-3 py-[10px]',
@@ -29,6 +24,22 @@ export const classeControle = juntar(
   'font-sans text-(length:--texto-2) font-normal leading-[1.4]',
   'disabled:bg-superficie-3 disabled:text-texto-suave',
   'aria-invalid:border-erro',
+);
+
+const estiloCampo = cva(
+  [
+    'block w-full min-h-alvo-toque rounded-pilula border px-sistema-4 py-2.5',
+    'bg-sistema-superficie text-sistema-texto caret-sistema-acao',
+    'font-sans text-corpo placeholder:text-sistema-texto-secundario',
+    'disabled:bg-sistema-fundo-desabilitado disabled:text-sistema-desabilitado',
+    'focus-visible:outline-sistema-foco focus-visible:[outline-width:var(--espessura-foco)] focus-visible:[outline-offset:var(--recuo-foco)]',
+    'aria-invalid:border-sistema-erro',
+  ],
+  {
+    variants: {
+      invalido: { true: 'border-sistema-erro', false: 'border-sistema-contorno' },
+    },
+  },
 );
 
 export type PropsEnvelope = {
@@ -61,26 +72,24 @@ export function EnvelopeCampo({
   children,
 }: PropsEnvelope) {
   return (
-    <div className={juntar('grid min-w-0 gap-2 mb-4', className)}>
+    <div className={juntar('grid min-w-0 gap-sistema-1 mb-4', className)}>
       <label
         id={idRotulo}
         htmlFor={idControle}
-        className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 m-0 text-(length:--texto-2) font-semibold leading-[1.4]"
+        className="flex flex-wrap items-baseline justify-between gap-x-sistema-3 gap-y-sistema-1 m-0 mb-sistema-1 text-controle"
       >
         <span>{rotulo}</span>
         {marcaRotulo ? (
-          <span className="text-texto-suave text-(length:--texto-1) font-normal">
-            {marcaRotulo}
-          </span>
+          <span className="text-sistema-texto-secundario text-meta">{marcaRotulo}</span>
         ) : null}
       </label>
       {children}
       {dica ? (
-        <p id={`${id}-dica`} className="m-0 max-w-[68ch] text-texto-suave text-(length:--texto-1)">
+        <p id={`${id}-dica`} className="m-0 max-w-texto text-sistema-texto-secundario text-meta">
           {dica}
         </p>
       ) : null}
-      <p id={`${id}-erro`} className="m-0 text-erro text-(length:--texto-1) empty:hidden">
+      <p id={`${id}-erro`} className="m-0 text-sistema-erro text-meta empty:hidden">
         {erro}
       </p>
     </div>
@@ -132,7 +141,7 @@ export function Campo({
         type={tipo}
         aria-describedby={descritores(id, dica)}
         aria-invalid={erro ? true : undefined}
-        className={juntar(classeControle, className)}
+        className={juntar(estiloCampo({ invalido: Boolean(erro) }), className)}
         {...resto}
       />
     </EnvelopeCampo>

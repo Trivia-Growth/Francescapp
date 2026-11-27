@@ -2,6 +2,25 @@
 
 **Atualizado em:** 27/11/2026 · **Branch:** `codex/remover-web-ui` · **Por:** Codex
 
+## Fatia 4 do plano visual — primitivas e ícones
+
+Na branch `codex/primitivas-sistema`, sobre `1710eb6`, Botão, Campo e
+MarcaEstado usam cva e os tokens do SISTEMA §§2, 3 e 6. Configuração do
+sistema faz uso do estado “Salvando…”. A casca mantém a navegação existente
+com ícones Lucide e o sino apresenta o texto visível no nome acessível.
+
+- Chromium 159 validou pílula de 999 px, tamanho 16/24 e alvo mínimo de
+  46 px nos controles a 390 e 1440 px. Cliques repetidos, Enter e
+  `requestSubmit()` não admitiram outro envio pendente na galeria.
+- Ao remover a guarda de `aria-disabled`, o teste contou três ativações
+  em vez de uma. Restaurar o nome anterior do sino reproduziu
+  `label-content-name-mismatch` em Auditoria. Ambas as contraprovas
+  foram revertidas.
+- O axe da galeria mede os três componentes. Em varredura integral,
+  as linhas acionáveis da Lista apresentaram divergência entre nome
+  acessível e texto visível. O achado pertence à fatia 5.
+- Próximo passo: ativação da fatia e aprovação das capturas pelo dono.
+
 ## Fatia 3 do plano visual — tokens do SISTEMA
 
 Na branch `codex/tokens-sistema`, sobre `a8a3f8a`, o `@theme` expõe os

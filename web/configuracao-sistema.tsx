@@ -239,8 +239,8 @@ function Ajuste({
               ? 'Sua conta não pode alterar esta configuração.'
               : 'Não foi possível salvar. Tente de novo.',
         );
-        definirSalvando(false);
-      });
+      })
+      .finally(() => definirSalvando(false));
   };
 
   return (
@@ -314,14 +314,22 @@ function Ajuste({
           {autoriaDoItem(item, nomeDoUsuario)}
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <Botao peso="principal" tipo="submit" disabled={salvando}>
+          <Botao
+            peso="principal"
+            tipo="submit"
+            salvando={salvando}
+            aria-disabled={bloqueado}
+            className="max-intermediaria:w-full"
+          >
             Salvar
           </Botao>
           <p
             // biome-ignore lint/a11y/useSemanticElements: `role="status"` em `<p>` é o que as telas e as provas já usam; `<output>` muda a semântica de formulário e o gancho que as provas procuram.
             role="status"
             aria-live="polite"
-            className="m-0 text-(length:--texto-1) text-texto-suave empty:hidden"
+            className={
+              salvando ? 'sr-only' : 'm-0 text-(length:--texto-1) text-texto-suave empty:hidden'
+            }
           >
             {aviso}
           </p>

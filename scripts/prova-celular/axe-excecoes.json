@@ -1,10 +1,4 @@
 {
   "comentario": "Violações axe conhecidas, aceitas por ora e fora do escopo da fatia que introduziu o axe. Cada exceção casa regra + alvo (seletor reportado pelo axe) e traz o motivo. Corrigir o defeito e remover a exceção na fatia dona da tela; a lista só deve encolher.",
-  "excecoes": [
-    {
-      "regra": "label-content-name-mismatch",
-      "alvo": "#avisos-sino",
-      "motivo": "Sino de avisos (web/avisos.tsx): o aria-label «Avisos: N não lidos» não contém o texto visível «Avisos» seguido da contagem «N». Defeito de código real, pendente de correção na casca; não corrigido aqui por estar fora da fatia de testes."
-    }
-  ]
+  "excecoes": []
 }

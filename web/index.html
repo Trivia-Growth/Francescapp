@@ -1,4 +1,45 @@
 <!doctype html>
+<!--
+SVGs Lucide da casca HTML. O sino na ilha de Avisos usa o mesmo pacote.
+
+ISC License
+
+Copyright (c) 2026 Lucide Icons and Contributors
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+The MIT License (MIT) (for the icons listed above)
+
+Copyright (c) 2013-present Cole Bemis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+-->
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8">
@@ -22,7 +63,7 @@
   <body>
     <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
     <header class="topbar">
-      <button id="toggle-sidebar" class="button-quiet toggle-sidebar" type="button" aria-expanded="false" aria-controls="patients-sidebar">Menu</button>
+      <button id="toggle-sidebar" class="button-quiet toggle-sidebar" type="button" aria-expanded="false" aria-controls="patients-sidebar"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu chrome-icon" aria-hidden="true" focusable="false"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg>Menu</button>
       <div class="brand"><span class="brand-name">FFCMApp</span><span class="brand-organization">Francescato</span></div>
       <nav id="breadcrumbs" class="breadcrumbs" aria-label="Você está em">
         <ol>
@@ -34,7 +75,7 @@
         <span class="chip-ambiente">Ambiente de teste · dados fictícios</span>
         <div id="session-actions" class="session-actions" hidden>
           <span id="session-role"></span>
-          <button id="logout" class="button-quiet" type="button">Sair</button>
+          <button id="logout" class="button-quiet" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-log-out chrome-icon" aria-hidden="true" focusable="false"><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path></svg>Sair</button>
         </div>
       </div>
     </header>
@@ -134,14 +175,15 @@
 
       <section id="patients-view" class="patients-layout" aria-label="Pacientes" hidden>
         <aside id="patients-sidebar" class="patients-sidebar" aria-label="Área de trabalho">
+          <button id="close-sidebar" class="sidebar-close" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x chrome-icon" aria-hidden="true" focusable="false"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>Fechar menu</button>
           <div class="sidebar-brand"><img src="./assets/ffcm-logo-branco.jpg" width="64" height="64" alt="Francescato"><span>FFCMApp</span></div>
-          <button id="collapse-sidebar" class="sidebar-collapse" type="button" aria-controls="patients-sidebar" aria-expanded="true" aria-label="Recolher navegação"><span class="sidebar-collapse-sinal" aria-hidden="true">‹</span><span class="sidebar-collapse-rotulo" aria-hidden="true">Recolher</span></button>
+          <button id="collapse-sidebar" class="sidebar-collapse" type="button" aria-controls="patients-sidebar" aria-expanded="true" aria-label="Recolher navegação"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left chrome-icon sidebar-collapse-sinal" aria-hidden="true" focusable="false"><path d="m15 18-6-6 6-6"></path></svg><span class="sidebar-collapse-rotulo" aria-hidden="true">Recolher</span></button>
           <p class="sidebar-label" id="sidebar-label">Área de trabalho</p>
           <nav class="sidebar-nav" aria-labelledby="sidebar-label">
-            <a id="nav-home" class="sidebar-link" href="#home" aria-current="page">Seu dia</a>
-            <a id="nav-carteira" class="sidebar-link" href="#carteira">Pessoas acompanhadas</a>
-            <a id="nav-administracao" class="sidebar-link" href="#administracao/configuracao" hidden>Administração</a>
-            <a id="nav-regras" class="sidebar-link" href="#regras">Como funciona</a>
+            <a id="nav-home" class="sidebar-link" href="#home" aria-current="page"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-house lucide-home sidebar-icon" aria-hidden="true" focusable="false"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg><span class="sidebar-link-label">Seu dia</span></a>
+            <a id="nav-carteira" class="sidebar-link" href="#carteira"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users-round lucide-users-2 sidebar-icon" aria-hidden="true" focusable="false"><path d="M18 21a8 8 0 0 0-16 0"></path><circle cx="10" cy="8" r="5"></circle><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"></path></svg><span class="sidebar-link-label">Pessoas acompanhadas</span></a>
+            <a id="nav-administracao" class="sidebar-link" href="#administracao/configuracao" hidden><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield sidebar-icon" aria-hidden="true" focusable="false"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path></svg><span class="sidebar-link-label">Administração</span></a>
+            <a id="nav-regras" class="sidebar-link" href="#regras"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-open sidebar-icon" aria-hidden="true" focusable="false"><path d="M12 5v16"></path><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"></path></svg><span class="sidebar-link-label">Como funciona</span></a>
           </nav>
           <p class="sidebar-note">Acompanhamento de pacientes</p>
         </aside>
