@@ -164,8 +164,8 @@ try {
 
     // Relatórios: trocar o tipo revela e esconde o seletor de turno.
     await pagina.getByText('Relatórios e PDF', { exact: true }).click();
-    await escolher(/^Relatório\s/, 'Relatório de um turno');
-    await escolher(/^Relatório\s/, 'Consolidado diário');
+    await escolher(/^Relatório$/, 'Relatório de um turno');
+    await escolher(/^Relatório$/, 'Consolidado diário');
     await pagina.getByRole('button', { name: 'Consultar relatório' }).click();
     await expect(pagina.getByText(/Corte dos registros:/)).toBeVisible();
 
