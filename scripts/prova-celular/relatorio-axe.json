@@ -2,7 +2,7 @@
   "resumo": {
     "paginas": 28,
     "violacoes": 0,
-    "toleradas": 8
+    "toleradas": 6
   },
   "paginas": [
     {
@@ -147,22 +147,7 @@
     {
       "rotulo": "painel-cadastro — diálogo aberto",
       "violacoes": [],
-      "toleradas": [
-        {
-          "regra": "color-contrast",
-          "impacto": "serious",
-          "alvo": ".ui-dialogo__descricao",
-          "ajuda": "Elements must meet minimum color contrast ratio thresholds",
-          "motivo": "Texto de apoio do diálogo usa var(--muted) sobre o fundo do diálogo abaixo de 4,5:1. Os tokens de cor pertencem à fatia 3 do plano visual (@theme do SISTEMA); revisar o contraste lá e remover esta exceção."
-        },
-        {
-          "regra": "color-contrast",
-          "impacto": "serious",
-          "alvo": "button[aria-controls=\"case-status-lista\"] > .ui-selecao__valor[data-vazio=\"sim\"]",
-          "ajuda": "Elements must meet minimum color contrast ratio thresholds",
-          "motivo": "Placeholder da seleção vazia (.ui-selecao__valor[data-vazio]) abaixo de 4,5:1. Mesma origem: tokens de cor, fatia 3 do plano visual."
-        }
-      ]
+      "toleradas": []
     },
     {
       "rotulo": "painel-cadastro — diálogo fechado",
