@@ -27,6 +27,15 @@ Importadores de `web/ui/` fora de testes: **15** (eram 22 na `main` `80f7583`).
   relatórios trocado por `<select>` cru condicional, falhou com `NotFoundError: Failed to
   execute 'removeChild'`; revertido e repassou.
 
+- Ficha do plantão (`ficha-plantao-celular.pw.ts`, teste novo de interação): com a bancada
+  honesta do #25 (que instala `aplicarControlesProprios` e carrega `tema.css`), código real
+  5/5; contraprova (seletor "Plantão" trocado por `<select>` cru que some com "Sim") falhou
+  com `NotFoundError` em `removeChild`, pego na conferência de erros; revertido, 5/5. Na
+  bancada antiga, sem observador, a mesma mutação PASSA — a bancada mentia. Até o #25
+  entrar, o teste roda no caminho nativo nesta branch.
+- Conflito previsto com o #25: os dois mudam a linha do import de
+  `scripts/prova-celular/ficha-plantao.ts` (aqui para `.js`, porque o módulo virou `.tsx`).
+
 ## Próximo passo
 
 - Bloco agenda (4 módulos), avulsos, `confirmacao.ts`, `main.ts`.
