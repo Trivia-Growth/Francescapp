@@ -1,8 +1,12 @@
 /* "Meu turno" na ficha da equipe, reconstruído em React sobre a ilha
  * (`web/ponte/ilha.ts`). Autorização continua decidida no servidor e no banco.
  *
- * O contrato exportado não muda: `montarTurnoProprio(raiz, pacienteId, servico, opcoes)`
- * devolve a desmontagem, e `opcoes.montarExecucao` continua recebendo uma raiz própria.
+ * `montarTurnoProprio(raiz, pacienteId, servico, opcoes)` continua devolvendo a desmontagem.
+ * Desde 27/11/2026 a execução chega como componente (`opcoes.renderizarExecucao`) e a
+ * passagem é composta direto: antes as duas eram montadas por `useEffect` numa `div` de
+ * ref — raízes alheias dentro de um contêiner que o React governa, a mesma direção que
+ * produziu os `NotFoundError` desta migração. A remontagem a cada turno consultado, que os
+ * efeitos faziam, continua: a chave troca com o objeto do turno.
  *
  * O que a migração entrega:
  *
@@ -20,12 +24,12 @@
  * recusa a reconhecer resultado confirmado antes da consulta real; a pendência de outro
  * caso que não consulta conteúdo; e todas as mensagens, palavra por palavra.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { Turno } from '../packages/contracts/src/turno.js';
 import { Botao } from './componentes/ui/botao.js';
 import './estilos/tema.css';
-import { montarPassagemTurno } from './passagem-turno.js';
+import { PassagemTurnoTela } from './passagem-turno.js';
 import { ilha } from './ponte/ilha.js';
 import type { ServicoTurnoHttp } from './servico-turno-http.js';
 import { Formulario } from './telas/formulario.js';
@@ -34,11 +38,8 @@ import type { DeclaracaoLocalizacao } from './turno-execucao-localizacao.js';
 type OpcoesTurnoProprio = {
   acessoPerdido(): void;
   alteracaoPendente?(valor: boolean): void;
-  montarExecucao?(
-    raiz: HTMLElement,
-    turno: Turno | null,
-    alteracaoPendente: (valor: boolean) => void,
-  ): () => void;
+  /** A execução do cuidado, composta abaixo do turno. */
+  renderizarExecucao?(turno: Turno | null, alteracaoPendente: (valor: boolean) => void): ReactNode;
   localizacao?: {
     coletar(): Promise<DeclaracaoLocalizacao>;
     registrar(
@@ -62,7 +63,7 @@ function Dado({ nome, valor }: { nome: string; valor: string }) {
   );
 }
 
-function TelaTurnoProprio({
+export function TelaTurnoProprio({
   pacienteId,
   servico,
   opcoes,
@@ -353,25 +354,20 @@ function TelaTurnoProprio({
     ],
   );
 
-  /* Execução e passagem são montadas por quem já existe, em raízes próprias. Efeito com
-     limpeza no lugar das quatro desmontagens à mão da versão imperativa. */
-  const execucaoRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const destino = execucaoRef.current;
-    if (!destino || !mostraExecucao) return;
-    return opcoes.montarExecucao?.(destino, turnoVisivel, alteracaoExecucao);
-  }, [opcoes.montarExecucao, mostraExecucao, turnoVisivel, alteracaoExecucao]);
-
-  const passagemRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const destino = passagemRef.current;
-    if (!destino || !turnoVisivel) return;
-    return montarPassagemTurno(destino, pacienteId, turnoVisivel, servico, {
-      acessoPerdido: () => fora((alvo) => alvo.acessoPerdido()),
-      alteracaoPendente: (valor) => fora((alvo) => alvo.alteracaoPendente?.(valor)),
-      encerrar: (registroId) => encerrarTurno(turnoVisivel, registroId),
-    });
-  }, [turnoVisivel, pacienteId, servico, fora, encerrarTurno]);
+  /* Cada objeto de turno consultado ganha uma chave nova, e execução e passagem nascem de
+     novo com ele — o que os efeitos com `turnoVisivel` nas dependências faziam. */
+  const chaves = useRef(new WeakMap<Turno, number>());
+  const proximaChave = useRef(0);
+  const chaveTurno = (turno: Turno | null) => {
+    if (!turno) return 'sem-turno';
+    let chave = chaves.current.get(turno);
+    if (chave === undefined) {
+      proximaChave.current += 1;
+      chave = proximaChave.current;
+      chaves.current.set(turno, chave);
+    }
+    return `turno-${chave}`;
+  };
 
   if (perdido) return null;
 
@@ -458,8 +454,26 @@ function TelaTurnoProprio({
             />
           </dl>
         ) : null}
-        {mostraExecucao ? <div className="min-w-0" ref={execucaoRef} /> : null}
-        {turnoVisivel ? <div className="min-w-0" ref={passagemRef} /> : null}
+        {mostraExecucao ? (
+          <div className="min-w-0" key={chaveTurno(turnoVisivel)}>
+            {opcoes.renderizarExecucao?.(turnoVisivel, alteracaoExecucao)}
+          </div>
+        ) : null}
+        {turnoVisivel ? (
+          <div className="min-w-0">
+            <PassagemTurnoTela
+              key={chaveTurno(turnoVisivel)}
+              pacienteId={pacienteId}
+              turno={turnoVisivel}
+              servico={servico}
+              opcoes={{
+                acessoPerdido: () => fora((alvo) => alvo.acessoPerdido()),
+                alteracaoPendente: (valor) => fora((alvo) => alvo.alteracaoPendente?.(valor)),
+                encerrar: (registroId) => encerrarTurno(turnoVisivel, registroId),
+              }}
+            />
+          </div>
+        ) : null}
       </div>
       <Formulario className="grid min-w-0 gap-4" aoEnviar={() => enviar()}>
         <div hidden={escondeAbertura} className="flex min-h-controle-md items-center gap-2">

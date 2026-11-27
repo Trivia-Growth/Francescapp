@@ -128,14 +128,16 @@ function ConfirmacaoEncerramento({ aoMudar }: { aoMudar: (marcado: boolean) => v
   );
 }
 
-function TelaPassagemTurno({
+export function PassagemTurnoTela({
   raiz,
   pacienteId,
   turno,
   servico,
   opcoes,
 }: {
-  raiz: HTMLElement;
+  /** Só para `montarPassagemTurno`: a raiz recebe `aria-busy`. Composta, a tela marca o
+   *  próprio invólucro. */
+  raiz?: HTMLElement;
   pacienteId: string;
   turno: Turno;
   servico: ServicoTurnoHttp;
@@ -275,7 +277,7 @@ function TelaPassagemTurno({
   }, []);
 
   useEffect(() => {
-    raiz.setAttribute('aria-busy', String(ocupada));
+    raiz?.setAttribute('aria-busy', String(ocupada));
   }, [raiz, ocupada]);
 
   const areaPassagem = passagem?.area_passagem ?? null;
@@ -370,7 +372,7 @@ function TelaPassagemTurno({
   }
 
   return (
-    <div className="grid min-w-0 gap-5">
+    <div className="grid min-w-0 gap-5" aria-busy={raiz ? undefined : ocupada}>
       <p
         // biome-ignore lint/a11y/useSemanticElements: `role="status"` em `<p>` é o que as telas e as provas já usam; `<output>` muda a semântica de formulário e o gancho que as provas procuram.
         role="status"
@@ -552,7 +554,7 @@ export function montarPassagemTurno(
 ): () => void {
   const desmontar = ilha(
     raiz,
-    <TelaPassagemTurno
+    <PassagemTurnoTela
       raiz={raiz}
       pacienteId={pacienteId}
       turno={turno}

@@ -10,21 +10,27 @@ Importadores de `web/ui/` fora de testes: **15** (eram 22 na `main` `80f7583`).
 
 ## Última tarefa concluída
 
-- Costura da síntese desarmada: `modelo-sintese.ts` vira `modelo-sintese.tsx`
-  (`CamposSintese`, `lerSintese`, `controleSintese`), composto em `diario.tsx` e
-  `passagem-turno.tsx` — nenhum dos dois monta mais DOM à mão num contêiner com ref. Ids,
-  precedência de valores da Passagem (tentativa → rascunho → digitado) e remontagem por
-  consulta preservados. `montarCamposSintese` continua exportada como ilha, só para a prova.
-- Evidência: 21 arquivos de prova que tocam Diário, Passagem e Turno, 139/139, sem mudança de
-  asserção (`modelo-sintese.test.ts` só mudou o especificador); `verificar:rapido` verde.
+- `turno-execucao-integracao` em `.tsx` (`TurnoComExecucao`): consentimento, turno, execução
+  e passagem numa árvore só. Costura de `turno-proprio.tsx` desarmada: `renderizarExecucao`
+  no lugar de `montarExecucao`, passagem composta (`PassagemTurnoTela`), remontagem por
+  objeto de turno preservada com chave. Consentimento virou controlador
+  (`criarConsentimentoTurno`) + `ConsentimentoTurno` + `usarConsentimentoTurno`;
+  `montarConsentimentoTurno` segue por cima deles para a prova.
+- Evidência: `turno-proprio`, `-abertura`, `-localizacao`, `passagem-turno` e
+  `turno-execucao` 36/36 sem mudança de asserção. Única mudança de prova: o dublê de
+  `./passagem-turno.js` em `turno-execucao-abertura.test.ts` passou a expor o componente
+  e captura o mesmo `opcoes.encerrar` por props (a garantia é a mesma: o `encerrar` que o
+  turno entrega à passagem). `pnpm run test:web` 905/905 (900 da `main` + 5 provas novas);
+  o aviso `Not implemented: navigation` do jsdom já aparece na `main`.
+  `verificar:rapido` verde.
 
 ## Próximo passo
 
-- `turno-execucao-integracao` em `.tsx`, com a costura de `turno-proprio.tsx` desarmada:
-  `renderizarExecucao` no lugar de `montarExecucao`, Passagem composta direto, e
-  `montarConsentimentoTurno` virando hook com componente. Aprovado pela coordenação em
-  27/11/2026 com a condição de não mudar asserção de `turno-proprio`, `-abertura` e
-  `-localizacao`.
+- Fechar o bloco turno: `pnpm run verificar:ativacao` local, peso do pacote, CI do PR #22.
+- Depois: bloco agenda (4 módulos), avulsos, `confirmacao.ts`, `main.ts`.
+- Costuras `.tsx → montar*` fora do bloco turno, a reportar antes de resolver:
+  `editar-paciente.tsx:440` (`montarSubstituicaoCaseManager`), `selecao-profissional.tsx:409`
+  (`montarRevogacaoVinculo`) e `diario.tsx` (`montarEntradaPorAudio` via `AudioOuAtalho`).
 
 ## Bloqueadores
 
