@@ -81,3 +81,76 @@ test('revalidação descarta Equipe sem esconder os demais destinos do administr
   await expect(page.locator('#administracao-conteudo')).toBeEmpty();
   await expect(page.getByRole('link', { name: 'Administração' })).toBeVisible();
 });
+
+test('erro de renderização não desmonta a casca e oferece nova tentativa', async ({ page }) => {
+  await page.route('**/web/configuracao-sistema.tsx', (rota) =>
+    rota.fulfill({
+      contentType: 'application/javascript',
+      body: `export function TelaConfiguracaoSistema() {
+        if (!window.painelRecuperado) throw new Error('Falha de renderização fictícia');
+        return 'Painel fictício recuperado';
+      }`,
+    }),
+  );
+  await page.route('**/api/**', (rota) => {
+    const fixture = responder(rota.request().url());
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  const modulo = page.waitForResponse('**/web/configuracao-sistema.tsx');
+  await page.goto('/web/index.html#administracao/configuracao');
+  await modulo;
+  await page.evaluate(async (caminho) => {
+    await import(caminho);
+    await new Promise(requestAnimationFrame);
+  }, '/web/configuracao-sistema.tsx');
+  await expect(page.getByRole('link', { name: 'Pessoas acompanhadas' })).toBeVisible();
+  await expect(page.getByText('Tente abrir a área de novo.')).toBeVisible();
+  await page.evaluate(() => Reflect.set(window, 'painelRecuperado', true));
+  await page.getByRole('button', { name: 'Tentar novamente' }).click();
+  await expect(page.getByText('Painel fictício recuperado')).toBeVisible();
+});
+
+test('perda de audiência enquanto o módulo carrega encerra o estado ocupado', async ({ page }) => {
+  let liberarModulo = () => {};
+  const espera = new Promise<void>((resolver) => {
+    liberarModulo = resolver;
+  });
+  await page.addInitScript(() => Reflect.set(window, 'audienciaFinanceiraFicticia', true));
+  await page.route('**/web/financeiro-audiencia.ts', (rota) =>
+    rota.fulfill({
+      contentType: 'application/javascript',
+      body: `export function criarAudienciaFinanceira(_consultar, aoMudar) {
+        return {
+          permitidaPara: () => window.audienciaFinanceiraFicticia,
+          sondar: aoMudar,
+          esquecer() {},
+        };
+      }`,
+    }),
+  );
+  await page.route('**/web/financeiro.ts', async (rota) => {
+    await espera;
+    await rota.continue();
+  });
+  await page.route('**/api/**', (rota) => {
+    const fixture = responder(rota.request().url());
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  const modulo = page.waitForRequest('**/web/financeiro.ts');
+  await page.goto('/web/index.html#administracao/financeiro');
+  const painel = page.locator('#administracao-conteudo');
+  try {
+    await modulo;
+    await expect(painel).toHaveAttribute('aria-busy', 'true');
+    await page.evaluate(() => Reflect.set(window, 'audienciaFinanceiraFicticia', false));
+  } finally {
+    liberarModulo();
+  }
+  await expect(page).toHaveURL(/#carteira$/);
+  await expect(painel).not.toHaveAttribute('aria-busy', 'true');
+  await expect(painel).toBeEmpty();
+});

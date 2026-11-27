@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import type { PacienteLista } from '../packages/contracts/src/cadastro.js';
 import { lerRotaFicha, type RotaFicha } from './ficha-paciente.js';
 import { TelaHomeProfissional, type ServicoHome } from './home-profissional.js';
+import { LimiteErroPainel } from './limite-erro-painel.js';
 import { LinhasCarteira } from './linhas-carteira.js';
 import { TelaRegrasAtendimento } from './regras-atendimento.js';
 import type { ServicoRegrasAtendimento } from './servico-regras-atendimento-http.js';
@@ -25,7 +26,13 @@ type Vista =
       acessoPerdido: (erro: unknown) => void;
     }
   | { tipo: 'regras'; destino: HTMLElement; servico: ServicoRegrasAtendimento }
-  | { tipo: 'administracao'; destino: HTMLElement; tela: ReactElement };
+  | {
+      tipo: 'administracao';
+      destino: HTMLElement;
+      area: string;
+      tela: ReactElement;
+      aoTentarNovamente: () => void;
+    };
 
 let enderecoTratado = '';
 
@@ -58,7 +65,11 @@ function conteudoDaVista(vista: Vista): ReactElement {
     case 'regras':
       return <TelaRegrasAtendimento servico={vista.servico} />;
     case 'administracao':
-      return vista.tela;
+      return (
+        <LimiteErroPainel key={vista.area} aoTentarNovamente={vista.aoTentarNovamente}>
+          {vista.tela}
+        </LimiteErroPainel>
+      );
   }
 }
 

@@ -1853,6 +1853,7 @@ let vistaReact: 'home' | 'regras' | null = null;
 function fecharAdministracao(): void {
   painelAdministracao?.desmontar();
   painelAdministracao = null;
+  elemento('administracao-conteudo').removeAttribute('aria-busy');
   elemento('administracao-view').hidden = true;
 }
 
@@ -1970,11 +1971,29 @@ function mostrarAdministracao(areaId: string): void {
     (tela) => {
       // Confere o destino e a autorização antes da primeira montagem, inclusive
       // quando o usuário saiu e voltou à mesma área enquanto o módulo carregava.
-      if (painelAdministracao !== emCarregamento || !sessao || !area.disponivel(sessao)) return;
+      if (painelAdministracao !== emCarregamento || !sessao) return;
+      if (!area.disponivel(sessao)) {
+        fecharAdministracao();
+        trocarRota('#carteira');
+        mostrarCarteira();
+        focarDestinoDaCasca();
+        return;
+      }
       if (typeof tela === 'function') {
         emCarregamento.desmontar = tela(conteudo);
       } else {
-        casca.desenhar({ tipo: 'administracao', destino: conteudo, tela });
+        casca.desenhar({
+          tipo: 'administracao',
+          destino: conteudo,
+          area: area.id,
+          tela,
+          aoTentarNovamente: () => {
+            if (painelAdministracao !== emCarregamento) return;
+            fecharAdministracao();
+            mostrarAdministracao(area.id);
+            focarDestinoDaCasca();
+          },
+        });
         emCarregamento.desmontar = () => casca.desenhar(null);
       }
       conteudo.removeAttribute('aria-busy');

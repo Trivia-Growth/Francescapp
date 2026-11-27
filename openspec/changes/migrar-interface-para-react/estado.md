@@ -4,8 +4,8 @@
 
 ## Fatia 8c do plano visual — painéis administrativos
 
-Treze painéis administrativos passam para a raiz da casca, preservando idiomas,
-links antigos, divisão do bundle por destino e autorização do servidor. Financeiro
+Treze painéis administrativos passam para a raiz da casca, preservando links
+antigos, divisão do bundle por destino e autorização do servidor. Financeiro
 ainda usa sua implementação DOM. A tarefa 7.2 permanece aberta.
 
 - Chromium reteve a importação de Configuração, navegou à Equipe e liberou a
@@ -16,8 +16,14 @@ ainda usa sua implementação DOM. A tarefa 7.2 permanece aberta.
   Equipe foi desmontada e o endereço voltou à Carteira. Os demais destinos do
   Administrador continuaram disponíveis. Os 85 testes locais das telas passaram.
 - A prova `scripts/testar-acesso-paciente-autorizacao-local.sh` passou novamente
-  em PostgreSQL 17 descartável sem rede. Próximo passo: revisão da fatia e portabilidade
-  da ficha, do Financeiro e dos módulos de entrada ainda imperativos.
+  em PostgreSQL 17 descartável sem rede. A ativação de `f6ba726` passou com 929
+  testes web, 55 cenários Chromium aprovados e um preexistente pulado.
+- Revisão do PR #54: erro de renderização deixou a navegação viva e a nova tentativa
+  recuperou o painel. Perda simulada de audiência durante a importação voltou à
+  Carteira e limpou `aria-busy`. As quatro provas passaram. Sem a fronteira de erro,
+  a navegação desapareceu. Sem a saída da área desautorizada, a URL ficou no Financeiro.
+- Próximo passo: CI e portabilidade da ficha, do Financeiro e dos módulos de entrada
+  ainda imperativos.
 
 ## Fatia 8b do plano visual — lateral, gaveta, barra e linhas da Carteira
 
