@@ -28,7 +28,7 @@ import {
   montarConversaoOcorrenciaTurno,
   type PortasConversaoOcorrencia,
 } from './turno-execucao-conversao.js';
-import { montarRelatoriosTurno } from './turno-execucao-relatorios.ts';
+import { montarRelatoriosTurno } from './turno-execucao-relatorios.js';
 import { montarLocalizacaoCoordenacao } from './turno-execucao-localizacao-coordenacao.js';
 import { montarGestaoExecucaoTurno } from './turno-execucao-gestao.ts';
 import { montarFichaPlantao, type ServicosFichaPlantao } from './ficha-plantao.ts';

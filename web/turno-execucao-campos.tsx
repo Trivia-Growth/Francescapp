@@ -175,9 +175,13 @@ export function usarProtocoloTurno(inicial: string, acessoPerdido: (erro: unknow
   const [perdida, marcarPerdida] = useState(false);
   const [status, definirStatus] = useState(inicial);
   const viva = useCallback(() => vivaRef.current, []);
+  /* `flushSync`: a trava dos controles é parte do protocolo, não desenho. Fora de evento o
+     React agenda a repintura numa macrotarefa, e nesse intervalo o botão continuava
+     desabilitado no DOM depois de a operação acabar — um clique ali era perdido em
+     silêncio. A versão imperativa liberava na hora; esta também. */
   const definirOcupada = useCallback((valor: boolean) => {
     ocupadaRef.current = valor;
-    if (vivaRef.current) marcarOcupada(valor);
+    if (vivaRef.current) flushSync(() => marcarOcupada(valor));
   }, []);
   const falha = useCallback((erro: unknown) => {
     if (!vivaRef.current) return;

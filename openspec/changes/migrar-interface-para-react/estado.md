@@ -6,20 +6,22 @@
 
 Bloco turno/plantão (tarefa 5.2, leva 2) em migração, um commit por módulo. Alvo da
 sequência de blocos: `web/ui/` sem importador, para apagar `ui/` e `ui.css`.
-Importadores de `web/ui/` fora de testes: **20** (eram 22 na `main` `80f7583`).
+Importadores de `web/ui/` fora de testes: **19** (eram 22 na `main` `80f7583`).
 
 ## Última tarefa concluída
 
-- 5.2 leva 2 — `turno-execucao-localizacao-coordenacao` migrado para `.tsx`
-  (`LocalizacaoCoordenacao`). A página seguinte de turnos agora repete o período enviado,
-  não o que estiver digitado no momento. Antes: `turno-execucao-arquivos` (`89777de`).
-- Evidência: `vitest run web/turno-execucao-localizacao-coordenacao.test.tsx` 2/2 (prova
-  nova: sem `pode_gerir` nada é consultado; perda de acesso esvazia a tela) e
-  `turno-execucao.test.ts` verdes; `verificar:rapido` verde.
+- 5.2 leva 2 — `turno-execucao-relatorios` migrado para `.tsx` (`RelatoriosTurno`), compondo
+  `RelatorioTurno` e `ConsolidadoFicha` direto, sem nó inerte. `usarProtocoloTurno` passa a
+  liberar `ocupada` com `flushSync`: sem isso o botão de conferir o PDF seguia desabilitado
+  no DOM depois da falha e o clique se perdia (pego pela prova existente).
+  Antes: `-arquivos` (`89777de`), `-localizacao-coordenacao` (`1f6fc3a`).
+- Evidência: `turno-execucao-relatorios.test.ts` 4/4 sem mudança de asserção (só o
+  especificador do import), `turno-execucao.test.ts` e `consolidado-ficha-plantao.test.ts`
+  verdes; `pnpm run verificar:rapido` verde.
 
 ## Próximo passo
 
-- `turno-execucao-relatorios`, `-gestao`, `ficha-plantao`,
+- `turno-execucao-gestao`, `ficha-plantao`,
   `turno-execucao`, `turno-execucao-integracao`; depois retirar as fábricas imperativas de
   `turno-execucao-campos.tsx` e resolver a costura da síntese (`modelo-sintese.ts` em
   `diario.tsx` e `passagem-turno.tsx`).
