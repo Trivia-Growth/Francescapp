@@ -1,6 +1,6 @@
 import { novoContatoSchema, type SituacaoCaso } from '../packages/contracts/src/index.js';
 import type { ResponsavelOpcao } from './acompanhamento-caso.js';
-import { botao } from './ui/basicos.js';
+import { botao } from './ponte/botao-imperativo.js';
 
 const LIMITE_CONTATOS = 10;
 
