@@ -12,7 +12,7 @@ import {
 } from './turno-execucao-campos.js';
 import { apresentarRelatorioTurno, dataTurno } from './turno-execucao-leitura.js';
 import { apresentarConsolidadoFicha, type FichaDoPlantao } from './consolidado-ficha-plantao.js';
-import { criarEntregaArquivoTurno } from './turno-execucao-arquivos.ts';
+import { criarEntregaArquivoTurno } from './turno-execucao-arquivos.js';
 import { botao } from './ui/basicos.js';
 export function montarRelatoriosTurno(
   raiz: HTMLElement,

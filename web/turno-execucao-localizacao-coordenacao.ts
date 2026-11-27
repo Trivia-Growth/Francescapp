@@ -9,7 +9,7 @@ import {
   estadoTurno,
   botaoTurno,
 } from './turno-execucao-campos.js';
-import { criarEntregaArquivoTurno } from './turno-execucao-arquivos.ts';
+import { criarEntregaArquivoTurno } from './turno-execucao-arquivos.js';
 import { dataTurno } from './turno-execucao-leitura.js';
 import { botao } from './ui/basicos.js';
 export function montarLocalizacaoCoordenacao(

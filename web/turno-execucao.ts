@@ -23,7 +23,7 @@ import {
   type ClasseExecucao,
 } from './turno-execucao-editor.js';
 import { apresentarRegistroTurno } from './turno-execucao-leitura.js';
-import { montarAnexosOcorrencia } from './turno-execucao-arquivos.ts';
+import { montarAnexosOcorrencia } from './turno-execucao-arquivos.js';
 import {
   montarConversaoOcorrenciaTurno,
   type PortasConversaoOcorrencia,
