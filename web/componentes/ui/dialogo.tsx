@@ -171,10 +171,22 @@ export function Dialogo({
               focoInicial.current?.focus();
             }}
             // Risco 9: sem gatilho, o Radix devolveria o foco a lugar nenhum.
+            //
+            // Achado em 27/11/2026: `onCloseAutoFocus` chega via `requestAnimationFrame`
+            // do próprio Radix — sempre DEPOIS de qualquer `.then()`/`await` de quem
+            // chamou `aoFechar` (microtarefa, sempre mais cedo que rAF). Quem fecha o
+            // diálogo e, na sequência, decide focar outra coisa (ex.: devolver para uma
+            // tela anterior após confirmar uma ação) tinha esse foco sobrescrito de volta
+            // para `quemAbriu` nesta mesma rodada — mesmo depois de já ter focado o alvo
+            // certo primeiro. A devolução só faz sentido quando NINGUÉM reivindicou o
+            // foco nesse intervalo; se algo já moveu o foco para outro lugar, essa
+            // escolha é mais recente e vale mais que a nossa.
             onCloseAutoFocus={(evento) => {
               evento.preventDefault();
               const origem = quemAbriu.current;
-              if (origem?.isConnected) origem.focus();
+              const semReivindicacao =
+                document.activeElement === document.body || document.activeElement === null;
+              if (origem?.isConnected && semReivindicacao) origem.focus();
             }}
           >
             <Folha
