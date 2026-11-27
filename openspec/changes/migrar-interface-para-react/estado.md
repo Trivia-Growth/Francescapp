@@ -6,21 +6,20 @@
 
 Bloco turno/plantão (tarefa 5.2, leva 2) em migração, um commit por módulo. Alvo da
 sequência de blocos: `web/ui/` sem importador, para apagar `ui/` e `ui.css`.
-Importadores de `web/ui/` fora de testes: **21** (eram 22 na `main` `80f7583`).
+Importadores de `web/ui/` fora de testes: **20** (eram 22 na `main` `80f7583`).
 
 ## Última tarefa concluída
 
-- 5.2 leva 2 — `turno-execucao-arquivos` migrado para `.tsx` (`AnexosOcorrencia` +
-  `montarAnexosOcorrencia` por ilha). Protocolo comum do bloco (`usarProtocoloTurno`,
-  `usarMudancaNativa`, entrega de arquivo) em `turno-execucao-campos.tsx`.
-- Evidência: `vitest run web/turno-execucao-arquivos.test.tsx` 2/2 (prova nova: perda de
-  acesso esvazia a superfície; reenvio incerto só igual e só após consulta completa);
-  `turno-execucao.test.ts` e `turno-execucao-relatorios.test.ts` verdes;
-  `pnpm run verificar:rapido` verde.
+- 5.2 leva 2 — `turno-execucao-localizacao-coordenacao` migrado para `.tsx`
+  (`LocalizacaoCoordenacao`). A página seguinte de turnos agora repete o período enviado,
+  não o que estiver digitado no momento. Antes: `turno-execucao-arquivos` (`89777de`).
+- Evidência: `vitest run web/turno-execucao-localizacao-coordenacao.test.tsx` 2/2 (prova
+  nova: sem `pode_gerir` nada é consultado; perda de acesso esvazia a tela) e
+  `turno-execucao.test.ts` verdes; `verificar:rapido` verde.
 
 ## Próximo passo
 
-- `turno-execucao-localizacao-coordenacao`, `-relatorios`, `-gestao`, `ficha-plantao`,
+- `turno-execucao-relatorios`, `-gestao`, `ficha-plantao`,
   `turno-execucao`, `turno-execucao-integracao`; depois retirar as fábricas imperativas de
   `turno-execucao-campos.tsx` e resolver a costura da síntese (`modelo-sintese.ts` em
   `diario.tsx` e `passagem-turno.tsx`).

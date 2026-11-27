@@ -29,7 +29,7 @@ import {
   type PortasConversaoOcorrencia,
 } from './turno-execucao-conversao.js';
 import { montarRelatoriosTurno } from './turno-execucao-relatorios.ts';
-import { montarLocalizacaoCoordenacao } from './turno-execucao-localizacao-coordenacao.ts';
+import { montarLocalizacaoCoordenacao } from './turno-execucao-localizacao-coordenacao.js';
 import { montarGestaoExecucaoTurno } from './turno-execucao-gestao.ts';
 import { montarFichaPlantao, type ServicosFichaPlantao } from './ficha-plantao.ts';
 import { confirmarDescarte } from './confirmacao.js';
