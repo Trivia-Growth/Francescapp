@@ -14,7 +14,6 @@ export type {
   Superficie,
   TomAviso,
 } from './basicos.js';
-export { aplicarControlesProprios } from './controles.js';
 export { abrirDialogo, focaveis, prenderFoco } from './dialogo.js';
 export type { AcaoDialogo, Dialogo, MedidaDialogo, PedidoDialogo } from './dialogo.js';
 export { aprimorarData, aprimorarDatas, doVisivel, paraVisivel } from './data.js';

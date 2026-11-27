@@ -1,13 +1,13 @@
 # Estado — migrar-interface-para-react
 
-**Atualizado em:** 27/11/2026 · **Branch:** `codex/controles-cadastro` · **Por:** Codex
+**Atualizado em:** 27/11/2026 · **Branch:** `codex/retirar-observador-controles` · **Por:** Codex
 
 ## Retirada do observador de controles
 
-A agenda individual adota `SelecaoAprimorada` em Situação e Motivo. O nativo já nasce
-no invólucro com `data-aprimorada`, que o observador pula. As seis inscrições de
-`main.ts` seguem ativas até cadastro, administração e ficha migrarem e comprovarem
-a convivência. Regras e Início não renderizam os tipos de controle observados.
+As quatro regiões com seleção e data já montam os próprios controles. Durante a
+migração o nativo nascia no invólucro com `data-aprimorada`, que o observador pulava.
+Depois das provas de convivência, as seis inscrições de `main.ts` foram retiradas.
+Regras e Início não renderizavam os tipos de controle observados.
 
 - `pnpm run verificar:celular agenda-individual-controles.pw.ts` passou em Chromium a
   390 × 844 com o tema real e dublês HTTP. O observador processou um select legado de
@@ -77,7 +77,19 @@ a convivência. Regras e Início não renderizam os tipos de controle observados
   Os 42 testes de campos, fluxo e integração de edição passaram em conjunto.
   Os nove testes de retorno Google passaram com o mesmo desmonte entre as
   recargas simuladas e no fim de cada teste.
-  Próximo passo: retirar o observador global com as quatro regiões migradas.
+- A retirada removeu o instalador global e as ligações das bancadas. As provas
+  direcionadas em Chromium passaram (19 cenários), com o tema real e as três
+  regressões de preenchimento. A sentinela nativa inserida depois da carga
+  permaneceu no mesmo pai. Religar temporariamente
+  a observação de Administração fez a identidade do pai falhar, com recebido
+  `false` e esperado `true`. Restaurada a retirada, a prova passou.
+  `pnpm run build:web` e as provas de vínculo e de execução do cuidado
+  pela casca de produção local também passaram.
+- A bancada do painel #31 monta os campos reais. Ao bloquear Tab na captura
+  somente para a contraprova, Tab nº 11 levou o foco para `body#` e a asserção
+  falhou. Com o bloqueio revertido, os quatro cenários do painel passaram.
+  As provas SQL de Agenda, Auditoria, Linha do tempo, Ficha e Cadastro passaram
+  em instâncias descartáveis de PostgreSQL 17.
 - A remoção integral de `web/ui/` segue em tarefa própria. Depois da retirada
   do observador, as dependências de produção que restam são `main.ts`
   (`botao`/`linhaLista`) e o import de `ui.css` no tema. Confirmação e os três

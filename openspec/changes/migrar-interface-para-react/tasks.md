@@ -337,8 +337,10 @@ autorização onde a tela tiver autorização própria.
 - [x] **7.0d [C]** Ficha passa a renderizar os controles aprimorados de suas seções.
   *Evidência:* Chromium na casca com sentinela legada, troca de página da seleção
   de profissionais, datas da Linha do tempo e interação na ficha de plantão.
-- [ ] **7.0e [C]** Retirar o observador de controles das seis inscrições em `main.ts`
+- [x] **7.0e [C]** Retirar o observador de controles das seis inscrições em `main.ts`
   após a prova de convivência de cada região. Regras e Início não montam esses controles.
+  *Evidência:* Chromium com componentes e tema reais. A sentinela nativa preserva
+  o pai original. Religar a observação na Administração falha nessa asserção.
 
 - [ ] **7.1 [C]** Remover `web/ui/` vanilla e as regras de `web/styles.css` substituídas.
   *Dependência:* Fase 6 completa.

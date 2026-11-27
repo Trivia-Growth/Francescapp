@@ -8,7 +8,6 @@
  */
 import { montarFinanceiro } from '../../web/financeiro.ts';
 import type { ServicoFinanceiro } from '../../web/servico-financeiro-http.ts';
-import { aplicarControlesProprios } from '../../web/ui/controles.ts';
 
 const recusado = () => Promise.reject(new Error('A bancada não fala com a rede.'));
 
@@ -65,9 +64,5 @@ const servico = {
 
 const raiz = document.getElementById('raiz');
 if (raiz) {
-  // Mesma ordem de `main.ts`: o observador liga ANTES do conteúdo existir, porque é
-  // assim que `administracao-conteudo` e `ficha-view` ligam o próprio — a área ainda vai
-  // trocar de conteúdo depois da consulta, e o campo de data chega só quando a aba abre.
-  aplicarControlesProprios(raiz);
   montarFinanceiro(raiz, servico, { profissionalPadrao: '', casoPadrao: '' });
 }

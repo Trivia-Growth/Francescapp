@@ -6,13 +6,9 @@ import { pacientes, sessaoAdministrador } from '../../web/fixtures/sessao.ts';
 
 /* Prova de navegador da execução do cuidado PELA CASCA REAL, com o build de produção.
  *
- * Existe por causa de um achado de 27/11/2026: `web/main.ts` instala
- * `aplicarControlesProprios` (`web/ui/controles.ts`) na ficha, e ele MOVE todo `<select>` e
- * campo de data — inclusive os renderizados pelo React — para dentro de um grupo criado à
- * mão. O jsdom das provas de unidade não tem esse observador, então a classe inteira de
- * defeito (React removendo um nó que já não está onde ele o pôs) é invisível lá. Aqui o
- * observador está ativo: o roteiro troca seleções, abre e fecha o editor, recarrega a gestão
- * e consulta relatórios, e falha em qualquer erro de página.
+ * O roteiro troca seleções aprimoradas, abre e fecha o editor, recarrega a gestão,
+ * consulta relatórios e falha em qualquer erro de página. Os controles e suas
+ * subárvores são renderizados pela própria tela.
  *
  * O navegador usa um dublê HTTP; nada sai para a rede. Dados fictícios. As permissões reais
  * são do servidor e do banco — esta prova é de interface. */
@@ -151,12 +147,12 @@ try {
     await pagina.getByText('Execução e relatórios', { exact: true }).click();
     await expect(pagina.getByText(/Catálogo consultado/)).toBeVisible();
 
-    // O seletor da série é aprimorado pelo observador; trocar e consultar.
+    // Trocar a série no seletor aprimorado e consultar.
     await escolher(/^Tipo de registro/, 'Medicação prescrita');
     await pagina.getByRole('button', { name: 'Consultar série', exact: true }).click();
     await expect(pagina.getByText('Nenhum registro neste período.')).toBeVisible();
 
-    // Abrir e descartar o editor: o React desmonta campos que o observador já mexeu.
+    // Abrir e descartar o editor desmonta os controles e suas subárvores.
     await pagina.getByRole('button', { name: 'Registrar medicação prescrita' }).click();
     await expect(pagina.locator('.turno-execucao__editor')).toBeVisible();
     await pagina.getByRole('button', { name: 'Descartar rascunho não enviado' }).click();
@@ -185,7 +181,7 @@ try {
     await escolher(/^Turno autorizado/, /Aberto$/);
 
     assert.deepEqual(erros, [], `Erros de página: ${erros.join(' | ')}`);
-    console.log('Execução do cuidado pela casca real passou com o observador de controles ativo.');
+    console.log('Execução do cuidado pela casca real passou com os controles React.');
   } finally {
     await navegador.close();
   }
