@@ -7,6 +7,7 @@ const sessionId = '20000000-0000-4000-8000-000000000001';
 const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
 
 afterEach(() => {
+  Reflect.deleteProperty(document, 'hidden');
   sessionStorage.clear();
   vi.unstubAllGlobals();
   vi.resetModules();
@@ -66,7 +67,8 @@ it('encerra acesso e limpa plano quando permissão é revogada após retorno à 
   sessionStorage.setItem('modo-acesso', 'tecnica');
   sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
   sessionStorage.setItem('sessao-tecnica', sessionId);
-  let consultasPlano = 0;
+  let consultouVisao = false;
+  let voltouParaAba = false;
   let responder: ((resposta: Response) => void) | undefined;
   vi.stubGlobal('fetch', async (url: URL | string) => {
     const caminho = new URL(String(url), 'http://localhost').pathname;
@@ -83,9 +85,10 @@ it('encerra acesso e limpa plano quando permissão é revogada após retorno à 
       });
     if (caminho === '/api/admin/campo-extra-plano') return envelope([]);
     if (caminho === `/api/pacientes/${id}/plano`) {
-      consultasPlano++;
-      // Visão do caso e Plano consultam uma vez cada; a terceira é a revalidação.
-      if (consultasPlano <= 2) return envelope({ itens: [], proximo_cursor: null });
+      if (!voltouParaAba) {
+        consultouVisao = true;
+        return envelope({ itens: [], proximo_cursor: null });
+      }
       return new Promise<Response>((resolve) => {
         responder = resolve;
       });
@@ -101,6 +104,8 @@ it('encerra acesso e limpa plano quando permissão é revogada após retorno à 
   document
     .querySelector<HTMLButtonElement>('[aria-label="Abrir ficha de Paciente fictício"]')
     ?.click();
+  // As duas ilhas podem consultar o mesmo endpoint. Deixe a Visão iniciar antes de sair.
+  await vi.waitFor(() => expect(consultouVisao).toBe(true));
   document.getElementById('ficha-aba-plano')?.click();
   await vi.waitFor(() =>
     expect(document.querySelector('[data-secao="plano"]')?.textContent).toContain(
@@ -110,6 +115,7 @@ it('encerra acesso e limpa plano quando permissão é revogada após retorno à 
   Object.defineProperty(document, 'hidden', { configurable: true, value: true });
   document.dispatchEvent(new Event('visibilitychange'));
   expect(document.getElementById('patients-view')?.hidden).toBe(true);
+  voltouParaAba = true;
   Object.defineProperty(document, 'hidden', { configurable: true, value: false });
   document.dispatchEvent(new Event('visibilitychange'));
   await vi.waitFor(() => expect(responder).toBeDefined());
@@ -127,7 +133,10 @@ it('encerra acesso e limpa plano quando permissão é revogada após retorno à 
       'não está liberada',
     ),
   );
+  await vi.waitFor(() => expect(document.getElementById('patients-view')?.hidden).toBe(false));
   expect(document.getElementById('login-view')?.hidden).toBe(true);
+  expect(document.getElementById('workspace-feedback')?.getAttribute('role')).toBe('status');
+  expect(document.getElementById('workspace-feedback')?.getAttribute('aria-live')).toBe('polite');
   /* Afirmação ajustada em 25/11/2026 junto com a mudança de comportamento, e a garantia
      que ela cobre ficou MAIOR, não menor.
      Antes: a ficha inteira era desmontada, e a prova era `ficha-view` vazia. O efeito
@@ -145,7 +154,6 @@ it('encerra acesso e limpa plano quando permissão é revogada após retorno à 
   // A tela de acesso não é mais usada aqui, então não há mensagem de login a conferir: o
   // aviso que importa é o da área de trabalho, já verificado acima.
   expect(document.getElementById('login-feedback')?.textContent).toBe('');
-  Reflect.deleteProperty(document, 'hidden');
 });
 
 it('recusa de uma área não fecha o caso: a pessoa troca de aba e segue', async () => {
