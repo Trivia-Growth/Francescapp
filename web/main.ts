@@ -1040,7 +1040,22 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
           paciente,
           {
             objetivos: criarServicoPlanoHttp(identidadeAtual),
-            anamnese: api,
+            anamnese: {
+              consultarAnamnese: (id) => api.consultarAnamnese(id),
+              confirmarRecusaIsolada:
+                atual.usuario.perfil === 'administrador' &&
+                atual.capacidades.includes('consultar_carteira_integral')
+                  ? async () => {
+                      const confirmada = await api.consultarSessao();
+                      return (
+                        confirmada.session_id === atual.session_id &&
+                        confirmada.usuario.id === atual.usuario.id &&
+                        confirmada.usuario.perfil === 'administrador' &&
+                        confirmada.capacidades.includes('consultar_carteira_integral')
+                      );
+                    }
+                  : undefined,
+            },
             ...(administraCadastro && edicaoDisponivel
               ? {
                   situacao: {

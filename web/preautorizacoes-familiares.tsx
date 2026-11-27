@@ -149,7 +149,9 @@ function TelaPreautorizacoesFamiliares({
       definirCarregandoLista(true);
     });
     try {
-      const recebidos = await servicoAtual.current.listar(pacienteId);
+      const recebidos = (await servicoAtual.current.listar(pacienteId)).filter(
+        (item) => item.paciente_id === pacienteId,
+      );
       flushSync(() => {
         definirItens(recebidos);
         definirStatus(recebidos.length === 0 ? 'Nenhum familiar autorizado neste caso ainda.' : '');
