@@ -149,10 +149,9 @@
         <p id="workspace-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
         <div id="home-view" hidden></div>
         <div id="lista-view">
-          <!-- Carteira. Uma superfície por assunto: as ferramentas (filtrar, buscar,
-               atualizar) numa faixa, a lista em outra. O cadastro saiu da coluna e virou
-               diálogo, para a tela não crescer sem fim no computador e virar folha no
-               celular — ver `web/ui/dialogo.ts`. -->
+          <!-- Carteira. As ferramentas de filtrar, buscar e atualizar ficam numa faixa,
+               e a lista em outra. O cadastro abre no diálogo gerido por
+               `web/painel-cadastro.ts` e aparece como folha no celular. -->
           <div class="page-heading">
             <div><h1 id="patients-title" tabindex="-1">Pessoas acompanhadas</h1><p id="scope-description">Cadastros disponíveis para seu acesso.</p></div>
             <a id="new-patient-link" class="ui-botao" data-peso="principal" href="#cadastro" hidden>Novo paciente</a>

@@ -1,6 +1,6 @@
 # Estado — migrar-interface-para-react
 
-**Atualizado em:** 27/11/2026 · **Branch:** `codex/retirar-observador-controles` · **Por:** Codex
+**Atualizado em:** 27/11/2026 · **Branch:** `codex/remover-web-ui` · **Por:** Codex
 
 ## Retirada do observador de controles
 
@@ -99,7 +99,12 @@ Regras e Início não renderizavam os tipos de controle observados.
   encontrou zero importadores externos de `web/ui/`. A casca usa as pontes
   imperativas de botão e linha de lista. `estilos/tema.css` importa a folha
   movida para `web/estilos/ui.css` na mesma camada `legado`, com os mesmos
-  bytes. A remoção dos módulos órfãos de `web/ui/` segue em tarefa própria.
+  bytes.
+- Sobre `8f03652`, a remoção dos oito arquivos órfãos encerrou a parte de
+  `web/ui/` da tarefa 7.1. O comentário da Carteira aponta para o painel de
+  cadastro. Os 25 cenários Chromium passaram com a pasta removida. Na
+  contraprova, mudar só a opacidade do select nativo fez `#realizacao-situacao`
+  receber `1` em vez de `0`. O cenário voltou a passar após restaurar a regra.
 
 ## Histórico da integração do turno e plantão
 
