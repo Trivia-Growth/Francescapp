@@ -1,8 +1,8 @@
 {
   "resumo": {
-    "paginas": 28,
+    "paginas": 30,
     "violacoes": 0,
-    "toleradas": 6
+    "toleradas": 0
   },
   "paginas": [
     {
@@ -98,15 +98,7 @@
     {
       "rotulo": "filtros-data — auditoria (390x844)",
       "violacoes": [],
-      "toleradas": [
-        {
-          "regra": "label-content-name-mismatch",
-          "impacto": "serious",
-          "alvo": "#avisos-sino",
-          "ajuda": "Elements must have their visible text as part of their accessible name",
-          "motivo": "Sino de avisos (web/avisos.tsx): o aria-label «Avisos: N não lidos» não contém o texto visível «Avisos» seguido da contagem «N». Defeito de código real, pendente de correção na casca; não corrigido aqui por estar fora da fatia de testes."
-        }
-      ]
+      "toleradas": []
     },
     {
       "rotulo": "filtros-data — cadastro de paciente",
@@ -116,31 +108,25 @@
     {
       "rotulo": "filtros-data — equipe do caso",
       "violacoes": [],
-      "toleradas": [
-        {
-          "regra": "label-content-name-mismatch",
-          "impacto": "serious",
-          "alvo": "#avisos-sino",
-          "ajuda": "Elements must have their visible text as part of their accessible name",
-          "motivo": "Sino de avisos (web/avisos.tsx): o aria-label «Avisos: N não lidos» não contém o texto visível «Avisos» seguido da contagem «N». Defeito de código real, pendente de correção na casca; não corrigido aqui por estar fora da fatia de testes."
-        }
-      ]
+      "toleradas": []
     },
     {
       "rotulo": "filtros-data — linha do tempo",
       "violacoes": [],
-      "toleradas": [
-        {
-          "regra": "label-content-name-mismatch",
-          "impacto": "serious",
-          "alvo": "#avisos-sino",
-          "ajuda": "Elements must have their visible text as part of their accessible name",
-          "motivo": "Sino de avisos (web/avisos.tsx): o aria-label «Avisos: N não lidos» não contém o texto visível «Avisos» seguido da contagem «N». Defeito de código real, pendente de correção na casca; não corrigido aqui por estar fora da fatia de testes."
-        }
-      ]
+      "toleradas": []
     },
     {
       "rotulo": "financeiro-controles-proprios — aba inicial",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "Galeria de primitivas · 1440 px",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "Galeria de primitivas · 390 px",
       "violacoes": [],
       "toleradas": []
     },
@@ -157,41 +143,17 @@
     {
       "rotulo": "preenchimento-controles — encaminhamento em edição",
       "violacoes": [],
-      "toleradas": [
-        {
-          "regra": "label-content-name-mismatch",
-          "impacto": "serious",
-          "alvo": "#avisos-sino",
-          "ajuda": "Elements must have their visible text as part of their accessible name",
-          "motivo": "Sino de avisos (web/avisos.tsx): o aria-label «Avisos: N não lidos» não contém o texto visível «Avisos» seguido da contagem «N». Defeito de código real, pendente de correção na casca; não corrigido aqui por estar fora da fatia de testes."
-        }
-      ]
+      "toleradas": []
     },
     {
       "rotulo": "preenchimento-controles — gestão do turno",
       "violacoes": [],
-      "toleradas": [
-        {
-          "regra": "label-content-name-mismatch",
-          "impacto": "serious",
-          "alvo": "#avisos-sino",
-          "ajuda": "Elements must have their visible text as part of their accessible name",
-          "motivo": "Sino de avisos (web/avisos.tsx): o aria-label «Avisos: N não lidos» não contém o texto visível «Avisos» seguido da contagem «N». Defeito de código real, pendente de correção na casca; não corrigido aqui por estar fora da fatia de testes."
-        }
-      ]
+      "toleradas": []
     },
     {
       "rotulo": "preenchimento-controles — orientações em substituição",
       "violacoes": [],
-      "toleradas": [
-        {
-          "regra": "label-content-name-mismatch",
-          "impacto": "serious",
-          "alvo": "#avisos-sino",
-          "ajuda": "Elements must have their visible text as part of their accessible name",
-          "motivo": "Sino de avisos (web/avisos.tsx): o aria-label «Avisos: N não lidos» não contém o texto visível «Avisos» seguido da contagem «N». Defeito de código real, pendente de correção na casca; não corrigido aqui por estar fora da fatia de testes."
-        }
-      ]
+      "toleradas": []
     }
   ]
 }

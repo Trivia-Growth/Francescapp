@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
+import { classesBotao } from '../componentes/ui/botao.js';
 import { botao } from './botao-imperativo.js';
 
 it('monta um <button> com a classe de componentes/ui/botao, não a do kit antigo', () => {
   const elemento = botao({ rotulo: 'Salvar' });
   expect(elemento.tagName).toBe('BUTTON');
   expect(elemento.className).not.toContain('ui-botao');
-  expect(elemento.className).toContain('bg-superficie');
+  expect(elemento.className).toBe(classesBotao({}));
   expect(elemento.dataset.peso).toBe('secundario');
   expect(elemento.type).toBe('button');
   expect(elemento.textContent).toBe('Salvar');
@@ -15,7 +16,7 @@ it('monta um <button> com a classe de componentes/ui/botao, não a do kit antigo
 it('peso principal e largo levam a classe e o atributo correspondentes', () => {
   const elemento = botao({ rotulo: 'Entrar', peso: 'principal', largo: true });
   expect(elemento.dataset.peso).toBe('principal');
-  expect(elemento.className).toContain('bg-primaria');
+  expect(elemento.className).toBe(classesBotao({ peso: 'principal', largo: true }));
   expect(elemento.className).toContain('w-full');
 });
 

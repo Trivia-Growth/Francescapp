@@ -157,18 +157,16 @@ function TelaAvisos({
         className="avisos-sino"
         aria-expanded={painelAberto}
         aria-controls="avisos-painel"
-        aria-label={
-          naoLidos > 0
-            ? `Avisos ${naoLidos} ${naoLidos === 1 ? 'não lido' : 'não lidos'}`
-            : undefined
-        }
         onClick={aoClicarSino}
       >
         <Bell aria-hidden="true" className="chrome-icon" size={16} />
-        <span className="avisos-sino-rotulo">Avisos</span>
+        <span className="avisos-sino-rotulo">Avisos</span>{' '}
         <span id="avisos-indicador" className="avisos-indicador" hidden={naoLidos <= 0}>
           {naoLidos > 0 ? String(naoLidos) : ''}
         </span>
+        {naoLidos > 0 ? (
+          <span className="sr-only">{naoLidos === 1 ? ' não lido' : ' não lidos'}</span>
+        ) : null}
       </button>
       <div id="avisos-painel" className="avisos-painel" hidden={!painelAberto}>
         {/* biome-ignore lint/a11y/useSemanticElements: `role="status"` é o gancho que a tela e as provas já usam. */}

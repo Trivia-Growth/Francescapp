@@ -4,7 +4,7 @@
 
 ## Fatia 4 do plano visual — primitivas e ícones
 
-Na branch `codex/primitivas-sistema`, sobre `1710eb6`, Botão, Campo e
+Na branch `codex/primitivas-sistema`, sobre `12bfb81`, Botão, Campo e
 MarcaEstado usam cva e os tokens do SISTEMA §§2, 3 e 6. Configuração do
 sistema faz uso do estado “Salvando…”. A casca mantém a navegação existente
 com ícones Lucide e o sino apresenta o texto visível no nome acessível.
@@ -19,7 +19,15 @@ com ícones Lucide e o sino apresenta o texto visível no nome acessível.
 - O axe da galeria mede os três componentes. Em varredura integral,
   as linhas acionáveis da Lista apresentaram divergência entre nome
   acessível e texto visível. O achado pertence à fatia 5.
-- Próximo passo: ativação da fatia e aprovação das capturas pelo dono.
+- A primeira tentativa com `aria-label` ainda falhou em seis páginas.
+  O nome nativo do botão passou nas seis em Chromium após o rebase.
+  O relatório de 30 varreduras ficou com zero violações e zero exceções.
+- O teste da ponte imperativa passou ao conferir o mesmo contrato do Botão.
+  Build, Trusted Types e o caso positivo e negativo de acesso a paciente
+  em PostgreSQL 17 descartável passaram. A prova SQL simula Auth e Vault.
+- Próximo passo: CI de ativação no PR #47 e aprovação das capturas pelo dono.
+
+Leituras do catálogo Estado emocional via TanStack Query (#48): QueryClient único, chave por conta+sessão, clear() na revogação/novo acesso/saída, retenção de 5 min.
 
 ## Fatia 3 do plano visual — tokens do SISTEMA
 
