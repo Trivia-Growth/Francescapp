@@ -32,13 +32,13 @@ export type PunhoRevogacao = {
 
 /** O punho visto por dentro: `selecionar` diz SE selecionou, para o hospedeiro só revelar
  *  o painel quando houver mesmo um vínculo escolhido. */
-type PunhoInterno = {
+export type PunhoInterno = {
   selecionar: (acesso: AlvoRevogacao) => Promise<boolean>;
   invalidarSelecao: () => void;
   reconciliar: () => void;
 };
 
-type PropsPainel = {
+export type PropsPainel = {
   revogar: (
     acessoId: string,
     dados: { versao_esperada: number; motivo: string },
@@ -51,7 +51,7 @@ type PropsPainel = {
   registrar: (punho: PunhoInterno) => void;
 };
 
-function PainelRevogacao({
+export function PainelRevogacao({
   revogar,
   atualizarVinculos,
   acessoPerdido,
