@@ -11,7 +11,7 @@
  *    cancelados e escrever estado depois disso não faz nada. Não sobrou nenhuma.
  *    O único ponto em que o ciclo de vida NÃO basta está anotado em `perguntar()`.
  * 2. VIS-016. A listagem era um `<ul>` montado à mão: uma linha com conteúdo inesperado
- *    derrubava a lista inteira, que foi o que aconteceu em 24/11/2026. `Lista` tem
+ *    derrubava a lista inteira, que foi o que aconteceu em 24/11/2026. a lista tem
  *    barreira por linha, e os rótulos de perfil e estado passaram a RECUSAR valor
  *    desconhecido em vez de desenhar vazio — assim a degradação é daquele registro, e os
  *    demais continuam legíveis.
@@ -35,7 +35,7 @@ import { Campo } from './componentes/ui/campo.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { EstadoErro } from './componentes/ui/estado-erro.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
-import { type Coluna, Lista } from './componentes/ui/lista.js';
+import { type ColunaTabela, ListaRotulada, Tabela } from './componentes/ui/tabela.js';
 import { MarcaEstado } from './componentes/ui/marca-estado.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
@@ -59,7 +59,7 @@ const estadosEquipe: Record<string, string> = {
  *
  *  Devolver vazio para um valor inesperado é pior do que falhar: a linha fica com uma
  *  coluna em branco e ninguém descobre que o servidor passou a mandar outra coisa. Aqui o
- *  erro é contido pela barreira de linha de `Lista`, degrada aquele registro e deixa os
+ *  erro é contido pela barreira de linha da tabela e da lista, degrada aquele registro e deixa os
  *  outros legíveis (VIS-016). */
 function traduzir(mapa: Record<string, string>, chave: string, campo: string): string {
   const texto = mapa[chave];
@@ -67,19 +67,29 @@ function traduzir(mapa: Record<string, string>, chave: string, campo: string): s
   return texto;
 }
 
-const colunasEquipe: ReadonlyArray<Coluna<ItemEquipe>> = [
-  { titulo: 'Pessoa', celula: (item) => item.email },
-  { titulo: 'Perfil', celula: (item) => traduzir(perfisEquipe, item.perfil, 'perfil') },
-  {
+const colunasEquipe = {
+  pessoa: { titulo: 'Pessoa', largura: 'w-2/5', celula: (item) => item.email },
+  perfil: {
+    titulo: 'Perfil',
+    largura: 'w-1/5',
+    celula: (item) => traduzir(perfisEquipe, item.perfil, 'perfil'),
+  },
+  conta: {
     titulo: 'Conta',
-    secundaria: true,
+    largura: 'w-[18%]',
     celula: (item) => (item.ativo === false ? 'Conta desativada' : 'Conta ativa'),
   },
-  {
+  estado: {
     titulo: 'Estado',
+    largura: 'w-[22%]',
     celula: (item) => <MarcaEstado>{traduzir(estadosEquipe, item.estado, 'estado')}</MarcaEstado>,
   },
-];
+} satisfies Record<string, ColunaTabela<ItemEquipe>>;
+
+const { pessoa, perfil, conta, estado } = colunasEquipe;
+const colunasTabela = [pessoa, perfil, conta, estado];
+const camposLista = [pessoa, perfil, estado, conta];
+const tituloRegistros = 'Pessoas com acesso concedido';
 
 /** O indicador de ação em curso que `iniciarAcao` acrescentava ao botão. A mensagem
  *  acessível continua no `role="status"` da tela; isto é só a pintura. */
@@ -312,15 +322,22 @@ function TelaConcessaoEquipe({ api }: { api: ClienteFFCM }) {
       );
     if (itens.length)
       return (
-        <Lista
-          itens={itens}
-          colunas={colunasEquipe}
-          chave={(item) => item.id}
-          rotulo="Pessoas com acesso concedido"
-          carregando={carregandoLista}
-          // Já está dentro de uma `Superficie`: a segunda moldura seria caixa dentro de caixa.
-          moldura={false}
-        />
+        <div className="@container/equipe min-w-0">
+          <ListaRotulada
+            itens={itens}
+            colunas={camposLista}
+            chave={(item) => item.id}
+            rotulo={tituloRegistros}
+            className="@tabela/equipe:hidden"
+          />
+          <Tabela
+            itens={itens}
+            colunas={colunasTabela}
+            chave={(item) => item.id}
+            rotulo={tituloRegistros}
+            className="hidden @tabela/equipe:table"
+          />
+        </div>
       );
     if (carregandoLista) return null;
     return (
@@ -354,7 +371,7 @@ function TelaConcessaoEquipe({ api }: { api: ClienteFFCM }) {
           </output>
           <Esqueleto ocupado={carregandoLista}>{conteudoDaLista()}</Esqueleto>
           {temMais ? (
-            <div>
+            <div className="flex justify-end">
               <Botao
                 peso="secundario"
                 disabled={carregandoLista}
