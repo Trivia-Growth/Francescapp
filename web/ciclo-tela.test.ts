@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 import {
   CAMINHO_EQUIPE,
   entradaCasoNovo,
@@ -55,7 +56,7 @@ it('exige confirmação para liberar e envia reserva vinculada à criação', as
       });
     throw new Error('Rota inesperada');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   const botao = () => document.querySelector<HTMLButtonElement>('#cadastro button[data-acao]');
   const enviar = document.getElementById('create-submit') as HTMLButtonElement;
   await vi.waitFor(() => expect(botao()?.dataset.acao).toBe('encerrar'));
@@ -97,7 +98,7 @@ it('remove dados protegidos quando consulta da barreira recebe revogação', asy
     if (url.pathname === '/api/pacientes') return envelope({ itens: [], proximo_cursor: null });
     throw new Error('Rota inesperada');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.getElementById('login-view')?.hidden).toBe(false));
   expect(document.getElementById('patients-view')?.hidden).toBe(true);
   expect(document.getElementById('login-feedback')?.textContent).toContain('validado novamente');
@@ -122,7 +123,7 @@ it('mantém foco no controle ao tentar consulta e ao falhar encerramento', async
     if (url.pathname === '/api/pacientes') return envelope({ itens: [], proximo_cursor: null });
     throw new Error('Rota inesperada');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   const botao = () => document.querySelector<HTMLButtonElement>('#cadastro button[data-acao]');
   await vi.waitFor(() => expect(botao()?.dataset.acao).toBe('consultar'));
   botao()?.focus();

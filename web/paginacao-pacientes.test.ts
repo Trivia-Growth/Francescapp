@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 import { mensagensErro } from '../packages/contracts/src/index.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
@@ -49,7 +50,7 @@ it.each(['sucesso', 'erro', 'foco-movido', 'pagina-intermediaria'] as const)(
       }
       throw new Error('Rota inesperada.');
     });
-    await import('./main.js');
+    await montarCascaParaTeste();
     const elemento = <T extends HTMLElement>(nome: string) => document.getElementById(nome) as T;
     await vi.waitFor(() =>
       expect(elemento<HTMLFieldSetElement>('login-fields').disabled).toBe(false),
@@ -119,7 +120,7 @@ it.each([422, 503])('recupera navegação após falha %s na página seguinte', a
     }
     throw new Error('Rota inesperada.');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   const elemento = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   await vi.waitFor(() =>
     expect(elemento<HTMLFieldSetElement>('login-fields').disabled).toBe(false),
@@ -163,7 +164,7 @@ it('mantém recuperação acessível quando voltar à primeira página falha', a
     }
     throw new Error('Rota inesperada.');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   const elemento = <T extends HTMLElement>(nome: string) => document.getElementById(nome) as T;
   await vi.waitFor(() =>
     expect(elemento<HTMLFieldSetElement>('login-fields').disabled).toBe(false),

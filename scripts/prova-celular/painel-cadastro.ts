@@ -3,16 +3,15 @@
  *
  * Por que existe: o painel liga abrir, fechar e foco preso num `<dialog>` de
  * `web/index.html`, e o Esc nativo, o fundo inerte e o Tab de verdade só existem num
- * navegador — o jsdom de `web/painel-cadastro.test.ts` não tem nenhum dos três. `#cadastro`
- * é também uma das seis regiões que `web/main.ts` vigia com `aplicarControlesProprios`,
- * então a vigilância é ligada aqui como lá.
+ * navegador — o jsdom de `web/painel-cadastro.test.ts` não tem nenhum dos três.
  *
  * A marcação NÃO é copiada: é lida de `web/index.html` e só o diálogo e o botão que o abre
  * entram na página. `main.ts` não é carregado (precisaria de sessão e serviço); o que ele
  * faz com o diálogo — mostrar ou ocultar o botão e o formulário conforme a permissão de
  * cadastro vinda do servidor — é reproduzido pelo parâmetro `?sem-permissao`.
+ * Os campos são montados pelo mesmo módulo React usado pela casca.
  */
-import { aplicarControlesProprios } from '../../web/ui/controles.js';
+import { montarCamposCasoNovo } from '../../web/campos-caso-novo.js';
 
 const modelo = new DOMParser().parseFromString(
   await (await fetch('/web/index.html')).text(),
@@ -30,7 +29,26 @@ const cadastro = document.getElementById('cadastro');
 if (!cadastro) throw new Error('#cadastro ausente.');
 cadastro.hidden = !podeCadastrar;
 botao.hidden = !podeCadastrar;
-aplicarControlesProprios(cadastro);
+
+function elemento<T extends HTMLElement>(id: string): T {
+  const no = document.getElementById(id);
+  if (!no) throw new Error(`Campo da bancada ausente: ${id}`);
+  return no as T;
+}
+
+montarCamposCasoNovo(
+  {
+    contatos: elemento('contacts-list'),
+    adicionar: elemento('add-contact'),
+    erroContatos: elemento('contacts-error'),
+    nascimento: elemento('birth-date-controle'),
+    situacao: elemento('case-status-controle'),
+    responsavel: elemento('case-manager-controle'),
+    estadoResponsavel: elemento('manager-state'),
+    tentarNovamente: elemento('manager-retry'),
+  },
+  async () => [],
+);
 
 // Como em `index.html`: o painel só depois de o diálogo existir no documento.
 await import('../../web/painel-cadastro.ts');

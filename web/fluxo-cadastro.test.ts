@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 import { CAMINHO_EQUIPE, preencherCasoNovo, respostaEquipe } from './teste-caso-novo.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
@@ -71,7 +72,7 @@ async function preparar(status: number, formato: 'invalido' | 'divergente' = 'in
     }
     throw new Error('Rota inesperada');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   const elemento = <T extends HTMLElement>(nome: string) => document.getElementById(nome) as T;
   const entrar = async () => {
     elemento<HTMLInputElement>('email').value = 'tecnica@example.test';

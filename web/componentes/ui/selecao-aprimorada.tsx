@@ -189,8 +189,6 @@ export function SelecaoAprimorada({
   }
 
   const controle = (
-    // O atributo já está presente quando o nativo entra no DOM. Durante a migração,
-    // o observador legado reconhece este invólucro e pula o controle.
     <div ref={grupo} className="ui-selecao" data-aprimorada="">
       <select
         {...resto}

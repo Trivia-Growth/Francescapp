@@ -1,9 +1,7 @@
 /**
  * Prova de navegador real do diálogo de cadastro (`web/painel-cadastro.ts`): abre pelo
  * botão, Tab e Shift+Tab não saem dele, Esc e "Fechar" fecham, e sem permissão de cadastro
- * ele não abre. Ancorada em abertura e foco, não na aparência dos controles do formulário:
- * `#cadastro` é região vigiada por `aplicarControlesProprios`, que tem substituição em
- * andamento, e esta prova não deve mudar de cor por causa dela.
+ * ele não abre. Ancorada em abertura e foco, com os campos montados como na casca.
  *
  * Contraprova feita ao escrever (registrada no PR): com `prenderFoco` desligado no
  * painel, o caso do Tab falha por foco fora do diálogo, não por tempo esgotado.

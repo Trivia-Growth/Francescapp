@@ -55,8 +55,8 @@ import './turno-execucao.css';
 import { montarConversaoDiario } from './conversao-diario.js';
 import { criarServicoConversaoDiarioHttp } from './servico-conversao-diario-http.js';
 import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
-import { aplicarControlesProprios } from './ui/controles.js';
-import { botao, linhaLista } from './ui/basicos.js';
+import { botao } from './ponte/botao-imperativo.js';
+import { linhaLista } from './ponte/linha-lista-imperativa.js';
 import { criarServicoLinhaTempoHttp } from './servico-linha-tempo-http.js';
 import { criarServicoExportacaoHttp } from './servico-exportacao-http.js';
 import { criarServicoPreautorizacoesHttp } from './servico-preautorizacoes-http.js';
@@ -275,26 +275,6 @@ const fichaView = elemento('ficha-view');
 const crumbPaciente = elemento('crumb-paciente');
 const buscaCampo = elemento<HTMLInputElement>('busca-pacientes');
 const buscaVazia = elemento('busca-vazia');
-
-// Seleção e data da aplicação no lugar das do navegador, em toda a aplicação. O
-// `<select>` e o `input[type=date]` continuam no documento e continuam donos do valor —
-// o que muda é quem aparece e o que o teclado percorre. Ver `web/ui/selecao.ts` e
-// `web/ui/data.ts`, e o comentário em `web/index.html` sobre o `required` que saiu.
-//
-// Cada região é observada porque todas trocam o próprio conteúdo depois de consultar o
-// serviço: o contato que o cadastro adiciona, a área que a administração monta, a seção
-// que a ficha abre. Sem observar, o primeiro controle aparecia com a seleção da aplicação
-// e os seguintes com a do navegador — duas aparências na mesma tela, que é o defeito que
-// esta frente corrige. A mecânica vive em `web/ui/controles.ts` e é provada lá.
-for (const regiao of [
-  registration,
-  elemento('administracao-conteudo'),
-  elemento('ficha-view'),
-  elemento('regras-conteudo'),
-  homeView,
-  elemento('agenda-individual'),
-])
-  aplicarControlesProprios(regiao);
 
 // A navegação mantém os mesmos links e seu estado de autorização nas duas larguras.
 const toggleSidebar = elemento<HTMLButtonElement>('toggle-sidebar');

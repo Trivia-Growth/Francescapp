@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
 const sessionId = '20000000-0000-4000-8000-000000000001';
@@ -34,7 +35,7 @@ async function abrirLista(listar: () => Response | Promise<Response>) {
     if (caminho === '/api/pacientes') return listar();
     return new Response(null, { status: 404 });
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
 }
 const el = (nome: string) => document.getElementById(nome) as HTMLElement;
 const linhas = () => [...document.querySelectorAll('#patients-body li')];

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 
 beforeEach(() => {
   sessionStorage.clear();
@@ -40,7 +41,7 @@ it('identifica e limpa erros nos campos de preferência e nascimento sem enviar 
     if (url.pathname === '/api/pacientes' && init.method === 'POST') postagens++;
     throw new Error('Rota inesperada');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   const elemento = <T extends HTMLElement>(nome: string) => document.getElementById(nome) as T;
   await vi.waitFor(() =>
     expect(elemento<HTMLFieldSetElement>('login-fields').disabled).toBe(false),

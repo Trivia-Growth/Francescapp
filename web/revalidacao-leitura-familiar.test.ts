@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 
 const id = '10000000-0000-4000-8000-00000000000a';
 const sessao = '20000000-0000-4000-8000-000000000001';
@@ -66,7 +67,7 @@ it('remove leitura familiar ao ocultar e consulta audiência atual ao retornar',
     throw new Error(`Rota inesperada: ${caminho}`);
   });
   window.history.replaceState(null, '', `/#paciente/${id}/plano`);
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() =>
     expect(document.getElementById('ficha-view')?.textContent).toContain(
       'Objetivo antes compartilhado',

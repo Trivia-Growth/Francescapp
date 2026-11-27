@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 import { CAMINHO_EQUIPE, preencherCasoNovo, respostaEquipe } from './teste-caso-novo.js';
 
 beforeEach(() => {
@@ -62,7 +63,7 @@ it('revalida acesso ao retornar à aba durante cadastro ainda em andamento', asy
     }
     throw new Error('Rota inesperada no teste.');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   const elemento = <T extends HTMLElement>(nome: string) => document.getElementById(nome) as T;
   await vi.waitFor(() =>
     expect(elemento<HTMLFieldSetElement>('login-fields').disabled).toBe(false),

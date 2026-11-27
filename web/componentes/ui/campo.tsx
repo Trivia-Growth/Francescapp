@@ -2,7 +2,7 @@ import type { ComponentPropsWithRef, ReactNode } from 'react';
 import { juntar } from './juntar.js';
 
 /** Campo de texto: rótulo acima, controle, dica e erro na mesma coluna
- *  (`web/ui/ui.css:117-173`, `web/ui/basicos.ts:60-115`).
+ *  (`web/estilos/ui.css:117-173`, `web/ui/basicos.ts:60-115`).
  *
  *  Três garantias que não podem se perder na migração:
  *  1. `aria-describedby` aponta dica **e** erro, sempre, na mesma ordem

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
 const sessao = {
@@ -49,7 +50,7 @@ it.each(['sucesso', 'erro'])(
       }
       throw new Error('Rota inesperada.');
     });
-    await import('./main.js');
+    await montarCascaParaTeste();
     const elemento = <T extends HTMLElement>(nome: string) => document.getElementById(nome) as T;
     await vi.waitFor(() =>
       expect(elemento<HTMLFieldSetElement>('login-fields').disabled).toBe(false),

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 import { CAMINHO_EQUIPE, preencherCasoNovo, respostaEquipe } from './teste-caso-novo.js';
 
 beforeEach(() => {
@@ -66,7 +67,7 @@ it.each(['403', 'logout'])(
         });
       throw new Error('Rota inesperada.');
     });
-    await import('./main.js');
+    await montarCascaParaTeste();
     const elemento = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
     const entrar = async () => {
       elemento<HTMLInputElement>('email').value = 'ficticio@example.test';
@@ -154,7 +155,7 @@ it('avisa antes de sair durante cadastro sem confirmação sem persistir dados p
       });
     throw new Error('Rota inesperada.');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   const elemento = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const sair = () => {
     const evento = new Event('beforeunload', { cancelable: true });

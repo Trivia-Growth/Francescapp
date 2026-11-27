@@ -4,7 +4,7 @@
  *  classes. `dialogo.tsx` liga isto ao Radix Dialog; `popover.tsx` e `selecao-busca.tsx`
  *  reaproveitam o sinal de rolagem.
  *
- *  Por que existe separado: `web/ui/ui.css:400-554` resolve diálogo e folha no MESMO
+ *  Por que existe separado: `web/estilos/ui.css:400-554` resolve diálogo e folha no MESMO
  *  elemento, por consulta de mídia. O Radix renderiza um `div` em portal e decide forma em
  *  JavaScript (`design.md:120`: `Dialog` acima de 768px, `Sheet` abaixo). Então o ponto de
  *  corte passa a ser observável em JavaScript — `useFormaSobreposicao` — em vez de viver só

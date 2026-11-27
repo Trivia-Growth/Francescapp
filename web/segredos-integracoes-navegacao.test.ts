@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 const id = '10000000-0000-4000-8000-000000000001';
 const sid = '20000000-0000-4000-8000-000000000001';
 const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
@@ -61,7 +62,7 @@ function preparar(perfil: 'administrador' | 'profissional') {
 }
 it('navega pela administração até credenciais, desmonta valor digitado e relê só metadados', async () => {
   const caminhos = preparar('administrador');
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.getElementById('patients-view')?.hidden).toBe(false));
   document.getElementById('nav-administracao')?.click();
   await vi.waitFor(() =>
@@ -102,7 +103,7 @@ it('navega pela administração até credenciais, desmonta valor digitado e rel�
 });
 it('rota forçada do profissional não monta credenciais nem consulta metadados administrativos', async () => {
   const caminhos = preparar('profissional');
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.getElementById('patients-view')?.hidden).toBe(false));
   window.history.pushState(null, '', '#administracao/integracoes');
   window.dispatchEvent(new PopStateEvent('popstate'));

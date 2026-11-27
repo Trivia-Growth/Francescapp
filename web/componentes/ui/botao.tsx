@@ -2,7 +2,7 @@ import type { ComponentPropsWithRef, MouseEvent, ReactNode } from 'react';
 import { juntar } from './juntar.js';
 
 /** Botão da aplicação: três pesos e só três — a ação do assunto, a alternativa e o
- *  comando discreto (`web/ui/ui.css:59-61`).
+ *  comando discreto (`web/estilos/ui.css:59-61`).
  *
  *  Os nomes de variante são os do domínio e chegam ao DOM como `data-peso`, porque telas
  *  e testes já procuram por eles (`componentes.md:35-44`). A altura mínima vem de

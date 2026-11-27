@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { criarErroPublico } from '../../packages/contracts/src/comum.ts';
+import { conferirControlesNativos } from './controles-nativos.js';
 
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
@@ -52,9 +53,7 @@ test.beforeEach(async ({ context, page }) => {
   );
 });
 
-test('agenda monta a seleção React depois da carga com o observador legado ativo', async ({
-  page,
-}) => {
+test('agenda monta a seleção React depois da carga', async ({ page }) => {
   const erros: string[] = [];
   page.on('pageerror', (erro) => erros.push(erro.message));
   page.on('console', (mensagem) => {
@@ -67,17 +66,7 @@ test('agenda monta a seleção React depois da carga com o observador legado ati
   await page.goto('/scripts/prova-celular/agenda-individual.html');
   await expect(page.getByText('Consulta fictícia')).toBeVisible();
 
-  // Sentinela temporária para provar que a bancada reproduz o observador de main.
-  await page.locator('#agenda-individual').evaluate((raiz) => {
-    const legado = document.createElement('select');
-    legado.id = 'selecao-legada-da-prova';
-    legado.setAttribute('aria-label', 'Seleção legada de prova');
-    legado.add(new Option('Valor fictício', 'teste'));
-    raiz.append(legado);
-  });
-  const legado = page.locator('.ui-selecao[data-aprimorada]:has(> #selecao-legada-da-prova)');
-  await expect(legado).toHaveCount(1);
-  await legado.evaluate((grupo) => grupo.remove());
+  await conferirControlesNativos(page, '#agenda-individual');
 
   await page.getByRole('button', { name: 'Registrar realização' }).click();
   const painel = page.locator('.realizacao-compromisso');

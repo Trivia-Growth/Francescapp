@@ -940,7 +940,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   margin: var(--espaco-4) 0;
 }
 /* A lista de pessoas passou a ser `.ui-lista` + `.ui-linha` da camada de componente
-   (`web/ui/ui.css`): as regras que viviam aqui eram as mesmas, só que exclusivas desta
+   (`web/estilos/ui.css`): as regras que viviam aqui eram as mesmas, só que exclusivas desta
    tela. O que sobra abaixo é o que é desta tela e de mais nenhuma: o chip de situação. */
 .pessoa-situacao {
   justify-self: start;
@@ -2524,7 +2524,7 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
     display: inline-flex;
     align-self: flex-end;
   }
-  /* No celular a linha empilha — a regra agora é de `.ui-linha` em `web/ui/ui.css`. */
+  /* No celular a linha empilha — a regra agora é de `.ui-linha` em `web/estilos/ui.css`. */
   .patient-register {
     padding: 0;
   }

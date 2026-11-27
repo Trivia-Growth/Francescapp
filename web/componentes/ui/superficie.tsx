@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { juntar } from './juntar.js';
 
-/** Uma superfície por assunto (`web/ui/ui.css:21-24`).
+/** Uma superfície por assunto (`web/estilos/ui.css:21-24`).
  *
  *  Fundo branco sobre o lavado da página e filete de 1px no lugar de sombra: o degrau de
  *  fundo já separa, e a sombra fica reservada ao que flutua de verdade — diálogo e menu.

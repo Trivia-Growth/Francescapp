@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 
 beforeEach(() => {
   sessionStorage.clear();
@@ -30,7 +31,7 @@ it('permite repetir saída sem afirmar revogação quando rede falha', async () 
     if (url.pathname === '/api/sessao/sair') throw new TypeError('rede indisponível');
     throw new Error('Rota inesperada.');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   const elemento = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   await vi.waitFor(() => expect(elemento('patients-view').hidden).toBe(false));
   elemento('logout').click();

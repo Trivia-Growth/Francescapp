@@ -1,13 +1,13 @@
 # Estado — migrar-interface-para-react
 
-**Atualizado em:** 27/11/2026 · **Branch:** `codex/controles-cadastro` · **Por:** Codex
+**Atualizado em:** 27/11/2026 · **Branch:** `codex/retirar-observador-controles` · **Por:** Codex
 
 ## Retirada do observador de controles
 
-A agenda individual adota `SelecaoAprimorada` em Situação e Motivo. O nativo já nasce
-no invólucro com `data-aprimorada`, que o observador pula. As seis inscrições de
-`main.ts` seguem ativas até cadastro, administração e ficha migrarem e comprovarem
-a convivência. Regras e Início não renderizam os tipos de controle observados.
+As quatro regiões com seleção e data já montam os próprios controles. Durante a
+migração o nativo nascia no invólucro com `data-aprimorada`, que o observador pulava.
+Depois das provas de convivência, as seis inscrições de `main.ts` foram retiradas.
+Regras e Início não renderizavam os tipos de controle observados.
 
 - `pnpm run verificar:celular agenda-individual-controles.pw.ts` passou em Chromium a
   390 × 844 com o tema real e dublês HTTP. O observador processou um select legado de
@@ -77,11 +77,29 @@ a convivência. Regras e Início não renderizam os tipos de controle observados
   Os 42 testes de campos, fluxo e integração de edição passaram em conjunto.
   Os nove testes de retorno Google passaram com o mesmo desmonte entre as
   recargas simuladas e no fim de cada teste.
-  Próximo passo: retirar o observador global com as quatro regiões migradas.
-- A remoção integral de `web/ui/` segue em tarefa própria. Depois da retirada
-  do observador, as dependências de produção que restam são `main.ts`
-  (`botao`/`linhaLista`) e o import de `ui.css` no tema. Confirmação e os três
-  módulos da demonstração já retiraram seus imports nos PRs #28 e #37.
+- A retirada removeu o instalador global e as ligações das bancadas. As provas
+  direcionadas em Chromium passaram (25 cenários), com o tema real e as três
+  regressões de preenchimento. Em cada uma das seis regiões da casca, um
+  select e uma data inseridos após a carga permaneceram no mesmo pai, com
+  opacidade `1`. Religar o observador original fez as seis provas falharem
+  pela troca do pai. Restaurada a retirada, as seis voltaram a passar.
+  `pnpm run build:web` e as provas de vínculo e de execução do cuidado
+  pela casca de produção local também passaram.
+- A bancada do painel #31 monta os campos reais. Ao bloquear Tab na captura
+  somente para a contraprova, Tab nº 11 levou o foco para `body#` e a asserção
+  falhou. Com o bloqueio revertido, os quatro cenários do painel passaram.
+  As provas SQL de Agenda, Auditoria, Linha do tempo, Ficha e Cadastro passaram
+  em instâncias descartáveis de PostgreSQL 17.
+- A primeira CI do #42 encontrou trabalho React durante o teardown de
+  `login-aba-oculta.test.ts`. `teste-casca.ts` registra o desmonte real do
+  Cadastro no fim de cada caso para as provas que importavam `main.ts`
+  diretamente. As provas com recargas simuladas mantêm o desmonte entre
+  as montagens da casca. Passaram os 122 testes nos 29 arquivos atualizados.
+- A auditoria de imports e referências a recursos em `web` e `scripts`
+  encontrou zero importadores externos de `web/ui/`. A casca usa as pontes
+  imperativas de botão e linha de lista. `estilos/tema.css` importa a folha
+  movida para `web/estilos/ui.css` na mesma camada `legado`, com os mesmos
+  bytes. A remoção dos módulos órfãos de `web/ui/` segue em tarefa própria.
 
 ## Histórico da integração do turno e plantão
 

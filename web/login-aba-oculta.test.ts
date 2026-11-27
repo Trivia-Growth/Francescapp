@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 
 beforeEach(() => {
   sessionStorage.clear();
@@ -54,7 +55,7 @@ it.each([true, false])(
       }
       throw new Error('Rota inesperada');
     });
-    await import('./main.js');
+    await montarCascaParaTeste();
     const el = <T extends HTMLElement>(nome: string) => document.getElementById(nome) as T;
     await vi.waitFor(() => expect(el<HTMLFieldSetElement>('login-fields').disabled).toBe(false));
     el<HTMLInputElement>('email').value = 'tecnica@example.test';

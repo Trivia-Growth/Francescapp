@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
 const sessionId = '20000000-0000-4000-8000-000000000001';
@@ -37,7 +38,7 @@ it('abre plano do paciente pela rota HTTP e trata dispatcher inativo sem simular
     if (caminho === `/api/pacientes/${id}/plano`) return new Response(null, { status: 404 });
     throw new Error('Rota inesperada');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() =>
     expect(
       document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
@@ -95,7 +96,7 @@ it('encerra acesso e limpa plano quando permissão é revogada após retorno à 
     }
     throw new Error('Rota inesperada');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() =>
     expect(
       document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
@@ -189,7 +190,7 @@ it('recusa de uma área não fecha o caso: a pessoa troca de aba e segue', async
       );
     return envelope({ itens: [], proximo_cursor: null });
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() =>
     expect(
       document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
