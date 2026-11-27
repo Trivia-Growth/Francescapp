@@ -165,8 +165,16 @@ export function aprimorarData(nativo: HTMLInputElement): CampoData {
     dia: hoje.getDate(),
   };
 
+  // Usar o setter do navegador mantém a mudança observável pelo onChange do React.
+  // A atribuição direta atualiza também o valor que o React usa para detectar a mudança.
+  const definirValorNativo = (iso: string) => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    if (setter) setter.call(nativo, iso);
+    else nativo.value = iso;
+  };
+
   const definir = (iso: string) => {
-    nativo.value = iso;
+    definirValorNativo(iso);
     nativo.dispatchEvent(new Event('input', { bubbles: true }));
     nativo.dispatchEvent(new Event('change', { bubbles: true }));
     sincronizar();
@@ -292,14 +300,14 @@ export function aprimorarData(nativo: HTMLInputElement): CampoData {
     texto.value = mascarar(texto.value);
     const iso = doVisivel(texto.value);
     if (iso) {
-      nativo.value = iso;
+      definirValorNativo(iso);
       nativo.dispatchEvent(new Event('input', { bubbles: true }));
       nativo.dispatchEvent(new Event('change', { bubbles: true }));
       texto.removeAttribute('aria-invalid');
       return;
     }
     // Apagar o campo apaga a data; escrever algo incompleto não escolhe data nenhuma.
-    nativo.value = '';
+    definirValorNativo('');
     nativo.dispatchEvent(new Event('input', { bubbles: true }));
     if (texto.value.length === 10) texto.setAttribute('aria-invalid', 'true');
     else texto.removeAttribute('aria-invalid');
