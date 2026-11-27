@@ -28,7 +28,9 @@ import type { VisibilidadeObjetivo } from '../packages/contracts/src/plano-cuida
 import { confirmarDescarte } from './confirmacao.js';
 import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Botao } from './componentes/ui/botao.js';
+import { CampoData } from './componentes/ui/campo-data.js';
 import { Campo } from './componentes/ui/campo.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
@@ -70,7 +72,13 @@ function TelaOrientacoesLocaisFamilia({
   );
 }
 
-function TelaOrientacoesLocaisEdicao({ dados }: { dados: Dados }) {
+function TelaOrientacoesLocaisEdicao({
+  dados,
+  aprimorarControles,
+}: { dados: Dados; aprimorarControles: boolean }) {
+  const Data = aprimorarControles ? CampoData : Campo;
+  const Selecao = aprimorarControles ? SelecaoAprimorada : SelecaoSimples;
+  const tipoNativo = aprimorarControles ? {} : { tipo: 'date' };
   const [itens, definirItens] = useState<OrientacaoLocal[]>(() => [...dados.orientacoes]);
   const [substituindo, definirSubstituindo] = useState<string | null>(null);
   const [salvando, definirSalvando] = useState(false);
@@ -191,11 +199,11 @@ function TelaOrientacoesLocaisEdicao({ dados }: { dados: Dados }) {
           disabled={salvando}
           classeEnvelope="mb-0"
         />
-        <Campo
+        <Data
           id="orientacao-data"
           name="data"
           rotulo="Data"
-          tipo="date"
+          {...tipoNativo}
           required
           disabled={salvando}
           classeEnvelope="mb-0"
@@ -209,16 +217,16 @@ function TelaOrientacoesLocaisEdicao({ dados }: { dados: Dados }) {
           disabled={salvando}
           classeEnvelope="mb-0"
         />
-        <Campo
+        <Data
           id="orientacao-validade"
           name="validade"
           rotulo="Validade ou revisão (opcional)"
-          tipo="date"
+          {...tipoNativo}
           required={false}
           disabled={salvando}
           classeEnvelope="mb-0"
         />
-        <SelecaoSimples
+        <Selecao
           id="orientacao-visibilidade"
           name="visibilidade"
           rotulo="Visibilidade para a família"
@@ -227,7 +235,7 @@ function TelaOrientacoesLocaisEdicao({ dados }: { dados: Dados }) {
         >
           <option value="interna">Interna (só a equipe vê)</option>
           <option value="publica">Pública (a família também vê)</option>
-        </SelecaoSimples>
+        </Selecao>
         <div className="flex flex-wrap gap-3">
           <Botao peso="principal" tipo="submit" disabled={salvando}>
             {substituindo === null ? 'Registrar orientação' : 'Salvar nova versão'}
@@ -282,11 +290,12 @@ function TelaOrientacoesLocaisEdicao({ dados }: { dados: Dados }) {
 export function OrientacoesLocais({
   dados,
   ehFamilia = false,
-}: { dados: Dados; ehFamilia?: boolean }) {
+  aprimorarControles = false,
+}: { dados: Dados; ehFamilia?: boolean; aprimorarControles?: boolean }) {
   return ehFamilia ? (
     <TelaOrientacoesLocaisFamilia orientacoes={dados.orientacoes} />
   ) : (
-    <TelaOrientacoesLocaisEdicao dados={dados} />
+    <TelaOrientacoesLocaisEdicao dados={dados} aprimorarControles={aprimorarControles} />
   );
 }
 

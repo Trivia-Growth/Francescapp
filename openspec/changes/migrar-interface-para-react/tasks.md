@@ -331,7 +331,9 @@ autorização onde a tela tiver autorização própria.
   Financeiro usa ilhas para as datas nos dois hospedeiros.
   *Evidência:* Chromium pela casca, sentinela legada, GETs de Auditoria com os filtros
   corretos, troca de abas com as quatro datas do Financeiro e contraprova de opacidade.
-- [ ] **7.0d [C]** Ficha passa a renderizar os controles aprimorados de suas seções.
+- [x] **7.0d [C]** Ficha passa a renderizar os controles aprimorados de suas seções.
+  *Evidência:* Chromium na casca com sentinela legada, troca de página da seleção
+  de profissionais, datas da Linha do tempo e interação na ficha de plantão.
 - [ ] **7.0e [C]** Retirar o observador de controles das seis inscrições em `main.ts`
   após a prova de convivência de cada região. Regras e Início não montam esses controles.
 

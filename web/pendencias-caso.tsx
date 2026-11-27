@@ -48,7 +48,7 @@
  * o `<select>` de atribuição é ação, não leitura, e deve voltar a "Escolha uma pessoa"
  * depois que o servidor confirma a mudança de estado.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { PendenciaPlantaoHttp } from '../packages/contracts/src/ficha-plantao-http.js';
 import {
@@ -65,10 +65,11 @@ import {
 import type { ResponsavelOpcao } from './acompanhamento-caso.js';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { Botao } from './componentes/ui/botao.js';
-import { Campo, classeControle } from './componentes/ui/campo.js';
+import { CampoData } from './componentes/ui/campo-data.js';
+import { Campo } from './componentes/ui/campo.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
-import { juntar } from './componentes/ui/juntar.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { MarcaEstado } from './componentes/ui/marca-estado.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { dataDeInstante } from './datas.js';
@@ -117,6 +118,7 @@ function SelecaoAtribuir({
   disabled: boolean;
   aoEscolher: (usuarioId: string) => void;
 }) {
+  const id = useId();
   const referencia = useRef<HTMLSelectElement>(null);
   const escolher = useRef(aoEscolher);
   escolher.current = aoEscolher;
@@ -131,13 +133,17 @@ function SelecaoAtribuir({
     return () => no.removeEventListener('change', ouvir);
   }, []);
   return (
-    <label className="pendencia-atribuir grid min-w-0 gap-1 text-(length:--texto-1) font-semibold">
+    <label
+      htmlFor={id}
+      className="pendencia-atribuir grid min-w-0 gap-1 text-(length:--texto-1) font-semibold"
+    >
       <span>Atribuir a</span>
-      <select
+      <SelecaoAprimorada
+        id={id}
+        aria-label="Atribuir a"
         ref={referencia}
         disabled={disabled}
         defaultValue=""
-        className={juntar(classeControle, 'min-w-0 max-w-[280px] cursor-pointer')}
       >
         <option value="">Escolha uma pessoa</option>
         {equipe
@@ -147,7 +153,7 @@ function SelecaoAtribuir({
               {opcao.rotulo}
             </option>
           ))}
-      </select>
+      </SelecaoAprimorada>
     </label>
   );
 }
@@ -627,11 +633,10 @@ function TelaPendenciasCaso({
                   required
                   defaultValue={sinal.acordo?.dias_retorno_encaminhamento ?? 21}
                 />
-                <Campo
+                <CampoData
                   id="pendencia-proxima-revisao"
                   name="proxima_revisao_em"
                   rotulo="Próxima revisão"
-                  tipo="date"
                   defaultValue={sinal.acordo?.proxima_revisao_em ?? ''}
                 />
                 <div className="mt-3">

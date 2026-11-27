@@ -23,6 +23,7 @@
  * contador `geracao` que remonta a lista via `key`. */
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import type {
   ArquivoItemExportacao,
   ConfirmarEntrega,
@@ -428,9 +429,9 @@ function TelaExportacao({
         aoEnviar={(formulario) => void aoRegistrar(formulario)}
         noValidate
       >
-        <label htmlFor={`${idPrefixo}-finalidade`}>Finalidade</label>
-        <select
+        <SelecaoAprimorada
           id={`${idPrefixo}-finalidade`}
+          rotulo="Finalidade"
           name="finalidade"
           required
           defaultValue="acompanhamento"
@@ -440,7 +441,7 @@ function TelaExportacao({
               {rotulo}
             </option>
           ))}
-        </select>
+        </SelecaoAprimorada>
         <label htmlFor={`${idPrefixo}-destinatario`}>Destinatário</label>
         <input
           id={`${idPrefixo}-destinatario`}

@@ -176,7 +176,9 @@ it('mantém criação bloqueada após consulta quando salvamento pode concluir d
   preencher('Responsável', 'Equipe');
   preencher('Situação inicial', 'Inicial');
   preencher('Como observar o progresso', 'Observação');
-  preencher('Data de revisão', '2026-12-01');
+  const dataRevisao = form.elements.namedItem('dataRevisao');
+  if (!(dataRevisao instanceof HTMLInputElement)) throw new Error('Data de revisão ausente');
+  dataRevisao.value = '2026-12-01';
   form.requestSubmit();
   await vi.waitFor(() => expect(raiz.textContent).toContain('Não foi possível confirmar'));
   [...raiz.querySelectorAll('button')]

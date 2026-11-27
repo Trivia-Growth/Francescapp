@@ -102,37 +102,24 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
-/* Interação com o observador de controles (27/11/2026). `main.ts` instala
- * `aplicarControlesProprios`, que move os `<select>` e datas do React para um grupo criado
- * à mão; quando o React remove um nó que já não está onde ele o pôs, a ilha cai com
- * `NotFoundError`. A bancada passa a instalar o observador (#25). Este teste troca seleções
- * e recarrega a ficha conferindo erros de página a cada passo. Sem o observador na bancada
- * ele usa o `<select>` nativo; com ele, o combobox da aplicação. */
 async function escolher(page: Page, rotulo: RegExp, opcao: string) {
-  const aprimorada = (await page.locator('[data-aprimorada]').count()) > 0;
-  if (aprimorada) {
-    await page.getByRole('combobox', { name: rotulo }).click();
-    await page.getByRole('option', { name: opcao, exact: true }).click();
-  } else await page.getByRole('combobox', { name: rotulo }).selectOption({ label: opcao });
+  const gatilho = page.getByRole('combobox', { name: rotulo });
+  const grupo = page.locator('.ui-selecao[data-aprimorada]').filter({ has: gatilho });
+  await expect(grupo.locator(':scope > select')).toHaveCSS('opacity', '0');
+  await gatilho.click();
+  await page.getByRole('option', { name: opcao, exact: true }).click();
 }
 
 test('ficha — trocar seleções e recarregar não derruba a tela', async ({ page }) => {
   const erros: string[] = [];
   page.on('pageerror', (erro) => erros.push(String(erro)));
-  const semErros = async () => {
-    await page.waitForTimeout(50);
-    expect(erros, 'erros de página').toEqual([]);
-  };
   await page.goto('/scripts/prova-celular/ficha-plantao.html');
   await expect(page.getByText('Ficha em branco')).toBeVisible();
   const declarar = /^Preenchi fora do horário do plantão/;
   await escolher(page, declarar, 'Sim — declarar a janela real que cumpri');
-  await semErros();
   await escolher(page, declarar, 'Não');
-  await semErros();
   await escolher(page, /^Plantão/, 'Noturno');
-  await semErros();
   await page.getByRole('button', { name: 'Recarregar a ficha' }).click();
   await expect(page.getByText('Ficha em branco')).toBeVisible();
-  await semErros();
+  expect(erros, 'erros de página').toEqual([]);
 });

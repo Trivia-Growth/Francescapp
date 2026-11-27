@@ -186,6 +186,7 @@ function TelaOrientacoes({
         Orientações
       </h2>
       <OrientacoesLocais
+        aprimorarControles
         dados={{
           orientacoes: orientacoesCarregadas,
           aoSalvar: (proximas) => aoSalvar(orientacoesCarregadas, proximas),

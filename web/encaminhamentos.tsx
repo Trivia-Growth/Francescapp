@@ -190,6 +190,7 @@ function TelaEncaminhamentos({
         Encaminhamentos
       </h2>
       <EncaminhamentosLocais
+        aprimorarControles
         dados={{ encaminhamentos: fase.encaminhamentos, aoRegistrar, aoAtualizar }}
       />
     </section>

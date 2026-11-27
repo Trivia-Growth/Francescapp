@@ -3,7 +3,7 @@ import { type Page, expect, test } from '@playwright/test';
 import { type ViteDevServer, createServer } from 'vite';
 import { envelope } from '../../web/fixtures/comum.ts';
 import { responder } from '../../web/fixtures/despachante.ts';
-import { PACIENTE_IDS, sessaoAdministrador } from '../../web/fixtures/sessao.ts';
+import { PACIENTE_IDS, concessoesEquipe, sessaoAdministrador } from '../../web/fixtures/sessao.ts';
 
 const caso = PACIENTE_IDS[0];
 const caminhoAuditoria = '/api/admin/auditoria';
@@ -59,8 +59,8 @@ async function dataVisivel(page: Page, id: string) {
   return { grupo, visivel };
 }
 
-async function conferirObservadorDaAdministracao(page: Page) {
-  await page.locator('#administracao-conteudo').evaluate((raiz) => {
+async function conferirObservador(page: Page, seletor: string) {
+  await page.locator(seletor).evaluate((raiz) => {
     const legado = document.createElement('select');
     legado.id = 'selecao-legada-da-prova';
     legado.setAttribute('aria-label', 'Seleção legada de prova');
@@ -84,7 +84,7 @@ test('Auditoria envia o limite inicial digitado e retira o filtro ao apagar', as
   await page.goto(`${origem}/#administracao/auditoria`);
   const aplicar = page.getByRole('button', { name: 'Aplicar filtros' });
   await expect(aplicar).toBeEnabled();
-  await conferirObservadorDaAdministracao(page);
+  await conferirObservador(page, '#administracao-conteudo');
   const { grupo: inicioGrupo, visivel: inicio } = await dataVisivel(page, 'auditoria-de');
   await expect(inicio).toHaveAttribute('id', 'auditoria-de-texto');
   expect(await inicioGrupo.evaluate((no) => no.parentElement?.closest('.ui-data') === null)).toBe(
@@ -154,6 +154,7 @@ test('Linha do tempo encaminha a data escolhida junto dos demais filtros', async
     page.locator('output').filter({ hasText: 'Nada registrado neste caso ainda.' }),
   ).toBeVisible();
   const { visivel } = await dataVisivel(page, `linha-tempo-de-${caso}`);
+  await expect(visivel).toHaveAttribute('id', `linha-tempo-de-${caso}-texto`);
   await visivel.fill('15/10/2026');
 
   // O filtro por tipo dispara um GET mesmo quando o filtro de data está quebrado.
@@ -168,4 +169,46 @@ test('Linha do tempo encaminha a data escolhida junto dos demais filtros', async
   const filtros = new URL((await pedido).url()).searchParams;
   expect(filtros.get('de'), 'limite inicial do GET de Linha do tempo').toBe('2026-10-15T00:00:00Z');
   expect(consultas.some((busca) => busca.has('de') && !busca.has('fontes'))).toBe(true);
+});
+
+test('Ficha renova a seleção de profissional com o observador legado ativo', async ({ page }) => {
+  const erros: string[] = [];
+  page.on('pageerror', (erro) => erros.push(erro.message));
+  await page.route('**/api/admin/concessoes-equipe**', (rota) => {
+    const cursor = new URL(rota.request().url()).searchParams.get('cursor');
+    const itens = cursor ? concessoesEquipe.itens.slice(4) : concessoesEquipe.itens.slice(0, 4);
+    return rota.fulfill({
+      json: envelope({ itens, proximo_cursor: cursor ? null : 'pagina-ficticia' }),
+    });
+  });
+  await page.goto(`${origem}/#paciente/${caso}/equipe`);
+  const proxima = page.getByRole('button', { name: 'Próxima página' });
+  await expect(proxima).toBeVisible();
+  await conferirObservador(page, '#ficha-view');
+  const id = 'profissional-selecionado';
+  const grupo = page.locator(`.ui-selecao[data-aprimorada]:has(> #${id})`);
+  const nativo = grupo.locator(`#${id}`);
+
+  async function conferirSelecao() {
+    await expect(grupo).toHaveCount(1);
+    const medidas = await nativo.evaluate((no) => ({
+      opacidade: getComputedStyle(no).opacity,
+      invólucroÚnico: no.parentElement?.parentElement?.closest('.ui-selecao') === null,
+    }));
+    expect(medidas.opacidade, 'CSS de tema para #profissional-selecionado').toBe('0');
+    expect(medidas.invólucroÚnico).toBe(true);
+    await expect(grupo.getByRole('combobox', { name: 'Profissional', exact: true })).toBeVisible();
+  }
+
+  await conferirSelecao();
+  await grupo.getByRole('combobox').click();
+  const nome = concessoesEquipe.itens.find((item) => item.usuario_id)?.email;
+  if (!nome) throw new Error('Fixture de equipe sem profissional.');
+  await grupo.getByRole('option', { name: nome, exact: true }).click();
+  expect(await nativo.inputValue()).not.toBe('');
+  await proxima.click();
+  await expect(page.getByText(/Página 2\./)).toBeVisible();
+  await conferirSelecao();
+  await expect(nativo).toHaveValue('');
+  expect(erros).toEqual([]);
 });

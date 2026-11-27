@@ -17,6 +17,7 @@
  * e a liberação do botão precisa valer na linha seguinte. */
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { type ClienteFFCM, mensagemFalha } from './api.js';
 import { criarCicloAcesso } from './ciclo-acesso.js';
 import { Botao } from './componentes/ui/botao.js';
@@ -706,28 +707,22 @@ function TelaSelecaoProfissional({
       <p className="feedback" role="status" aria-live="polite">
         {e.status}
       </p>
-      <label htmlFor="profissional-selecionado">Profissional</label>
-      {/* A chave fica no invólucro, não no `<select>`: `aplicarControlesProprios`
-          (`web/ui/controles.ts`), que `main.ts` instala na ficha, move o `<select>` para
-          dentro de um grupo criado à mão. Trocar a chave do próprio `<select>` faria o
-          React tirá-lo de um pai que já não é o dele — a ilha quebrava, pego pela prova de
-          navegador `vinculo-caso-producao.mjs`. Removendo o invólucro, o grupo sai junto. */}
-      <div key={e.consulta}>
-        <select
-          ref={selecaoRef}
-          id="profissional-selecionado"
-          disabled={e.selecaoDesabilitada}
-          aria-busy={e.selecaoOcupada || undefined}
-          defaultValue=""
-        >
-          {e.vazio ? <option value="">{e.vazio}</option> : null}
-          {e.opcoes.map((opcao) => (
-            <option key={opcao.valor} value={opcao.valor}>
-              {opcao.rotulo}
-            </option>
-          ))}
-        </select>
-      </div>
+      <SelecaoAprimorada
+        key={e.consulta}
+        ref={selecaoRef}
+        id="profissional-selecionado"
+        rotulo="Profissional"
+        disabled={e.selecaoDesabilitada}
+        aria-busy={e.selecaoOcupada || undefined}
+        defaultValue=""
+      >
+        {e.vazio ? <option value="">{e.vazio}</option> : null}
+        {e.opcoes.map((opcao) => (
+          <option key={opcao.valor} value={opcao.valor}>
+            {opcao.rotulo}
+          </option>
+        ))}
+      </SelecaoAprimorada>
       <Botao
         hidden={e.paginacaoOculta}
         disabled={e.anteriorDesabilitado}

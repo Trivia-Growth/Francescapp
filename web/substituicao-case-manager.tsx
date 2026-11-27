@@ -34,6 +34,7 @@ import type {
 } from '../packages/contracts/src/substituicao-case-manager.ts';
 import type { ResponsavelOpcao } from './acompanhamento-caso.ts';
 import { Botao } from './componentes/ui/botao.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
 import type { ServicoSubstituicaoCaseManager } from './servico-substituicao-cm-http.ts';
@@ -309,17 +310,20 @@ function TelaSubstituicaoCaseManager({
         noValidate
         className="substituicao-cm__formulario grid min-w-0 max-w-[480px] gap-3"
       >
-        <label className="grid min-w-0 gap-1">
-          <span>Quem substitui</span>
-          <select name="pessoa" required disabled={registrando}>
-            <option value="">Escolha a pessoa</option>
-            {opcoesEquipe.map((pessoa) => (
-              <option key={pessoa.usuario_id} value={pessoa.usuario_id}>
-                {pessoa.rotulo}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SelecaoAprimorada
+          id="substituicao-cm-pessoa"
+          rotulo="Quem substitui"
+          name="pessoa"
+          required
+          disabled={registrando}
+        >
+          <option value="">Escolha a pessoa</option>
+          {opcoesEquipe.map((pessoa) => (
+            <option key={pessoa.usuario_id} value={pessoa.usuario_id}>
+              {pessoa.rotulo}
+            </option>
+          ))}
+        </SelecaoAprimorada>
         <label className="grid min-w-0 gap-1">
           <span>Início</span>
           <input type="datetime-local" name="inicio" required disabled={registrando} />

@@ -41,10 +41,11 @@ import {
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Botao } from './componentes/ui/botao.js';
+import { CampoData } from './componentes/ui/campo-data.js';
 import { Campo } from './componentes/ui/campo.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { MarcaEstado } from './componentes/ui/marca-estado.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
@@ -400,7 +401,7 @@ function TelaSaude({
                     {`${rotuloDe(TIPOS, linha.tipo)} — ${rotuloDe(NATUREZAS, linha.natureza)} — ${rotuloDe(SITUACOES, linha.situacao)}`}
                   </MarcaEstado>
                 </legend>
-                <SelecaoSimples
+                <SelecaoAprimorada
                   id={`saude-tipo-${linha.id}`}
                   name={nome.tipo}
                   rotulo="Tipo"
@@ -414,7 +415,7 @@ function TelaSaude({
                       {texto}
                     </option>
                   ))}
-                </SelecaoSimples>
+                </SelecaoAprimorada>
                 <AreaTexto
                   id={`saude-descricao-${linha.id}`}
                   name={nome.descricao}
@@ -429,7 +430,7 @@ function TelaSaude({
                   dica="Quem informou (profissional, familiar, documento)"
                   defaultValue={linha.inicial.origem ?? ''}
                 />
-                <SelecaoSimples
+                <SelecaoAprimorada
                   id={`saude-natureza-${linha.id}`}
                   name={nome.natureza}
                   rotulo="Natureza da origem"
@@ -443,15 +444,14 @@ function TelaSaude({
                       {texto}
                     </option>
                   ))}
-                </SelecaoSimples>
-                <Campo
+                </SelecaoAprimorada>
+                <CampoData
                   id={`saude-data-${linha.id}`}
                   name={nome.data}
                   rotulo="Data"
-                  tipo="date"
                   defaultValue={linha.inicial.data ?? ''}
                 />
-                <SelecaoSimples
+                <SelecaoAprimorada
                   id={`saude-situacao-${linha.id}`}
                   name={nome.situacao}
                   rotulo="Situação"
@@ -465,7 +465,7 @@ function TelaSaude({
                       {texto}
                     </option>
                   ))}
-                </SelecaoSimples>
+                </SelecaoAprimorada>
                 <div>
                   <Botao peso="discreto" aoAtivar={() => remover(linha.id)}>
                     Remover registro

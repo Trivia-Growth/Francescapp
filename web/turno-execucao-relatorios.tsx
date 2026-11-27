@@ -14,7 +14,7 @@ import type { Turno } from '../packages/contracts/src/turno.ts';
 import { resultadoIncerto } from './api.ts';
 import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { ConsolidadoFicha, type FichaDoPlantao } from './consolidado-ficha-plantao.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
@@ -344,7 +344,7 @@ export function RelatoriosTurno({
       <Formulario aoEnviar={consultar}>
         <fieldset disabled={ocupada} className="relatorios-turno__painel">
           <legend>Período do relatório</legend>
-          <SelecaoSimples
+          <SelecaoAprimorada
             id="relatorios-turno-tipo"
             name="tipo"
             rotulo="Relatório"
@@ -361,7 +361,7 @@ export function RelatoriosTurno({
             <option value="diario">Consolidado diário</option>
             <option value="semanal">Consolidado de sete dias</option>
             {familia ? null : <option value="caso">Exportação do caso por período</option>}
-          </SelecaoSimples>
+          </SelecaoAprimorada>
           <CampoDeData
             id="relatorios-turno-inicio"
             nome="inicio"
@@ -381,7 +381,7 @@ export function RelatoriosTurno({
             aoMudar={definirFim}
           />
           <div hidden={!porTurno}>
-            <SelecaoSimples
+            <SelecaoAprimorada
               id="relatorios-turno-turno"
               name="turno_id"
               rotulo="Turno consultado"
@@ -395,7 +395,7 @@ export function RelatoriosTurno({
                   {item.rotulo}
                 </option>
               ))}
-            </SelecaoSimples>
+            </SelecaoAprimorada>
           </div>
           <p className="relatorios-turno__dica" hidden={!porTurno}>
             Para escolher um turno anterior, consulte primeiro o consolidado do período.

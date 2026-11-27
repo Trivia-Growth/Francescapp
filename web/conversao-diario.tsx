@@ -54,6 +54,8 @@ import { exigeNovoAcesso, mensagemFalha } from './api.ts';
 import type { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.ts';
 import { confirmarDescarte } from './confirmacao.js';
 import { Botao } from './componentes/ui/botao.js';
+import { CampoData } from './componentes/ui/campo-data.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { ilha } from './ponte/ilha.js';
 import { Formulario } from './telas/formulario.js';
 
@@ -165,13 +167,6 @@ function TelaConversaoDiario({
     };
   }, []);
 
-  /* O valor do `<select>` de área é preservado quando a lista muda, só se a área antes
-   * escolhida ainda existir na lista nova — do contrário volta para "Selecione a área". */
-  useEffect(() => {
-    const el = controle(envelope.current, ID_AREA) as HTMLSelectElement | null;
-    if (el && !areas.includes(el.value)) el.value = '';
-  }, [areas]);
-
   /* Ouvinte NATIVO, no invólucro de fora: qualquer edição em qualquer campo avisa que há
    * alteração pendente — a mesma regra que `form.addEventListener('input'|'change', …)`
    * aplicava. */
@@ -208,7 +203,7 @@ function TelaConversaoDiario({
   }, []);
 
   function bloquear(valor: boolean) {
-    for (const id of IDS_CAMPOS) {
+    for (const id of [ID_MOTIVO, ID_ENCAMINHAMENTO, ID_RESPONSAVEL]) {
       const el = controle(envelope.current, id) as ControleCampo | null;
       if (el) el.disabled = valor;
     }
@@ -491,9 +486,14 @@ function TelaConversaoDiario({
             Motivo da atenção
             <textarea id={ID_MOTIVO} required maxLength={2000} />
           </label>
-          <label>
+          <label htmlFor={`${ID_DATA}-texto`}>
             Data da atenção
-            <input id={ID_DATA} type="date" required />
+            <CampoData
+              id={ID_DATA}
+              aria-label="Data da atenção"
+              required
+              disabled={salvarDesabilitado}
+            />
           </label>
           <label>
             Encaminhamento / descrição da ação
@@ -503,29 +503,44 @@ function TelaConversaoDiario({
             Responsável pela ação
             <input id={ID_RESPONSAVEL} required maxLength={2000} />
           </label>
-          <label>
+          <label htmlFor={`${ID_PRAZO}-texto`}>
             Prazo da ação
-            <input id={ID_PRAZO} type="date" required />
+            <CampoData
+              id={ID_PRAZO}
+              aria-label="Prazo da ação"
+              required
+              disabled={salvarDesabilitado}
+            />
           </label>
-          <label>
+          <label htmlFor={ID_PRIORIDADE}>
             Prioridade
-            <select id={ID_PRIORIDADE} required>
+            <SelecaoAprimorada
+              id={ID_PRIORIDADE}
+              aria-label="Prioridade"
+              required
+              disabled={salvarDesabilitado}
+            >
               <option value="">Selecione a prioridade</option>
               <option value="baixa">Baixa</option>
               <option value="media">Média</option>
               <option value="alta">Alta</option>
-            </select>
+            </SelecaoAprimorada>
           </label>
-          <label>
+          <label htmlFor={ID_AREA}>
             Área da evolução
-            <select id={ID_AREA} required>
+            <SelecaoAprimorada
+              id={ID_AREA}
+              aria-label="Área da evolução"
+              required
+              disabled={salvarDesabilitado}
+            >
               <option value="">Selecione a área</option>
               {areas.map((nome) => (
                 <option key={nome} value={nome}>
                   {nome}
                 </option>
               ))}
-            </select>
+            </SelecaoAprimorada>
           </label>
           <Botao
             peso="principal"

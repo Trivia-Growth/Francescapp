@@ -30,7 +30,7 @@ import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
 import type { ServicoTurnoHttp } from './servico-turno-http.js';
@@ -91,7 +91,7 @@ function SelecaoProfissionais({
   desabilitado: boolean;
 }) {
   return (
-    <SelecaoSimples
+    <SelecaoAprimorada
       id={id}
       name="profissional"
       rotulo={rotulo}
@@ -106,7 +106,7 @@ function SelecaoProfissionais({
           {pessoa.rotulo}
         </option>
       ))}
-    </SelecaoSimples>
+    </SelecaoAprimorada>
   );
 }
 
@@ -378,7 +378,7 @@ function TelaEscalaTurno({
                       onInput={avisarPendencia}
                       aoEnviar={(formulario) => enviarAlteracao(formulario, atual)}
                     >
-                      <SelecaoSimples
+                      <SelecaoAprimorada
                         id={`escala-tipo-${atual.escala_id}`}
                         name="tipo"
                         rotulo="Tipo de alteração"
@@ -388,7 +388,7 @@ function TelaEscalaTurno({
                       >
                         <option value="substituicao">Substituição</option>
                         <option value="cobertura">Cobertura de ausência</option>
-                      </SelecaoSimples>
+                      </SelecaoAprimorada>
                       <SelecaoProfissionais
                         id={`escala-pessoa-${atual.escala_id}`}
                         rotulo="Profissional que assumirá"

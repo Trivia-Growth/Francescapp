@@ -43,6 +43,7 @@ import {
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Botao } from './componentes/ui/botao.js';
+import { CampoData } from './componentes/ui/campo-data.js';
 import { Campo } from './componentes/ui/campo.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { MarcaEstado } from './componentes/ui/marca-estado.js';
@@ -618,10 +619,9 @@ function TelaPlanoCrise({
             placeholder="O que este serviço faz e o que não faz em uma crise."
             defaultValue={plano?.conteudo.limites_servico ?? ''}
           />
-          <Campo
+          <CampoData
             id={ID_REVISAO}
             rotulo="Data de revisão"
-            tipo="date"
             defaultValue={plano?.conteudo.data_revisao ?? ''}
           />
           <p className="m-0 text-(length:--texto-1) text-texto-suave empty:hidden">{prazo}</p>
