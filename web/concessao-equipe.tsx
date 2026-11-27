@@ -26,7 +26,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ClienteFFCM } from './api.js';
-import { Botao } from './componentes/ui/botao.js';
+import { Botao, classesBotao } from './componentes/ui/botao.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { EstadoErro } from './componentes/ui/estado-erro.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
@@ -189,15 +189,24 @@ function TelaConcessaoEquipe({ api }: { api: ClienteFFCM }) {
         titulo="Equipe"
         descricao="Quem já tem acesso ao sistema. Conceder e revogar continua sendo decidido no servidor."
         acao={
-          <Botao
-            peso="secundario"
-            disabled={carregandoLista}
-            aria-busy={carregandoLista || undefined}
-            aoAtivar={() => void carregarLista()}
-          >
-            Atualizar lista
-            {carregandoLista ? <Indicador /> : null}
-          </Botao>
+          <div className="flex flex-wrap gap-2">
+            {/* Convidar é página própria (fatia 7): o link só navega; quem concede é o servidor. */}
+            <a
+              href="#administracao/convidar-equipe"
+              className={classesBotao({ peso: 'principal' })}
+            >
+              Convidar alguém
+            </a>
+            <Botao
+              peso="secundario"
+              disabled={carregandoLista}
+              aria-busy={carregandoLista || undefined}
+              aoAtivar={() => void carregarLista()}
+            >
+              Atualizar lista
+              {carregandoLista ? <Indicador /> : null}
+            </Botao>
+          </div>
         }
       >
         <div className="grid gap-4">

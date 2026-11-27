@@ -135,6 +135,28 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
+/** A Equipe (com a tabela da fatia 5) leva à página de convite por um link, com a folha carregada. */
+for (const viewport of VIEWPORTS) {
+  test(`Equipe mostra a tabela e o link para convidar (${viewport.nome})`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await page.goto(`${origem}${PAGINA}?tela=equipe`);
+    const link = page.getByRole('link', { name: 'Convidar alguém' });
+    await expect(link).toHaveAttribute('href', '#administracao/convidar-equipe');
+    await expect(link).toHaveCSS('border-top-left-radius', '999px');
+    await expect(link).toHaveCSS('background-color', 'rgb(71, 84, 54)');
+    if (viewport.width >= 720) {
+      await expect(page.getByRole('table')).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Pessoa' })).toBeVisible();
+    } else {
+      await expect(page.getByRole('table')).toBeHidden();
+    }
+    await expect(
+      page.getByText('equipe.ficticia@example.test').locator('visible=true'),
+    ).toHaveCount(1);
+    await conferirAxe(page, `convidar-equipe — Equipe ${viewport.nome}`);
+  });
+}
+
 /** Capturas para o PR (só com `CAPTURAS=<pasta>`), tiradas com a folha COMPROVADA. */
 test('capturas com a folha carregada', async ({ page }) => {
   const pasta = process.env.CAPTURAS;

@@ -116,3 +116,15 @@ it('diz que a equipe não pôde ser carregada em vez de ficar com a lista muda',
   expect(raiz.querySelector('[aria-busy="true"]')).toBeNull();
   expect(linhasDaEquipe(raiz)).toHaveLength(0);
 });
+
+it('oferece o link para a página própria de convite', async () => {
+  const raiz = document.createElement('div');
+  const api = {
+    identidadeAtual: () => ({ usuario_id: ator, session_id: ator }),
+    listarProfissionais: vi.fn().mockResolvedValue({ itens: [], proximo_cursor: null }),
+  } as unknown as ClienteFFCM;
+  montarConcessaoEquipe(raiz, api);
+  await vi.waitFor(() =>
+    expect(raiz.querySelector('a[href="#administracao/convidar-equipe"]')).not.toBeNull(),
+  );
+});
