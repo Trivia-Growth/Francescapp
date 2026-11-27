@@ -3,7 +3,7 @@
  * Não entra no pacote de produção: `vite build web` tem `index.html` como única entrada,
  * então este arquivo só existe no servidor de desenvolvimento. É andaime de revisão, e sai
  * junto com o resto do andaime na Fase 7. */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Aba, Abas, FaixaAbas, PainelAba } from './componentes/ui/abas';
 import { AreaTexto } from './componentes/ui/area-texto';
 import { Botao } from './componentes/ui/botao';
@@ -16,6 +16,7 @@ import { MarcaEstado } from './componentes/ui/marca-estado';
 import { SelecaoSimples } from './componentes/ui/selecao-simples';
 import { Superficie } from './componentes/ui/superficie';
 import { ilha } from './ponte/ilha';
+import { Formulario } from './telas/formulario';
 
 type Pessoa = {
   id: string;
@@ -59,6 +60,14 @@ const colunas: ReadonlyArray<Coluna<Pessoa>> = [
 function Vitrine() {
   const [dialogoAberto, definirDialogo] = useState(false);
   const [longoAberto, definirLongo] = useState(false);
+  const [salvando, definirSalvando] = useState(false);
+  const [enviosAceitos, definirEnviosAceitos] = useState(0);
+
+  useEffect(() => {
+    if (!salvando) return;
+    const espera = window.setTimeout(() => definirSalvando(false), 2000);
+    return () => window.clearTimeout(espera);
+  }, [salvando]);
 
   return (
     <main className="mx-auto grid max-w-[1100px] gap-6 p-5">
@@ -99,6 +108,10 @@ function Vitrine() {
           <Botao peso="principal" disabled>
             Indisponível
           </Botao>
+          <Botao peso="perigo">Remover</Botao>
+          <Botao peso="principal" salvando>
+            Salvar
+          </Botao>
           <Botao peso="secundario" aoAtivar={() => definirDialogo(true)}>
             Abrir diálogo
           </Botao>
@@ -108,8 +121,24 @@ function Vitrine() {
         </div>
       </Superficie>
 
+      <Superficie titulo="Marcas de estado">
+        <div className="flex flex-wrap items-center gap-sistema-2">
+          <MarcaEstado>Em acompanhamento</MarcaEstado>
+          <MarcaEstado tom="contorno">Completar cadastro</MarcaEstado>
+          <MarcaEstado tom="suave">3 pendências</MarcaEstado>
+        </div>
+      </Superficie>
+
       <Superficie titulo="Formulário" descricao="Alvo de toque de 46px; campo de 16px no celular.">
-        <div className="grid max-w-[560px] gap-4">
+        <Formulario
+          aria-label="Prévia de gravação"
+          className="grid max-w-formulario gap-4"
+          aoEnviar={() => {
+            if (salvando) return;
+            definirSalvando(true);
+            definirEnviosAceitos((quantidade) => quantidade + 1);
+          }}
+        >
           <Campo
             id="demo-nome"
             rotulo="Nome completo"
@@ -133,7 +162,20 @@ function Vitrine() {
             dica="Fica registrado na auditoria."
           />
           <Campo id="demo-telefone" rotulo="Telefone" erro="Informe um número com DDD." />
-        </div>
+          <div className="flex flex-wrap items-center gap-sistema-2">
+            <Botao
+              peso="principal"
+              tipo="submit"
+              salvando={salvando}
+              className="max-intermediaria:w-full"
+            >
+              Salvar
+            </Botao>
+            <output className="text-meta">
+              {enviosAceitos > 0 ? `Envios aceitos: ${enviosAceitos}` : ''}
+            </output>
+          </div>
+        </Formulario>
       </Superficie>
 
       <Superficie titulo="Abas" descricao="Trocar de aba não remonta a página.">

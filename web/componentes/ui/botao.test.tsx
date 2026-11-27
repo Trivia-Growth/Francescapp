@@ -1,21 +1,25 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
 import usuario from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
+import { Formulario } from '../../telas/formulario.js';
 import { Botao } from './botao.js';
 
 afterEach(cleanup);
 
-it('tem os três pesos do domínio e o secundário é o padrão', () => {
+it('tem os pesos do domínio e o secundário é o padrão', () => {
   render(
     <>
       <Botao peso="principal">Salvar</Botao>
       <Botao>Voltar</Botao>
       <Botao peso="discreto">Esqueci a senha</Botao>
+      <Botao peso="perigo">Excluir</Botao>
     </>,
   );
   expect(screen.getByRole('button', { name: 'Salvar' }).dataset.peso).toBe('principal');
   expect(screen.getByRole('button', { name: 'Voltar' }).dataset.peso).toBe('secundario');
+  expect(screen.getByRole('button', { name: 'Excluir' }).dataset.peso).toBe('perigo');
   expect(screen.getByRole('button', { name: 'Esqueci a senha' }).dataset.peso).toBe('discreto');
 });
 
@@ -30,10 +34,10 @@ it('o peso muda a aparência, e só o discreto sublinha', () => {
   const principal = screen.getByRole('button', { name: 'Salvar' }).className;
   const secundario = screen.getByRole('button', { name: 'Voltar' }).className;
   const discreto = screen.getByRole('button', { name: 'Esqueci a senha' }).className;
-  expect(principal).toContain('bg-primaria');
-  expect(principal).toContain('text-contraste');
-  expect(secundario).toContain('border-borda-forte');
-  expect(secundario).toContain('text-primaria');
+  expect(principal).toContain('bg-sistema-acao');
+  expect(principal).toContain('text-sistema-superficie');
+  expect(secundario).toContain('border-sistema-contorno');
+  expect(secundario).toContain('text-sistema-acao');
   expect(discreto).toContain(' underline ');
   expect(discreto).toContain('underline-offset-[0.2em]');
   expect(principal).toContain('no-underline');
@@ -41,11 +45,11 @@ it('o peso muda a aparência, e só o discreto sublinha', () => {
 });
 
 it('o tamanho de fonte sobrevive à junção com a cor', () => {
-  // `text-2` ao lado de `text-contraste` era descartado pelo tailwind-merge padrão.
+  // O tailwind-merge padrão confundia a escala tipográfica personalizada com cor.
   render(<Botao peso="principal">Salvar</Botao>);
   const classes = screen.getByRole('button').className;
-  expect(classes).toContain('--texto-2');
-  expect(classes).toContain('text-contraste');
+  expect(classes).toContain('text-controle');
+  expect(classes).toContain('text-sistema-superficie');
 });
 
 it('nenhuma variante escreve cor literal', () => {
@@ -63,7 +67,7 @@ it('nenhuma variante escreve cor literal', () => {
 
 it('o alvo de toque é o controle padrão de 46px, pelo token', () => {
   render(<Botao>Salvar</Botao>);
-  expect(screen.getByRole('button').className).toContain('min-h-controle-md');
+  expect(screen.getByRole('button').className).toContain('min-h-alvo-toque');
 });
 
 it('largo ocupa a linha inteira; sem ele, não', () => {
@@ -111,16 +115,18 @@ it('os dois caminhos de desabilitado recebem o mesmo recuo e o mesmo cursor', ()
   );
   const porDisabled = screen.getByRole('button', { name: 'Salvar' }).className;
   const porAria = screen.getByRole('button', { name: 'Voltar' }).className;
-  expect(porDisabled).toContain('disabled:opacity-[0.62]');
+  expect(porDisabled).toContain('disabled:opacity-100');
   expect(porDisabled).toContain('disabled:cursor-not-allowed');
-  expect(porAria).toContain('[&[aria-disabled=true]]:opacity-[0.62]');
-  expect(porAria).toContain('[&[aria-disabled=true]]:cursor-not-allowed');
+  expect(porAria).toContain('aria-disabled:opacity-100');
+  expect(porAria).toContain('aria-disabled:cursor-not-allowed');
 });
 
 it('o hover não acende botão desabilitado por nenhum dos dois caminhos', () => {
   render(<Botao peso="principal">Salvar</Botao>);
   const classes = screen.getByRole('button').className;
-  expect(classes).toContain('[&:hover:not(:disabled):not([aria-disabled=true])]:bg-primaria-hover');
+  expect(classes).toContain(
+    '[&:hover:not(:active):not(:disabled):not([aria-disabled=true])]:bg-sistema-acao-hover',
+  );
 });
 
 it('não anula o foco visível global', async () => {
@@ -153,4 +159,37 @@ it('o tipo padrão é button; submeter é pedido explícito', () => {
   );
   expect(screen.getByRole('button', { name: 'Voltar' }).getAttribute('type')).toBe('button');
   expect(screen.getByRole('button', { name: 'Enviar' }).getAttribute('type')).toBe('submit');
+});
+
+it('mantém o foco e bloqueia o segundo envio por clique, Enter e submit direto', async () => {
+  const gravar = vi.fn();
+  const aoAtivar = vi.fn();
+  function Edicao() {
+    const [salvando, definirSalvando] = useState(false);
+    return (
+      <Formulario
+        aria-label="Edição"
+        aoEnviar={() => {
+          if (salvando) return;
+          gravar();
+          definirSalvando(true);
+        }}
+      >
+        <Botao tipo="submit" aoAtivar={aoAtivar} salvando={salvando}>
+          Salvar
+        </Botao>
+      </Formulario>
+    );
+  }
+  const pessoa = usuario.setup();
+  render(<Edicao />);
+  const botao = screen.getByRole('button', { name: 'Salvar' });
+  await pessoa.dblClick(botao);
+  expect(screen.getByRole('button', { name: 'Salvando…' })).toBe(botao);
+  expect(botao.getAttribute('aria-disabled')).toBe('true');
+  expect(document.activeElement).toBe(botao);
+  await pessoa.keyboard('{Enter}');
+  fireEvent.submit(screen.getByRole('form', { name: 'Edição' }));
+  expect(aoAtivar).toHaveBeenCalledTimes(1);
+  expect(gravar).toHaveBeenCalledTimes(1);
 });

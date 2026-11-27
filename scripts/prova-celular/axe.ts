@@ -34,13 +34,19 @@ for (const excecao of excecoes) {
 /** Exceções que bateram em alguma violação nesta execução do processo de teste. */
 const usadas = new Set<Excecao>();
 
-export async function conferirAxe(page: Page, rotulo: string): Promise<ResultadoAxe> {
+export async function conferirAxe(
+  page: Page,
+  rotulo: string,
+  escopo?: string,
+): Promise<ResultadoAxe> {
   // Contraste medido no meio de uma transição (abertura do diálogo, foco) dá falso positivo
   // que varia com a velocidade da máquina: espera as animações e transições terminarem.
   await page.evaluate(() =>
     Promise.all(document.getAnimations().map((animacao) => animacao.finished.catch(() => null))),
   );
-  const analise = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+  const axe = new AxeBuilder({ page }).withTags(TAGS);
+  if (escopo) axe.include(escopo);
+  const analise = await axe.analyze();
   const resultado: ResultadoAxe = { rotulo, violacoes: [], toleradas: [] };
   for (const violacao of analise.violations) {
     for (const no of violacao.nodes) {

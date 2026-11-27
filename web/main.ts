@@ -281,12 +281,7 @@ const toggleSidebar = elemento<HTMLButtonElement>('toggle-sidebar');
 const patientsSidebar = elemento('patients-sidebar');
 const sidebarBackdrop = elemento('sidebar-backdrop');
 const collapseSidebar = elemento<HTMLButtonElement>('collapse-sidebar');
-const closeSidebar = document.createElement('button');
-closeSidebar.id = 'close-sidebar';
-closeSidebar.className = 'sidebar-close';
-closeSidebar.type = 'button';
-closeSidebar.textContent = 'Fechar menu';
-patientsSidebar.prepend(closeSidebar);
+const closeSidebar = elemento<HTMLButtonElement>('close-sidebar');
 // FR-072: sino de avisos na barra superior, ao lado do botão da gaveta. Fica FORA da
 // gaveta de propósito: a gaveta é navegação com armadilha de foco própria, e um painel
 // transitório dentro dela mudaria essa ordem de foco. Aqui o sino continua ao alcance do
@@ -318,34 +313,16 @@ function ajustarAvisos(atual: Sessao | null): void {
 const mobileSidebar = () => window.innerWidth <= 760;
 let elementosInertes: { elemento: HTMLElement; anterior: boolean }[] = [];
 
-for (const [id, caminho] of [
-  ['nav-home', 'M3 10 12 3l9 7v10h-6v-6H9v6H3z'],
-  ['nav-carteira', 'M4 20v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2M12 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
-  ['nav-administracao', 'M12 3 4 7v5c0 5 3 8 8 9 5-1 8-4 8-9V7z'],
-  ['nav-regras', 'M5 4h14v16H5z M8 8h8 M8 12h8 M8 16h5'],
-] as const) {
+for (const id of ['nav-home', 'nav-carteira', 'nav-administracao', 'nav-regras']) {
   const link = elemento<HTMLAnchorElement>(id);
   const nome = link.textContent?.trim() ?? '';
   link.setAttribute('aria-label', nome);
-  const icone = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  icone.classList.add('sidebar-icon');
-  icone.setAttribute('viewBox', '0 0 24 24');
-  icone.setAttribute('aria-hidden', 'true');
-  icone.setAttribute('fill', 'none');
-  icone.setAttribute('stroke', 'currentColor');
-  icone.setAttribute('stroke-width', '1.7');
-  const forma = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  forma.setAttribute('d', caminho);
-  icone.append(forma);
-  const rotulo = document.createElement('span');
-  rotulo.className = 'sidebar-link-label';
-  rotulo.textContent = nome;
   const tooltip = document.createElement('span');
   tooltip.className = 'sidebar-tooltip';
   tooltip.textContent = nome;
   tooltip.hidden = true;
   tooltip.setAttribute('aria-hidden', 'true');
-  link.replaceChildren(icone, rotulo, tooltip);
+  link.append(tooltip);
   const mostrarTooltip = () => {
     tooltip.hidden = !document.body.classList.contains('sidebar-collapsed') || mobileSidebar();
   };
@@ -418,10 +395,6 @@ function aplicarNavegacaoRecolhida(recolhida: boolean): void {
     'aria-label',
     recolhida ? 'Expandir navegação' : 'Recolher navegação',
   );
-  // Por classe, não por `querySelector('span')`: agora há dois filhos, e a busca pelo
-  // primeiro passaria a depender da ordem do HTML.
-  const sinal = collapseSidebar.querySelector('.sidebar-collapse-sinal');
-  if (sinal) sinal.textContent = recolhida ? '›' : '‹';
   const rotulo = collapseSidebar.querySelector('.sidebar-collapse-rotulo');
   if (rotulo) rotulo.textContent = recolhida ? 'Expandir' : 'Recolher';
 }

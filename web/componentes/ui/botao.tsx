@@ -1,18 +1,8 @@
+import { cva } from 'class-variance-authority';
 import type { ComponentPropsWithRef, MouseEvent, ReactNode } from 'react';
 import { juntar } from './juntar.js';
 
-/** Botão da aplicação: três pesos e só três — a ação do assunto, a alternativa e o
- *  comando discreto (`web/estilos/ui.css:59-61`).
- *
- *  Os nomes de variante são os do domínio e chegam ao DOM como `data-peso`, porque telas
- *  e testes já procuram por eles (`componentes.md:35-44`). A altura mínima vem de
- *  `--controle-md` (46px), o alvo de toque confortável, e não de um número escrito aqui.
- *
- *  Desabilitado é um par: `:disabled` **e** `[aria-disabled="true"]`. O segundo mantém o
- *  botão focável e anunciável, então ele não pode acender no hover nem ativar a ação —
- *  hoje cada tela repete essa guarda à mão (`web/main.ts:2914`). */
-
-export type PesoBotao = 'principal' | 'secundario' | 'discreto';
+export type PesoBotao = 'principal' | 'secundario' | 'discreto' | 'perigo';
 
 /* `ComponentPropsWithRef` e não `ButtonHTMLAttributes`, pelo mesmo motivo do `Campo`: o
    segundo não inclui `ref`, e sem referência um botão não pode receber foco inicial por
@@ -25,6 +15,8 @@ export type PropsBotao = Omit<ComponentPropsWithRef<'button'>, 'type'> & {
   tipo?: 'button' | 'submit';
   /** Ocupa a largura inteira do contêiner. */
   largo?: boolean;
+  /** Mantém o foco e a largura enquanto a gravação está pendente. */
+  salvando?: boolean;
   /** Vira `data-acao`, o gancho que os testes de tela já usam. */
   marca?: string;
   /** Vira `aria-label` quando o rótulo visível não basta para quem ouve. */
@@ -34,64 +26,74 @@ export type PropsBotao = Omit<ComponentPropsWithRef<'button'>, 'type'> & {
   children: ReactNode;
 };
 
-/* `text-(length:--texto-N)` e não `text-N`: `juntar` usa a configuração padrão do
-   tailwind-merge, que não conhece a escala tipográfica da Francescato e classifica
-   `text-1`/`text-2` como COR. Escritos junto de `text-texto` ou `text-contraste`, eles
-   eram descartados na junção e o controle perdia o tamanho de fonte — no campo isso
-   significa o iOS dar zoom ao focar. A forma com tipo explícito cai no grupo certo.
-   A correção definitiva é ensinar a escala ao `juntar`, fora do alcance desta frente. */
-/* Nada de `outline-none` nem `ring-0`: o foco visível é global
-   (`web/styles.css:157-160`) e substituí-lo aqui seria perdê-lo. */
-const base = juntar(
-  'inline-flex items-center justify-center gap-2',
-  'min-h-controle-md px-[18px] py-[10px]',
-  'rounded-controle border border-transparent',
-  'font-sans text-(length:--texto-2) font-semibold leading-[1.4] text-center no-underline',
-  'cursor-pointer transition-colors ease-entrada [transition-duration:var(--mov-estado)]',
-  // Desabilitado pelos dois caminhos, com a mesma opacidade de `ui.css:103-107`.
-  'disabled:cursor-not-allowed disabled:opacity-[0.62]',
-  '[&[aria-disabled=true]]:cursor-not-allowed [&[aria-disabled=true]]:opacity-[0.62]',
-  '[&:not(:disabled):not([aria-disabled=true]):active]:translate-y-px',
+const estiloBotao = cva(
+  [
+    'inline-flex min-h-alvo-toque items-center justify-center gap-sistema-2',
+    'rounded-pilula border border-transparent px-sistema-4 py-2.5',
+    'font-sans text-controle text-center no-underline',
+    'cursor-pointer transition-colors ease-out [transition-duration:var(--movimento-controle)]',
+    'focus-visible:outline-sistema-foco focus-visible:[outline-width:var(--espessura-foco)] focus-visible:[outline-offset:var(--recuo-foco)]',
+    'disabled:cursor-not-allowed disabled:opacity-100 disabled:bg-sistema-fundo-desabilitado disabled:text-sistema-desabilitado',
+    'aria-disabled:cursor-not-allowed aria-disabled:opacity-100 aria-disabled:bg-sistema-fundo-desabilitado aria-disabled:text-sistema-desabilitado',
+  ],
+  {
+    variants: {
+      peso: {
+        principal: [
+          'bg-sistema-acao text-sistema-superficie',
+          '[&:hover:not(:active):not(:disabled):not([aria-disabled=true])]:bg-sistema-acao-hover',
+          '[&:active:not(:disabled):not([aria-disabled=true])]:bg-sistema-acao-pressionada',
+        ],
+        secundario: [
+          'border-sistema-contorno bg-sistema-superficie text-sistema-acao',
+          '[&:hover:not(:active):not(:disabled):not([aria-disabled=true])]:bg-sistema-hoje',
+          '[&:active:not(:disabled):not([aria-disabled=true])]:bg-sistema-fundo-desabilitado',
+        ],
+        discreto: [
+          'bg-transparent text-sistema-acao underline underline-offset-[0.2em]',
+          '[&:hover:not(:active):not(:disabled):not([aria-disabled=true])]:bg-sistema-hoje',
+          '[&:active:not(:disabled):not([aria-disabled=true])]:bg-sistema-fundo-desabilitado',
+        ],
+        perigo: [
+          'bg-sistema-erro text-sistema-superficie',
+          '[&:hover:not(:active):not(:disabled):not([aria-disabled=true])]:bg-sistema-perigo-hover',
+          '[&:active:not(:disabled):not([aria-disabled=true])]:bg-sistema-perigo-pressionada',
+        ],
+      } satisfies Record<PesoBotao, string[]>,
+      largo: { true: 'w-full' },
+    },
+    defaultVariants: { peso: 'secundario' },
+  },
 );
-
-const porPeso: Record<PesoBotao, string> = {
-  principal: juntar(
-    'bg-primaria text-contraste',
-    '[&:hover:not(:disabled):not([aria-disabled=true])]:bg-primaria-hover',
-  ),
-  secundario: juntar(
-    'border-borda-forte bg-superficie text-primaria',
-    '[&:hover:not(:disabled):not([aria-disabled=true])]:bg-superficie-3',
-  ),
-  discreto: juntar(
-    'px-2 bg-transparent text-primaria underline underline-offset-[0.2em]',
-    '[&:hover:not(:disabled):not([aria-disabled=true])]:bg-superficie-3',
-    '[&:hover:not(:disabled):not([aria-disabled=true])]:no-underline',
-  ),
-};
 
 /** As classes do botão, para quem monta o `<button>` fora do React — hoje só
  *  `ponte/botao-imperativo.ts`, enquanto a tela que o hospeda não migra (ver lá o motivo).
  *  Única fonte da aparência: aqui ou lá, nunca as duas. */
-export function classesBotao(opcoes: {
+export function classesBotao({
+  peso,
+  largo,
+  className,
+}: {
   peso?: PesoBotao;
   largo?: boolean;
   className?: string;
 }): string {
-  const peso = opcoes.peso ?? 'secundario';
-  return juntar(base, porPeso[peso], opcoes.largo && 'w-full', opcoes.className);
+  return juntar(estiloBotao({ peso, largo }), className);
 }
 
 export function Botao({
   peso = 'secundario',
   tipo = 'button',
   largo,
+  salvando,
   marca,
   rotuloLeitura,
   aoAtivar,
   onClick,
   className,
   children,
+  'aria-disabled': ariaDisabled,
+  'aria-label': ariaLabel,
   ...resto
 }: PropsBotao) {
   const acionar = aoAtivar ?? onClick;
@@ -100,7 +102,8 @@ export function Botao({
       type={tipo}
       data-peso={peso}
       data-acao={marca}
-      aria-label={rotuloLeitura}
+      aria-label={salvando ? 'Salvando…' : (ariaLabel ?? rotuloLeitura)}
+      aria-disabled={salvando || ariaDisabled}
       className={classesBotao({ peso, largo, className })}
       onClick={(evento) => {
         // Focável e anunciável, mas inerte: sem isto a ação dispara mesmo desabilitada.
@@ -112,7 +115,29 @@ export function Botao({
       }}
       {...resto}
     >
-      {children}
+      {salvando === undefined ? (
+        children
+      ) : (
+        // As duas legendas medem a mesma célula desde o repouso. Trocar de legenda
+        // conserva a largura e o próprio nó focado.
+        <span className="inline-grid items-center">
+          <span
+            aria-hidden={salvando}
+            className={juntar(
+              'col-start-1 row-start-1 inline-flex items-center justify-center gap-sistema-2',
+              salvando && 'invisible',
+            )}
+          >
+            {children}
+          </span>
+          <span
+            aria-hidden={!salvando}
+            className={juntar('col-start-1 row-start-1', !salvando && 'invisible')}
+          >
+            Salvando…
+          </span>
+        </span>
+      )}
     </button>
   );
 }

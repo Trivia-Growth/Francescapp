@@ -2,6 +2,33 @@
 
 **Atualizado em:** 27/11/2026 · **Branch:** `codex/remover-web-ui` · **Por:** Codex
 
+## Fatia 4 do plano visual — primitivas e ícones
+
+Na branch `codex/primitivas-sistema`, sobre `12bfb81`, Botão, Campo e
+MarcaEstado usam cva e os tokens do SISTEMA §§2, 3 e 6. Configuração do
+sistema faz uso do estado “Salvando…”. A casca mantém a navegação existente
+com ícones Lucide e o sino apresenta o texto visível no nome acessível.
+
+- Chromium 159 validou pílula de 999 px, tamanho 16/24 e alvo mínimo de
+  46 px nos controles a 390 e 1440 px. Cliques repetidos, Enter e
+  `requestSubmit()` não admitiram outro envio pendente na galeria.
+- Ao remover a guarda de `aria-disabled`, o teste contou três ativações
+  em vez de uma. Restaurar o nome anterior do sino reproduziu
+  `label-content-name-mismatch` em Auditoria. Ambas as contraprovas
+  foram revertidas.
+- O axe da galeria mede os três componentes. Em varredura integral,
+  as linhas acionáveis da Lista apresentaram divergência entre nome
+  acessível e texto visível. O achado pertence à fatia 5.
+- A primeira tentativa com `aria-label` ainda falhou em seis páginas.
+  O nome nativo do botão passou nas seis em Chromium após o rebase.
+  O relatório de 30 varreduras ficou com zero violações e zero exceções.
+- O teste da ponte imperativa passou ao conferir o mesmo contrato do Botão.
+  Build, Trusted Types e o caso positivo e negativo de acesso a paciente
+  em PostgreSQL 17 descartável passaram. A prova SQL simula Auth e Vault.
+- Próximo passo: CI de ativação no PR #47 e aprovação das capturas pelo dono.
+
+Leituras do catálogo Estado emocional via TanStack Query (#48): QueryClient único, chave por conta+sessão, clear() na revogação/novo acesso/saída, retenção de 5 min.
+
 ## Fatia 3 do plano visual — tokens do SISTEMA
 
 Na branch `codex/tokens-sistema`, sobre `a8a3f8a`, o `@theme` expõe os

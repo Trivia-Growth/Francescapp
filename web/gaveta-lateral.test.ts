@@ -100,7 +100,8 @@ it('abre e fecha a gaveta lateral no celular — botão, fundo, Escape e navega�
   const collapse = document.getElementById('collapse-sidebar') as HTMLButtonElement;
   expect(document.activeElement).toBe(collapse);
   collapse.click();
-  expect(collapse.textContent).toContain('›');
+  expect(collapse.getAttribute('aria-label')).toBe('Expandir navegação');
+  expect(collapse.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
   expect(home.getAttribute('aria-label')).toBe('Seu dia');
   expect(document.body.classList.contains('sidebar-collapsed')).toBe(true);
   expect(collapse.getAttribute('aria-expanded')).toBe('false');
