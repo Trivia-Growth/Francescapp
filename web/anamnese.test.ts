@@ -1,7 +1,32 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { it, expect, vi } from 'vitest';
-import { lerRoteiroAnamnese, montarAnamnese } from './anamnese.js';
+import { lerRoteiroAnamnese, TelaAnamnese } from './anamnese.js';
 import { FalhaApi } from './api.js';
+
+function montarAnamnese(
+  raiz: HTMLElement,
+  pacienteId: ComponentProps<typeof TelaAnamnese>['pacienteId'],
+  servico: ComponentProps<typeof TelaAnamnese>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaAnamnese>['acessoPerdido'],
+  alteracaoPendente: ComponentProps<typeof TelaAnamnese>['alteracaoPendente'] = () => {},
+  historicoHabilitado: ComponentProps<typeof TelaAnamnese>['historicoHabilitado'] = false,
+  roteiroSugerido: ComponentProps<typeof TelaAnamnese>['roteiroSugerido'] = [],
+) {
+  const painel = render(
+    createElement(TelaAnamnese, {
+      pacienteId,
+      servico,
+      acessoPerdido,
+      alteracaoPendente,
+      historicoHabilitado,
+      roteiroSugerido,
+    }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
 
 it('atualiza pendências ao alterar estado no rascunho', async () => {
   const raiz = document.createElement('div');

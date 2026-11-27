@@ -61,7 +61,6 @@ import { dataDeInstante } from './datas.js';
 import './estilos/tema.css';
 import { hashFicha, type PacienteFicha } from './ficha-paciente.js';
 import type { ObjetivoAtual, Pagina, ServicoPlanoCuidado } from './plano-cuidado.js';
-import { ilha } from './ponte/ilha.js';
 import type { ServicoTarefasCuidado } from './tarefas-cuidado.js';
 
 /** Fontes consultadas pela visão. Fonte ausente significa que o perfil não a lê: o bloco nem aparece. */
@@ -288,7 +287,7 @@ function Bloco<T>({
   );
 }
 
-function TelaVisaoCaso({
+export function TelaVisaoCaso({
   paciente,
   fontes,
   acessoPerdido,
@@ -539,14 +538,3 @@ function TelaVisaoCaso({
 }
 
 /** Compõe o caso a partir dos serviços que já existem; cada bloco carrega, falha e tenta de novo sozinho. */
-export function montarVisaoCaso(
-  raiz: HTMLElement,
-  paciente: PacienteFicha,
-  fontes: FontesVisaoCaso,
-  acessoPerdido: (erro: unknown) => boolean,
-): () => void {
-  return ilha(
-    raiz,
-    <TelaVisaoCaso paciente={paciente} fontes={fontes} acessoPerdido={acessoPerdido} />,
-  );
-}

@@ -1,7 +1,22 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
 import { aguardarConfirmacao } from './confirmacao-prova.js';
-import { montarEncaminhamentos } from './encaminhamentos.tsx';
+import { TelaEncaminhamentos } from './encaminhamentos.tsx';
+
+function montarEncaminhamentos(
+  raiz: HTMLElement,
+  pacienteId: ComponentProps<typeof TelaEncaminhamentos>['pacienteId'],
+  servico: ComponentProps<typeof TelaEncaminhamentos>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaEncaminhamentos>['acessoPerdido'],
+) {
+  const painel = render(
+    createElement(TelaEncaminhamentos, { pacienteId, servico, acessoPerdido }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
 
 const registro = (sobrepor: Record<string, unknown> = {}) => ({
   encaminhamento_id: '00000000-0000-4000-8000-000000000001',

@@ -2,6 +2,22 @@
 
 **Atualizado em:** 27/11/2026 · **Branch:** `codex/remover-web-ui` · **Por:** Codex
 
+## Fatia 8e do plano visual — primeiras seções da ficha
+
+Visão do caso, Linha do tempo, Dados do paciente, Orientações, Encaminhamentos,
+Acesso da família, Saúde, Plano de crise e Anamnese passam a renderizar no painel
+React da ficha. Os leitores e formulários preservam a montagem sob demanda.
+A tarefa 7.2 permanece aberta.
+
+- A coordenação confirmou que o aceite é eliminar as montagens que escrevem
+  no DOM e remover `web/ponte/ilha.ts`. Os seis geradores puros de
+  HTML, JSON e ZIP em `web/pacote-exportacao.ts` preservam seus nomes.
+- 68 testes das nove telas, 12 cenários Chromium e lint/typecheck passaram.
+- Após a troca para Plano, liberar a importação de Anamnese manteve Plano como
+  única seção e não emitiu GET do registro de Anamnese. Sem a guarda de geração,
+  o painel ativo passou a exibir `data-secao="anamnese"`. Alteração revertida.
+- Próximo passo: rebase após o squash do PR #55 e ativação da fatia.
+
 ## Fatia 8d do plano visual — moldura da ficha
 
 Cabeçalho, abas, atalhos e painel da ficha passam para a raiz da casca. A ficha

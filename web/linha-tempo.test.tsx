@@ -1,9 +1,23 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { fireEvent } from '@testing-library/dom';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ItemLinhaTempo, LinhaTempo } from '../packages/contracts/src/linha-tempo.js';
 import { FalhaApi } from './api.js';
-import { montarLinhaTempo, type ServicoLinhaTempo } from './linha-tempo.js';
+import { TelaLinhaTempo, type ServicoLinhaTempo } from './linha-tempo.js';
+
+function montarLinhaTempo(
+  raiz: HTMLElement,
+  pacienteId: ComponentProps<typeof TelaLinhaTempo>['pacienteId'],
+  servico: ComponentProps<typeof TelaLinhaTempo>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaLinhaTempo>['acessoPerdido'],
+) {
+  const painel = render(createElement(TelaLinhaTempo, { pacienteId, servico, acessoPerdido }), {
+    container: raiz,
+  });
+  return () => painel.rerender(null);
+}
 
 const pacienteId = '10000000-0000-4000-8000-000000000001';
 

@@ -22,12 +22,11 @@ import { mensagemFalha, type ClienteFFCM } from './api.js';
 import { Botao } from './componentes/ui/botao.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 
 type ServicoDadosFamiliar = Pick<ClienteFFCM, 'consultarPacienteFamiliar'>;
 type PacienteFamiliar = Awaited<ReturnType<ClienteFFCM['consultarPacienteFamiliar']>>;
 
-function TelaDadosFamiliar({
+export function TelaDadosFamiliar({
   pacienteId,
   servico,
   acessoPerdido,
@@ -118,14 +117,3 @@ function TelaDadosFamiliar({
 }
 
 /** Dados que a conta de família pode consultar do paciente vinculado. */
-export function montarDadosFamiliar(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: ServicoDadosFamiliar,
-  acessoPerdido: (erro: unknown) => boolean,
-): () => void {
-  return ilha(
-    raiz,
-    <TelaDadosFamiliar pacienteId={pacienteId} servico={servico} acessoPerdido={acessoPerdido} />,
-  );
-}

@@ -56,7 +56,6 @@ import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { dataDeInstante } from './datas.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 
 export type ServicoLinhaTempo = {
   consultar(pacienteId: string, filtros?: FiltrosLinhaTempo): Promise<LinhaTempo>;
@@ -98,7 +97,7 @@ function Indicador() {
   return <span className="loading-indicator" aria-hidden="true" />;
 }
 
-function TelaLinhaTempo({
+export function TelaLinhaTempo({
   pacienteId,
   servico,
   acessoPerdido,
@@ -345,14 +344,3 @@ function TelaLinhaTempo({
 }
 
 /** Linha do tempo do caso (FR-007). Ver cabeçalho do arquivo. */
-export function montarLinhaTempo(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: ServicoLinhaTempo,
-  acessoPerdido: (erro: unknown) => void,
-): () => void {
-  return ilha(
-    raiz,
-    <TelaLinhaTempo pacienteId={pacienteId} servico={servico} acessoPerdido={acessoPerdido} />,
-  );
-}

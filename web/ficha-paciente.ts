@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import type { SituacaoCaso } from '../packages/contracts/src/index.js';
 
 export type PacienteFicha = {
@@ -11,13 +12,15 @@ export type PacienteFicha = {
 export type SecaoFicha = {
   id: string;
   rotulo: string;
-  /** Sem `montar`, a seção é indicada como indisponível nesta versão, sem dados nem ação.
+  /** Seção carregada sob demanda e renderizada no painel React da ficha. */
+  compor?: (pendente: (pendente: boolean) => void) => Promise<ReactElement>;
+  /** Adaptador para as seções que ainda têm contêiner próprio.
    *
    *  Pode devolver a desmontagem direto ou uma promessa dela. A promessa existe para a
    *  seção poder chegar por importação dinâmica: o código de uma aba só desce quando
    *  alguém abre aquela aba. Seção leve continua síncrona — não há ganho em adiar o que
    *  já está no pacote, e manter as duas formas evita converter o que não precisa. */
-  montar:
+  montar?:
     | ((
         raiz: HTMLElement,
         pendente: (pendente: boolean) => void,

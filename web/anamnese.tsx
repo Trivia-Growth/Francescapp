@@ -55,7 +55,6 @@ import { MarcaEstado } from './componentes/ui/marca-estado.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario } from './telas/formulario.js';
 
 /** Roteiro sugerido de FR-003. Vem do banco (`ffcm.anamnese.roteiro`), editável na tela de
@@ -157,7 +156,7 @@ function Indicador() {
 type Consulta = { fase: 'carregando' } | { fase: 'pronta' } | { fase: 'erro'; erro: unknown };
 type LinhaHistorico = { chave: string; tipo: 'secao' | 'resposta'; texto: string };
 
-function TelaAnamnese({
+export function TelaAnamnese({
   pacienteId,
   servico,
   acessoPerdido,
@@ -799,24 +798,3 @@ function TelaAnamnese({
 }
 
 /** Interface isolada; montagem depende da integração segura do servidor. */
-export function montarAnamnese(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: Servico,
-  acessoPerdido: (erro: unknown) => void,
-  alteracaoPendente: (pendente: boolean) => void = () => {},
-  historicoHabilitado: boolean | Promise<boolean> = false,
-  roteiroSugerido: readonly string[] | Promise<readonly string[]> = [],
-): () => void {
-  return ilha(
-    raiz,
-    <TelaAnamnese
-      pacienteId={pacienteId}
-      servico={servico}
-      acessoPerdido={acessoPerdido}
-      alteracaoPendente={alteracaoPendente}
-      historicoHabilitado={historicoHabilitado}
-      roteiroSugerido={roteiroSugerido}
-    />,
-  );
-}

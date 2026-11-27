@@ -1,8 +1,22 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { FalhaApi } from './api.js';
 import { hashFicha } from './ficha-paciente.js';
-import { montarVisaoCaso, type FontesVisaoCaso } from './visao-caso.js';
+import { TelaVisaoCaso, type FontesVisaoCaso } from './visao-caso.js';
+
+function montarVisaoCaso(
+  raiz: HTMLElement,
+  paciente: ComponentProps<typeof TelaVisaoCaso>['paciente'],
+  fontes: ComponentProps<typeof TelaVisaoCaso>['fontes'],
+  acessoPerdido: ComponentProps<typeof TelaVisaoCaso>['acessoPerdido'],
+) {
+  const painel = render(createElement(TelaVisaoCaso, { paciente, fontes, acessoPerdido }), {
+    container: raiz,
+  });
+  return () => painel.rerender(null);
+}
 
 const id = '10000000-0000-4000-8000-000000000001';
 const paciente = { id, nome: 'Helena Fictícia', nome_preferencia: 'Lena' };

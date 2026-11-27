@@ -1,8 +1,24 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { Saude, SalvarSaude } from '../packages/contracts/src/saude.ts';
-import { montarSaude } from './saude.js';
+import { TelaSaude } from './saude.js';
 import { criarServicoSaudeHttp } from './servico-saude-http.ts';
+
+function montarSaude(
+  raiz: HTMLElement,
+  pacienteId: ComponentProps<typeof TelaSaude>['pacienteId'],
+  servico: ComponentProps<typeof TelaSaude>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaSaude>['acessoPerdido'],
+  alteracaoPendente: ComponentProps<typeof TelaSaude>['alteracaoPendente'] = () => {},
+) {
+  const painel = render(
+    createElement(TelaSaude, { pacienteId, servico, acessoPerdido, alteracaoPendente }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
 
 afterEach(() => {
   document.body.replaceChildren();

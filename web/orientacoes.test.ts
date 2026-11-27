@@ -1,6 +1,22 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
-import { montarOrientacoes } from './orientacoes.tsx';
+import { TelaOrientacoes } from './orientacoes.tsx';
+
+function montarOrientacoes(
+  raiz: HTMLElement,
+  pacienteId: ComponentProps<typeof TelaOrientacoes>['pacienteId'],
+  servico: ComponentProps<typeof TelaOrientacoes>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaOrientacoes>['acessoPerdido'],
+  ehFamilia: ComponentProps<typeof TelaOrientacoes>['ehFamilia'] = false,
+) {
+  const painel = render(
+    createElement(TelaOrientacoes, { pacienteId, servico, acessoPerdido, ehFamilia }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
 
 const vigente = {
   orientacao_id: '00000000-0000-4000-8000-000000000001',

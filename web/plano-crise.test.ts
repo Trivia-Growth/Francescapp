@@ -1,10 +1,24 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { montarPlanoCrise } from './plano-crise';
+import { TelaPlanoCrise } from './plano-crise';
 import { createElement, type ComponentProps } from 'react';
 import { render } from '@testing-library/react';
 import { TelaHabilitacaoPlanoCrise } from './habilitacao-plano-crise';
 import { FalhaApi } from './api';
+
+function montarPlanoCrise(
+  raiz: HTMLElement,
+  pacienteId: ComponentProps<typeof TelaPlanoCrise>['pacienteId'],
+  servico: ComponentProps<typeof TelaPlanoCrise>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaPlanoCrise>['acessoPerdido'],
+  alteracaoPendente: ComponentProps<typeof TelaPlanoCrise>['alteracaoPendente'] = () => {},
+) {
+  const painel = render(
+    createElement(TelaPlanoCrise, { pacienteId, servico, acessoPerdido, alteracaoPendente }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
 
 function montarHabilitacaoPlanoCrise(
   raiz: HTMLElement,

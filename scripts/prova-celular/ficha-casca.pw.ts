@@ -18,7 +18,10 @@ test('módulo antigo da ficha não substitui a seção que permaneceu aberta', a
     await espera;
     await rota.continue();
   });
+  let leiturasAnamnese = 0;
   await page.route('**/api/**', (rota) => {
+    if (new URL(rota.request().url()).pathname === `/api/pacientes/${PACIENTE_IDS[0]}/anamnese`)
+      leiturasAnamnese += 1;
     const fixture = responder(rota.request().url());
     return fixture
       ? rota.fulfill({ json: fixture })
@@ -43,6 +46,7 @@ test('módulo antigo da ficha não substitui a seção que permaneceu aberta', a
   await expect(painel.locator('.ficha-secao')).toHaveAttribute('data-secao', 'plano');
   await expect(page.locator('#ficha-aba-plano')).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeVisible();
+  expect(leiturasAnamnese).toBe(0);
 });
 
 test('primeira renderização da ficha pode ser recuperada pelo mesmo link', async ({ page }) => {

@@ -1,10 +1,26 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { montarCascaParaTeste } from './teste-casca.js';
 import { FalhaApi } from './api.ts';
+
+function montarPreautorizacoesFamiliares(
+  raiz: HTMLElement,
+  pacienteId: ComponentProps<typeof TelaPreautorizacoesFamiliares>['pacienteId'],
+  servico: ComponentProps<typeof TelaPreautorizacoesFamiliares>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaPreautorizacoesFamiliares>['acessoPerdido'],
+) {
+  const painel = render(
+    createElement(TelaPreautorizacoesFamiliares, { pacienteId, servico, acessoPerdido }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
+
 import {
-  montarPreautorizacoesFamiliares,
+  TelaPreautorizacoesFamiliares,
   type Preautorizacao,
   type ServicoPreautorizacoes,
 } from './preautorizacoes-familiares.tsx';
