@@ -65,7 +65,7 @@ import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 import type { ServicoSubstituicaoCaseManager } from './servico-substituicao-cm-http.js';
-import { montarSubstituicaoCaseManager } from './substituicao-case-manager.js';
+import { SecaoSubstituicaoCaseManager } from './substituicao-case-manager.js';
 
 export type ServicoEdicaoPaciente = {
   consultarPaciente(pacienteId: string): Promise<PacienteEdicao>;
@@ -432,18 +432,6 @@ function TelaEdicaoPaciente({
     void enviar(validado.data);
   }
 
-  const substituicaoContainerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (servico.substituicao === undefined || fase !== 'pronta') return;
-    const container = substituicaoContainerRef.current;
-    if (!container) return;
-    const desmontar = montarSubstituicaoCaseManager(container, servico.substituicao, {
-      paciente_id: pacienteId,
-      equipe: equipeNaMontagemRef.current,
-    });
-    return () => desmontar();
-  }, [servico.substituicao, pacienteId, fase]);
-
   if (descartada) return null;
 
   const vigente = paciente?.acompanhamento[0];
@@ -631,8 +619,18 @@ function TelaEdicaoPaciente({
         </Botao>
       ) : null}
 
+      {/* Composta, não montada: antes um efeito montava a seção numa `div` de ref — raiz
+          alheia dentro de um contêiner do React, a direção que produziu os `NotFoundError`
+          da migração. Sai e volta com a fase, como o efeito fazia; a equipe é a da carga. */}
       {servico.substituicao !== undefined && fase === 'pronta' ? (
-        <div ref={substituicaoContainerRef} className="ficha-subsecao min-w-0" />
+        <div className="ficha-subsecao min-w-0">
+          <SecaoSubstituicaoCaseManager
+            key={pacienteId}
+            servico={servico.substituicao}
+            pacienteId={pacienteId}
+            equipe={equipeNaMontagemRef.current}
+          />
+        </div>
       ) : null}
     </div>
   );
