@@ -1,6 +1,6 @@
 import type { SituacaoCaso } from '../packages/contracts/src/index.js';
 import { rotulosSituacao } from './acompanhamento-caso.js';
-import { botao } from './ui/basicos.js';
+import { botao } from './ponte/botao-imperativo.js';
 
 export type PacienteFicha = {
   id: string;
