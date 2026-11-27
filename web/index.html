@@ -187,27 +187,23 @@
               </div>
               <button id="cadastro-fechar" class="ui-dialogo__fechar" type="button" aria-label="Fechar">×</button>
             </div>
-            <!-- `required` saiu de `birth-date`, `case-status` e `case-manager` de propósito:
-                 esses três passaram a ser aprimorados por `web/ui/data.ts` e `web/ui/selecao.ts`,
-                 que tiram o controle nativo da vista. Mantido o `required`, o navegador tentaria
-                 ancorar a bolha de validação num elemento invisível. A exigência não sumiu — ela
-                 é verificada no envio por `web/main.ts`, que escreve o erro em `#birth-error`,
-                 `#status-error` e `#manager-error`, e de novo no servidor e no banco. -->
+            <!-- Nascimento, situação e responsável usam validação no envio. O foco
+                 de erro vai ao controle visível, e servidor e banco conferem a entrada. -->
             <form id="create-form" class="ui-dialogo__formulario" method="post" autocomplete="off" aria-describedby="create-feedback">
               <div class="ui-dialogo__corpo">
                 <fieldset id="create-fields">
                   <legend class="sr-only">Dados do paciente</legend>
                   <div class="ui-campo"><label class="ui-campo__rotulo" for="patient-name">Nome <span class="ui-campo__marca">obrigatório</span></label><input class="ui-campo__controle" id="patient-name" name="nome" type="text" required maxlength="200" autocomplete="off" aria-describedby="name-error"><span id="name-error" class="ui-campo__erro"></span></div>
                   <div class="ui-campo"><label class="ui-campo__rotulo" for="preferred-name">Nome de preferência <span class="ui-campo__marca">obrigatório</span></label><input class="ui-campo__controle" id="preferred-name" name="nome_preferencia" type="text" required maxlength="200" autocomplete="off" aria-describedby="preferred-error"><span id="preferred-error" class="ui-campo__erro"></span></div>
-                  <div class="ui-campo"><label class="ui-campo__rotulo" for="birth-date">Data de nascimento <span class="ui-campo__marca">obrigatório</span></label><input id="birth-date" name="data_nascimento" type="date" autocomplete="off" aria-describedby="birth-error"><span id="birth-error" class="ui-campo__erro"></span></div>
+                  <div class="ui-campo"><label class="ui-campo__rotulo" id="birth-label" for="birth-date-texto">Data de nascimento <span class="ui-campo__marca">obrigatório</span></label><div id="birth-date-controle"></div><span id="birth-error" class="ui-campo__erro"></span></div>
                   <fieldset class="field-group" aria-describedby="contacts-error">
                     <legend>Contatos <span class="ui-campo__marca">obrigatório, ao menos um</span></legend>
                     <div id="contacts-list"></div>
                     <span id="contacts-error" class="ui-campo__erro"></span>
                     <button id="add-contact" class="ui-botao" data-peso="secundario" type="button">Adicionar outro contato</button>
                   </fieldset>
-                  <div class="ui-campo"><label class="ui-campo__rotulo" for="case-status">Situação <span class="ui-campo__marca">obrigatório</span></label><select id="case-status" name="situacao" aria-describedby="status-error"><option value="">Selecione a situação</option><option value="entrada">Entrada</option><option value="ativo">Ativo</option><option value="pausado">Pausado</option><option value="encerrado">Encerrado</option><option value="transferido">Transferido</option></select><span id="status-error" class="ui-campo__erro"></span></div>
-                  <div class="ui-campo"><label class="ui-campo__rotulo" for="case-manager">Quem acompanha o caso <span class="ui-campo__marca">obrigatório</span></label><select id="case-manager" name="responsavel_id" aria-describedby="manager-error manager-state"></select><span id="manager-error" class="ui-campo__erro"></span><span id="manager-state" class="small-text" role="status" aria-live="polite"></span><button id="manager-retry" class="ui-botao" data-peso="secundario" type="button" hidden>Tentar novamente</button></div>
+                  <div class="ui-campo"><label class="ui-campo__rotulo" id="status-label" for="case-status">Situação <span class="ui-campo__marca">obrigatório</span></label><div id="case-status-controle"></div><span id="status-error" class="ui-campo__erro"></span></div>
+                  <div class="ui-campo"><label class="ui-campo__rotulo" id="manager-label" for="case-manager">Quem acompanha o caso <span class="ui-campo__marca">obrigatório</span></label><div id="case-manager-controle"></div><span id="manager-error" class="ui-campo__erro"></span><span id="manager-state" class="small-text" role="status" aria-live="polite"></span><button id="manager-retry" class="ui-botao" data-peso="secundario" type="button" hidden>Tentar novamente</button></div>
                 </fieldset>
                 <p id="create-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
                 <p class="small-text">O cadastro não cria conta nem concede acesso ao paciente ou a familiares.</p>

@@ -215,8 +215,6 @@ const createFields = elemento<HTMLFieldSetElement>('create-fields');
 const createButton = elemento<HTMLButtonElement>('create-submit');
 const nameInput = elemento<HTMLInputElement>('patient-name');
 const preferredInput = elemento<HTMLInputElement>('preferred-name');
-const birthInput = elemento<HTMLInputElement>('birth-date');
-birthInput.max = new Date().toISOString().slice(0, 10);
 // Um catálogo de equipe por sessão de Administrador; falha de consulta não fica guardada.
 let catalogoCasoNovo: (() => Promise<ResponsavelOpcao[]>) | null = null;
 let equipeCasoNovoPara: string | null = null;
@@ -225,13 +223,28 @@ const casoNovo = montarCamposCasoNovo(
     contatos: elemento('contacts-list'),
     adicionar: elemento<HTMLButtonElement>('add-contact'),
     erroContatos: elemento('contacts-error'),
-    situacao: elemento<HTMLSelectElement>('case-status'),
-    responsavel: elemento<HTMLSelectElement>('case-manager'),
+    nascimento: elemento('birth-date-controle'),
+    situacao: elemento('case-status-controle'),
+    responsavel: elemento('case-manager-controle'),
     estadoResponsavel: elemento('manager-state'),
     tentarNovamente: elemento<HTMLButtonElement>('manager-retry'),
   },
   () => (catalogoCasoNovo ? catalogoCasoNovo() : Promise.reject(new Error('Sem sessão'))),
 );
+const {
+  nascimento: birthInput,
+  situacao: situacaoInput,
+  responsavel: responsavelInput,
+} = casoNovo.campos;
+
+function marcarInvalidezCadastro(input: HTMLInputElement | HTMLSelectElement, invalido: boolean) {
+  const id = input.id;
+  if (id === 'birth-date' || id === 'case-status' || id === 'case-manager') {
+    casoNovo.marcarInvalido(id, invalido);
+  } else if (invalido) input.setAttribute('aria-invalid', 'true');
+  else input.removeAttribute('aria-invalid');
+}
+
 function lerFormularioCadastro() {
   return lerCadastro({
     nome: nameInput.value,
@@ -1634,11 +1647,11 @@ function apagarPacientes(): void {
   elemento('name-error').textContent = '';
   preferredInput.removeAttribute('aria-invalid');
   elemento('preferred-error').textContent = '';
-  birthInput.removeAttribute('aria-invalid');
+  marcarInvalidezCadastro(birthInput, false);
   elemento('birth-error').textContent = '';
-  elemento('case-status').removeAttribute('aria-invalid');
+  marcarInvalidezCadastro(situacaoInput, false);
   elemento('status-error').textContent = '';
-  elemento('case-manager').removeAttribute('aria-invalid');
+  marcarInvalidezCadastro(responsavelInput, false);
   elemento('manager-error').textContent = '';
   cadastroPendente = null;
   cadastroOcupado = false;
@@ -2788,13 +2801,13 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
         },
         {
           chave: 'situacao',
-          input: elemento<HTMLSelectElement>('case-status'),
+          input: situacaoInput,
           erro: 'status-error',
           mensagem: 'Escolha a situação do caso.',
         },
         {
           chave: 'responsavel_id',
-          input: elemento<HTMLSelectElement>('case-manager'),
+          input: responsavelInput,
           erro: 'manager-error',
           mensagem: 'Escolha quem acompanha o caso.',
         },
@@ -2802,12 +2815,11 @@ async function cadastrar(evento: SubmitEvent): Promise<void> {
       let primeiro: HTMLElement | undefined;
       for (const campo of campos) {
         const invalido = cadastro.error.issues.some((item) => item.path[0] === campo.chave);
+        marcarInvalidezCadastro(campo.input, invalido);
         if (invalido) {
-          campo.input.setAttribute('aria-invalid', 'true');
           elemento(campo.erro).textContent = campo.mensagem;
           primeiro ??= campo.input;
         } else {
-          campo.input.removeAttribute('aria-invalid');
           elemento(campo.erro).textContent = '';
         }
       }
@@ -3149,9 +3161,9 @@ const camposComErro: {
   { input: nameInput, chave: 'nome', erro: 'name-error' },
   { input: preferredInput, chave: 'nome_preferencia', erro: 'preferred-error' },
   { input: birthInput, chave: 'data_nascimento', erro: 'birth-error' },
-  { input: elemento<HTMLSelectElement>('case-status'), chave: 'situacao', erro: 'status-error' },
+  { input: situacaoInput, chave: 'situacao', erro: 'status-error' },
   {
-    input: elemento<HTMLSelectElement>('case-manager'),
+    input: responsavelInput,
     chave: 'responsavel_id',
     erro: 'manager-error',
   },
@@ -3162,7 +3174,7 @@ for (const campo of camposComErro) {
     const cadastro = lerFormularioCadastro();
     if (!cadastro.success && cadastro.error.issues.some((item) => item.path[0] === campo.chave))
       return;
-    campo.input.removeAttribute('aria-invalid');
+    marcarInvalidezCadastro(campo.input, false);
     elemento(campo.erro).textContent = '';
   });
 }

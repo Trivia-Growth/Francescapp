@@ -1,6 +1,6 @@
 # Estado — migrar-interface-para-react
 
-**Atualizado em:** 27/11/2026 · **Branch:** `codex/sincronizar-controles-aprimorados` · **Por:** Codex
+**Atualizado em:** 27/11/2026 · **Branch:** `codex/controles-cadastro` · **Por:** Codex
 
 ## Retirada do observador de controles
 
@@ -57,12 +57,22 @@ a convivência. Regras e Início não renderizam os tipos de controle observados
 - Contraprova da ficha: alterar somente a opacidade de `select` para `1` fez
   falhar a medição de `#profissional-selecionado` (esperado `0`). Depois de
   restaurar a regra, o cenário voltou a passar.
-- Cadastro: a limpeza após sair mantém as mensagens e o `aria-invalid` de
-  Situação e responsável, apesar dos valores reiniciados. Reproduzido em
-  Chromium na casca anterior à migração. Decisão de tratamento pendente.
-- A remoção integral de `web/ui/` segue em tarefa própria. Restam `main.ts`
-  (`botao`/`linhaLista`), a frente de `confirmacao.ts`, três módulos da
-  demonstração com decisão pendente e o import de `ui.css` no tema.
+- Cadastro: Nascimento, Situação, responsável e o tipo dos contatos recebem
+  ilhas React. A equipe muda por props e o hospedeiro lê os nativos do
+  formulário. Correção em commit próprio: a saída limpava as marcações de
+  nome, preferência e nascimento e esquecia Situação e responsável. A prova
+  no Vitest falhou com as duas seleções ainda inválidas e passou após a limpeza.
+- `pnpm run verificar:rapido` e os 38 cenários de `campos-caso-novo.test.ts` e
+  `fluxo-caso-novo.test.ts` passaram. Chromium na casca do cadastro verificou
+  o observador ativo pela sentinela legada, a equipe chegando depois da
+  abertura, a montagem/desmontagem de contato, o foco de erro, o POST com os
+  valores corretos e o reset. Ao alterar só a regra CSS para opacidade `1`,
+  a prova falhou em `#birth-date`, esperado `0` e recebido `1`. Restaurado e
+  verde. Próximo passo: retirar o observador global com as quatro regiões migradas.
+- A remoção integral de `web/ui/` segue em tarefa própria. Depois da retirada
+  do observador, as dependências de produção que restam são `main.ts`
+  (`botao`/`linhaLista`) e o import de `ui.css` no tema. Confirmação e os três
+  módulos da demonstração já retiraram seus imports nos PRs #28 e #37.
 
 ## Histórico da integração do turno e plantão
 
