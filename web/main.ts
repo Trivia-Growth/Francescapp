@@ -2975,13 +2975,20 @@ async function revalidarAcesso(): Promise<void> {
         return;
     }
     const plano = planoAberto;
+    let planoNegado = false;
     if (plano) {
       try {
         await plano.servico.consultarObjetivos(plano.pacienteId);
       } catch (erro) {
         if (versao !== revisao) return;
-        if (acessoPerdido(erro)) return;
-        if (planoAberto === plano) {
+        if (semPermissao(erro)) {
+          if (planoAberto === plano) {
+            acessoPerdido(erro);
+            planoNegado = true;
+          }
+        } else if (acessoPerdido(erro)) {
+          return;
+        } else if (planoAberto === plano) {
           const rascunhoDescartado = pendenciaFicha()?.secao === 'plano';
           void ficha?.selecionar('visao', { confirmar: false });
           aviso(
@@ -3000,7 +3007,9 @@ async function revalidarAcesso(): Promise<void> {
       revalidacaoStatus.hidden = true;
       patientsView.hidden = false;
       sessionActions.hidden = false;
-      ficha?.remontarSecao();
+      // A área recusada já foi limpa. Reexiba a ficha e o aviso sem reabrir o plano.
+      if (!planoNegado || ficha !== fichaRevalidada || ficha?.secaoAtual() !== 'plano')
+        ficha?.remontarSecao();
       if (focoAposLoginOculto) {
         focoAposLoginOculto = false;
         document.title = 'FFCMApp | Pacientes';
