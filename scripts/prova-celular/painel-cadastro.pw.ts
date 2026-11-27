@@ -9,6 +9,7 @@
  * Nada de rede além do servidor local; nenhuma API é chamada.
  */
 import { expect, type Page, test } from '@playwright/test';
+import { conferirAxe } from './axe.ts';
 
 test.beforeEach(async ({ context }) => {
   await context.route('**/*', (rota) => {
@@ -46,11 +47,13 @@ test('abre pelo botão com o foco no título do formulário', async ({ page }) =
   await abrirBancada(page);
   const dialogo = page.locator('#cadastro-dialogo');
   await expect(dialogo).not.toHaveAttribute('open', '');
+  await conferirAxe(page, 'painel-cadastro — diálogo fechado');
 
   await page.getByRole('link', { name: 'Novo paciente' }).click();
 
   await expect(dialogo).toHaveAttribute('open', '');
   await expect(page.locator('#create-title')).toBeFocused();
+  await conferirAxe(page, 'painel-cadastro — diálogo aberto');
   expect(erros).toEqual([]);
 });
 

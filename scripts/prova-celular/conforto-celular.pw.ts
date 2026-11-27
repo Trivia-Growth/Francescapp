@@ -11,6 +11,7 @@
  * são fictícios.
  */
 import { expect, test } from '@playwright/test';
+import { conferirAxe } from './axe.ts';
 import { type Alvo, medirAlvos, medirCampos, medirLargura, percorrerFoco } from './medidas.ts';
 
 const VIEWPORTS = [
@@ -53,6 +54,7 @@ for (const viewport of VIEWPORTS) {
         await page.getByRole('button', { name: tela.botao }).click();
         await expect(page.locator('.financeiro__linha').first()).toBeVisible();
 
+        await conferirAxe(page, `conforto-celular — financeiro ${viewport.nome} — ${tela.aba}`);
         const largura = await medirLargura(page);
         const alvos = await medirAlvos(page);
         const campos = await medirCampos(page);
@@ -104,6 +106,7 @@ for (const viewport of VIEWPORTS) {
       await page.goto('/web/index.html');
       await expect(page.locator('#login-view')).toBeVisible();
 
+      await conferirAxe(page, `conforto-celular — casca ${viewport.nome}`);
       const largura = await medirLargura(page);
       const alvos = await medirAlvos(page);
       const campos = await medirCampos(page);
@@ -149,6 +152,7 @@ for (const viewport of VIEWPORTS) {
       const aviso = page.locator('#estado-rede');
       await expect(aviso).toBeVisible();
 
+      await conferirAxe(page, `conforto-celular — casca sem rede ${viewport.nome}`);
       const caixa = await aviso.boundingBox();
       const largura = await medirLargura(page);
       const alvos = await medirAlvos(page);

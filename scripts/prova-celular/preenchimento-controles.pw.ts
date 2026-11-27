@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import { type Page, expect, test } from '@playwright/test';
 import { type ViteDevServer, createServer } from 'vite';
+import { conferirAxe } from './axe.ts';
 import { envelope, id } from '../../web/fixtures/comum.ts';
 import { responder } from '../../web/fixtures/despachante.ts';
 import { pacientes, sessaoAdministrador } from '../../web/fixtures/sessao.ts';
@@ -130,6 +131,7 @@ test('Orientações mostram datas e audiência da versão a substituir', async (
   await page.goto(`${origem}/#paciente/${caso.id}/orientacoes`);
   await page.getByRole('button', { name: 'Substituir', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Salvar nova versão' })).toBeVisible();
+  await conferirAxe(page, 'preenchimento-controles — orientações em substituição');
 
   expect({
     data: await lerValorVisivel(page, 'orientacao-data', orientacao.data),
@@ -146,6 +148,7 @@ test('Encaminhamentos mostram a etapa do registro em edição', async ({ page })
   await page.goto(`${origem}/#paciente/${caso.id}/encaminhamentos`);
   await page.getByRole('button', { name: 'Editar encaminhamento para Serviço fictício' }).click();
   await expect(page.getByRole('button', { name: 'Salvar alterações' })).toBeVisible();
+  await conferirAxe(page, 'preenchimento-controles — encaminhamento em edição');
 
   expect(await lerValorVisivel(page, 'encaminhamento-estado', 'realizado')).toBe('realizado');
 });
@@ -171,5 +174,6 @@ test('Gestão do Turno restaura o familiar ao continuar editando o fundamento', 
 
   expect(await lerValorVisivel(page, 'turno-gestao-familiar', familiar)).toBe(nomeFamiliar);
   await expect(fundamento).toHaveValue('Rascunho fictício');
+  await conferirAxe(page, 'preenchimento-controles — gestão do turno');
   expect(consultasFundamento).toEqual([familiar]);
 });

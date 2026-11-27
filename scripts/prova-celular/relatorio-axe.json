@@ -1,0 +1,212 @@
+{
+  "resumo": {
+    "paginas": 28,
+    "violacoes": 0,
+    "toleradas": 8
+  },
+  "paginas": [
+    {
+      "rotulo": "agenda-individual — agenda carregada",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "agenda-individual — painel de realização aberto",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "conforto-celular — casca 360x640",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "conforto-celular — casca 390x844",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "conforto-celular — casca sem rede 360x640",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "conforto-celular — casca sem rede 390x844",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "conforto-celular — financeiro 360x640 — Apuração",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "conforto-celular — financeiro 360x640 — Despesas do caso",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "conforto-celular — financeiro 360x640 — Valor por turno",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "conforto-celular — financeiro 390x844 — Apuração",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "conforto-celular — financeiro 390x844 — Despesas do caso",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "conforto-celular — financeiro 390x844 — Valor por turno",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "ficha-plantao — após trocar seleções e recarregar (1280x720)",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "ficha-plantao — audiência e medicação 360x640",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "ficha-plantao — audiência e medicação 390x844",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "ficha-plantao — ficha e consolidado 360x640",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "ficha-plantao — ficha e consolidado 390x844",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "ficha-plantao — ficha inicial (1280x720)",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "filtros-data — auditoria (390x844)",
+      "violacoes": [],
+      "toleradas": [
+        {
+          "regra": "label-content-name-mismatch",
+          "impacto": "serious",
+          "alvo": "#avisos-sino",
+          "ajuda": "Elements must have their visible text as part of their accessible name",
+          "motivo": "Sino de avisos (web/avisos.tsx): o aria-label «Avisos: N não lidos» não contém o texto visível «Avisos» seguido da contagem «N». Defeito de código real, pendente de correção na casca; não corrigido aqui por estar fora da fatia de testes."
+        }
+      ]
+    },
+    {
+      "rotulo": "filtros-data — cadastro de paciente",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "filtros-data — equipe do caso",
+      "violacoes": [],
+      "toleradas": [
+        {
+          "regra": "label-content-name-mismatch",
+          "impacto": "serious",
+          "alvo": "#avisos-sino",
+          "ajuda": "Elements must have their visible text as part of their accessible name",
+          "motivo": "Sino de avisos (web/avisos.tsx): o aria-label «Avisos: N não lidos» não contém o texto visível «Avisos» seguido da contagem «N». Defeito de código real, pendente de correção na casca; não corrigido aqui por estar fora da fatia de testes."
+        }
+      ]
+    },
+    {
+      "rotulo": "filtros-data — linha do tempo",
+      "violacoes": [],
+      "toleradas": [
+        {
+          "regra": "label-content-name-mismatch",
+          "impacto": "serious",
+          "alvo": "#avisos-sino",
+          "ajuda": "Elements must have their visible text as part of their accessible name",
+          "motivo": "Sino de avisos (web/avisos.tsx): o aria-label «Avisos: N não lidos» não contém o texto visível «Avisos» seguido da contagem «N». Defeito de código real, pendente de correção na casca; não corrigido aqui por estar fora da fatia de testes."
+        }
+      ]
+    },
+    {
+      "rotulo": "financeiro-controles-proprios — aba inicial",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "painel-cadastro — diálogo aberto",
+      "violacoes": [],
+      "toleradas": [
+        {
+          "regra": "color-contrast",
+          "impacto": "serious",
+          "alvo": ".ui-dialogo__descricao",
+          "ajuda": "Elements must meet minimum color contrast ratio thresholds",
+          "motivo": "Texto de apoio do diálogo usa var(--muted) sobre o fundo do diálogo abaixo de 4,5:1. Os tokens de cor pertencem à fatia 3 do plano visual (@theme do SISTEMA); revisar o contraste lá e remover esta exceção."
+        },
+        {
+          "regra": "color-contrast",
+          "impacto": "serious",
+          "alvo": "button[aria-controls=\"case-status-lista\"] > .ui-selecao__valor[data-vazio=\"sim\"]",
+          "ajuda": "Elements must meet minimum color contrast ratio thresholds",
+          "motivo": "Placeholder da seleção vazia (.ui-selecao__valor[data-vazio]) abaixo de 4,5:1. Mesma origem: tokens de cor, fatia 3 do plano visual."
+        }
+      ]
+    },
+    {
+      "rotulo": "painel-cadastro — diálogo fechado",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "preenchimento-controles — encaminhamento em edição",
+      "violacoes": [],
+      "toleradas": [
+        {
+          "regra": "label-content-name-mismatch",
+          "impacto": "serious",
+          "alvo": "#avisos-sino",
+          "ajuda": "Elements must have their visible text as part of their accessible name",
+          "motivo": "Sino de avisos (web/avisos.tsx): o aria-label «Avisos: N não lidos» não contém o texto visível «Avisos» seguido da contagem «N». Defeito de código real, pendente de correção na casca; não corrigido aqui por estar fora da fatia de testes."
+        }
+      ]
+    },
+    {
+      "rotulo": "preenchimento-controles — gestão do turno",
+      "violacoes": [],
+      "toleradas": [
+        {
+          "regra": "label-content-name-mismatch",
+          "impacto": "serious",
+          "alvo": "#avisos-sino",
+          "ajuda": "Elements must have their visible text as part of their accessible name",
+          "motivo": "Sino de avisos (web/avisos.tsx): o aria-label «Avisos: N não lidos» não contém o texto visível «Avisos» seguido da contagem «N». Defeito de código real, pendente de correção na casca; não corrigido aqui por estar fora da fatia de testes."
+        }
+      ]
+    },
+    {
+      "rotulo": "preenchimento-controles — orientações em substituição",
+      "violacoes": [],
+      "toleradas": [
+        {
+          "regra": "label-content-name-mismatch",
+          "impacto": "serious",
+          "alvo": "#avisos-sino",
+          "ajuda": "Elements must have their visible text as part of their accessible name",
+          "motivo": "Sino de avisos (web/avisos.tsx): o aria-label «Avisos: N não lidos» não contém o texto visível «Avisos» seguido da contagem «N». Defeito de código real, pendente de correção na casca; não corrigido aqui por estar fora da fatia de testes."
+        }
+      ]
+    }
+  ]
+}

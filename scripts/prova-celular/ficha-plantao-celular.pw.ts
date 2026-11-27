@@ -11,6 +11,7 @@
  * os dados são fictícios.
  */
 import { expect, type Page, test } from '@playwright/test';
+import { conferirAxe } from './axe.ts';
 import { type Alvo, medirAlvos, medirCampos, medirLargura, percorrerFoco } from './medidas.ts';
 
 const VIEWPORTS = [
@@ -49,6 +50,7 @@ for (const viewport of VIEWPORTS) {
         page.getByRole('heading', { name: 'Consolidado diário no formato da ficha' }),
       ).toBeVisible();
 
+      await conferirAxe(page, `ficha-plantao — ficha e consolidado ${viewport.nome}`);
       const largura = await medirLargura(page);
       const alvos = await medirAlvos(page);
       const campos = await medirCampos(page);
@@ -94,6 +96,7 @@ for (const viewport of VIEWPORTS) {
       await expect(
         observacoes.getByText('Nota interna da equipe. A família não lê este campo.'),
       ).toBeVisible();
+      await conferirAxe(page, `ficha-plantao — audiência e medicação ${viewport.nome}`);
       const largura = await medirLargura(page);
       registrar(`ficha — audiência e medicação ${viewport.nome}`, { caixa, largura });
       expect(caixa?.width ?? 0).toBeLessThanOrEqual(viewport.width);
@@ -115,11 +118,13 @@ test('ficha — trocar seleções e recarregar não derruba a tela', async ({ pa
   page.on('pageerror', (erro) => erros.push(String(erro)));
   await page.goto('/scripts/prova-celular/ficha-plantao.html');
   await expect(page.getByText('Ficha em branco')).toBeVisible();
+  await conferirAxe(page, 'ficha-plantao — ficha inicial (1280x720)');
   const declarar = /^Preenchi fora do horário do plantão/;
   await escolher(page, declarar, 'Sim — declarar a janela real que cumpri');
   await escolher(page, declarar, 'Não');
   await escolher(page, /^Plantão/, 'Noturno');
   await page.getByRole('button', { name: 'Recarregar a ficha' }).click();
   await expect(page.getByText('Ficha em branco')).toBeVisible();
+  await conferirAxe(page, 'ficha-plantao — após trocar seleções e recarregar (1280x720)');
   expect(erros, 'erros de página').toEqual([]);
 });

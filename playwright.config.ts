@@ -14,7 +14,7 @@ export default defineConfig({
   testMatch: '**/*.pw.ts',
   fullyParallel: false,
   workers: 1,
-  reporter: [['list']],
+  reporter: [['list'], ['./scripts/prova-celular/axe-relatorio.ts']],
   use: {
     baseURL: 'http://127.0.0.1:5174',
     // Sem permissão de câmera, microfone ou localização: a prova é de layout.

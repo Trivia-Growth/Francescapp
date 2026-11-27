@@ -4,6 +4,7 @@ import { type ViteDevServer, createServer } from 'vite';
 import { envelope } from '../../web/fixtures/comum.ts';
 import { responder } from '../../web/fixtures/despachante.ts';
 import { PACIENTE_IDS, concessoesEquipe, sessaoAdministrador } from '../../web/fixtures/sessao.ts';
+import { conferirAxe } from './axe.ts';
 import { conferirControlesNativos } from './controles-nativos.js';
 
 const caso = PACIENTE_IDS[0];
@@ -87,6 +88,7 @@ test('Auditoria envia o limite inicial digitado e retira o filtro ao apagar', as
   await page.goto(`${origem}/#administracao/auditoria`);
   const aplicar = page.getByRole('button', { name: 'Aplicar filtros' });
   await expect(aplicar).toBeEnabled();
+  await conferirAxe(page, 'filtros-data — auditoria (390x844)');
   await conferirControlesNativos(page, '#administracao-conteudo');
   const { grupo: inicioGrupo, visivel: inicio } = await dataVisivel(page, 'auditoria-de');
   await expect(inicio).toHaveAttribute('id', 'auditoria-de-texto');
@@ -158,6 +160,7 @@ test('Linha do tempo encaminha a data escolhida junto dos demais filtros', async
   ).toBeVisible();
   const { visivel } = await dataVisivel(page, `linha-tempo-de-${caso}`);
   await expect(visivel).toHaveAttribute('id', `linha-tempo-de-${caso}-texto`);
+  await conferirAxe(page, 'filtros-data — linha do tempo');
   await visivel.fill('15/10/2026');
 
   // O filtro por tipo dispara um GET mesmo quando o filtro de data está quebrado.
@@ -188,6 +191,7 @@ test('Ficha renova a seleção de profissional ao avançar a página', async ({ 
   const proxima = page.getByRole('button', { name: 'Próxima página' });
   await expect(proxima).toBeVisible();
   await conferirControlesNativos(page, '#ficha-view');
+  await conferirAxe(page, 'filtros-data — equipe do caso');
   const id = 'profissional-selecionado';
   const grupo = page.locator(`.ui-selecao[data-aprimorada]:has(> #${id})`);
   const nativo = grupo.locator(`#${id}`);
@@ -251,6 +255,7 @@ test('Cadastro mantém os controles React ao carregar a equipe e adicionar conta
     await expect(dialogo).toBeVisible();
     await dialogo.getByRole('button', { name: 'Conferir e liberar' }).click();
     await conferirControlesNativos(page, '#cadastro');
+    await conferirAxe(page, 'filtros-data — cadastro de paciente');
     const { visivel: nascimento } = await dataVisivel(page, 'birth-date');
     await expect(nascimento).toHaveAttribute('id', 'birth-date-texto');
 
