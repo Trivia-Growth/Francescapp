@@ -1,8 +1,23 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { montarAdministracaoPlano } from './campo-extra-plano-administracao.js';
+import { createElement, type ComponentProps } from 'react';
+import { render } from '@testing-library/react';
+import { TelaAdministracaoPlano } from './campo-extra-plano-administracao.js';
 import type { ServicoPlanoCuidado } from './plano-cuidado.js';
 import { FalhaApi } from './api.ts';
+
+function montarAdministracaoPlano(
+  raiz: HTMLElement,
+  servico: ComponentProps<typeof TelaAdministracaoPlano>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaAdministracaoPlano>['acessoPerdido'],
+  consultarEquipe: ComponentProps<typeof TelaAdministracaoPlano>['consultarEquipe'],
+) {
+  return render(
+    createElement(TelaAdministracaoPlano, { servico, acessoPerdido, consultarEquipe }),
+    { container: raiz },
+  ).unmount;
+}
+
 const id = 'a0000000-0000-4000-8000-000000000001';
 function servico() {
   return {

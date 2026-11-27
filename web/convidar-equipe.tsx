@@ -23,7 +23,6 @@ import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { confirmar, type PedidoConfirmacao } from './confirmacao.js';
 import './estilos/tema.css';
-import { ilhaSincrona } from './telas/ilha-sincrona.js';
 import { useValidacaoFormulario } from './telas/validacao-formulario.js';
 
 type ItemEquipe = Awaited<ReturnType<ClienteFFCM['listarProfissionais']>>['itens'][number];
@@ -41,7 +40,7 @@ function Indicador() {
   return <span className="loading-indicator" aria-hidden="true" />;
 }
 
-function TelaConvidarEquipe({ api }: { api: ClienteFFCM }) {
+export function TelaConvidarEquipe({ api }: { api: ClienteFFCM }) {
   /* A tela nasce conferindo: o efeito abaixo dispara a conferência na montagem. Declarar o
      estado inicial como "já em curso" mantém a primeira pintura honesta (VIS-014). */
   const [status, definirStatus] = useState('Conferindo se há algum convite aguardando resposta…');
@@ -271,6 +270,3 @@ function TelaConvidarEquipe({ api }: { api: ClienteFFCM }) {
 
 /** Preparação isolada: não montar até existir capacidade e recuperação entre sessões
  *  comprovadas. */
-export function montarConvidarEquipe(raiz: HTMLElement, api: ClienteFFCM): () => void {
-  return ilhaSincrona(raiz, <TelaConvidarEquipe api={api} />);
-}

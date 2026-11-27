@@ -11,13 +11,12 @@ import { MarcaEstado } from './componentes/ui/marca-estado.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 import { MolduraTela } from './telas/moldura-tela.js';
-import { ilha } from './ponte/ilha.js';
 import { Recuperacao, useCatalogoAdministrado } from './telas/catalogo-administrado.js';
 
 /** FR-079. Catálogo de papéis declarados do profissional. É rótulo impresso na ficha:
  * não concede, amplia nem restringe acesso nenhum — perfil e vínculo com o caso
  * continuam sendo os únicos controles. Desativar um papel não reescreve ficha antiga. */
-function Tela({
+export function TelaPapelDeclarado({
   servico,
   acessoPerdido,
 }: {
@@ -167,12 +166,4 @@ function FormularioPapel({
       </fieldset>
     </Formulario>
   );
-}
-
-export function montarPapelDeclaradoAdministracao(
-  raiz: HTMLElement,
-  servico: ServicoPapelDeclarado,
-  acessoPerdido: (erro: unknown) => void,
-): () => void {
-  return ilha(raiz, <Tela servico={servico} acessoPerdido={acessoPerdido} />);
 }

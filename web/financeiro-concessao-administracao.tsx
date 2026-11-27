@@ -29,7 +29,6 @@ import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
 import './estilos/tema.css';
 import type { ServicoFinanceiro } from './servico-financeiro-http.js';
-import { ilhaSincrona } from './telas/ilha-sincrona.js';
 
 const PERFIS: Record<ConcessaoFinanceira['perfil'], string> = {
   profissional: 'Profissional',
@@ -141,7 +140,7 @@ function LinhaConcessao({
   );
 }
 
-function TelaFinanceiroConcessao({ servico }: { servico: ServicoFinanceiro }) {
+export function TelaFinanceiroConcessao({ servico }: { servico: ServicoFinanceiro }) {
   const [itens, definirItens] = useState<readonly ConcessaoFinanceira[]>([]);
   const [status, definirStatus] = useState('Carregando equipe…');
   const [carregando, definirCarregando] = useState(true);
@@ -235,11 +234,4 @@ function TelaFinanceiroConcessao({ servico }: { servico: ServicoFinanceiro }) {
       </div>
     </section>
   );
-}
-
-export function montarFinanceiroConcessaoAdministracao(
-  raiz: HTMLElement,
-  servico: ServicoFinanceiro,
-): () => void {
-  return ilhaSincrona(raiz, <TelaFinanceiroConcessao servico={servico} />);
 }

@@ -11,7 +11,6 @@ import { MarcaEstado } from './componentes/ui/marca-estado.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 import { MolduraTela } from './telas/moldura-tela.js';
-import { ilha } from './ponte/ilha.js';
 import {
   Recuperacao,
   useCatalogoAdministrado,
@@ -190,11 +189,10 @@ function FormularioTermo({
  *  não dado de paciente: volta à tela mostra o que já foi lido, sem novo GET, enquanto a
  *  leitura estiver guardada (`gcTime` padrão, 5 min desde a última). Atualizar, salvar e
  *  repetir releem sempre; consultas simultâneas da mesma chave viram um GET só. */
-export function montarEstadoEmocionalAdministracao(
-  raiz: HTMLElement,
+export function criarTelaEstadoEmocional(
   servico: ServicoEstadoEmocional,
   acessoPerdido: (erro: unknown) => void,
-): () => void {
+) {
   const queryKey = chaveDaSessao(servico.identidade, 'admin', 'estado-emocional');
   const comCache: ServicoEstadoEmocional = {
     ...servico,
@@ -205,5 +203,5 @@ export function montarEstadoEmocionalAdministracao(
     retida: () => clienteConsultas.getQueryData<EstadoEmocional[]>(queryKey),
     descartar: () => clienteConsultas.removeQueries({ queryKey, exact: true }),
   };
-  return ilha(raiz, <Tela servico={comCache} leitura={leitura} acessoPerdido={acessoPerdido} />);
+  return <Tela servico={comCache} leitura={leitura} acessoPerdido={acessoPerdido} />;
 }

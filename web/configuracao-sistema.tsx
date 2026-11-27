@@ -16,7 +16,6 @@ import { Superficie } from './componentes/ui/superficie.js';
 import { CaixaDeMarcacao } from './telas/caixa-de-marcacao.js';
 import { Formulario } from './telas/formulario.js';
 import { MolduraTela } from './telas/moldura-tela.js';
-import { ilha } from './ponte/ilha.js';
 
 const formatadorInstante = new Intl.DateTimeFormat('pt-BR', {
   dateStyle: 'short',
@@ -91,7 +90,7 @@ function autoriaDoItem(
  * O catálogo de chaves vem do banco (definido por migration): a tela edita VALOR, nunca cria,
  * renomeia ou muda o tipo de uma chave. Ligar um serviço aqui não concede permissão a ninguém —
  * autorização continua sendo verificada no servidor e no banco a cada chamada. */
-function Tela({
+export function TelaConfiguracaoSistema({
   servico,
   nomeDoUsuario,
 }: {
@@ -337,12 +336,4 @@ function Ajuste({
       </Formulario>
     </Superficie>
   );
-}
-
-export function montarConfiguracaoSistema(
-  raiz: HTMLElement,
-  servico: ServicoConfiguracaoSistema,
-  opcoes: { nomeDoUsuario?: (usuarioId: string) => string | undefined } = {},
-): () => void {
-  return ilha(raiz, <Tela servico={servico} nomeDoUsuario={opcoes.nomeDoUsuario} />);
 }

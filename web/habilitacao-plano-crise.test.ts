@@ -1,7 +1,16 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { montarHabilitacaoPlanoCrise } from './habilitacao-plano-crise.js';
+import { createElement, type ComponentProps } from 'react';
+import { render } from '@testing-library/react';
+import { TelaHabilitacaoPlanoCrise } from './habilitacao-plano-crise.js';
 import { FalhaApi } from './api.ts';
+
+function montarHabilitacaoPlanoCrise(
+  raiz: HTMLElement,
+  servico: ComponentProps<typeof TelaHabilitacaoPlanoCrise>['servico'],
+) {
+  return render(createElement(TelaHabilitacaoPlanoCrise, { servico }), { container: raiz }).unmount;
+}
 
 /* Primeira prova de autorização desta tela (25/11/2026, migração para React). A marca de
  * habilitação (FR-020) decide quem PODE aprovar plano de crise, e por isso ela mesma é

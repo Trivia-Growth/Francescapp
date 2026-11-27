@@ -34,7 +34,6 @@ import { type ColunaTabela, ListaRotulada, Tabela } from './componentes/ui/tabel
 import { MarcaEstado } from './componentes/ui/marca-estado.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import './estilos/tema.css';
-import { ilhaSincrona } from './telas/ilha-sincrona.js';
 
 type ItemEquipe = Awaited<ReturnType<ClienteFFCM['listarProfissionais']>>['itens'][number];
 
@@ -90,7 +89,7 @@ function Indicador() {
   return <span className="loading-indicator" aria-hidden="true" />;
 }
 
-function TelaConcessaoEquipe({ api }: { api: ClienteFFCM }) {
+export function TelaConcessaoEquipe({ api }: { api: ClienteFFCM }) {
   const [itens, definirItens] = useState<readonly ItemEquipe[]>([]);
   const itensRef = useRef<readonly ItemEquipe[]>([]);
   // A tela nasce consultando: declarar "já em curso" mantém a primeira pintura honesta.
@@ -233,6 +232,3 @@ function TelaConcessaoEquipe({ api }: { api: ClienteFFCM }) {
 
 /** Preparação isolada: não montar até existir capacidade e recuperação entre sessões
  *  comprovadas. */
-export function montarConcessaoEquipe(raiz: HTMLElement, api: ClienteFFCM): () => void {
-  return ilhaSincrona(raiz, <TelaConcessaoEquipe api={api} />);
-}

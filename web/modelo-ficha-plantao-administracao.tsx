@@ -16,7 +16,6 @@ import { Superficie } from './componentes/ui/superficie.js';
 import { CaixaDeMarcacao } from './telas/caixa-de-marcacao.js';
 import { Formulario, marcado, valorDe } from './telas/formulario.js';
 import { MolduraTela } from './telas/moldura-tela.js';
-import { ilha } from './ponte/ilha.js';
 import { Recuperacao, useCatalogoAdministrado } from './telas/catalogo-administrado.js';
 
 const rotulosDeTipo: readonly (readonly [TipoCampoExtra, string])[] = [
@@ -32,7 +31,7 @@ const rotulosDeTipo: readonly (readonly [TipoCampoExtra, string])[] = [
  * obrigatoriedade, escolher a visibilidade e desativar — inclusive campos de fábrica.
  * Nada é apagado: desativar mantém a resposta antiga legível. Cada escrita é
  * reautorizada pelo servidor e pelo banco; esconder controle aqui não é autorizar. */
-function Tela({
+export function TelaModeloFichaPlantao({
   servico,
   acessoPerdido,
 }: {
@@ -266,12 +265,4 @@ function FormularioCampo({
       </fieldset>
     </Formulario>
   );
-}
-
-export function montarModeloFichaPlantao(
-  raiz: HTMLElement,
-  servico: ServicoModeloFormulario,
-  acessoPerdido: (erro: unknown) => void,
-): () => void {
-  return ilha(raiz, <Tela servico={servico} acessoPerdido={acessoPerdido} />);
 }

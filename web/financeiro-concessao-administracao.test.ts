@@ -1,9 +1,18 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { montarFinanceiroConcessaoAdministracao } from './financeiro-concessao-administracao.js';
+import { createElement, type ComponentProps } from 'react';
+import { render } from '@testing-library/react';
+import { TelaFinanceiroConcessao } from './financeiro-concessao-administracao.js';
 import type { ConcessaoFinanceira } from '../packages/contracts/src/index.ts';
 import type { ServicoFinanceiro } from './servico-financeiro-http.ts';
 import { FalhaApi } from './api.ts';
+
+function montarFinanceiroConcessaoAdministracao(
+  raiz: HTMLElement,
+  servico: ComponentProps<typeof TelaFinanceiroConcessao>['servico'],
+) {
+  return render(createElement(TelaFinanceiroConcessao, { servico }), { container: raiz }).unmount;
+}
 
 /** Dados fictícios. Nenhum e-mail real, e nenhum valor financeiro em lugar nenhum. */
 const concessaoAdmin = 'a0000000-0000-4000-8000-000000000001';

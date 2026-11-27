@@ -2,11 +2,22 @@
 // PREPARADO, NÃO EXECUTADO. Provas locais não demonstram provisionamento Auth real.
 import { fireEvent } from '@testing-library/dom';
 import { afterEach, expect, it, vi } from 'vitest';
-import { montarAcessosAdministracao } from './acessos-administracao.js';
+import { createElement, type ComponentProps } from 'react';
+import { render } from '@testing-library/react';
+import { TelaAcessos } from './acessos-administracao.js';
 import { criarServicoAcessosHttp } from './servico-acessos-http.js';
 import { FalhaApi } from './api.js';
 import { criarErroPublicoSemCampos } from '../packages/contracts/src/erros.js';
 import type { Acesso } from '../packages/contracts/src/acessos.js';
+
+function montarAcessosAdministracao(
+  raiz: HTMLElement,
+  servico: ComponentProps<typeof TelaAcessos>['servico'],
+  opcoes: ComponentProps<typeof TelaAcessos>['opcoes'],
+) {
+  return render(createElement(TelaAcessos, { servico, opcoes }), { container: raiz }).unmount;
+}
+
 const usuario = '10000000-0000-4000-8000-000000000001';
 const sessao = '20000000-0000-4000-8000-000000000001';
 const operacao = '30000000-0000-4000-8000-000000000001';

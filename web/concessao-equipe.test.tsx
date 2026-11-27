@@ -1,7 +1,16 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { montarConcessaoEquipe } from './concessao-equipe.js';
+import { createElement, type ComponentProps } from 'react';
+import { render } from '@testing-library/react';
+import { TelaConcessaoEquipe } from './concessao-equipe.js';
 import type { ClienteFFCM } from './api.ts';
+
+function montarConcessaoEquipe(
+  raiz: HTMLElement,
+  api: ComponentProps<typeof TelaConcessaoEquipe>['api'],
+) {
+  return render(createElement(TelaConcessaoEquipe, { api }), { container: raiz }).unmount;
+}
 
 const ator = '11111111-1111-4111-8111-111111111111';
 const recibo = '33333333-3333-4333-8333-333333333333';

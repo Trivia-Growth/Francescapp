@@ -20,7 +20,7 @@
  * autorização. Resposta que chega depois da saída não escreve mais nada porque a raiz
  * React já não existe, e `servico.desmontar()` continua cancelando o que estiver em voo.
  */
-import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { Acesso, FuncaoConta } from '../packages/contracts/src/acessos.js';
 import { uuidSchema } from '../packages/contracts/src/comum.js';
@@ -37,7 +37,6 @@ import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import './estilos/tema.css';
 import type { ServicoAcessos } from './servico-acessos-http.js';
-import { ilhaSincrona } from './telas/ilha-sincrona.js';
 
 const funcoes: Record<FuncaoConta, string> = {
   administrador: 'Administrador',
@@ -69,7 +68,7 @@ type Opcoes = {
   acessoPerdido(erro: unknown): void;
 };
 
-function TelaAcessos({
+export function TelaAcessos({
   servico,
   opcoes,
 }: {
@@ -264,6 +263,8 @@ function TelaAcessos({
     }
     void executar(() => carregar());
   }, [executar, carregar, definirPendente]);
+
+  useLayoutEffect(() => () => servico.desmontar(), [servico]);
 
   const interno = metodo === 'interno';
   const criacaoFechada = ocupada || Boolean(pendente) || !recuperacaoDisponivel || !listaConfirmada;
@@ -533,18 +534,4 @@ function TelaAcessos({
       </Superficie>
     </section>
   );
-}
-
-export function montarAcessosAdministracao(
-  raiz: HTMLElement,
-  servico: ServicoAcessos,
-  opcoes: Opcoes,
-): () => void {
-  const desmontar = ilhaSincrona(raiz, <TelaAcessos servico={servico} opcoes={opcoes} />);
-  return () => {
-    desmontar();
-    // O serviço continua cancelando o que estiver em voo: a raiz React já não existe, mas
-    // a requisição ainda existiria.
-    servico.desmontar();
-  };
 }

@@ -1,7 +1,18 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { montarPapelDeclaradoAdministracao } from './papel-declarado-administracao.js';
+import { createElement, type ComponentProps } from 'react';
+import { render } from '@testing-library/react';
+import { TelaPapelDeclarado } from './papel-declarado-administracao.js';
 import { FalhaApi } from './api.ts';
+
+function montarPapelDeclaradoAdministracao(
+  raiz: HTMLElement,
+  servico: ComponentProps<typeof TelaPapelDeclarado>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaPapelDeclarado>['acessoPerdido'],
+) {
+  return render(createElement(TelaPapelDeclarado, { servico, acessoPerdido }), { container: raiz })
+    .unmount;
+}
 
 /* Primeira prova desta tela (25/11/2026, migração para React). O catálogo de papéis
  * declarados é administrado só pelo Administrador, e o papel é rótulo de registro: ele

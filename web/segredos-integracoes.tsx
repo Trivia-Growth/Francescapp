@@ -6,7 +6,6 @@ import { Campo } from './componentes/ui/campo.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { Formulario } from './telas/formulario.js';
 import { MolduraTela } from './telas/moldura-tela.js';
-import { ilha } from './ponte/ilha.js';
 
 const rotulos: Record<SegredosIntegracoes['chave'], string> = {
   'ffcmapp.integracao.google_drive': 'Google Drive — JSON da conta de serviço',
@@ -38,7 +37,7 @@ type Maquina = {
  *  A chave `geracao` da lista é parte desse contrato: a cada leitura concluída os campos
  *  são nós NOVOS, como a reconstrução do DOM fazia antes. Reaproveitar o nó manteria um
  *  valor digitado e não enviado dentro de um formulário que acabou de mudar de versão. */
-function Tela({
+export function TelaSegredosIntegracoes({
   servico,
   nomeDoUsuario,
 }: {
@@ -206,6 +205,13 @@ function Tela({
   );
 }
 
+function limparCredencialAoDesmontar(campo: HTMLInputElement | null) {
+  if (!campo) return;
+  return () => {
+    campo.value = '';
+  };
+}
+
 function Credencial({
   item,
   travado,
@@ -231,6 +237,7 @@ function Credencial({
       <Formulario aoEnviar={(formulario) => aoEnviar(item, formulario)}>
         <Campo
           id={`segredo-${item.chave.replaceAll('.', '-')}`}
+          ref={limparCredencialAoDesmontar}
           name="credencial"
           rotulo={rotulos[item.chave]}
           tipo="password"
@@ -256,18 +263,4 @@ function Credencial({
       </Formulario>
     </Superficie>
   );
-}
-
-export function montarSegredosIntegracoes(
-  raiz: HTMLElement,
-  servico: ServicoSegredosIntegracoes,
-  opcoes: { nomeDoUsuario?: (id: string) => string | undefined } = {},
-): () => void {
-  const desmontar = ilha(raiz, <Tela servico={servico} nomeDoUsuario={opcoes.nomeDoUsuario} />);
-  return () => {
-    // O valor digitado e não enviado morre com a tela: desmontar só tira o nó da página,
-    // e um nó destacado ainda carrega o que foi escrito nele.
-    for (const campo of raiz.querySelectorAll('input')) campo.value = '';
-    desmontar();
-  };
 }
