@@ -27,7 +27,8 @@ import { FalhaApi, exigeNovoAcesso, mensagemFalha } from './api.ts';
 import type { ArquivoTurno } from './servico-turno-execucao-http.ts';
 import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Campo } from './componentes/ui/campo.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { CampoData } from './componentes/ui/campo-data.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
 
 /** Uma opção de `SelecaoTurno`, no vocabulário das telas de turno. */
@@ -80,6 +81,18 @@ export function CampoTurno({
         {...resto}
       />
     );
+  if (tipo === 'date')
+    return (
+      <CampoData
+        id={identificador}
+        name={nome}
+        rotulo={rotulo}
+        dica={ajuda}
+        required={obrigatorio}
+        defaultValue={valor ?? ''}
+        {...resto}
+      />
+    );
   return (
     <Campo
       id={identificador}
@@ -116,7 +129,7 @@ export function SelecaoTurno<T extends string>({
   const gerado = useId();
   const identificador = id ?? `turno-campo-${gerado}`;
   return (
-    <SelecaoSimples
+    <SelecaoAprimorada
       id={identificador}
       name={nome}
       rotulo={rotulo}
@@ -131,7 +144,7 @@ export function SelecaoTurno<T extends string>({
           {item.rotulo}
         </option>
       ))}
-    </SelecaoSimples>
+    </SelecaoAprimorada>
   );
 }
 

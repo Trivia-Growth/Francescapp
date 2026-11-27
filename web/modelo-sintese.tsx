@@ -16,8 +16,9 @@ import {
   conteudoEvolucaoDiarioSchema,
 } from '../packages/contracts/src/diario.ts';
 import { AreaTexto } from './componentes/ui/area-texto.js';
+import { CampoData } from './componentes/ui/campo-data.js';
 import { Campo } from './componentes/ui/campo.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
 
@@ -68,7 +69,7 @@ export function CamposSintese({
   return (
     <>
       {areas.length ? (
-        <SelecaoSimples
+        <SelecaoAprimorada
           id={id('area')}
           rotulo="Área (obrigatória)"
           defaultValue={
@@ -81,7 +82,7 @@ export function CamposSintese({
               {nome}
             </option>
           ))}
-        </SelecaoSimples>
+        </SelecaoAprimorada>
       ) : (
         <Campo
           id={id('area')}
@@ -90,10 +91,9 @@ export function CamposSintese({
           disabled={desabilitado}
         />
       )}
-      <Campo
+      <CampoData
         id={id('data')}
         rotulo="Data do atendimento (obrigatória)"
-        tipo="date"
         defaultValue={iniciais.data ?? ''}
         disabled={desabilitado}
       />

@@ -30,7 +30,7 @@ import type { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha } from './api.ts';
 import { Botao } from './componentes/ui/botao.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
@@ -359,7 +359,7 @@ export function TelaConversao({
           <CampoTurno rotulo="Motivo da atenção" nome="motivo" longo />
           <CampoTurno rotulo="Data da atenção" nome="data_atencao" tipo="date" />
           <CampoTurno rotulo="Encaminhamento / ação acordada" nome="encaminhamento" longo />
-          <SelecaoSimples
+          <SelecaoAprimorada
             id="turno-conversao-responsavel"
             name="responsavel"
             rotulo="Responsável pela ação"
@@ -373,7 +373,7 @@ export function TelaConversao({
                 {pessoa.nome ?? ''}
               </option>
             ))}
-          </SelecaoSimples>
+          </SelecaoAprimorada>
           <div className="flex min-w-0 flex-wrap gap-3">
             <Botao
               hidden={!temMais}
@@ -386,7 +386,7 @@ export function TelaConversao({
           </div>
           <CampoTurno rotulo="Prazo da ação" nome="prazo" tipo="date" />
           <SelecaoTurno rotulo="Prioridade informada" nome="prioridade" opcoes={PRIORIDADES} />
-          <SelecaoSimples
+          <SelecaoAprimorada
             id="turno-conversao-area"
             name="area"
             rotulo="Área configurada do diário"
@@ -400,7 +400,7 @@ export function TelaConversao({
                 {nome}
               </option>
             ))}
-          </SelecaoSimples>
+          </SelecaoAprimorada>
           <div className="flex min-w-0 flex-wrap gap-3">
             <Botao peso="principal" tipo="submit">
               Criar tarefa e evolução interna atomicamente

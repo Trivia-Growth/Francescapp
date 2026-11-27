@@ -48,11 +48,11 @@ import type {
 } from '../packages/contracts/src/linha-tempo.js';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { Botao } from './componentes/ui/botao.js';
-import { Campo } from './componentes/ui/campo.js';
+import { CampoData } from './componentes/ui/campo-data.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { MarcaEstado } from './componentes/ui/marca-estado.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { dataDeInstante } from './datas.js';
 import './estilos/tema.css';
@@ -247,7 +247,7 @@ function TelaLinhaTempo({
         </output>
 
         <div className="flex flex-wrap items-end gap-3">
-          <SelecaoSimples
+          <SelecaoAprimorada
             id={`linha-tempo-fonte-${pacienteId}`}
             rotulo="Tipo de registro"
             onChange={(evento) => aoTrocarFonte(evento.currentTarget.value)}
@@ -258,9 +258,9 @@ function TelaLinhaTempo({
                 {rotulo}
               </option>
             ))}
-          </SelecaoSimples>
+          </SelecaoAprimorada>
           <div hidden={areas.length === 0}>
-            <SelecaoSimples
+            <SelecaoAprimorada
               id={`linha-tempo-area-${pacienteId}`}
               rotulo="Área"
               onChange={(evento) => aoTrocarArea(evento.currentTarget.value)}
@@ -271,13 +271,12 @@ function TelaLinhaTempo({
                   {area}
                 </option>
               ))}
-            </SelecaoSimples>
+            </SelecaoAprimorada>
           </div>
-          <Campo
+          <CampoData
             id={`linha-tempo-de-${pacienteId}`}
             rotulo="A partir de"
-            tipo="date"
-            onChange={(evento) => aoTrocarDe(evento.currentTarget.value)}
+            aoAlterar={aoTrocarDe}
           />
         </div>
 

@@ -57,10 +57,11 @@ import { confirmar, confirmarDescarte } from './confirmacao.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Botao } from './componentes/ui/botao.js';
+import { CampoData } from './componentes/ui/campo-data.js';
 import { Campo } from './componentes/ui/campo.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
@@ -229,17 +230,16 @@ function FormularioTarefa({
           defaultValue={valoresIniciais.responsavel}
           onInput={onDirty}
         />
-        <Campo
+        <CampoData
           id={`${idForm}-prazo`}
           name="prazo"
           rotulo="Prazo"
-          tipo="date"
           required
           readOnly={recuperacaoAtiva}
           defaultValue={valoresIniciais.prazo}
           onInput={onDirty}
         />
-        <SelecaoSimples
+        <SelecaoAprimorada
           id={`${idForm}-prioridade`}
           name="prioridade"
           rotulo="Prioridade"
@@ -252,10 +252,10 @@ function FormularioTarefa({
               {texto}
             </option>
           ))}
-        </SelecaoSimples>
+        </SelecaoAprimorada>
         {mostrarEstado ? (
           <>
-            <SelecaoSimples
+            <SelecaoAprimorada
               id={`${idForm}-estado`}
               name="estado"
               rotulo="Estado"
@@ -268,7 +268,7 @@ function FormularioTarefa({
                   {texto}
                 </option>
               ))}
-            </SelecaoSimples>
+            </SelecaoAprimorada>
             <AreaTexto
               id={`${idForm}-acao-realizada`}
               name="acaoRealizada"
@@ -679,7 +679,7 @@ function TelaTarefasCuidado({
       ) : (
         <>
           <div className="flex flex-wrap gap-4">
-            <SelecaoSimples
+            <SelecaoAprimorada
               id="tarefas-filtro-estado"
               rotulo="Filtrar por estado"
               value={filtroEstado}
@@ -692,8 +692,8 @@ function TelaTarefasCuidado({
                   {texto}
                 </option>
               ))}
-            </SelecaoSimples>
-            <SelecaoSimples
+            </SelecaoAprimorada>
+            <SelecaoAprimorada
               id="tarefas-filtro-prioridade"
               rotulo="Filtrar por prioridade"
               value={filtroPrioridade}
@@ -706,7 +706,7 @@ function TelaTarefasCuidado({
                   {texto}
                 </option>
               ))}
-            </SelecaoSimples>
+            </SelecaoAprimorada>
           </div>
           {/* biome-ignore lint/a11y/useSemanticElements: idem. */}
           <p

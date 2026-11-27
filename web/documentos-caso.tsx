@@ -25,6 +25,8 @@
  * `key`, sem reimplementar a perda de rascunho à mão. */
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { CampoData } from './componentes/ui/campo-data.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { TAMANHO_MAXIMO_DOCUMENTO } from '../packages/contracts/src/documento-caso.js';
 import type {
   AudienciaDocumento,
@@ -169,10 +171,10 @@ function FormularioEnvio({
         required
         onChange={marcarPendente}
       />
-      <label htmlFor="documento-categoria">Categoria</label>
-      <select
+      <SelecaoAprimorada
         ref={categoriaRef}
         id="documento-categoria"
+        rotulo="Categoria"
         name="categoria"
         required
         defaultValue=""
@@ -184,20 +186,24 @@ function FormularioEnvio({
             {item}
           </option>
         ))}
-      </select>
+      </SelecaoAprimorada>
       <label htmlFor="documento-origem">Origem (opcional)</label>
       <input id="documento-origem" name="origem" maxLength={120} />
-      <label htmlFor="documento-data">Data do documento (opcional)</label>
-      <input id="documento-data" name="data" type="date" />
-      <label htmlFor="documento-audiencia">Quem pode ver</label>
-      <select id="documento-audiencia" name="audiencia" required defaultValue="">
+      <CampoData id="documento-data" name="data" rotulo="Data do documento (opcional)" />
+      <SelecaoAprimorada
+        id="documento-audiencia"
+        name="audiencia"
+        rotulo="Quem pode ver"
+        required
+        defaultValue=""
+      >
         <option value="">Confirme quem pode ver</option>
         {AUDIENCIAS.map(([valor, rotulo]) => (
           <option key={valor} value={valor}>
             {rotulo}
           </option>
         ))}
-      </select>
+      </SelecaoAprimorada>
       <Botao tipo="submit" peso="principal" disabled={enviando || categorias.length === 0}>
         Anexar
         {enviando ? <IndicadorAcao /> : null}
@@ -346,9 +352,9 @@ function EditorDocumentoCaso({
     <details>
       <summary>Editar dados do documento</summary>
       <Formulario className="documentos-envio" aoEnviar={aoEnviarFormulario} noValidate>
-        <label htmlFor={`documento-${documento.documento_id}-categoria`}>Categoria</label>
-        <select
+        <SelecaoAprimorada
           id={`documento-${documento.documento_id}-categoria`}
+          rotulo="Categoria"
           name="categoria"
           required
           disabled={bloqueado}
@@ -364,7 +370,7 @@ function EditorDocumentoCaso({
               {nome}
             </option>
           ))}
-        </select>
+        </SelecaoAprimorada>
         <label htmlFor={`documento-${documento.documento_id}-origem`}>Origem (opcional)</label>
         <input
           id={`documento-${documento.documento_id}-origem`}
@@ -373,19 +379,16 @@ function EditorDocumentoCaso({
           disabled={bloqueado}
           defaultValue={documento.origem ?? ''}
         />
-        <label htmlFor={`documento-${documento.documento_id}-data`}>
-          Data do documento (opcional)
-        </label>
-        <input
+        <CampoData
           id={`documento-${documento.documento_id}-data`}
           name="data"
-          type="date"
+          rotulo="Data do documento (opcional)"
           disabled={bloqueado}
           defaultValue={documento.data_documento ?? ''}
         />
-        <label htmlFor={`documento-${documento.documento_id}-audiencia`}>Quem pode ver</label>
-        <select
+        <SelecaoAprimorada
           id={`documento-${documento.documento_id}-audiencia`}
+          rotulo="Quem pode ver"
           name="audiencia"
           disabled={bloqueado}
           defaultValue={documento.audiencia}
@@ -395,10 +398,10 @@ function EditorDocumentoCaso({
               {rotulo}
             </option>
           ))}
-        </select>
-        <label htmlFor={`documento-${documento.documento_id}-estado`}>Estado do arquivo</label>
-        <select
+        </SelecaoAprimorada>
+        <SelecaoAprimorada
           id={`documento-${documento.documento_id}-estado`}
+          rotulo="Estado do arquivo"
           name="estado"
           disabled={bloqueado}
           defaultValue={documento.estado}
@@ -408,7 +411,7 @@ function EditorDocumentoCaso({
               {texto}
             </option>
           ))}
-        </select>
+        </SelecaoAprimorada>
         <p>
           Alterar dados mantém o arquivo e o histórico. Removido oculta o acesso pelo app; não
           exclui o arquivo do Drive.

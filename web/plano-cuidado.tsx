@@ -49,7 +49,7 @@
  * `htmlFor` (o padrão do resto do produto) quebraria essa busca em quase toda prova deste
  * arquivo; preservar o aninhamento é o hook, não um detalhe de estilo.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
   objetivoSchema,
@@ -63,10 +63,12 @@ import {
 import type { criarCicloPlano } from './ciclo-plano.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 import { Botao } from './componentes/ui/botao.js';
+import { CampoData } from './componentes/ui/campo-data.js';
 import { classeControle } from './componentes/ui/campo.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
 import { juntar } from './componentes/ui/juntar.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { confirmarDescarte } from './confirmacao.js';
 import './estilos/tema.css';
@@ -170,17 +172,18 @@ function CampoNativo({
   );
 }
 
-function SelecaoNativa({
+function SelecaoObjetivo({
   rotulo,
   children,
   ...resto
 }: { rotulo: string; children: React.ReactNode } & React.SelectHTMLAttributes<HTMLSelectElement>) {
+  const id = useId();
   return (
-    <label className="grid min-w-0 gap-1 text-(length:--texto-1) font-semibold">
+    <label htmlFor={id} className="grid min-w-0 gap-1 text-(length:--texto-1) font-semibold">
       <span>{rotulo}</span>
-      <select className={juntar(classeControle, 'cursor-pointer')} {...resto}>
+      <SelecaoAprimorada {...resto} id={id} aria-label={rotulo}>
         {children}
-      </select>
+      </SelecaoAprimorada>
     </label>
   );
 }
@@ -243,6 +246,7 @@ function CamposExtras({
   ativos: readonly CampoExtraRenderizavel[];
   onDirty: () => void;
 }) {
+  const id = useId();
   return (
     <fieldset className="m-0 grid min-w-0 gap-4 border-0 p-0">
       <legend className="px-0 font-serifada text-(length:--texto-3) font-semibold leading-[1.2]">
@@ -253,7 +257,7 @@ function CamposExtras({
       ))}
       {ativos.map(({ campo, valorInicial, comoTexto, opcaoAntiga }) =>
         campo.tipo === 'lista' ? (
-          <SelecaoNativa
+          <SelecaoObjetivo
             key={campo.campo_id}
             rotulo={campo.nome}
             name={`extra-${campo.campo_id}`}
@@ -269,21 +273,22 @@ function CamposExtras({
             {opcaoAntiga ? (
               <option value={opcaoAntiga}>{`${opcaoAntiga} (opção indisponível)`}</option>
             ) : null}
-          </SelecaoNativa>
+          </SelecaoObjetivo>
+        ) : campo.tipo === 'data' && !comoTexto ? (
+          <CampoData
+            key={campo.campo_id}
+            id={`${id}-${campo.campo_id}`}
+            rotulo={campo.nome}
+            name={`extra-${campo.campo_id}`}
+            defaultValue={valorInicial}
+            onInput={onDirty}
+          />
         ) : (
           <CampoNativo
             key={campo.campo_id}
             rotulo={campo.nome}
             name={`extra-${campo.campo_id}`}
-            tipo={
-              comoTexto
-                ? 'text'
-                : campo.tipo === 'numero'
-                  ? 'number'
-                  : campo.tipo === 'data'
-                    ? 'date'
-                    : 'text'
-            }
+            tipo={!comoTexto && campo.tipo === 'numero' ? 'number' : 'text'}
             step={!comoTexto && campo.tipo === 'numero' ? 'any' : undefined}
             required={false}
             defaultValue={valorInicial}
@@ -530,6 +535,7 @@ function FormularioObjetivo({
   aoGravandoMudou: (emCurso: boolean) => void;
   aoAlterado: () => void;
 }) {
+  const id = useId();
   const { bloqueios, ativos } = useMemo(
     () => prepararExtras(atual?.objetivo.camposExtras ?? {}, catalogo),
     [atual, catalogo],
@@ -719,14 +725,15 @@ function FormularioObjetivo({
           defaultValue={atual?.objetivo.observacaoProgresso}
           onInput={onDirty}
         />
-        <CampoNativo
+        <CampoData
+          id={`${id}-revisao`}
           rotulo="Data de revisão"
-          tipo="date"
+          required
           name="dataRevisao"
           defaultValue={atual?.objetivo.dataRevisao}
           onInput={onDirty}
         />
-        <SelecaoNativa
+        <SelecaoObjetivo
           rotulo="Estado"
           name="estado"
           defaultValue={atual?.objetivo.estado ?? ESTADOS_OBJETIVO[0]}
@@ -737,8 +744,8 @@ function FormularioObjetivo({
               {valor}
             </option>
           ))}
-        </SelecaoNativa>
-        <SelecaoNativa
+        </SelecaoObjetivo>
+        <SelecaoObjetivo
           rotulo="Visibilidade para a família"
           name="visibilidade"
           defaultValue={atual?.visibilidade ?? 'interna'}
@@ -749,7 +756,7 @@ function FormularioObjetivo({
               {rotulo}
             </option>
           ))}
-        </SelecaoNativa>
+        </SelecaoObjetivo>
         <CamposExtras bloqueios={bloqueios} ativos={ativos} onDirty={onDirty} />
         {atual ? (
           <CampoNativo rotulo="Motivo da revisão" area name="motivo" onInput={onDirty} />

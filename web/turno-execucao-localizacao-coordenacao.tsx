@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { resultadoIncerto } from './api.ts';
 import { Botao } from './componentes/ui/botao.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
@@ -276,7 +276,7 @@ export function LocalizacaoCoordenacao({
           </fieldset>
         </Formulario>
         <fieldset disabled={ocupada || !permitida} className={classeGrupo}>
-          <SelecaoSimples
+          <SelecaoAprimorada
             id="turno-coordenacao-turno"
             name="turno"
             rotulo="Turno autorizado"
@@ -293,7 +293,7 @@ export function LocalizacaoCoordenacao({
                 {item.rotulo}
               </option>
             ))}
-          </SelecaoSimples>
+          </SelecaoAprimorada>
           <div className="flex min-w-0 flex-wrap gap-3">
             <Botao hidden={!temMais} aoAtivar={() => void carregarTurnos(true)}>
               Mais turnos do período

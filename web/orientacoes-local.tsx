@@ -28,8 +28,9 @@ import type { VisibilidadeObjetivo } from '../packages/contracts/src/plano-cuida
 import { confirmarDescarte } from './confirmacao.js';
 import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Botao } from './componentes/ui/botao.js';
+import { CampoData } from './componentes/ui/campo-data.js';
 import { Campo } from './componentes/ui/campo.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
@@ -191,11 +192,10 @@ function TelaOrientacoesLocaisEdicao({ dados }: { dados: Dados }) {
           disabled={salvando}
           classeEnvelope="mb-0"
         />
-        <Campo
+        <CampoData
           id="orientacao-data"
           name="data"
           rotulo="Data"
-          tipo="date"
           required
           disabled={salvando}
           classeEnvelope="mb-0"
@@ -209,16 +209,15 @@ function TelaOrientacoesLocaisEdicao({ dados }: { dados: Dados }) {
           disabled={salvando}
           classeEnvelope="mb-0"
         />
-        <Campo
+        <CampoData
           id="orientacao-validade"
           name="validade"
           rotulo="Validade ou revisão (opcional)"
-          tipo="date"
           required={false}
           disabled={salvando}
           classeEnvelope="mb-0"
         />
-        <SelecaoSimples
+        <SelecaoAprimorada
           id="orientacao-visibilidade"
           name="visibilidade"
           rotulo="Visibilidade para a família"
@@ -227,7 +226,7 @@ function TelaOrientacoesLocaisEdicao({ dados }: { dados: Dados }) {
         >
           <option value="interna">Interna (só a equipe vê)</option>
           <option value="publica">Pública (a família também vê)</option>
-        </SelecaoSimples>
+        </SelecaoAprimorada>
         <div className="flex flex-wrap gap-3">
           <Botao peso="principal" tipo="submit" disabled={salvando}>
             {substituindo === null ? 'Registrar orientação' : 'Salvar nova versão'}

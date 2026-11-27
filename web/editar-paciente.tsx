@@ -56,9 +56,10 @@ import type { criarCicloEdicaoPaciente } from './ciclo-edicao-paciente.js';
 import { confirmar } from './confirmacao.js';
 import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Botao } from './componentes/ui/botao.js';
+import { CampoData } from './componentes/ui/campo-data.js';
 import { Campo } from './componentes/ui/campo.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { dataDeInstante } from './datas.js';
 import './estilos/tema.css';
@@ -510,15 +511,14 @@ function TelaEdicaoPaciente({
                 defaultValue={paciente.nome_preferencia ?? ''}
                 onInput={() => avisarPendente.current(true)}
               />
-              <Campo
+              <CampoData
                 id="edicao-nascimento"
                 name="nascimento"
                 rotulo="Data de nascimento"
-                tipo="date"
                 defaultValue={paciente.data_nascimento ?? ''}
                 onInput={() => avisarPendente.current(true)}
               />
-              <SelecaoSimples
+              <SelecaoAprimorada
                 id="edicao-situacao"
                 name="situacao"
                 rotulo="Situação do caso"
@@ -531,8 +531,8 @@ function TelaEdicaoPaciente({
                     {rotulo}
                   </option>
                 ))}
-              </SelecaoSimples>
-              <SelecaoSimples
+              </SelecaoAprimorada>
+              <SelecaoAprimorada
                 key={equipeEstado.tipo}
                 id="edicao-responsavel"
                 name="responsavel"
@@ -547,7 +547,7 @@ function TelaEdicaoPaciente({
                     {opcao.rotulo}
                   </option>
                 ))}
-              </SelecaoSimples>
+              </SelecaoAprimorada>
               <AreaTexto
                 id="edicao-motivo"
                 name="motivo"

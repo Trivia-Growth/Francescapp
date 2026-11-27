@@ -44,7 +44,7 @@ import { Botao } from './componentes/ui/botao.js';
 import { classeControle, EnvelopeCampo } from './componentes/ui/campo.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { criarCicloContato } from './ciclo-contato.js';
 import { confirmar } from './confirmacao.js';
@@ -356,7 +356,7 @@ function TelaContatoPaciente({
             <legend className="px-0 font-serifada text-(length:--texto-3) font-semibold leading-[1.2]">
               Novo contato
             </legend>
-            <SelecaoSimples
+            <SelecaoAprimorada
               id="contato-tipo"
               rotulo="Tipo de contato"
               value={tipoContato}
@@ -367,7 +367,7 @@ function TelaContatoPaciente({
             >
               <option value="telefone">Telefone</option>
               <option value="email">E-mail</option>
-            </SelecaoSimples>
+            </SelecaoAprimorada>
             <EnvelopeCampo
               id="contato-valor"
               rotulo={tipoContato === 'email' ? 'E-mail' : 'Telefone'}

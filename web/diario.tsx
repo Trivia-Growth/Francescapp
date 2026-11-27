@@ -66,6 +66,8 @@ import type {
 import { relatoTextualSchema } from '../packages/contracts/src/relato-textual.ts';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { Botao } from './componentes/ui/botao.js';
+import { CampoData } from './componentes/ui/campo-data.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
 import { confirmar, confirmarDescarte } from './confirmacao.js';
 import type { MontagemConversaoDiario } from './conversao-diario.js';
@@ -291,11 +293,11 @@ function FormularioRelatoFamiliar({
         <p>Conte o que aconteceu e o que você gostaria de levar à coordenação.</p>
         <fieldset disabled={enviando !== null} className="m-0 min-w-0 border-0 p-0">
           <legend>O que aconteceu</legend>
-          <label>
+          <label htmlFor={`${idData}-texto`}>
             Quando aconteceu? (obrigatória)
-            <input
+            <CampoData
               id={idData}
-              type="date"
+              aria-label="Quando aconteceu? (obrigatória)"
               required
               defaultValue={conteudoExistente?.dataAcontecimento}
             />
@@ -489,12 +491,17 @@ function FormularioEvolucao({
           {montarEntradaPorAudio ? (
             <AudioOuAtalho montar={montarEntradaPorAudio} onTexto={aoReceberDitado} />
           ) : null}
-          <label>
+          <label htmlFor={idAudiencia}>
             Quem verá este registro
-            <select id={idAudiencia} disabled={audienciaForcada} defaultValue={audienciaInicial}>
+            <SelecaoAprimorada
+              id={idAudiencia}
+              aria-label="Quem verá este registro"
+              disabled={audienciaForcada}
+              defaultValue={audienciaInicial}
+            >
               <option value="equipe">{rotuloAudiencia.equipe}</option>
               <option value="equipe_e_familia">{rotuloAudiencia.equipe_e_familia}</option>
-            </select>
+            </SelecaoAprimorada>
           </label>
           {/* FR-013: o retorno precisa alcançar quem escreveu o relato, e o banco recusa outra coisa. */}
           {audienciaForcada ? (

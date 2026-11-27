@@ -35,7 +35,7 @@ import type { PapelDeclarado } from '../packages/contracts/src/papel-declarado.t
 import type { Turno } from '../packages/contracts/src/turno.ts';
 import { FalhaApi, resultadoIncerto } from './api.ts';
 import { Botao } from './componentes/ui/botao.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
 import type {
@@ -813,7 +813,7 @@ function SelecaoOpcional({
 }) {
   const id = `ficha-plantao-${nome}-${useId()}`;
   return (
-    <SelecaoSimples
+    <SelecaoAprimorada
       id={id}
       name={nome}
       rotulo={rotulo}
@@ -826,7 +826,7 @@ function SelecaoOpcional({
           {item.rotulo}
         </option>
       ))}
-    </SelecaoSimples>
+    </SelecaoAprimorada>
   );
 }
 

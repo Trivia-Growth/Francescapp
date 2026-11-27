@@ -32,7 +32,7 @@ import { flushSync } from 'react-dom';
 import { confirmarDescarte } from './confirmacao.js';
 import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
@@ -248,7 +248,7 @@ function EncaminhamentosLocaisTela({ dados }: { dados: Dados }) {
           disabled={salvando}
           classeEnvelope="mb-0"
         />
-        <SelecaoSimples
+        <SelecaoAprimorada
           id="encaminhamento-estado"
           name="estado"
           rotulo="Estado"
@@ -260,7 +260,7 @@ function EncaminhamentosLocaisTela({ dados }: { dados: Dados }) {
               {valor}
             </option>
           ))}
-        </SelecaoSimples>
+        </SelecaoAprimorada>
         <div className="flex flex-wrap gap-3">
           <Botao peso="principal" tipo="submit" disabled={salvando}>
             {editando === null ? 'Registrar encaminhamento' : 'Salvar alterações'}

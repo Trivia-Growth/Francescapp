@@ -48,10 +48,11 @@ import {
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Botao } from './componentes/ui/botao.js';
+import { CampoData } from './componentes/ui/campo-data.js';
 import { Campo } from './componentes/ui/campo.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { MarcaEstado } from './componentes/ui/marca-estado.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
@@ -630,7 +631,7 @@ function TelaAnamnese({
                   <legend className="px-1">
                     <MarcaEstado tom="contorno">{`${entrada.secao} — ${entrada.campo}`}</MarcaEstado>
                   </legend>
-                  <SelecaoSimples
+                  <SelecaoAprimorada
                     id={`${PREFIXO_ESTADO}${entrada.id}`}
                     rotulo="Estado"
                     defaultValue={entrada.inicial?.estado ?? 'pendente'}
@@ -640,7 +641,7 @@ function TelaAnamnese({
                         {texto}
                       </option>
                     ))}
-                  </SelecaoSimples>
+                  </SelecaoAprimorada>
                   <AreaTexto
                     id={`anamnese-valor-${entrada.id}`}
                     rotulo="Resposta"
@@ -660,10 +661,9 @@ function TelaAnamnese({
                         : ''
                     }
                   />
-                  <Campo
+                  <CampoData
                     id={`anamnese-data-${entrada.id}`}
                     rotulo="Data"
-                    tipo="date"
                     disabled={estado === 'pendente'}
                     defaultValue={
                       entrada.inicial && entrada.inicial.estado !== 'pendente'
@@ -678,7 +678,7 @@ function TelaAnamnese({
 
           {faltantes.length ? (
             <div className="grid min-w-0 justify-items-start gap-3">
-              <SelecaoSimples
+              <SelecaoAprimorada
                 id="anamnese-sugeridas"
                 rotulo="Perguntas sugeridas"
                 value=""
@@ -695,7 +695,7 @@ function TelaAnamnese({
                     {`${secao} — ${campo}`}
                   </option>
                 ))}
-              </SelecaoSimples>
+              </SelecaoAprimorada>
               <Botao peso="secundario" disabled={travado} aoAtivar={() => acrescentar(faltantes)}>
                 Adicionar todas as sugeridas
               </Botao>
