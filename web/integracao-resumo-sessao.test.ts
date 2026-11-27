@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 
 const paciente = '10000000-0000-4000-8000-000000000001';
 const usuarioB = '10000000-0000-4000-8000-000000000002';
@@ -61,7 +62,7 @@ it('descarta a visão do caso ao trocar profissional durante revalidação', asy
       ]);
     throw new Error('Rota inesperada');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() =>
     expect(
       document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
 const sessao = '20000000-0000-4000-8000-000000000001';
@@ -48,7 +49,7 @@ it('abre tarefas da carteira em modo somente leitura', async () => {
       ]);
     throw new Error('Rota inesperada');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() =>
     expect(
       document.querySelector(

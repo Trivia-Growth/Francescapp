@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 
 beforeEach(() => {
   sessionStorage.clear();
@@ -20,7 +21,7 @@ it('mostra falha genérica e remove somente marcador de retorno após sessão n�
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   history.replaceState(null, '', '/?acesso=indisponivel&outra=valor#inicio');
   vi.stubGlobal('fetch', async () => new Response(null, { status: 401 }));
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() =>
     expect(document.getElementById('login-feedback')?.textContent).toContain(
       'Não foi possível entrar com Google',
@@ -45,7 +46,7 @@ it('avisa sobre falha de entrada quando a sessão anterior continua válida', as
       request_id: id,
     }),
   );
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.getElementById('patients-view')?.hidden).toBe(false));
   expect(document.getElementById('workspace-feedback')?.textContent).toContain(
     'Sua sessão anterior continua ativa',

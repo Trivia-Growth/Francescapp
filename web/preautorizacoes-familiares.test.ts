@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 import { FalhaApi } from './api.ts';
 import {
   montarPreautorizacoesFamiliares,
@@ -279,7 +280,7 @@ describe('quem alcança a seção de acesso da família', () => {
   it('quem administra concessões encontra a seção do acesso da família na ficha', async () => {
     const caminhos = prepararFicha('administrador', ['administrar_concessoes']);
     window.history.replaceState(null, '', `/#paciente/${caso}/acesso-familia`);
-    await import('./main.js');
+    await montarCascaParaTeste();
     await vi.waitFor(() =>
       expect(document.getElementById('ficha-painel')?.textContent).toContain(
         'Quem a equipe autorizou a acompanhar este caso',
@@ -291,7 +292,7 @@ describe('quem alcança a seção de acesso da família', () => {
   it('sem a capacidade de administrar concessões a seção não existe nem é consultada', async () => {
     const caminhos = prepararFicha('profissional', []);
     window.history.replaceState(null, '', `/#paciente/${caso}/acesso-familia`);
-    await import('./main.js');
+    await montarCascaParaTeste();
     await vi.waitFor(() => expect(document.getElementById('ficha-view')?.hidden).toBe(false));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(document.getElementById('ficha-aba-acesso-familia')).toBeNull();

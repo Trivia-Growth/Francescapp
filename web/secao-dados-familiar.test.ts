@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 import { type ClienteFFCM, FalhaApi } from './api.ts';
 import { montarDadosFamiliar } from './secao-dados-familiar.tsx';
 
@@ -185,7 +186,7 @@ describe('quem alcança a seção de dados da família', () => {
       throw new Error(`Rota inesperada: ${caminho}`);
     });
     window.history.replaceState(null, '', `/#paciente/${caso}/dados`);
-    await import('./main.js');
+    await montarCascaParaTeste();
 
     await vi.waitFor(() =>
       expect(document.getElementById('ficha-painel')?.textContent).toContain('Paciente Fictício'),

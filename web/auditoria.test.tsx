@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { fireEvent } from '@testing-library/dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 import { FalhaApi } from './api.ts';
 import { montarAuditoria } from './auditoria.tsx';
 import type { EventoAuditoria } from '../packages/contracts/src/auditoria.ts';
@@ -318,7 +319,7 @@ describe('quem alcança o registro de acessos', () => {
 
   it('com a capacidade de consultar auditoria a área abre e consulta a trilha', async () => {
     const caminhos = preparar(['consultar_auditoria']);
-    await import('./main.js');
+    await montarCascaParaTeste();
     await vi.waitFor(() => expect(document.getElementById('patients-view')?.hidden).toBe(false));
     window.history.pushState(null, '', '#administracao/auditoria');
     window.dispatchEvent(new PopStateEvent('popstate'));
@@ -332,7 +333,7 @@ describe('quem alcança o registro de acessos', () => {
 
   it('sem a capacidade, a rota forçada não monta a trilha nem a consulta', async () => {
     const caminhos = preparar([]);
-    await import('./main.js');
+    await montarCascaParaTeste();
     await vi.waitFor(() => expect(document.getElementById('patients-view')?.hidden).toBe(false));
     window.history.pushState(null, '', '#administracao/auditoria');
     window.dispatchEvent(new PopStateEvent('popstate'));

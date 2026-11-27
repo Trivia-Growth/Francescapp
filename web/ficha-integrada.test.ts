@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 
 const A = '10000000-0000-4000-8000-00000000000a';
 const B = '10000000-0000-4000-8000-00000000000b';
@@ -81,7 +82,7 @@ const el = (id: string) => document.getElementById(id) as HTMLElement;
 
 it('abre a ficha pela lista, atualiza o fragmento e volta com foco na linha', async () => {
   preparar('profissional', []);
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
   expect(document.querySelector(linha(A))?.textContent).toContain('HS');
   expect(document.querySelector(linha(A))?.textContent).toContain('Helena Souza');
@@ -105,7 +106,7 @@ it('abre a ficha pela lista, atualiza o fragmento e volta com foco na linha', as
 
 it('não deixa resíduo do paciente anterior ao abrir outro', async () => {
   preparar('profissional', []);
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
   document.querySelector<HTMLButtonElement>(linha(A))?.click();
   await vi.waitFor(() => expect(painel()).toContain('Tarefa de Helena'));
@@ -120,7 +121,7 @@ it('não deixa resíduo do paciente anterior ao abrir outro', async () => {
 it('reabre na mesma seção ao recarregar, revalidando a sessão antes de mostrar dados', async () => {
   window.history.replaceState(null, '', `/#paciente/${A}/anamnese`);
   const caminhos = preparar('profissional', []);
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(el('ficha-view').hidden).toBe(false));
   // Anamnese fica em "Mais seções" (destinos primários de 3.1): o destaque de quem está
   // ativa ali usa "aria-current", não "aria-selected" (reservado à tablist).
@@ -137,7 +138,7 @@ it('reabre na mesma seção ao recarregar, revalidando a sessão antes de mostra
 it('não consulta o endpoint de paciente para profissional fora da página carregada', async () => {
   window.history.replaceState(null, '', `/#paciente/${C}/visao`);
   const caminhos = preparar('profissional', []);
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() =>
     expect(el('workspace-feedback').textContent).toContain('Escolha o paciente na lista'),
   );
@@ -166,7 +167,7 @@ it('administrador reabre paciente fora da página pelo endpoint de consulta', as
         ? envelope({ itens: [], proximo_cursor: null })
         : undefined,
   );
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(el('ficha-view').hidden).toBe(false));
   expect(el('ficha-title').textContent).toBe('Carla Pereira');
   expect(el('ficha-aba-plano').getAttribute('aria-selected')).toBe('true');
@@ -220,7 +221,7 @@ it.each([
   'oferece ao perfil $perfil só as seções que ele já usa',
   async ({ perfil, capacidades, primarias, secundarias }) => {
     preparar(perfil, capacidades);
-    await import('./main.js');
+    await montarCascaParaTeste();
     await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
     document.querySelector<HTMLButtonElement>(linha(A))?.click();
     expect([...document.querySelectorAll('[role="tab"]')].map((aba) => aba.textContent)).toEqual(
@@ -241,7 +242,7 @@ it('monta Meu turno no caso atual e desmonta ao sair da seção', async () => {
         ? envelope(null)
         : undefined,
   );
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
   document.querySelector<HTMLButtonElement>(linha(A))?.click();
   el('ficha-aba-meu-turno').click();
@@ -255,7 +256,7 @@ it('monta Meu turno no caso atual e desmonta ao sair da seção', async () => {
 
 it('só mostra a seção da visão de tarefas ao profissional', async () => {
   preparar('administrador', ['administrar_cadastro']);
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
   document.querySelector<HTMLButtonElement>(linha(A))?.click();
   await vi.waitFor(() => expect(el('ficha-painel').textContent).toContain('Objetivos ativos'));
@@ -281,7 +282,7 @@ it('mostra à família só os dados do paciente vinculado', async () => {
     if (caminho === `/api/familiar/pacientes/${A}`) return envelope(pacientes[0]);
     return new Response(null, { status: 404 });
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
   document.querySelector<HTMLButtonElement>(linha(A))?.click();
   // FR-008: além dos dados do paciente, família tem Diário, Plano de cuidado, Documentos e
@@ -303,7 +304,7 @@ it('mostra à família só os dados do paciente vinculado', async () => {
 
 it('remove a visão do caso do DOM com a aba oculta e a recarrega ao voltar', async () => {
   preparar('profissional', []);
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
   document.querySelector<HTMLButtonElement>(linha(A))?.click();
   await vi.waitFor(() => expect(painel()).toContain('Tarefa de Helena'));
@@ -344,7 +345,7 @@ it('mostra situação e responsável na visão só ao Administrador com edição
           })
         : undefined,
   );
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
   document.querySelector<HTMLButtonElement>(linha(A))?.click();
   await vi.waitFor(() => expect(painel()).toContain('Situação: Pausado'));
@@ -356,7 +357,7 @@ it('mostra situação e responsável na visão só ao Administrador com edição
 
 it('não consulta nem mostra situação e responsável para o Profissional', async () => {
   const caminhos = preparar('profissional', []);
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
   document.querySelector<HTMLButtonElement>(linha(A))?.click();
   await vi.waitFor(() => expect(painel()).toContain('Tarefa de Helena'));
@@ -372,7 +373,7 @@ it('mostra a situação de cada pessoa na lista do Administrador, inclusive "a c
     { ...pacientes[0], situacao: 'ativo' },
     { ...pacientes[1], situacao: null },
   ]);
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
   const comSituacao = document.querySelector<HTMLElement>(linha(A));
   expect(comSituacao?.querySelector('.pessoa-situacao')?.textContent).toBe('Situação: Ativo');
@@ -391,7 +392,7 @@ it('mostra a situação de cada pessoa na lista do Administrador, inclusive "a c
 
 it('não mostra situação na lista quando o servidor não devolve o campo', async () => {
   preparar('profissional', []);
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
   expect(document.querySelector('.pessoa-situacao')).toBeNull();
   expect(document.querySelector(linha(A))?.getAttribute('aria-label')).toBe(

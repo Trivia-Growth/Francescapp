@@ -90,6 +90,11 @@ Regras e Início não renderizavam os tipos de controle observados.
   falhou. Com o bloqueio revertido, os quatro cenários do painel passaram.
   As provas SQL de Agenda, Auditoria, Linha do tempo, Ficha e Cadastro passaram
   em instâncias descartáveis de PostgreSQL 17.
+- A primeira CI do #42 encontrou trabalho React durante o teardown de
+  `login-aba-oculta.test.ts`. `teste-casca.ts` registra o desmonte real do
+  Cadastro no fim de cada caso para as provas que importavam `main.ts`
+  diretamente. As provas com recargas simuladas mantêm o desmonte entre
+  as montagens da casca. Passaram os 122 testes nos 29 arquivos atualizados.
 - A auditoria de imports e referências a recursos em `web` e `scripts`
   encontrou zero importadores externos de `web/ui/`. A casca usa as pontes
   imperativas de botão e linha de lista. `estilos/tema.css` importa a folha

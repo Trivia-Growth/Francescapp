@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 
 const idA = '10000000-0000-4000-8000-00000000000a';
 const sessionId = '20000000-0000-4000-8000-000000000001';
@@ -61,7 +62,7 @@ it('preserva rascunho familiar após validar vínculo e descarta após revogaç�
     throw new Error(`Rota inesperada: ${url.pathname}`);
   });
   window.history.replaceState(null, '', `/#paciente/${idA}/diario`);
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(consultasDiario).toBe(1));
   await vi.waitFor(() => expect(document.querySelector('textarea')).not.toBeNull());
   await new Promise((resolve) => setTimeout(resolve, 0));

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 
 const id = '10000000-0000-4000-8000-00000000000a';
 const sessionId = '20000000-0000-4000-8000-000000000001';
@@ -40,7 +41,7 @@ it('família com "Como funciona" aberto não perde a tela ao revalidar sem troca
     throw new Error(`Rota inesperada: ${caminho}`);
   });
   window.history.replaceState(null, '', '/#regras');
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(consultasRegras).toBe(1));
   await vi.waitFor(() => expect(document.getElementById('regras-view')?.hidden).toBe(false));
 

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 import { FalhaApi } from './api.ts';
 import { montarSolicitacoesTitular } from './solicitacoes-titular.tsx';
 import type { SolicitacaoTitular } from '../packages/contracts/src/solicitacao-titular.ts';
@@ -291,7 +292,7 @@ describe('quem alcança a área de solicitações do titular', () => {
 
   it('o Administrador abre a área e a consulta acontece', async () => {
     const caminhos = preparar('administrador');
-    await import('./main.js');
+    await montarCascaParaTeste();
     await vi.waitFor(() => expect(document.getElementById('patients-view')?.hidden).toBe(false));
     window.history.pushState(null, '', '#administracao/solicitacoes');
     window.dispatchEvent(new PopStateEvent('popstate'));
@@ -306,7 +307,7 @@ describe('quem alcança a área de solicitações do titular', () => {
 
   it('rota forçada do profissional não monta a área nem consulta solicitações', async () => {
     const caminhos = preparar('profissional');
-    await import('./main.js');
+    await montarCascaParaTeste();
     await vi.waitFor(() => expect(document.getElementById('patients-view')?.hidden).toBe(false));
     window.history.pushState(null, '', '#administracao/solicitacoes');
     window.dispatchEvent(new PopStateEvent('popstate'));

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
@@ -34,7 +35,7 @@ it('abre e fecha a gaveta lateral no celular — botão, fundo, Escape e navega�
     if (url.pathname === '/api/pacientes') return envelope({ itens: [], proximo_cursor: null });
     throw new Error(`Rota inesperada: ${url.pathname}`);
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.getElementById('patients-view')?.hidden).toBe(false));
 
   const botao = document.getElementById('toggle-sidebar') as HTMLButtonElement;
@@ -149,7 +150,7 @@ it('mantém ficha, rascunho e gaveta quando descarte é cancelado', async () => 
     if (url.pathname === `/api/pacientes/${id}/anamnese`) return envelope(null);
     throw new Error('Rota inesperada');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   const seletor = '[aria-label="Abrir ficha de Paciente fictício"]';
   await vi.waitFor(() => expect(document.querySelector(seletor)).not.toBeNull());
   document.getElementById('nav-home')?.click();
@@ -201,7 +202,7 @@ it('lembra a navegação recolhida na carga seguinte', async () => {
     if (url.pathname === '/api/pacientes') return envelope({ itens: [], proximo_cursor: null });
     throw new Error(`Rota inesperada: ${url.pathname}`);
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.getElementById('patients-view')?.hidden).toBe(false));
 
   const recolher = document.getElementById('collapse-sidebar') as HTMLButtonElement;

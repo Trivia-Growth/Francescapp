@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 
 const idA = '10000000-0000-4000-8000-00000000000a';
 const idB = '10000000-0000-4000-8000-00000000000b';
@@ -66,7 +67,7 @@ it('perfil trocado na revalidação remonta "Seu dia" em vez de manter o caso da
     }
     throw new Error(`Rota inesperada: ${url.pathname}`);
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() =>
     expect(document.getElementById('home-view')?.textContent).toContain('Caso da Primeira Sessão'),
   );

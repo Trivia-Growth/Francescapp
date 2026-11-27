@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
+import { montarCascaParaTeste } from './teste-casca.js';
 import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
 
 const id = '10000000-0000-4000-8000-000000000001';
@@ -50,7 +51,7 @@ it.each([404, 401])('abre paciente real e trata falha %s sem sucesso simulado', 
     if (url.pathname === `/api/pacientes/${id}/anamnese`) return new Response(null, { status });
     throw new Error('Rota inesperada');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.querySelector(abrirFicha)).not.toBeNull());
   document.querySelector<HTMLButtonElement>(abrirFicha)?.click();
   expect(document.activeElement?.id).toBe('ficha-title');
@@ -99,7 +100,7 @@ it('protege edição não salva ao trocar de seção, fechar, sair ou recarregar
     if (url.pathname === `/api/pacientes/${id}/anamnese`) return envelope(null);
     throw new Error('Rota inesperada');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   await abrirAnamnese();
   await vi.waitFor(() =>
     expect(document.querySelector('[data-secao="anamnese"] form')).not.toBeNull(),
@@ -153,7 +154,7 @@ it.each([true, false])('exibe histórico apenas quando disponibilidade é %s', a
     if (url.pathname === `/api/pacientes/${id}/anamnese`) return envelope(null);
     throw new Error('Rota inesperada');
   });
-  await import('./main.js');
+  await montarCascaParaTeste();
   await abrirAnamnese();
   await vi.waitFor(() =>
     expect(document.querySelector('[data-secao="anamnese"] form')).not.toBeNull(),
