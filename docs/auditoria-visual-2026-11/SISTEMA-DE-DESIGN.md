@@ -1,21 +1,34 @@
 # Sistema de design do FFCMApp
 
-Proposta para revisão no PR e execução depois da migração React. Base do inventário: `main@7da65b4`, por inspeção de fonte. `DESIGN.md` descreve a interface vigente. Os valores a seguir são o alvo da reforma, com fontes e marca provisórias até o material do marketing. A referência Figma exige acesso e ficou fora da análise. [Design vigente](../../DESIGN.md) · [Auditoria e plano, PR #24](https://github.com/Trivia-Growth/Francescapp/pull/24) · [Direção visual, PR #27](https://github.com/Trivia-Growth/Francescapp/pull/27)
+Proposta para revisão no PR e execução depois da migração React. Base do inventário: `main@7da65b4`, por inspeção de fonte. `DESIGN.md` descreve a interface vigente. Os valores a seguir são o alvo da reforma, com fontes e marca provisórias até o material do marketing. A referência de acabamento é o relato da coordenação após inspecionar no Mac do solicitante as telas BankDash de Painel, Contas, Transações e Editar perfil, inclusive as versões de celular. A análise usa esse relato como fonte para o kit. [Design vigente](../../DESIGN.md) · [Auditoria e plano, PR #24](https://github.com/Trivia-Growth/Francescapp/pull/24) · [Direção visual, PR #27](https://github.com/Trivia-Growth/Francescapp/pull/27)
 
 ## 1. Composição por tarefa
 
-A família volta ao app sem treinamento. Em cada abertura, precisa reconhecer **de quem se trata, o que mudou e onde agir**. Na ficha, o nome da pessoa fica acima do título da folha. Na home, o bloco verde de Hoje fixa o dia e o contexto da pessoa. Horários e eventos abrem a sequência. Atualizações aparecem em linhas datadas com o tipo de publicação e um destino nomeado. A equipe usa a mesma gramática para pendências, turnos e decisões.
+A família volta ao app sem treinamento. Em cada abertura, precisa reconhecer **de quem se trata, o que mudou e onde agir**. Na ficha, a barra identifica a folha, e o nome da pessoa abre o conteúdo. Na home, o bloco verde de Hoje fixa o dia e o contexto da pessoa. Horários e eventos abrem a sequência. Atualizações aparecem em linhas datadas com o tipo de publicação e um destino nomeado. A equipe usa a mesma gramática para pendências, turnos e decisões.
 
 | Intenção | Ordem do conteúdo | Ação |
 |---|---|---|
-| **Consulta** | Contexto → título → filtros aplicados → registros ou conteúdo vigente. As linhas começam no mesmo eixo do título. | Uma ação principal de página quando necessária. Abrir item por link nomeado. Atualização manual é secundária e fica junto da lista. |
-| **Cadastro ou edição** | Contexto → título com o verbo → campos em grupos → recuperação e ações. Um formulário longo abre página própria. Uma seleção breve ou confirmação usa diálogo. | Um envio por etapa. Ao salvar, voltar ao registro ou lista com confirmação e foco recuperado. |
+| **Consulta** | Título → contexto → filtros aplicados → registros ou conteúdo vigente. As linhas começam no mesmo eixo do título. | Uma ação principal de página quando necessária. Abrir item por link nomeado. Atualização manual é secundária e fica junto da lista. |
+| **Cadastro ou edição** | Título com o verbo → contexto → campos em grupos → recuperação e ações. Um formulário longo abre página própria. Uma seleção breve ou confirmação usa diálogo. | Um envio por etapa. Ao salvar, voltar ao registro ou lista com confirmação e foco recuperado. |
 | **Configuração** | Contexto administrativo → valor vigente e alcance → ação de alteração → histórico quando existente. | Abrir edição por intenção. Confirmações de permissão, publicação e revogação mostram alvo e efeito antes do comando. |
 | **Decisão contextual** | Pessoa → item e versão → estado atual → audiência e consequência → ação. | Um avanço principal por estado. A recuperação ocupa esse lugar quando a operação estiver bloqueada. |
 
 **Discordância com a hipótese do #27.** Em Equipe, consulta e convite disputam atenção e compartilhar a mesma página explica parte do problema. A auditoria também achou um defeito independente: a 390 px, colunas de 77 px cortam a identidade e o estado de acesso. Separar o convite deixa a conferência ilegível se a tabela continuar igual. No catálogo emocional, trazer a lista para cima resolve a ordem visual, enquanto voltar à tela ainda repete a espera. São três aceites distintos: precedência do conteúdo, legibilidade e estabilidade na volta. Aumentar caixas indiscriminadamente agravaria a leitura de instruções. A largura pertence à grade, o comprimento de linha pertence ao texto. [Evidências e medidas do PR #24](https://github.com/Trivia-Growth/Francescapp/pull/24)
 
 Do Atendimento, usar o ritmo de 4 px, a diferença clara entre título e controle, uma ação dominante por região e feedback junto da tarefa. Conferência em `76a3ccda`, `DESIGN.md` e `packages/ui/tokens.css`. O FFCMApp adota Cormorant Garamond apenas no título da página e Raleway na leitura e operação, com corpo de 16 px para os dois públicos. A concentração do verde em Hoje dá uma referência de orientação comum à família e à equipe.
+
+### Escolhas em relação ao BankDash
+
+| Escolha para o FFCMApp | Motivo |
+|---|---|
+| Verde oliva para ação e seleção, com Hoje em verde suave. | A cor confirmada pelo solicitante dá continuidade à identidade Francescato. O azul do painel bancário fica na referência. |
+| Quantidade de blocos definida pelas tarefas da tela. Seu dia abre com Hoje e Atualizações. A faixa de quatro resumos fica reservada a vistas com quatro informações independentes e úteis. | Seis a oito blocos competindo no primeiro quadro dificultam a leitura de quem volta ao aplicativo depois de dias. |
+| Gráfico somente quando houver uma pergunta verificável, com título que a nomeie, dados autorizados e equivalente textual. | Um gráfico decorativo toma o espaço de compromissos, publicações e próximos passos. |
+| Português de quem acompanha o caso. Cormorant Garamond no título e Raleway nos controles. | “Abrir relatório” e “Ver compromisso” permitem reconhecer o destino pelo resultado esperado. A tipografia dá continuidade ao projeto. |
+| Busca e atalhos entram na barra quando correspondem a uma ação existente e autorizada. Ações locais usam a barra de sua própria tela. | Replicar uma busca universal e dois botões fixos criaria funções e audiências que o produto ainda precisa definir. |
+| Carrossel manual apenas para resumos suplementares. Hoje, Atualizações e próximos passos ficam empilhados e completos no celular. | Conteúdo de cuidado necessário para agir precisa ser encontrável em leitura vertical, inclusive sem gesto lateral. |
+| Rótulo visível em Menu e botão de foto com alvo de 46 × 46 px. Contornos de campo seguem contraste mínimo de 3:1. | Família pode incluir pessoas que usam pouco aplicativos, com baixa visão ou menor precisão de toque. |
+
 
 ## 2. Tokens
 
@@ -26,10 +39,11 @@ Valores em px CSS na base de 16 px. Declarar espaço, medidas de conteúdo, font
 | `--espaco-1` / `--espaco-2` / `--espaco-3` | 4 / 8 / 12 px | Ajuda depois do campo / rótulo antes do campo e ícone junto do texto / células e conteúdo da linha. |
 | `--espaco-4` / `--espaco-5` / `--espaco-6` | 16 / 24 / 32 px | Campos e margem móvel / grupos de campos e margem intermediária / seções e margem desktop. |
 | `--espaco-7` / `--espaco-8` | 48 / 72 px | Regiões principais no desktop / espaço após o fim da página, somado à área segura inferior quando aplicável. |
-| `--espessura-borda` / `--espessura-filete` | 1 / 3 px | Limite de controle ou divisor horizontal / aviso e seleção quando necessário. |
-| `--raio-controle` / `--raio-superficie` / `--raio-dialogo` | 10 / 12 / 16 px | Campo e botão / cartão com função / diálogo. Avatar usa 50% e marca de estado usa 999 px. |
+| `--espessura-borda` / `--espessura-filete` | 1 / 3 px | Limite de controle ou divisor horizontal / filete de aviso e de Hoje. A barra do item ativo na lateral mede 4 px. |
+| `--raio-controle` / `--raio-superficie` / `--raio-dialogo` / `--raio-pilula` | 10 / 24 / 16 / 999 px | Campos especiais e controles retangulares / cartões / diálogo / botões arredondados, campos de uma linha, busca e marcas de estado. Avatar usa 50%. |
+| `--sombra-cartao` | `0 2px 8px rgb(39 49 35 / 6%)` | Cartão branco sobre fundo cinza. |
 | `--sombra-menu` | `0 12px 28px rgb(39 49 35 / 16%)` | Menu e popover. |
-| `--sombra-dialogo` | `0 18px 48px rgb(39 49 35 / 20%)` | Diálogo e gaveta. Botões, campos, linhas e cartões em repouso têm sombra zero. |
+| `--sombra-dialogo` | `0 18px 48px rgb(39 49 35 / 20%)` | Diálogo e gaveta. Botões, campos e linhas em repouso têm sombra zero. |
 | `--largura-trabalho` / `--largura-texto` / `--largura-formulario` | 1440 px / 65 ch / 560 px | Teto da grade útil / prosa / formulário de uma coluna. Formulários de duas colunas têm teto de 880 px. |
 | `--quebra-intermediaria` / `--quebra-lateral` | 640 / 1024 px | Abaixo de 640, controles empilhados. De 640 a 1023, barra com Menu e margem 24. A partir de 1024, lateral de 240 e margem 32. |
 | `--quebra-tabela` / `--quebra-apoio` | 720 / 960 px | Medir a largura do contêiner, já descontados os recuos. Tabela comparativa a partir de 720, segunda coluna de página a partir de 960. |
@@ -37,7 +51,7 @@ Valores em px CSS na base de 16 px. Declarar espaço, medidas de conteúdo, font
 
 | Token de tipo | Família | Tamanho / altura de linha | Peso |
 |---|---|---|---|
-| `--tipo-pagina` | Cormorant Garamond, Georgia, serif | 32/36 px até 1023, 40/44 px a partir de 1024 | 600 |
+| `--tipo-pagina` | Cormorant Garamond, Georgia, serif | 24/28 px na barra móvel, 32/36 px em tela móvel sem casca e 40/44 px a partir de 1024 | 600 |
 | `--tipo-secao` | Raleway, Arial, sans-serif | 20/28 px | 700 |
 | `--tipo-item` | Raleway, Arial, sans-serif | 18/24 px | 700 |
 | `--tipo-corpo` | Raleway, Arial, sans-serif | 16/24 px | 400 |
@@ -48,7 +62,7 @@ Nome, tarefa, e-mail e estado decisivo ficam a pelo menos 16 px. Metadado serve 
 
 | Token | Hex | Aplicação |
 |---|---|---|
-| `--cor-fundo` / `--cor-superficie` | `#FBFCF8` / `#FFFFFF` | Fundo contínuo / área elevada, campos e lista de trabalho quando precisar de fundo. |
+| `--cor-fundo` / `--cor-superficie` | `#F4F5F3` / `#FFFFFF` | Fundo cinza claro da área de trabalho / cartões, navegação, barra e campos. |
 | `--cor-texto` / `--cor-texto-secundario` | `#273123` / `#58634F` | Conteúdo e rótulos / metadados, ajuda e placeholder complementar. |
 | `--cor-acao` / `--cor-acao-hover` / `--cor-acao-pressionada` | `#475436` / `#38442A` / `#273123` | Botão principal com texto branco, link sublinhado em prosa e texto de botão discreto. |
 | `--cor-hoje` / `--cor-marca` | `#EDF2E6` / `#839352` | Área de Hoje, fundo de seleção e hover discreto / filete decorativo institucional. |
@@ -62,20 +76,28 @@ Nome, tarefa, e-mail e estado decisivo ficam a pelo menos 16 px. Metadado serve 
 
 ## 3. Componentes e celular
 
-**Grade e superfícies.** A grade tem uma coluna até o contêiner alcançar 960 px. Seu dia usa então 12 colunas, intervalo de 24 px, Hoje em 8 e Atualizações em 4. Outras páginas dividem a grade quando as duas regiões têm tarefas independentes explicitadas no mapa. Listas, tabelas e agenda usam a grade inteira quando são o assunto principal. Formulário e prosa param no seu teto, alinhados à esquerda, em fundo contínuo. Cartão serve a um resumo autônomo ou ao bloco Hoje. Recuo 16 px no celular e 24 px no desktop, raio 12, uma borda de 1 px se o limite cumprir função. Hoje leva filete verde de 3 px no início e fundo tonal. Seções irmãs se separam por 32 px, com um divisor por registro em listas.
+**Grade e cartões. Cada bloco preenche 100% da coluna que lhe cabe.** Uma lista, tabela, formulário ou gráfico tem seu contorno visual alinhado às bordas da coluna. Limites de 65 ch para prosa e 560/880 px para campos são internos e alinhados à esquerda. Se o formulário ocupar a grade inteira, seu cartão continua com largura integral e as ações encostam à direita no recuo do cartão.
+
+O título de seção fica **fora do cartão**, acima, alinhado à esquerda. Quando houver link de consulta, ele fica discreto à direita na mesma linha, com quebra abaixo do título se faltar espaço. Intervalo de 12 px entre título e cartão e de 32 px entre seções. Listas, tabelas, formulários e resumos usam cartão branco sobre fundo cinza claro, sem borda, raio 24, sombra leve e recuos de 16 px no celular e 24 px no desktop. Um cartão contém seu assunto e suas linhas. Hoje tem fundo verde suave e filete verde de 3 px como ponto de orientação. Os demais cartões ficam brancos. Avisos e campos conservam o próprio contorno funcional.
+
+A grade tem uma coluna até o contêiner alcançar 960 px. A partir de 960 px, regiões independentes como Hoje e Atualizações usam 8 + 4 de 12 colunas, com intervalo de 24 px. Listas e agenda que são o assunto principal usam a grade inteira. Se houver quatro resumos úteis aprovados para uma vista, cada um ocupa um quarto da grade com o mesmo intervalo, sem lacunas. Em largura estreita, blocos empilham na ordem de leitura. Um eventual gráfico de trabalho usa toda a coluna e conserva rótulos legíveis, com altura mínima de 240 px.
+
+**Resumos suplementares no celular.** Abaixo de 640 px, uma faixa com pelo menos dois resumos opcionais pode rolar na horizontal, dentro da margem da página. Cada cartão ocupa sua própria coluna de `calc(100% - 40px)`, com vão de 12 px e 28 px do próximo cartão à vista antes do último. Oferecer também botões “Anterior” e “Próximo” de 46 px, sem avanço automático e com leitura/foco na ordem dos cartões. No último, permitir ver o conteúdo inteiro. Com um resumo, usar a largura inteira. Conteúdo necessário para entender ou agir fica na pilha principal.
 
 | Componente | Medidas, estados e comportamento | Em largura estreita |
 |---|---|---|
-| **Botão** | Principal com preenchimento oliva e texto branco. Secundário branco com contorno. Discreto transparente, com espaço de controle igual ao secundário. Perigo usa vermelho só na ação destrutiva explícita. Principal e perigo escurecem em hover e pressão pelos tokens. Secundário/discreto usam fundo Hoje no hover e fundo desabilitado na pressão, com texto de ação preservado. Padrão mínimo 46 px, recuo horizontal 16 e vertical 10, raio 10, corpo de controle e intervalo de 8 px entre ícone e rótulo. Compacto nos botões auxiliares de barra desktop com ponteiro preciso: altura visual 36, área acionável de 46 × 46 ou maior. Ícone isolado ocupa 46 × 46. Enquanto envia, ação conserva a largura disponível, mostra “Salvando…” ou verbo equivalente, preserva foco e bloqueia clique, Enter e reenvio do formulário. Estado indisponível tem cor própria. | Abaixo de 640, ações principais de formulário/diálogo ocupam 100%. Alternativa abaixo com 8 px de intervalo. Ações de consulta quebram para a linha seguinte, sem comprimir nomes. |
-| **Campo e área de texto** | Rótulo persistente acima, 8 px até controle. Altura mínima 46, padding 12 px na horizontal, texto 16/24, borda 1 px, raio 10. Área de texto começa em 120 px e permite expansão vertical. Ajuda/erro abaixo com 4 px, associação programática e `aria-invalid` no inválido. Em envio inválido, foco no primeiro campo inválido ou resumo com links se houver mais de uma seção. Leitura de valor usa texto, “Editar” abre o campo. Guardar rascunho em falha de gravação dentro da mesma sessão e escopo autorizados. | Uma coluna abaixo de 1024 ou se o contêiner do formulário medir menos de 640 px. Duas colunas só para campos curtos relacionados. Campo longo ocupa toda a medida. |
+| **Botão** | Principal com preenchimento oliva e texto branco. Secundário branco com contorno. Discreto transparente, com espaço de controle igual ao secundário. Perigo usa vermelho só na ação destrutiva explícita. Principal e perigo escurecem em hover e pressão pelos tokens. Secundário/discreto usam fundo Hoje no hover e fundo desabilitado na pressão, com texto de ação preservado. Padrão mínimo 46 px, recuo horizontal 16 e vertical 10, raio de pílula, corpo de controle e intervalo de 8 px entre ícone e rótulo. Compacto nos botões auxiliares de barra desktop com ponteiro preciso: altura visual 36, área acionável de 46 × 46 ou maior. Ícone isolado ocupa 46 × 46. Enquanto envia, ação conserva a largura disponível, mostra “Salvando…” ou verbo equivalente, preserva foco e bloqueia clique, Enter e reenvio do formulário. Estado indisponível tem cor própria. **Até um botão primário por cartão.** Quando houver, fica no rodapé do cartão, à direita, com recuo de 24 px no desktop. Links de leitura e ações secundárias têm peso discreto. | Abaixo de 640, ações principais de formulário/diálogo ocupam 100%. Alternativa abaixo com 8 px de intervalo. Ações de consulta quebram para a linha seguinte, sem comprimir nomes. |
+| **Campo e área de texto** | Rótulo persistente acima, 8 px até controle. Altura mínima 46, recuo horizontal de 16 px, texto 16/24, borda de 1 px e fundo branco. Campo de uma linha tem raio de pílula. Área de texto usa raio 10 px, começa em 120 px e permite expansão vertical. Ajuda/erro abaixo com 4 px, associação programática e `aria-invalid` no inválido. Em envio inválido, foco no primeiro campo inválido ou resumo com links se houver mais de uma seção. Leitura de valor usa texto, “Editar” abre o campo. Guardar rascunho em falha de gravação dentro da mesma sessão e escopo autorizados. | Uma coluna abaixo de 1024 ou se o contêiner do formulário medir menos de 640 px. Duas colunas só para campos curtos relacionados. Campo longo ocupa toda a medida. |
 | **Seleção** | `select` nativo para escolha única curta. Rádio para alternativas cuja explicação precise ficar visível. Checkbox para escolha múltipla, cada linha com alvo de 46 px. Busca de pessoas ou vocabulário usa a primitiva acessível existente quando a busca for necessária, com seleção atual, rótulo visível e estado local sem resultados/erro. Nome, escopo e efeito da escolha aparecem juntos em permissões. | Seleção ocupa a largura do campo. Se o menu próprio exceder a altura disponível, rola internamente e mantém foco/seleção. Filtros opcionais podem abrir sob “Filtros”, com os aplicados visíveis e “Limpar filtros”. |
 | **Data e período** | Controle nativo estilizado, 46 px e 16/24 px. Rótulo explícito “Data de início”, “Data final” ou “Horário”. Renderizar datas em português brasileiro e indicar o fuso quando puder alterar a interpretação, conforme fonte aprovada. Erro de período fica junto da data final. Agenda mostra período e comandos “Anterior”, “Hoje”, “Próximo” com nomes completos para leitor de tela. | Datas de intervalo empilham, início antes de fim. Agenda vira lista agrupada por dia abaixo de 720 px de contêiner. Evento longo quebra, com hora e ação sempre legíveis. |
-| **Tabela** | A partir de 720 px de contêiner, usar `table`, legenda acessível e cabeçalhos com `scope`, ordenação com botão nomeado e `aria-sort` quando suportada. Cabeçalho mínimo 44, linhas mínimas 56, células com 12 px na vertical e 16 px na horizontal, 1 px de linha entre registros. Em Equipe, Pessoa 40%, Perfil 20%, Conta 18%, Estado 22%, todos à esquerda. Quantias à direita. Ações aparecem na célula final ou na área de identidade se a tabela tiver quatro colunas fixas. A altura cresce com quebra de conteúdo. | Abaixo de 720, registros empilhados, título e ação de abrir, depois pares rótulo/valor, mantendo dados, filtros, paginação e ordenação. Se houver ordenação, oferecer controle equivalente acima da lista. Em Equipe: pessoa/e-mail → Perfil → Estado → Conta → ações. Uma matriz que exija comparação simultânea pode ter rolagem confinada em região nomeada e focável, com indicação visível de continuação. |
-| **Lista e cartão** | Lista semântica para cronologia, materiais, tarefas e destinos. Linha com 12 px de recuo vertical, altura mínima 56, título 18/24 e metadados abaixo. Link explícito para navegar, sem interação duplicada com a linha. Cartão de resumo usa título e um único destino principal, sem caixa interna. | Uma coluna. Ação abaixo dos metadados quando não couber ao lado. Conteúdo de estado quebra por inteiro. Cartões evitam carrossel horizontal. |
+| **Tabela** | A partir de 720 px de contêiner interno, usar `table`, legenda acessível e cabeçalhos com `scope`, ordenação com botão nomeado e `aria-sort` quando suportada. Cabeçalho 16/24 px, peso 400, cinza secundário sobre branco, com altura mínima de 44 px. Linhas de pelo menos 56 px, células com 12 px na vertical e 16 px na horizontal. Fundo branco uniforme, sem zebra e sem linhas verticais. Um filete horizontal de 1 px entre registros. A identidade lidera. Para tipos reconhecíveis, usar círculo tonal de 32 px com ícone de 16 px ao lado do rótulo do tipo. Em Equipe, Pessoa 40%, Perfil 20%, Conta 18%, Estado 22%, todos à esquerda. Quantias à direita. Quando o sinal tem significado no domínio, aplicar verde de ação ao número positivo e vermelho de erro ao negativo, com sinal `+` ou `−` legível, sem etiqueta ou fundo. Quantia neutra fica na cor de texto. A ação de linha usa pílula de contorno na última coluna ou, nas quatro colunas fixas de Equipe, sob a identidade. | Abaixo de 720 px internos, toda tabela larga vira lista rotulada com os mesmos dados, filtros, ordenação e paginação. Valor na ponta da primeira linha quando cabe, com quebra para linha própria quando faltar espaço. Em Equipe: pessoa/e-mail → Perfil → Estado → Conta → ações. A exceção para matrizes de comparação simultânea exige prova dessa tarefa e rolagem confinada numa região nomeada e focável. |
+| **Lista** | Lista semântica para cronologia, materiais, tarefas e destinos. Linha com 12 px de recuo vertical, altura mínima 56, título 18/24 e metadados abaixo. Link nomeado abre o item. Ícone que identifica categoria segue o círculo tonal da tabela. | Uma coluna. Ação abaixo dos metadados quando faltar espaço na linha. Conteúdo de estado quebra por inteiro. |
+| **Paginação** | Rodapé da lista alinhado à direita. Se o serviço fornecer números de página, botões em pílula com a página ativa preenchida em oliva e `aria-current="page"`. Com cursor, usar “Anterior”, página atual quando disponível e “Próxima”, preservando o contrato. | Controles quebram de linha sem cortar rótulos. Manter 46 px de alvo e nomear página nos botões numéricos. |
+| **Abas no cartão** | Quando o conteúdo tem painéis irmãos existentes, abas começam no topo do cartão, em texto, sem moldura e com sublinhado verde de 3 px na ativa. O título da seção permanece acima do cartão. | Quebrar as abas para outra linha, com os nomes e o estado atual visíveis. |
 | **Diálogo** | Para confirmação e edição breve. Teto de 560 px de largura e `min(640px, calc(100dvh - 64px))` de altura. Cabeçalho e ações visíveis, corpo rolável, recuo 24. Título identifica a operação e o registro quando permitido. Foco no título em confirmação consequente ou primeiro campo no formulário breve. Escape fecha respeitando a confirmação de descarte vigente, clique externo conserva o diálogo, fechar devolve foco à origem ou ao título da tela se a origem saiu. Fundo inerte. | Abaixo de 640, folha inferior com largura integral, altura máxima `calc(100dvh - 16px)`, recuo 16 e área segura somada ao rodapé. Ações ficam acima do teclado quando houver espaço. Em altura insuficiente, permitir rolagem interna suficiente para chegar ao campo e a ambos os botões. |
 | **Aviso e vazio** | Aviso na região afetada, raio 12, filete 3, recuo 16, ícone e título 16/24 semibold, seguido de consequência e ação quando cabível. Erro de campo fica no campo. Sucesso confirmado fica na região do resultado. Vazio após resposta válida usa título 18/24, corpo 16/24 e uma ação pertinente. “Sem resultados” oferece limpar filtros. “Indisponível” oferece recuperação. | Ações abaixo da mensagem no mesmo bloco. Toast pode complementar confirmação, com mensagem persistente na região de origem. Estado essencial permanece disponível depois do tempo de leitura. |
-| **Avatar** | Círculo 32 px na barra, 40 em linhas que já pedem identidade visual, 72 em Meu perfil. Reservar proporção 1:1. Fundo Hoje, texto de ação, até duas iniciais, ou ícone de pessoa se faltar nome. Imagem centralizada com `object-fit: cover`. Imagem e iniciais decorativas ao lado de nome ou comando com “Conta”. | Mesmos diâmetros. Alvo “Conta” com 46 px mínimos. Em edição futura, prévia quadrada e ações “Trocar foto” e “Remover foto” abaixo; mostrar o resultado após confirmação e conservar a última foto confirmada em falha. |
-| **Ícones** | Uma família linear, grade 24 × 24, traço 2 arredondado, `currentColor`. 20 px em navegação e 16 px junto a botões. Seta volta, chevron expande ou sinaliza destino. Todo ícone de comando sem texto tem nome acessível e alvo de 46 px. | Menu e Conta têm texto visível. Ícone com texto é decorativo. Ação principal, estado e destino aparecem em palavras. |
+| **Avatar** | Círculo de 32 px na barra, 40 em linhas que pedem identidade visual e 96 em Meu perfil e Editar perfil. Reservar proporção 1:1. Fundo Hoje, texto de ação, até duas iniciais, ou ícone de pessoa se faltar nome. Imagem centralizada com `object-fit: cover`. Imagem e iniciais decorativas ao lado de nome ou comando com “Conta”. | Mesmos diâmetros. Alvo “Conta” com 46 px mínimos. Em Editar perfil, manter o lápis na borda do avatar e “Remover foto” abaixo conforme a seção 5. |
+| **Ícones** | Uma família linear, grade 24 × 24, traço 2 arredondado, `currentColor`. 20 px em navegação e 16 px junto a botões. Em linha liderada por categoria, usar círculo de 32 px com fundo tonal. Usar os fundos de Hoje, aviso, erro ou cinza neutro conforme o significado documentado, com rótulo legível junto do ícone. Seta volta, chevron expande ou sinaliza destino. Todo ícone de comando sem texto tem nome acessível e alvo de 46 px. | Menu tem rótulo visível. O avatar acionável tem nome “Conta”. Ícone com texto é decorativo. Ação principal, estado e destino aparecem em palavras. |
 
 ## 4. Carregamento e atualização
 
@@ -95,10 +117,14 @@ Após a migração, medir a cascata antes de mexer na aquisição de dados. Inic
 
 ## 5. Casca, navegação e perfil
 
-Barra de altura mínima de 56 px até 1023 e 64 px a partir de 1024. Marca ocupa área reservada de 32 × 32. “Conta” e, quando autorizado, “Avisos” ficam na barra. Cada grupo tem uma navegação por vez. Desktop usa lateral de 240 px sempre com rótulos. Até 1023, a lateral cede lugar à gaveta “Menu”, com largura `min(360px, calc(100% - 32px))`, títulos de grupo e rolagem própria. Links têm altura mínima de 46 px, fundo tonal e peso 700 no atual. Gaveta fecha ao navegar e com Escape. Após fechar sem navegar, foco volta a Menu. Depois de navegar, foco vai ao título da folha. Um cabeçalho pode crescer com texto e zoom. O conteúdo recebe a largura restante em desktop, com o teto e recuos da grade. A margem extra acima do teto fica simétrica.
+**Desktop, a partir de 1024 px.** Lateral branca fixa à esquerda com 240 px, marca no topo e uma lista plana de ícone + rótulo. Todos os destinos autorizados ficam expostos ao mesmo tempo, em linhas de no mínimo 56 px, com texto de 16/24 px. Uma janela baixa rola a lista, sem esconder links atrás de títulos retráteis. Usar cinza secundário nos itens inativos. O atual usa texto oliva 700, fundo tonal e barra vertical de 4 px colada à borda esquerda da janela. Se uma folha for descendente, destacar o destino global correspondente e identificar a folha atual no caminho contextual. Sem acordeão, submenu ou agrupamento na lateral.
+
+**Barra superior.** Fixa no alto da área de trabalho, branca, com altura mínima de 72 px no desktop e de 64 px no celular. No desktop, título da página de 40/44 px à esquerda e ações à direita. Busca, quando a tela já oferece pesquisa, usa pílula branca com contorno, até 280 px, nome de escopo e alvo de 46 px. Em seguida ficam os comandos globais autorizados disponíveis, como Avisos, em círculos de 46 px. O avatar redondo de Conta ocupa sempre a ponta direita. A barra usa o mesmo arranjo ao navegar e só apresenta controles que funcionam no contexto. Busca local que não couber volta para a barra da lista. O título é o único `h1`, em uma linha quando couber e sem reticências obrigatórias. O conteúdo começa depois da altura real da barra, cabeçalho de destino e foco ficam visíveis ao usar âncoras, e zoom/tela baixa podem pôr a barra no fluxo quando a altura fixa consumir a área de trabalho.
+
+**Celular, até 1023 px.** Hambúrguer com rótulo “Menu” à esquerda, título centralizado e avatar à direita. O título usa 24/28 px quando as três regiões couberem e quebra em linha própria centralizada quando precisar. Gaveta de largura `min(360px, calc(100% - 32px))` apresenta a mesma lista plana, com os mesmos rótulos, altura de linha e estado atual. A gaveta fecha ao navegar e com Escape. Após fechar sem navegar, foco volta a Menu. Depois de navegar, foco vai ao título. Em espaço curto, Avisos autorizado passa para item plano da gaveta, antes de Ajuda, com o mesmo destino. A margem lateral é constante dentro do breakpoint. No desktop a margem extra após o teto da grade fica simétrica.
 
 ```text
-Equipe · Menu / lateral
+Destinos e páginas da equipe (só os itens no primeiro nível entram na lateral/gaveta)
   Seu dia
   Pessoas acompanhadas
     Carteira → Novo paciente / ficha da pessoa
@@ -121,7 +147,7 @@ Equipe · Menu / lateral
     Privacidade e auditoria → Histórico de auditoria / Solicitações de privacidade
   Ajuda → Como funciona o acompanhamento
 
-Família · Menu / lateral
+Destinos e páginas da família (só os itens no primeiro nível entram na lateral/gaveta)
   Seu dia → Hoje / Atualizações
   Pessoas acompanhadas → carteira / ficha compartilhada
     Dados do paciente
@@ -135,7 +161,7 @@ Barra · equipe e família
   Avisos → leitura e destino original (quando autorizado)
 ```
 
-Administração abre num índice de quatro grupos com links em coluna. A ficha tem “Seções da ficha” junto ao cabeçalho, expande por iniciativa da pessoa e lista grupos em coluna. Em link direto, mostrar pessoa, caminho do grupo e título com as seções fechadas. No celular, o caminho usa link curto para o nível anterior. Exemplo: “Pessoas acompanhadas” → “Cuidado”; nome da pessoa acima de “Plano de crise”. Listas retornam com filtros e foco preservados quando autorizados. Nenhum destino depende de fita horizontal. Grupos vazios saem do menu. A sequência acima usa Plantões antes de Agenda como proposta de validação, com Financeiro e Administração visíveis apenas a quem tem o acesso correspondente. Conta técnica mantém sua entrada excepcional.
+Os quatro grupos de Administração são seções do índice no conteúdo, com todos os links autorizados expostos ali. A ficha tem link “Seções da ficha” que abre o índice da pessoa, com links autorizados agrupados no conteúdo. Os grupos da árvore representam páginas e índices. Em link direto, mostrar pessoa, caminho do grupo e título da folha. No celular, o caminho usa link curto para o nível anterior. Exemplo: “Pessoas acompanhadas” → “Cuidado”; “Plano de crise” na barra e nome da pessoa acima do cartão. Listas retornam com filtros e foco preservados quando autorizados. Nenhum destino depende de fita horizontal. Índices exibem grupos com destinos autorizados. A sequência acima usa Plantões antes de Agenda como proposta de validação, com Financeiro e Administração visíveis apenas a quem tem o acesso correspondente. Conta técnica mantém sua entrada excepcional.
 
 “Equipe” é administração de concessões institucionais. **Cadastrar conta interna** continua em **Contas do aplicativo**. **Pré-conceder acesso** começa em **Equipe → Convidar alguém** e mantém a confirmação do fluxo existente. **Vincular ao caso** continua em **Pessoas e acesso → Equipe com acesso ao caso**. **Editar meu perfil** começa em Conta. **Tarefas** têm entrada no contexto da pessoa, com atalhos em Hoje apenas quando houver uma fonte autorizada e acionável. **Agenda** tem entrada operacional própria, com o estado e a conexão na página. A família encontra apenas compromissos publicados para sua audiência por Hoje, condicionados à fonte aprovada.
 
@@ -144,22 +170,24 @@ Administração abre num índice de quatro grupos com links em coluna. A ficha t
 ```text
 Celular, 390 × 844, recuo lateral de 16 px
 
- Menu                 FFCMApp                 Conta
- Seu dia
+ Menu                 Seu dia                Avatar
  Sexta-feira, 27 de novembro
  Lia Alves                              ← caso fictício
 
- ┌ Hoje ───────────────────────────────────────────┐
+ Hoje
+ ┌─────────────────────────────────────────────────┐
  │ 14h00  Encontro de acompanhamento              │
  │        Ver compromisso                         │
  └─────────────────────────────────────────────────┘
 
  Atualizações
- 25 nov   Orientação publicada
-          Abrir orientação
- ──────────────────────────────────────────────────
- 21 nov   Relatório publicado
-          Abrir relatório
+ ┌─────────────────────────────────────────────────┐
+ │ 25 nov Orientação publicada                    │
+ │        Abrir orientação                        │
+ │ ────────────────────────────────────────────── │
+ │ 21 nov Relatório publicado                     │
+ │        Abrir relatório                         │
+ └─────────────────────────────────────────────────┘
 
  Pessoas acompanhadas
 ```
@@ -168,7 +196,11 @@ Hoje lista até três acontecimentos autorizados do dia em ordem de horário, co
 
 ### Meu perfil e edição
 
-Página de consulta com avatar de 72 px, nome de exibição quando disponível, e-mail autorizado e ação “Editar perfil”. Edição abre formulário de 560 px com foto, nome e rodapé “Salvar alterações”, “Cancelar”. Foto opcional, fallback para iniciais, prévia antes de salvar e possibilidade de remoção. E-mail de autenticação, papel e vínculo são valores de leitura se já autorizados. Aviso de descarte ao sair de edição alterada. Em falha, trazer a recuperação junto da ação, manter rascunho autorizado e preservar imagem confirmada. Proposta visual e de interação. Campos editáveis, regras de validade, audiência, armazenamento, descarte e concorrência da foto/nome exigem decisão no OpenSpec. Até lá, a casca pode usar iniciais quando houver nome autorizado e o menu mantém saída.
+Página de consulta com avatar redondo de 96 px à esquerda, nome de exibição quando disponível, e-mail autorizado e “Editar perfil”. Dentro da edição, título de seção fora do cartão e, se houver painéis irmãos já aprovados, abas de texto sublinhadas no topo do cartão. Campos atuais e aprovados ficam em duas colunas quando a largura interna do formulário chegar a 640 px em desktop. Em celular ficam em uma coluna. O rodapé tem um único primário sólido “Salvar alterações”, em pílula, no canto inferior direito. “Cancelar” é discreto. Identidade de autenticação, papel e vínculo aparecem em leitura quando permitidos.
+
+**Trocar a foto da conta é uma função nova.** Sobrepor no quadrante inferior direito da foto um botão circular com lápis de 16 px e área de toque de 46 × 46 px. Posicionar o botão a 4 px para fora das arestas inferior e direita do quadrado do avatar, com halo branco de 2 px. Deixar a área ao redor livre para toque e foco. O botão permanece visível para iniciais e foto, com nome acessível e rótulo associado “Trocar foto”. Ele abre o seletor de imagens. Após escolher, mostrar a prévia no círculo antes de publicar. “Remover foto”, quando houver, marca a remoção no rascunho e mostra as iniciais. Salvar confirma a alteração, com estado imediato de envio e recuperação local. Cancelar descarta a prévia e mantém a foto confirmada. Avisar antes de sair com edição pendente. Se seleção ou gravação falhar, comunicar a recuperação e manter a foto confirmada na barra.
+
+Construir leitura do próprio perfil, validação da imagem no servidor, envio e leitura privados, substituição e remoção autorizadas para o titular e sincronização do avatar da barra após confirmação. Testar seleção cancelada, arquivo recusado, falha durante envio, persistência após recarregar, remoção e acesso indevido de outra conta. Campos editáveis, formatos e limites, audiência, armazenamento, descarte e concorrência exigem decisão no OpenSpec. Até a função ser habilitada, a casca pode mostrar iniciais quando houver nome autorizado.
 
 ### Links e acessos
 
@@ -176,7 +208,7 @@ O endereço antigo da ficha, Administração, Carteira e Ajuda segue resolvendo 
 
 ## 6. Acessibilidade
 
-- Texto útil tem contraste mínimo de **4,5:1**, incluindo metadados. Ícones, contornos essenciais e foco têm **3:1** sobre o fundo adjacente. Divisor claro serve à leitura, sem ser a única indicação de agrupamento. Seleção e estado combinam palavra, indicador e semântica. O oliva institucional fica em área/filete. Os fundos de botão preenchido exigem texto branco. Pares calculados: texto branco sobre ação 8,11:1, texto secundário no fundo geral 6,15:1, texto de erro no fundo de erro 6,38:1 e contorno de controle no fundo Hoje 3,76:1.
+- Texto útil tem contraste mínimo de **4,5:1**, incluindo metadados. Ícones, contornos essenciais e foco têm **3:1** sobre o fundo adjacente. Divisor claro serve à leitura, sem ser a única indicação de agrupamento. Seleção e estado combinam palavra, indicador e semântica. O oliva institucional fica em área/filete. Os fundos de botão preenchido exigem texto branco. Pares calculados: texto branco sobre ação 8,11:1, texto secundário no fundo geral 5,80:1, texto de erro no fundo de erro 6,38:1 e contorno de controle no fundo Hoje 3,76:1.
 - Cada comando tem alvo de pelo menos **46 × 46 px**, inclusive ícones, com 8 px entre comandos vizinhos quando ficam na mesma linha. Há foco visível com contorno de 2 px e afastamento de 2 px em `:focus-visible`. Não cortar o anel com overflow nem ocultar o foco atrás de barra/rodapé. Usar cor do sistema em alto contraste forçado.
 - Uma ordem de leitura e teclado segue o conteúdo. Pular para o conteúdo via link de atalho. Usar um `h1` por folha, níveis coerentes, nomes acessíveis em comandos, `aria-current` nos links e títulos em regiões. Abas de painéis equivalentes usam semântica de aba, seta, Home/End e foco na aba ativa. Navegação entre páginas usa links. A ordem do DOM segue a ordem visual.
 - A 200% de zoom, texto e ações refluem sem perda. Checar reflow a 320 CSS px e em tela baixa com teclado aberto. Permitir espaçamento de texto do navegador. Anunciar resultado e estado da leitura no lugar da ação. Evitar que o mesmo erro seja anunciado no campo, no resumo e num alerta global.
@@ -240,7 +272,7 @@ Origem comum: `#administracao/financeiro`. Os três títulos abaixo são os cont
 
 ### Ficha da equipe
 
-Origem dos sufixos abaixo: `#paciente/{p}/{sufixo}`. Cabeçalho da pessoa, seção ativa e ação do trabalho aparecem antes de filtros ou metadados.
+Origem dos sufixos abaixo: `#paciente/{p}/{sufixo}`. Seção ativa na barra, pessoa e caminho contextual no início do conteúdo. A ação do trabalho fica visível sem atravessar filtros ou metadados longos.
 
 | ID · Sufixo | Composição e mudança observável |
 |---|---|
@@ -321,9 +353,10 @@ Depois da migração, capturar a base integrada e a proposta com a mesma conta f
 
 | O que conferir | Antes documentado ou dado a coletar | Aceite observável |
 |---|---|---|
-| Largura e hierarquia | Equipe chega a 764 px numa grade de 1.097 px, com 333 px livres de um lado. Catálogo emocional começa em y=1.016 a 390 × 844. | Título, lista e barra de ações alinhados à esquerda. Lista ocupa 100% do contêiner útil. Em 390 × 844 sem bloqueio, primeiro registro ou vazio e ação principal ficam acima de y=844. Em 1440/1920, prosa mede até 65 ch e formulário de uma coluna até 560 px. |
-| Linhas e controles | Equipe tem colunas de 77 px na auditoria a 390. Estado e e-mail cortados. | Ler “Convite pendente”, e-mail longo, Perfil e Conta completos em 390 e 360 px. Nenhuma rolagem horizontal no documento a 320 CSS px. Alternar o mesmo contêiner entre 719 e 720 px e verificar semântica, ordenação e paginação nas duas formas. Todos os controles alcançam ao menos 46 × 46 px. |
-| Navegação e foco | Administração mostrou um dos 13 destinos inteiros a 390 e a ficha iniciou tarefa em y=915 num link direto. | Zero fitas horizontais. Abrir cada grupo, entrar por link antigo, usar Voltar/Avançar e conferir rótulo/clique atual. Escape devolve foco à origem. Conteúdo de folha direta começa na primeira dobra no cenário típico. |
+| Largura e hierarquia | Equipe chega a 764 px numa grade de 1.097 px, com 333 px livres de um lado. Catálogo emocional começa em y=1.016 a 390 × 844. | Título fora do cartão, alinhado à esquerda e ação de consulta à direita. Cada cartão branco sem borda ocupa 100% de sua coluna sobre cinza claro. Título, lista e barra de ações compartilham a grade. Em 390 × 844 sem bloqueio, primeiro registro ou vazio e ação principal ficam acima de y=844. Em 1440/1920, prosa mede até 65 ch e formulário de uma coluna até 560 px. |
+| Linhas e controles | Equipe tem colunas de 77 px na auditoria a 390. Estado e e-mail cortados. | Ler “Convite pendente”, e-mail longo, Perfil e Conta completos em 390 e 360 px. Nenhuma rolagem horizontal no documento a 320 CSS px. Alternar o mesmo contêiner entre 719 e 720 px e verificar semântica, ordenação e paginação nas duas formas. Conferir cabeçalho sem fundo próprio, linhas só na horizontal, quantias assinadas sem etiqueta e ação de linha em pílula. Todos os controles alcançam ao menos 46 × 46 px. |
+| Navegação e foco | Administração mostrou um dos 13 destinos inteiros a 390 e a ficha iniciou tarefa em y=915 num link direto. | Lateral e gaveta em lista plana com todos os destinos autorizados, barra ativa de 4 px e zero acordeões. Verificar posição fixa de título e avatar na rolagem. Abrir índices no conteúdo, entrar por link antigo, usar Voltar/Avançar e conferir rótulo e destino ativo. Escape devolve foco à origem. Conteúdo de folha direta começa na primeira dobra no cenário típico. |
+| Perfil e celular | A edição da foto da conta ainda precisa ser construída. | Confirmar lápis na borda inferior direita da foto, foco e toque de 46 px, um primário no rodapé e persistência após salvar/recarregar. Cancelar e falhar mantêm a foto confirmada. Em 390 px, cartões essenciais ocupam toda a largura. Onde houver resumos laterais, ver 28 px do seguinte e alcançá-lo por botão e teclado. |
 | Carregamento inicial e retorno | Catálogo fez um GET a cada entrada e mostrou barras aos 325 ms com atraso de 650 ms. | Fazer cinco entradas frias, cinco voltas e cinco atualizações manuais em cada fixture de atraso de **100, 450, 650, 1.200 ms**. Contar GETs, indicadores, tempo até lista utilizável e capturar linha do tempo. No catálogo, zero esqueletos, nenhum aviso inicial nas condições de 100, 450 e 650 ms se o resultado chegar até 800 ms e, nas lentas, no máximo uma indicação textual por operação. Volta elegível mantém lista e foco durante revalidação. Resposta disponível aparece sem atraso artificial. |
 | Estabilidade e desempenho | Repetição de consulta na volta e cascata de leituras auxiliares vistas no #24. | Registrar mediana e faixa das cinco amostras por condição. Com CPU 1× e 4× e injeção de latência igual, comparar tempo até ação utilizável, GETs em voo e módulos no caminho crítico. Uma leitura elegível simultânea por chave. Retorno mantém posição de cabeçalho e conteúdo retido. Após editar, a próxima leitura representa o dado confirmado. |
 | Acessibilidade e recuperação | Registrar contraste, alvos e foco por estado na nova base. | Conferir cores com medidor, teclado com Tab/Shift+Tab/Enter/Escape e leitor de tela na entrada, tabela/linha, diálogo e atualização. Foco fica visível e conteúdo útil completo com zoom e espaçamento personalizado. Ação indisponível tem motivo/recuperação quando aplicável. |
