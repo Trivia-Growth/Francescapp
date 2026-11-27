@@ -10,5 +10,15 @@ it('não confunde degrau da escala de texto com cor de texto', () => {
      `text-2` era lido como cor e sumia junto com `text-contraste`. O campo perdia os
      16px, e abaixo disso o iOS dá zoom ao focar — acessibilidade quebrada em silêncio. */
   expect(juntar('text-2', 'text-contraste')).toBe('text-2 text-contraste');
+  expect(juntar('text-1', 'text-sistema-texto-secundario')).toBe(
+    'text-1 text-sistema-texto-secundario',
+  );
   expect(juntar('text-1', 'text-3')).toBe('text-3');
+});
+
+it('troca tamanhos legados e do sistema sem substituir a cor', () => {
+  expect(juntar('text-1', 'text-sistema-texto', 'text-meta')).toBe('text-sistema-texto text-meta');
+  expect(juntar('text-pagina', 'lateral:text-pagina-desktop', 'text-corpo')).toBe(
+    'lateral:text-pagina-desktop text-corpo',
+  );
 });

@@ -1,13 +1,5 @@
-/* Ponte entre os tokens da Francescato e o vocabulário que os componentes esperam.
- *
- * Regra única e inegociável: NENHUM VALOR NASCE AQUI. Toda cor, raio, fonte e sombra
- * aponta para uma variável de `web/styles.css`, que continua sendo a fonte. Assim a
- * paleta não se perde na tradução, e `web/contrato-visual.test.ts` continua governando
- * um lugar só.
- *
- * A ordem das camadas importa: `legado` fica ABAIXO de `utilities`, então uma classe
- * utilitária sempre vence um reset global como `button { min-height }` de `styles.css`.
- * Tela ainda não migrada continua fora de camada e não é afetada por nada disto. */
+/* A camada legado fica abaixo de utilities para as utilitárias prevalecerem
+ * sobre os resets globais de styles.css. */
 @layer legado, components, utilities;
 
 /* `styles.css` entra NA CAMADA `legado`, e isso é o detalhe que faz a ponte funcionar.
@@ -27,33 +19,127 @@
 @import "tailwindcss/theme.css" layer(legado);
 @import "tailwindcss/utilities.css" layer(utilities);
 
+/* Tokens do SISTEMA-DE-DESIGN.md §2. Os nomes com "sistema" convivem com as
+ * utilitárias em uso. Os valores novos entram nas telas quando elas optarem por
+ * essas utilitárias. "static" também expõe os tokens para CSS escrito à mão. */
+@theme static {
+  --color-sistema-fundo: #f4f5f3;
+  --color-sistema-superficie: #ffffff;
+  --color-sistema-texto: #273123;
+  --color-sistema-texto-secundario: #58634f;
+  --color-sistema-acao: #475436;
+  --color-sistema-acao-hover: #38442a;
+  --color-sistema-acao-pressionada: var(--color-sistema-texto);
+  --color-sistema-hoje: #edf2e6;
+  --color-sistema-marca: #839352;
+  --color-sistema-divisor: #dfe5d4;
+  --color-sistema-contorno: #737e67;
+  --color-sistema-foco: var(--color-sistema-acao);
+  --color-sistema-sucesso: var(--color-sistema-acao);
+  --color-sistema-fundo-sucesso: var(--color-sistema-hoje);
+  --color-sistema-aviso: #5c431a;
+  --color-sistema-fundo-aviso: #fdf6e7;
+  --color-sistema-erro: #903a30;
+  --color-sistema-fundo-erro: #f6ece9;
+  --color-sistema-perigo-hover: #763027;
+  --color-sistema-perigo-pressionada: #5c241d;
+  --color-sistema-desabilitado: var(--color-sistema-texto-secundario);
+  --color-sistema-fundo-desabilitado: #e9ede3;
+  --color-sistema-sobreposicao: #27312366;
+
+  --spacing-sistema-1: 0.25rem;
+  --spacing-sistema-2: 0.5rem;
+  --spacing-sistema-3: 0.75rem;
+  --spacing-sistema-4: 1rem;
+  --spacing-sistema-5: 1.5rem;
+  --spacing-sistema-6: 2rem;
+  --spacing-sistema-7: 3rem;
+  --spacing-sistema-8: 4.5rem;
+  --spacing-alvo-toque: 2.875rem;
+
+  --espessura-borda: 1px;
+  --espessura-filete: 3px;
+  --espessura-barra-ativa: 4px;
+  --espessura-foco: 2px;
+  --recuo-foco: 2px;
+
+  --radius-sistema-controle: 10px;
+  --radius-superficie: 24px;
+  --radius-dialogo: 16px;
+  --radius-pilula: 999px;
+  --radius-avatar: 50%;
+
+  --shadow-cartao: 0 2px 8px rgb(39 49 35 / 6%);
+  --shadow-dialogo: 0 18px 48px rgb(39 49 35 / 20%);
+
+  --container-trabalho: 90rem;
+  --container-texto: 65ch;
+  --container-formulario: 35rem;
+  --container-formulario-duas-colunas: 55rem;
+  --container-tabela: 45rem;
+  --container-apoio: 60rem;
+  --breakpoint-intermediaria: 40rem;
+  --breakpoint-lateral: 64rem;
+
+  --movimento-controle: 120ms;
+  --movimento-sobreposicao: 180ms;
+
+  --text-pagina-barra: 1.5rem;
+  --text-pagina-barra--line-height: 1.75rem;
+  --text-pagina-barra--font-weight: 600;
+  --text-pagina: 2rem;
+  --text-pagina--line-height: 2.25rem;
+  --text-pagina--font-weight: 600;
+  --text-pagina-desktop: 2.5rem;
+  --text-pagina-desktop--line-height: 2.75rem;
+  --text-pagina-desktop--font-weight: 600;
+  --text-secao: 1.25rem;
+  --text-secao--line-height: 1.75rem;
+  --text-secao--font-weight: 700;
+  --text-item: 1.125rem;
+  --text-item--line-height: 1.5rem;
+  --text-item--font-weight: 700;
+  --text-corpo: 1rem;
+  --text-corpo--line-height: 1.5rem;
+  --text-corpo--font-weight: 400;
+  --text-controle: var(--text-corpo);
+  --text-controle--line-height: var(--text-corpo--line-height);
+  --text-controle--font-weight: 600;
+  --text-meta: 0.875rem;
+  --text-meta--line-height: 1.25rem;
+  --text-meta--font-weight: 500;
+}
+
+/* Apelidos em uso. Fundo geral, raios e espaçamentos legados conservam os
+ * valores do styles.css até que cada tela migre. As fontes e a sombra de menu
+ * também servem ao SISTEMA pelos nomes font-serifada, font-sans e shadow-menu. */
 @theme inline {
   --color-fundo: var(--wash);
-  --color-superficie: var(--superficie);
+  --color-superficie: var(--color-sistema-superficie);
   --color-superficie-2: var(--superficie-2);
   --color-superficie-3: var(--superficie-3);
-  --color-texto: var(--ink);
-  --color-texto-suave: var(--muted);
-  --color-primaria: var(--primary);
-  --color-primaria-hover: var(--primary-hover);
-  --color-primaria-suave: var(--primary-suave);
+  --color-texto: var(--color-sistema-texto);
+  --color-texto-suave: var(--color-sistema-texto-secundario);
+  --color-primaria: var(--color-sistema-acao);
+  --color-primaria-hover: var(--color-sistema-acao-hover);
+  --color-primaria-suave: var(--color-sistema-hoje);
   --color-primaria-filete: var(--primary-filete);
   --color-primaria-texto-suave: var(--primary-texto-suave);
-  --color-marca: var(--brand-olive);
-  --color-contraste: var(--white);
-  --color-borda: var(--borda);
+  --color-marca: var(--color-sistema-marca);
+  --color-contraste: var(--color-sistema-superficie);
+  --color-borda: var(--color-sistema-divisor);
   --color-borda-forte: var(--borda-forte);
-  --color-anel: var(--primary);
-  --color-erro: var(--error);
-  --color-erro-superficie: var(--error-superficie);
-  --color-alerta: var(--alerta);
-  --color-perigo: var(--perigo);
-  --color-perigo-superficie: var(--perigo-superficie);
-  --color-perigo-texto: var(--perigo-texto);
+  --color-anel: var(--color-sistema-foco);
+  --color-erro: var(--color-sistema-erro);
+  --color-erro-superficie: var(--color-sistema-fundo-erro);
+  --color-alerta: var(--color-sistema-erro);
+  --color-perigo: var(--color-sistema-erro);
+  --color-perigo-superficie: var(--color-sistema-fundo-erro);
+  --color-perigo-texto: var(--color-sistema-superficie);
   --color-aviso: var(--aviso);
   --color-aviso-filete: var(--aviso-filete);
-  --color-aviso-superficie: var(--aviso-superficie);
-  --color-aviso-texto: var(--aviso-texto);
+  --color-aviso-superficie: var(--color-sistema-fundo-aviso);
+  --color-aviso-texto: var(--color-sistema-aviso);
   --color-areia-superficie: var(--areia-superficie);
   --color-areia-texto: var(--areia-texto);
   --color-sobreposicao: var(--sobreposicao);
@@ -96,7 +182,7 @@
 
   --shadow-controle: var(--sombra-controle);
   --shadow-menu: var(--sombra-menu);
-  --shadow-modal: var(--sombra-modal);
+  --shadow-modal: var(--shadow-dialogo);
 
   --ease-entrada: var(--curva-entrada);
   --ease-saida: var(--curva-saida);
