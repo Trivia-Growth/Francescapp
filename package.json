@@ -35,7 +35,7 @@
     "verificar:rapido": "lefthook run pre-push --force",
     "verificar:ativacao": "pnpm run verificar:fundacao",
     "lint": "biome check packages/contracts packages/cadastro supabase/functions/_shared supabase/functions/*/index.ts netlify/functions web scripts/validar-configuracao-local.mjs scripts/prova-celular scripts/prova-celular-vite.config.mjs playwright.config.ts",
-    "verificar:fundacao": "pnpm run lint && pnpm run typecheck && pnpm run typecheck:deno && pnpm run test:contratos && pnpm run test:cadastro && pnpm run test:funcoes && pnpm run test:proxy && pnpm run test:web && pnpm run build:web && pnpm run validar:configuracao && pnpm run verificar:celular"
+    "verificar:fundacao": "pnpm run lint && pnpm run typecheck && pnpm run typecheck:deno && pnpm run test:contratos && pnpm run test:cadastro && pnpm run test:funcoes && pnpm run test:proxy && pnpm run test:web && pnpm run build:web && node --experimental-strip-types scripts/prova-celular/trusted-types-producao.mjs && pnpm run validar:configuracao && pnpm run verificar:celular"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",

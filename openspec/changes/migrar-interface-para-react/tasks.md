@@ -349,16 +349,12 @@ Encontrados durante a execução, nenhum causado por esta mudança.
   intencional desta fase.
 - [ ] **A2. Sem cor de sucesso.** Nunca houve verde distinto do da marca. Enquanto não vier
   do marketing, sucesso vai por texto e ícone, que VIS-014 exige de qualquer forma.
-- [ ] **A3. `solicitacoes-titular.ts` envia `paciente_id` em `responder`, e
-  `responderSolicitacaoTitularSchema` é `.strict()` sem esse campo.** A rota está desligada
-  por `ffcm.lgpd.ativa`, então o efeito não aparece hoje — mas aparece no dia em que ligar.
+- [x] **A3.** O proxy extrai `paciente_id` antes de validar o corpo estrito, valida o UUID à parte e o encaminha para conferir o paciente do pedido. Dono técnico proposto: Governança/LGPD. Custo: conferência por leitura. A ativação de `ffcm.lgpd.ativa` segue pendente.
 - [ ] **A4. `servico_indisponivel` com dois significados.**
   `web/preautorizacoes-familiares.ts` apresenta esse código como "o acesso da família ainda
   não foi liberado", enquanto `web/servico-preautorizacoes-http.ts` usa o mesmo código para
   falha de rede. Nada é concedido a mais; a mensagem é que mente sobre a causa.
-- [ ] **A5. `montarPreautorizacoesFamiliares` não confere o `paciente_id` dos itens**, e o
-  módulo irmão `montarDadosFamiliar` confere. Não é brecha, porque servidor e banco
-  autorizam; é inconsistência entre irmãos.
+- [x] **A5.** A lista de acessos familiares descarta itens de outro paciente antes de exibir ações. Dono técnico proposto: Acessos familiares. Custo baixo, filtro por item e regressão focada.
 - [x] **A6. `web/painel-cadastro.ts` — NÃO é código morto. Achado anterior INVALIDADO
   em 25/11/2026.** A suspeita vinha de uma varredura por `import`, que nunca o acharia:
   ele é carregado por `<script type="module" src="./painel-cadastro.ts">` em
@@ -371,16 +367,12 @@ Encontrados durante a execução, nenhum causado por esta mudança.
   Lição: varredura por `import` não encontra módulo carregado por `<script>`. Os outros
   achados de "sem uso" desta mudança foram obtidos pelo mesmo método e podem ter o mesmo
   viés.
-- [ ] **A7. Cadeia de migrações sem superusuário já quebra** em
-  `20261124160000_segredos_integracoes_cofre_gerenciado.sql:200`:
-  `role "ffcmapp_segredos_integracoes_owner" does not exist`. Anterior a esta mudança.
+- [ ] **A7.** Reproduzido por `testar-cadeia-migrations-sem-superusuario-local.sh` em PostgreSQL 17 com pg_cron: grant de `20261124160000:200` recusa o papel criado só em `20261125020000`. Dono técnico proposto: Plataforma/Supabase. Custo médio, conciliar a ordem limpa com o histórico aplicado e provar instalação e upgrade sem superusuário. A política de substituição de credenciais segue na decisão do cofre.
 - [ ] **A8. 30 testes alcançam elementos por `getElementById` de `web/index.html`.** Se a
   casca React trocar esses identificadores, os 30 ficam vermelhos juntos e some a distinção
   entre "seletor mudou" e "regrediu". Migrar a casca em fatia isolada, com os seletores no
   mesmo commit.
-- [ ] **A9. `textos-obrigatorios-nao-configuraveis.test.ts` carrega uma lista de caminhos
-  `web/*.ts`** que precisa ser atualizada a cada módulo migrado, senão passa a provar
-  literal em arquivo que já não roda.
+- [x] **A9.** O teste resolve cada módulo em `.ts` ou `.tsx` e exige fonte única, preservando as asserções. Dono técnico proposto: Qualidade web. Custo baixo, alteração no próprio teste.
 
 ## Divisão por rota e portão de ativação — 26/11/2026
 
@@ -467,12 +459,12 @@ caixa dentro de caixa em seis telas. Ficam estes:
   item do catálogo.
 - [x] **C4. Caixas de marcação com 24px de largura — CORRIGIDO em 26/11/2026 (`475a364`):
   46px.** Em modelo de ficha, plano e financeiro.
-- [ ] **C5. Zod usa `new Function`** — as 14 provas de celular rodam em Chromium com a
-  diretiva ativa (o `<meta>` de CSP está em `web/index.html:5`, então vale também no
-  servidor de desenvolvimento) e a validação das fixtures passa. **Falta confirmar no
-  pacote de produção**, que é onde o Zod minificado pode escolher outro caminho.
-  Texto original do achado: `new Function` é bloqueado pela diretiva de Trusted Types em
-  todas as telas; Zod tem caminho alternativo e nada quebrou visivelmente.
+- [x] **C5. Validação Zod sob Trusted Types no pacote de produção.** No Chromium,
+  o build servido por Vite Preview em loopback manteve `require-trusted-types-for 'script'`
+  e `style-src 'self'`. O navegador registrou o bloqueio efetivo de `Function` em um
+  chunk de produção. A carteira exibiu a fixture válida e recusou a resposta de lista
+  inválida com recuperação visível, sem exceção de página. A prova intercepta a API
+  com dados fictícios, usa apenas recursos locais e roda no portão após `build:web`.
 
 ## Suíte de testes — contenção sob paralelismo
 
@@ -580,26 +572,70 @@ Medido por importação direta e dinâmica. Não é recomendação ainda — é 
 Três blocos, não dezessete frentes: **turno/plantão** (seis arquivos, 3.039 linhas),
 **agenda** (quatro, 1.543) e sete avulsos.
 
-### O que falta levantar, e por quê
+### Impacto dos 17 módulos nas jornadas
 
-Para cada um dos 17: se está no caminho crítico de uma jornada real, se tem defeito
-concreto hoje, e — o que mais importa — **se costura com módulo já migrado**. Os dois
-pontos de costura já visíveis na tabela são `ficha-paciente.ts`, chamado de dentro de dois
-`.tsx`, e `modelo-sintese.ts`, chamado de dentro de outros dois. Essa direção
-(`.tsx` chamando `montar*` imperativo) é a que já produziu defeito real nesta migração:
-ilha React desmontada por `replaceChildren` vindo de fora.
+Leitura dos pontos de montagem e das guardas no head `ba3e0c4`. São 16 módulos com
+interface e uma rotina de ZIP sem DOM. As dependências abaixo foram verificadas por
+leitura. Fora da importação estática de relatórios, a leitura não demonstrou defeito
+que obrigue a migrar esses módulos para entregar a próxima fatia.
 
-Duas frentes de leitura foram abertas para isso em 27/11/2026 e **não concluíram** antes
-do fim da sessão. O levantamento continua pendente; este mapa é o ponto de partida, não a
-resposta.
+| Módulo | Jornada e impacto |
+| --- | --- |
+| `ficha-paciente` | Crítico para abrir e navegar o caso, preservar rascunho e retirar a seção quando o acesso muda. |
+| `campos-caso-novo` | Crítico no cadastro com campos extras. `main` fornece os controles usados por `cadastro.ts`. |
+| `integracao-tarefas-disponibilidade` | Crítico ao entrar em Tarefas pelo caso. Consulta disponibilidade e valida sessão antes de montar a tela React. |
+| `agenda-individual` | Crítico para agenda própria. Hospeda operações, vínculos e realização e desmonta os filhos. |
+| `agenda-operacoes` | Crítico para criar, alterar e cancelar compromisso. Compartilha seleção e atualização com o hospedeiro. |
+| `agenda-vinculo` | Crítico para conceder e revogar acesso à agenda, cuja permissão é independente do vínculo de caso. |
+| `realizacao-compromisso` | Crítico para registrar desfecho no fechamento do compromisso, com autorização própria. |
+| `turno-execucao` | Crítico no turno em curso. Compõe editor, anexos e conversão e agrega pendências para a barreira. |
+| `ficha-plantao` | Crítico no registro do plantão. Carrega modelo e papéis, registra respostas e compõe o consolidado React. |
+| `turno-execucao-arquivos` | Crítico quando a ocorrência exige anexo. Compartilha entrega, cancelamento e revalidação com o turno. |
+| `turno-execucao-gestao` | Periferia do turno básico, núcleo de fundamento familiar, prescrição e catálogo. Monta ao abrir a seção. |
+| `turno-execucao-localizacao-coordenacao` | Periferia da coordenação, com autorização e pendência próprias. Monta ao abrir a seção. |
+| `turno-execucao-relatorios` | Periferia de consulta e PDF. Importação estática por `turno-execucao` prende o chunk. |
+| `modelo-sintese` | Crítico no Diário e na Passagem. Compartilha campos FR-009, área livre quando falta catálogo e validação de conteúdo. |
+| `financeiro` | Periferia da jornada clínica e núcleo de valores, despesas e apuração. Já tem divisão por rota e provas de celular. |
+| `casca-offline` | Transversal em conectividade e limpeza do aparelho. Só o indicador de rede monta DOM. |
+| `pacote-exportacao` | Periferia de governança. Monta ZIP em bytes, sem interface a migrar. |
 
-### Pendências que vêm antes da migração
+**Costura da ficha.** `visao-caso.tsx` e `home-profissional.tsx` usam `hashFicha`
+e tipos, e `main.ts` chama `montarFicha`. A costura é a ficha imperativa hospedando seções
+React. O descarte desmonta antes de limpar o painel e descarta montagens assíncronas
+que resolvem tarde. Preservar hashes, foco, guarda de alterações e a distinção entre
+perder a seção e perder a ficha em uma eventual mudança.
 
-Donas definidas pela coordenação em 26/11/2026, ainda **não iniciadas**:
+**Costura da síntese.** Diário e Passagem montam o mesmo formulário imperativo num
+contêiner com ref. A Passagem restaura rascunho ou envio pendente e limpa o contêiner
+ao terminar o efeito. O Diário escreve a transcrição no campo de atividade e devolve
+o foco após validação. Uma eventual conversão deve incluir ambos os consumidores e
+preservar audiência, prévia, rascunho, alternativa textual e barreira de fechamento.
 
-- Migração RLS `20261128240000_rls_acesso_caso_para_administrador.sql`, provada em
-  Postgres local e nunca aplicada em remoto — dizer o que falta para ela valer
-- A3, A5, A7, A9 — uma linha sobre cada: o que é e o que custa
-- C5 — fechar com o pacote de produção, não com o servidor de desenvolvimento
-- `turno-execucao-relatorios` preso à importação estática de `turno-execucao.ts`: resolve
-  sozinho quando esse módulo migrar, então é consequência da etapa 2, não tarefa própria
+### Menor fatia que ativa valor
+
+Demonstrar **carteira → ficha → concessão e revogação de acesso** com as telas atuais,
+as correções de A5/A9 e o build de produção em loopback. Provar que a conta administradora
+concede, abre o caso e revoga, e que perfil, caso e sessão indevidos são recusados.
+A jornada pode evoluir sem migrar ficha, agenda ou turno. Tratar a síntese junto de
+Diário/Passagem se surgir um defeito observável ou bloqueador dessa jornada.
+
+**Decisão remota separada.** A migração
+`20261128240000_rls_acesso_caso_para_administrador.sql` permanece local. Para ativar
+concessão a administradores em ambiente remoto, definir e autorizar o alvo, conferir
+histórico e estado das policies, combinar recuperação e executar provas positivas e
+negativas antes de considerar a jornada ativada. A7 é uma decisão separada da cadeia
+de instalação do cofre.
+
+A prova focada de RLS rodou em PostgreSQL 17 descartável, sem rede. Em uma cópia
+temporária de `acesso_paciente_autorizacao_local.sql`, foram aplicadas as migrações
+`20261124200000` e `20261128240000` antes das asserções e acrescentado o caso positivo
+de concessão ao próprio administrador. O roteiro também passou para concessão a
+profissional, revogação, replay e atomicidade de auditoria e recusou sessão encerrada,
+perfil profissional comandando a revogação e acessos diretos que o fixture proíbe.
+
+Portão local `pnpm run verificar:ativacao` passou com Node 22.23.5 e Deno 2.9.5:
+897 testes web, 736 do proxy, 324 das funções, 207 de contrato e 137 de cadastro,
+mais build, C5 e 14 cenários de celular. Permaneceram 30 testes pulados nas
+suítes de cadastro, funções e proxy. A prova SQL focada acima rodou à parte.
+O build manteve o aviso de importação estática dos relatórios. `openspec validate
+--strict` sinalizou a extensão do requisito VIS-018 já presente na base.

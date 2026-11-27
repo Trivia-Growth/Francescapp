@@ -198,6 +198,18 @@ describe('acesso da família: concessão de acesso a dado clínico', () => {
     expect(cancelar).not.toHaveBeenCalled();
   });
 
+  it('não oferece encerramento para um acesso devolvido de outro paciente', async () => {
+    const raiz = document.createElement('div');
+    const listar = vi.fn(async () => [preautorizacao({ paciente_id: outroCaso })]);
+    montarPreautorizacoesFamiliares(raiz, caso, servicoFalso({ listar }), vi.fn());
+
+    await vi.waitFor(() =>
+      expect(raiz.textContent).toContain('Nenhum familiar autorizado neste caso ainda.'),
+    );
+    expect(raiz.querySelector('li')).toBeNull();
+    expect(raiz.querySelector('form')).toBeNull();
+  });
+
   it('a leitura é sempre do caso aberto, nunca de outro', async () => {
     const raiz = document.createElement('div');
     const listar = vi.fn(async () => [] as Preautorizacao[]);
