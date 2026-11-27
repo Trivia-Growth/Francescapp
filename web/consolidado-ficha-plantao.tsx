@@ -342,7 +342,7 @@ export function ConsolidadoFicha({
   );
 }
 
-/** Contrato preservado para `turno-execucao-relatorios.ts`, que ainda monta DOM à mão. */
+/** Nó inerte do consolidado, usado pelas provas que leem o documento fora de uma ilha. */
 export function apresentarConsolidadoFicha(
   relatorio: RelatorioTurnoPublico,
   fichas?: ReadonlyMap<string, FichaDoPlantao>,

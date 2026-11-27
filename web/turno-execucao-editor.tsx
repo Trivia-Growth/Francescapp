@@ -1,19 +1,11 @@
 /** Editor de execução do cuidado, reconstruído em React sobre a ilha
  *  (`web/ponte/ilha.ts`). VIS-018.
  *
- *  O contrato exportado NÃO muda: `montarEditorExecucao(raiz, classe, contexto, opcoes)`
- *  continua devolvendo `{ bloquear, informar, focar, desmontar }`, porque quem conduz o
- *  editor é `turno-execucao.ts` — ainda imperativo nesta leva —, e ele guarda essa
- *  referência em `editor` para travar o formulário, escrever mensagens de status, focar o
- *  primeiro campo e desmontar em vários pontos do protocolo de barreira. O punho é
- *  entregue pelo mesmo mecanismo já usado em `web/revogacao-vinculo.tsx`: o componente
- *  registra suas funções correntes via `useLayoutEffect`, garantido síncrono por `ilha`.
- *
- *  `desmontar()` chama o desmonte da ilha e ENTÃO esvazia `raiz` por completo — exatamente
- *  o que a versão imperativa fazia com `raiz.replaceChildren()`. É necessário porque
- *  `turno-execucao.ts` anexa um botão extra ("Mais prescrições vigentes") diretamente em
- *  `raiz`, fora do que este módulo desenha; sem esvaziar, esse botão sobreviveria a uma
- *  remontagem e `createRoot` encontraria a raiz suja.
+ *  Desde 27/11/2026 `turno-execucao.tsx` compõe `EditorExecucao` direto, recebe o punho
+ *  (`bloquear`, `informar`, `focar`) por `registrar` e soma a sua própria trava por
+ *  `travado`. `montarEditorExecucao(raiz, classe, contexto, opcoes)` continua exportada com
+ *  o contrato antigo para as provas que montam o editor sozinho; ela ainda esvazia `raiz`
+ *  depois de desmontar, como a versão imperativa fazia.
  *
  *  Os campos cujo valor muda o que mais aparece no formulário — tipo da aferição (unidade
  *  e referência), item prescrito (detalhe) e situação da administração (obrigatoriedade do
@@ -133,7 +125,7 @@ type OpcoesEditor = {
 /** O punho visto por dentro: idêntico ao devolvido por `montarEditorExecucao`, só que
  *  entregue via `registrar` em vez de retorno direto — o mesmo desenho de
  *  `web/revogacao-vinculo.tsx`. */
-type PunhoEditor = {
+export type PunhoEditor = {
   bloquear(valor: boolean): void;
   informar(mensagem: string): void;
   focar(): void;
@@ -166,16 +158,19 @@ function controleDe(
   throw new Error(`Campo ausente: ${nome}`);
 }
 
-function EditorExecucao({
+export function EditorExecucao({
   classe,
   contexto,
   opcoes,
   registrar,
+  travado = false,
 }: {
   classe: ClasseExecucao;
   contexto: Contexto;
   opcoes: OpcoesEditor;
   registrar: (punho: PunhoEditor) => void;
+  /** Trava vinda de quem conduz o editor (barreira, envio em curso), somada à própria. */
+  travado?: boolean;
 }) {
   const envolucroRef = useRef<HTMLDivElement>(null);
   const [status, definirStatus] = useState('');
@@ -389,7 +384,7 @@ function EditorExecucao({
         onChange={() => opcoes.alteracaoPendente(true)}
       >
         <fieldset
-          disabled={bloqueado}
+          disabled={bloqueado || travado}
           className="m-0 grid min-w-0 gap-2 rounded-cartao border border-borda p-4"
         >
           <legend className="px-1 text-(length:--texto-2) font-semibold">{legenda}</legend>

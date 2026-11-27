@@ -2,8 +2,9 @@
  *  (`web/ponte/ilha.ts`). VIS-018.
  *
  *  O contrato exportado NÃO muda: `montarConsentimentoTurno(raiz, servico, opcoes)`
- *  devolve `{ coletar, registrar, desmontar }`, e `turno-execucao-integracao.ts` continua
- *  passando esse mesmo objeto para `montarTurnoProprio`.
+ *  devolve `{ coletar, registrar, desmontar }`. `turno-execucao-integracao.tsx` usa o mesmo
+ *  controlador por `usarConsentimentoTurno` e compõe `ConsentimentoTurno` na sua árvore,
+ *  passando esse mesmo objeto ao turno próprio.
  *
  *  **Por que a lógica mora fora do componente.** `coletar` e `registrar` são chamados por
  *  código imperativo na linha seguinte à montagem e no meio do protocolo de barreira —
@@ -28,7 +29,7 @@
  *  `web/textos-obrigatorios-nao-configuraveis.test.ts` trava isso, porque a retenção de
  *  90 dias é a promessa aceita, não um parâmetro de configuração. */
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
-import { useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { Botao } from './componentes/ui/botao.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import './estilos/tema.css';
@@ -198,10 +199,17 @@ function TelaConsentimento({
   );
 }
 
-export function montarConsentimentoTurno(
-  raiz: HTMLElement,
+type OpcoesConsentimento = {
+  acessoPerdido(erro: unknown): void;
+  alteracaoPendente?(valor: boolean): void;
+};
+
+/** A máquina do consentimento, sem desenho. Quem compõe a tela usa `usarConsentimentoTurno`
+ *  e `ConsentimentoTurno`; quem tem só uma raiz usa `montarConsentimentoTurno`. A coleta e
+ *  o registro saem daqui para o turno próprio, que os chama na abertura e no encerramento. */
+export function criarConsentimentoTurno(
   servico: PortasLocalizacaoTurno,
-  opcoes: { acessoPerdido(erro: unknown): void; alteracaoPendente?(valor: boolean): void },
+  opcoes: OpcoesConsentimento,
 ) {
   let ativa = true;
   let ocupada = false;
@@ -346,24 +354,26 @@ export function montarConsentimentoTurno(
     }
   }
 
-  const desmontarIlha = ilha(
-    raiz,
-    <TelaConsentimento
-      ler={() => vista}
-      assinar={(ouvinte) => {
-        ouvintes.add(ouvinte);
-        return () => ouvintes.delete(ouvinte);
-      }}
-      consentir={() => void salvar(true)}
-      revogar={() => void salvar(false)}
-      atualizar={() => void carregar()}
-      repetirConfirmacao={() => void enviar()}
-      conferirRegistro={() => void enviarDeclaracao()}
-    />,
-  );
-  void carregar();
-
+  let iniciada = false;
   return {
+    ler: () => vista,
+    assinar(ouvinte: () => void) {
+      ouvintes.add(ouvinte);
+      return () => {
+        ouvintes.delete(ouvinte);
+      };
+    },
+    consentir: () => void salvar(true),
+    revogar: () => void salvar(false),
+    atualizar: () => void carregar(),
+    repetirConfirmacao: () => void enviar(),
+    conferirRegistro: () => void enviarDeclaracao(),
+    /** A primeira consulta, uma vez só, depois de a tela existir. */
+    iniciar() {
+      if (iniciada) return;
+      iniciada = true;
+      void carregar();
+    },
     async coletar(): Promise<DeclaracaoLocalizacao> {
       if (!ativa) return { motivo_ausencia: 'falha' };
       // Revalidar consentimento antes de cada coleta; falha não busca coordenadas.
@@ -418,6 +428,57 @@ export function montarConsentimentoTurno(
       controle.abort();
       tentativa = null;
       declaracaoPendente = null;
+    },
+  };
+}
+
+export type ControleConsentimentoTurno = ReturnType<typeof criarConsentimentoTurno>;
+
+export function ConsentimentoTurno({ controle }: { controle: ControleConsentimentoTurno }) {
+  return (
+    <TelaConsentimento
+      ler={controle.ler}
+      assinar={controle.assinar}
+      consentir={controle.consentir}
+      revogar={controle.revogar}
+      atualizar={controle.atualizar}
+      repetirConfirmacao={controle.repetirConfirmacao}
+      conferirRegistro={controle.conferirRegistro}
+    />
+  );
+}
+
+/** O consentimento com o ciclo de vida do componente que o compõe: consulta ao montar,
+ *  encerra ao desmontar. As opções valem as da primeira montagem, como antes. */
+export function usarConsentimentoTurno(
+  servico: PortasLocalizacaoTurno,
+  opcoes: OpcoesConsentimento,
+): ControleConsentimentoTurno {
+  const controle = useRef<ControleConsentimentoTurno | null>(null);
+  controle.current ??= criarConsentimentoTurno(servico, opcoes);
+  useEffect(() => {
+    const atual = controle.current;
+    atual?.iniciar();
+    return () => atual?.desmontar();
+  }, []);
+  return controle.current;
+}
+
+/** Contrato de quem tem só uma raiz: monta a tela numa ilha e devolve coleta, registro e
+ *  desmontagem, como antes. */
+export function montarConsentimentoTurno(
+  raiz: HTMLElement,
+  servico: PortasLocalizacaoTurno,
+  opcoes: OpcoesConsentimento,
+) {
+  const controle = criarConsentimentoTurno(servico, opcoes);
+  const desmontarIlha = ilha(raiz, <ConsentimentoTurno controle={controle} />);
+  controle.iniciar();
+  return {
+    coletar: controle.coletar,
+    registrar: controle.registrar,
+    desmontar() {
+      controle.desmontar();
       desmontarIlha();
     },
   };

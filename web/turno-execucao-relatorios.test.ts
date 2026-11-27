@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
-import { montarRelatoriosTurno } from './turno-execucao-relatorios.ts';
+import { montarRelatoriosTurno } from './turno-execucao-relatorios.js';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
 import { FalhaApi } from './api.ts';
 const id = '10000000-0000-4000-8000-000000000001';

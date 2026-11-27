@@ -69,7 +69,7 @@ import { Botao } from './componentes/ui/botao.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
 import { confirmar, confirmarDescarte } from './confirmacao.js';
 import type { MontagemConversaoDiario } from './conversao-diario.js';
-import { montarCamposSintese } from './modelo-sintese.js';
+import { CamposSintese, controleSintese, lerSintese } from './modelo-sintese.js';
 import { ilha } from './ponte/ilha.js';
 import { Formulario } from './telas/formulario.js';
 
@@ -372,7 +372,8 @@ function FormularioRelatoFamiliar({
 
 /** FR-009: modelo curto por área. As áreas vêm da configuração da equipe; quando a leitura
  * falha, o campo continua existindo como texto livre em vez de sumir da tela — garantia de
- * `montarCamposSintese`, mantida porque o invocamos como antes. */
+ * `CamposSintese`. Os campos são compostos nesta árvore desde 27/11/2026; antes eram montados
+ * à mão num contêiner com ref, a direção que produziu os `NotFoundError` da migração. */
 function FormularioEvolucao({
   responde,
   obterAreas,
@@ -392,8 +393,9 @@ function FormularioEvolucao({
 }) {
   const idBase = useId();
   const envelope = useRef<HTMLDivElement>(null);
-  const sinteseDestinoRef = useRef<HTMLDivElement>(null);
-  const sinteseRef = useRef<ReturnType<typeof montarCamposSintese> | null>(null);
+  // As áreas são lidas uma vez por formulário, como antes: trocar no meio da redação mudaria
+  // as opções debaixo de quem escreve.
+  const [areas] = useState(obterAreas);
   const destinatariosRef = useRef<HTMLParagraphElement>(null);
   const origemAtividadeRef = useRef<OrigemConteudoDiario>('texto');
 
@@ -405,16 +407,6 @@ function FormularioEvolucao({
 
   const idAudiencia = `${idBase}-audiencia`;
   const idAtencao = `${idBase}-atencao`;
-
-  // Não há desmontagem própria: os nós ficam dentro deste `destino`, removido pelo React
-  // junto do restante quando este componente sai da árvore — a mesma garantia que valia
-  // na versão imperativa, onde o formulário inteiro saía junto.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: monta uma única vez por instância de formulário; `obterAreas`/`idBase` são fixos nesta montagem.
-  useEffect(() => {
-    const destino = sinteseDestinoRef.current;
-    if (!destino) return;
-    sinteseRef.current = montarCamposSintese(destino, obterAreas(), idBase);
-  }, []);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `onAlterar` é callback fixo desta montagem; `idAudiencia` é derivado de `idBase`, estável.
   useEffect(() => {
@@ -443,7 +435,7 @@ function FormularioEvolucao({
   }, []);
 
   function aoReceberDitado(texto: string) {
-    const campo = sinteseRef.current?.atividade;
+    const campo = controleSintese(envelope.current, idBase, 'atividade');
     if (campo) campo.value = texto;
     origemAtividadeRef.current = 'audio_transcrito';
     onAlterar(true);
@@ -452,18 +444,16 @@ function FormularioEvolucao({
 
   async function enviar(estado: 'rascunho' | 'publicado') {
     const no = envelope.current;
-    const conteudo = sinteseRef.current?.ler();
+    const conteudo = lerSintese(no, idBase);
     if (!conteudo) {
       definirAviso('Informe a data do atendimento e a área.');
-      (sinteseRef.current?.data.value
-        ? sinteseRef.current.area
-        : sinteseRef.current?.data
-      )?.focus();
+      const data = controleSintese(no, idBase, 'data');
+      (data?.value ? controleSintese(no, idBase, 'area') : data)?.focus();
       return;
     }
     if (estado === 'publicado' && !conteudo.atividade) {
       definirAviso('Para publicar, descreva a atividade realizada.');
-      sinteseRef.current?.atividade.focus();
+      controleSintese(no, idBase, 'atividade')?.focus();
       return;
     }
     const audienciaEl = no?.querySelector<HTMLSelectElement>(`[id="${idAudiencia}"]`);
@@ -502,7 +492,7 @@ function FormularioEvolucao({
       <Formulario noValidate aoEnviar={() => void enviar('publicado')}>
         <h3>{responde ? 'Responder ao relato da família' : 'Registrar evolução profissional'}</h3>
         <fieldset disabled={enviando !== null} className="m-0 min-w-0 border-0 p-0">
-          <div ref={sinteseDestinoRef} />
+          <CamposSintese areas={areas} prefixo={idBase} />
           {montarEntradaPorAudio ? (
             <AudioOuAtalho montar={montarEntradaPorAudio} onTexto={aoReceberDitado} />
           ) : null}

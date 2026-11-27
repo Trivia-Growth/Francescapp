@@ -3,16 +3,13 @@ import { afterEach, expect, it, vi } from 'vitest';
 import type { ServicoTurnoHttp } from './servico-turno-http.ts';
 import { montarTurnoProprio } from './turno-proprio.js';
 const passagem = vi.hoisted(() => ({ encerrar: null as null | ((id: string) => Promise<void>) }));
+/* O dublê captura o `encerrar` que o turno entrega à passagem. Desde 27/11/2026 a passagem
+ * é composta como componente, então a entrega chega por props em vez de argumento de
+ * `montarPassagemTurno` — o ponto capturado é o mesmo, e as asserções não mudaram. */
 vi.mock('./passagem-turno.js', () => ({
-  montarPassagemTurno: (
-    _raiz: HTMLElement,
-    _paciente: string,
-    _turno: unknown,
-    _servico: unknown,
-    opcoes: { encerrar(id: string): Promise<void> },
-  ) => {
+  PassagemTurnoTela: ({ opcoes }: { opcoes: { encerrar(id: string): Promise<void> } }) => {
     passagem.encerrar = opcoes.encerrar;
-    return () => {};
+    return null;
   },
 }));
 const usuario = '10000000-0000-4000-8000-000000000001';

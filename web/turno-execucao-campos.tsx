@@ -1,30 +1,34 @@
-/** Controles compartilhados pelas superfícies de execução do cuidado.
+/** Controles compartilhados pelas superfícies de execução do cuidado (VIS-018).
  *
- * Este arquivo é a FRONTEIRA da migração do bloco `turno-execucao-*` (VIS-018). Ele
- * carrega duas camadas de propósito e por tempo determinado:
+ * `CampoTurno`, `SelecaoTurno` e `EstadoTurno` não desenham controle nenhum por conta
+ * própria: delegam a `web/componentes/ui/`, de onde vêm as medidas, o `aria-describedby`
+ * com dica e erro, e o tamanho de fonte que impede o iOS de dar zoom ao focar.
  *
- * 1. **A camada React** — `CampoTurno`, `SelecaoTurno`, `EstadoTurno` —, que não desenha
- *    controle nenhum por conta própria: delega a `web/componentes/ui/`, de onde vêm as
- *    medidas, o `aria-describedby` com dica e erro, e o tamanho de fonte que impede o
- *    iOS de dar zoom ao focar. É o que os módulos já migrados consomem.
+ * `usarProtocoloTurno` reúne o que cada superfície imperativa repetia à mão — `ativa`,
+ * `ocupada`, a linha de situação e a falha que distingue perda de acesso de recusa comum.
  *
- * 2. **As fábricas imperativas** — `elementoTurno`, `campoTurno`, `selecaoTurno`,
- *    `botaoTurno`, `estadoTurno` —, ainda consumidas por `-gestao`, `-relatorios`,
- *    `-arquivos`, `-localizacao-coordenacao` e `turno-execucao.ts`. `-editor` migrou em
- *    25/11/2026 e já consome só a camada React. Elas NÃO foram reescritas: reescrevê-las
- *    mudaria o DOM de módulos que esta frente não migrou, e quem muda o DOM de um módulo
- *    é a migração dele, não a de um vizinho. Saem inteiras quando o último consumidor
- *    migrar — não antes, e não por partes.
+ * As fábricas imperativas (`elementoTurno`, `campoTurno`, `selecaoTurno`, `botaoTurno`,
+ * `estadoTurno`) saíram em 27/11/2026 com o último consumidor, `turno-execucao`.
  *
- * Os validadores (`numeroTurno`, `instanteTurno`, `dataLocalTurno`) são lógica pura e
- * servem às duas camadas sem mudança: são regra de dado clínico, não de desenho.
+ * Os validadores (`numeroTurno`, `instanteTurno`, `dataLocalTurno`) são lógica pura: são
+ * regra de dado clínico, não de desenho.
  */
-import { useId, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
+import { flushSync } from 'react-dom';
+import { FalhaApi, exigeNovoAcesso, mensagemFalha } from './api.ts';
+import type { ArquivoTurno } from './servico-turno-execucao-http.ts';
 import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Campo } from './componentes/ui/campo.js';
 import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
 import './estilos/tema.css';
-import { botao as botaoDaCamada } from './ui/basicos.js';
 
 /** Uma opção de `SelecaoTurno`, no vocabulário das telas de turno. */
 export type OpcaoTurno<T extends string = string> = { valor: T; rotulo: string };
@@ -59,6 +63,8 @@ export function CampoTurno({
    *  imperativa fazia atribuindo `.step`/`.min` após criar o controle. */
   step?: string;
   min?: string;
+  /** Limite do contrato aplicado no próprio controle: a tela não oferece o que vai recusar. */
+  maxLength?: number;
 }) {
   const gerado = useId();
   const identificador = id ?? `turno-campo-${gerado}`;
@@ -140,65 +146,122 @@ export function EstadoTurno({ children }: { children?: ReactNode }) {
   );
 }
 
-/* ——— Camada imperativa em extinção. Ver o cabeçalho: sai com o último consumidor. ——— */
+/** O protocolo comum às superfícies do turno, que a versão imperativa repetia à mão em
+ *  cada módulo: `ativa`, `ocupada`, a linha de situação e a `falha` que distingue perda de
+ *  acesso (a superfície some e avisa quem a hospeda) de recusa comum (a frase aparece).
+ *
+ *  `ocupada` mora em ref E em estado: o protocolo decide de forma síncrona no meio de fluxo
+ *  assíncrono, e o estado lido ali seria o do render anterior. `viva()` é falsa depois da
+ *  desmontagem e depois da perda de acesso — é o que impede o protocolo de continuar
+ *  gravando ou consultando por uma tela que já não existe. `pendencia_externa` não é perda
+ *  de acesso: é resultado incerto, e quem decide o que fazer é a superfície. */
+export function usarProtocoloTurno(inicial: string, acessoPerdido: (erro: unknown) => void) {
+  const vivaRef = useRef(true);
+  const avisar = useRef(acessoPerdido);
+  avisar.current = acessoPerdido;
+  useEffect(() => {
+    vivaRef.current = true;
+    return () => {
+      vivaRef.current = false;
+    };
+  }, []);
+  const ocupadaRef = useRef(false);
+  const [ocupada, marcarOcupada] = useState(false);
+  const [perdida, marcarPerdida] = useState(false);
+  const [status, definirStatus] = useState(inicial);
+  const viva = useCallback(() => vivaRef.current, []);
+  /* `flushSync`: a trava dos controles é parte do protocolo, não desenho. Fora de evento o
+     React agenda a repintura numa macrotarefa, e nesse intervalo o botão continuava
+     desabilitado no DOM depois de a operação acabar — um clique ali era perdido em
+     silêncio. A versão imperativa liberava na hora; esta também. */
+  const definirOcupada = useCallback((valor: boolean) => {
+    ocupadaRef.current = valor;
+    if (vivaRef.current) flushSync(() => marcarOcupada(valor));
+  }, []);
+  const falha = useCallback((erro: unknown) => {
+    if (!vivaRef.current) return;
+    if (
+      exigeNovoAcesso(erro) &&
+      !(erro instanceof FalhaApi && erro.codigo === 'pendencia_externa')
+    ) {
+      vivaRef.current = false;
+      flushSync(() => marcarPerdida(true));
+      avisar.current(erro);
+      return;
+    }
+    definirStatus(mensagemFalha(erro));
+  }, []);
+  return { viva, ocupadaRef, ocupada, definirOcupada, perdida, falha, status, definirStatus };
+}
 
-export function elementoTurno<K extends keyof HTMLElementTagNameMap>(tipo: K, texto?: string) {
-  const elemento = document.createElement(tipo);
-  if (texto !== undefined) elemento.textContent = texto;
-  return elemento;
-}
-export function campoTurno(
-  destino: HTMLElement,
-  rotulo: string,
-  opcoes: {
-    tipo?: string;
-    valor?: string;
-    obrigatorio?: boolean;
-    longo?: boolean;
-    ajuda?: string;
-  } = {},
-): HTMLInputElement | HTMLTextAreaElement {
-  const label = elementoTurno('label', rotulo);
-  const controle = opcoes.longo ? elementoTurno('textarea') : elementoTurno('input');
-  if (controle instanceof HTMLInputElement) controle.type = opcoes.tipo ?? 'text';
-  controle.required = opcoes.obrigatorio ?? true;
-  controle.value = opcoes.valor ?? '';
-  controle.id = `turno-campo-${crypto.randomUUID()}`;
-  label.htmlFor = controle.id;
-  label.append(controle);
-  if (opcoes.ajuda) {
-    const ajuda = elementoTurno('small', opcoes.ajuda);
-    ajuda.id = `${controle.id}-ajuda`;
-    controle.setAttribute('aria-describedby', ajuda.id);
-    label.append(ajuda);
-  }
-  destino.append(label);
-  return controle;
-}
-export function selecaoTurno<T extends string>(
-  destino: HTMLElement,
-  rotulo: string,
-  opcoes: readonly { valor: T; rotulo: string }[],
-  valor?: T,
+/** Ouve `change` diretamente no nó com este `id`, dentro do invólucro — não pela delegação
+ *  do React, que as provas destas telas não alcançam ao disparar o evento sem `bubbles`.
+ *  `flushSync` porque quem chama costuma conferir o efeito na linha seguinte. */
+export function usarMudancaNativa(
+  envolucroRef: RefObject<HTMLElement | null>,
+  id: string,
+  aoMudar: (valor: string) => void,
+  /** Troca quando o nó é recriado (lista recarregada, chave nova): o ouvinte vai junto. */
+  recriacao?: unknown,
 ) {
-  const label = elementoTurno('label', rotulo);
-  const controle = elementoTurno('select');
-  controle.required = true;
-  controle.id = `turno-campo-${crypto.randomUUID()}`;
-  label.htmlFor = controle.id;
-  const vazio = elementoTurno('option', 'Selecione');
-  vazio.value = '';
-  controle.append(vazio);
-  for (const item of opcoes) {
-    const opcao = elementoTurno('option', item.rotulo);
-    opcao.value = item.valor;
-    controle.append(opcao);
-  }
-  controle.value = valor ?? '';
-  label.append(controle);
-  destino.append(label);
-  return controle;
+  const guardado = useRef(aoMudar);
+  guardado.current = aoMudar;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `recriacao` é justamente o sinal de que o nó mudou.
+  useEffect(() => {
+    // Ids fixos escritos no código, sem caractere especial: dispensa `CSS.escape`, que o
+    // jsdom das provas não implementa.
+    const no = envolucroRef.current?.querySelector<HTMLSelectElement | HTMLInputElement>(`#${id}`);
+    if (!no) return;
+    const ouvir = () => flushSync(() => guardado.current(no.value));
+    no.addEventListener('change', ouvir);
+    return () => no.removeEventListener('change', ouvir);
+  }, [envolucroRef, id, recriacao]);
 }
+
+/** Entrega de arquivo recebido do servidor, revogando a URL temporária logo depois e na
+ *  desmontagem. Sem DOM da tela: o link é descartável e nunca entra no documento. */
+export function criarEntregaArquivoTurno() {
+  let ativa = true;
+  const urls = new Map<string, ReturnType<typeof setTimeout>>();
+  return {
+    entregar(arquivo: ArquivoTurno) {
+      if (!ativa) return;
+      const url = URL.createObjectURL(
+        new Blob([new Uint8Array(arquivo.bytes)], { type: arquivo.tipo }),
+      );
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = arquivo.nome;
+      link.rel = 'noopener';
+      link.click();
+      const prazo = setTimeout(() => {
+        URL.revokeObjectURL(url);
+        urls.delete(url);
+      }, 1_000);
+      urls.set(url, prazo);
+    },
+    desmontar() {
+      ativa = false;
+      for (const [url, prazo] of urls) {
+        clearTimeout(prazo);
+        URL.revokeObjectURL(url);
+      }
+      urls.clear();
+    },
+  };
+}
+
+/** A entrega com o ciclo de vida da superfície: some com ela. */
+export function usarEntregaArquivoTurno() {
+  const entrega = useRef<ReturnType<typeof criarEntregaArquivoTurno> | null>(null);
+  entrega.current ??= criarEntregaArquivoTurno();
+  useEffect(() => {
+    const atual = entrega.current;
+    return () => atual?.desmontar();
+  }, []);
+  return entrega.current;
+}
+
 export function numeroTurno(controle: HTMLInputElement | HTMLTextAreaElement): number {
   if (!controle.value.trim() || !/^-?\d+(\.\d+)?$/.test(controle.value.trim()))
     throw new Error('Informe um número válido.');
@@ -218,20 +281,4 @@ export function dataLocalTurno(valor?: string): string {
   if (!Number.isFinite(data.getTime())) return '';
   const local = new Date(data.getTime() - data.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 16);
-}
-/** Única fábrica de botão de plantão e turno: trocá-la aqui troca os quarenta botões
- *  dessas telas de uma vez. Passa a devolver o botão da camada de componente, para a ação
- *  do turno ser a mesma peça da ação do cadastro e da carteira. `onclick` continua sendo
- *  atribuição, e não `addEventListener`: há chamador que troca a ação do botão depois de
- *  montá-lo, e com dois registros a ação antiga continuaria disparando. */
-export function botaoTurno(texto: string, acao: () => void, principal = false) {
-  const elemento = botaoDaCamada({ rotulo: texto, peso: principal ? 'principal' : 'secundario' });
-  elemento.onclick = acao;
-  return elemento;
-}
-export function estadoTurno(texto = '') {
-  const estado = elementoTurno('p', texto);
-  estado.setAttribute('role', 'status');
-  estado.setAttribute('aria-live', 'polite');
-  return estado;
 }

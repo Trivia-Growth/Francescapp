@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { montarExecucaoTurno } from './turno-execucao.ts';
+import { montarExecucaoTurno } from './turno-execucao.js';
 import { montarEditorExecucao } from './turno-execucao-editor.js';
 import { apresentarRegistroTurno } from './turno-execucao-leitura.js';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
