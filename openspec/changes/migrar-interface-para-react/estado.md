@@ -1,6 +1,6 @@
 # Estado — migrar-interface-para-react
 
-**Atualizado em:** 27/11/2026 · **Branch:** `migracao/controles-react` · **Por:** Codex
+**Atualizado em:** 27/11/2026 · **Branch:** `codex/controles-administracao` · **Por:** Codex
 
 ## Retirada do observador de controles
 
@@ -18,9 +18,22 @@ a convivência. Regras e Início não renderizam os tipos de controle observados
   `#realizacao-situacao` com esperado `0` e recebido `1`. Sem `data-aprimorada`,
   o observador gerou dois invólucros e a prova esperava um. Nenhuma falha foi por
   tempo esgotado.
-- Próximo passo: levar o mesmo contrato a cadastro, administração e ficha, com
-  uma contraprova por região. Antes de remover o contorno de chave em
-  `selecao-profissional`, reproduzir e relatar a falha que ele evita.
+- A ativação da agenda em Node 22 passou localmente e na CI do PR #30. A prova
+  SQL de realização (FR-024) passou em PostgreSQL 17 descartável com casos
+  positivos e negativos e acesso direto.
+- Administração: seleção React aplicada às áreas com controles. As datas da
+  Auditoria notificam o ISO por callback explícito, preservando os GETs corrigidos
+  no PR #33. O Financeiro monta e desmonta as ilhas das quatro datas nas trocas
+  de aba. A prova da casca de Administração usa um select legado para confirmar
+  o observador ativo e verifica um único invólucro nos componentes migrados.
+- `pnpm run verificar:rapido` e
+  `pnpm run verificar:celular filtros-data.pw.ts financeiro-controles-proprios.pw.ts`
+  passaram em Node 22. Na contraprova da Administração, mudar apenas a regra de
+  opacidade das datas para `1` falhou em `#auditoria-de` com recebido `1` e
+  esperado `0`. Revertida a alteração, a prova passou.
+- Próximo passo: migrar ficha e cadastro, com uma contraprova por região. Antes
+  de remover o contorno de chave em `selecao-profissional`, reproduzir e relatar a
+  falha que ele evita.
 - A remoção integral de `web/ui/` segue em tarefa própria. Restam `main.ts`
   (`botao`/`linhaLista`), a frente de `confirmacao.ts`, três módulos da
   demonstração com decisão pendente e o import de `ui.css` no tema.

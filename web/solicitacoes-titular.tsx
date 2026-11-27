@@ -35,7 +35,7 @@ import type {
 } from '../packages/contracts/src/solicitacao-titular.ts';
 import { Botao } from './componentes/ui/botao.js';
 import { AreaTexto } from './componentes/ui/area-texto.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
@@ -151,7 +151,7 @@ function ItemSolicitacao({
           noValidate
           className="solicitacoes-titular__resposta grid min-w-0 gap-3"
         >
-          <SelecaoSimples
+          <SelecaoAprimorada
             id={`solicitacao-medida-${item.solicitacao_id}`}
             name="medida"
             rotulo="Medida adotada"
@@ -162,7 +162,7 @@ function ItemSolicitacao({
                 {texto}
               </option>
             ))}
-          </SelecaoSimples>
+          </SelecaoAprimorada>
           <AreaTexto
             id={`solicitacao-resposta-${item.solicitacao_id}`}
             name="resposta"
@@ -335,7 +335,7 @@ function TelaSolicitacoesTitular({
           noValidate
           className="solicitacoes-titular__registro grid min-w-0 max-w-[480px] gap-3"
         >
-          <SelecaoSimples
+          <SelecaoAprimorada
             id="solicitacao-tipo"
             name="tipo"
             rotulo="O que foi pedido"
@@ -346,7 +346,7 @@ function TelaSolicitacoesTitular({
                 {texto}
               </option>
             ))}
-          </SelecaoSimples>
+          </SelecaoAprimorada>
           <AreaTexto
             id="solicitacao-descricao"
             name="descricao"

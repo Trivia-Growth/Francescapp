@@ -1,3 +1,6 @@
+import { createElement } from 'react';
+import { CampoData } from './componentes/ui/campo-data.js';
+import { ilha } from './ponte/ilha.js';
 import { esqueletoCarregando, iniciarAcao } from './esqueleto.js';
 import type {
   ApuracaoRepasse,
@@ -35,6 +38,10 @@ const SITUACOES: Record<string, string> = {
 
 type Aba = 'valores' | 'despesas' | 'apuracao';
 
+function idCampo(rotulo: string): string {
+  return `financeiro-${rotulo.toLowerCase().replace(/[^a-z]+/g, '-')}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function campo(
   rotulo: string,
   tipo: string,
@@ -44,7 +51,7 @@ function campo(
   bloco.className = 'financeiro__campo';
   const entrada = document.createElement('input');
   entrada.type = tipo;
-  entrada.id = `financeiro-${rotulo.toLowerCase().replace(/[^a-z]+/g, '-')}-${Math.random().toString(36).slice(2, 8)}`;
+  entrada.id = idCampo(rotulo);
   Object.assign(entrada, extras);
   const texto = document.createElement('label');
   texto.htmlFor = entrada.id;
@@ -70,6 +77,28 @@ export function montarFinanceiro(
   contexto: { profissionalPadrao?: string; casoPadrao?: string } = {},
 ): () => void {
   let ativa = true;
+  const desmontarDatas: (() => void)[] = [];
+  function campoData(rotulo: string) {
+    const bloco = document.createElement('div');
+    let entrada: HTMLInputElement | null = null;
+    desmontarDatas.push(
+      ilha(
+        bloco,
+        createElement(CampoData, {
+          id: idCampo(rotulo),
+          ref: (nativo) => {
+            // Uma gravação de despesa ainda lê o formulário depois de calcular o digest.
+            if (nativo) entrada = nativo;
+          },
+          rotulo,
+          required: true,
+          classeEnvelope: 'financeiro__campo',
+        }),
+      ),
+    );
+    return { bloco, valor: () => entrada?.value ?? '' };
+  }
+
   const secao = document.createElement('section');
   secao.className = 'financeiro';
   const titulo = document.createElement('h2');
@@ -105,6 +134,7 @@ export function montarFinanceiro(
   function abrir(id: Aba) {
     for (const [chave, botao] of botoes)
       botao.setAttribute('aria-selected', chave === id ? 'true' : 'false');
+    for (const desmontar of desmontarDatas.splice(0)) desmontar();
     painel.replaceChildren();
     abas.find((aba) => aba.id === id)?.montar(painel);
   }
@@ -219,7 +249,7 @@ export function montarFinanceiro(
       placeholder: '0,00',
     });
     dinheiro.entrada.setAttribute('inputmode', 'decimal');
-    const inicio = campo('Início da vigência', 'date', { required: true });
+    const inicio = campoData('Início da vigência');
     const motivo = campo('Motivo', 'text', { required: true, maxLength: 2000 });
     const salvar = botaoDaCamada({ rotulo: 'Registrar valor', tipo: 'submit', peso: 'principal' });
     const aviso = document.createElement('p');
@@ -247,7 +277,7 @@ export function montarFinanceiro(
             valor_id: tentativa.valor_id,
             profissional_usuario_id: profissional.entrada.value.trim(),
             valor_turno_centavos: centavos,
-            vigencia: { inicio: inicio.entrada.value, fim: null },
+            vigencia: { inicio: inicio.valor(), fim: null },
             motivo: motivo.entrada.value.trim(),
           },
           tentativa.chave,
@@ -376,7 +406,7 @@ export function montarFinanceiro(
       placeholder: '0,00',
     });
     dinheiro.entrada.setAttribute('inputmode', 'decimal');
-    const data = campo('Data', 'date', { required: true });
+    const data = campoData('Data');
     const responsavel = campo('Responsável (identificador)', 'text', { required: true });
     const autorizacao = campo('Autorização aplicável', 'text', { required: true, maxLength: 512 });
     const arquivo = campo('Comprovante', 'file', { required: true });
@@ -452,7 +482,7 @@ export function montarFinanceiro(
             paciente_id: caso.entrada.value.trim(),
             descricao: descricao.entrada.value.trim(),
             valor_centavos: centavos,
-            data: data.entrada.value,
+            data: data.valor(),
             responsavel_usuario_id: responsavel.entrada.value.trim(),
             autorizacao: autorizacao.entrada.value.trim(),
             comprovante: {
@@ -511,8 +541,8 @@ export function montarFinanceiro(
       autocomplete: 'off',
       value: contexto.profissionalPadrao ?? '',
     });
-    const inicio = campo('Início do período', 'date', { required: true });
-    const fim = campo('Fim do período', 'date', { required: true });
+    const inicio = campoData('Início do período');
+    const fim = campoData('Fim do período');
     formulario.append(profissional.bloco, inicio.bloco, fim.bloco);
     destino.append(formulario);
 
@@ -525,8 +555,8 @@ export function montarFinanceiro(
       () =>
         servico.consultarApuracao({
           profissional_usuario_id: profissional.entrada.value.trim(),
-          periodo_inicio: inicio.entrada.value,
-          periodo_fim: fim.entrada.value,
+          periodo_inicio: inicio.valor(),
+          periodo_fim: fim.valor(),
         }),
       (apuracao, lista) => {
         resumo.textContent = `Total ${formatarCentavos(apuracao.total_centavos)} — ${apuracao.pendentes} pendência(s) — consultado em ${apuracao.consultado_em}`;
@@ -562,6 +592,7 @@ export function montarFinanceiro(
   abrir('valores');
   return () => {
     ativa = false;
+    for (const desmontar of desmontarDatas.splice(0)) desmontar();
     raiz.replaceChildren();
   };
 }

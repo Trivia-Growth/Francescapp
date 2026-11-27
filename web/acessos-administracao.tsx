@@ -33,7 +33,7 @@ import { Campo } from './componentes/ui/campo.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { type Coluna, Lista } from './componentes/ui/lista.js';
 import { MarcaEstado } from './componentes/ui/marca-estado.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import './estilos/tema.css';
 import type { ServicoAcessos } from './servico-acessos-http.js';
@@ -458,7 +458,7 @@ function TelaAcessos({
                 onChange={(evento) => definirEmail(evento.currentTarget.value)}
                 classeEnvelope="mb-0"
               />
-              <SelecaoSimples
+              <SelecaoAprimorada
                 id="acesso-funcao"
                 rotulo="Função"
                 marcaRotulo="obrigatório"
@@ -473,8 +473,8 @@ function TelaAcessos({
                     {texto}
                   </option>
                 ))}
-              </SelecaoSimples>
-              <SelecaoSimples
+              </SelecaoAprimorada>
+              <SelecaoAprimorada
                 id="acesso-metodo"
                 rotulo="Como esta pessoa entrará"
                 marcaRotulo="obrigatório"
@@ -492,7 +492,7 @@ function TelaAcessos({
                 <option value="">Selecione o método</option>
                 <option value="google_workspace">Google da organização</option>
                 <option value="interno">E-mail e senha</option>
-              </SelecaoSimples>
+              </SelecaoAprimorada>
               {/* O campo continua montado quando o método não é interno, e apenas oculto:
                   desmontá-lo faria o rótulo e a dica sumirem da leitura e reapareceram a
                   cada troca de método. Desligado, ele não entra no envio. */}

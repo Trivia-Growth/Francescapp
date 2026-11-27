@@ -327,8 +327,10 @@ autorização onde a tela tiver autorização própria.
   As contraprovas de opacidade e de invólucro duplo estão registradas no estado.
 - [ ] **7.0b [C]** Cadastro passa a renderizar seus controles aprimorados, inclusive o
   catálogo assíncrono de responsáveis e os contatos que entram depois da abertura.
-- [ ] **7.0c [C]** Administração passa a renderizar seus controles aprimorados e o
+- [x] **7.0c [C]** Administração passa a renderizar seus controles aprimorados e o
   Financeiro usa ilhas para as datas nos dois hospedeiros.
+  *Evidência:* Chromium pela casca, sentinela legada, GETs de Auditoria com os filtros
+  corretos, troca de abas com as quatro datas do Financeiro e contraprova de opacidade.
 - [ ] **7.0d [C]** Ficha passa a renderizar os controles aprimorados de suas seções.
 - [ ] **7.0e [C]** Retirar o observador de controles das seis inscrições em `main.ts`
   após a prova de convivência de cada região. Regras e Início não montam esses controles.

@@ -8,7 +8,7 @@ import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
 import { MarcaEstado } from './componentes/ui/marca-estado.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { CaixaDeMarcacao } from './telas/caixa-de-marcacao.js';
 import { Formulario, marcado, valorDe } from './telas/formulario.js';
@@ -210,7 +210,7 @@ function Tela({
                     className="m-0 grid justify-items-start gap-2 border-0 p-0"
                   >
                     <legend className="sr-only">Indicar aprovador</legend>
-                    <SelecaoSimples
+                    <SelecaoAprimorada
                       id="plano-aprovador-colaborador"
                       name="colaborador"
                       rotulo="Colaborador"
@@ -226,7 +226,7 @@ function Tela({
                             {pessoa.rotulo}
                           </option>
                         ))}
-                    </SelecaoSimples>
+                    </SelecaoAprimorada>
                     <Botao peso="principal" tipo="submit">
                       Indicar aprovador
                     </Botao>
@@ -314,7 +314,7 @@ function FormularioCampo({
             required
             maxLength={120}
           />
-          <SelecaoSimples
+          <SelecaoAprimorada
             id={`${identificador}-tipo`}
             name="tipo"
             rotulo="Tipo"
@@ -325,7 +325,7 @@ function FormularioCampo({
             <option value="numero">Número</option>
             <option value="data">Data</option>
             <option value="lista">Lista de opções</option>
-          </SelecaoSimples>
+          </SelecaoAprimorada>
           {/* Fica montado e escondido: o controle continua existindo quando o tipo volta
               a ser lista, e a opção já escrita não se perde na ida e volta. */}
           <div hidden={!eLista} className="sm:col-span-2">

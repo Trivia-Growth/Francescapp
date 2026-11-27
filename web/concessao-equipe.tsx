@@ -37,7 +37,7 @@ import { EstadoErro } from './componentes/ui/estado-erro.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
 import { type Coluna, Lista } from './componentes/ui/lista.js';
 import { MarcaEstado } from './componentes/ui/marca-estado.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { confirmar, type PedidoConfirmacao } from './confirmacao.js';
 import './estilos/tema.css';
@@ -388,7 +388,7 @@ function TelaConcessaoEquipe({ api }: { api: ClienteFFCM }) {
               autoCapitalize="none"
               spellCheck={false}
             />
-            <SelecaoSimples
+            <SelecaoAprimorada
               id="equipe-perfil"
               name="perfil"
               rotulo="Perfil"
@@ -396,7 +396,7 @@ function TelaConcessaoEquipe({ api }: { api: ClienteFFCM }) {
             >
               <option value="profissional">Profissional</option>
               <option value="administrador">Administrador</option>
-            </SelecaoSimples>
+            </SelecaoAprimorada>
             <AreaTexto
               id="equipe-motivo"
               name="motivo"
