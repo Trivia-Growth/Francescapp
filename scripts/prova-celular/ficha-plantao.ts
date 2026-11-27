@@ -10,6 +10,7 @@
  */
 import { montarFichaPlantao, type ServicosFichaPlantao } from '../../web/ficha-plantao.ts';
 import { apresentarConsolidadoFicha } from '../../web/consolidado-ficha-plantao.js';
+import { aplicarControlesProprios } from '../../web/ui/controles.ts';
 import type { CampoExtraCatalogoGeneralizado } from '../../packages/contracts/src/campo-extra-catalogo.ts';
 import type { RelatorioTurnoPublico } from '../../packages/contracts/src/turno-execucao-http.ts';
 import type { Turno } from '../../packages/contracts/src/turno.ts';
@@ -176,6 +177,13 @@ const relatorio: RelatorioTurnoPublico = {
     },
   ],
 };
+
+// Mesma ordem de `main.ts`: o observador liga ANTES do conteúdo existir. Em produção
+// `ficha-plantao.ts` é hospedado dentro de `ficha-view` (via `turno-execucao.ts`, seção da
+// ficha do paciente) — `#conteudo` faz esse papel aqui, e `subtree: true` cobre os dois
+// pontos de montagem abaixo dele.
+const conteudo = document.getElementById('conteudo');
+if (conteudo) aplicarControlesProprios(conteudo);
 
 const raizFicha = document.getElementById('ficha');
 if (raizFicha)
