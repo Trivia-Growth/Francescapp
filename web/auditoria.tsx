@@ -6,7 +6,7 @@
  *
  * Defeitos medidos na versão imperativa, corrigidos nesta migração:
  * 1. Os campos de filtro usavam `<input>`/`<select>` crus, sem o tamanho de fonte de
- *    `--texto-2` (16px): abaixo disso o iOS dá zoom ao focar. `Campo` e `SelecaoSimples`
+ *    `--texto-2` (16px): abaixo disso o iOS dá zoom ao focar. `Campo` e `SelecaoAprimorada`
  *    já fixam 16px, então o defeito desaparece ao usar os componentes em vez do DOM cru.
  * 2. A tabela rolava na horizontal a 390px. Aqui o registro é LINHA (VIS-016): `Lista`
  *    substitui a `<table>`, e tanto `Lista` quanto `Superficie` aplicam `min-w-0` ao
@@ -22,10 +22,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { EventoAuditoria } from '../packages/contracts/src/auditoria.js';
 import { FalhaApi } from './api.js';
 import { Botao } from './componentes/ui/botao.js';
+import { CampoData } from './componentes/ui/campo-data.js';
 import { Campo } from './componentes/ui/campo.js';
 import { type Coluna, Lista } from './componentes/ui/lista.js';
 import { MarcaEstado } from './componentes/ui/marca-estado.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import type { FiltrosAuditoria, ServicoAuditoria } from './servico-auditoria-http.js';
 import { MolduraTela } from './telas/moldura-tela.js';
@@ -256,7 +257,7 @@ function TelaAuditoria({ servico, opcoes }: { servico: ServicoAuditoria; opcoes:
           >
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {opcoes.listarCasos ? (
-                <SelecaoSimples
+                <SelecaoAprimorada
                   id="auditoria-caso"
                   rotulo="Caso"
                   value={caso}
@@ -269,7 +270,7 @@ function TelaAuditoria({ servico, opcoes }: { servico: ServicoAuditoria; opcoes:
                       {item.nome}
                     </option>
                   ))}
-                </SelecaoSimples>
+                </SelecaoAprimorada>
               ) : null}
               <Campo
                 id="auditoria-acao"
@@ -280,7 +281,7 @@ function TelaAuditoria({ servico, opcoes }: { servico: ServicoAuditoria; opcoes:
                 onChange={(evento) => definirAcao(evento.currentTarget.value)}
                 classeEnvelope="mb-0"
               />
-              <SelecaoSimples
+              <SelecaoAprimorada
                 id="auditoria-resultado"
                 rotulo="Resultado"
                 value={resultado}
@@ -293,21 +294,19 @@ function TelaAuditoria({ servico, opcoes }: { servico: ServicoAuditoria; opcoes:
                     {texto}
                   </option>
                 ))}
-              </SelecaoSimples>
-              <Campo
+              </SelecaoAprimorada>
+              <CampoData
                 id="auditoria-de"
-                tipo="date"
                 rotulo="A partir de"
                 value={de}
-                onChange={(evento) => definirDe(evento.currentTarget.value)}
+                aoAlterar={definirDe}
                 classeEnvelope="mb-0"
               />
-              <Campo
+              <CampoData
                 id="auditoria-ate"
-                tipo="date"
                 rotulo="Até"
                 value={ate}
-                onChange={(evento) => definirAte(evento.currentTarget.value)}
+                aoAlterar={definirAte}
                 classeEnvelope="mb-0"
               />
             </div>

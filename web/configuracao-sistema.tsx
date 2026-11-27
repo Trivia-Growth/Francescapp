@@ -11,7 +11,7 @@ import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { CaixaDeMarcacao } from './telas/caixa-de-marcacao.js';
 import { Formulario } from './telas/formulario.js';
@@ -272,7 +272,7 @@ function Ajuste({
             {...descrita}
           />
         ) : opcoesConhecidas ? (
-          <SelecaoSimples
+          <SelecaoAprimorada
             id={identificador}
             name="valor"
             rotulo={item.rotulo}
@@ -288,7 +288,7 @@ function Ajuste({
                 {opcao}
               </option>
             ))}
-          </SelecaoSimples>
+          </SelecaoAprimorada>
         ) : tipo === 'texto' ? (
           <Campo
             id={identificador}

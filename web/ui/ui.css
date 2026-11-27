@@ -390,7 +390,7 @@
 .ui-data__dia[data-hoje="sim"] {
   border-color: var(--brand-olive);
 }
-.ui-data__dia[aria-selected="true"] {
+.ui-data__dia:is([aria-selected="true"], [aria-pressed="true"]) {
   background: var(--primary);
   color: var(--white);
   font-weight: 600;

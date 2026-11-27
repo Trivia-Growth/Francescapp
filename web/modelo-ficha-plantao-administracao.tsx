@@ -11,7 +11,7 @@ import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
 import { MarcaEstado } from './componentes/ui/marca-estado.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { CaixaDeMarcacao } from './telas/caixa-de-marcacao.js';
 import { Formulario, marcado, valorDe } from './telas/formulario.js';
@@ -204,7 +204,7 @@ function FormularioCampo({
             required
             maxLength={120}
           />
-          <SelecaoSimples
+          <SelecaoAprimorada
             id={`${identificador}-tipo`}
             name="tipo"
             rotulo="Tipo"
@@ -216,7 +216,7 @@ function FormularioCampo({
                 {rotulo}
               </option>
             ))}
-          </SelecaoSimples>
+          </SelecaoAprimorada>
           {/* Fica montado e escondido: o controle continua existindo quando o tipo volta
               a ser lista, e a opção já escrita não se perde na ida e volta. */}
           <div hidden={!eLista} className="sm:col-span-2">
@@ -238,7 +238,7 @@ function FormularioCampo({
             defaultValue={String(campo?.ordem ?? proximaOrdem)}
             required
           />
-          <SelecaoSimples
+          <SelecaoAprimorada
             id={`${identificador}-visibilidade`}
             name="visibilidade"
             rotulo="Quem pode ler"
@@ -246,7 +246,7 @@ function FormularioCampo({
           >
             <option value="interna">Nota interna da equipe</option>
             <option value="compartilhavel">Pode ser compartilhado com a família</option>
-          </SelecaoSimples>
+          </SelecaoAprimorada>
         </div>
         <CaixaDeMarcacao
           id={`${identificador}-obrigatorio`}

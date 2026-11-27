@@ -285,10 +285,12 @@ describe('conforto no celular (tarefa 4.3)', () => {
     expect(raiz.querySelector('.financeiro__campo')).not.toBeNull();
   });
 
-  it('todo campo tem rótulo associado', () => {
+  it('todo campo visível tem rótulo associado', () => {
     const raiz = document.createElement('div');
     montarFinanceiro(raiz, servicoFalso());
-    for (const entrada of raiz.querySelectorAll('input'))
+    const entradas = [...raiz.querySelectorAll('input:not([aria-hidden="true"])')];
+    expect(entradas.some((entrada) => entrada.classList.contains('ui-data__texto'))).toBe(true);
+    for (const entrada of entradas)
       expect(raiz.querySelector(`label[for="${entrada.id}"]`)).not.toBeNull();
   });
 

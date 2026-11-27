@@ -59,6 +59,19 @@ async function dataVisivel(page: Page, id: string) {
   return { grupo, visivel };
 }
 
+async function conferirObservadorDaAdministracao(page: Page) {
+  await page.locator('#administracao-conteudo').evaluate((raiz) => {
+    const legado = document.createElement('select');
+    legado.id = 'selecao-legada-da-prova';
+    legado.setAttribute('aria-label', 'Seleção legada de prova');
+    legado.add(new Option('Valor fictício', 'teste'));
+    raiz.append(legado);
+  });
+  const legado = page.locator('.ui-selecao[data-aprimorada]:has(> #selecao-legada-da-prova)');
+  await expect(legado).toHaveCount(1);
+  await legado.evaluate((grupo) => grupo.remove());
+}
+
 async function consultarAuditoria(page: Page) {
   const aplicar = page.getByRole('button', { name: 'Aplicar filtros' });
   const pedido = page.waitForRequest((req) => new URL(req.url()).pathname === caminhoAuditoria);
@@ -67,12 +80,37 @@ async function consultarAuditoria(page: Page) {
 }
 
 test('Auditoria envia o limite inicial digitado e retira o filtro ao apagar', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${origem}/#administracao/auditoria`);
   const aplicar = page.getByRole('button', { name: 'Aplicar filtros' });
   await expect(aplicar).toBeEnabled();
-  const { visivel: inicio } = await dataVisivel(page, 'auditoria-de');
+  await conferirObservadorDaAdministracao(page);
+  const { grupo: inicioGrupo, visivel: inicio } = await dataVisivel(page, 'auditoria-de');
+  await expect(inicio).toHaveAttribute('id', 'auditoria-de-texto');
+  expect(await inicioGrupo.evaluate((no) => no.parentElement?.closest('.ui-data') === null)).toBe(
+    true,
+  );
 
-  // A seleção aprimorada usa change de select e é um controle positivo para o dublê.
+  const resultado = page.locator('.ui-selecao[data-aprimorada]:has(> #auditoria-resultado)');
+  await expect(resultado.locator('#auditoria-resultado')).toHaveCSS('opacity', '0');
+  expect(await resultado.evaluate((no) => no.parentElement?.closest('.ui-selecao') === null)).toBe(
+    true,
+  );
+
+  // No iOS, campos com menos de 16px provocam zoom ao receber foco.
+  for (const seletor of [
+    '.ui-selecao:has(> #auditoria-caso) > .ui-selecao__gatilho',
+    '#auditoria-acao',
+    '.ui-selecao:has(> #auditoria-resultado) > .ui-selecao__gatilho',
+    '#auditoria-de-texto',
+    '#auditoria-ate-texto',
+  ]) {
+    const campo = page.locator(seletor);
+    await expect(campo).toBeVisible();
+    await expect(campo).toHaveCSS('font-size', '16px');
+  }
+
+  // A seleção e a data podem ser usadas juntas na mesma consulta.
   await page.getByRole('combobox', { name: /^Resultado/ }).click();
   await page.getByRole('option', { name: 'Negado', exact: true }).click();
 

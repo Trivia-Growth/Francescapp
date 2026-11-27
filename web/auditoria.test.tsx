@@ -211,20 +211,6 @@ describe('consulta da trilha de auditoria (FR-039)', () => {
     expect([...(filtroCaso?.options ?? [])].map((opcao) => opcao.value)).toEqual(['']);
   });
 
-  it('os campos de filtro usam o tamanho de fonte que não dispara zoom no iOS', async () => {
-    const raiz = document.createElement('div');
-    montarAuditoria(raiz, servicoFalso(), {
-      listarCasos: async () => [{ id: caso, nome: 'Paciente Fictício' }],
-    });
-
-    await vi.waitFor(() => expect(linhas(raiz)).toHaveLength(1));
-    await vi.waitFor(() => expect(raiz.querySelector('#auditoria-caso')).not.toBeNull());
-    for (const id of ['auditoria-caso', 'auditoria-acao', 'auditoria-de', 'auditoria-ate']) {
-      const controle = raiz.querySelector(`#${id}`);
-      expect(controle?.className ?? '').toContain('text-(length:--texto-2)');
-    }
-  });
-
   it('a listagem não segura a largura do conteúdo: o envelope usa min-w-0', async () => {
     const raiz = document.createElement('div');
     montarAuditoria(raiz, servicoFalso());
