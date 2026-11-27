@@ -70,9 +70,8 @@ import { montarAvisos } from './avisos.js';
 import { limparAparelho, montarEstadoDeRede, registrarCascaOffline } from './casca-offline.js';
 import { criarServicoAvisosHttp } from './servico-avisos-http.js';
 import { criarServicoAuditoriaHttp } from './servico-auditoria-http.js';
-import { montarRegrasAtendimento } from './regras-atendimento.js';
 import { criarServicoRegrasAtendimentoHttp } from './servico-regras-atendimento-http.js';
-import { montarHomeProfissional } from './home-profissional.js';
+import { gravarRota, iniciarCasca, lerRota } from './casca-react.js';
 import { criarServicoSolicitacaoTitularHttp } from './servico-solicitacao-titular-http.js';
 import { criarServicoSegredosIntegracoesHttp } from './servico-segredos-integracoes-http.js';
 import { montarFiltrosCarteira, montarSinalCarteira } from './filtros-carteira.js';
@@ -231,7 +230,10 @@ const casoNovo = montarCamposCasoNovo(
   },
   () => (catalogoCasoNovo ? catalogoCasoNovo() : Promise.reject(new Error('Sem sessão'))),
 );
-export const desmontarCamposDeCadastro = casoNovo.desmontar;
+export function desmontarCamposDeCadastro(): void {
+  casoNovo.desmontar();
+  casca.encerrar();
+}
 const {
   nascimento: birthInput,
   situacao: situacaoInput,
@@ -557,21 +559,14 @@ function assinaturaSessao(atual: Sessao): string {
 }
 
 function registrarRota(id: string, secao: string, empilhar: boolean): void {
-  const endereco = `${window.location.pathname}${window.location.search}${hashFicha(id, secao)}`;
-  if (empilhar) window.history.pushState(window.history.state, '', endereco);
-  else window.history.replaceState(window.history.state, '', endereco);
+  gravarRota(hashFicha(id, secao), empilhar ? 'push' : 'replace');
 }
 
 /** Troca o fragmento sem empilhar histórico. O endereço sem fragmento é a home, então sair
  * da ficha para a lista precisa dizer `#carteira`: limpar o fragmento levaria à home. */
 function trocarRota(hash: string): void {
   const destino = hash === '#home' ? '' : hash;
-  if (window.location.hash === destino) return;
-  window.history.replaceState(
-    window.history.state,
-    '',
-    `${window.location.pathname}${window.location.search}${destino}`,
-  );
+  if (window.location.hash !== destino) gravarRota(destino, 'replace');
 }
 
 function fecharFicha(): void {
@@ -2060,12 +2055,8 @@ function areasDisponiveis(atual: Sessao): AreaAdministracao[] {
   return areasAdministracao.filter((area) => area.disponivel(atual));
 }
 
-function lerRotaAdministracao(hash: string): string | null {
-  return /^#administracao\/([a-z-]{1,32})$/.exec(hash)?.[1] ?? null;
-}
-
 let painelAdministracao: { area: string; desmontar: () => void } | null = null;
-let desmontarRegras: (() => void) | null = null;
+let vistaReact: 'home' | 'regras' | null = null;
 
 function fecharAdministracao(): void {
   painelAdministracao?.desmontar();
@@ -2075,18 +2066,18 @@ function fecharAdministracao(): void {
 }
 
 function fecharRegras(): void {
-  desmontarRegras?.();
-  desmontarRegras = null;
-  elemento('regras-conteudo').replaceChildren();
+  if (vistaReact === 'regras') {
+    casca.desenhar(null);
+    vistaReact = null;
+  }
   elemento('regras-view').hidden = true;
 }
 
-let desmontarHome: (() => void) | null = null;
-
 function fecharHome(): void {
-  desmontarHome?.();
-  desmontarHome = null;
-  homeView.replaceChildren();
+  if (vistaReact === 'home') {
+    casca.desenhar(null);
+    vistaReact = null;
+  }
   homeView.hidden = true;
 }
 
@@ -2115,22 +2106,24 @@ function mostrarCarteira(): void {
  * recorte por acesso é o do servidor; a tela não soma nada que ele não tenha devolvido. */
 function mostrarHome(): void {
   if (!sessao) return;
+  fecharFicha();
   if (sessao.usuario.perfil === 'familia') {
     mostrarCarteira();
     return;
   }
-  fecharFicha();
   fecharAdministracao();
   fecharRegras();
   listaView.hidden = true;
   homeView.hidden = false;
   marcarNavegacao('home');
-  if (desmontarHome) return;
-  desmontarHome = montarHomeProfissional(
-    homeView,
-    { listar: (filtros) => api.listarPacientes(undefined, filtros) },
+  if (vistaReact === 'home') return;
+  vistaReact = 'home';
+  casca.desenhar({
+    tipo: 'home',
+    destino: homeView,
+    servico: { listar: (filtros) => api.listarPacientes(undefined, filtros) },
     acessoPerdido,
-  );
+  });
 }
 
 function mostrarAdministracao(areaId: string): void {
@@ -2140,7 +2133,10 @@ function mostrarAdministracao(areaId: string): void {
   const area = disponiveis.find((item) => item.id === areaId) ?? disponiveis[0];
   if (!area) {
     // Sem nenhuma área autorizada a administração não existe para esta conta.
-    irPara('#carteira');
+    trocarRota('#carteira');
+    fecharFicha();
+    mostrarCarteira();
+    elemento('patients-title').focus();
     return;
   }
   fecharFicha();
@@ -2219,52 +2215,60 @@ function mostrarRegras(): void {
   listaView.hidden = true;
   elemento('regras-view').hidden = false;
   marcarNavegacao('regras');
-  if (desmontarRegras) return;
-  desmontarRegras = montarRegrasAtendimento(
-    elemento('regras-conteudo'),
-    criarServicoRegrasAtendimentoHttp(identidadeAtual),
-  );
+  if (vistaReact === 'regras') return;
+  vistaReact = 'regras';
+  casca.desenhar({
+    tipo: 'regras',
+    destino: elemento('regras-conteudo'),
+    servico: criarServicoRegrasAtendimentoHttp(identidadeAtual),
+  });
   elemento('regras-title').focus();
 }
 
 /** `#home` é a rota inicial, então o endereço sem fragmento é dela: entrar na aplicação
  * não deveria exigir um fragmento para chegar à primeira tela. */
 function irPara(hash: string): void {
-  const endereco = `${window.location.pathname}${window.location.search}${hash === '#home' ? '' : hash}`;
-  window.history.pushState(window.history.state, '', endereco);
+  gravarRota(hash, 'push');
   navegarPelaRota();
+  focarDestinoDaCasca();
 }
 
-/** Roteamento por fragmento. O fragmento nunca vai ao servidor e aqui só carrega nomes de
- * área; nenhum dado de paciente entra nele além do identificador opaco da ficha. */
+function focarDestinoDaCasca(): void {
+  if (!homeView.hidden) document.getElementById('home-saudacao')?.focus();
+  else if (!listaView.hidden && fichaView.hidden && !listaView.contains(document.activeElement))
+    elemento('patients-title').focus();
+}
+
 function navegarPelaRota(): void {
   if (!sessao) return;
-  const hash = window.location.hash;
-  if (lerRotaFicha(hash)) {
-    fecharAdministracao();
-    fecharRegras();
-    if (!ficha) void abrirFichaPelaRota();
-    return;
+  const rota = lerRota();
+  switch (rota.tipo) {
+    case 'ficha':
+      fecharAdministracao();
+      fecharRegras();
+      if (ficha && fichaPaciente?.id !== rota.ficha.id) fecharFicha();
+      if (!ficha) void abrirFichaPelaRota();
+      else if (ficha.secaoAtual() !== rota.ficha.secao) {
+        const aberta = ficha;
+        void aberta.selecionar(rota.ficha.secao, { confirmar: false }).then((selecionada) => {
+          if (!selecionada && ficha === aberta)
+            registrarRota(rota.ficha.id, aberta.secaoAtual(), false);
+        });
+      }
+      return;
+    case 'administracao':
+      mostrarAdministracao(rota.area);
+      return;
+    case 'regras':
+      mostrarRegras();
+      return;
+    case 'home':
+      mostrarHome();
+      return;
+    case 'carteira':
+      if (ficha && fichaPaciente) voltarParaLista();
+      else mostrarCarteira();
   }
-  const area = lerRotaAdministracao(hash);
-  if (area) {
-    mostrarAdministracao(area);
-    return;
-  }
-  if (hash === '#regras') {
-    mostrarRegras();
-    return;
-  }
-  if (hash === '' || hash === '#home') {
-    fecharFicha();
-    mostrarHome();
-    return;
-  }
-  if (ficha && fichaPaciente) {
-    voltarParaLista();
-    return;
-  }
-  mostrarCarteira();
 }
 
 /** Sair da ficha por um link do menu precisa respeitar a mesma confirmação do botão
@@ -2285,11 +2289,8 @@ function aplicarSessao(atual: Sessao): boolean {
         sessao.usuario.perfil !== atual.usuario.perfil),
   );
   if (trocouIdentidade) {
-    // Nenhuma tela com conteúdo por sessão pode ficar montada da conta anterior: cada uma
-    // só remonta se não achar o próprio estado de montagem já preenchido (`mostrarHome` por
-    // `desmontarHome`, `mostrarAdministracao` por `painelAdministracao?.area`, `mostrarRegras`
-    // por `desmontarRegras`), o que vazaria dados institucionais e de caso de quem usava a
-    // aba antes para quem assumiu a sessão. O retorno orienta o reroteamento.
+    // A troca de identidade descarta as telas e os dados da sessão anterior antes de
+    // montar o destino para a nova conta.
     fecharFicha();
     fecharHome();
     fecharAdministracao();
@@ -2371,7 +2372,7 @@ function aplicarSessao(atual: Sessao): boolean {
   // sinal operacional não é vocabulário que a família tenha combinado.
   const temHome = atual.usuario.perfil !== 'familia';
   elemento('nav-home').hidden = !temHome;
-  if (!temHome && desmontarHome) {
+  if (!temHome && vistaReact === 'home') {
     fecharHome();
     mostrarCarteira();
   }
@@ -2572,12 +2573,18 @@ function renderizarLista(): void {
 }
 
 async function abrirFichaPelaRota(): Promise<void> {
-  const rota = lerRotaFicha(window.location.hash);
+  const fragmento = window.location.hash;
+  const rota = lerRotaFicha(fragmento);
   const atualSessao = sessao;
   if (!rota || !atualSessao || ficha) return;
   const versao = revisao;
   const numero = ++consultaFicha;
-  const atual = () => versao === revisao && numero === consultaFicha && !ficha && sessao !== null;
+  const atual = () =>
+    versao === revisao &&
+    numero === consultaFicha &&
+    window.location.hash === fragmento &&
+    !ficha &&
+    sessao !== null;
   try {
     // Só o Administrador e a Família têm rota para consultar um paciente fora da página
     // carregada; negar a Profissional não pode ser confundido com perda de acesso.
@@ -3057,32 +3064,34 @@ buscaCampo.addEventListener('input', () => {
       `${pacientesDaPagina.length} ${pacientesDaPagina.length === 1 ? 'paciente nesta página' : 'pacientes nesta página'}.`,
     );
 });
-window.addEventListener('popstate', () => {
+function aoHistorico(): void {
   if (!sessao) return;
-  const rota = lerRotaFicha(window.location.hash);
-  if (!rota && ficha && fichaPaciente) {
-    const pendencia = pendenciaFicha();
-    if (pendencia) {
-      // Voltar pelo navegador já mudou o endereço: se a resposta for não, a rota da ficha
-      // é registrada de novo, como antes — só que agora depois de uma pergunta visível.
-      const pacienteId = fichaPaciente.id;
-      const secao = ficha.secaoAtual();
-      void (async () => {
-        if (!(await confirmarSaidaDaSecao(pendencia.mensagem))) {
-          registrarRota(pacienteId, secao, true);
-          return;
-        }
-        fecharGavetaLateral();
-        navegarPelaRota();
-      })();
-      return;
-    }
+  const rota = lerRota();
+  const fichaAtual = ficha;
+  const pacienteId = fichaPaciente?.id;
+  const secao = fichaAtual?.secaoAtual();
+  const pendencia = fichaAtual?.pendencia();
+  const mudouSecao =
+    rota.tipo !== 'ficha' || rota.ficha.id !== pacienteId || rota.ficha.secao !== secao;
+  if (mudouSecao && fichaAtual && pacienteId && secao && pendencia) {
+    const destino = window.location.href;
+    void (async () => {
+      const podeSair = await confirmarSaidaDaSecao(pendencia.mensagem);
+      if (ficha !== fichaAtual || window.location.href !== destino) return;
+      if (!podeSair) {
+        registrarRota(pacienteId, secao, true);
+        return;
+      }
+      fecharGavetaLateral();
+      navegarPelaRota();
+      focarDestinoDaCasca();
+    })();
+    return;
   }
-  // Voltar/avançar pelo navegador também é uma forma de sair do destino atual: sem isto, a
-  // gaveta do celular ficaria aberta sobre a tela nova até alguém tocar em "Menu" de novo.
   fecharGavetaLateral();
   navegarPelaRota();
-});
+  focarDestinoDaCasca();
+}
 for (const [id, destino] of [
   ['nav-home', '#home'],
   ['nav-carteira', '#carteira'],
@@ -3247,4 +3256,5 @@ window.addEventListener('pageshow', (evento) => {
 montarEstadoDeRede(elemento('estado-rede'));
 void registrarCascaOffline();
 
+const casca = iniciarCasca(elemento('raiz-react'), aoHistorico);
 void restaurarSessao();

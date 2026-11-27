@@ -37,7 +37,7 @@ function ordenar(itens: readonly RegraAtendimento[]): RegraAtendimento[] {
  * Somente leitura. Quem edita o texto é Administrador, na tela de configuração do sistema —
  * aqui não há formulário de propósito, para que a tela sirva igual a profissional, paciente e
  * familiar sem precisar de um caminho diferente por perfil. */
-function Tela({ servico }: { servico: ServicoRegrasAtendimento }) {
+export function TelaRegrasAtendimento({ servico }: { servico: ServicoRegrasAtendimento }) {
   const [tela, definirTela] = useState<{
     itens: readonly RegraAtendimento[];
     carregando: boolean;
@@ -109,5 +109,5 @@ export function montarRegrasAtendimento(
   raiz: HTMLElement,
   servico: ServicoRegrasAtendimento,
 ): () => void {
-  return ilha(raiz, <Tela servico={servico} />);
+  return ilha(raiz, <TelaRegrasAtendimento servico={servico} />);
 }
