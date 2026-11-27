@@ -526,3 +526,80 @@ rotacionar a chave do OpenRouter, trocar as senhas do Workspace e as de teste ge
 marcar variáveis sensíveis do Netlify como secretas, limpar as entradas obsoletas de
 `uri_allow_list`, tratar as 68 sessões nunca encerradas. Criar o cliente OAuth do Google
 Cloud e a conta de serviço do Drive. A marca oficial ainda aguarda o arquivo vetorial.
+
+## Levantamento dos módulos imperativos — 27/11/2026
+
+Decisão do dono, 26/11/2026: *"Já corrija as pendências migre o que precisar depois das
+correções se não ativar o valor não tem pq subir"*. O #19 **não mergeia** antes disso.
+Ordem: pendências primeiro, migração depois, e migrar só **o que precisar** — não os 23
+por estarem na lista.
+
+### Provado: 6 dos 23 não são produto
+
+`web/demonstracao.html` é a única porta desses módulos, e ela **não é empacotada**:
+`web/vite.config.ts` não declara `rollupOptions.input`, então a única entrada é
+`web/index.html`, e `netlify.toml:4` publica `web/dist`, onde só existe `index.html`.
+Conferido também pelo avesso: nenhum dos símbolos aparece em `web/dist/assets`.
+
+| Módulo | Linhas | Situação |
+| --- | --- | --- |
+| `evolucoes-locais.ts` | 109 | só `demonstracao.ts` |
+| `linha-tempo-local.ts` | 49 | só `demonstracao.ts` |
+| `painel-pendencias-local.ts` | 56 | só `demonstracao.ts` |
+| `relacoes-locais.ts` | 146 | só `demonstracao.ts` |
+| `resumo-caso-local.ts` | 166 | só `demonstracao.ts` |
+| `busca-pacientes-local.ts` | 32 | meio-caso: `main.ts:27` importa só `correspondeBuscaPacienteLocal`, função pura sem DOM. O `montarBuscaPacientesLocal` do mesmo arquivo é demo |
+
+**Nenhum deles precisa migrar para o valor ativar.** Decisão sobre apagar a prévia é
+separada e não é desta fatia.
+
+### Os 17 de produto, com quem os monta
+
+Medido por importação direta e dinâmica. Não é recomendação ainda — é o mapa.
+
+| Módulo | Linhas | Chega por |
+| --- | --- | --- |
+| `turno-execucao.ts` | 787 | `main.ts` e `turno-execucao-integracao.ts` |
+| `ficha-plantao.ts` | 776 | `turno-execucao.ts` |
+| `agenda-individual.ts` | 742 | `main.ts` |
+| `financeiro.ts` | 567 | `main.ts`, importação dinâmica (`main.ts:2031`) |
+| `turno-execucao-gestao.ts` | 473 | `turno-execucao.ts` |
+| `turno-execucao-relatorios.ts` | 411 | `turno-execucao.ts` |
+| `ficha-paciente.ts` | 390 | `main.ts`, `visao-caso.tsx`, `home-profissional.tsx` |
+| `pacote-exportacao.ts` | 370 | `anexos-exportacao.ts`, `exportacao.tsx` — **sem DOM**, montagem de zip |
+| `agenda-operacoes.ts` | 360 | `agenda-individual.ts` |
+| `turno-execucao-localizacao-coordenacao.ts` | 328 | `turno-execucao.ts` |
+| `turno-execucao-arquivos.ts` | 264 | `turno-execucao.ts` e dois irmãos |
+| `realizacao-compromisso.ts` | 262 | `agenda-individual.ts` |
+| `casca-offline.ts` | 234 | `main.ts` |
+| `campos-caso-novo.ts` | 192 | `main.ts`, `cadastro.ts` |
+| `agenda-vinculo.ts` | 179 | `agenda-individual.ts` |
+| `integracao-tarefas-disponibilidade.ts` | 115 | `main.ts` |
+| `modelo-sintese.ts` | 61 | `passagem-turno.tsx`, `diario.tsx` |
+
+Três blocos, não dezessete frentes: **turno/plantão** (seis arquivos, 3.039 linhas),
+**agenda** (quatro, 1.543) e sete avulsos.
+
+### O que falta levantar, e por quê
+
+Para cada um dos 17: se está no caminho crítico de uma jornada real, se tem defeito
+concreto hoje, e — o que mais importa — **se costura com módulo já migrado**. Os dois
+pontos de costura já visíveis na tabela são `ficha-paciente.ts`, chamado de dentro de dois
+`.tsx`, e `modelo-sintese.ts`, chamado de dentro de outros dois. Essa direção
+(`.tsx` chamando `montar*` imperativo) é a que já produziu defeito real nesta migração:
+ilha React desmontada por `replaceChildren` vindo de fora.
+
+Duas frentes de leitura foram abertas para isso em 27/11/2026 e **não concluíram** antes
+do fim da sessão. O levantamento continua pendente; este mapa é o ponto de partida, não a
+resposta.
+
+### Pendências que vêm antes da migração
+
+Donas definidas pela coordenação em 26/11/2026, ainda **não iniciadas**:
+
+- Migração RLS `20261128240000_rls_acesso_caso_para_administrador.sql`, provada em
+  Postgres local e nunca aplicada em remoto — dizer o que falta para ela valer
+- A3, A5, A7, A9 — uma linha sobre cada: o que é e o que custa
+- C5 — fechar com o pacote de produção, não com o servidor de desenvolvimento
+- `turno-execucao-relatorios` preso à importação estática de `turno-execucao.ts`: resolve
+  sozinho quando esse módulo migrar, então é consequência da etapa 2, não tarefa própria
