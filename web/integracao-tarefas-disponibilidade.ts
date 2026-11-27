@@ -1,5 +1,5 @@
 import { FalhaApi, exigeNovoAcesso } from './api.ts';
-import { botao } from './ui/basicos.js';
+import { botao } from './ponte/botao-imperativo.js';
 
 type Identidade = { usuario_id: string; session_id: string };
 /** Disponibilidade habilita controles, nunca substitui autorização transacional. */

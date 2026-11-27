@@ -70,6 +70,18 @@ const porPeso: Record<PesoBotao, string> = {
   ),
 };
 
+/** As classes do botão, para quem monta o `<button>` fora do React — hoje só
+ *  `ponte/botao-imperativo.ts`, enquanto a tela que o hospeda não migra (ver lá o motivo).
+ *  Única fonte da aparência: aqui ou lá, nunca as duas. */
+export function classesBotao(opcoes: {
+  peso?: PesoBotao;
+  largo?: boolean;
+  className?: string;
+}): string {
+  const peso = opcoes.peso ?? 'secundario';
+  return juntar(base, porPeso[peso], opcoes.largo && 'w-full', opcoes.className);
+}
+
 export function Botao({
   peso = 'secundario',
   tipo = 'button',
@@ -89,7 +101,7 @@ export function Botao({
       data-peso={peso}
       data-acao={marca}
       aria-label={rotuloLeitura}
-      className={juntar(base, porPeso[peso], largo && 'w-full', className)}
+      className={classesBotao({ peso, largo, className })}
       onClick={(evento) => {
         // Focável e anunciável, mas inerte: sem isto a ação dispara mesmo desabilitada.
         if (evento.currentTarget.getAttribute('aria-disabled') === 'true') {
