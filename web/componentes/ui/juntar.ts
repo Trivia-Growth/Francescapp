@@ -2,7 +2,9 @@ import { type ClassValue, clsx } from 'clsx';
 import { extendTailwindMerge } from 'tailwind-merge';
 
 /* Os tamanhos personalizados de tema.css precisam entrar no grupo de fontes.
- * Sem isso, o tailwind-merge os trata como cores e pode descartá-los. */
+ * Sem isso, o tailwind-merge os trata como cores e pode descartá-los.
+ * Em 25/11/2026, juntar('text-2', 'text-contraste') devolvia só 'text-contraste':
+ * o campo perdia o tamanho de 16px e o iOS voltava a dar zoom ao receber foco. */
 const mesclar = extendTailwindMerge({
   extend: {
     theme: {

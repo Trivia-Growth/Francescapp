@@ -15,7 +15,11 @@ da base. A prova cobre VIS-017 e os quatro pares de contraste do §6.
 - Contraprovas revertidas. Com o texto secundário em `#c0c0c0`, o contrato
   mediu 1,66:1 contra 4,5:1. Retirar `1` do grupo tipográfico de `juntar`
   descartou `text-1` ao lado da cor. O Vitest falhou nos dois casos.
-- Próximo passo da fatia: ativação no PR e aprovação do dono pelas capturas.
+- `pnpm exec vitest run web/contrato-visual.test.ts web/componentes/ui/juntar.test.ts
+  --reporter=minimal` passou em Node 22 com 27 testes após restaurar os valores.
+  `acesso_paciente_autorizacao_local.sql` passou em PostgreSQL 17 descartável
+  com Auth e Vault simulados. Verificou concessão, acesso direto, outro caso e revogação.
+- Próximo passo da fatia: CI de ativação no PR #45 e aprovação do dono pelas capturas.
   A adoção das utilitárias nas primitivas começa na fatia 4.
 
 ## Retirada do observador de controles
