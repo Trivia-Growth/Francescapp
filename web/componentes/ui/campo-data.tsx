@@ -19,6 +19,7 @@ import {
   paraVisivel,
   primeiroDiaDaSemana,
 } from './data-civil.js';
+import { EVENTO_VALOR_NATIVO } from './valor-nativo.js';
 
 type PropsCampoData = Omit<
   PropsCampo,
@@ -101,11 +102,13 @@ export function CampoData({
     }
     campo?.addEventListener('input', sincronizar);
     campo?.addEventListener('change', sincronizar);
+    campo?.addEventListener(EVENTO_VALOR_NATIVO, sincronizar);
     document.addEventListener('reset', limpar, true);
     return () => {
       clearTimeout(aposReset);
       campo?.removeEventListener('input', sincronizar);
       campo?.removeEventListener('change', sincronizar);
+      campo?.removeEventListener(EVENTO_VALOR_NATIVO, sincronizar);
       document.removeEventListener('reset', limpar, true);
     };
   }, [sincronizar]);

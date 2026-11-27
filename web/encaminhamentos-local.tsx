@@ -34,6 +34,7 @@ import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { definirValorNativo } from './componentes/ui/valor-nativo.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
@@ -160,15 +161,8 @@ function EncaminhamentosLocaisTela({
       definirOriginal([item.destino, item.motivo, item.responsavel, item.estado]);
       definirMensagem('');
     });
-    const definir = (nome: string, valor: string) => {
-      const controle = formulario?.elements.namedItem(nome);
-      if (
-        controle instanceof HTMLInputElement ||
-        controle instanceof HTMLSelectElement ||
-        controle instanceof HTMLTextAreaElement
-      )
-        controle.value = valor;
-    };
+    const definir = (nome: string, valor: string) =>
+      definirValorNativo(formulario?.elements.namedItem(nome), valor);
     definir('destino', item.destino);
     definir('motivo', item.motivo);
     definir('responsavel', item.responsavel);

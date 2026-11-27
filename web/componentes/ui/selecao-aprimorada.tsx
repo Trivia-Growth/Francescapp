@@ -8,6 +8,7 @@ import {
   useState,
 } from 'react';
 import { EnvelopeCampo, descritores } from './campo.js';
+import { EVENTO_VALOR_NATIVO } from './valor-nativo.js';
 
 type PropsSelecaoAprimorada = Omit<ComponentPropsWithRef<'select'>, 'id' | 'multiple' | 'size'> & {
   id: string;
@@ -86,11 +87,13 @@ export function SelecaoAprimorada({
     }
     campo?.addEventListener('input', sincronizar);
     campo?.addEventListener('change', sincronizar);
+    campo?.addEventListener(EVENTO_VALOR_NATIVO, sincronizar);
     form?.addEventListener('reset', reiniciar);
     return () => {
       clearTimeout(aposReset);
       campo?.removeEventListener('input', sincronizar);
       campo?.removeEventListener('change', sincronizar);
+      campo?.removeEventListener(EVENTO_VALOR_NATIVO, sincronizar);
       form?.removeEventListener('reset', reiniciar);
     };
   }, [sincronizar]);
