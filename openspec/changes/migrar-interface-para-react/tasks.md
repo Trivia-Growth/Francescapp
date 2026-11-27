@@ -321,6 +321,18 @@ autorização onde a tela tiver autorização própria.
 
 ## Fase 7 — Encerramento
 
+- [x] **7.0a [C]** Agenda individual usa seleção aprimorada React para registrar a realização.
+  *Requisito:* VIS-017, VIS-018 e FR-024. *Evidência:* Chromium com o observador ativo,
+  CSS real, Motivo montado e desmontado após carga, FormData e recusa simulada (403).
+  As contraprovas de opacidade e de invólucro duplo estão registradas no estado.
+- [ ] **7.0b [C]** Cadastro passa a renderizar seus controles aprimorados, inclusive o
+  catálogo assíncrono de responsáveis e os contatos que entram depois da abertura.
+- [ ] **7.0c [C]** Administração passa a renderizar seus controles aprimorados e o
+  Financeiro usa ilhas para as datas nos dois hospedeiros.
+- [ ] **7.0d [C]** Ficha passa a renderizar os controles aprimorados de suas seções.
+- [ ] **7.0e [C]** Retirar o observador de controles das seis inscrições em `main.ts`
+  após a prova de convivência de cada região. Regras e Início não montam esses controles.
+
 - [ ] **7.1 [C]** Remover `web/ui/` vanilla e as regras de `web/styles.css` substituídas.
   *Dependência:* Fase 6 completa.
   *Evidência:* nenhuma tela importa o CSS removido; captura sem regressão.

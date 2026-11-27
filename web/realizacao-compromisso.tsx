@@ -20,7 +20,7 @@ import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
-import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { FalhaApi } from './api.js';
 import type {
   MotivoBarreira,
@@ -206,7 +206,7 @@ export function RealizacaoAgenda({ servico, aoRegistrar, registrar }: PropsReali
           void enviar();
         }}
       >
-        <SelecaoSimples
+        <SelecaoAprimorada
           id="realizacao-situacao"
           name="situacao"
           rotulo="O que aconteceu"
@@ -218,9 +218,9 @@ export function RealizacaoAgenda({ servico, aoRegistrar, registrar }: PropsReali
               {ROTULOS_SITUACAO[valor]}
             </option>
           ))}
-        </SelecaoSimples>
+        </SelecaoAprimorada>
         {realizado ? null : (
-          <SelecaoSimples
+          <SelecaoAprimorada
             id="realizacao-motivo"
             name="motivo"
             rotulo={
@@ -238,7 +238,7 @@ export function RealizacaoAgenda({ servico, aoRegistrar, registrar }: PropsReali
                 {rotulo}
               </option>
             ))}
-          </SelecaoSimples>
+          </SelecaoAprimorada>
         )}
         {remarcado ? (
           <Campo

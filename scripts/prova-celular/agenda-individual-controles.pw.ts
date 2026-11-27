@@ -1,23 +1,7 @@
-/**
- * Prova de navegador real (não jsdom) de que o `<select>` de `realizacao-compromisso.tsx`
- * sobrevive ao `MutationObserver` de `web/ui/controles.ts` aplicado sobre `agenda-individual`
- * em `web/main.ts`. O observador move todo `<select>` que aparece para dentro de um
- * invólucro próprio (`aprimorarSelecao`, em `web/ui/selecao.ts`), inclusive os que o React
- * desenha — e isso já quebrou uma tela migrada (`selecao-profissional`) de um jeito que só
- * apareceu em Chromium, nunca em jsdom.
- *
- * O cenário de risco real deste bloco é o select "O que aconteceu": ele é sempre montado,
- * mas o select "Motivo" que aparece ao lado dele é DESMONTADO quando a situação muda para
- * "Realizado" — é exatamente a remoção que o observador pode invalidar. O campo de data
- * (`datetime-local`) de `agenda-operacoes.tsx` NÃO é alcançado por este observador (ele só
- * mira `input[type="date"]`, conferido em `web/ui/data.ts`), então não precisa da mesma
- * prova; o teste abaixo ainda abre aquele formulário de passagem, para flagrar qualquer
- * erro de página que apareça ao vivo.
- *
- * Nada de rede de verdade: toda rota de API é interceptada com dados fictícios; qualquer
- * outro destino é recusado.
- */
 import { expect, test } from '@playwright/test';
+import { criarErroPublico } from '../../packages/contracts/src/comum.ts';
+
+test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
 const UUID = '00000000-0000-4000-8000-000000000000';
 
@@ -60,70 +44,110 @@ test.beforeEach(async ({ context, page }) => {
       json: { dados: { agenda_usuario_id: UUID, compromissos: [] }, request_id: UUID },
     }),
   );
+  await page.route('**/api/agenda/realizacao', (rota) =>
+    rota.fulfill({ status: 403, json: criarErroPublico('sem_permissao', UUID) }),
+  );
   await page.route('**/api/agenda/google/vinculos/consulta', (rota) =>
     rota.fulfill({ json: { dados: [] } }),
   );
 });
 
-test('select de realização sobrevive ao observador de controles próprios ao ser montado e desmontado', async ({
+test('agenda monta a seleção React depois da carga com o observador legado ativo', async ({
   page,
 }) => {
   const erros: string[] = [];
   page.on('pageerror', (erro) => erros.push(erro.message));
   page.on('console', (mensagem) => {
+    const recusaEsperada =
+      mensagem.text().includes('403') && mensagem.location().url.endsWith('/api/agenda/realizacao');
+    if (recusaEsperada) return;
     if (mensagem.type() === 'error') erros.push(mensagem.text());
   });
 
   await page.goto('/scripts/prova-celular/agenda-individual.html');
   await expect(page.getByText('Consulta fictícia')).toBeVisible();
 
+  // Sentinela temporária para provar que a bancada reproduz o observador de main.
+  await page.locator('#agenda-individual').evaluate((raiz) => {
+    const legado = document.createElement('select');
+    legado.id = 'selecao-legada-da-prova';
+    legado.setAttribute('aria-label', 'Seleção legada de prova');
+    legado.add(new Option('Valor fictício', 'teste'));
+    raiz.append(legado);
+  });
+  const legado = page.locator('.ui-selecao[data-aprimorada]:has(> #selecao-legada-da-prova)');
+  await expect(legado).toHaveCount(1);
+  await legado.evaluate((grupo) => grupo.remove());
+
   await page.getByRole('button', { name: 'Registrar realização' }).click();
   const painel = page.locator('.realizacao-compromisso');
-  await expect(painel).toBeVisible();
+  const situacao = painel.getByRole('combobox', { name: 'O que aconteceu' });
 
-  const situacao = painel.locator('#realizacao-situacao');
-  await expect(situacao).toBeVisible();
-  // O observador processa de forma assíncrona (MutationObserver), mas síncrona o
-  // suficiente para já ter alcançado o select ao fim do primeiro ciclo de microtarefas.
-  await expect
-    .poll(async () => situacao.locator('xpath=..').getAttribute('data-aprimorada'))
-    .not.toBeNull();
-  // Confere que `ui.css` carregou de verdade, não só que o atributo foi escrito: a regra
-  // `.ui-selecao[data-aprimorada] > select { opacity: 0 }` só existe nessa folha. Sem ela,
-  // o nativo continuaria visível e a prova estaria medindo uma página que não é o produto.
-  await expect(situacao).toHaveCSS('opacity', '0');
-
-  // Ciclo de montagem/desmontagem do select "Motivo": aparece em "Faltou", some em
-  // "Realizado" — a remoção real que o observador pode invalidar. Repetido três vezes
-  // para expor qualquer erro que só aconteça na segunda montagem do MESMO nó físico.
-  for (let volta = 0; volta < 3; volta += 1) {
-    await situacao.selectOption('faltou');
-    const motivo = painel.locator('#realizacao-motivo');
-    await expect(motivo).toBeVisible();
-    await expect
-      .poll(async () => motivo.locator('xpath=..').getAttribute('data-aprimorada'))
-      .not.toBeNull();
-    await motivo.selectOption('transporte');
-
-    await situacao.selectOption('realizado');
-    await expect(motivo)
-      .toBeHidden({ timeout: 2000 })
-      .catch(async () => {
-        // `toBeHidden` cobre display:none; o campo pode já não existir — a asserção
-        // seguinte então falha de forma clara em vez de mascarar o problema.
-        await expect(motivo).toHaveCount(0);
-      });
+  async function conferirControle(id: string) {
+    const nativo = painel.locator(`#${id}`);
+    const medicao = await nativo.evaluate((controle) => ({
+      opacidade: getComputedStyle(controle).opacity,
+      paiMarcado: controle.parentElement?.matches('.ui-selecao[data-aprimorada]'),
+      invólucros: controle.parentElement
+        ?.closest('.ui-selecao')
+        ?.parentElement?.closest('.ui-selecao')
+        ? 2
+        : 1,
+      gatilhos: controle.parentElement?.querySelectorAll(':scope > [role="combobox"]').length,
+    }));
+    expect(medicao.opacidade, `CSS de tema para #${id}`).toBe('0');
+    expect(medicao).toMatchObject({ paiMarcado: true, invólucros: 1, gatilhos: 1 });
+    return nativo;
   }
 
-  // A tela continua utilizável depois dos ciclos: fechar funciona e não há erro acumulado.
-  await page.getByRole('button', { name: 'Fechar', exact: true }).first().click();
+  const recusa = page.waitForResponse((resposta) =>
+    resposta.url().endsWith('/api/agenda/realizacao'),
+  );
+  await painel.getByRole('button', { name: 'Registrar', exact: true }).click();
+  expect((await recusa).status()).toBe(403);
+  await expect(painel.getByRole('status')).toHaveText(
+    'Você não pode registrar a realização nesta agenda.',
+  );
+
+  const situacaoNativa = await conferirControle('realizacao-situacao');
+  await expect(situacao).toBeVisible();
+  await situacao.press('ArrowDown');
+  await expect(situacao).toHaveAttribute('aria-expanded', 'true');
+  await situacao.press('Escape');
+  await expect(situacao).toBeFocused();
+  await expect(situacaoNativa).toHaveValue('realizado');
+
+  // Motivo entra num commit posterior e é removido quando a situação volta a Realizado.
+  for (let volta = 0; volta < 3; volta += 1) {
+    await situacao.click();
+    await painel.getByRole('option', { name: 'Faltou' }).click();
+    const motivo = painel.getByRole('combobox', { name: 'Motivo da falta (barreira de acesso)' });
+    await expect(motivo).toBeVisible();
+    const motivoNativo = await conferirControle('realizacao-motivo');
+    await motivo.click();
+    await painel.getByRole('option', { name: 'Transporte' }).click();
+    await expect(motivo).toHaveText('Transporte');
+    expect(
+      await painel
+        .locator('form')
+        .evaluate((formulario: HTMLFormElement) => Object.fromEntries(new FormData(formulario))),
+    ).toMatchObject({ situacao: 'faltou', motivo: 'transporte' });
+
+    await situacao.click();
+    await painel.getByRole('option', { name: 'Realizado', exact: true }).click();
+    await expect(motivoNativo).toHaveCount(0);
+  }
+
+  await painel.getByRole('button', { name: 'Fechar', exact: true }).click();
   await expect(painel).toBeHidden();
 
-  // Formulário de alterar compromisso (datetime-local, fora do alcance deste observador):
-  // só para flagrar qualquer erro de página ao abrir/fechar, já que também vive na mesma
-  // região vigiada.
   await page.getByRole('button', { name: 'Alterar' }).click();
-  await expect(page.locator('#agenda-inicio')).toBeVisible();
+  for (const id of ['agenda-inicio', 'agenda-fim']) {
+    const data = page.locator(`#${id}`);
+    await expect(data).toBeVisible();
+    await expect(data).toHaveAttribute('type', 'datetime-local');
+    expect(await data.evaluate((campo) => campo.closest('[data-aprimorada]') === null)).toBe(true);
+  }
   await page.getByRole('button', { name: 'Cancelar compromisso' }).click();
   await expect(page.getByText('Confirme o cancelamento')).toBeVisible();
 
