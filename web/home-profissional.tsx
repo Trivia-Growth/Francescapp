@@ -79,7 +79,7 @@ function BlocoFalha({ erro, repetir }: { erro: unknown; repetir: () => void }) {
  * do `await`) viraram UM só, guardando a continuação depois do `await` — `ilha()` desmonta
  * a raiz React e nenhum clique de "Tentar novamente" sobrevive para chamar `carregar` de
  * novo depois disso, então o guard de entrada não tinha mais o que proteger. */
-function TelaHomeProfissional({
+export function TelaHomeProfissional({
   servico,
   acessoPerdido,
 }: {
@@ -119,11 +119,9 @@ function TelaHomeProfissional({
   const carregar = useCallback(async (): Promise<void> => {
     geracaoRef.current += 1;
     const numero = geracaoRef.current;
-    flushSync(() => {
-      definirCarregando(true);
-      definirAtencao(null);
-      definirTodos(null);
-    });
+    definirCarregando(true);
+    definirAtencao(null);
+    definirTodos(null);
 
     // As duas leituras são a mesma consulta da carteira, com recortes diferentes. Elas
     // seguem em paralelo e são tratadas separadamente: uma falhar não derruba a outra.

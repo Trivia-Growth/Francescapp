@@ -2,6 +2,23 @@
 
 **Atualizado em:** 27/11/2026 · **Branch:** `codex/remover-web-ui` · **Por:** Codex
 
+## Fatia 8a do plano visual — roteador por fragmento
+
+Sobre `23d0daa`, a raiz da casca React controla o histórico e desenha Seu dia e
+Como funciona. Carteira, Administração e ficha usam os destinos existentes durante
+a transição. A tarefa 7.2 permanece aberta.
+
+- A prova `roteamento-casca.pw.ts` confirmou link antigo de Configuração, preservação
+  de `?agenda=conectada`, Voltar/Avançar e foco a 390 px. Família chegou à Carteira
+  via link administrativo sem montar Administração nem disparar chamadas a `/api/admin/`.
+  A contraprova removeu o foco no título da Carteira e falhou em `toBeFocused`.
+- A base compilada referenciava 242.878 bytes gzip de JavaScript inicial (seis arquivos).
+  A captura da Carteira a 390 px documenta recorte preexistente dos motivos FR-028.
+  A folha de produção estava aplicada. A correção da linha é de outra frente.
+- Próximo passo: ativar 8a e portar lateral, gaveta, barra e destinos restantes.
+  As pendências de axe da base na Carteira e no corpo rolável de diálogo continuam
+  registradas para a etapa visual.
+
 ## Fatia 4 do plano visual — primitivas e ícones
 
 Na branch `codex/primitivas-sistema`, sobre `12bfb81`, Botão, Campo e
