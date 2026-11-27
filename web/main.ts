@@ -47,6 +47,7 @@ import { criarServicoFinanceiroHttp } from './servico-financeiro-http.js';
 import { criarAudienciaFinanceira } from './financeiro-audiencia.js';
 import { montarTurnoComExecucao } from './turno-execucao-integracao.js';
 import { montarExecucaoTurno } from './turno-execucao.js';
+import { montarRelatoriosTurno } from './turno-execucao-relatorios.js';
 import { criarServicoTurnoExecucaoHttp } from './servico-turno-execucao-http.js';
 import { criarServicoFichaPlantaoHttp } from './servico-ficha-plantao-http.js';
 import { criarServicoTurnoHttp } from './servico-turno-http.js';
@@ -74,7 +75,6 @@ import { criarServicoRegrasAtendimentoHttp } from './servico-regras-atendimento-
 import { montarHomeProfissional } from './home-profissional.js';
 import { criarServicoSolicitacaoTitularHttp } from './servico-solicitacao-titular-http.js';
 import { criarServicoSegredosIntegracoesHttp } from './servico-segredos-integracoes-http.js';
-import { criarServicoConfiguracaoSistemaHttp } from './servico-configuracao-sistema-http.js';
 import { montarFiltrosCarteira, montarSinalCarteira } from './filtros-carteira.js';
 import { entradaTranscricaoAudio } from './transcricao-audio.js';
 import { criarServicoTranscricaoHttp } from './servico-transcricao-http.js';
@@ -951,15 +951,11 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         rotulo: 'Relatórios do cuidado',
         montar: async (raiz, pendente) => {
           const servico = criarServicoTurnoExecucaoHttp(paciente.id, identidadeAtual);
-          const desmontar = (await import('./turno-execucao-relatorios.js')).montarRelatoriosTurno(
-            raiz,
-            servico,
-            {
-              familia: true,
-              acessoPerdido,
-              alteracaoPendente: pendente,
-            },
-          );
+          const desmontar = montarRelatoriosTurno(raiz, servico, {
+            familia: true,
+            acessoPerdido,
+            alteracaoPendente: pendente,
+          });
           return () => {
             desmontar();
             servico.desmontar();
@@ -1984,14 +1980,16 @@ const areasAdministracao: AreaAdministracao[] = [
     id: 'configuracao',
     rotulo: 'Configuração',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: async (raiz) =>
-      (await import('./configuracao-sistema.js')).montarConfiguracaoSistema(
-        raiz,
-        criarServicoConfiguracaoSistemaHttp(identidadeAtual),
-        {
-          nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
-        },
-      ),
+    montar: async (raiz) => {
+      const [{ montarConfiguracaoSistema }, { criarServicoConfiguracaoSistemaHttp }] =
+        await Promise.all([
+          import('./configuracao-sistema.js'),
+          import('./servico-configuracao-sistema-http.js'),
+        ]);
+      return montarConfiguracaoSistema(raiz, criarServicoConfiguracaoSistemaHttp(identidadeAtual), {
+        nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
+      });
+    },
   },
   {
     id: 'equipe',
