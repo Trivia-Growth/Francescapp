@@ -2,17 +2,29 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
 
+let desmontarCampos: (() => void) | undefined;
+
+async function montarCasca() {
+  desmontarCampos = (await import('./main.js')).desmontarCamposDeCadastro;
+}
+
+function descartarCasca() {
+  desmontarCampos?.();
+  desmontarCampos = undefined;
+  vi.resetModules();
+}
+
 afterEach(() => {
+  descartarCasca();
   sessionStorage.clear();
   history.replaceState(null, '', '/');
   vi.unstubAllGlobals();
-  vi.resetModules();
 });
 
 it('vincula cada tentativa Google à aba', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   vi.stubGlobal('fetch', async () => new Response(null, { status: 401 }));
-  await import('./main.js');
+  await montarCasca();
   const form = document.getElementById('google-login-form') as HTMLFormElement;
   form.dispatchEvent(new Event('submit', { cancelable: true }));
   const fluxo = new FormData(form).get('fluxo');
@@ -26,7 +38,7 @@ it('rejeita retorno de outra tentativa antes de consultar sessão', async () => 
   history.replaceState(null, '', '/?fluxo=BBBBBBBBBBBBBBBBBBBBBB');
   const fetch = vi.fn(async () => new Response(null, { status: 401 }));
   vi.stubGlobal('fetch', fetch);
-  await import('./main.js');
+  await montarCasca();
   expect(fetch).not.toHaveBeenCalled();
   expect(location.search).toBe('');
   expect(document.getElementById('patients-view')?.hidden).toBe(true);
@@ -42,7 +54,7 @@ it('aceita retorno correspondente e usa o seletor na consulta', async () => {
     return new Response(null, { status: 401 });
   });
   vi.stubGlobal('fetch', fetch);
-  await import('./main.js');
+  await montarCasca();
   await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
   expect(location.search).toBe('?outra=1');
 });
@@ -50,7 +62,7 @@ it('aceita retorno correspondente e usa o seletor na consulta', async () => {
 it('impede início Google quando armazenamento da aba falha', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   vi.stubGlobal('fetch', async () => new Response(null, { status: 401 }));
-  await import('./main.js');
+  await montarCasca();
   const falha = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
     throw new Error();
   });
@@ -68,17 +80,17 @@ it('não restaura sessão técnica após retorno divergente e recarga, mas aceit
   vi.stubGlobal('fetch', fetch);
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   history.replaceState(null, '', '/?fluxo=BBBBBBBBBBBBBBBBBBBBBB');
-  await import('./main.js');
+  await montarCasca();
   expect(fetch).not.toHaveBeenCalled();
   expect(sessionStorage.getItem('fluxo-google')).toBe(fluxo);
-  vi.resetModules();
+  descartarCasca();
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
-  await import('./main.js');
+  await montarCasca();
   expect(fetch).not.toHaveBeenCalled();
-  vi.resetModules();
+  descartarCasca();
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   history.replaceState(null, '', `/?fluxo=${fluxo}`);
-  await import('./main.js');
+  await montarCasca();
   await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
 });
 
@@ -86,7 +98,7 @@ it('não restaura cookie técnico sem modo estabelecido na aba', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   const fetch = vi.fn(async () => new Response(null, { status: 401 }));
   vi.stubGlobal('fetch', fetch);
-  await import('./main.js');
+  await montarCasca();
   expect(fetch).not.toHaveBeenCalled();
 });
 
@@ -135,13 +147,13 @@ it('preserva retorno divergente se bloqueio não puder ser salvo e bloqueia na r
   const falha = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
     throw new Error();
   });
-  await import('./main.js');
+  await montarCasca();
   expect(fetch).not.toHaveBeenCalled();
   expect(location.search).toBe('?fluxo=BBBBBBBBBBBBBBBBBBBBBB');
   falha.mockRestore();
-  vi.resetModules();
+  descartarCasca();
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
-  await import('./main.js');
+  await montarCasca();
   expect(fetch).not.toHaveBeenCalled();
   expect(sessionStorage.getItem('modo-acesso')).toBe('bloqueada');
   expect(sessionStorage.getItem('fluxo-google')).toBe(fluxo);

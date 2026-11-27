@@ -212,3 +212,111 @@ test('Ficha renova a seleção de profissional com o observador legado ativo', a
   await expect(nativo).toHaveValue('');
   expect(erros).toEqual([]);
 });
+
+test('Cadastro mantém os controles React ao carregar a equipe e adicionar contatos', async ({
+  page,
+}) => {
+  let liberarEquipe = () => {};
+  const equipeAdiada = new Promise<void>((resolver) => {
+    liberarEquipe = resolver;
+  });
+  await page.route('**/api/admin/concessoes-equipe**', async (rota) => {
+    await equipeAdiada;
+    return rota.fulfill({ json: envelope(concessoesEquipe) });
+  });
+  await page.route('**/api/pacientes', (rota) =>
+    rota.request().method() === 'POST'
+      ? rota.fulfill({
+          json: envelope({
+            id: caso,
+            nome: 'Paciente fictício',
+            nome_preferencia: 'Fictício',
+            data_nascimento: '2000-01-31',
+            contatos: [],
+            versao: 1,
+          }),
+        })
+      : rota.fallback(),
+  );
+  const erros: string[] = [];
+  page.on('pageerror', (erro) => erros.push(erro.message));
+
+  try {
+    await page.goto(`${origem}/#carteira`);
+    await page.getByRole('link', { name: 'Novo paciente' }).click();
+    const dialogo = page.locator('#cadastro-dialogo');
+    await expect(dialogo).toBeVisible();
+    await dialogo.getByRole('button', { name: 'Conferir e liberar' }).click();
+    await conferirObservador(page, '#cadastro');
+    const { visivel: nascimento } = await dataVisivel(page, 'birth-date');
+    await expect(nascimento).toHaveAttribute('id', 'birth-date-texto');
+
+    async function selecao(id: string) {
+      const grupo = dialogo.locator(`.ui-selecao[data-aprimorada]:has(> #${id})`);
+      await expect(grupo.locator(`#${id}`)).toHaveCSS('opacity', '0');
+      expect(await grupo.evaluate((no) => no.parentElement?.closest('.ui-selecao') === null)).toBe(
+        true,
+      );
+      return grupo.getByRole('combobox');
+    }
+
+    const responsavel = await selecao('case-manager');
+    await expect(responsavel).toBeDisabled();
+    liberarEquipe();
+    await expect(responsavel).toBeEnabled();
+
+    const criar = dialogo.getByRole('button', { name: 'Cadastrar paciente' });
+    await expect(criar).toBeEnabled();
+    await dialogo.locator('#patient-name').fill('Paciente fictício');
+    await dialogo.locator('#preferred-name').fill('Fictício');
+    await nascimento.fill('31/01/2000');
+    await dialogo.locator('#contact-value-1').fill('contato@exemplo.test');
+
+    await dialogo.getByRole('button', { name: 'Adicionar outro contato' }).click();
+    await (await selecao('contact-type-2')).click();
+    await dialogo.getByRole('option', { name: 'Telefone', exact: true }).click();
+    await expect(dialogo.locator('#contact-value-2')).toHaveAttribute('type', 'tel');
+    await dialogo.getByRole('button', { name: 'Remover contato 2' }).click();
+    await expect(dialogo.locator('#contact-type-2')).toHaveCount(0);
+
+    const situacao = await selecao('case-status');
+    await criar.click();
+    await expect(situacao).toHaveAttribute('aria-invalid', 'true');
+    await expect(situacao).toBeFocused();
+    await expect(responsavel).toHaveAttribute('aria-invalid', 'true');
+
+    await situacao.click();
+    await dialogo.getByRole('option', { name: 'Ativo', exact: true }).click();
+    await expect(situacao).not.toHaveAttribute('aria-invalid', 'true');
+    await responsavel.click();
+    const pessoa = concessoesEquipe.itens.find(
+      (item) => item.perfil === 'profissional' && item.estado === 'vinculada' && item.ativo,
+    );
+    if (!pessoa?.usuario_id) throw new Error('Fixture sem responsável vinculado.');
+    await dialogo.locator(`[role="option"][data-valor="${pessoa.usuario_id}"]`).click();
+    await expect(responsavel).not.toHaveAttribute('aria-invalid', 'true');
+
+    const pedido = page.waitForRequest(
+      (req) => new URL(req.url()).pathname === '/api/pacientes' && req.method() === 'POST',
+    );
+    await criar.click();
+    expect((await pedido).postDataJSON()).toMatchObject({
+      entrada: {
+        data_nascimento: '2000-01-31',
+        situacao: 'ativo',
+        responsavel_id: pessoa.usuario_id,
+        contatos: [{ tipo: 'email', valor: 'contato@exemplo.test' }],
+      },
+    });
+    await expect(nascimento).toHaveValue('');
+    await expect(dialogo.locator('#case-status')).toHaveValue('');
+    await expect(dialogo.locator('#case-manager')).toHaveValue('');
+    await expect(situacao.locator('.ui-selecao__valor')).toHaveText('Selecione a situação');
+    await expect(responsavel.locator('.ui-selecao__valor')).toHaveText(
+      'Selecione quem acompanha o caso',
+    );
+    expect(erros).toEqual([]);
+  } finally {
+    liberarEquipe();
+  }
+});

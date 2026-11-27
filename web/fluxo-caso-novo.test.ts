@@ -14,6 +14,7 @@ const id = '10000000-0000-4000-8000-000000000001';
 const COMPLETAS = ['administrar_cadastro', 'administrar_concessoes'];
 const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
 const el = <T extends HTMLElement>(nome: string) => document.getElementById(nome) as T;
+let desmontarCampos: (() => void) | undefined;
 
 beforeEach(() => {
   sessionStorage.clear();
@@ -23,6 +24,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  desmontarCampos?.();
+  desmontarCampos = undefined;
   sessionStorage.clear();
   vi.unstubAllGlobals();
   vi.resetModules();
@@ -73,7 +76,7 @@ async function abrir(
       });
     throw new Error(`Rota inesperada: ${url.pathname}`);
   });
-  await import('./main.js');
+  desmontarCampos = (await import('./main.js')).desmontarCamposDeCadastro;
   const botao = () => document.querySelector<HTMLButtonElement>('#cadastro button[data-acao]');
   await vi.waitFor(() => expect(botao()?.dataset.acao).toBe('encerrar'));
   botao()?.click();
@@ -403,6 +406,23 @@ describe('envio completo', () => {
 });
 
 describe('fim da sessão', () => {
+  it('sair limpa os erros de Situação e responsável após um envio inválido', async () => {
+    const tela = await abrir();
+    await preencherCasoNovo();
+    el<HTMLSelectElement>('case-status').value = '';
+    el<HTMLSelectElement>('case-manager').value = '';
+    await tela.enviar();
+    expect(invalidos()).toEqual(['case-status', 'case-manager']);
+
+    el('logout').click();
+    await vi.waitFor(() => expect(el('login-view').hidden).toBe(false));
+
+    expect(invalidos()).toEqual([]);
+    expect(el('status-error').textContent).toBe('');
+    expect(el('manager-error').textContent).toBe('');
+    expect(tela.postagens()).toHaveLength(0);
+  });
+
   it('sair apaga contatos, situação e responsável digitados, e não deixa a equipe no DOM', async () => {
     const tela = await abrir();
     await preencherCasoNovo('Paciente fictício');

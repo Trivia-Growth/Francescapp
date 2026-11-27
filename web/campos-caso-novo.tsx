@@ -1,6 +1,10 @@
 import { novoContatoSchema, type SituacaoCaso } from '../packages/contracts/src/index.js';
-import type { ResponsavelOpcao } from './acompanhamento-caso.js';
+import { type ResponsavelOpcao, rotulosSituacao } from './acompanhamento-caso.js';
+import { CampoData } from './componentes/ui/campo-data.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
+import { definirValorNativo } from './componentes/ui/valor-nativo.js';
 import { botao } from './ponte/botao-imperativo.js';
+import { ilha, ilhaAtualizavel } from './ponte/ilha.js';
 
 const LIMITE_CONTATOS = 10;
 
@@ -10,13 +14,21 @@ type Elementos = {
   contatos: HTMLElement;
   adicionar: HTMLButtonElement;
   erroContatos: HTMLElement;
-  situacao: HTMLSelectElement;
-  responsavel: HTMLSelectElement;
+  nascimento: HTMLElement;
+  situacao: HTMLElement;
+  responsavel: HTMLElement;
   estadoResponsavel: HTMLElement;
   tentarNovamente: HTMLButtonElement;
 };
 
-type Linha = { raiz: HTMLElement; tipo: HTMLSelectElement; valor: HTMLInputElement };
+type Linha = {
+  raiz: HTMLElement;
+  tipo: HTMLSelectElement;
+  valor: HTMLInputElement;
+  desmontarTipo: () => void;
+};
+
+type CampoEstatico = 'birth-date' | 'case-status' | 'case-manager';
 
 /** Campos do cadastro de caso novo que vão além dos três de texto: contatos (de 1 a 10),
  * situação e case manager. Nada vem preenchido; o responsável só aparece depois de a equipe
@@ -29,6 +41,72 @@ export function montarCamposCasoNovo(
   let proximoNumero = 1;
   let equipeDisponivel = false;
   let carga = 0;
+  let responsaveis: readonly ResponsavelOpcao[] = [];
+  let carregando = false;
+  const invalidos = new Set<CampoEstatico>();
+  const hojeIso = new Date().toISOString().slice(0, 10);
+
+  const desenharNascimento = () => (
+    <CampoData
+      id="birth-date"
+      name="data_nascimento"
+      max={hojeIso}
+      aria-labelledby="birth-label"
+      aria-describedby="birth-error"
+      aria-invalid={invalidos.has('birth-date') || undefined}
+    />
+  );
+  const desenharSituacao = () => (
+    <SelecaoAprimorada
+      id="case-status"
+      name="situacao"
+      aria-labelledby="status-label"
+      aria-describedby="status-error"
+      aria-invalid={invalidos.has('case-status') || undefined}
+      defaultValue=""
+    >
+      <option value="">Selecione a situação</option>
+      {Object.entries(rotulosSituacao).map(([valor, rotulo]) => (
+        <option key={valor} value={valor}>
+          {rotulo}
+        </option>
+      ))}
+    </SelecaoAprimorada>
+  );
+  const desenharResponsavel = () => (
+    <SelecaoAprimorada
+      id="case-manager"
+      name="responsavel_id"
+      aria-labelledby="manager-label"
+      aria-describedby="manager-error manager-state"
+      aria-invalid={invalidos.has('case-manager') || undefined}
+      aria-busy={carregando || undefined}
+      disabled={!equipeDisponivel}
+      defaultValue=""
+    >
+      <option value="">Selecione quem acompanha o caso</option>
+      {responsaveis.map((opcao) => (
+        <option key={opcao.usuario_id} value={opcao.usuario_id}>
+          {opcao.rotulo}
+        </option>
+      ))}
+    </SelecaoAprimorada>
+  );
+  const ilhaNascimento = ilhaAtualizavel(el.nascimento, desenharNascimento());
+  const ilhaSituacao = ilhaAtualizavel(el.situacao, desenharSituacao());
+  const ilhaResponsavel = ilhaAtualizavel(el.responsavel, desenharResponsavel());
+  const nascimento = el.nascimento.querySelector<HTMLInputElement>('input[type="date"]');
+  const situacao = el.situacao.querySelector('select');
+  const responsavel = el.responsavel.querySelector('select');
+  if (!nascimento || !situacao || !responsavel) {
+    throw new Error('Campos do cadastro indisponíveis.');
+  }
+
+  const redesenhar = {
+    'birth-date': () => ilhaNascimento.atualizar(desenharNascimento()),
+    'case-status': () => ilhaSituacao.atualizar(desenharSituacao()),
+    'case-manager': () => ilhaResponsavel.atualizar(desenharResponsavel()),
+  };
 
   const elemento = <K extends keyof HTMLElementTagNameMap>(tipo: K, texto?: string) => {
     const novo = document.createElement(tipo);
@@ -52,9 +130,16 @@ export function montarCamposCasoNovo(
     const rotuloTipo = elemento('label', `Tipo do contato ${numero}`);
     rotuloTipo.className = 'sr-only';
     rotuloTipo.htmlFor = `contact-type-${numero}`;
-    const tipo = elemento('select');
-    tipo.id = `contact-type-${numero}`;
-    tipo.append(new Option('E-mail', 'email'), new Option('Telefone', 'telefone'));
+    const lugarTipo = elemento('div');
+    const desmontarTipo = ilha(
+      lugarTipo,
+      <SelecaoAprimorada id={rotuloTipo.htmlFor} aria-label={`Tipo do contato ${numero}`}>
+        <option value="email">E-mail</option>
+        <option value="telefone">Telefone</option>
+      </SelecaoAprimorada>,
+    );
+    const tipo = lugarTipo.querySelector('select');
+    if (!tipo) throw new Error('Tipo do contato indisponível.');
     const rotuloValor = elemento('label', `Contato ${numero}`);
     rotuloValor.className = 'sr-only';
     rotuloValor.htmlFor = `contact-value-${numero}`;
@@ -72,36 +157,37 @@ export function montarCamposCasoNovo(
     const remover = botao({ rotulo: 'Remover', peso: 'secundario' });
     remover.classList.add('contact-remove');
     remover.setAttribute('aria-label', `Remover contato ${numero}`);
-    const linha: Linha = { raiz, tipo, valor };
+    const linha: Linha = { raiz, tipo, valor, desmontarTipo };
     remover.addEventListener('click', () => {
       linhas = linhas.filter((item) => item !== linha);
+      desmontarTipo();
       raiz.remove();
       atualizarBotoes();
       (linhas[linhas.length - 1]?.valor ?? el.adicionar).focus();
     });
-    raiz.append(rotuloTipo, tipo, rotuloValor, valor, remover);
+    raiz.append(rotuloTipo, lugarTipo, rotuloValor, valor, remover);
     el.contatos.append(raiz);
     linhas.push(linha);
     atualizarBotoes();
     return linha;
   };
 
-  el.adicionar.addEventListener('click', () => adicionarLinha()?.valor.focus());
+  const aoAdicionar = () => adicionarLinha()?.valor.focus();
+  el.adicionar.addEventListener('click', aoAdicionar);
 
   const carregarResponsaveis = async () => {
     const minhaCarga = ++carga;
     equipeDisponivel = false;
-    el.responsavel.replaceChildren(new Option('Selecione quem acompanha o caso', ''));
-    el.responsavel.disabled = true;
-    el.responsavel.setAttribute('aria-busy', 'true');
+    responsaveis = [];
+    carregando = true;
+    redesenhar['case-manager']();
     el.tentarNovamente.hidden = true;
     el.estadoResponsavel.textContent = 'Carregando equipe…';
     try {
       const opcoes = (await listarResponsaveis()).filter((opcao) => opcao.ativo);
       if (minhaCarga !== carga) return;
-      for (const opcao of opcoes) el.responsavel.append(new Option(opcao.rotulo, opcao.usuario_id));
+      responsaveis = opcoes;
       equipeDisponivel = opcoes.length > 0;
-      el.responsavel.disabled = !equipeDisponivel;
       el.estadoResponsavel.textContent = equipeDisponivel
         ? ''
         : 'Nenhuma pessoa ativa da equipe para indicar. O cadastro não pode ser enviado.';
@@ -111,48 +197,66 @@ export function montarCamposCasoNovo(
         'Não foi possível carregar a equipe. O cadastro não pode ser enviado agora.';
       el.tentarNovamente.hidden = false;
     } finally {
-      if (minhaCarga === carga) el.responsavel.removeAttribute('aria-busy');
+      if (minhaCarga === carga) {
+        carregando = false;
+        redesenhar['case-manager']();
+      }
     }
   };
-  el.tentarNovamente.addEventListener('click', () => void carregarResponsaveis());
+  const aoTentarNovamente = () => void carregarResponsaveis();
+  el.tentarNovamente.addEventListener('click', aoTentarNovamente);
 
   /** Sem permissão para listar a equipe não há como indicar o responsável: o cadastro não é enviado. */
   const equipeIndisponivel = (mensagem: string) => {
     carga += 1;
-    el.responsavel.removeAttribute('aria-busy');
+    carregando = false;
     equipeDisponivel = false;
-    el.responsavel.replaceChildren(new Option('Selecione quem acompanha o caso', ''));
-    el.responsavel.disabled = true;
+    responsaveis = [];
+    redesenhar['case-manager']();
     el.tentarNovamente.hidden = true;
     el.estadoResponsavel.textContent = mensagem;
   };
 
-  const reiniciar = () => {
-    for (const linha of linhas) linha.raiz.remove();
+  const removerLinhas = () => {
+    for (const linha of linhas) {
+      linha.desmontarTipo();
+      linha.raiz.remove();
+    }
     linhas = [];
+  };
+  const reiniciar = () => {
+    removerLinhas();
     proximoNumero = 1;
     adicionarLinha();
-    el.situacao.value = '';
-    el.responsavel.value = '';
+    for (const campo of [situacao, responsavel]) definirValorNativo(campo, '');
     el.erroContatos.textContent = '';
   };
-  reiniciar();
+  adicionarLinha();
+  el.erroContatos.textContent = '';
 
   return {
+    desmontar() {
+      // Invalida a resposta da equipe antes de retirar as raízes da página.
+      carga += 1;
+      el.adicionar.removeEventListener('click', aoAdicionar);
+      el.tentarNovamente.removeEventListener('click', aoTentarNovamente);
+      removerLinhas();
+      ilhaNascimento.desmontar();
+      ilhaSituacao.desmontar();
+      ilhaResponsavel.desmontar();
+    },
+    campos: { nascimento, situacao, responsavel },
+    marcarInvalido(campo: CampoEstatico, invalido: boolean) {
+      if (invalidos.has(campo) === invalido) return;
+      if (invalido) invalidos.add(campo);
+      else invalidos.delete(campo);
+      redesenhar[campo]();
+    },
     carregarResponsaveis,
     equipeIndisponivel,
     reiniciar,
     /** Descarta uma consulta de equipe em andamento, por exemplo ao encerrar a sessão. */
-    cancelarCarga: () => {
-      carga += 1;
-      el.responsavel.removeAttribute('aria-busy');
-      equipeDisponivel = false;
-      // Os e-mails da equipe não ficam no formulário oculto depois da saída.
-      el.responsavel.replaceChildren(new Option('Selecione quem acompanha o caso', ''));
-      el.responsavel.disabled = true;
-      el.estadoResponsavel.textContent = '';
-      el.tentarNovamente.hidden = true;
-    },
+    cancelarCarga: () => equipeIndisponivel(''),
     /** Linhas com algo digitado; linhas vazias não contam como contato. */
     contatos: (): ContatoDigitado[] =>
       linhas
@@ -162,8 +266,8 @@ export function montarCamposCasoNovo(
           valor: linha.valor.value,
         })),
     situacao: (): SituacaoCaso | undefined =>
-      (el.situacao.value || undefined) as SituacaoCaso | undefined,
-    responsavelId: () => el.responsavel.value || undefined,
+      (situacao.value || undefined) as SituacaoCaso | undefined,
+    responsavelId: () => responsavel.value || undefined,
     equipeDisponivel: () => equipeDisponivel,
     /** Marca as linhas inválidas (ou a primeira, se nenhuma foi preenchida) e devolve a primeira. */
     marcarContatos: (invalido: boolean): HTMLElement | undefined => {

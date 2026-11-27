@@ -325,8 +325,11 @@ autorização onde a tela tiver autorização própria.
   *Requisito:* VIS-017, VIS-018 e FR-024. *Evidência:* Chromium com o observador ativo,
   CSS real, Motivo montado e desmontado após carga, FormData e recusa simulada (403).
   As contraprovas de opacidade e de invólucro duplo estão registradas no estado.
-- [ ] **7.0b [C]** Cadastro passa a renderizar seus controles aprimorados, inclusive o
+- [x] **7.0b [C]** Cadastro passa a renderizar seus controles aprimorados, inclusive o
   catálogo assíncrono de responsáveis e os contatos que entram depois da abertura.
+  *Evidência:* Chromium pela casca com sentinela legada, catálogo carregado depois
+  da abertura, contato dinâmico, foco de erro, payload e reset. A contraprova do
+  CSS falhou pela opacidade em `#birth-date`.
 - [x] **7.0c [C]** Administração passa a renderizar seus controles aprimorados e o
   Financeiro usa ilhas para as datas nos dois hospedeiros.
   *Evidência:* Chromium pela casca, sentinela legada, GETs de Auditoria com os filtros

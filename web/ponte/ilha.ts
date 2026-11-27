@@ -38,6 +38,11 @@ import { createRoot, type Root } from 'react-dom/client';
 const raizesVivas = new WeakMap<HTMLElement, Root>();
 
 export function ilha(raiz: HTMLElement, elemento: ReactElement): () => void {
+  return ilhaAtualizavel(raiz, elemento).desmontar;
+}
+
+/** Atualiza props de uma ilha sem descartar os controles nativos que o hospedeiro lê. */
+export function ilhaAtualizavel(raiz: HTMLElement, elemento: ReactElement) {
   raizesVivas.get(raiz)?.unmount();
   const arvore = createRoot(raiz);
   raizesVivas.set(raiz, arvore);
@@ -45,7 +50,7 @@ export function ilha(raiz: HTMLElement, elemento: ReactElement): () => void {
     arvore.render(elemento);
   });
   let desmontada = false;
-  return () => {
+  function desmontar() {
     // Desmontar duas vezes é erro de quem chama, não motivo para quebrar a navegação:
     // `main.ts` desmonta ao trocar de tela e de novo ao perder o acesso.
     if (desmontada) return;
@@ -55,6 +60,13 @@ export function ilha(raiz: HTMLElement, elemento: ReactElement): () => void {
     flushSync(() => {
       arvore.unmount();
     });
+  }
+  return {
+    atualizar(proximo: ReactElement) {
+      if (desmontada || raizesVivas.get(raiz) !== arvore) return;
+      flushSync(() => arvore.render(proximo));
+    },
+    desmontar,
   };
 }
 
