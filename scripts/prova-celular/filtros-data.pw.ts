@@ -176,8 +176,9 @@ test('Ficha renova a seleção de profissional com o observador legado ativo', a
   page.on('pageerror', (erro) => erros.push(erro.message));
   await page.route('**/api/admin/concessoes-equipe**', (rota) => {
     const cursor = new URL(rota.request().url()).searchParams.get('cursor');
+    const itens = cursor ? concessoesEquipe.itens.slice(4) : concessoesEquipe.itens.slice(0, 4);
     return rota.fulfill({
-      json: envelope({ ...concessoesEquipe, proximo_cursor: cursor ? null : 'pagina-ficticia' }),
+      json: envelope({ itens, proximo_cursor: cursor ? null : 'pagina-ficticia' }),
     });
   });
   await page.goto(`${origem}/#paciente/${caso}/equipe`);
