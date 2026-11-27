@@ -75,6 +75,8 @@ a convivência. Regras e Início não renderizam os tipos de controle observados
   da página, e as provas o chamam antes de descartar o DOM. O teste de
   regressão cobre reset, contato extra e resposta de equipe após o desmonte.
   Os 42 testes de campos, fluxo e integração de edição passaram em conjunto.
+  Os nove testes de retorno Google passaram com o mesmo desmonte entre as
+  recargas simuladas e no fim de cada teste.
   Próximo passo: retirar o observador global com as quatro regiões migradas.
 - A remoção integral de `web/ui/` segue em tarefa própria. Depois da retirada
   do observador, as dependências de produção que restam são `main.ts`
