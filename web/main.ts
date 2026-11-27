@@ -381,10 +381,8 @@ function trocarRota(hash: string): void {
 
 function fecharFicha(): void {
   consultaFicha += 1;
-  if (ficha) {
-    ficha.desmontar();
-    casca.desenhar(null);
-  }
+  ficha?.desmontar();
+  casca.fecharVista('ficha');
   ficha = null;
   fichaPaciente = null;
   planoAberto = null;

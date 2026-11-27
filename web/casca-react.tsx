@@ -162,6 +162,11 @@ export function iniciarCasca(
       vista = proxima;
       atualizar();
     },
+    fecharVista(tipo: Vista['tipo']) {
+      if (vista?.tipo !== tipo) return;
+      vista = null;
+      atualizar();
+    },
     atualizarNavegacao(dados: Partial<EstadoNavegacao>) {
       estado = { ...estado, ...dados };
       atualizar();

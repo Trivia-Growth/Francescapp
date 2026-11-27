@@ -1,4 +1,12 @@
-import { type KeyboardEvent, type Ref, useImperativeHandle, useRef, useState } from 'react';
+import {
+  type KeyboardEvent,
+  type Ref,
+  useCallback,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { flushSync } from 'react-dom';
 import { rotulosSituacao } from './acompanhamento-caso.js';
 import { Botao } from './componentes/ui/botao.js';
@@ -44,6 +52,7 @@ export function TelaFicha({
   comando,
 }: Omit<OpcoesFicha, 'raiz' | 'secaoInicial'> & { comando: Ref<Ficha> }) {
   const [selecionada, definirSelecionada] = useState('');
+  const [abaFocavel, definirAbaFocavel] = useState('');
   const [conteudo, definirConteudo] = useState<Conteudo | null>(null);
   const estado = useRef<EstadoFicha>({
     ativa: true,
@@ -63,17 +72,31 @@ export function TelaFicha({
     .filter((secao): secao is SecaoFicha => secao !== undefined);
   const grupoPrimario = primariosEncontrados.length ? primariosEncontrados : secoes;
   const secundarias = secoes.filter((secao) => !grupoPrimario.includes(secao));
-  const secundariaAtiva = secundarias.some((secao) => secao.id === selecionada);
   const atalhos = secoes.filter((secao) => rotulosAtalhos[secao.id] && secao.montar).slice(0, 2);
   const Titulo = nivelTitulo === 2 ? 'h2' : 'h1';
   const mensagemAtual = () => estado.atual?.descarte ?? descartePadrao;
 
-  function descartar() {
+  const invalidar = useCallback(() => {
     estado.geracao += 1;
     estado.pendente = false;
-    estado.desmontar?.();
+    const desmontar = estado.desmontar;
     estado.desmontar = null;
     estado.vazia = true;
+    return desmontar;
+  }, [estado]);
+
+  useLayoutEffect(() => {
+    estado.ativa = true;
+    return () => {
+      estado.ativa = false;
+      const desmontar = invalidar();
+      // Em caso de falha na moldura, libera a raiz legada após o commit do React.
+      if (desmontar) queueMicrotask(desmontar);
+    };
+  }, [estado, invalidar]);
+
+  function descartar() {
+    invalidar()?.();
   }
 
   function montarConteudo(secao: SecaoFicha) {
@@ -119,8 +142,12 @@ export function TelaFicha({
     if (!estado.ativa || estado.atual?.id === id) return false;
     descartar();
     estado.atual = secao;
-    flushSync(() => definirSelecionada(id));
-    if (mais.current) mais.current.open = secundarias.includes(secao);
+    const secundaria = secundarias.includes(secao);
+    flushSync(() => {
+      definirSelecionada(id);
+      definirAbaFocavel(secundaria ? (grupoPrimario[0]?.id ?? '') : id);
+    });
+    if (mais.current) mais.current.open = secundaria;
     botoes.get(id)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     montarConteudo(secao);
     aoSelecionar(id);
@@ -171,10 +198,10 @@ export function TelaFicha({
         return;
     }
     evento.preventDefault();
-    for (const botao of ordem) if (botao) botao.tabIndex = -1;
     const proximo = ordem[indice];
-    if (proximo) {
-      proximo.tabIndex = 0;
+    const secao = grupoPrimario[indice];
+    if (proximo && secao) {
+      flushSync(() => definirAbaFocavel(secao.id));
       proximo.focus();
     }
   }
@@ -191,9 +218,7 @@ export function TelaFicha({
         role={secundaria ? undefined : 'tab'}
         aria-current={secundaria ? ativa : undefined}
         aria-selected={secundaria ? undefined : ativa}
-        tabIndex={
-          secundaria ? undefined : ativa || (secundariaAtiva && secao === grupoPrimario[0]) ? 0 : -1
-        }
+        tabIndex={secundaria ? undefined : abaFocavel === secao.id ? 0 : -1}
         ref={(botao) => {
           if (botao) botoes.set(secao.id, botao);
           else botoes.delete(secao.id);

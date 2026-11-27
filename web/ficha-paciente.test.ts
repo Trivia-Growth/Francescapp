@@ -77,10 +77,30 @@ function abrir(secoes: SecaoFicha[], extra: Partial<OpcoesFicha> = {}) {
     },
   };
 
-  return { ficha, confirmar, aoSelecionar, aoVoltar };
+  return { ficha, confirmar, aoSelecionar, aoVoltar, retirarMoldura: () => painel.rerender(null) };
 }
 
 const aba = (nome: string) => document.getElementById(`ficha-aba-${nome}`) as HTMLButtonElement;
+
+it('elimina o tabIndex anterior ao clicar após navegar por seta', () => {
+  abrir(['visao', 'diario', 'pendencias'].map((nome) => secao(nome).definicao));
+  aba('visao').focus();
+  aba('visao').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+  expect(document.activeElement).toBe(aba('diario'));
+  aba('pendencias').click();
+  expect(document.querySelectorAll('[role="tab"][tabindex="0"]')).toHaveLength(1);
+  expect(aba('pendencias').tabIndex).toBe(0);
+});
+
+it('desmontar a moldura invalida a pendência e encerra a seção legada', async () => {
+  const dados = secao('dados');
+  const { ficha, retirarMoldura } = abrir([dados.definicao]);
+  dados.pendenteRef.atual?.(true);
+  expect(ficha.pendencia()).not.toBeNull();
+  retirarMoldura();
+  expect(ficha.pendencia()).toBeNull();
+  await vi.waitFor(() => expect(dados.desmontar).toHaveBeenCalledTimes(1));
+});
 
 it('lê só rota com identificador e seção bem formados', () => {
   expect(lerRotaFicha(hashFicha(id, 'plano'))).toEqual({ id, secao: 'plano' });
