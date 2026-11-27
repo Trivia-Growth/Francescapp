@@ -10,6 +10,15 @@ Importadores de `web/ui/` fora de testes: **15** (eram 22 na `main` `80f7583`).
 
 ## Última tarefa concluída
 
+- **`web/painel-cadastro.ts` sem `web/ui/`** (branch `migracao/painel-cadastro`, 27/11):
+  continua `.ts` carregado por `<script>` (A6) — não desenha nada; o `<dialog>` e o
+  formulário são de `index.html`/`main.ts` e migram com a casca. `focaveis`/`prenderFoco`
+  passaram para `web/ponte/foco-preso.ts`; `web/ui/dialogo.ts` importa de lá (uma cópia
+  só). Provas novas, que não existiam: `web/painel-cadastro.test.ts` (jsdom, 4) e
+  `scripts/prova-celular/painel-cadastro.pw.ts` (Chromium, marcação lida de `index.html`,
+  `aplicarControlesProprios` ativo em `#cadastro`, 4). Contraprovas: sem `prenderFoco`, o
+  Tab nº 10 leva o foco ao `body`; sem a guarda do `hidden`, o diálogo abre sem permissão.
+  `main.ts` e `index.html` intocados. Importadores de `web/ui/` (grep do #26): 6 → 5.
 - **Bloco turno/plantão fechado** (PR #22, `ec879a2`): 7 módulos imperativos migrados,
   fábricas imperativas retiradas, costuras da síntese e de `turno-proprio.tsx` desarmadas.
 - Evidência: `pnpm run verificar:ativacao` local em `ec879a2` saiu 0 (3m16s; web 905,
