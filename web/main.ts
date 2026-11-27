@@ -2235,7 +2235,8 @@ function irPara(hash: string): void {
 
 function focarDestinoDaCasca(): void {
   if (!homeView.hidden) document.getElementById('home-saudacao')?.focus();
-  else if (!listaView.hidden && fichaView.hidden) elemento('patients-title').focus();
+  else if (!listaView.hidden && fichaView.hidden && !listaView.contains(document.activeElement))
+    elemento('patients-title').focus();
 }
 
 function navegarPelaRota(): void {
@@ -2245,7 +2246,7 @@ function navegarPelaRota(): void {
     case 'ficha':
       fecharAdministracao();
       fecharRegras();
-      if (fichaPaciente?.id !== rota.ficha.id) fecharFicha();
+      if (ficha && fichaPaciente?.id !== rota.ficha.id) fecharFicha();
       if (!ficha) void abrirFichaPelaRota();
       else if (ficha.secaoAtual() !== rota.ficha.secao) {
         const aberta = ficha;

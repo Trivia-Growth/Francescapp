@@ -15,7 +15,15 @@ a transição. A tarefa 7.2 permanece aberta.
 - A base compilada referenciava 242.878 bytes gzip de JavaScript inicial (seis arquivos).
   A captura da Carteira a 390 px documenta recorte preexistente dos motivos FR-028.
   A folha de produção estava aplicada. A correção da linha é de outra frente.
-- Próximo passo: ativar 8a e portar lateral, gaveta, barra e destinos restantes.
+- Revisão independente em `23d0daa...4833381`: a volta à Carteira preserva o
+  foco na linha da ficha anterior e Seu dia permanece como única vista durante
+  a consulta da ficha fora da primeira página. As contraprovas reproduziram a
+  perda do foco e a Carteira visível; as quatro provas passaram com a correção.
+- Ativação local de `4833381`: 930 testes web, 50 cenários Chromium aprovados,
+  um cenário previamente pulado, build e Trusted Types aprovados. A revisão
+  também executou `scripts/testar-acesso-paciente-autorizacao-local.sh` em
+  PostgreSQL 17 descartável, sem rede, com saídas de concessão e recusa verificadas.
+- Próximo passo: CI de 8a e portar lateral, gaveta, barra e destinos restantes.
   As pendências de axe da base na Carteira e no corpo rolável de diálogo continuam
   registradas para a etapa visual.
 
