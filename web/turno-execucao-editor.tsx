@@ -133,7 +133,7 @@ type OpcoesEditor = {
 /** O punho visto por dentro: idêntico ao devolvido por `montarEditorExecucao`, só que
  *  entregue via `registrar` em vez de retorno direto — o mesmo desenho de
  *  `web/revogacao-vinculo.tsx`. */
-type PunhoEditor = {
+export type PunhoEditor = {
   bloquear(valor: boolean): void;
   informar(mensagem: string): void;
   focar(): void;
@@ -166,16 +166,19 @@ function controleDe(
   throw new Error(`Campo ausente: ${nome}`);
 }
 
-function EditorExecucao({
+export function EditorExecucao({
   classe,
   contexto,
   opcoes,
   registrar,
+  travado = false,
 }: {
   classe: ClasseExecucao;
   contexto: Contexto;
   opcoes: OpcoesEditor;
   registrar: (punho: PunhoEditor) => void;
+  /** Trava vinda de quem conduz o editor (barreira, envio em curso), somada à própria. */
+  travado?: boolean;
 }) {
   const envolucroRef = useRef<HTMLDivElement>(null);
   const [status, definirStatus] = useState('');
@@ -389,7 +392,7 @@ function EditorExecucao({
         onChange={() => opcoes.alteracaoPendente(true)}
       >
         <fieldset
-          disabled={bloqueado}
+          disabled={bloqueado || travado}
           className="m-0 grid min-w-0 gap-2 rounded-cartao border border-borda p-4"
         >
           <legend className="px-1 text-(length:--texto-2) font-semibold">{legenda}</legend>

@@ -2,7 +2,7 @@ import type { ServicoTurnoHttp } from './servico-turno-http.ts';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
 import { montarTurnoProprio } from './turno-proprio.js';
 import { montarConsentimentoTurno } from './turno-execucao-localizacao.js';
-import { montarExecucaoTurno } from './turno-execucao.ts';
+import { montarExecucaoTurno } from './turno-execucao.js';
 import type { PortasConversaoOcorrencia } from './turno-execucao-conversao.js';
 export function montarTurnoComExecucao(
   raiz: HTMLElement,

@@ -349,7 +349,9 @@ export function GestaoExecucaoTurno({
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: a primeira consulta é só na montagem.
   useEffect(() => {
-    void carregar();
+    // Fora do efeito: `carregar` trava os controles com `flushSync`, que não roda dentro
+    // de um ciclo de vida do React.
+    queueMicrotask(() => void carregar());
   }, []);
 
   if (perdida) return null;

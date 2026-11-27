@@ -495,7 +495,9 @@ export function FichaPlantao({
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: a primeira consulta é só na montagem.
   useEffect(() => {
-    if (turno) void carregar();
+    // Fora do efeito: `carregar` trava os controles com `flushSync`, que não roda dentro
+    // de um ciclo de vida do React.
+    if (turno) queueMicrotask(() => void carregar());
   }, []);
 
   if (perdida) return null;

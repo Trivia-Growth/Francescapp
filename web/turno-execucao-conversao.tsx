@@ -60,7 +60,7 @@ const PRIORIDADES = [
   { valor: 'alta', rotulo: 'Alta' },
 ] as const;
 
-function TelaConversao({
+export function TelaConversao({
   pacienteId,
   origem,
   servico,

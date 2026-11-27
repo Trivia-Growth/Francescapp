@@ -6,23 +6,26 @@
 
 Bloco turno/plantão (tarefa 5.2, leva 2) em migração, um commit por módulo. Alvo da
 sequência de blocos: `web/ui/` sem importador, para apagar `ui/` e `ui.css`.
-Importadores de `web/ui/` fora de testes: **17** (eram 22 na `main` `80f7583`).
+Importadores de `web/ui/` fora de testes: **16** (eram 22 na `main` `80f7583`).
 
 ## Última tarefa concluída
 
-- 5.2 leva 2 — `ficha-plantao` migrado para `.tsx` (`FichaPlantao`). Rascunho do servidor
-  entra como valor inicial dos controles, por cima do publicado; cada recarga troca a chave
-  do formulário. `scripts/prova-celular/ficha-plantao.ts` passa a importar por `.js`.
+- 5.2 leva 2 — `turno-execucao` migrado para `.tsx` (`ExecucaoTurno`). O protocolo de
+  barreira foi transportado sem reescrita: estado mutável num ref, repintura síncrona onde a
+  versão imperativa chamava `controles()`. Fotos, conversão, relatórios, ficha, gestão,
+  localização e editor passam a ser COMPOSTOS na mesma árvore — nenhum `montar*` é chamado
+  de dentro de `.tsx` neste bloco. `EditorExecucao` e `TelaConversao` exportados; o editor
+  aceita trava externa (`travado`). Gestão e ficha disparam a carga inicial fora do efeito.
   Antes: `-arquivos` (`89777de`), `-localizacao-coordenacao` (`1f6fc3a`),
-  `-relatorios` (`97c0710`), `-gestao` (`6dd2f59`).
-- Evidência: `ficha-plantao.test.ts` 8/8 sem mudança de asserção (só o especificador);
-  `contrato-visual.test.ts` e `textos-obrigatorios-nao-configuraveis.test.ts` verdes;
-  `pnpm run verificar:rapido` verde. Prova de celular da ficha ainda não executada nesta
-  branch (entra no portão de fechamento do bloco).
+  `-relatorios` (`97c0710`), `-gestao` (`6dd2f59`), `ficha-plantao` (`507c53d`).
+- Evidência: 12 arquivos de prova do turno/plantão, 64/64, sem mudança de asserção
+  (`turno-execucao.test.ts` só mudou o especificador). Avisos de `flushSync` em ciclo de
+  vida: 3 em `turno-proprio.test.ts`, idênticos na `main` `80f7583` (pré-existentes),
+  nenhum novo. `pnpm run verificar:rapido` verde.
 
 ## Próximo passo
 
-- `turno-execucao`, `turno-execucao-integracao`; depois retirar as fábricas imperativas de
+- `turno-execucao-integracao`; depois retirar as fábricas imperativas de
   `turno-execucao-campos.tsx` e resolver a costura da síntese (`modelo-sintese.ts` em
   `diario.tsx` e `passagem-turno.tsx`).
 
