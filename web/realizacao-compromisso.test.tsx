@@ -1,22 +1,20 @@
 // @vitest-environment jsdom
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { descreverRealizacao, montarRealizacaoAgenda } from './realizacao-compromisso.ts';
+import {
+  descreverRealizacao,
+  consultarRealizacoes,
+  RealizacaoAgenda,
+  type PunhoRealizacao,
+} from './realizacao-compromisso.tsx';
 import type { RealizacaoCompromisso } from '../packages/contracts/src/realizacao-compromisso.ts';
 import type { ServicoRealizacaoCompromisso } from './servico-realizacao-compromisso-http.ts';
 import { FalhaApi } from './api.ts';
 
 afterEach(() => {
-  document.body.replaceChildren();
+  cleanup();
   vi.unstubAllGlobals();
 });
-
-/** O formulário precisa estar no documento: só assim o clique no botão de envio dispara
- * `submit`, como acontece na tela de verdade. */
-function montarNoDocumento(): HTMLElement {
-  const raiz = document.createElement('div');
-  document.body.append(raiz);
-  return raiz;
-}
 
 const vazio = {
   situacao_registrada: null,
@@ -38,6 +36,27 @@ function servicoFalso(
     registrar: async () => [],
     ...parcial,
   };
+}
+
+function montar(
+  servico: ServicoRealizacaoCompromisso,
+  aoRegistrar: (registros: readonly RealizacaoCompromisso[]) => void = () => {},
+) {
+  let punho: PunhoRealizacao | null = null;
+  const resultado = render(
+    <RealizacaoAgenda
+      servico={servico}
+      aoRegistrar={aoRegistrar}
+      registrar={(recebido) => {
+        punho = recebido;
+      }}
+    />,
+  );
+  const atual = () => {
+    if (!punho) throw new Error('Punho não registrado.');
+    return punho;
+  };
+  return { ...resultado, punho: atual };
 }
 
 function botao(raiz: HTMLElement, texto: string): HTMLButtonElement {
@@ -81,23 +100,23 @@ it('descreve as duas direções do vínculo entre datas', () => {
 
 it('exige motivo na falta e destino na remarcação antes de enviar', async () => {
   const registrar = vi.fn(async () => []);
-  const raiz = montarNoDocumento();
-  const tela = montarRealizacaoAgenda(raiz, servicoFalso({ registrar }), () => {});
-  tela.abrir('evt-a', 'quinta-feira, 10:00');
-  const situacao = raiz.querySelector('select') as HTMLSelectElement;
-  situacao.value = 'faltou';
-  situacao.dispatchEvent(new Event('change'));
-  botao(raiz, 'Registrar').click();
-  await vi.waitFor(() => expect(raiz.textContent).toContain('Informe o motivo da falta'));
+  const tela = montar(servicoFalso({ registrar }));
+  act(() => {
+    tela.punho().abrir('evt-a', 'quinta-feira, 10:00');
+  });
+  const situacao = tela.container.querySelector('select') as HTMLSelectElement;
+  fireEvent.change(situacao, { target: { value: 'faltou' } });
+  botao(tela.container, 'Registrar').click();
+  await vi.waitFor(() => expect(tela.container.textContent).toContain('Informe o motivo da falta'));
   expect(registrar).not.toHaveBeenCalled();
-  situacao.value = 'remarcado';
-  situacao.dispatchEvent(new Event('change'));
-  botao(raiz, 'Registrar').click();
+  fireEvent.change(situacao, { target: { value: 'remarcado' } });
+  botao(tela.container, 'Registrar').click();
   await vi.waitFor(() =>
-    expect(raiz.textContent).toContain('Informe o identificador do compromisso na nova data'),
+    expect(tela.container.textContent).toContain(
+      'Informe o identificador do compromisso na nova data',
+    ),
   );
   expect(registrar).not.toHaveBeenCalled();
-  tela.desmontar();
 });
 
 it('registra falta com motivo e devolve a lista atualizada', async () => {
@@ -113,18 +132,18 @@ it('registra falta com motivo e devolve a lista atualizada', async () => {
       },
     ],
   );
-  const raiz = montarNoDocumento();
   let recebidos: readonly RealizacaoCompromisso[] = [];
-  const tela = montarRealizacaoAgenda(raiz, servicoFalso({ registrar }), (registros) => {
+  const tela = montar(servicoFalso({ registrar }), (registros) => {
     recebidos = registros;
   });
-  tela.abrir('evt-a', 'quinta-feira, 10:00');
-  const situacao = raiz.querySelector('select') as HTMLSelectElement;
-  situacao.value = 'faltou';
-  situacao.dispatchEvent(new Event('change'));
-  const motivo = raiz.querySelector('#realizacao-motivo') as HTMLSelectElement;
-  motivo.value = 'transporte';
-  botao(raiz, 'Registrar').click();
+  act(() => {
+    tela.punho().abrir('evt-a', 'quinta-feira, 10:00');
+  });
+  const situacao = tela.container.querySelector('select') as HTMLSelectElement;
+  fireEvent.change(situacao, { target: { value: 'faltou' } });
+  const motivo = tela.container.querySelector('#realizacao-motivo') as HTMLSelectElement;
+  fireEvent.change(motivo, { target: { value: 'transporte' } });
+  botao(tela.container, 'Registrar').click();
   await vi.waitFor(() => expect(recebidos.length).toBe(1));
   expect(registrar).toHaveBeenCalledWith({
     evento_id: 'evt-a',
@@ -132,30 +151,29 @@ it('registra falta com motivo e devolve a lista atualizada', async () => {
     versao_esperada: 0,
     motivo: 'transporte',
   });
-  expect(raiz.textContent).toContain('Situação registrada');
-  tela.desmontar();
+  expect(tela.container.textContent).toContain('Situação registrada');
 });
 
 it('retificar parte da versão vigente e avisa que a anterior é preservada', async () => {
   const registrar = vi.fn(async (): Promise<readonly RealizacaoCompromisso[]> => []);
-  const raiz = montarNoDocumento();
-  const tela = montarRealizacaoAgenda(raiz, servicoFalso({ registrar }), () => {});
-  tela.abrir('evt-a', 'quinta-feira, 10:00', {
-    ...vazio,
-    evento_id: 'evt-a',
-    situacao: 'realizado',
-    situacao_registrada: 'realizado',
-    versao: 2,
+  const tela = montar(servicoFalso({ registrar }));
+  act(() => {
+    tela.punho().abrir('evt-a', 'quinta-feira, 10:00', {
+      ...vazio,
+      evento_id: 'evt-a',
+      situacao: 'realizado',
+      situacao_registrada: 'realizado',
+      versao: 2,
+    });
   });
-  expect(raiz.textContent).toContain('preserva a anterior');
-  botao(raiz, 'Registrar').click();
+  expect(tela.container.textContent).toContain('preserva a anterior');
+  botao(tela.container, 'Registrar').click();
   await vi.waitFor(() => expect(registrar).toHaveBeenCalled());
   expect(registrar).toHaveBeenCalledWith({
     evento_id: 'evt-a',
     situacao: 'realizado',
     versao_esperada: 2,
   });
-  tela.desmontar();
 });
 
 it('explica conflito de versão e recusa de permissão sem perder o preenchido', async () => {
@@ -163,14 +181,18 @@ it('explica conflito de versão e recusa de permissão sem perder o preenchido',
     .fn<ServicoRealizacaoCompromisso['registrar']>()
     .mockRejectedValueOnce(new FalhaApi('conflito_versao', 409))
     .mockRejectedValueOnce(new FalhaApi('sem_permissao', 403));
-  const raiz = montarNoDocumento();
-  const tela = montarRealizacaoAgenda(raiz, servicoFalso({ registrar }), () => {});
-  tela.abrir('evt-a', 'quinta-feira, 10:00');
-  botao(raiz, 'Registrar').click();
-  await vi.waitFor(() => expect(raiz.textContent).toContain('mudou enquanto você preenchia'));
-  botao(raiz, 'Registrar').click();
-  await vi.waitFor(() => expect(raiz.textContent).toContain('não pode registrar a realização'));
-  tela.desmontar();
+  const tela = montar(servicoFalso({ registrar }));
+  act(() => {
+    tela.punho().abrir('evt-a', 'quinta-feira, 10:00');
+  });
+  botao(tela.container, 'Registrar').click();
+  await vi.waitFor(() =>
+    expect(tela.container.textContent).toContain('mudou enquanto você preenchia'),
+  );
+  botao(tela.container, 'Registrar').click();
+  await vi.waitFor(() =>
+    expect(tela.container.textContent).toContain('não pode registrar a realização'),
+  );
 });
 
 it('consulta em lotes e devolve apenas o que o servidor respondeu', async () => {
@@ -184,14 +206,12 @@ it('consulta em lotes e devolve apenas o que o servidor respondeu', async () => 
           situacao: 'realizacao_nao_confirmada' as const,
         })),
   );
-  const raiz = montarNoDocumento();
-  const tela = montarRealizacaoAgenda(raiz, servicoFalso({ consultar }), () => {});
+  const servico = servicoFalso({ consultar });
   const pedido = Array.from({ length: 260 }, (_, indice) => ({ evento_id: `evt-${indice}` }));
   pedido.push({ evento_id: 'evt-sem-resposta' });
-  const registros = await tela.consultar(pedido);
+  const registros = await consultarRealizacoes(servico, pedido);
   expect(consultar).toHaveBeenCalledTimes(2);
   expect(registros.size).toBe(260);
   expect(registros.has('evt-sem-resposta')).toBe(false);
   expect(descreverRealizacao(registros.get('evt-999'))).toBe('Situação não consultada');
-  tela.desmontar();
 });
