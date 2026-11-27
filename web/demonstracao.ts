@@ -911,9 +911,14 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     exibirTela(telaTarefas);
     elemento('tasks-title').focus();
   };
+  // O painel é uma ilha React: quem escreve texto na raiz dela precisa desmontá-la antes,
+  // senão a próxima montagem tenta remover nós que o `textContent` já tirou.
+  let desmontarPainel: (() => void) | undefined;
   const carregarPendencias = async () => {
     const geracao = ++geracaoPendencias;
     const painel = elemento('pending-panel');
+    desmontarPainel?.();
+    desmontarPainel = undefined;
     painel.textContent = 'Carregando pendências…';
     try {
       const resposta = await requisitar('/pending-tasks');
@@ -923,7 +928,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       if (geracao !== geracaoPendencias) return;
       const agora = new Date();
       const hoje = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
-      montarPainelPendenciasLocal(painel, {
+      desmontarPainel = montarPainelPendenciasLocal(painel, {
         hoje,
         pacientes: dados.patients,
         abrirTarefas: (id) => {
