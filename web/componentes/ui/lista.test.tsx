@@ -44,7 +44,7 @@ it('distingue zero confirmado de indisponível', () => {
   expect(valor(1234)).toBe('1.234');
 });
 
-it('abre o registro pelo teclado, com nome acionável por extenso', async () => {
+it('abre pelo teclado e inclui as células no nome acessível da linha', async () => {
   const abrir = vi.fn();
   render(
     <Lista
@@ -56,7 +56,10 @@ it('abre o registro pelo teclado, com nome acionável por extenso', async () => 
       rotuloDaLinha={(p) => `Abrir ficha de ${p.nome}`}
     />,
   );
-  const linha = screen.getByRole('button', { name: 'Abrir ficha de Pessoa fictícia A' });
+  const linha = screen.getByRole('button', {
+    name: 'Pessoa fictícia A Em acompanhamento 0',
+    description: 'Abrir ficha de Pessoa fictícia A',
+  });
   linha.focus();
   expect(document.activeElement).toBe(linha);
   await userEvent.keyboard('{Enter}');

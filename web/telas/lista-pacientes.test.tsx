@@ -67,14 +67,14 @@ it('apresenta cada pessoa como uma linha sob um cabeçalho, com as mesmas coluna
   encerrar();
 });
 
-it('abre a ficha pela linha, com nome acionável por extenso para quem ouve', () => {
+it('abre a ficha pela linha e descreve a ação para quem ouve', () => {
   const { raiz, aoAbrir, encerrar } = montar();
   const linha = [...lista(raiz).querySelectorAll('button')].find((botao) =>
-    botao.getAttribute('aria-label')?.includes('Ana Fictícia Moreira'),
+    botao.textContent?.includes('Ana Fictícia Moreira'),
   ) as HTMLButtonElement;
-  expect(linha.getAttribute('aria-label')).toBe(
-    'Abrir ficha de Ana Fictícia Moreira. Situação: Ativo.',
-  );
+  const idDescricao = linha.getAttribute('aria-describedby');
+  const descricao = [...raiz.querySelectorAll('[id]')].find((no) => no.id === idDescricao);
+  expect(descricao?.textContent).toBe('Abrir ficha de Ana Fictícia Moreira. Situação: Ativo.');
   linha.click();
   expect(aoAbrir).toHaveBeenCalledWith(ANA);
   encerrar();

@@ -40,11 +40,29 @@ for (const viewport of [
     }
     await expect(marca).toHaveCSS('border-top-left-radius', '999px');
     await expect(marca).toHaveCSS('font-size', '16px');
-    await conferirAxe(
-      page,
-      `Galeria de primitivas · ${viewport.width} px`,
-      ':is([data-peso], [data-tom], #demo-nome, #demo-email, #demo-telefone)',
-    );
+    const lista = page.getByRole('list', { name: 'Pessoas acompanhadas' });
+    const nome = 'Ana Fictícia Moreira Em acompanhamento';
+    const nomeAcessivel = viewport.width === 390 ? nome : `${nome} Edilaine 2`;
+    const linha = lista.getByRole('button', { name: nomeAcessivel, exact: true });
+    await expect(linha).toBeVisible();
+    await expect(linha).toHaveAccessibleDescription('Abrir ficha de Ana Fictícia Moreira');
+    for (const texto of ['Ana Fictícia Moreira', 'Em acompanhamento']) {
+      const celula = linha.getByText(texto, { exact: true });
+      expect(await celula.evaluate((no) => no.scrollWidth)).toBeLessThanOrEqual(
+        await celula.evaluate((no) => no.clientWidth),
+      );
+      const cabe = await celula.evaluate((no) => {
+        const conteudo = document.createRange();
+        conteudo.selectNodeContents(no);
+        const { left, right } = no.getBoundingClientRect();
+        return [...conteudo.getClientRects()].every(
+          (linha) => linha.left >= left - 1 && linha.right <= right + 1,
+        );
+      });
+      expect(cabe, `Texto inteiro na linha: ${texto}`).toBe(true);
+    }
+    const axe = await conferirAxe(page, `Galeria de primitivas · ${viewport.width} px`);
+    expect(axe.toleradas).toEqual([]);
   });
 }
 

@@ -1,4 +1,5 @@
-import { Component, type ReactNode } from 'react';
+import { type ReactNode, useId } from 'react';
+import { BarreiraDaLinha, mensagemFalhaLinha } from './barreira-da-linha.js';
 import { juntar } from './juntar.js';
 
 /* Registro comparável é LINHA, não cartão (VIS-016).
@@ -16,35 +17,6 @@ export function valor(dado: number | string | null | undefined): string {
   if (dado === null || dado === undefined) return '—';
   if (typeof dado === 'number') return dado.toLocaleString('pt-BR');
   return dado.trim() === '' ? '—' : dado;
-}
-
-/** Barreira por linha: um registro que não pode ser apresentado degrada SOZINHO.
- *
- *  Sem isto, um campo inesperado numa linha derruba a listagem inteira e a pessoa perde o
- *  acesso a todos os outros registros — que foi exatamente o que aconteceu em 24/11/2026,
- *  quando uma única linha com conteúdo cifrado inválido apagou a lista de equipe. */
-class BarreiraDaLinha extends Component<
-  { children: ReactNode; aoFalhar?: (erro: unknown) => void },
-  { falhou: boolean }
-> {
-  override state = { falhou: false };
-
-  static getDerivedStateFromError() {
-    return { falhou: true };
-  }
-
-  override componentDidCatch(erro: unknown) {
-    this.props.aoFalhar?.(erro);
-  }
-
-  override render() {
-    if (!this.state.falhou) return this.props.children;
-    return (
-      <p className="m-0 px-4 py-3 text-(length:--texto-1) text-texto-suave">
-        Este registro não pôde ser apresentado. Os demais continuam disponíveis.
-      </p>
-    );
-  }
 }
 
 export type Coluna<T> = {
@@ -80,7 +52,7 @@ export function Lista<T>({
   aoAbrir?: (item: T) => void;
   /** Nome da lista para quem ouve. */
   rotulo: string;
-  /** Nome acionável da linha, por extenso: "Abrir ficha de Fulano". */
+  /** Descrição opcional da ação. O nome acessível vem do texto visível da linha. */
   rotuloDaLinha?: (item: T) => string;
   carregando?: boolean;
   aoFalharLinha?: (erro: unknown) => void;
@@ -96,13 +68,13 @@ export function Lista<T>({
         moldura ? 'rounded-cartao border border-borda bg-superficie' : '',
       )}
     >
-      {/* O cabeçalho é guia VISUAL de alinhamento, por isso sai da árvore de
-          acessibilidade: quem ouve recebe o nome inteiro da linha por `aria-label`, e
-          repetir os títulos a cada registro só alongaria a leitura. */}
       <div
         aria-hidden="true"
         hidden={itens.length === 0}
-        className="flex items-center gap-4 border-b border-borda bg-superficie-2 px-4 py-2 text-(length:--texto-1) font-semibold text-texto-suave"
+        className={juntar(
+          'flex items-center gap-4 border-b border-borda bg-superficie-2 px-4 py-2 text-(length:--texto-1) font-semibold text-texto-suave',
+          aoAbrir === undefined ? '' : 'max-sm:hidden',
+        )}
       >
         {colunas.map((coluna, indice) => (
           <span
@@ -121,7 +93,14 @@ export function Lista<T>({
       <ul aria-label={rotulo} aria-busy={carregando || undefined} className="m-0 list-none p-0">
         {itens.map((item) => (
           <li key={chave(item)} className="min-w-0 border-t border-borda first:border-t-0">
-            <BarreiraDaLinha aoFalhar={aoFalharLinha}>
+            <BarreiraDaLinha
+              aoFalhar={aoFalharLinha}
+              fallback={
+                <p className="m-0 px-4 py-3 text-(length:--texto-1) text-texto-suave">
+                  {mensagemFalhaLinha}
+                </p>
+              }
+            >
               <Linha
                 item={item}
                 colunas={colunas}
@@ -147,6 +126,7 @@ function Linha<T>({
   aoAbrir?: (item: T) => void;
   rotuloDaLinha?: (item: T) => string;
 }) {
+  const idDescricao = useId();
   const celulas = colunas.map((coluna, indice) => (
     <span
       key={`celula-${String(indice)}`}
@@ -155,6 +135,7 @@ function Linha<T>({
         // `truncate` corta com reticência; `semTruncamento` quebra em vez de cortar. As
         // outras colunas continuam cortando — é o que impede a linha de quebrar (VIS-016).
         coluna.semTruncamento === true ? 'whitespace-normal break-words' : 'truncate',
+        aoAbrir === undefined ? '' : 'max-sm:w-full max-sm:whitespace-normal max-sm:wrap-anywhere',
         indice === 0 ? 'font-semibold' : 'text-texto-suave',
         coluna.secundaria === true ? 'hidden sm:block' : '',
       )}
@@ -166,23 +147,32 @@ function Linha<T>({
   const classe = juntar(
     'flex w-full items-center gap-4 px-4 py-2',
     'min-h-[56px] max-sm:min-h-[64px] max-sm:items-start max-sm:py-3',
+    aoAbrir === undefined ? '' : 'max-sm:flex-col max-sm:gap-2',
     'text-left font-sans text-(length:--texto-2) leading-[1.4] text-texto',
   );
 
   if (aoAbrir === undefined) return <div className={classe}>{celulas}</div>;
+  const descricao = rotuloDaLinha?.(item);
   return (
-    <button
-      type="button"
-      aria-label={rotuloDaLinha?.(item)}
-      onClick={() => aoAbrir(item)}
-      // `-3px` porque o contorno global fica para fora e seria cortado pelo `overflow`
-      // da moldura da lista (`ui.css:` bloco `.ui-linha:focus-visible`).
-      className={juntar(
-        classe,
-        'cursor-pointer border-0 bg-transparent hover:bg-superficie-2 focus-visible:[outline-offset:-3px]',
-      )}
-    >
-      {celulas}
-    </button>
+    <>
+      <button
+        type="button"
+        aria-describedby={descricao ? idDescricao : undefined}
+        onClick={() => aoAbrir(item)}
+        // `-3px` porque o contorno global fica para fora e seria cortado pelo `overflow`
+        // da moldura da lista (`ui.css:` bloco `.ui-linha:focus-visible`).
+        className={juntar(
+          classe,
+          'cursor-pointer border-0 bg-transparent hover:bg-superficie-2 focus-visible:[outline-offset:-3px]',
+        )}
+      >
+        {celulas}
+      </button>
+      {descricao ? (
+        <span id={idDescricao} hidden>
+          {descricao}
+        </span>
+      ) : null}
+    </>
   );
 }
