@@ -12,7 +12,7 @@ ser migrados para cumprir a tarefa 7.2.
 - Chromium, build de produção: 240 px de lateral em 1440 px, gaveta de 358 px em
   390 px, barra sticky de no mínimo 72/64 px e um título principal nas seis capturas.
   As folhas carregadas foram `index-X-zgnAef.css` na base e `index-B-X97JSR.css`
-  na fatia. O JavaScript inicial passou de 242.878 a 245.220 bytes gzip em seis arquivos.
+  na fatia. O JavaScript inicial passou de 242.878 a 245.239 bytes gzip em seis arquivos.
 - Axe integral sem violações nas seis vistas e na gaveta. Na base, os cinco botões
   da Carteira tinham nome incompatível com o texto visível, e o corpo do diálogo
   de cadastro era rolável sem foco. Reintroduzir o rótulo anterior nos botões
@@ -25,6 +25,9 @@ ser migrados para cumprir a tarefa 7.2.
   Os cinco cenários da casca passaram; sem a transferência de foco, o Chromium
   falhou em `toBeFocused` para Menu. A prova do catálogo confirmou um GET inicial,
   cinco voltas sem GET e descarte após 403. Capturas refeitas com CSS aplicado.
+- A CI do primeiro ajuste encontrou um clique no fundo antes da instalação do
+  ouvinte do Radix. O próprio fundo passou a fechar a gaveta. O cenário que
+  falhou passou cinco vezes seguidas em Chromium.
 - Próximo passo: CI e aprovação das capturas. A tarefa 7.2 segue com os painéis
   restantes, e o corte preexistente do sinal operacional fica no PR #51.
 

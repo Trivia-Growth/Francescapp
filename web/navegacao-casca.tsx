@@ -274,7 +274,14 @@ export function NavegacaoCasca({
       )}
       {estreita ? (
         <Dialog.Portal>
-          <Dialog.Overlay id="sidebar-backdrop" className="casca-fundo-gaveta" />
+          <Dialog.Overlay
+            id="sidebar-backdrop"
+            className="casca-fundo-gaveta"
+            onPointerDown={() => {
+              devolverFoco.current = true;
+              definirAberta(false);
+            }}
+          />
           <Dialog.Content
             id="patients-sidebar"
             ref={gaveta}
