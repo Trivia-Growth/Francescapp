@@ -2,6 +2,26 @@
 
 **Atualizado em:** 27/11/2026 · **Branch:** `codex/remover-web-ui` · **Por:** Codex
 
+## Fatia 3 do plano visual — tokens do SISTEMA
+
+Na branch `codex/tokens-sistema`, sobre `a8a3f8a`, o `@theme` expõe os
+tokens do SISTEMA (§2). As utilitárias existentes ainda renderizam a galeria
+da base. A prova cobre VIS-017 e os quatro pares de contraste do §6.
+
+- Chromium 159, galeria local com dados fictícios, 390 × 844 e 1440 × 900.
+  Os pares antes/depois são idênticos byte a byte. Uma amostra temporária
+  confirmou as novas utilitárias de cor, raio, espaço e tipografia, inclusive
+  o breakpoint de viewport e a variante por contêiner.
+- Contraprovas revertidas. Com o texto secundário em `#c0c0c0`, o contrato
+  mediu 1,66:1 contra 4,5:1. Retirar `1` do grupo tipográfico de `juntar`
+  descartou `text-1` ao lado da cor. O Vitest falhou nos dois casos.
+- `pnpm exec vitest run web/contrato-visual.test.ts web/componentes/ui/juntar.test.ts
+  --reporter=minimal` passou em Node 22 com 27 testes após restaurar os valores.
+  `acesso_paciente_autorizacao_local.sql` passou em PostgreSQL 17 descartável
+  com Auth e Vault simulados. Verificou concessão, acesso direto, outro caso e revogação.
+- Próximo passo da fatia: CI de ativação no PR #45 e aprovação do dono pelas capturas.
+  A adoção das utilitárias nas primitivas começa na fatia 4.
+
 ## Retirada do observador de controles
 
 As quatro regiões com seleção e data já montam os próprios controles. Durante a

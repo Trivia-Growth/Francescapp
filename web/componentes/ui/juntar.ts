@@ -1,20 +1,29 @@
 import { type ClassValue, clsx } from 'clsx';
 import { extendTailwindMerge } from 'tailwind-merge';
 
-/* O `tailwind-merge` precisa saber quais grupos nossas classes ocupam para resolver
- * conflito. Sem este ajuste ele classifica `text-1` … `text-6` como COR, porque a
- * configuração padrão só reconhece os nomes de tamanho dele (`text-sm`, `text-lg`).
- * Consequência medida em 25/11/2026 pela frente de controles: `juntar('text-2',
- * 'text-contraste')` devolvia só `text-contraste`, o campo perdia os 16px e o iOS voltava
- * a dar zoom ao focar. Um bug silencioso de acessibilidade escondido numa biblioteca de
- * conveniência.
- *
- * A escala de texto da Francescato tem seis degraus e só seis, declarados em
- * `web/styles.css` e conferidos por `web/contrato-visual.test.ts`. */
+/* Os tamanhos personalizados de tema.css precisam entrar no grupo de fontes.
+ * Sem isso, o tailwind-merge os trata como cores e pode descartá-los.
+ * Em 25/11/2026, juntar('text-2', 'text-contraste') devolvia só 'text-contraste':
+ * o campo perdia o tamanho de 16px e o iOS voltava a dar zoom ao receber foco. */
 const mesclar = extendTailwindMerge({
   extend: {
-    classGroups: {
-      'font-size': [{ text: ['1', '2', '3', '4', '5', '6'] }],
+    theme: {
+      text: [
+        '1',
+        '2',
+        '3',
+        '4',
+        '5',
+        '6',
+        'pagina-barra',
+        'pagina',
+        'pagina-desktop',
+        'secao',
+        'item',
+        'corpo',
+        'controle',
+        'meta',
+      ],
     },
   },
 });

@@ -13,17 +13,20 @@ import { expect, it } from 'vitest';
  * Um documento não impede isso de voltar. Um teste impede. */
 
 const folha = readFileSync('web/styles.css', 'utf8');
+const tema = readFileSync('web/estilos/tema.css', 'utf8');
+const temaSemComentarios = tema.replace(/\/\*[\s\S]*?\*\//g, '');
+const blocoSistema = /@theme static\s*\{([^}]+)\}/.exec(temaSemComentarios)?.[1] ?? '';
 
 /** `:root` até o primeiro fechamento — onde todo token precisa nascer. */
 const raiz = folha.slice(folha.indexOf(':root'), folha.indexOf('\n}', folha.indexOf(':root')));
 
-function token(nome: string): string {
-  const achado = new RegExp(`--${nome}:\\s*([^;]+);`).exec(raiz);
-  if (achado?.[1] === undefined) throw new Error(`Token --${nome} não existe no :root`);
+function token(nome: string, origem = raiz): string {
+  const achado = new RegExp(`--${nome}:\\s*([^;]+);`).exec(origem);
+  if (achado?.[1] === undefined) throw new Error(`Token --${nome} não existe na folha consultada`);
   const valor = achado[1].trim();
   // Um token pode apontar para outro: `--superficie: var(--white)`. Resolve a cadeia.
   const alias = /^var\(--([\w-]+)\)$/.exec(valor);
-  return alias?.[1] === undefined ? valor : token(alias[1]);
+  return alias?.[1] === undefined ? valor : token(alias[1], origem);
 }
 
 function luminancia(hex: string): number {
@@ -139,6 +142,111 @@ it('preserva a escala declarada, sem degrau extra entrando por fora', () => {
   for (const papel of ['estado', 'troca', 'contexto']) expect(token(`mov-${papel}`)).toBeTruthy();
 });
 
+it('expõe as cores do Sistema no @theme estático', () => {
+  for (const papel of [
+    'fundo',
+    'superficie',
+    'texto',
+    'texto-secundario',
+    'acao',
+    'acao-hover',
+    'acao-pressionada',
+    'hoje',
+    'marca',
+    'divisor',
+    'contorno',
+    'foco',
+    'sucesso',
+    'fundo-sucesso',
+    'aviso',
+    'fundo-aviso',
+    'erro',
+    'fundo-erro',
+    'perigo-hover',
+    'perigo-pressionada',
+    'desabilitado',
+    'fundo-desabilitado',
+    'sobreposicao',
+  ]) {
+    expect(token(`color-sistema-${papel}`, blocoSistema)).toMatch(/^#[0-9a-f]{6}([0-9a-f]{2})?$/i);
+  }
+});
+
+it.each([
+  ['superficie', 'acao', 4.5],
+  ['texto-secundario', 'fundo', 4.5],
+  ['erro', 'fundo-erro', 4.5],
+  ['contorno', 'hoje', 3],
+] as const)(
+  'mantém o contraste do Sistema de %s sobre %s em pelo menos %s:1',
+  (frente, fundo, minimo) => {
+    const medido = contraste(
+      token(`color-sistema-${frente}`, blocoSistema),
+      token(`color-sistema-${fundo}`, blocoSistema),
+    );
+    expect(medido, `${frente} sobre ${fundo} mede ${medido.toFixed(2)}:1`).toBeGreaterThanOrEqual(
+      minimo,
+    );
+  },
+);
+
+it('expõe a escala de medidas do Sistema com as unidades previstas', () => {
+  for (const [nome, valor] of Object.entries({
+    'spacing-sistema-1': '0.25rem',
+    'spacing-sistema-2': '0.5rem',
+    'spacing-sistema-3': '0.75rem',
+    'spacing-sistema-4': '1rem',
+    'spacing-sistema-5': '1.5rem',
+    'spacing-sistema-6': '2rem',
+    'spacing-sistema-7': '3rem',
+    'spacing-sistema-8': '4.5rem',
+    'spacing-alvo-toque': '2.875rem',
+    'espessura-borda': '1px',
+    'espessura-filete': '3px',
+    'espessura-barra-ativa': '4px',
+    'espessura-foco': '2px',
+    'recuo-foco': '2px',
+    'radius-sistema-controle': '10px',
+    'radius-superficie': '24px',
+    'radius-dialogo': '16px',
+    'radius-pilula': '999px',
+    'radius-avatar': '50%',
+    'shadow-cartao': '0 2px 8px rgb(39 49 35 / 6%)',
+    'shadow-dialogo': '0 18px 48px rgb(39 49 35 / 20%)',
+    'container-trabalho': '90rem',
+    'container-texto': '65ch',
+    'container-formulario': '35rem',
+    'container-formulario-duas-colunas': '55rem',
+    'container-tabela': '45rem',
+    'container-apoio': '60rem',
+    'breakpoint-intermediaria': '40rem',
+    'breakpoint-lateral': '64rem',
+    'movimento-controle': '120ms',
+    'movimento-sobreposicao': '180ms',
+  })) {
+    expect(token(nome, blocoSistema), `--${nome}`).toBe(valor);
+  }
+});
+
+it.each([
+  ['pagina-barra', '1.5rem', '1.75rem', '600'],
+  ['pagina', '2rem', '2.25rem', '600'],
+  ['pagina-desktop', '2.5rem', '2.75rem', '600'],
+  ['secao', '1.25rem', '1.75rem', '700'],
+  ['item', '1.125rem', '1.5rem', '700'],
+  ['corpo', '1rem', '1.5rem', '400'],
+  ['controle', '1rem', '1.5rem', '600'],
+  ['meta', '0.875rem', '1.25rem', '500'],
+] as const)(
+  'expõe tamanho, entrelinha e peso do papel tipográfico %s',
+  (papel, tamanho, entrelinha, peso) => {
+    const nome = `text-${papel}`;
+    expect(token(nome, blocoSistema)).toBe(tamanho);
+    expect(token(`${nome}--line-height`, blocoSistema)).toBe(entrelinha);
+    expect(token(`${nome}--font-weight`, blocoSistema)).toBe(peso);
+  },
+);
+
 it('mantém o CSS legado dentro de uma camada, para a utilitária poder vencer', () => {
   /* Medido em Chromium em 25/11/2026: regra SEM camada vence regra EM camada, qualquer
      que seja a ordem de declaração. Enquanto `index.html` ligava `styles.css` direto, as
@@ -150,7 +258,6 @@ it('mantém o CSS legado dentro de uma camada, para a utilitária poder vencer',
      para a camada `legado`, declarada antes de `utilities`. Se alguém religar `styles.css`
      direto no HTML, ou devolver o `@import` de `ui.css` para dentro dela, o defeito volta
      calado — por isso as três afirmações abaixo. */
-  const tema = readFileSync('web/estilos/tema.css', 'utf8');
   const html = readFileSync('web/index.html', 'utf8');
 
   expect(tema).toContain('@layer legado, components, utilities;');
@@ -173,12 +280,9 @@ it('impede token autorreferente na ponte do tema', () => {
      estrago alcançou telas que ninguém tocou.
      A ponte existe para TRADUZIR um nome em outro. Um nome que aponta para si mesmo não
      traduz nada — só sobrescreve a origem com lixo. */
-  const tema = readFileSync('web/estilos/tema.css', 'utf8');
   // Sem tirar os comentários, o exemplo do defeito escrito em `tema.css` seria lido
   // como declaração e o teste reprovaria a própria explicação.
-  const semComentarios = tema.replace(/\/\*[\s\S]*?\*\//g, '');
-  const bloco = semComentarios.slice(semComentarios.indexOf('@theme inline'));
-  const autorreferentes = [...bloco.matchAll(/(--[\w-]+):\s*var\(\s*(--[\w-]+)\s*\)/g)]
+  const autorreferentes = [...temaSemComentarios.matchAll(/(--[\w-]+):\s*var\(\s*(--[\w-]+)\s*\)/g)]
     .filter((achado) => achado[1] === achado[2])
     .map((achado) => achado[1]);
   expect(autorreferentes).toEqual([]);
