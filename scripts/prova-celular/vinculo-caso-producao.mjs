@@ -90,7 +90,7 @@ try {
     const admin = await abrirSessao(sessaoAdministrador);
     const destinatario = await abrirSessao(sessaoProfissional);
     const abrirFicha = (pagina) =>
-      pagina.getByRole('button', { name: `Abrir ficha de ${caso.nome}` }).click();
+      pagina.locator('#patients-body').getByRole('button', { name: caso.nome }).click();
     const conferirNegacao = async (id) => {
       await destinatario.goto(`${origem}/#paciente/${id}/visao`);
       await destinatario.reload();

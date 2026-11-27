@@ -63,22 +63,9 @@ SOFTWARE.
   <body>
     <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
     <header class="topbar">
-      <button id="toggle-sidebar" class="button-quiet toggle-sidebar" type="button" aria-expanded="false" aria-controls="patients-sidebar"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu chrome-icon" aria-hidden="true" focusable="false"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg>Menu</button>
       <div class="brand"><span class="brand-name">FFCMApp</span><span class="brand-organization">Francescato</span></div>
-      <nav id="breadcrumbs" class="breadcrumbs" aria-label="Você está em">
-        <ol>
-          <li>Pessoas acompanhadas</li>
-          <li id="crumb-paciente" aria-current="page" hidden></li>
-        </ol>
-      </nav>
-      <div class="topbar-end">
-        <span class="chip-ambiente">Ambiente de teste · dados fictícios</span>
-        <div id="session-actions" class="session-actions" hidden>
-          <span id="session-role"></span>
-          <button id="logout" class="button-quiet" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-log-out chrome-icon" aria-hidden="true" focusable="false"><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path></svg>Sair</button>
-        </div>
-      </div>
     </header>
+    <div id="casca-barra"></div>
     <main id="conteudo" tabindex="-1">
       <p id="estado-rede" class="estado-rede" role="status" aria-live="polite" hidden></p>
       <p id="revalidacao-status" class="service-status" role="status" aria-live="polite" hidden>Verificando seu acesso…</p>
@@ -174,20 +161,7 @@ SOFTWARE.
       </section>
 
       <section id="patients-view" class="patients-layout" aria-label="Pacientes" hidden>
-        <aside id="patients-sidebar" class="patients-sidebar" aria-label="Área de trabalho">
-          <button id="close-sidebar" class="sidebar-close" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x chrome-icon" aria-hidden="true" focusable="false"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>Fechar menu</button>
-          <div class="sidebar-brand"><img src="./assets/ffcm-logo-branco.jpg" width="64" height="64" alt="Francescato"><span>FFCMApp</span></div>
-          <button id="collapse-sidebar" class="sidebar-collapse" type="button" aria-controls="patients-sidebar" aria-expanded="true" aria-label="Recolher navegação"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left chrome-icon sidebar-collapse-sinal" aria-hidden="true" focusable="false"><path d="m15 18-6-6 6-6"></path></svg><span class="sidebar-collapse-rotulo" aria-hidden="true">Recolher</span></button>
-          <p class="sidebar-label" id="sidebar-label">Área de trabalho</p>
-          <nav class="sidebar-nav" aria-labelledby="sidebar-label">
-            <a id="nav-home" class="sidebar-link" href="#home" aria-current="page"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-house lucide-home sidebar-icon" aria-hidden="true" focusable="false"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg><span class="sidebar-link-label">Seu dia</span></a>
-            <a id="nav-carteira" class="sidebar-link" href="#carteira"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users-round lucide-users-2 sidebar-icon" aria-hidden="true" focusable="false"><path d="M18 21a8 8 0 0 0-16 0"></path><circle cx="10" cy="8" r="5"></circle><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"></path></svg><span class="sidebar-link-label">Pessoas acompanhadas</span></a>
-            <a id="nav-administracao" class="sidebar-link" href="#administracao/configuracao" hidden><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield sidebar-icon" aria-hidden="true" focusable="false"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path></svg><span class="sidebar-link-label">Administração</span></a>
-            <a id="nav-regras" class="sidebar-link" href="#regras"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-open sidebar-icon" aria-hidden="true" focusable="false"><path d="M12 5v16"></path><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"></path></svg><span class="sidebar-link-label">Como funciona</span></a>
-          </nav>
-          <p class="sidebar-note">Acompanhamento de pacientes</p>
-        </aside>
-        <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
+        <div id="casca-lateral"></div>
         <p id="workspace-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
         <div id="home-view" hidden></div>
         <div id="lista-view">
@@ -195,7 +169,7 @@ SOFTWARE.
                e a lista em outra. O cadastro abre no diálogo gerido por
                `web/painel-cadastro.ts` e aparece como folha no celular. -->
           <div class="page-heading">
-            <div><h1 id="patients-title" tabindex="-1">Pessoas acompanhadas</h1><p id="scope-description">Cadastros disponíveis para seu acesso.</p></div>
+            <div><h2 id="patients-title" class="sr-only" tabindex="-1">Pessoas acompanhadas</h2><p id="scope-description">Cadastros disponíveis para seu acesso.</p></div>
             <a id="new-patient-link" class="ui-botao" data-peso="principal" href="#cadastro" hidden>Novo paciente</a>
           </div>
           <section id="agenda-individual" class="agenda-individual" aria-label="Minha agenda" hidden></section>
@@ -231,7 +205,7 @@ SOFTWARE.
             <!-- Nascimento, situação e responsável usam validação no envio. O foco
                  de erro vai ao controle visível, e servidor e banco conferem a entrada. -->
             <form id="create-form" class="ui-dialogo__formulario" method="post" autocomplete="off" aria-describedby="create-feedback">
-              <div class="ui-dialogo__corpo">
+              <div class="ui-dialogo__corpo" tabindex="0">
                 <fieldset id="create-fields">
                   <legend class="sr-only">Dados do paciente</legend>
                   <div class="ui-campo"><label class="ui-campo__rotulo" for="patient-name">Nome <span class="ui-campo__marca">obrigatório</span></label><input class="ui-campo__controle" id="patient-name" name="nome" type="text" required maxlength="200" autocomplete="off" aria-describedby="name-error"><span id="name-error" class="ui-campo__erro"></span></div>
@@ -258,7 +232,7 @@ SOFTWARE.
         </div>
         <section id="administracao-view" class="administracao" aria-labelledby="administracao-title" hidden>
           <div class="page-heading">
-            <div><h1 id="administracao-title" tabindex="-1">Administração</h1><p>Ajustes, autorizações e registros institucionais do acompanhamento.</p></div>
+            <div><h2 id="administracao-title" class="sr-only" tabindex="-1">Administração</h2><p>Ajustes, autorizações e registros institucionais do acompanhamento.</p></div>
           </div>
           <nav id="administracao-abas" class="administracao-abas" aria-label="Áreas da administração"></nav>
           <div id="administracao-conteudo" class="administracao-conteudo"></div>
@@ -266,7 +240,7 @@ SOFTWARE.
 
         <section id="regras-view" class="regras-view" aria-labelledby="regras-title" hidden>
           <div class="page-heading">
-            <div><h1 id="regras-title" tabindex="-1">Como funciona o acompanhamento</h1><p>Regras combinadas, periodicidade, canais de retorno e uso do diário.</p></div>
+            <div><h2 id="regras-title" class="sr-only" tabindex="-1">Como funciona o acompanhamento</h2><p>Regras combinadas, periodicidade, canais de retorno e uso do diário.</p></div>
           </div>
           <div id="regras-conteudo" class="regras-conteudo"></div>
         </section>
@@ -282,6 +256,6 @@ SOFTWARE.
       <noscript><p class="noscript-message">Ative JavaScript para entrar e consultar pacientes. Nenhum acesso ou cadastro funciona sem conexão com o serviço.</p></noscript>
     </main>
     <div id="raiz-react"></div>
-    <footer class="footer">FFCMApp <span>Francescato · Family Case Management</span></footer>
+    <footer class="footer">FFCMApp <span>Francescato · Family Case Management</span><span class="chip-ambiente">Ambiente de teste · dados fictícios</span></footer>
   </body>
 </html>

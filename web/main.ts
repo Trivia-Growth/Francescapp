@@ -26,7 +26,6 @@ import { criarServicoTarefasHttp } from './servico-tarefas-http.js';
 import { montarTarefasComDisponibilidade } from './integracao-tarefas-disponibilidade.js';
 import { correspondeBuscaPacienteLocal } from './busca-pacientes-local.js';
 import {
-  criarAvatar,
   hashFicha,
   lerRotaFicha,
   montarFicha,
@@ -57,7 +56,6 @@ import { montarConversaoDiario } from './conversao-diario.js';
 import { criarServicoConversaoDiarioHttp } from './servico-conversao-diario-http.js';
 import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
 import { botao } from './ponte/botao-imperativo.js';
-import { linhaLista } from './ponte/linha-lista-imperativa.js';
 import { criarServicoLinhaTempoHttp } from './servico-linha-tempo-http.js';
 import { criarServicoExportacaoHttp } from './servico-exportacao-http.js';
 import { criarServicoPreautorizacoesHttp } from './servico-preautorizacoes-http.js';
@@ -66,24 +64,20 @@ import {
   criarServicoDocumentosHttp,
 } from './servico-documentos-http.js';
 import { criarServicoPendenciasHttp } from './servico-pendencias-http.js';
-import { montarAvisos } from './avisos.js';
 import { limparAparelho, montarEstadoDeRede, registrarCascaOffline } from './casca-offline.js';
 import { criarServicoAvisosHttp } from './servico-avisos-http.js';
 import { criarServicoAuditoriaHttp } from './servico-auditoria-http.js';
 import { criarServicoRegrasAtendimentoHttp } from './servico-regras-atendimento-http.js';
 import { gravarRota, iniciarCasca, lerRota } from './casca-react.js';
+import type { DestinoCasca } from './navegacao-casca.js';
 import { criarServicoSolicitacaoTitularHttp } from './servico-solicitacao-titular-http.js';
 import { criarServicoSegredosIntegracoesHttp } from './servico-segredos-integracoes-http.js';
-import { montarFiltrosCarteira, montarSinalCarteira } from './filtros-carteira.js';
+import { montarFiltrosCarteira } from './filtros-carteira.js';
 import { entradaTranscricaoAudio } from './transcricao-audio.js';
 import { criarServicoTranscricaoHttp } from './servico-transcricao-http.js';
 import { confirmar } from './confirmacao.js';
 import type { FiltrosCarteira } from '../packages/contracts/src/cadastro.js';
-import {
-  criarCatalogoResponsaveis,
-  rotulosSituacao,
-  type ResponsavelOpcao,
-} from './acompanhamento-caso.js';
+import { criarCatalogoResponsaveis, type ResponsavelOpcao } from './acompanhamento-caso.js';
 
 function elemento<T extends HTMLElement>(id: string): T {
   const encontrado = document.getElementById(id);
@@ -185,16 +179,16 @@ const loginInterno = montarLoginInterno(
     if (document.hidden) {
       focoAposLoginOculto = true;
       patientsView.hidden = true;
-      sessionActions.hidden = true;
+      casca.atualizarNavegacao({ visivel: false });
       revalidacaoStatus.hidden = false;
       return;
     }
     patientsView.hidden = false;
-    sessionActions.hidden = false;
+    casca.atualizarNavegacao({ visivel: true });
     document.title = 'FFCMApp | Pacientes';
-    elemento('patients-title').focus();
     if (await carregarPacientes()) await abrirFichaPelaRota();
     navegarPelaRota();
+    focarDestinoDaCasca();
   },
   {
     podeIniciar: () => !loginOcupado,
@@ -206,8 +200,6 @@ const loginInterno = montarLoginInterno(
     },
   },
 );
-const sessionActions = elemento('session-actions');
-const logoutButton = elemento<HTMLButtonElement>('logout');
 const retryLogout = elemento<HTMLButtonElement>('retry-logout');
 const createForm = elemento<HTMLFormElement>('create-form');
 const createFields = elemento<HTMLFieldSetElement>('create-fields');
@@ -274,199 +266,15 @@ const newPatientLink = elemento<HTMLAnchorElement>('new-patient-link');
 const listaView = elemento('lista-view');
 const homeView = elemento('home-view');
 const fichaView = elemento('ficha-view');
-const crumbPaciente = elemento('crumb-paciente');
 const buscaCampo = elemento<HTMLInputElement>('busca-pacientes');
 const buscaVazia = elemento('busca-vazia');
 
 // A navegação mantém os mesmos links e seu estado de autorização nas duas larguras.
-const toggleSidebar = elemento<HTMLButtonElement>('toggle-sidebar');
-const patientsSidebar = elemento('patients-sidebar');
-const sidebarBackdrop = elemento('sidebar-backdrop');
-const collapseSidebar = elemento<HTMLButtonElement>('collapse-sidebar');
-const closeSidebar = elemento<HTMLButtonElement>('close-sidebar');
-// FR-072: sino de avisos na barra superior, ao lado do botão da gaveta. Fica FORA da
-// gaveta de propósito: a gaveta é navegação com armadilha de foco própria, e um painel
-// transitório dentro dela mudaria essa ordem de foco. Aqui o sino continua ao alcance do
-// polegar no celular, e o painel abre abaixo dele.
-const avisosRaiz = document.createElement('div');
-avisosRaiz.id = 'avisos';
-avisosRaiz.hidden = true;
-toggleSidebar.insertAdjacentElement('afterend', avisosRaiz);
-let avisos: ReturnType<typeof montarAvisos> | null = null;
+let revisaoAvisos = 0;
 
-/** Liga o sino à sessão vigente. A família não recebe avisos de equipe, e sem sessão o
- * sino some — nunca mostra contagem de uma sessão anterior. */
-function ajustarAvisos(atual: Sessao | null): void {
-  const disponivel = atual !== null && atual.usuario.perfil !== 'familia';
-  avisosRaiz.hidden = !disponivel;
-  if (!disponivel) {
-    // Desmontar ANTES de esvaziar: a raiz React precisa retirar os próprios nós enquanto
-    // eles ainda estão lá. Invertida, a ordem deixa a raiz órfã e o React lança ao tentar
-    // remover o que já saiu.
-    avisos?.desmontar();
-    avisos = null;
-    avisosRaiz.replaceChildren();
-    return;
-  }
-  avisos ??= montarAvisos(avisosRaiz, criarServicoAvisosHttp(identidadeAtual));
-  void avisos.atualizar();
+function fecharGavetaLateral(): void {
+  casca.fecharGaveta();
 }
-
-const mobileSidebar = () => window.innerWidth <= 760;
-let elementosInertes: { elemento: HTMLElement; anterior: boolean }[] = [];
-
-for (const id of ['nav-home', 'nav-carteira', 'nav-administracao', 'nav-regras']) {
-  const link = elemento<HTMLAnchorElement>(id);
-  const nome = link.textContent?.trim() ?? '';
-  link.setAttribute('aria-label', nome);
-  const tooltip = document.createElement('span');
-  tooltip.className = 'sidebar-tooltip';
-  tooltip.textContent = nome;
-  tooltip.hidden = true;
-  tooltip.setAttribute('aria-hidden', 'true');
-  link.append(tooltip);
-  const mostrarTooltip = () => {
-    tooltip.hidden = !document.body.classList.contains('sidebar-collapsed') || mobileSidebar();
-  };
-  const ocultarTooltip = () => {
-    tooltip.hidden = true;
-  };
-  link.addEventListener('pointerenter', mostrarTooltip);
-  link.addEventListener('pointerleave', ocultarTooltip);
-  link.addEventListener('focus', mostrarTooltip);
-  link.addEventListener('blur', ocultarTooltip);
-}
-function ocultarTooltips(): void {
-  for (const tooltip of patientsSidebar.querySelectorAll<HTMLElement>('.sidebar-tooltip'))
-    tooltip.hidden = true;
-}
-function fecharGavetaLateral(devolverFoco = false): void {
-  const estavaAberta = patientsSidebar.classList.contains('open');
-  if (estavaAberta && mobileSidebar() && patientsSidebar.contains(document.activeElement))
-    (document.activeElement as HTMLElement).blur();
-  patientsSidebar.classList.remove('open');
-  sidebarBackdrop.hidden = true;
-  toggleSidebar.setAttribute('aria-expanded', 'false');
-  patientsSidebar.inert = mobileSidebar();
-  patientsSidebar.removeAttribute('role');
-  patientsSidebar.removeAttribute('aria-modal');
-  for (const item of elementosInertes) item.elemento.inert = item.anterior;
-  elementosInertes = [];
-  document.body.classList.remove('sidebar-open');
-  ocultarTooltips();
-  if (devolverFoco && estavaAberta && !toggleSidebar.hidden && !document.hidden)
-    toggleSidebar.focus();
-}
-function abrirGavetaLateral(): void {
-  if (!mobileSidebar() || patientsView.hidden || document.hidden) return;
-  patientsSidebar.inert = false;
-  patientsSidebar.classList.add('open');
-  patientsSidebar.setAttribute('role', 'dialog');
-  patientsSidebar.setAttribute('aria-modal', 'true');
-  sidebarBackdrop.hidden = false;
-  toggleSidebar.setAttribute('aria-expanded', 'true');
-  document.body.classList.add('sidebar-open');
-  const alvos = [
-    ...Array.from(document.body.children).filter((item) => item !== patientsView.parentElement),
-    ...Array.from(patientsView.parentElement?.children ?? []).filter(
-      (item) => item !== patientsView,
-    ),
-    ...Array.from(patientsView.children).filter(
-      (item) => item !== patientsSidebar && item !== sidebarBackdrop,
-    ),
-  ];
-  elementosInertes = alvos
-    .filter((item): item is HTMLElement => item instanceof HTMLElement)
-    .map((item) => ({ elemento: item, anterior: item.inert }));
-  for (const item of elementosInertes) item.elemento.inert = true;
-  closeSidebar.focus();
-}
-toggleSidebar.addEventListener('click', () => {
-  if (patientsSidebar.classList.contains('open')) fecharGavetaLateral(true);
-  else abrirGavetaLateral();
-});
-/** Preferência de largura da navegação, e nada além disso: nenhum dado de pessoa, caso
- *  ou sessão entra aqui. Sem a lembrança, recolher durava até a próxima carga e parecia
- *  não ter funcionado. Navegador que recusa armazenamento continua com a barra inteira. */
-const CHAVE_NAVEGACAO_RECOLHIDA = 'navegacao-recolhida';
-
-function aplicarNavegacaoRecolhida(recolhida: boolean): void {
-  document.body.classList.toggle('sidebar-collapsed', recolhida);
-  collapseSidebar.setAttribute('aria-expanded', String(!recolhida));
-  collapseSidebar.setAttribute(
-    'aria-label',
-    recolhida ? 'Expandir navegação' : 'Recolher navegação',
-  );
-  const rotulo = collapseSidebar.querySelector('.sidebar-collapse-rotulo');
-  if (rotulo) rotulo.textContent = recolhida ? 'Expandir' : 'Recolher';
-}
-
-try {
-  if (localStorage.getItem(CHAVE_NAVEGACAO_RECOLHIDA) === 'sim') aplicarNavegacaoRecolhida(true);
-} catch {
-  // Armazenamento bloqueado não impede navegar: fica a largura inteira.
-}
-
-collapseSidebar.addEventListener('click', () => {
-  const recolhida = !document.body.classList.contains('sidebar-collapsed');
-  aplicarNavegacaoRecolhida(recolhida);
-  try {
-    if (recolhida) localStorage.setItem(CHAVE_NAVEGACAO_RECOLHIDA, 'sim');
-    else localStorage.removeItem(CHAVE_NAVEGACAO_RECOLHIDA);
-  } catch {
-    // A preferência vale para esta carga mesmo sem poder ser lembrada.
-  }
-  ocultarTooltips();
-});
-closeSidebar.addEventListener('click', () => fecharGavetaLateral(true));
-sidebarBackdrop.addEventListener('click', () => fecharGavetaLateral(true));
-document.addEventListener('keydown', (evento) => {
-  if (evento.key === 'Escape') {
-    ocultarTooltips();
-    if (patientsSidebar.classList.contains('open')) fecharGavetaLateral(true);
-  }
-  if (evento.key !== 'Tab' || !patientsSidebar.classList.contains('open')) return;
-  const focaveis = Array.from(
-    patientsSidebar.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'),
-  ).filter((item) => !item.hidden && !item.closest('[hidden]') && item !== collapseSidebar);
-  if (!focaveis.length) return;
-  const primeiro = focaveis[0];
-  const ultimo = focaveis[focaveis.length - 1];
-  if (!primeiro || !ultimo) return;
-  if (
-    evento.shiftKey &&
-    (document.activeElement === primeiro || !patientsSidebar.contains(document.activeElement))
-  ) {
-    evento.preventDefault();
-    ultimo.focus();
-  } else if (
-    !evento.shiftKey &&
-    (document.activeElement === ultimo || !patientsSidebar.contains(document.activeElement))
-  ) {
-    evento.preventDefault();
-    primeiro.focus();
-  }
-});
-let eraMobile = mobileSidebar();
-window.addEventListener('resize', () => {
-  const agoraMobile = mobileSidebar();
-  const focoNaGaveta = patientsSidebar.contains(document.activeElement);
-  const gavetaAberta = patientsSidebar.classList.contains('open');
-  const focoNoFechar = document.activeElement === closeSidebar;
-  fecharGavetaLateral();
-  if (!mobileSidebar() && focoNoFechar && !patientsView.hidden && !document.hidden)
-    collapseSidebar.focus();
-  else if (
-    agoraMobile &&
-    focoNaGaveta &&
-    (!eraMobile || gavetaAberta) &&
-    !patientsView.hidden &&
-    !document.hidden
-  )
-    toggleSidebar.focus();
-  eraMobile = agoraMobile;
-});
-patientsSidebar.inert = mobileSidebar();
 
 const descarteCadastro =
   'Há alterações de cadastro não confirmadas. Ao sair, elas serão descartadas e um salvamento incerto não poderá ser confirmado nesta tela. Deseja continuar?';
@@ -577,8 +385,7 @@ function fecharFicha(): void {
   planoAberto = null;
   fichaView.hidden = true;
   listaView.hidden = false;
-  crumbPaciente.hidden = true;
-  crumbPaciente.textContent = '';
+  casca.atualizarNavegacao({ pessoa: '' });
 }
 
 function voltarParaLista(): void {
@@ -589,7 +396,8 @@ function voltarParaLista(): void {
   trocarRota('#carteira');
   aviso('workspace-feedback', '');
   const linha = id ? listaPacientes.querySelector<HTMLElement>(`[data-paciente-id="${id}"]`) : null;
-  (linha ?? elemento('patients-title')).focus();
+  if (linha) linha.focus();
+  else focarTituloCasca();
 }
 
 function montarConversaoDaFicha(
@@ -1371,8 +1179,7 @@ function abrirFicha(paciente: PacienteFicha, secao: string | undefined, empilhar
   aviso('workspace-feedback', '');
   listaView.hidden = true;
   fichaView.hidden = false;
-  crumbPaciente.textContent = paciente.nome;
-  crumbPaciente.hidden = false;
+  casca.atualizarNavegacao({ pessoa: paciente.nome, busca: null });
   let primeira = empilhar;
   const secoesAtual = secoesDaFicha(paciente, atual);
   ficha = montarFicha({
@@ -1380,6 +1187,7 @@ function abrirFicha(paciente: PacienteFicha, secao: string | undefined, empilhar
     paciente,
     secoes: secoesAtual,
     primarias: destinosPrimarios(secoesAtual),
+    nivelTitulo: 2,
     ...(secao ? { secaoInicial: secao } : {}),
     confirmar: confirmarSaidaDaSecao,
     aoSelecionar: (escolhida) => {
@@ -1549,7 +1357,7 @@ function fecharAgenda(): void {
 function apagarPacientes(): void {
   fecharAgenda();
   fecharFicha();
-  listaPacientes.replaceChildren();
+  casca.atualizarLista([]);
   listaPacientes.hidden = true;
   pacientesDaPagina = [];
   buscaTexto = '';
@@ -1583,7 +1391,7 @@ function apagarPacientes(): void {
   fecharAdministracao();
   fecharRegras();
   fecharHome();
-  elemento('nav-administracao').hidden = true;
+  casca.atualizarNavegacao({ administracao: false, avisos: null, visivel: false });
   marcarNavegacao('home');
   createFields.disabled = false;
   createButton.disabled = false;
@@ -1632,7 +1440,7 @@ function mostrarAcesso(mensagem = '', tom: 'error' | 'success' | 'neutral' = 'ne
   patientsView.hidden = true;
   logoutView.hidden = true;
   revalidacaoStatus.hidden = true;
-  sessionActions.hidden = true;
+  casca.atualizarNavegacao({ visivel: false });
   loginView.hidden = false;
   document.title = 'FFCMApp | Acesso';
   aviso('login-feedback', mensagem, tom);
@@ -1856,7 +1664,7 @@ const audienciaFinanceira = criarAudienciaFinanceira(
   () => {
     const atual = sessao;
     if (!atual) return;
-    elemento('nav-administracao').hidden = areasDisponiveis(atual).length === 0;
+    casca.atualizarNavegacao({ administracao: areasDisponiveis(atual).length > 0 });
   },
 );
 
@@ -2081,17 +1889,16 @@ function fecharHome(): void {
   homeView.hidden = true;
 }
 
-function marcarNavegacao(destino: 'home' | 'carteira' | 'administracao' | 'regras'): void {
-  for (const [id, chave] of [
-    ['nav-home', 'home'],
-    ['nav-carteira', 'carteira'],
-    ['nav-administracao', 'administracao'],
-    ['nav-regras', 'regras'],
-  ] as const) {
-    const link = elemento(id);
-    if (chave === destino) link.setAttribute('aria-current', 'page');
-    else link.removeAttribute('aria-current');
-  }
+let destinoCasca: DestinoCasca = 'home';
+
+function marcarNavegacao(destino: DestinoCasca, area = ''): void {
+  destinoCasca = destino;
+  casca.atualizarNavegacao({
+    destino,
+    area,
+    busca:
+      destino === 'carteira' && !fichaPaciente && pacientesDaPagina.length > 0 ? buscaTexto : null,
+  });
 }
 
 function mostrarCarteira(): void {
@@ -2136,7 +1943,7 @@ function mostrarAdministracao(areaId: string): void {
     trocarRota('#carteira');
     fecharFicha();
     mostrarCarteira();
-    elemento('patients-title').focus();
+    focarDestinoDaCasca();
     return;
   }
   fecharFicha();
@@ -2145,7 +1952,7 @@ function mostrarAdministracao(areaId: string): void {
   listaView.hidden = true;
   const vista = elemento('administracao-view');
   vista.hidden = false;
-  marcarNavegacao('administracao');
+  marcarNavegacao('administracao', area.rotulo);
   // A faixa de abas só é reconstruída quando o conjunto autorizado muda. Reconstruí-la a
   // cada troca descartava os elementos sob o cursor e o foco, e a faixa inteira piscava
   // junto com o painel: trocar de aba parecia recarregar a página.
@@ -2197,7 +2004,6 @@ function mostrarAdministracao(areaId: string): void {
       }
       emCarregamento.desmontar = desmontar;
       if (conteudo.hasChildNodes()) conteudo.removeAttribute('aria-busy');
-      elemento('administracao-title').focus({ preventScroll: true });
     },
     (erro: unknown) => {
       if (painelAdministracao !== emCarregamento || acessoPerdido(erro)) return;
@@ -2222,7 +2028,7 @@ function mostrarRegras(): void {
     destino: elemento('regras-conteudo'),
     servico: criarServicoRegrasAtendimentoHttp(identidadeAtual),
   });
-  elemento('regras-title').focus();
+  document.getElementById('titulo-casca')?.focus();
 }
 
 /** `#home` é a rota inicial, então o endereço sem fragmento é dela: entrar na aplicação
@@ -2233,10 +2039,14 @@ function irPara(hash: string): void {
   focarDestinoDaCasca();
 }
 
+function focarTituloCasca(): void {
+  document.getElementById('titulo-casca')?.focus();
+}
+
 function focarDestinoDaCasca(): void {
-  if (!homeView.hidden) document.getElementById('home-saudacao')?.focus();
-  else if (!listaView.hidden && fichaView.hidden && !listaView.contains(document.activeElement))
-    elemento('patients-title').focus();
+  if (!fichaView.hidden || (!listaView.hidden && listaView.contains(document.activeElement)))
+    return;
+  focarTituloCasca();
 }
 
 function navegarPelaRota(): void {
@@ -2371,14 +2181,26 @@ function aplicarSessao(atual: Sessao): boolean {
   // A home é da equipe. A família entra pela própria lista, que já é o recorte dela, e o
   // sinal operacional não é vocabulário que a família tenha combinado.
   const temHome = atual.usuario.perfil !== 'familia';
-  elemento('nav-home').hidden = !temHome;
+
   if (!temHome && vistaReact === 'home') {
     fecharHome();
     mostrarCarteira();
   }
-  ajustarAvisos(atual);
   const temAdministracao = areasDisponiveis(atual).length > 0;
-  elemento('nav-administracao').hidden = !temAdministracao;
+  casca.atualizarNavegacao({
+    home: temHome,
+    administracao: temAdministracao,
+    perfil: atual.usuario.funcao
+      ? funcoesConta[atual.usuario.funcao]
+      : perfis[atual.usuario.perfil],
+    avisos: temHome
+      ? {
+          identidade: [atual.usuario.id, atual.session_id, atual.usuario.perfil].join('|'),
+          revisao: ++revisaoAvisos,
+          servico: criarServicoAvisosHttp(identidadeAtual),
+        }
+      : null,
+  });
   if (!temAdministracao && painelAdministracao) {
     fecharAdministracao();
     mostrarCarteira();
@@ -2386,9 +2208,6 @@ function aplicarSessao(atual: Sessao): boolean {
   registration.hidden = !podeCadastrar;
   newPatientLink.hidden = !podeCadastrar;
   elemento('workspace').classList.toggle('with-registration', podeCadastrar);
-  elemento('session-role').textContent = atual.usuario.funcao
-    ? funcoesConta[atual.usuario.funcao]
-    : perfis[atual.usuario.perfil];
   elemento('scope-description').textContent = atual.capacidades.includes(
     'consultar_carteira_integral',
   )
@@ -2422,17 +2241,17 @@ async function entrar(evento: SubmitEvent): Promise<void> {
     if (document.hidden) {
       focoAposLoginOculto = true;
       patientsView.hidden = true;
-      sessionActions.hidden = true;
+      casca.atualizarNavegacao({ visivel: false });
       revalidacaoStatus.hidden = false;
       return;
     }
     patientsView.hidden = false;
-    sessionActions.hidden = false;
+    casca.atualizarNavegacao({ visivel: true });
     document.title = 'FFCMApp | Pacientes';
     aviso('login-feedback', '');
-    elemento('patients-title').focus();
     if (await carregarPacientes()) await abrirFichaPelaRota();
     navegarPelaRota();
+    focarDestinoDaCasca();
   } catch (erro) {
     if (versao !== revisao) return;
     api.limpar();
@@ -2475,17 +2294,17 @@ async function entrarFamiliar(evento: SubmitEvent): Promise<void> {
     if (document.hidden) {
       focoAposLoginOculto = true;
       patientsView.hidden = true;
-      sessionActions.hidden = true;
+      casca.atualizarNavegacao({ visivel: false });
       revalidacaoStatus.hidden = false;
       return;
     }
     patientsView.hidden = false;
-    sessionActions.hidden = false;
+    casca.atualizarNavegacao({ visivel: true });
     document.title = 'FFCMApp | Pacientes';
     aviso('familiar-feedback', '');
-    elemento('patients-title').focus();
     if (await carregarPacientes()) await abrirFichaPelaRota();
     navegarPelaRota();
+    focarDestinoDaCasca();
   } catch (erro) {
     if (versao !== revisao) return;
     api.limpar();
@@ -2504,51 +2323,18 @@ async function entrarFamiliar(evento: SubmitEvent): Promise<void> {
   }
 }
 
-function linhaPaciente(paciente: PacienteLista): HTMLLIElement {
-  // Só o Administrador recebe a situação; sem o campo, a linha não indica nada.
-  const rotuloSituacao =
-    paciente.situacao === undefined
-      ? null
-      : paciente.situacao === null
-        ? 'Situação a completar'
-        : `Situação: ${rotulosSituacao[paciente.situacao]}`;
-  const aoFim: Node[] = [];
-  if (rotuloSituacao) {
-    const situacao = document.createElement('span');
-    situacao.className = 'pessoa-situacao';
-    situacao.dataset.situacao = paciente.situacao ?? 'completar';
-    situacao.textContent = rotuloSituacao;
-    aoFim.push(situacao);
-  }
-  // FR-028: sinal operacional com motivo visível, nunca uma classificação clínica.
-  if (paciente.sinal) aoFim.push(montarSinalCarteira(paciente.sinal));
-  const item = linhaLista({
-    principal: paciente.nome,
-    secundario: paciente.nome_preferencia
-      ? `Preferência: ${paciente.nome_preferencia}`
-      : 'Preferência não informada',
-    fim: aoFim,
-    antes: criarAvatar(paciente.nome),
-    rotuloLeitura: rotuloSituacao
-      ? `Abrir ficha de ${paciente.nome}. ${rotuloSituacao}.`
-      : `Abrir ficha de ${paciente.nome}`,
-    aoAbrir: () => {
-      if (!sessao) return;
-      abrirFicha(
-        {
-          id: paciente.id,
-          nome: paciente.nome,
-          nome_preferencia: paciente.nome_preferencia,
-          ...(paciente.situacao === undefined ? {} : { situacao: paciente.situacao }),
-        },
-        undefined,
-        true,
-      );
+function abrirPacienteDaCarteira(paciente: PacienteLista): void {
+  if (!sessao) return;
+  abrirFicha(
+    {
+      id: paciente.id,
+      nome: paciente.nome,
+      nome_preferencia: paciente.nome_preferencia,
+      ...(paciente.situacao === undefined ? {} : { situacao: paciente.situacao }),
     },
-  });
-  const abrir = item.firstElementChild;
-  if (abrir instanceof HTMLButtonElement) abrir.dataset.pacienteId = paciente.id;
-  return item;
+    undefined,
+    true,
+  );
 }
 
 function pacientesFiltrados(): PacienteLista[] {
@@ -2566,10 +2352,12 @@ function pacientesFiltrados(): PacienteLista[] {
 
 function renderizarLista(): void {
   const itens = pacientesFiltrados();
-  listaPacientes.replaceChildren(...itens.map(linhaPaciente));
+  casca.atualizarLista(itens);
   listaPacientes.hidden = itens.length === 0;
   elemento('busca').hidden = pacientesDaPagina.length === 0;
   buscaVazia.hidden = !(pacientesDaPagina.length > 0 && itens.length === 0);
+  if (destinoCasca === 'carteira' && !fichaPaciente)
+    casca.atualizarNavegacao({ busca: pacientesDaPagina.length > 0 ? buscaTexto : null });
 }
 
 async function abrirFichaPelaRota(): Promise<void> {
@@ -2889,7 +2677,7 @@ async function sair(): Promise<void> {
   apagarPacientes();
   patientsView.hidden = true;
   loginView.hidden = true;
-  sessionActions.hidden = true;
+  casca.atualizarNavegacao({ visivel: false });
   logoutView.hidden = false;
   logoutView.classList.add('logout-loading');
   revalidacaoStatus.hidden = true;
@@ -2988,14 +2776,15 @@ async function revalidarAcesso(): Promise<void> {
     if (versao === revisao && sessao && !document.hidden && !revalidacaoPendente) {
       revalidacaoStatus.hidden = true;
       patientsView.hidden = false;
-      sessionActions.hidden = false;
+      casca.atualizarNavegacao({ visivel: true });
       // A área recusada já foi limpa. Reexiba a ficha e o aviso sem reabrir o plano.
       if (!planoNegado || ficha !== fichaRevalidada || ficha?.secaoAtual() !== 'plano')
         ficha?.remontarSecao();
       if (focoAposLoginOculto) {
         focoAposLoginOculto = false;
         document.title = 'FFCMApp | Pacientes';
-        elemento(ficha ? 'ficha-title' : 'patients-title').focus();
+        if (ficha) ficha.focarTitulo();
+        else focarTituloCasca();
       }
     }
   } catch (erro) {
@@ -3032,7 +2821,6 @@ togglePassword.addEventListener('click', () => {
   togglePassword.textContent = mostrar ? 'Ocultar senha' : 'Mostrar senha';
 });
 createForm.addEventListener('submit', cadastrar);
-logoutButton.addEventListener('click', sair);
 retryLogout.addEventListener('click', sair);
 reloadButton.addEventListener('click', () => {
   if (reloadButton.getAttribute('aria-disabled') === 'true') return;
@@ -3050,8 +2838,9 @@ previousButton.addEventListener('click', () => {
   pagina -= 1;
   void carregarPacientes();
 });
-buscaCampo.addEventListener('input', () => {
-  buscaTexto = buscaCampo.value;
+function buscarNaCarteira(texto: string): void {
+  buscaTexto = texto;
+  buscaCampo.value = texto;
   renderizarLista();
   if (buscaTexto.trim())
     aviso(
@@ -3063,7 +2852,8 @@ buscaCampo.addEventListener('input', () => {
       'list-status',
       `${pacientesDaPagina.length} ${pacientesDaPagina.length === 1 ? 'paciente nesta página' : 'pacientes nesta página'}.`,
     );
-});
+}
+buscaCampo.addEventListener('input', () => buscarNaCarteira(buscaCampo.value));
 function aoHistorico(): void {
   if (!sessao) return;
   const rota = lerRota();
@@ -3092,27 +2882,19 @@ function aoHistorico(): void {
   navegarPelaRota();
   focarDestinoDaCasca();
 }
-for (const [id, destino] of [
-  ['nav-home', '#home'],
-  ['nav-carteira', '#carteira'],
-  ['nav-administracao', '#administracao/configuracao'],
-  ['nav-regras', '#regras'],
-] as const)
-  elemento(id).addEventListener('click', (evento) => {
-    evento.preventDefault();
-    const pendencia = pendenciaFicha();
-    // Sem rascunho não há o que perguntar: o destino abre no mesmo quadro, como sempre.
-    if (!pendencia) {
-      fecharGavetaLateral();
-      irPara(destino);
-      return;
-    }
-    void (async () => {
-      if (!(await confirmarSaidaDaSecao(pendencia.mensagem))) return;
-      fecharGavetaLateral();
-      irPara(destino);
-    })();
-  });
+function seguirDestino(destino: string): void {
+  const pendencia = pendenciaFicha();
+  if (!pendencia) {
+    fecharGavetaLateral();
+    irPara(destino);
+    return;
+  }
+  void (async () => {
+    if (!(await confirmarSaidaDaSecao(pendencia.mensagem))) return;
+    fecharGavetaLateral();
+    irPara(destino);
+  })();
+}
 elemento('administracao-abas').addEventListener('click', (evento) => {
   const alvo = (evento.target as HTMLElement | null)?.closest('a.administracao-aba');
   if (!(alvo instanceof HTMLAnchorElement)) return;
@@ -3163,7 +2945,7 @@ document.addEventListener('visibilitychange', () => {
   if (sessao) {
     if (fichaView.contains(document.activeElement)) focoAposLoginOculto = true;
     patientsView.hidden = true;
-    sessionActions.hidden = true;
+    casca.atualizarNavegacao({ visivel: false });
     revalidacaoStatus.hidden = false;
   }
   // Leituras familiares precisam consultar novamente a audiência de cada conteúdo.
@@ -3222,10 +3004,11 @@ async function restaurarSessao(): Promise<void> {
     }
     revalidacaoStatus.hidden = true;
     patientsView.hidden = false;
-    sessionActions.hidden = false;
+    casca.atualizarNavegacao({ visivel: true });
     document.title = 'FFCMApp | Pacientes';
     if (await carregarPacientes()) await abrirFichaPelaRota();
     navegarPelaRota();
+    focarDestinoDaCasca();
   } catch (erro) {
     if (versao !== revisao) return;
     mostrarAcesso(
@@ -3256,5 +3039,16 @@ window.addEventListener('pageshow', (evento) => {
 montarEstadoDeRede(elemento('estado-rede'));
 void registrarCascaOffline();
 
-const casca = iniciarCasca(elemento('raiz-react'), aoHistorico);
+const casca = iniciarCasca(
+  elemento('raiz-react'),
+  aoHistorico,
+  {
+    barra: elemento('casca-barra'),
+    lateral: elemento('casca-lateral'),
+    aoNavegar: seguirDestino,
+    aoSair: () => void sair(),
+    aoBuscar: buscarNaCarteira,
+  },
+  { raiz: listaPacientes, abrir: abrirPacienteDaCarteira },
+);
 void restaurarSessao();

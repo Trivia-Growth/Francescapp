@@ -2,6 +2,35 @@
 
 **Atualizado em:** 27/11/2026 · **Branch:** `codex/remover-web-ui` · **Por:** Codex
 
+## Fatia 8b do plano visual — lateral, gaveta, barra e linhas da Carteira
+
+Sobre `b5db640`, a raiz da casca desenha a navegação responsiva, barra, Avisos,
+Seu dia, Como funciona e linhas da Carteira. A revalidação continua ocultando o
+conteúdo protegido. Os painéis e seções com montagem imperativa ainda precisam
+ser migrados para cumprir a tarefa 7.2.
+
+- Chromium, build de produção: 240 px de lateral em 1440 px, gaveta de 358 px em
+  390 px, barra sticky de no mínimo 72/64 px e um título principal nas seis capturas.
+  As folhas carregadas foram `index-X-zgnAef.css` na base e `index-B-X97JSR.css`
+  na fatia. O JavaScript inicial passou de 242.878 a 245.239 bytes gzip em seis arquivos.
+- Axe integral sem violações nas seis vistas e na gaveta. Na base, os cinco botões
+  da Carteira tinham nome incompatível com o texto visível, e o corpo do diálogo
+  de cadastro era rolável sem foco. Reintroduzir o rótulo anterior nos botões
+  reproduziu a violação a 390 e 1440 px. Alteração temporária revertida.
+- Ativação inicial de `50e4880`: 929 testes web e 52 cenários Chromium aprovados
+  (um cenário preexistente pulado), build e Trusted Types aprovados. A prova SQL
+  de concessão e recusa passou em PostgreSQL 17 descartável sem rede.
+- Revisão do PR #53: título visível e foco preservado ao cruzar 1024 px, rótulo
+  do trilho reaparece com hover e foco, e a seta da Carteira usa um único desenho.
+  Os cinco cenários da casca passaram; sem a transferência de foco, o Chromium
+  falhou em `toBeFocused` para Menu. A prova do catálogo confirmou um GET inicial,
+  cinco voltas sem GET e descarte após 403. Capturas refeitas com CSS aplicado.
+- A CI do primeiro ajuste encontrou um clique no fundo antes da instalação do
+  ouvinte do Radix. O próprio fundo passou a fechar a gaveta. O cenário que
+  falhou passou cinco vezes seguidas em Chromium.
+- Próximo passo: CI e aprovação das capturas. A tarefa 7.2 segue com os painéis
+  restantes, e o corte preexistente do sinal operacional fica no PR #51.
+
 ## Fatia 8a do plano visual — roteador por fragmento
 
 Sobre `23d0daa`, a raiz da casca React controla o histórico e desenha Seu dia e

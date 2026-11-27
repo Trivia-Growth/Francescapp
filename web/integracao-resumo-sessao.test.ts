@@ -63,14 +63,8 @@ it('descarta a visão do caso ao trocar profissional durante revalidação', asy
     throw new Error('Rota inesperada');
   });
   await montarCascaParaTeste();
-  await vi.waitFor(() =>
-    expect(
-      document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
-    ).not.toBeNull(),
-  );
-  document
-    .querySelector<HTMLButtonElement>('[aria-label="Abrir ficha de Paciente fictício"]')
-    ?.click();
+  await vi.waitFor(() => expect(document.querySelector('button[data-paciente-id]')).not.toBeNull());
+  document.querySelector<HTMLButtonElement>('button[data-paciente-id]')?.click();
   await vi.waitFor(() =>
     expect(document.getElementById('ficha-painel')?.textContent).toContain(
       'Dado da sessão anterior',

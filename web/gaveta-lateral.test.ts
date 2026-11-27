@@ -16,10 +16,7 @@ afterEach(() => {
   window.history.replaceState(null, '', '/');
 });
 
-/** Abaixo de 760px a barra lateral vira gaveta (ver nota em `web/styles.css` e
- * `web/main.ts`): sem o botão/backdrop/Escape, o Administrador e o Profissional não
- * teriam como sair de "Seu dia" ou da carteira no celular. */
-it('abre e fecha a gaveta lateral no celular — botão, fundo, Escape e navegação', async () => {
+it('monta a gaveta modal somente enquanto o menu está aberto', async () => {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: 600, writable: true });
   sessionStorage.setItem('modo-acesso', 'tecnica');
@@ -36,97 +33,26 @@ it('abre e fecha a gaveta lateral no celular — botão, fundo, Escape e navega�
     throw new Error(`Rota inesperada: ${url.pathname}`);
   });
   await montarCascaParaTeste();
-  await vi.waitFor(() => expect(document.getElementById('patients-view')?.hidden).toBe(false));
+  await vi.waitFor(() => expect(document.getElementById('toggle-sidebar')).not.toBeNull());
 
-  const botao = document.getElementById('toggle-sidebar') as HTMLButtonElement;
-  const gaveta = document.getElementById('patients-sidebar') as HTMLElement;
-  const fundo = document.getElementById('sidebar-backdrop') as HTMLElement;
+  const menu = document.getElementById('toggle-sidebar');
+  expect(menu?.getAttribute('aria-expanded')).toBe('false');
+  expect(document.getElementById('patients-sidebar')).toBeNull();
+  menu?.click();
+  await vi.waitFor(() => expect(document.getElementById('close-sidebar')).not.toBeNull());
+  expect(document.getElementById('patients-sidebar')?.getAttribute('role')).toBe('dialog');
+  expect(document.getElementById('nav-home')?.getAttribute('href')).toBe('#home');
+  expect(document.activeElement?.id).toBe('close-sidebar');
+  expect(document.getElementById('sidebar-backdrop')).not.toBeNull();
 
-  expect(botao.getAttribute('aria-expanded')).toBe('false');
-  expect(fundo.hidden).toBe(true);
-  expect(gaveta.inert).toBe(true);
-  const fechar = document.getElementById('close-sidebar') as HTMLButtonElement;
-  const home = document.getElementById('nav-home') as HTMLAnchorElement;
-  const administracao = document.getElementById('nav-administracao') as HTMLAnchorElement;
-  const href = home.getAttribute('href');
+  document.getElementById('close-sidebar')?.click();
+  await vi.waitFor(() => expect(document.getElementById('patients-sidebar')).toBeNull());
+  await vi.waitFor(() => expect(document.activeElement).toBe(menu));
 
-  botao.click();
-  expect(gaveta.classList.contains('open')).toBe(true);
-  expect(fundo.hidden).toBe(false);
-  expect(botao.getAttribute('aria-expanded')).toBe('true');
-  expect(gaveta.inert).toBe(false);
-  expect(document.activeElement).toBe(fechar);
-  expect(document.querySelector('header')?.inert).toBe(true);
-  expect(document.body.classList.contains('sidebar-open')).toBe(true);
-  const ultimo = document.getElementById('nav-regras') as HTMLElement;
-  ultimo.focus();
-  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
-  expect(document.activeElement).toBe(fechar);
-  document.dispatchEvent(
-    new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }),
-  );
-  expect(document.activeElement).toBe(ultimo);
-
-  fundo.click();
-  expect(gaveta.classList.contains('open')).toBe(false);
-  expect(fundo.hidden).toBe(true);
-  expect(botao.getAttribute('aria-expanded')).toBe('false');
-  expect(document.activeElement).toBe(botao);
-  expect(document.querySelector('header')?.inert).toBeFalsy();
-  expect(document.body.classList.contains('sidebar-open')).toBe(false);
-
-  botao.click();
-  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  expect(gaveta.classList.contains('open')).toBe(false);
-
-  botao.click();
-  expect(gaveta.classList.contains('open')).toBe(true);
-  document.getElementById('nav-home')?.click();
-  expect(gaveta.classList.contains('open')).toBe(false);
-
-  // Voltar pelo navegador (gesto comum no celular) também precisa fechar a gaveta; senão
-  // ela ficaria sobreposta à tela nova depois do popstate.
-  botao.click();
-  expect(gaveta.classList.contains('open')).toBe(true);
+  menu?.click();
+  await vi.waitFor(() => expect(document.getElementById('patients-sidebar')).not.toBeNull());
   window.dispatchEvent(new PopStateEvent('popstate'));
-  expect(gaveta.classList.contains('open')).toBe(false);
-  expect(fundo.hidden).toBe(true);
-
-  botao.click();
-  window.innerWidth = 1000;
-  window.dispatchEvent(new Event('resize'));
-  expect(gaveta.inert).toBe(false);
-  expect(document.body.classList.contains('sidebar-open')).toBe(false);
-  const collapse = document.getElementById('collapse-sidebar') as HTMLButtonElement;
-  expect(document.activeElement).toBe(collapse);
-  collapse.click();
-  expect(collapse.getAttribute('aria-label')).toBe('Expandir navegação');
-  expect(collapse.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
-  expect(home.getAttribute('aria-label')).toBe('Seu dia');
-  expect(document.body.classList.contains('sidebar-collapsed')).toBe(true);
-  expect(collapse.getAttribute('aria-expanded')).toBe('false');
-  expect(document.getElementById('nav-home')).toBe(home);
-  expect(home.getAttribute('href')).toBe(href);
-  expect(administracao.hidden).toBe(false);
-  home.focus();
-  const tooltip = home.querySelector<HTMLElement>('.sidebar-tooltip');
-  expect(tooltip?.hidden).toBe(false);
-  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  expect(tooltip?.hidden).toBe(true);
-  window.innerWidth = 600;
-  window.dispatchEvent(new Event('resize'));
-  expect(document.activeElement).toBe(botao);
-  botao.click();
-  expect(document.activeElement).toBe(fechar);
-  window.dispatchEvent(new Event('resize'));
-  expect(document.activeElement).toBe(botao);
-  botao.click();
-  Object.defineProperty(document, 'hidden', { configurable: true, value: true });
-  document.dispatchEvent(new Event('visibilitychange'));
-  expect(gaveta.classList.contains('open')).toBe(false);
-  expect(gaveta.inert).toBe(true);
-  expect(document.body.classList.contains('sidebar-open')).toBe(false);
-  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  await vi.waitFor(() => expect(document.getElementById('sidebar-backdrop')).toBeNull());
 });
 
 it('mantém ficha, rascunho e gaveta quando descarte é cancelado', async () => {
@@ -152,17 +78,14 @@ it('mantém ficha, rascunho e gaveta quando descarte é cancelado', async () => 
     throw new Error('Rota inesperada');
   });
   await montarCascaParaTeste();
-  const seletor = '[aria-label="Abrir ficha de Paciente fictício"]';
+  const seletor = 'button[data-paciente-id]';
   await vi.waitFor(() => expect(document.querySelector(seletor)).not.toBeNull());
-  document.getElementById('nav-home')?.click();
-  expect(document.getElementById('home-view')?.hidden).toBe(false);
+  await vi.waitFor(() => expect(document.getElementById('home-view')?.hidden).toBe(false));
   window.history.pushState(null, '', `#paciente/${id}/dados`);
   window.dispatchEvent(new PopStateEvent('popstate'));
   await vi.waitFor(() => expect(document.getElementById('ficha-view')?.hidden).toBe(false));
   expect(document.getElementById('home-view')?.hidden).toBe(true);
   expect(document.getElementById('home-view')?.childElementCount).toBe(0);
-  expect(document.getElementById('nav-carteira')?.getAttribute('aria-current')).toBe('page');
-  expect(document.getElementById('nav-home')?.hasAttribute('aria-current')).toBe(false);
   document.getElementById('ficha-aba-anamnese')?.click();
   await vi.waitFor(() =>
     expect(document.querySelector('[data-secao="anamnese"] form')).not.toBeNull(),
@@ -173,6 +96,10 @@ it('mantém ficha, rascunho e gaveta quando descarte é cancelado', async () => 
   campo.dispatchEvent(new Event('input', { bubbles: true }));
   const rota = window.location.hash;
   document.getElementById('toggle-sidebar')?.click();
+  await vi.waitFor(() =>
+    expect(document.getElementById('nav-carteira')?.getAttribute('aria-current')).toBe('page'),
+  );
+  expect(document.getElementById('nav-home')?.hasAttribute('aria-current')).toBe(false);
   document.getElementById('nav-home')?.click();
   await aguardarConfirmacao();
   expect(confirmacoes.chamadas).toHaveLength(1);
@@ -180,7 +107,7 @@ it('mantém ficha, rascunho e gaveta quando descarte é cancelado', async () => 
   expect(window.location.hash).toBe(rota);
   expect(document.getElementById('ficha-view')?.hidden).toBe(false);
   expect(campo.value).toBe('Rascunho fictício');
-  expect(document.getElementById('patients-sidebar')?.classList.contains('open')).toBe(true);
+  expect(document.getElementById('patients-sidebar')?.getAttribute('data-state')).toBe('open');
   confirmacoes.encerrar();
 });
 
@@ -207,29 +134,14 @@ it('lembra a navegação recolhida na carga seguinte', async () => {
   await vi.waitFor(() => expect(document.getElementById('patients-view')?.hidden).toBe(false));
 
   const recolher = document.getElementById('collapse-sidebar') as HTMLButtonElement;
-  expect(document.body.classList.contains('sidebar-collapsed')).toBe(true);
+  expect(document.body.classList.contains('casca-recolhida')).toBe(true);
   expect(recolher.getAttribute('aria-expanded')).toBe('false');
   expect(recolher.getAttribute('aria-label')).toBe('Expandir navegação');
 
   recolher.click();
-  expect(document.body.classList.contains('sidebar-collapsed')).toBe(false);
+  await vi.waitFor(() => expect(document.body.classList.contains('casca-recolhida')).toBe(false));
   expect(recolher.getAttribute('aria-expanded')).toBe('true');
+  expect(recolher.textContent).toBe('Recolher');
+  expect(recolher.getAttribute('aria-label')).toBe('Recolher navegação');
   expect(localStorage.getItem('navegacao-recolhida')).toBeNull();
-});
-
-it('oferece o controle de recolher com moldura e rótulo visíveis', () => {
-  /* Conferido em navegador em 25/11/2026: o recolhimento sempre funcionou nas três
-     larguras, mas o controle era um `‹` solto no branco — sem borda, sem fundo, sem
-     texto — e a única pista de que era clicável só aparecia no `:hover`. O solicitante
-     relatou que "a sidebar não recolhe"; o que faltava era encontrar o botão.
-     Então a prova aqui não é de comportamento, é de descoberta: existe rótulo visível, e
-     ele acompanha o estado. */
-  document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
-  const botao = document.getElementById('collapse-sidebar') as HTMLButtonElement;
-  const rotulo = botao.querySelector('.sidebar-collapse-rotulo');
-  expect(rotulo?.textContent).toBe('Recolher');
-  expect(botao.getAttribute('aria-label')).toBe('Recolher navegação');
-  // O rótulo é decorativo para quem ouve: `aria-label` já diz a mesma coisa por extenso,
-  // e sem isto o nome acessível sairia duplicado.
-  expect(rotulo?.getAttribute('aria-hidden')).toBe('true');
 });

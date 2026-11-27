@@ -82,9 +82,11 @@ function BlocoFalha({ erro, repetir }: { erro: unknown; repetir: () => void }) {
 export function TelaHomeProfissional({
   servico,
   acessoPerdido,
+  nivelTitulo = 1,
 }: {
   servico: ServicoHome;
   acessoPerdido: (erro: unknown) => void;
+  nivelTitulo?: 1 | 2;
 }) {
   const [carregando, definirCarregando] = useState(true);
   const [atencao, definirAtencao] = useState<PromiseSettledResult<PaginaCarteira> | null>(null);
@@ -275,12 +277,13 @@ export function TelaHomeProfissional({
     }
   }
 
+  const Titulo = nivelTitulo === 2 ? 'h2' : 'h1';
   return (
     <section className="home" aria-labelledby="home-saudacao">
       <header className="home-cabecalho">
-        <h1 id="home-saudacao" className="home-saudacao" tabIndex={-1}>
+        <Titulo id="home-saudacao" className="home-saudacao" tabIndex={-1}>
           {saudacao}
-        </h1>
+        </Titulo>
         <p className="home-apoio">{apoio}</p>
       </header>
       {/* biome-ignore lint/a11y/useSemanticElements: `role="status"` é o gancho que a região viva já usa; repetir aqui o texto do título faria o leitor de tela dizer duas vezes a mesma coisa. */}

@@ -39,14 +39,8 @@ it('abre plano do paciente pela rota HTTP e trata dispatcher inativo sem simular
     throw new Error('Rota inesperada');
   });
   await montarCascaParaTeste();
-  await vi.waitFor(() =>
-    expect(
-      document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
-    ).not.toBeNull(),
-  );
-  document
-    .querySelector<HTMLButtonElement>('[aria-label="Abrir ficha de Paciente fictício"]')
-    ?.click();
+  await vi.waitFor(() => expect(document.querySelector('button[data-paciente-id]')).not.toBeNull());
+  document.querySelector<HTMLButtonElement>('button[data-paciente-id]')?.click();
   document.getElementById('ficha-aba-plano')?.click();
   await vi.waitFor(() =>
     expect(document.querySelector('[data-secao="plano"] button')?.textContent).toBe(
@@ -58,9 +52,7 @@ it('abre plano do paciente pela rota HTTP e trata dispatcher inativo sem simular
   expect(document.activeElement?.id).toBe('ficha-title');
   document.getElementById('ficha-voltar')?.click();
   expect(document.getElementById('ficha-view')?.textContent).toBe('');
-  expect(document.activeElement).toBe(
-    document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
-  );
+  expect(document.activeElement).toBe(document.querySelector('button[data-paciente-id]'));
 });
 
 it('encerra acesso e limpa plano quando permissão é revogada após retorno à aba', async () => {
@@ -97,14 +89,8 @@ it('encerra acesso e limpa plano quando permissão é revogada após retorno à 
     throw new Error('Rota inesperada');
   });
   await montarCascaParaTeste();
-  await vi.waitFor(() =>
-    expect(
-      document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
-    ).not.toBeNull(),
-  );
-  document
-    .querySelector<HTMLButtonElement>('[aria-label="Abrir ficha de Paciente fictício"]')
-    ?.click();
+  await vi.waitFor(() => expect(document.querySelector('button[data-paciente-id]')).not.toBeNull());
+  document.querySelector<HTMLButtonElement>('button[data-paciente-id]')?.click();
   // As duas ilhas podem consultar o mesmo endpoint. Deixe a Visão iniciar antes de sair.
   await vi.waitFor(() => expect(consultouVisao).toBe(true));
   document.getElementById('ficha-aba-plano')?.click();
@@ -191,14 +177,8 @@ it('recusa de uma área não fecha o caso: a pessoa troca de aba e segue', async
     return envelope({ itens: [], proximo_cursor: null });
   });
   await montarCascaParaTeste();
-  await vi.waitFor(() =>
-    expect(
-      document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
-    ).not.toBeNull(),
-  );
-  document
-    .querySelector<HTMLButtonElement>('[aria-label="Abrir ficha de Paciente fictício"]')
-    ?.click();
+  await vi.waitFor(() => expect(document.querySelector('button[data-paciente-id]')).not.toBeNull());
+  document.querySelector<HTMLButtonElement>('button[data-paciente-id]')?.click();
   document.getElementById('ficha-aba-plano')?.click();
 
   await vi.waitFor(() =>

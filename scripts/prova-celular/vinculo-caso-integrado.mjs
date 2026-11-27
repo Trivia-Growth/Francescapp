@@ -129,7 +129,7 @@ try {
         return resposta.status;
       }, id);
     const abrirFicha = (pagina) =>
-      pagina.getByRole('button', { name: 'Abrir ficha de Caso Fictício A' }).click();
+      pagina.locator('#patients-body').getByRole('button', { name: 'Caso Fictício A' }).click();
     async function conferirNegacao(id) {
       await profissional.goto(
         `${origem.origin}/?prova=${crypto.randomUUID()}#paciente/${id}/visao`,

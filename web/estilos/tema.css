@@ -16,6 +16,7 @@
    utilitárias, desfazendo exatamente o que o bloco acima conserta. Importada aqui, entra
    na camada junto com o resto. */
 @import "./ui.css" layer(legado);
+@import "./casca.css" layer(components);
 @import "tailwindcss/theme.css" layer(legado);
 @import "tailwindcss/utilities.css" layer(utilities);
 

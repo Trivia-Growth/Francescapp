@@ -1,5 +1,5 @@
 import { Bell } from 'lucide-react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { rotulosTipoAviso, type Aviso, type ListaAvisos } from '../packages/contracts/src/aviso.ts';
 import { Botao } from './componentes/ui/botao.js';
@@ -43,14 +43,16 @@ function chaveAviso(item: Pick<Aviso, 'tipo' | 'chave_origem'>): string {
  * o botão antes de `falhar()` apagar a lista inteira (o nó era removido um instante depois
  * de voltar a ficar clicável). Aqui a lista inteira é esvaziada direto, com o mesmo
  * resultado final em tela. */
-function TelaAvisos({
+export function TelaAvisos({
   servico,
   raiz,
   expor,
+  revisao,
 }: {
   servico: ServicoAvisos;
-  raiz: HTMLElement;
-  expor: (api: { atualizar(): Promise<void> }) => void;
+  raiz?: HTMLElement;
+  expor?: (api: { atualizar(): Promise<void> }) => void;
+  revisao?: number;
 }) {
   const [fase, definirFase] = useState<EstadoAvisos>('inicial');
   const [itens, definirItens] = useState<readonly Aviso[]>([]);
@@ -138,6 +140,18 @@ function TelaAvisos({
     if (vaiAbrir) void atualizar();
   }, [painelAberto, atualizar]);
 
+  useEffect(() => {
+    if (revisao === undefined) return;
+    let ativa = true;
+    // O primeiro paint da casca não espera a consulta de avisos.
+    queueMicrotask(() => {
+      if (ativa) void atualizar();
+    });
+    return () => {
+      ativa = false;
+    };
+  }, [revisao, atualizar]);
+
   /* Duas escritas fora de efeito, no próprio corpo do componente: `raiz` é o nó que
    * `main.ts` recebeu de volta e continua manipulando por fora (`avisosRaiz.id`,
    * `avisosRaiz.hidden`), então seu `dataset.estado` é atributo do CONTAINER, não algo que
@@ -146,8 +160,8 @@ function TelaAvisos({
    * `expor` precisa estar pronto ANTES de `ilha()` devolver: `montarAvisos` lê o resultado
    * na mesma linha, como `main.ts:349` faz (`avisos ??= montarAvisos(...); void
    * avisos.atualizar();`). */
-  raiz.dataset.estado = fase;
-  expor({ atualizar });
+  if (raiz) raiz.dataset.estado = fase;
+  expor?.({ atualizar });
 
   return (
     <>

@@ -41,6 +41,7 @@ export type OpcoesFicha = {
   raiz: HTMLElement;
   paciente: PacienteFicha;
   secoes: SecaoFicha[];
+  nivelTitulo?: 1 | 2;
   secaoInicial?: string;
   /** Ids que ficam na primeira faixa; os demais entram em "Mais seções". Sem esta lista, ou
    * se ela cobrir todas as seções recebidas, a ficha mantém a faixa única de sempre. */
@@ -124,7 +125,7 @@ export function montarFicha(opcoes: OpcoesFicha): Ficha {
   const voltar = botao({ rotulo: 'Voltar para a lista', peso: 'discreto' });
   voltar.classList.add('ficha-voltar');
   voltar.id = 'ficha-voltar';
-  const titulo = elemento('h1', undefined, paciente.nome);
+  const titulo = elemento(opcoes.nivelTitulo === 2 ? 'h2' : 'h1', undefined, paciente.nome);
   titulo.id = 'ficha-title';
   titulo.tabIndex = -1;
   const preferencia = elemento(

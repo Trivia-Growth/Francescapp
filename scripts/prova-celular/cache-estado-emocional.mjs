@@ -98,7 +98,7 @@ try {
       await pagina.waitForTimeout(300);
       porVolta.push(gets - antes);
       const foco = await pagina.evaluate(() => document.activeElement?.id ?? '');
-      assert.equal(foco, 'administracao-title', `volta ${volta + 1}: foco`);
+      assert.equal(foco, 'titulo-casca', `volta ${volta + 1}: foco`);
     }
     console.log(`GETs ao catálogo: entrada=1; por volta=${porVolta.join(',')}`);
     assert.deepEqual(porVolta, [0, 0, 0, 0, 0], '5 voltas sem GET');

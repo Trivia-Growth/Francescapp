@@ -142,7 +142,7 @@ try {
     };
 
     await pagina.goto(`${origem}/#carteira`);
-    await pagina.getByRole('button', { name: `Abrir ficha de ${caso.nome}` }).click();
+    await pagina.locator('#patients-body').getByRole('button', { name: caso.nome }).click();
     await pagina.getByText('Mais seções', { exact: true }).click();
     await pagina.getByText('Execução e relatórios', { exact: true }).click();
     await expect(pagina.getByText(/Catálogo consultado/)).toBeVisible();

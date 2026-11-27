@@ -1,0 +1,285 @@
+body:has(#patients-view:not([hidden])) {
+  --largura-casca: 240px;
+  --recuo-casca: var(--spacing-sistema-6);
+  background: var(--color-sistema-fundo);
+}
+body.casca-recolhida:has(#patients-view:not([hidden])) {
+  --largura-casca: var(--largura-trilho);
+}
+body:has(#patients-view:not([hidden])) > :is(main, .footer, #casca-barra) {
+  margin-inline: var(--largura-casca) 0;
+}
+body:has(#patients-view:not([hidden])) > .topbar {
+  display: none;
+}
+body:not(:has(#patients-view:not([hidden]))) .footer .chip-ambiente {
+  display: none;
+}
+#cadastro-dialogo:not([open]) {
+  display: none;
+}
+.patients-layout {
+  max-width: 1440px;
+  padding: var(--spacing-sistema-6) var(--recuo-casca) var(--spacing-sistema-8);
+}
+#casca-barra {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+.casca-topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 72px;
+  margin: 0;
+  padding: var(--spacing-sistema-2) var(--recuo-casca);
+  gap: var(--spacing-sistema-2) var(--spacing-sistema-4);
+  background: var(--color-sistema-superficie);
+  border-bottom: 1px solid var(--color-sistema-divisor);
+}
+.casca-topbar h1 {
+  justify-self: start;
+  font-size: 2.5rem;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+.casca-topbar h1:focus-visible {
+  outline: var(--espessura-foco) solid var(--color-sistema-foco);
+  outline-offset: var(--recuo-foco);
+}
+.casca-contexto {
+  grid-column: 1 / -1;
+  color: var(--color-sistema-texto-secundario);
+  font-size: var(--texto-1);
+}
+.casca-acoes {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-sistema-2);
+}
+.casca-menu,
+.casca-conta summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sistema-2);
+  min-inline-size: var(--spacing-alvo-toque);
+  min-block-size: var(--spacing-alvo-toque);
+  margin: 0;
+  padding: var(--spacing-sistema-2) var(--spacing-sistema-3);
+  border: 0;
+  border-radius: var(--radius-pilula);
+  background: transparent;
+  color: var(--color-sistema-acao);
+  font-weight: 700;
+  cursor: pointer;
+}
+.casca-menu:hover,
+.casca-conta summary:hover {
+  background: var(--color-sistema-hoje);
+}
+.casca-conta {
+  position: relative;
+}
+.casca-conta summary {
+  padding: 0;
+  background: var(--color-sistema-hoje);
+  list-style: none;
+}
+.casca-conta summary::-webkit-details-marker {
+  display: none;
+}
+.casca-conta-painel {
+  display: grid;
+  position: absolute;
+  inset: calc(100% + var(--spacing-sistema-2)) 0 auto auto;
+  min-width: 12rem;
+  border: 1px solid var(--color-sistema-divisor);
+  border-radius: var(--radius-sistema-controle);
+  background: var(--color-sistema-superficie);
+  box-shadow: var(--sombra-menu);
+  padding: var(--spacing-sistema-2);
+  gap: var(--spacing-sistema-2);
+}
+.casca-conta-painel > span {
+  padding: var(--spacing-sistema-3) var(--spacing-sistema-3) 0;
+  color: var(--color-sistema-texto-secundario);
+  font-size: var(--texto-1);
+}
+.casca-conta-painel #logout {
+  justify-content: flex-start;
+}
+.casca-busca {
+  display: none;
+  min-height: var(--spacing-alvo-toque);
+  width: min(24vw, 280px);
+  border: 1px solid var(--color-sistema-contorno);
+  border-radius: var(--radius-pilula);
+  padding: 0 var(--spacing-sistema-4);
+}
+.casca-topbar .avisos-sino {
+  min-width: var(--spacing-alvo-toque);
+  min-height: var(--spacing-alvo-toque);
+  border-radius: var(--radius-pilula);
+}
+.casca-lateral {
+  position: fixed;
+  inset: 0 auto 0 0;
+  display: flex;
+  flex-direction: column;
+  width: var(--largura-casca);
+  border-inline-end: 1px solid var(--color-sistema-divisor);
+  background: var(--color-sistema-superficie);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.casca-moldura-marca {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sistema-4);
+  min-height: 72px;
+  border-bottom: 1px solid var(--color-sistema-divisor);
+}
+.casca-marca {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sistema-3);
+  color: var(--color-sistema-acao);
+  font-weight: 700;
+}
+.casca-marca small {
+  display: block;
+  color: var(--color-sistema-texto-secundario);
+  font-weight: 500;
+}
+.casca-destinos {
+  padding-block: var(--spacing-sistema-4);
+}
+.casca-destino {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: var(--spacing-sistema-2) var(--spacing-sistema-3);
+  gap: var(--spacing-sistema-2);
+  border-inline-start: var(--espessura-barra-ativa) solid transparent;
+  color: var(--color-sistema-texto-secundario);
+  line-height: 1.5;
+  text-decoration: none;
+}
+.casca-destino svg {
+  flex: none;
+}
+.casca-rotulo-trilho {
+  display: none;
+}
+.casca-recolhida .casca-destino:is(:hover, :focus) .casca-rotulo-trilho {
+  display: block;
+  position: fixed;
+  inset-inline-start: calc(var(--largura-casca) + var(--spacing-sistema-2));
+  padding: var(--spacing-sistema-2) var(--spacing-sistema-3);
+  border: 1px solid var(--color-sistema-divisor);
+  border-radius: var(--radius-sistema-controle);
+  background: var(--color-sistema-superficie);
+  color: var(--color-sistema-texto);
+  box-shadow: var(--sombra-menu);
+  pointer-events: none;
+}
+.casca-destino:hover,
+.casca-destino[aria-current="page"] {
+  background: var(--color-sistema-hoje);
+  color: var(--color-sistema-acao);
+}
+.casca-destino[aria-current="page"] {
+  border-inline-start-color: var(--color-sistema-marca);
+  font-weight: 700;
+}
+.casca-destino:focus-visible {
+  outline-offset: calc(-1 * var(--recuo-foco));
+}
+.casca-recolher {
+  align-self: start;
+  margin: auto var(--spacing-sistema-4) var(--spacing-sistema-4);
+}
+.casca-recolhida .casca-lateral :is(.casca-marca span, .casca-destino span, .casca-recolher span) {
+  display: none;
+}
+.casca-recolhida .casca-destino {
+  justify-content: center;
+  padding-inline: 0;
+}
+.casca-recolhida .casca-recolher svg {
+  rotate: 180deg;
+}
+.casca-fundo-gaveta {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: var(--color-sistema-sobreposicao);
+}
+.casca-gaveta {
+  z-index: 21;
+  width: min(360px, calc(100% - 32px));
+}
+.casca-gaveta .avisos-sino {
+  width: 100%;
+  min-height: 56px;
+  padding-inline: calc(var(--spacing-sistema-4) + var(--espessura-barra-ativa));
+  justify-content: flex-start;
+  border: 0;
+  border-radius: 0;
+}
+.casca-gaveta .avisos-painel {
+  position: static;
+  width: auto;
+  margin-inline: var(--spacing-sistema-4);
+}
+@media (min-width: 1200px) {
+  .casca-busca {
+    display: block;
+  }
+  body:has(.casca-busca) #busca {
+    display: none;
+  }
+}
+@media (max-width: 1023px) {
+  body:has(#patients-view:not([hidden])) {
+    --largura-casca: 0px;
+    --recuo-casca: var(--spacing-sistema-5);
+  }
+  .casca-topbar {
+    min-height: 64px;
+    grid-template-columns: minmax(84px, 1fr) minmax(0, max-content) minmax(84px, 1fr);
+  }
+  .casca-topbar h1 {
+    justify-self: center;
+    font-size: 1.5rem;
+    line-height: 1.1667;
+    text-align: center;
+  }
+  .casca-topbar #toggle-sidebar {
+    justify-self: start;
+    padding-inline: 0;
+  }
+}
+@media (max-width: 639px) {
+  body:has(#patients-view:not([hidden])) {
+    --recuo-casca: var(--spacing-sistema-4);
+  }
+}
+@media (max-width: 360px) {
+  .casca-topbar {
+    grid-template-columns: 1fr 1fr;
+  }
+  .casca-topbar h1 {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+@media (max-height: 480px) {
+  #casca-barra {
+    position: static;
+  }
+}
