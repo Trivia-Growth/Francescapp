@@ -20,9 +20,8 @@
  * O que NÃO mudou, de propósito (VIS-018):
  *
  * - **Nenhuma frase mudou de palavra.** Nem rótulo, nem aviso, nem estado vazio.
- * - A revalidação de acesso continua idêntica: `exigeNovoAcesso` em qualquer bloco esvazia
- *   a raiz ANTES de chamar `acessoPerdido`, para o fluxo de nova entrada nunca enxergar
- *   conteúdo de caso na tela. É por isso que há `flushSync` ali — e só ali.
+ * - A revalidação de acesso esvazia o conteúdo antes de chamar `acessoPerdido`.
+ *   A recusa de Anamnese para o administrador da carteira integral fica no próprio bloco.
  * - **Fonte ausente e fonte que falhou continuam estados DIFERENTES.** Bloco sem fonte não
  *   é montado: a visão mostra o que o perfil lê, e nunca anuncia o que falta nem inventa
  *   valor de exemplo. Bloco com fonte que falhou mostra a causa e a recuperação.
@@ -51,7 +50,7 @@ import {
   rotulosSituacao,
   type ResponsavelOpcao,
 } from './acompanhamento-caso.js';
-import { exigeNovoAcesso, mensagemFalha } from './api.js';
+import { exigeNovoAcesso, mensagemFalha, semPermissao } from './api.js';
 import { Botao } from './componentes/ui/botao.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { EstadoErro } from './componentes/ui/estado-erro.js';
@@ -69,7 +68,10 @@ import type { ServicoTarefasCuidado } from './tarefas-cuidado.js';
 export type FontesVisaoCaso = {
   objetivos?: Pick<ServicoPlanoCuidado, 'consultarObjetivos'>;
   tarefas?: Pick<ServicoTarefasCuidado, 'consultarTarefas'>;
-  anamnese?: { consultarAnamnese(pacienteId: string): Promise<Anamnese | null> };
+  anamnese?: {
+    consultarAnamnese(pacienteId: string): Promise<Anamnese | null>;
+    recusaSomenteNoBloco?: boolean;
+  };
   /** Só o Administrador: situação e responsável vêm da leitura de edição, que o servidor nega aos demais. */
   situacao?: {
     consultarPaciente(pacienteId: string): Promise<PacienteEdicao>;
@@ -179,6 +181,7 @@ function Bloco<T>({
   consultar,
   desenhar,
   aoPerderAcesso,
+  recusaSomenteNoBloco = false,
 }: {
   id: string;
   titulo: string;
@@ -187,6 +190,7 @@ function Bloco<T>({
   consultar: () => Promise<T>;
   desenhar: (dados: T) => Corpo;
   aoPerderAcesso: (erro: unknown) => void;
+  recusaSomenteNoBloco?: boolean;
 }) {
   const [tentativa, definirTentativa] = useState(0);
   const [estado, definirEstado] = useState<Fase<T>>({ fase: 'carregando' });
@@ -212,7 +216,7 @@ function Bloco<T>({
       },
       (erro: unknown) => {
         if (!valida) return;
-        if (exigeNovoAcesso(erro)) {
+        if (exigeNovoAcesso(erro) && !(recusaSomenteNoBloco && semPermissao(erro))) {
           perderAcesso.current(erro);
           return;
         }
@@ -222,7 +226,7 @@ function Bloco<T>({
     return () => {
       valida = false;
     };
-  }, [tentativa]);
+  }, [tentativa, recusaSomenteNoBloco]);
 
   function corpo(): ReactNode {
     if (estado.fase === 'carregando')
@@ -487,6 +491,7 @@ function TelaVisaoCaso({
           id="anamnese"
           titulo="Anamnese"
           origem={{ secao: 'anamnese', rotulo: 'Anamnese' }}
+          recusaSomenteNoBloco={anamnese.recusaSomenteNoBloco}
           consultar={() => anamnese.consultarAnamnese(paciente.id)}
           desenhar={(registro) => {
             if (!registro)

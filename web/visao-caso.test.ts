@@ -253,6 +253,29 @@ it('ao perder o acesso remove o conteúdo e aciona o fluxo de nova entrada', asy
   expect(raiz.textContent).toBe('');
 });
 
+it('mantém a visão administrativa quando somente a Anamnese é recusada', async () => {
+  const acessoPerdido = vi.fn(() => true);
+  desmontarAtual = montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      anamnese: {
+        recusaSomenteNoBloco: true,
+        consultarAnamnese: async () => {
+          throw new FalhaApi('sem_permissao', 403);
+        },
+      },
+    }),
+    acessoPerdido,
+  );
+  await vi.waitFor(() =>
+    expect(bloco('anamnese').textContent).toContain('Este bloco não foi carregado.'),
+  );
+  expect(raiz.textContent).toContain(paciente.nome);
+  expect(bloco('anamnese').textContent).not.toContain('Nenhuma anamnese registrada');
+  expect(acessoPerdido).not.toHaveBeenCalled();
+});
+
 it('invalida respostas pendentes ao desmontar', async () => {
   let responder!: (valor: unknown) => void;
   const desmontar = montarVisaoCaso(

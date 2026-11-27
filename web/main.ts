@@ -1040,7 +1040,12 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
           paciente,
           {
             objetivos: criarServicoPlanoHttp(identidadeAtual),
-            anamnese: api,
+            anamnese: {
+              consultarAnamnese: (id) => api.consultarAnamnese(id),
+              recusaSomenteNoBloco:
+                atual.usuario.perfil === 'administrador' &&
+                atual.capacidades.includes('consultar_carteira_integral'),
+            },
             ...(administraCadastro && edicaoDisponivel
               ? {
                   situacao: {

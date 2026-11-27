@@ -688,4 +688,52 @@ vínculo de anamnese aplicáveis. Com os dois atores e anamnese nos dois casos, 
 carteira com um único caso após concessão, leitura desse caso, recusa do outro caso
 e carteira vazia e leitura recusada após revogação. A concessão à própria administradora
 ficou somente no SQL. A UI usa um dublê HTTP com estado e o SQL usa as RPCs reais com
-atestado fictício. A ligação navegador, proxy e banco no mesmo fluxo continua sem prova.
+atestado fictício. O roteiro integrado abaixo complementa essas duas verificações.
+
+### Prova integrada com Auth e proxy locais
+
+O roteiro `scripts/prova-celular/vinculo-caso-integrado.mjs` serve o pacote React
+com o Vite Preview e encaminha as rotas da jornada aos handlers Netlify reais.
+Chromium usa dois contextos isolados. Os dois atores fazem login interno pelo Auth local,
+com cookies do SDK, Vault local e operações atestadas. A prova roda em loopback com
+Supabase API 56721, PostgreSQL 56722 e proxy 56730 no Docker rootless.
+
+A cadeia original recusou A7 com SQLSTATE `42704`. Na cópia descartável, os
+contornos abaixo mantiveram o SQL versionado do repositório intacto:
+
+1. A correção do cofre `20261124160000` foi executada depois de `20261125020000`.
+   Os pares com versões duplicadas `20261125030000` e `20261125040000` receberam
+   números distintos só no manifesto temporário, após recusa `23505`.
+2. A guarda de fonte de `20261125170000` encontrou corpos divergentes nas operações
+   de concessão e de cofre. Na cópia descartável, foram recalculados somente os
+   hashes de entrada e saída para aplicar os mesmos dois fragmentos de autenticação
+   a cada corpo. As âncoras continuaram únicas e a guarda de owner/ACL foi executada.
+3. A instalação resultante admitiu os dois atores, mas o POST real de concessão
+   falhou com `42501` no validador do transporte: `20261124200000` sobrescreve o
+   corpo que aceitava e validava `reserva_id` e `geracao_reserva`.
+   Para diagnóstico local, recompôs-se o corpo com reserva de `20261112220000`,
+   os mesmos fragmentos de autenticação de `20261125170000` e a conferência de
+   destinatário de `20261124200000`. As RLS originais continuaram aplicadas.
+   Esse ajuste descartável pede uma correção versionada e revisão próprias antes
+   de qualquer ativação.
+
+A prova também reproduziu a ficha fechando quando somente a Anamnese retornava
+`403` à administradora da carteira integral sem vínculo clínico. A recusa agora
+fica no bloco de Anamnese para esse perfil e capacidade. Reautenticação e perda
+de acesso nas demais situações continuam com o tratamento anterior.
+
+Com esse bootstrap, a execução de ponta a ponta passou. Os dois logins internos
+retornaram `200`. A administradora chegou a Equipe com acesso sem vínculo clínico
+próprio, reservou, concedeu, conferiu o recibo, revogou e conferiu o último recibo.
+Concessão e revogação retornaram `200`. O profissional abriu o primeiro caso e
+leu Anamnese (`200`), teve a rota do segundo caso recusada com leitura direta
+`403` e, após revogação, perdeu a ficha e recebeu `403` no primeiro caso.
+Avisos e audiência financeira estavam desligados nessa stack. Nenhuma sessão,
+chave ou dado real foi usado. A instalação limpa versionada continua bloqueada.
+Ao fim, o banco descartável registrava um vínculo revogado, zero destinatários
+administradores e um evento permitido para cada mutação.
+
+Depois da prova integrada, `pnpm run verificar:ativacao` saiu com código 0.
+Passaram 898 testes web, 736 do proxy, 324 das funções, 207 de contrato,
+137 de cadastro, o build, C5 e 14 cenários de celular. Permaneceram 30 testes
+pulados nas suítes de cadastro, funções e proxy. A stack descartável foi encerrada.
