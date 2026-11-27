@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { createElement } from 'react';
 import { expect, it } from 'vitest';
 import { montarCamposSintese } from './modelo-sintese.ts';
 import { montarDiario } from './diario.js';
@@ -36,14 +37,14 @@ it('Diário mantém campos, rascunho, publicação e entrada por áudio após ex
     () => {},
     () => {},
     undefined,
-    (destino, confirmar) => {
-      const botao = document.createElement('button');
-      botao.type = 'button';
-      botao.textContent = 'Áudio fictício';
-      botao.onclick = () => confirmar('Texto revisado fictício');
-      destino.append(botao);
-      return () => destino.replaceChildren();
-    },
+    /* Dublê da entrada por áudio. Desde 27/11/2026 ela chega como componente, e não como
+       função que escreve DOM no contêiner: o botão é o mesmo, a asserção é a mesma. */
+    (confirmar) =>
+      createElement(
+        'button',
+        { type: 'button', onClick: () => confirmar('Texto revisado fictício') },
+        'Áudio fictício',
+      ),
   );
   for (let i = 0; i < 8; i++) await Promise.resolve();
   expect(raiz.textContent).toContain('Observações compartilháveis');

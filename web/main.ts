@@ -76,7 +76,7 @@ import { criarServicoSolicitacaoTitularHttp } from './servico-solicitacao-titula
 import { criarServicoSegredosIntegracoesHttp } from './servico-segredos-integracoes-http.js';
 import { criarServicoConfiguracaoSistemaHttp } from './servico-configuracao-sistema-http.js';
 import { montarFiltrosCarteira, montarSinalCarteira } from './filtros-carteira.js';
-import { montarTranscricaoAudio } from './transcricao-audio.js';
+import { entradaTranscricaoAudio } from './transcricao-audio.js';
 import { criarServicoTranscricaoHttp } from './servico-transcricao-http.js';
 import { confirmar } from './confirmacao.js';
 import type { FiltrosCarteira } from '../packages/contracts/src/cadastro.js';
@@ -1367,14 +1367,11 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
           ? (destino, origem, alteracao, concluido) =>
               montarConversaoDaFicha(destino, paciente.id, origem, alteracao, concluido)
           : undefined,
-        (destino, aoConfirmar) =>
-          montarTranscricaoAudio(
-            destino,
-            paciente.id,
-            criarServicoTranscricaoHttp(identidadeAtual),
-            aoConfirmar,
-            acessoPerdido,
-          ),
+        entradaTranscricaoAudio(
+          paciente.id,
+          () => criarServicoTranscricaoHttp(identidadeAtual),
+          acessoPerdido,
+        ),
       );
     },
   });
