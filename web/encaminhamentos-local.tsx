@@ -33,6 +33,7 @@ import { confirmarDescarte } from './confirmacao.js';
 import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
+import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
 import './estilos/tema.css';
 import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
@@ -101,7 +102,11 @@ function FiltroRetornoPendente({
   );
 }
 
-function EncaminhamentosLocaisTela({ dados }: { dados: Dados }) {
+function EncaminhamentosLocaisTela({
+  dados,
+  aprimorarControles,
+}: { dados: Dados; aprimorarControles: boolean }) {
+  const Selecao = aprimorarControles ? SelecaoAprimorada : SelecaoSimples;
   const [itens, definirItens] = useState<EncaminhamentoLocal[]>(() => [...dados.encaminhamentos]);
   const [editando, definirEditando] = useState<string | null>(null);
   const [salvando, definirSalvando] = useState(false);
@@ -248,7 +253,7 @@ function EncaminhamentosLocaisTela({ dados }: { dados: Dados }) {
           disabled={salvando}
           classeEnvelope="mb-0"
         />
-        <SelecaoAprimorada
+        <Selecao
           id="encaminhamento-estado"
           name="estado"
           rotulo="Estado"
@@ -260,7 +265,7 @@ function EncaminhamentosLocaisTela({ dados }: { dados: Dados }) {
               {valor}
             </option>
           ))}
-        </SelecaoAprimorada>
+        </Selecao>
         <div className="flex flex-wrap gap-3">
           <Botao peso="principal" tipo="submit" disabled={salvando}>
             {editando === null ? 'Registrar encaminhamento' : 'Salvar alterações'}
@@ -311,8 +316,11 @@ function EncaminhamentosLocaisTela({ dados }: { dados: Dados }) {
 
 /** Edição local dos encaminhamentos (prévia). `dados.encaminhamentos` é mutado por
  *  referência após gravação confirmada — `web/encaminhamentos.tsx` depende disso. */
-export function EncaminhamentosLocais({ dados }: { dados: Dados }) {
-  return <EncaminhamentosLocaisTela dados={dados} />;
+export function EncaminhamentosLocais({
+  dados,
+  aprimorarControles = false,
+}: { dados: Dados; aprimorarControles?: boolean }) {
+  return <EncaminhamentosLocaisTela dados={dados} aprimorarControles={aprimorarControles} />;
 }
 
 /** Mesmo componente acima, montado na sua própria ilha — contrato usado por quem monta a

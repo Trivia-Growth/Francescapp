@@ -36,6 +36,12 @@ a convivência. Regras e Início não renderizam os tipos de controle observados
   a sentinela comprovou o observador ativo e a seleção de profissionais foi
   remontada ao avançar a página. A Linha do tempo preservou a data nos GETs e
   as seleções da ficha de plantão mantiveram a interação no celular.
+- Orientações e Encaminhamentos optam pelo aprimoramento na Ficha. A
+  demonstração mantém campos nativos. Os 37 testes de Orientações,
+  Encaminhamentos e demonstração passaram. O preenchimento legado de
+  Orientações pode mostrar datas vazias e visibilidade Interna com valores
+  diferentes no formulário, reproduzido na base anterior à migração. Retestar
+  na main após o #39 e corrigir em PR próprio se persistir.
 - Reprodução anterior à migração da ficha: com a chave no invólucro antigo,
   Equipe com acesso abriu e avançou à página 2. Mover somente a mesma chave
   para o select nativo lançou `NotFoundError` em `removeChild` na montagem.

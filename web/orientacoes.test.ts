@@ -15,12 +15,19 @@ const vigente = {
 };
 
 const preencher = (raiz: HTMLElement) => {
-  const area = raiz.querySelector('textarea') as HTMLTextAreaElement;
-  const entradas = raiz.querySelectorAll('input');
-  area.value = 'Orientação fictícia nova.';
-  entradas[0].value = 'Outro profissional fictício';
-  entradas[1].value = '2026-11-11';
-  entradas[2].value = 'Escola fictícia';
+  const formulario = raiz.querySelector('form');
+  for (const [nome, valor] of Object.entries({
+    texto: 'Orientação fictícia nova.',
+    autor: 'Outro profissional fictício',
+    data: '2026-11-11',
+    destinatarios: 'Escola fictícia',
+  })) {
+    const campo = formulario?.elements.namedItem(nome);
+    if (!(campo instanceof HTMLInputElement || campo instanceof HTMLTextAreaElement)) {
+      throw new Error(`Campo ausente: ${nome}`);
+    }
+    campo.value = valor;
+  }
 };
 
 it('substituir grava a superação da anterior e a criação da nova', async () => {
