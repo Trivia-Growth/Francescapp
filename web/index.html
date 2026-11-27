@@ -7,6 +7,7 @@
     <meta name="referrer" content="same-origin">
     <meta name="color-scheme" content="light">
     <title>FFCMApp | Acesso</title>
+    <link rel="icon" type="image/png" href="./assets/ffcmapp-icone.png">
     <link rel="stylesheet" href="./styles.css">
     <!-- Abre e fecha o diálogo de cadastro. Carregado antes de main.ts para que o
          diálogo já esteja aberto quando main.ts põe o foco no título do formulário. -->
@@ -16,7 +17,7 @@
   <body>
     <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
     <header class="topbar">
-      <div class="brand"><span class="brand-name">FFCMApp</span><span class="brand-organization">Francescato</span></div>
+      <div class="brand"><img class="brand-mobile-icon" src="./assets/ffcmapp-icone.png" width="32" height="32" alt=""><span class="brand-name">FFCMApp</span><span class="brand-organization">Francescato</span></div>
       <nav id="breadcrumbs" class="breadcrumbs" aria-label="Você está em">
         <ol>
           <li>Pessoas acompanhadas</li>
@@ -35,7 +36,7 @@
       <p id="revalidacao-status" class="service-status" role="status" aria-live="polite" hidden>Verificando seu acesso…</p>
       <section id="login-view" class="access-layout" aria-labelledby="login-title">
         <div class="access-context">
-          <img class="institutional-logo" src="./assets/ffcm-logo-branco.jpg" width="144" height="144" alt="FFCM, marca Francescato">
+          <img class="institutional-logo" src="./assets/ffcmapp-icone.png" width="144" height="144" alt="Elefante, símbolo do FFCMApp">
           <h1 id="login-title" tabindex="-1">Acesso ao FFCMApp</h1>
           <p>Um lugar para organizar o acompanhamento de cada paciente.</p>
           <p class="access-note">Acesso restrito a pessoas previamente autorizadas.</p>
@@ -92,7 +93,10 @@
 
       <section id="patients-view" class="patients-layout" aria-label="Pacientes" hidden>
         <aside class="patients-sidebar" aria-label="Área de trabalho">
-          <div class="sidebar-brand"><span>FFCMApp</span><small>FRANCESCATO</small></div>
+          <div class="sidebar-brand">
+            <img src="./assets/ffcmapp-icone.png" width="42" height="42" alt="">
+            <div><span>FFCMApp</span><small>FRANCESCATO</small></div>
+          </div>
           <p class="sidebar-label" id="sidebar-label">Área de trabalho</p>
           <nav class="sidebar-nav" aria-labelledby="sidebar-label">
             <a id="nav-home" class="sidebar-link" href="#home" aria-current="page">Seu dia</a>

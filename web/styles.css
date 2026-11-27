@@ -149,6 +149,11 @@ a.button-primary:active {
   align-items: baseline;
   gap: 16px;
 }
+.brand-mobile-icon {
+  display: none;
+  flex: none;
+  border-radius: 7px;
+}
 .brand-name {
   color: var(--primary);
   font-size: 1.375rem;
@@ -222,7 +227,7 @@ p {
   display: block;
   width: 144px;
   height: 144px;
-  object-fit: contain;
+  border-radius: 14px;
 }
 .access-form-panel {
   padding-top: 8px;
@@ -647,8 +652,15 @@ body:has(#patients-view:not([hidden])) .topbar .brand-organization {
   border-right: 1px solid var(--line);
 }
 .sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   color: var(--primary);
   font: 600 28px / 1 var(--font-display);
+}
+.sidebar-brand img {
+  flex: none;
+  border-radius: 8px;
 }
 .sidebar-brand small {
   display: block;
@@ -722,6 +734,14 @@ body:has(#patients-view:not([hidden])) .footer {
   .sidebar-label,
   .sidebar-note {
     display: none;
+  }
+  body:has(#patients-view:not([hidden])) .topbar .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  body:has(#patients-view:not([hidden])) .brand-mobile-icon {
+    display: block;
   }
   .sidebar-current {
     align-self: flex-start;
