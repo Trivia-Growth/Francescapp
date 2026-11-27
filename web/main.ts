@@ -1636,6 +1636,10 @@ function apagarPacientes(): void {
   elemento('preferred-error').textContent = '';
   birthInput.removeAttribute('aria-invalid');
   elemento('birth-error').textContent = '';
+  elemento('case-status').removeAttribute('aria-invalid');
+  elemento('status-error').textContent = '';
+  elemento('case-manager').removeAttribute('aria-invalid');
+  elemento('manager-error').textContent = '';
   cadastroPendente = null;
   cadastroOcupado = false;
   aviso('create-feedback', '');

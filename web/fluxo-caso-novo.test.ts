@@ -403,6 +403,23 @@ describe('envio completo', () => {
 });
 
 describe('fim da sessão', () => {
+  it('sair limpa os erros de Situação e responsável após um envio inválido', async () => {
+    const tela = await abrir();
+    await preencherCasoNovo();
+    el<HTMLSelectElement>('case-status').value = '';
+    el<HTMLSelectElement>('case-manager').value = '';
+    await tela.enviar();
+    expect(invalidos()).toEqual(['case-status', 'case-manager']);
+
+    el('logout').click();
+    await vi.waitFor(() => expect(el('login-view').hidden).toBe(false));
+
+    expect(invalidos()).toEqual([]);
+    expect(el('status-error').textContent).toBe('');
+    expect(el('manager-error').textContent).toBe('');
+    expect(tela.postagens()).toHaveLength(0);
+  });
+
   it('sair apaga contatos, situação e responsável digitados, e não deixa a equipe no DOM', async () => {
     const tela = await abrir();
     await preencherCasoNovo('Paciente fictício');
