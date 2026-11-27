@@ -14,6 +14,7 @@ const id = '10000000-0000-4000-8000-000000000001';
 const COMPLETAS = ['administrar_cadastro', 'administrar_concessoes'];
 const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
 const el = <T extends HTMLElement>(nome: string) => document.getElementById(nome) as T;
+let desmontarCampos: (() => void) | undefined;
 
 beforeEach(() => {
   sessionStorage.clear();
@@ -23,6 +24,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  desmontarCampos?.();
+  desmontarCampos = undefined;
   sessionStorage.clear();
   vi.unstubAllGlobals();
   vi.resetModules();
@@ -73,7 +76,7 @@ async function abrir(
       });
     throw new Error(`Rota inesperada: ${url.pathname}`);
   });
-  await import('./main.js');
+  desmontarCampos = (await import('./main.js')).desmontarCamposDeCadastro;
   const botao = () => document.querySelector<HTMLButtonElement>('#cadastro button[data-acao]');
   await vi.waitFor(() => expect(botao()?.dataset.acao).toBe('encerrar'));
   botao()?.click();

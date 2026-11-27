@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ResponsavelOpcao } from './acompanhamento-caso.js';
 import { montarCamposCasoNovo } from './campos-caso-novo.js';
 
@@ -17,6 +17,7 @@ const bia: ResponsavelOpcao = {
 const PLACEHOLDER = 'Selecione quem acompanha o caso';
 
 const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+let desmontarCampos: (() => void) | undefined;
 
 function adiado<T>() {
   let resolver!: (valor: T) => void;
@@ -45,6 +46,7 @@ function montar(listar: () => Promise<ResponsavelOpcao[]> = async () => [ana]) {
     },
     listarResponsaveis,
   );
+  desmontarCampos = campos.desmontar;
   return { campos, listarResponsaveis };
 }
 
@@ -57,6 +59,11 @@ const removerDa = (linha: HTMLElement) =>
 
 beforeEach(() => {
   document.body.replaceChildren();
+});
+
+afterEach(() => {
+  desmontarCampos?.();
+  desmontarCampos = undefined;
 });
 
 describe('contatos', () => {
@@ -198,6 +205,27 @@ describe('contatos', () => {
 });
 
 describe('equipe do responsável', () => {
+  it('desmonta os controles e descarta a equipe que chega depois', async () => {
+    const consulta = adiado<ResponsavelOpcao[]>();
+    const { campos, listarResponsaveis } = montar(() => consulta.promessa);
+    adicionar().click();
+    const carga = campos.carregarResponsaveis();
+    el<HTMLFormElement>('create-form').reset();
+
+    campos.desmontar();
+    consulta.resolver([ana]);
+    await carga;
+    adicionar().click();
+    el('manager-retry').click();
+
+    expect(linhas()).toHaveLength(0);
+    expect(document.getElementById('birth-date')).toBeNull();
+    expect(document.getElementById('case-status')).toBeNull();
+    expect(document.getElementById('case-manager')).toBeNull();
+    expect(campos.equipeDisponivel()).toBe(false);
+    expect(listarResponsaveis).toHaveBeenCalledTimes(1);
+  });
+
   it('mostra "Carregando equipe…" e depois oferece só quem está ativo', async () => {
     const consulta = adiado<ResponsavelOpcao[]>();
     const { campos } = montar(() => consulta.promessa);

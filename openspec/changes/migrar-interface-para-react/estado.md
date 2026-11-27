@@ -68,7 +68,14 @@ a convivência. Regras e Início não renderizam os tipos de controle observados
   abertura, a montagem/desmontagem de contato, o foco de erro, o POST com os
   valores corretos e o reset. Ao alterar só a regra CSS para opacidade `1`,
   a prova falhou em `#birth-date`, esperado `0` e recebido `1`. Restaurado e
-  verde. Próximo passo: retirar o observador global com as quatro regiões migradas.
+  verde.
+- A primeira CI do #41 registrou trabalho React após o teardown do jsdom. O
+  desmonte do Cadastro retira as ilhas e os eventos dos botões e invalida a
+  consulta de equipe pendente. A casca usa esse desmonte na saída definitiva
+  da página, e as provas o chamam antes de descartar o DOM. O teste de
+  regressão cobre reset, contato extra e resposta de equipe após o desmonte.
+  Os 42 testes de campos, fluxo e integração de edição passaram em conjunto.
+  Próximo passo: retirar o observador global com as quatro regiões migradas.
 - A remoção integral de `web/ui/` segue em tarefa própria. Depois da retirada
   do observador, as dependências de produção que restam são `main.ts`
   (`botao`/`linhaLista`) e o import de `ui.css` no tema. Confirmação e os três

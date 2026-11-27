@@ -172,7 +172,8 @@ export function montarCamposCasoNovo(
     return linha;
   };
 
-  el.adicionar.addEventListener('click', () => adicionarLinha()?.valor.focus());
+  const aoAdicionar = () => adicionarLinha()?.valor.focus();
+  el.adicionar.addEventListener('click', aoAdicionar);
 
   const carregarResponsaveis = async () => {
     const minhaCarga = ++carga;
@@ -202,7 +203,8 @@ export function montarCamposCasoNovo(
       }
     }
   };
-  el.tentarNovamente.addEventListener('click', () => void carregarResponsaveis());
+  const aoTentarNovamente = () => void carregarResponsaveis();
+  el.tentarNovamente.addEventListener('click', aoTentarNovamente);
 
   /** Sem permissão para listar a equipe não há como indicar o responsável: o cadastro não é enviado. */
   const equipeIndisponivel = (mensagem: string) => {
@@ -215,20 +217,34 @@ export function montarCamposCasoNovo(
     el.estadoResponsavel.textContent = mensagem;
   };
 
-  const reiniciar = () => {
+  const removerLinhas = () => {
     for (const linha of linhas) {
       linha.desmontarTipo();
       linha.raiz.remove();
     }
     linhas = [];
+  };
+  const reiniciar = () => {
+    removerLinhas();
     proximoNumero = 1;
     adicionarLinha();
     for (const campo of [situacao, responsavel]) definirValorNativo(campo, '');
     el.erroContatos.textContent = '';
   };
-  reiniciar();
+  adicionarLinha();
+  el.erroContatos.textContent = '';
 
   return {
+    desmontar() {
+      // Invalida a resposta da equipe antes de retirar as raízes da página.
+      carga += 1;
+      el.adicionar.removeEventListener('click', aoAdicionar);
+      el.tentarNovamente.removeEventListener('click', aoTentarNovamente);
+      removerLinhas();
+      ilhaNascimento.desmontar();
+      ilhaSituacao.desmontar();
+      ilhaResponsavel.desmontar();
+    },
     campos: { nascimento, situacao, responsavel },
     marcarInvalido(campo: CampoEstatico, invalido: boolean) {
       if (invalidos.has(campo) === invalido) return;

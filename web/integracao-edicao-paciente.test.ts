@@ -5,7 +5,10 @@ import { afterEach, expect, it, vi } from 'vitest';
 const id = '10000000-0000-4000-8000-000000000001';
 const sessionId = '20000000-0000-4000-8000-000000000001';
 const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
+let desmontarCampos: (() => void) | undefined;
 afterEach(() => {
+  desmontarCampos?.();
+  desmontarCampos = undefined;
   sessionStorage.clear();
   vi.unstubAllGlobals();
   vi.resetModules();
@@ -31,7 +34,7 @@ it('não oferece edição enquanto as rotas de paciente não estão disponíveis
     return new Response(null, { status: 404 });
   });
   vi.stubGlobal('fetch', fetch);
-  await import('./main.js');
+  desmontarCampos = (await import('./main.js')).desmontarCamposDeCadastro;
   await vi.waitFor(() =>
     expect(
       document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
@@ -76,7 +79,7 @@ it.each([
         return new Response(null, { status: 404 });
       }),
     );
-    await import('./main.js');
+    desmontarCampos = (await import('./main.js')).desmontarCamposDeCadastro;
     await vi.waitFor(() =>
       expect(
         document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),

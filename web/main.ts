@@ -231,6 +231,7 @@ const casoNovo = montarCamposCasoNovo(
   },
   () => (catalogoCasoNovo ? catalogoCasoNovo() : Promise.reject(new Error('Sem sessão'))),
 );
+export const desmontarCamposDeCadastro = casoNovo.desmontar;
 const {
   nascimento: birthInput,
   situacao: situacaoInput,
@@ -3213,11 +3214,12 @@ window.addEventListener('beforeunload', (evento) => {
   evento.preventDefault();
   evento.returnValue = '';
 });
-window.addEventListener('pagehide', () => {
+window.addEventListener('pagehide', (evento) => {
   // Evita restaurar dados protegidos e credenciais pelo back/forward cache.
   if (cadastroEmRevalidacao) usuariosComCadastroIncerto.add(cadastroEmRevalidacao.usuarioId);
   cadastroEmRevalidacao = null;
   mostrarAcesso();
+  if (!evento.persisted) desmontarCamposDeCadastro();
 });
 
 async function restaurarSessao(): Promise<void> {
