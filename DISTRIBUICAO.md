@@ -1,5 +1,7 @@
 # Distribuição do FFCMApp
 
+O [projeto detalhado](PROJETO-DISTRIBUICAO.md) registra a árvore aprovada, as alternativas em aberto, os endereços e as fatias para execução após a migração React.
+
 Quem abre o FFCMApp para retomar um plantão precisa achar a pessoa, abrir a ficha e procurar “Meu turno” em “Mais seções”. Quem quer lançar uma despesa precisa procurar em Administração. Corrigir a fita de abas melhora a leitura e deixa intactas essas duas escolhas de arquitetura. Um produto maduro dá endereço próprio ao trabalho recorrente e mantém o histórico e as decisões junto da pessoa acompanhada.
 
 ## Como está hoje
