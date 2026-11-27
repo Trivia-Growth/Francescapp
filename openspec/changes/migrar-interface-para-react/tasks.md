@@ -639,3 +639,53 @@ mais build, C5 e 14 cenários de celular. Permaneceram 30 testes pulados nas
 suítes de cadastro, funções e proxy. A prova SQL focada acima rodou à parte.
 O build manteve o aviso de importação estática dos relatórios. `openspec validate
 --strict` sinalizou a extensão do requisito VIS-018 já presente na base.
+
+### A7 — cadeia de instalação e contrato do cofre
+
+O relatório noturno registra a aplicação de `20261125020000` no projeto de teste.
+O commit `b6aa78c` adicionou uma correção com versão anterior, `20261124160000`, e
+documenta uma gravação em produção. Isso é evidência versionada da época. O estado
+atual dos ambientes e o registro da versão `20261124160000` não foram consultados.
+
+- **Instalação limpa.** A ordem lexical executa a correção primeiro. Em banco vazio,
+  ela tenta conceder privilégios a um papel ainda inexistente e a transação falha.
+  Criar só o papel antecipadamente deixa a criação posterior em conflito e ainda
+  permite que a migration original sobrescreva a função corrigida. O teste focado
+  do cofre carrega a original e então a correção manualmente, em ordem de dependência.
+- **Comportamento do cofre.** A proposta, o design e o delta em
+  `cadastro-segredos-integracoes` exigem preservar o valor anterior no Vault. A
+  correção versionada usa `vault.update_secret` no mesmo registro e mantém autoria,
+  versão e auditoria, com as versões referenciando o mesmo UUID do Vault. O teste
+  versionado passou a exigir um único registro para duas versões. O próprio commit
+  registra a mudança de retenção como sujeita à confirmação. Corrigir a ordem
+  resolve a dependência de instalação. Conciliar a retenção exige decisão própria.
+- **Opção para instalação limpa.** Aprovar um baseline para novos ambientes ou um
+  manifesto de instalação que execute as versões imutáveis pela dependência antes
+  de assumir a sequência normal. Um baseline pede prova de equivalência de schema,
+  owners, grants e políticas. Um manifesto pede prova de histórico e de que a
+  versão tardia é registrada uma única vez. Ambos exigem validar o Vault com o
+  migrador sem superusuário e instalar as migrações subsequentes.
+- **Opção para upgrade.** Uma migration de convergência com versão nova pode
+  levar os ambientes já instalados ao comportamento aprovado, preservando histórico
+  e metadados. Ela exige inventário autorizado por ambiente e provas dos dois estados
+  de partida, com e sem a correção de `b6aa78c`. Uma migration posterior por si só
+  não resolve a instalação vazia, que para primeiro em `20261124160000`.
+  A decisão de retenção define as asserções de substituição e o tratamento dos
+  registros já rotacionados. Valores sobrescritos não são recriados por migration.
+
+### Prova local da jornada de vínculo
+
+No Chromium, `node --experimental-strip-types scripts/prova-celular/vinculo-caso-producao.mjs`
+serve o build existente em loopback com porta efêmera. Dois contextos do navegador
+simulam sessões independentes. A administradora abriu Carteira → ficha → Mais seções
+→ Equipe com acesso, concedeu ao profissional fictício e revogou pelo diálogo.
+O profissional abriu o caso pela própria carteira após a concessão. A rota do outro
+caso foi recusada e a rota do caso concedido foi recusada após a revogação.
+
+Em PostgreSQL 17 descartável no Docker rootless, `testar-acesso-paciente-autorizacao-local.sh`
+rodou sem rede, em socket privado. A prova versionada carrega as migrações de RLS e de
+vínculo de anamnese aplicáveis. Com os dois atores e anamnese nos dois casos, confirmou
+carteira com um único caso após concessão, leitura desse caso, recusa do outro caso
+e carteira vazia e leitura recusada após revogação. A concessão à própria administradora
+ficou somente no SQL. A UI usa um dublê HTTP com estado e o SQL usa as RPCs reais com
+atestado fictício. A ligação navegador, proxy e banco no mesmo fluxo continua sem prova.
