@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { conferirAxe } from './axe.ts';
 
 test.beforeEach(async ({ context }) => {
   await context.route('**/*', (rota) => {
@@ -17,6 +18,7 @@ test('as quatro datas do Financeiro funcionam em ilhas durante a troca de abas',
     if (mensagem.type() === 'error') erros.push(mensagem.text());
   });
   await page.goto('/scripts/prova-celular/financeiro.html');
+  await conferirAxe(page, 'financeiro-controles-proprios — aba inicial');
 
   async function preencher(rotulo: string, dia: string) {
     const visivel = page.getByLabel(rotulo, { exact: true });

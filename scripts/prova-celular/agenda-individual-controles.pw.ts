@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { conferirAxe } from './axe.ts';
 import { criarErroPublico } from '../../packages/contracts/src/comum.ts';
 import { conferirControlesNativos } from './controles-nativos.js';
 
@@ -67,6 +68,7 @@ test('agenda monta a seleção React depois da carga', async ({ page }) => {
   await expect(page.getByText('Consulta fictícia')).toBeVisible();
 
   await conferirControlesNativos(page, '#agenda-individual');
+  await conferirAxe(page, 'agenda-individual — agenda carregada');
 
   await page.getByRole('button', { name: 'Registrar realização' }).click();
   const painel = page.locator('.realizacao-compromisso');
@@ -99,6 +101,7 @@ test('agenda monta a seleção React depois da carga', async ({ page }) => {
   );
 
   const situacaoNativa = await conferirControle('realizacao-situacao');
+  await conferirAxe(page, 'agenda-individual — painel de realização aberto');
   await expect(situacao).toBeVisible();
   await situacao.press('ArrowDown');
   await expect(situacao).toHaveAttribute('aria-expanded', 'true');

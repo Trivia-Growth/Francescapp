@@ -38,6 +38,7 @@
     "verificar:fundacao": "pnpm run lint && pnpm run typecheck && pnpm run typecheck:deno && pnpm run test:contratos && pnpm run test:cadastro && pnpm run test:funcoes && pnpm run test:proxy && pnpm run test:web && pnpm run build:web && node --experimental-strip-types scripts/prova-celular/trusted-types-producao.mjs && pnpm run validar:configuracao && pnpm run verificar:celular"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.1",
     "@biomejs/biome": "1.9.4",
     "@fission-ai/openspec": "1.14.1",
     "@iarna/toml": "2.2.5",
