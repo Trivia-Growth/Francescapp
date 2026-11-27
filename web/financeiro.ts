@@ -9,6 +9,7 @@ import {
   TAMANHO_MAXIMO_COMPROVANTE_BYTES,
 } from '../packages/contracts/src/financeiro.ts';
 import { nomeComprovante, type ServicoFinanceiro } from './servico-financeiro-http.js';
+import { botao as botaoDaCamada } from './ui/basicos.js';
 
 /** Valor é inteiro em centavos no contrato. A conversão vive só aqui: nenhuma tela manda
  * número com vírgula para o servidor, e nenhum contrato carrega texto formatado. */
@@ -122,10 +123,7 @@ export function montarFinanceiro(
     status.setAttribute('aria-live', 'polite');
     const lista = document.createElement('div');
     lista.className = 'financeiro__lista';
-    const consultarBotao = document.createElement('button');
-    consultarBotao.type = 'button';
-    consultarBotao.className = 'button-secondary';
-    consultarBotao.textContent = textos.botao;
+    const consultarBotao = botaoDaCamada({ rotulo: textos.botao, peso: 'secundario' });
     destino.append(status, consultarBotao, lista);
     const executar = async () => {
       status.textContent = textos.carregando;
@@ -223,10 +221,7 @@ export function montarFinanceiro(
     dinheiro.entrada.setAttribute('inputmode', 'decimal');
     const inicio = campo('Início da vigência', 'date', { required: true });
     const motivo = campo('Motivo', 'text', { required: true, maxLength: 2000 });
-    const salvar = document.createElement('button');
-    salvar.type = 'submit';
-    salvar.className = 'button-primary';
-    salvar.textContent = 'Registrar valor';
+    const salvar = botaoDaCamada({ rotulo: 'Registrar valor', tipo: 'submit', peso: 'principal' });
     const aviso = document.createElement('p');
     aviso.className = 'financeiro__aviso';
     aviso.setAttribute('role', 'status');
@@ -317,10 +312,7 @@ export function montarFinanceiro(
               : `Retificação da versão ${despesa.retificacao_de_versao ?? despesa.versao - 1}`;
           linha.append(cabecalho, descricao, autorizacao, versao);
           if (despesa.tem_comprovante) {
-            const baixar = document.createElement('button');
-            baixar.type = 'button';
-            baixar.className = 'button-secondary';
-            baixar.textContent = 'Abrir comprovante';
+            const baixar = botaoDaCamada({ rotulo: 'Abrir comprovante', peso: 'discreto' });
             const retorno = document.createElement('p');
             retorno.className = 'financeiro__aviso';
             retorno.setAttribute('role', 'status');
@@ -389,14 +381,15 @@ export function montarFinanceiro(
     const autorizacao = campo('Autorização aplicável', 'text', { required: true, maxLength: 512 });
     const arquivo = campo('Comprovante', 'file', { required: true });
     arquivo.entrada.accept = MIMES_COMPROVANTE.join(',');
-    const salvar = document.createElement('button');
-    salvar.type = 'submit';
-    salvar.className = 'button-primary';
-    salvar.textContent = 'Registrar despesa';
-    const repetir = document.createElement('button');
-    repetir.type = 'button';
-    repetir.className = 'button-secondary';
-    repetir.textContent = 'Tentar de novo este mesmo lançamento';
+    const salvar = botaoDaCamada({
+      rotulo: 'Registrar despesa',
+      tipo: 'submit',
+      peso: 'principal',
+    });
+    const repetir = botaoDaCamada({
+      rotulo: 'Tentar de novo este mesmo lançamento',
+      peso: 'secundario',
+    });
     repetir.hidden = true;
     const aviso = document.createElement('p');
     aviso.className = 'financeiro__aviso';

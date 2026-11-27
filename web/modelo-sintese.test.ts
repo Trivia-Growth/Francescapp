@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { expect, it } from 'vitest';
 import { montarCamposSintese } from './modelo-sintese.ts';
-import { montarDiario } from './diario.ts';
+import { montarDiario } from './diario.js';
 
 it('compartilha campos FR009 sem colidir IDs e preserva validação do contrato', () => {
   const diario = document.createElement('form');

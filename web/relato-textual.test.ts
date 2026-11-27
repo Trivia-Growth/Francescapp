@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import { montarRelatoTextual } from './relato-textual.ts';
+import { montarRelatoTextual } from './relato-textual.js';
 
 describe('preparação local do relato', () => {
   it('valida campos obrigatórios e revisa conteúdo fictício como texto, sem envio', () => {

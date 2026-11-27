@@ -36,13 +36,69 @@ export type ResultadoRegistro = 'registrada' | 'sem-suporte' | 'falhou';
  * aplicação continua igual: nada é mostrado e nada é bloqueado (cenário "Falha ao instalar não
  * bloqueia o uso").
  */
+/* Trusted Types não está nos tipos padrão do DOM. A forma mínima que usamos: */
+type FabricaConfiavel = { createScriptURL(entrada: string): string };
+type RegistroTrustedTypes = {
+  createPolicy(
+    nome: string,
+    regras: { createScriptURL(entrada: string): string },
+  ): FabricaConfiavel;
+};
+
+/** Nome da política, declarado na CSP de `web/index.html`. Precisa bater exatamente. */
+export const NOME_POLITICA = 'ffcm-casca';
+
+/* Por que esta política existe, e por que ela é estreita.
+ *
+ * Medido em Chromium em 25/11/2026: com `trusted-types 'none'` na CSP, o navegador
+ * recusava `container.register('/sw.js')` com "This document requires 'TrustedScriptURL'
+ * assignment". O `catch` abaixo devolvia `'falhou'` sem avisar ninguém, então FR-071
+ * estava MORTO em produção e nada na tela dizia isso. Um recurso inteiro desligado em
+ * silêncio é pior que um recurso quebrado com erro.
+ *
+ * A saída não é afrouxar a diretiva. `require-trusted-types-for 'script'` continua
+ * valendo; o que muda é que existe UMA política nomeada, que mina exatamente um endereço
+ * e recusa qualquer outro — provado em navegador, inclusive a recusa. Como não há
+ * `'allow-duplicates'` e a política é criada na primeira chamada, o nome fica tomado logo
+ * no começo: uma segunda tentativa de criar `ffcm-casca` lança.
+ *
+ * Isso é mais apertado, na prática, do que remover a diretiva, e devolve o recurso.
+ *
+ * A lembrança é POR JANELA, não por módulo: criar a mesma política duas vezes lança, e a
+ * janela é quem de fato possui o registro. Guardar num `let` de módulo parecia equivalente
+ * e não é — em teste, uma janela sem Trusted Types contaminava a seguinte. */
+const politicas = new WeakMap<object, FabricaConfiavel | null>();
+
+function enderecoConfiavel(janela: Window & { trustedTypes?: RegistroTrustedTypes }): string {
+  let politica = politicas.get(janela);
+  if (politica === undefined) {
+    const registro = janela.trustedTypes;
+    politica =
+      registro === undefined
+        ? null
+        : registro.createPolicy(NOME_POLITICA, {
+            createScriptURL(entrada) {
+              // Único endereço aceito. Qualquer outro é recusado, inclusive por quem
+              // conseguisse executar script nesta origem.
+              if (entrada !== ENDERECO_WORKER) {
+                throw new Error('Endereço de worker não autorizado.');
+              }
+              return entrada;
+            },
+          });
+    politicas.set(janela, politica);
+  }
+  return politica === null ? ENDERECO_WORKER : politica.createScriptURL(ENDERECO_WORKER);
+}
+
 export async function registrarCascaOffline(
   navegador: Navigator = navigator,
+  janela: Window & { trustedTypes?: RegistroTrustedTypes } = globalThis as never,
 ): Promise<ResultadoRegistro> {
   const container = (navegador as Partial<Navigator>).serviceWorker;
   if (!container || typeof container.register !== 'function') return 'sem-suporte';
   try {
-    await container.register(ENDERECO_WORKER, { scope: '/' });
+    await container.register(enderecoConfiavel(janela), { scope: '/' });
     return 'registrada';
   } catch {
     return 'falhou';

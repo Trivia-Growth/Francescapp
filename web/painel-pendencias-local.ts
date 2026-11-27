@@ -1,3 +1,4 @@
+import { botao as botaoDaCamada } from './ui/basicos.js';
 type TarefaPainelLocal = {
   descricao: string;
   responsavel: string;
@@ -41,9 +42,7 @@ export function montarPainelPendenciasLocal(
     }
     secao.append(lista);
     if (dados.abrirTarefas) {
-      const botao = document.createElement('button');
-      botao.type = 'button';
-      botao.textContent = 'Abrir tarefas';
+      const botao = botaoDaCamada({ rotulo: 'Abrir tarefas', peso: 'discreto' });
       botao.addEventListener('click', () => dados.abrirTarefas?.(paciente.id));
       secao.append(botao);
     }

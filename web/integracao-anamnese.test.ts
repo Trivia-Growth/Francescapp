@@ -55,7 +55,13 @@ it.each([404, 401])('abre paciente real e trata falha %s sem sucesso simulado', 
   document.querySelector<HTMLButtonElement>(abrirFicha)?.click();
   expect(document.activeElement?.id).toBe('ficha-title');
   document.getElementById('ficha-aba-anamnese')?.click();
-  expect(caminhos).toContain(`/api/pacientes/${id}/anamnese`);
+  /* Espera acrescentada em 26/11/2026, e a garantia é a mesma: abrir a aba consulta a
+     anamnese daquele paciente. O que mudou foi o instante — a seção passou a chegar por
+     importação dinâmica, para o código de cada aba só descer quando alguém a abre, então
+     a consulta sai um passo depois do clique em vez de no mesmo quadro.
+     A asserção não foi enfraquecida: continua exigindo o MESMO caminho, com o mesmo
+     identificador de paciente. */
+  await vi.waitFor(() => expect(caminhos).toContain(`/api/pacientes/${id}/anamnese`));
   if (status === 401) {
     await vi.waitFor(() => expect(document.getElementById('login-view')?.hidden).toBe(false));
     expect(document.getElementById('ficha-view')?.textContent).toBe('');

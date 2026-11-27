@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
 import { ClienteFFCM } from './api.ts';
-import { montarLoginInterno } from './login-interno.ts';
+import { montarLoginInterno } from './login-interno.js';
 const otp = vi.hoisted(() => ({
   solicitar: vi.fn(),
   verificar: vi.fn(),

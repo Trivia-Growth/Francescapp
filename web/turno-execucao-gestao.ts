@@ -12,9 +12,10 @@ import {
   dataLocalTurno,
   botaoTurno,
   estadoTurno,
-} from './turno-execucao-campos.ts';
-import { rotuloSinal } from './turno-execucao-editor.ts';
+} from './turno-execucao-campos.js';
+import { rotuloSinal } from './turno-execucao-editor.js';
 import { confirmarDescarte } from './confirmacao.js';
+import { botao } from './ui/basicos.js';
 
 /** Controles de coordenação aparecem somente após capacidade recebida do servidor. */
 export function montarGestaoExecucaoTurno(
@@ -248,8 +249,11 @@ export function montarGestaoExecucaoTurno(
       obrigatorio: false,
     });
     let consultado: { id: string; versao: number } | null = null;
-    const salvar = el('button', 'Registrar nova versão do fundamento');
-    salvar.type = 'submit';
+    const salvar = botao({
+      rotulo: 'Registrar nova versão do fundamento',
+      tipo: 'submit',
+      peso: 'principal',
+    });
     salvar.disabled = true;
     grupo.append(salvar);
     fundamentoForm.append(grupo);
@@ -356,8 +360,11 @@ export function montarGestaoExecucaoTurno(
             'Texto informado pela equipe. Não gera alerta, interpretação ou classificação automática.',
         });
         referencia.maxLength = 300;
-        const salvar = el('button', 'Salvar configuração do tipo');
-        salvar.type = 'submit';
+        const salvar = botao({
+          rotulo: 'Salvar configuração do tipo',
+          tipo: 'submit',
+          peso: 'principal',
+        });
         form.append(salvar);
         tipos.append(form);
         form.oninput = () => {

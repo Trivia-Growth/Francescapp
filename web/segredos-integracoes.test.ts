@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { montarSegredosIntegracoes } from './segredos-integracoes.ts';
+import { montarSegredosIntegracoes } from './segredos-integracoes.js';
 
 it('envia uma vez, limpa campo imediatamente e mostra somente metadados', async () => {
   const raiz = document.createElement('div');

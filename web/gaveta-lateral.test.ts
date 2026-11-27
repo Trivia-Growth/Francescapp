@@ -214,3 +214,20 @@ it('lembra a navegação recolhida na carga seguinte', async () => {
   expect(recolher.getAttribute('aria-expanded')).toBe('true');
   expect(localStorage.getItem('navegacao-recolhida')).toBeNull();
 });
+
+it('oferece o controle de recolher com moldura e rótulo visíveis', () => {
+  /* Conferido em navegador em 25/11/2026: o recolhimento sempre funcionou nas três
+     larguras, mas o controle era um `‹` solto no branco — sem borda, sem fundo, sem
+     texto — e a única pista de que era clicável só aparecia no `:hover`. O solicitante
+     relatou que "a sidebar não recolhe"; o que faltava era encontrar o botão.
+     Então a prova aqui não é de comportamento, é de descoberta: existe rótulo visível, e
+     ele acompanha o estado. */
+  document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
+  const botao = document.getElementById('collapse-sidebar') as HTMLButtonElement;
+  const rotulo = botao.querySelector('.sidebar-collapse-rotulo');
+  expect(rotulo?.textContent).toBe('Recolher');
+  expect(botao.getAttribute('aria-label')).toBe('Recolher navegação');
+  // O rótulo é decorativo para quem ouve: `aria-label` já diz a mesma coisa por extenso,
+  // e sem isto o nome acessível sairia duplicado.
+  expect(rotulo?.getAttribute('aria-hidden')).toBe('true');
+});

@@ -1,172 +1,333 @@
 ---
-name: FFCMApp - marca recebida e interface provisória
-description: Materiais Francescato recebidos; fontes e componentes do mock ainda provisórios.
+name: FFCMApp
+description: Coordenação serena do cuidado — precisão editorial, superfície plana, oliva como área e nunca como palavra.
 colors:
+  primary: "#475436"
+  primary-hover: "#38442a"
+  primary-suave: "#edf2e6"
+  primary-filete: "#d4ddc8"
+  primary-texto-suave: "#4a5240"
   brand-olive: "#839352"
   brand-charcoal: "#1f1f1d"
-  brand-support-olive: "#75734d"
-  brand-beige: "#e3d6c6"
-  brand-sand: "#ccaf8f"
-  primary: "#475436"
-  olive: "#879257"
-  lime: "#aeba7b"
-  sand: "#e3ccb0"
-  brown: "#6f604b"
   ink: "#273123"
-  muted: "#65705f"
-  line: "#dfe5d4"
+  muted: "#58634f"
   wash: "#fbfcf8"
-  soft: "#f1f4e9"
   white: "#ffffff"
+  soft: "#f1f4e9"
   panel: "#f2f5eb"
-  primary-hover: "#38442a"
+  superficie-trabalho: "#fafbf8"
+  line: "#dfe5d4"
+  field-line: "#859077"
+  error: "#903a30"
+  error-superficie: "#f6ece9"
+  aviso: "#b4801f"
+  aviso-filete: "#d8c08a"
+  aviso-superficie: "#fdf6e7"
+  aviso-texto: "#5c431a"
+  areia-superficie: "#f4ece1"
+  areia-texto: "#5a4e3b"
 typography:
   display:
-    fontFamily: "Cormorant Garamond, Georgia, serif"
-    fontSize: "50px"
+    fontFamily: '"Cormorant Garamond", Georgia, serif'
+    fontSize: "2.4375rem"
     fontWeight: 500
-    lineHeight: 1.04
-    letterSpacing: "-0.035em"
+    lineHeight: 1.2
   headline:
-    fontFamily: "Cormorant Garamond, Georgia, serif"
-    fontSize: "34px"
+    fontFamily: '"Cormorant Garamond", Georgia, serif'
+    fontSize: "1.9375rem"
     fontWeight: 500
-    lineHeight: 1.15
-    letterSpacing: "-0.022em"
+    lineHeight: 1.2
+  title:
+    fontFamily: '"Cormorant Garamond", Georgia, serif'
+    fontSize: "1.5625rem"
+    fontWeight: 600
+    lineHeight: 1.2
+  subtitle:
+    fontFamily: Raleway, Arial, sans-serif
+    fontSize: "1.25rem"
+    fontWeight: 500
+    lineHeight: 1.5
   body:
-    fontFamily: "Raleway, Arial, sans-serif"
-    fontSize: "16px"
-    lineHeight: 1.62
+    fontFamily: Raleway, Arial, sans-serif
+    fontSize: "1rem"
+    fontWeight: 400
+    lineHeight: 1.6
   label:
-    fontFamily: "Raleway, Arial, sans-serif"
-    fontSize: "14px"
+    fontFamily: Raleway, Arial, sans-serif
+    fontSize: "0.8125rem"
+    fontWeight: 600
+    lineHeight: 1.4
 rounded:
   field: "7px"
   control: "8px"
   card: "12px"
   panel: "14px"
-  dialog: "16px"
   chip: "20px"
 spacing:
-  button: "11px 16px"
-  field: "11px 12px"
-  nav: "13px 12px"
-  panel: "24px"
+  "1": "4px"
+  "2": "8px"
+  "3": "12px"
+  "4": "16px"
+  "5": "24px"
+  "6": "32px"
+  "7": "48px"
+  "8": "72px"
+controls:
+  sm: "36px"
+  md: "46px"
+navigation:
+  sidebar: "248px"
+  rail: "80px"
+icons:
+  base: "16px"
+  chrome: "18px"
+shadows:
+  control: "0 3px 12px rgb(39 49 35 / 12%)"
+  menu: "0 12px 28px rgb(39 49 35 / 16%)"
+  modal: "0 18px 48px rgb(39 49 35 / 20%)"
+motion:
+  estado: "120ms"
+  troca: "180ms"
+  contexto: "240ms"
+  entrada: "cubic-bezier(0.2, 0, 0, 1)"
+  saida: "cubic-bezier(0.4, 0, 1, 1)"
 components:
-  button-primary:
+  botao-principal:
     backgroundColor: "{colors.primary}"
     textColor: "{colors.white}"
-    typography: "{typography.label}"
     rounded: "{rounded.control}"
-    padding: "{spacing.button}"
-  button-primary-hover:
+    padding: "10px 18px"
+    height: "{controls.md}"
+  botao-principal-hover:
     backgroundColor: "{colors.primary-hover}"
-  field:
+  botao-secundario:
     backgroundColor: "{colors.white}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.field}"
-    padding: "{spacing.field}"
-  nav-active:
-    backgroundColor: "{colors.soft}"
+    textColor: "{colors.primary}"
+    borderColor: "{colors.field-line}"
+    rounded: "{rounded.control}"
+    height: "{controls.md}"
+  botao-discreto:
+    backgroundColor: transparent
     textColor: "{colors.primary}"
     rounded: "{rounded.control}"
-    padding: "{spacing.nav}"
-  panel:
-    backgroundColor: "{colors.panel}"
-    rounded: "{rounded.panel}"
-    padding: "{spacing.panel}"
+    height: "{controls.md}"
+  campo:
+    backgroundColor: "{colors.white}"
+    textColor: "{colors.ink}"
+    borderColor: "{colors.field-line}"
+    rounded: "{rounded.field}"
+    height: "{controls.md}"
+  superficie:
+    backgroundColor: "{colors.white}"
+    borderColor: "{colors.line}"
+    rounded: "{rounded.card}"
+  navegacao-ativa:
+    backgroundColor: "{colors.primary-suave}"
+    textColor: "{colors.primary}"
+    rounded: "{rounded.control}"
+  marca-estado:
+    backgroundColor: "{colors.soft}"
+    textColor: "{colors.primary}"
+    rounded: "{rounded.chip}"
+  aba-selecionada:
+    backgroundColor: transparent
+    textColor: "{colors.primary}"
+    borderBottom: "3px solid {colors.brand-olive}"
 ---
 
 # Design System: FFCMApp
 
 ## Overview
 
-**Creative North Star: "Mesa de coordenação serena"**
+**Norte criativo: "Coordenação serena do cuidado"**
 
-A referência provisória é o mock existente: leitura ampla, fundo claro, oliva e poucos elementos competindo pela atenção. A carteira apresenta os dados disponíveis em cartões brancos, com duas colunas no desktop e uma no celular.
+A Francescato acompanha famílias durante tratamento de saúde mental, com clientela de alto
+padrão. A tela precisa ser **precisa e calma**, não densa e operacional: quem a usa está
+lidando com o pior momento de uma família, e a interface não pode acrescentar ruído a isso.
 
-Atualizado em 15/10/2026: o solicitante confirmou o nome **FFCMApp** e forneceu logos e paleta. [Materiais e limites de uso](docs/projeto/identidade-visual.md); originais em [assets/brand/francescato](assets/brand/francescato/). Os tokens `brand-*` são cores extraídas das imagens, ainda sem códigos de manual. Os demais tokens e os componentes descrevem o mock, não uma migração de marca já executada. Fontes e desenho dos componentes continuam provisórios.
+Daí as três escolhas que governam todo o resto. Serifa editorial nos títulos, para o produto
+ter voz e não parecer um painel administrativo. Superfície plana por padrão, porque cada
+caixa a mais é uma decisão a mais pedida ao olho. E oliva como área, nunca como palavra —
+decisão de contraste, explicada abaixo, não de gosto.
 
-A fonte da interface documentada é [o CSS da demonstração arquivada](docs/legacy/mockup/source/styles.css), considerando os refinamentos finais. A [direção original arquivada](docs/legacy/mockup/source/DESIGN.md) continua como referência histórica; a extração de 14/10/2026 não incluiu inspeção renderizada, pois não havia navegador disponível.
+Este documento descreve **o que está implementado**, conferido por
+`web/contrato-visual.test.ts`. O que ainda é provisório está marcado como pendência, no fim.
 
-**Key Characteristics:**
+**Características:**
 
-- Superfícies claras e apoio tonal suave.
-- Títulos editoriais com texto funcional legível.
-- Casos em cartões de borda fina; relatos e listas usam divisórias discretas.
-- Ações simples e foco visível.
+- Branco e lavado contínuos; oliva pontual em área, filete e marcação.
+- Cormorant Garamond nos títulos; Raleway em corpo, controles e metadados.
+- Hierarquia por tamanho, peso e espaço — nunca por caixa dentro de caixa.
+- Uma navegação por vez: lateral completa ou trilho de ícones.
+- Alvo de toque de 46px; campo de 16px no celular.
 
 ## Colors
 
-Os tokens `brand-olive`, `brand-charcoal`, `brand-support-olive`, `brand-beige` e `brand-sand` registram o material recebido. O oliva do logo difere do oliva da paleta; preservar essa distinção até confirmação dos códigos oficiais. Os tokens sem prefixo `brand-` são o snapshot do mock. Não confundir as duas origens nem declarar que o mock já foi atualizado.
+Todo valor nasce no `:root` de `web/styles.css`. **Nenhuma cor literal existe fora dele** —
+`web/contrato-visual.test.ts` reprova se uma aparecer.
 
-Antes de definir cores de texto e botões, validar contraste. O oliva do logo com branco resulta em (3,35:1), insuficiente para a referência de texto normal (4,5:1). Não transferir a aplicação do logo automaticamente para texto pequeno.
+Isso não é zelo abstrato. Antes de 25/11/2026 havia 25 cores literais na folha e só 12
+declaradas: o sistema de aviso inteiro estava escrito por extenso em dois lugares, e
+existiam **dois vermelhos** para a mesma ideia de erro. A terceira cópia teria divergido.
 
-### Primary
+### Marca
 
-Na referência do mock: `primary` e `primary-hover` conduzem ações; `olive` é a aproximação anterior de marca/foco; `lime` dá apoio. Na marca recebida, o oliva do logo está em `brand-olive`; a definição semântica final das ações ainda será validada.
+- **`primary` `#475436`** conduz ação e é a cor da marca em palavra.
+- **`brand-olive` `#839352`** é o oliva institucional. Mede **3,35:1 sobre branco** — reprova
+  no mínimo de 4,5:1 para texto. Serve como área, filete e marcação; **nunca como texto**.
+  A regra não vale para o logotipo, que é isento de contraste mínimo.
+- **`primary-suave`, `primary-filete`, `primary-texto-suave`** são a marca em fundo, linha e
+  texto tonal.
 
-### Secondary
+### Estado
 
-`sand` e `brown`: detalhes de apoio, não uma segunda marca.
+- **`error` `#903a30`** com `error-superficie`. **Um vermelho só**, decidido em 25/11/2026:
+  havia um segundo, `#b42318`, escondido como valor de reserva de um token nunca declarado.
+  O `#b42318` é 2 pontos mais claro, mas tem 76,5% de saturação contra 50% — o que pesa no
+  olho é a saturação, não a clareza. Ficou o tijolo lavado, que ainda contrasta melhor:
+  7,41:1 contra 6,57:1 sobre branco. `alerta` e `perigo` são apelidos, não cores novas.
+- **`aviso` `#b4801f`** com filete, superfície e dois tons de texto.
+- **`areia`** para etiqueta de contexto.
 
-### Neutral
+Não existe cor de sucesso. O produto nunca teve um verde distinto do verde da marca, e
+inventar um contraria a instrução de preservar as cores. Sucesso se expressa por texto e
+ícone — que VIS-014 exige de qualquer forma, porque cor nunca pode ser o único sinal.
 
-`ink` e `muted`: texto; `wash`: fundo; `soft` e `panel`: áreas auxiliares; `line`: separadores; `white`: controles e diálogo.
-
-**The Francescato Rule.** Não aplicar à aplicação a identidade Trivia da proposta comercial nem azul, laranja, leão ou transparências do HED. HED orienta processo, não marca.
-
-Os estados do mock também usam âmbar, azul e rosa. Não constituem classificação clínica nem uma política de cores de produção aprovada.
+**The Oliva é área Rule.** Oliva pinta superfície, filete e marcação. Palavra em tom de
+marca usa `primary`, que mede 8,11:1. O teste de contrato trava os dois lados: mede o
+contraste de 23 pares texto/fundo e reprova `color: var(--brand-olive)` em qualquer regra.
 
 ## Typography
 
-Cormorant Garamond nos títulos, com fallback Georgia/serif; o CSS usa a família local `Cormorant Garamond`. Raleway no corpo, controles e formulários, com fallback Arial/sans-serif. As fontes e licenças do mock estão em `docs/legacy/mockup/source/assets/`; cópias licenciadas usadas apenas pela proposta comercial estão em `assets/fonts/`.
+**Títulos:** Cormorant Garamond, peso 500 a 600, com Georgia de reserva.
+**Corpo, controles e metadados:** Raleway, com Arial de reserva.
 
-Essas são fontes do mock, não fontes oficiais identificadas nas imagens. Não inferir a tipografia do produto a partir das letras dos logos. Preservar logos como recebidos e pedir fontes/licenças ou confirmação da tipografia provisória.
+A serifa é o que separa este produto de um painel genérico. O acento destacado do `ê` em
+Cormorant Garamond é desenho do tipo, não defeito de arquivo — conferido em 25/11/2026,
+`U+00EA` composto e a fonte carregando no peso 500.
 
-Papéis-base no frontmatter. No celular, o título principal passa a (42px); o corpo permanece (16px). Campos usam (16px), botões (14px), auxiliares geralmente (12-14px). Títulos de seções específicas variam: hero (48px desktop, 44px celular), cabeçalho de seção (31px, 29px), relato (18px, 17px).
+Seis degraus e só seis, razão 1,25 ancorada em 16px:
 
-**The Readability Rule.** Documentar tamanhos reais não significa aprovar todo texto pequeno. Conferir leitura no celular, zoom, texto longo e estados reais antes de produção.
+| Degrau | Papel |
+| --- | --- |
+| 6 — 2,4375rem | título de tela |
+| 5 — 1,9375rem | título de tela no celular; título de seção |
+| 4 — 1,5625rem | título de bloco |
+| 3 — 1,25rem | subtítulo; entrada de leitura longa |
+| 2 — 1rem | corpo, campo e nome em lista |
+| 1 — 0,8125rem | metadado |
+
+**The Dado operacional não é editorial Rule.** Nome, estado e número nunca usam a serifa:
+são **procurados**, não lidos. A serifa pertence ao que se lê em prosa.
 
 ## Layout
 
-Sidebar branca no desktop (248px), recolhível a 80px, com conteúdo em superfície clara. A carteira usa duas colunas e ferramentas compactas com filtros expansíveis.
+Ritmo de 4px, oito degraus. Dentro de um controle 1–3; entre campos de um grupo 4; entre
+grupos 5; entre blocos 6; entre seções 7; primeira dobra 8.
 
-Até 760px, navegação vira gaveta e cartões passam a uma coluna. O alerta de ambiente continua visível.
+Controles têm duas alturas: **46px** padrão, que é o alvo de toque confortável, e **36px**
+compacto para barra de ferramentas. Campo no celular usa 16px de fonte — abaixo disso o iOS
+dá zoom ao focar, e a tela salta.
 
-O mock não define as jornadas completas de configuração, cadastro, convite ou erro. Layout de demonstração não é requisito funcional. Novas telas priorizam tarefas e leitura, sem assumir composição de landing page.
+Lateral de **248px** no desktop, recolhida a **80px** de trilho. Abaixo de 760px a lateral
+cede lugar a gaveta com fundo escurecido, fechável por `Esc`.
+
+**The Navegação única Rule.** Lateral completa **ou** trilho, nunca as duas. A preferência
+persiste em `localStorage`. Recolher e expandir mantêm o foco no controle.
 
 ## Elevation & Depth
 
-Cartões de caso são brancos, com borda fina e sem sombra; listas e diário usam separadores. Painéis auxiliares usam diferença tonal discreta; diálogos usam backdrop escurecido.
+Superfície estática é branco, filete de 1px e espaço. O degrau de fundo basta para separar.
 
-**The Quiet Surface Rule.** Preservar a composição serena do mock; não transformar todos os blocos em cartões elevados.
+Sombra é reservada ao que flutua de verdade, em três degraus: `control` em controle e campo,
+`menu` em menu e popover, `modal` em diálogo.
 
-## Shapes
-
-Controles discretamente arredondados; raios no frontmatter. Cartões de caso usam cantos arredondados; relatos usam divisórias. Avatares são circulares. Chips arredondados não substituem texto para explicar estados.
+**The Superfície plana Rule.** Painel repousa em filete e espaço. Sem gradiente, sem
+glassmorphism, sem cartão decorativo, sem borda dupla entre regiões vizinhas. Uma superfície
+por assunto.
 
 ## Components
 
-- **Botão principal:** oliva escuro, texto branco; hover escurecido. Variante neutra usa branco e borda; botões menores mantêm a linguagem.
-- **Campos:** fundo branco, borda suave (#dce2d3), altura mínima (41px), texto legível. Foco de campo: contorno (2px) verde claro, offset (1px).
-- **Navegação:** sidebar com item ativo tonal e peso (700); menu recolhido no celular. Navegação regular usa peso (550).
-- **Chips e etiquetas:** filtros com estado ativo oliva; badges de situação (12px) precisam de significado textual. O mock não estabelece sozinho todos os estados de erro de produção.
-- **Painel auxiliar:** fundo tonal e padding; painel comum é plano. Linha de caso usa nome, contexto, situação e indicador de abertura.
-- **Diálogo:** largura (620px), máximo `calc(100vw - 32px)` e altura `calc(100dvh - 44px)`; rolagem e teclado precisam de validação real.
+Camada compartilhada em `web/componentes/ui/`. Mudar o botão num lugar muda em todos.
 
-Foco geral: contorno (3px) oliva, offset (4px). Botões desabilitados têm opacity (0.55). Transição de navegação (0.18s); `prefers-reduced-motion` remove animações/transições. Não houve auditoria de contraste, teclado ou responsividade nesta extração.
+### Botão
+
+Três pesos e só três: a ação do assunto, a alternativa, o comando discreto. Altura de 46px
+pelo alvo de toque. `aria-disabled` anuncia e **bloqueia a ação**, mantendo o foco.
+
+### Campo, área de texto e seleção
+
+Mesma moldura: rótulo, marca opcional, dica e erro num lugar só. O nome acessível inclui a
+marca — "Nome completo obrigatório" — porque a marca mora dentro do rótulo.
+
+### Diálogo
+
+Centralizado. Teto de altura em `min(640px, calc(100dvh - 64px))`, cabeçalho e rodapé
+fixos, corpo rolável com sinal de continuidade pintado por gradiente — pintura, não
+animação, logo imune a `prefers-reduced-motion`. Abaixo de 768px vira folha colada embaixo,
+com rodapé invertido, botões largos e `env(safe-area-inset-bottom)`.
+
+Clique fora **não fecha**: o conteúdo costuma ser formulário, e fechar por engano perde
+trabalho.
+
+**The Ação sempre à vista Rule.** Diálogo mais alto que a janela rola no corpo e mantém as
+ações alcançáveis. Rodapé que sai da tela é defeito, não densidade.
+
+### Lista de registros
+
+Registro comparável é **linha acionável** sob cabeçalho, com colunas alinhadas entre linhas.
+Nunca coleção de cartões decorativos. Falha num registro degrada aquele registro; os demais
+continuam legíveis.
+
+### Abas
+
+Ghost compactas, sem cartão em volta. Selecionada com traço de 3px em oliva e peso 700.
+Setas, Home e End no teclado; só a ativa entra na tabulação. Trocar de aba **não remonta a
+página**.
+
+### Estados
+
+Quatro, sempre explícitos. Carga preserva a moldura e indica a região — não troca a tela por
+uma frase. Vazio fica dentro do painel, com frase e próximo passo. Erro traz causa e
+recuperação. E **zero confirmado `0` é distinto de indisponível**: confundir os dois faz a
+coordenadora agir sobre um dado que não existe.
+
+### Movimento
+
+Três durações: `estado` 120ms, `troca` 180ms, `contexto` 240ms. Duas curvas. Nada fora disto
+anima. `prefers-reduced-motion` é governado por um bloco único no fim de `web/styles.css` —
+não escrever outro.
 
 ## Do's and Don'ts
 
-### Do:
+### Do
 
-- **Do** preservar a leitura ampla, a composição serena e o foco visível.
-- **Do** validar celular, zoom, textos longos e estados reais ao implementar.
-- **Do** usar os logos e a paleta recebidos como referência de marca, mantendo fontes e componentes provisórios até aprovação.
+- **Do** declarar toda cor no `:root` e consumir pelo papel, não pelo valor.
+- **Do** usar a serifa no que se lê em prosa e Raleway no que se procura.
+- **Do** manter a hierarquia por tamanho, peso e espaço.
+- **Do** mostrar lateral completa ou trilho, um por vez.
+- **Do** manter o alvo de toque em 46px e o campo do celular em 16px.
+- **Do** apresentar registro comparável como linha, com degradação por registro.
+- **Do** distinguir zero confirmado de indisponível.
 
-### Don't:
+### Don't
 
-- **Don't** aplicar a marca Trivia da proposta ou a identidade HED à aplicação.
-- **Don't** tratar tokens do mock ou cores extraídas de JPEG como manual final ou prova de acessibilidade.
-- **Don't** copiar simulações, limitações de jornada ou problemas de cascade para produção.
+- **Don't** usar `brand-olive` como cor de texto — 3,35:1 reprova.
+- **Don't** escrever cor literal dentro de uma regra; o teste de contrato reprova.
+- **Don't** aplicar a serifa a nome, estado ou número.
+- **Don't** trocar a tela inteira por "Carregando…", nem remontar a página ao trocar de aba.
+- **Don't** empilhar caixa dentro de caixa, nem duplicar filete entre regiões vizinhas.
+- **Don't** inventar cor de estado que a marca não entregou.
+- **Don't** aplicar a identidade Trivia da proposta comercial ou a identidade HED. O HED
+  orienta processo, não marca.
+
+## Pendências de identidade
+
+Materiais em [docs/projeto/identidade-visual.md](docs/projeto/identidade-visual.md);
+originais em [assets/brand/francescato](assets/brand/francescato/).
+
+1. **Sem cor de sucesso.** Aguarda o marketing da Edilaine.
+2. **Fontes provisórias.** Cormorant Garamond e Raleway vêm do mock, sob OFL. Não foram
+   identificadas nas imagens da marca nem confirmadas como tipografia oficial.
+3. **Marca oficial.** Recebida em 25/11/2026 como imagem; falta o vetor para gerar o
+   conjunto completo, o símbolo isolado para o trilho de 80px e os ícones de 180/192/512px.

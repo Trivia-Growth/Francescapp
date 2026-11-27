@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ServicoTurnoHttp } from './servico-turno-http.ts';
-import { montarTurnoProprio } from './turno-proprio.ts';
+import { montarTurnoProprio } from './turno-proprio.js';
 const passagem = vi.hoisted(() => ({ encerrar: null as null | ((id: string) => Promise<void>) }));
 vi.mock('./passagem-turno.js', () => ({
   montarPassagemTurno: (

@@ -9,7 +9,8 @@ import {
   selecaoTurno,
   estadoTurno,
   botaoTurno,
-} from './turno-execucao-campos.ts';
+} from './turno-execucao-campos.js';
+import { botao } from './ui/basicos.js';
 
 export function criarEntregaArquivoTurno() {
   let ativa = true;
@@ -82,8 +83,7 @@ export function montarAnexosOcorrencia(
     { valor: 'equipe', rotulo: 'Equipe' },
     { valor: 'equipe_e_familia', rotulo: 'Equipe e família com fundamento vigente' },
   ]);
-  const salvar = el('button', 'Enviar foto privada');
-  salvar.type = 'submit';
+  const salvar = botao({ rotulo: 'Enviar foto privada', tipo: 'submit', peso: 'principal' });
   grupo.append(salvar);
   formulario.append(grupo);
   const atualizar = botaoTurno('Consultar fotos', () => void carregar());

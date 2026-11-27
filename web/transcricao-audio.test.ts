@@ -5,7 +5,7 @@ import {
   mimeDoBlob,
   montarTranscricaoAudio,
   type ServicoTranscricao,
-} from './transcricao-audio.ts';
+} from './transcricao-audio.js';
 
 const paciente = 'c0000000-0000-4000-8000-000000000003';
 const audioId = 'd0000000-0000-4000-8000-000000000004';

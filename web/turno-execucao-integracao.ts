@@ -1,10 +1,9 @@
 import type { ServicoTurnoHttp } from './servico-turno-http.ts';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
-import { montarTurnoProprio } from './turno-proprio.ts';
-import { montarConsentimentoTurno } from './turno-execucao-localizacao.ts';
+import { montarTurnoProprio } from './turno-proprio.js';
+import { montarConsentimentoTurno } from './turno-execucao-localizacao.js';
 import { montarExecucaoTurno } from './turno-execucao.ts';
-import type { PortasConversaoOcorrencia } from './turno-execucao-conversao.ts';
-import { elementoTurno as el } from './turno-execucao-campos.ts';
+import type { PortasConversaoOcorrencia } from './turno-execucao-conversao.js';
 export function montarTurnoComExecucao(
   raiz: HTMLElement,
   pacienteId: string,
@@ -18,8 +17,11 @@ export function montarTurnoComExecucao(
     conversao?: PortasConversaoOcorrencia;
   },
 ) {
-  const consentimentoRaiz = el('div');
-  const turnoRaiz = el('div');
+  /* Duas raízes próprias: o consentimento e o turno são ilhas independentes, e cada uma
+     monta e desmonta a sua. Criadas pelo documento, não pela fábrica imperativa de
+     `turno-execucao-campos` — este módulo compõe, não desenha. */
+  const consentimentoRaiz = document.createElement('div');
+  const turnoRaiz = document.createElement('div');
   raiz.replaceChildren(consentimentoRaiz, turnoRaiz);
   const pendencias = new Map<string, boolean>();
   const pendente = (origem: string) => (valor: boolean) => {

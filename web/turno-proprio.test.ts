@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
-import { montarTurnoProprio } from './turno-proprio.ts';
+import { montarTurnoProprio } from './turno-proprio.js';
 import type { ServicoTurnoHttp } from './servico-turno-http.ts';
 import type { Turno } from '../packages/contracts/src/turno.ts';
 import { FalhaApi } from './api.ts';
@@ -63,8 +63,12 @@ function preparar() {
   document.body.append(raiz);
   return { servico, raiz, acessoPerdido: vi.fn() };
 }
+/* A espera precisa ceder a vez ao agendador, não só à fila de microtarefas. Medido em
+   25/11/2026: o React agenda a repintura de uma atualização vinda de `then`/`await` fora
+   de evento numa macrotarefa, então `await Promise.resolve()` repetido voltava com a
+   tela ainda no estado anterior. Nenhuma asserção mudou. */
 const aguardar = async () => {
-  for (let i = 0; i < 15; i++) await Promise.resolve();
+  for (let i = 0; i < 15; i++) await new Promise((resolver) => setTimeout(resolver, 0));
 };
 const botao = (raiz: HTMLElement, texto: string) => {
   const encontrado = [...raiz.querySelectorAll('button')].find(

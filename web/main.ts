@@ -1,11 +1,9 @@
-import { montarAcessosAdministracao } from './acessos-administracao.js';
 import { criarServicoAcessosHttp } from './servico-acessos-http.js';
 import { montarLoginInterno } from './login-interno.js';
 import { iniciarAcao } from './esqueleto.js';
 import { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.js';
 import { montarAgendaIndividual } from './agenda-individual.js';
 import { montarContatoPaciente } from './contatos-paciente.js';
-import { montarSelecaoProfissional } from './selecao-profissional.js';
 import { montarEdicaoPaciente } from './editar-paciente.js';
 import type {
   sessaoNativaSchema,
@@ -15,19 +13,13 @@ import type {
 import { ClienteFFCM, exigeNovoAcesso, FalhaApi, mensagemFalha, semPermissao } from './api.js';
 import { lerCadastro } from './cadastro.js';
 import { montarCamposCasoNovo } from './campos-caso-novo.js';
-import { montarAnamnese } from './anamnese.js';
 import { criarCicloCadastro } from './ciclo-cadastro.js';
-import { montarAdministracaoPlano } from './campo-extra-plano-administracao.js';
-import { montarPlanoCuidado } from './plano-cuidado.js';
 import { criarServicoPlanoHttp } from './servico-plano-http.js';
 import {
   criarServicoEstadoEmocionalHttp,
   criarServicoModeloFormularioHttp,
   criarServicoPapelDeclaradoHttp,
 } from './servico-catalogo-administrado-http.js';
-import { montarModeloFichaPlantao } from './modelo-ficha-plantao-administracao.js';
-import { montarPapelDeclaradoAdministracao } from './papel-declarado-administracao.js';
-import { montarEstadoEmocionalAdministracao } from './estado-emocional-administracao.js';
 import { criarServicoEdicaoPacienteHttp } from './servico-edicao-paciente-http.js';
 import { montarTarefasCuidado } from './tarefas-cuidado.js';
 import { criarServicoTarefasHttp } from './servico-tarefas-http.js';
@@ -42,72 +34,47 @@ import {
   type PacienteFicha,
   type SecaoFicha,
 } from './ficha-paciente.js';
-import { montarDadosFamiliar } from './secao-dados-familiar.js';
-import { montarVisaoCaso } from './visao-caso.js';
-import { montarSaude } from './saude.js';
 import { criarServicoSaudeHttp } from './servico-saude-http.js';
-import { montarEncaminhamentos } from './encaminhamentos.js';
 import { criarServicoEncaminhamentosHttp } from './servico-encaminhamentos-http.js';
-import { montarOrientacoes } from './orientacoes.js';
 import { criarServicoOrientacoesHttp } from './servico-orientacoes-http.js';
-import { montarRedeCuidado } from './rede-cuidado.js';
-import { montarContextoCuidado } from './contexto-cuidado.js';
 import { criarServicoDocumentoPacienteHttp } from './servico-documento-paciente-http.js';
 import { documentoRedeCuidadoSchema } from '../packages/contracts/src/rede-cuidado.js';
 import { documentoContextoCuidadoSchema } from '../packages/contracts/src/contexto-cuidado.js';
-import { montarPlanoCrise } from './plano-crise.js';
 import { criarServicoPlanoCriseHttp } from './servico-plano-crise-http.js';
-import { montarHabilitacaoPlanoCrise } from './habilitacao-plano-crise.js';
 import { criarServicoHabilitacaoPlanoCriseHttp } from './servico-habilitacao-plano-crise-http.js';
 import { criarServicoSubstituicaoCmHttp } from './servico-substituicao-cm-http.js';
-import { montarFinanceiro } from './financeiro.js';
 import { criarServicoFinanceiroHttp } from './servico-financeiro-http.js';
 import { criarAudienciaFinanceira } from './financeiro-audiencia.js';
-import { montarFinanceiroConcessaoAdministracao } from './financeiro-concessao-administracao.js';
-import { montarDiario } from './diario.js';
 import { montarTurnoComExecucao } from './turno-execucao-integracao.js';
 import { montarExecucaoTurno } from './turno-execucao.js';
-import { montarRelatoriosTurno } from './turno-execucao-relatorios.js';
 import { criarServicoTurnoExecucaoHttp } from './servico-turno-execucao-http.js';
 import { criarServicoFichaPlantaoHttp } from './servico-ficha-plantao-http.js';
-import { montarEscalaTurno } from './escala-turno.js';
 import { criarServicoTurnoHttp } from './servico-turno-http.js';
 import './turno-proprio.css';
 import './turno-execucao.css';
 import { montarConversaoDiario } from './conversao-diario.js';
 import { criarServicoConversaoDiarioHttp } from './servico-conversao-diario-http.js';
 import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
-import { montarLinhaTempo } from './linha-tempo.js';
-import { aprimorarDatas } from './ui/data.js';
-import { aprimorarSelecoes } from './ui/selecao.js';
-import { linhaLista } from './ui/basicos.js';
+import { aplicarControlesProprios } from './ui/controles.js';
+import { botao, linhaLista } from './ui/basicos.js';
 import { criarServicoLinhaTempoHttp } from './servico-linha-tempo-http.js';
-import { montarExportacao } from './exportacao.js';
 import { criarServicoExportacaoHttp } from './servico-exportacao-http.js';
-import { montarPreautorizacoesFamiliares } from './preautorizacoes-familiares.js';
 import { criarServicoPreautorizacoesHttp } from './servico-preautorizacoes-http.js';
-import { montarDocumentosCaso } from './documentos-caso.js';
 import {
   consultarDisponibilidadeDocumentos,
   criarServicoDocumentosHttp,
 } from './servico-documentos-http.js';
-import { montarPendenciasCaso } from './pendencias-caso.js';
 import { criarServicoPendenciasHttp } from './servico-pendencias-http.js';
 import { montarAvisos } from './avisos.js';
 import { limparAparelho, montarEstadoDeRede, registrarCascaOffline } from './casca-offline.js';
 import { criarServicoAvisosHttp } from './servico-avisos-http.js';
-import { montarAuditoria } from './auditoria.js';
 import { criarServicoAuditoriaHttp } from './servico-auditoria-http.js';
 import { montarRegrasAtendimento } from './regras-atendimento.js';
 import { criarServicoRegrasAtendimentoHttp } from './servico-regras-atendimento-http.js';
 import { montarHomeProfissional } from './home-profissional.js';
-import { montarSolicitacoesTitular } from './solicitacoes-titular.js';
 import { criarServicoSolicitacaoTitularHttp } from './servico-solicitacao-titular-http.js';
-import { montarConfiguracaoSistema } from './configuracao-sistema.js';
-import { montarSegredosIntegracoes } from './segredos-integracoes.js';
 import { criarServicoSegredosIntegracoesHttp } from './servico-segredos-integracoes-http.js';
 import { criarServicoConfiguracaoSistemaHttp } from './servico-configuracao-sistema-http.js';
-import { montarConcessaoEquipe } from './concessao-equipe.js';
 import { montarFiltrosCarteira, montarSinalCarteira } from './filtros-carteira.js';
 import { montarTranscricaoAudio } from './transcricao-audio.js';
 import { criarServicoTranscricaoHttp } from './servico-transcricao-http.js';
@@ -295,19 +262,25 @@ const crumbPaciente = elemento('crumb-paciente');
 const buscaCampo = elemento<HTMLInputElement>('busca-pacientes');
 const buscaVazia = elemento('busca-vazia');
 
-// Seleção e data da aplicação no lugar das do navegador, no diálogo de cadastro. O
+// Seleção e data da aplicação no lugar das do navegador, em toda a aplicação. O
 // `<select>` e o `input[type=date]` continuam no documento e continuam donos do valor —
 // o que muda é quem aparece e o que o teclado percorre. Ver `web/ui/selecao.ts` e
 // `web/ui/data.ts`, e o comentário em `web/index.html` sobre o `required` que saiu.
-aprimorarSelecoes(registration);
-aprimorarDatas(registration);
-// Cada contato adicionado traz um `<select>` novo. Sem observar o diálogo, o primeiro
-// contato aparecia com a seleção da aplicação e os seguintes com a do navegador — duas
-// aparências no mesmo formulário, que é exatamente o defeito que esta frente corrige.
-new MutationObserver(() => {
-  aprimorarSelecoes(registration);
-  aprimorarDatas(registration);
-}).observe(registration, { childList: true, subtree: true });
+//
+// Cada região é observada porque todas trocam o próprio conteúdo depois de consultar o
+// serviço: o contato que o cadastro adiciona, a área que a administração monta, a seção
+// que a ficha abre. Sem observar, o primeiro controle aparecia com a seleção da aplicação
+// e os seguintes com a do navegador — duas aparências na mesma tela, que é o defeito que
+// esta frente corrige. A mecânica vive em `web/ui/controles.ts` e é provada lá.
+for (const regiao of [
+  registration,
+  elemento('administracao-conteudo'),
+  elemento('ficha-view'),
+  elemento('regras-conteudo'),
+  homeView,
+  elemento('agenda-individual'),
+])
+  aplicarControlesProprios(regiao);
 
 // A navegação mantém os mesmos links e seu estado de autorização nas duas larguras.
 const toggleSidebar = elemento<HTMLButtonElement>('toggle-sidebar');
@@ -336,6 +309,10 @@ function ajustarAvisos(atual: Sessao | null): void {
   const disponivel = atual !== null && atual.usuario.perfil !== 'familia';
   avisosRaiz.hidden = !disponivel;
   if (!disponivel) {
+    // Desmontar ANTES de esvaziar: a raiz React precisa retirar os próprios nós enquanto
+    // eles ainda estão lá. Invertida, a ordem deixa a raiz órfã e o React lança ao tentar
+    // remover o que já saiu.
+    avisos?.desmontar();
     avisos = null;
     avisosRaiz.replaceChildren();
     return;
@@ -447,8 +424,12 @@ function aplicarNavegacaoRecolhida(recolhida: boolean): void {
     'aria-label',
     recolhida ? 'Expandir navegação' : 'Recolher navegação',
   );
-  const simbolo = collapseSidebar.querySelector('span');
-  if (simbolo) simbolo.textContent = recolhida ? '›' : '‹';
+  // Por classe, não por `querySelector('span')`: agora há dois filhos, e a busca pelo
+  // primeiro passaria a depender da ordem do HTML.
+  const sinal = collapseSidebar.querySelector('.sidebar-collapse-sinal');
+  if (sinal) sinal.textContent = recolhida ? '›' : '‹';
+  const rotulo = collapseSidebar.querySelector('.sidebar-collapse-rotulo');
+  if (rotulo) rotulo.textContent = recolhida ? 'Expandir' : 'Recolher';
 }
 
 try {
@@ -941,17 +922,23 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       {
         id: 'dados',
         rotulo: 'Dados do paciente',
-        montar: (raiz) => montarDadosFamiliar(raiz, paciente.id, api, acessoPerdido),
+        montar: async (raiz) =>
+          (await import('./secao-dados-familiar.js')).montarDadosFamiliar(
+            raiz,
+            paciente.id,
+            api,
+            acessoPerdido,
+          ),
       },
       {
         id: 'diario',
         rotulo: 'Diário',
         descarte: descarteDiario,
-        montar: (raiz, pendente) => {
+        montar: async (raiz, pendente) => {
           pedirAreasDoDiario();
           // Sem entrada por áudio aqui de propósito: `transcricao-audio-relato` ainda não
           // tem o planejamento fechado nem cobre sessão familiar — família digita o relato.
-          return montarDiario(
+          return (await import('./diario.js')).montarDiario(
             raiz,
             paciente.id,
             atual.usuario.id,
@@ -968,13 +955,17 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       {
         id: 'relatorios-turno',
         rotulo: 'Relatórios do cuidado',
-        montar: (raiz, pendente) => {
+        montar: async (raiz, pendente) => {
           const servico = criarServicoTurnoExecucaoHttp(paciente.id, identidadeAtual);
-          const desmontar = montarRelatoriosTurno(raiz, servico, {
-            familia: true,
-            acessoPerdido,
-            alteracaoPendente: pendente,
-          });
+          const desmontar = (await import('./turno-execucao-relatorios.js')).montarRelatoriosTurno(
+            raiz,
+            servico,
+            {
+              familia: true,
+              acessoPerdido,
+              alteracaoPendente: pendente,
+            },
+          );
           return () => {
             desmontar();
             servico.desmontar();
@@ -984,12 +975,12 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       {
         id: 'plano',
         rotulo: 'Plano de cuidado',
-        montar: (raiz) =>
+        montar: async (raiz) =>
           // Família só lê (banco filtra por `visibilidade='publica'`, migration
           // `20261124110000`); por isso não entra em `planoAberto` nem no mecanismo de
           // reconfirmação de acesso do rascunho do colaborador (que leva a `'visao'`, seção
           // que a família não tem) — família não grava, não tem rascunho nem reserva a perder.
-          montarPlanoCuidado(
+          (await import('./plano-cuidado.js')).montarPlanoCuidado(
             raiz,
             paciente.id,
             criarServicoPlanoHttp(identidadeAtual),
@@ -1001,11 +992,11 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       {
         id: 'documentos',
         rotulo: 'Documentos',
-        montar: (raiz) =>
+        montar: async (raiz) =>
           // Família só lê (banco filtra por `audiencia='equipe_e_familia'`, migration
           // `20261124120000`); nunca anexa, então as categorias (só usadas pelo formulário de
           // envio) não precisam ser pedidas.
-          montarDocumentosCaso(
+          (await import('./documentos-caso.js')).montarDocumentosCaso(
             raiz,
             paciente.id,
             criarServicoDocumentosHttp(identidadeAtual),
@@ -1018,10 +1009,10 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       {
         id: 'orientacoes',
         rotulo: 'Orientações',
-        montar: (raiz) =>
+        montar: async (raiz) =>
           // Família só lê (banco filtra por `visibilidade='publica'`, migration
           // `20261124140000`); nunca registra orientação.
-          montarOrientacoes(
+          (await import('./orientacoes.js')).montarOrientacoes(
             raiz,
             paciente.id,
             criarServicoOrientacoesHttp(identidadeAtual),
@@ -1043,13 +1034,28 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'visao',
       rotulo: 'Visão do caso',
-      montar: (raiz) =>
-        montarVisaoCaso(
+      montar: async (raiz) =>
+        (await import('./visao-caso.js')).montarVisaoCaso(
           raiz,
           paciente,
           {
             objetivos: criarServicoPlanoHttp(identidadeAtual),
-            anamnese: api,
+            anamnese: {
+              consultarAnamnese: (id) => api.consultarAnamnese(id),
+              confirmarRecusaIsolada:
+                atual.usuario.perfil === 'administrador' &&
+                atual.capacidades.includes('consultar_carteira_integral')
+                  ? async () => {
+                      const confirmada = await api.consultarSessao();
+                      return (
+                        confirmada.session_id === atual.session_id &&
+                        confirmada.usuario.id === atual.usuario.id &&
+                        confirmada.usuario.perfil === 'administrador' &&
+                        confirmada.capacidades.includes('consultar_carteira_integral')
+                      );
+                    }
+                  : undefined,
+            },
             ...(administraCadastro && edicaoDisponivel
               ? {
                   situacao: {
@@ -1069,8 +1075,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'linha-tempo',
       rotulo: 'Linha do tempo',
-      montar: (raiz) =>
-        montarLinhaTempo(
+      montar: async (raiz) =>
+        (await import('./linha-tempo.js')).montarLinhaTempo(
           raiz,
           paciente.id,
           criarServicoLinhaTempoHttp(identidadeAtual),
@@ -1081,11 +1087,21 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'anamnese',
       rotulo: 'Anamnese',
       descarte: descarteAnamnese,
-      montar: (raiz, pendente) => {
+      montar: async (raiz, pendente) => {
         // Uma consulta só serve as duas coisas: se o histórico está ligado e o roteiro
         // sugerido (FR-003), que vem do catálogo em banco e é editável na administração.
         const disponibilidade = api.disponibilidadeHistoricoAnamnese();
-        return montarAnamnese(
+        /* A consulta parte ANTES da importação dinâmica de propósito: as duas correm
+           juntas, e a seção abre mais cedo. O preço é uma janela em que a promessa existe
+           e ninguém a escuta — os tratadores de verdade só são anexados nos argumentos
+           abaixo, depois do `await`. Se ela falhar nessa janela, vira rejeição não
+           tratada, que derruba o processo sem quebrar asserção nenhuma. Medido em
+           26/11/2026 no portão de ativação.
+           Este `catch` vazio não engole erro: ele apenas marca a promessa como escutada.
+           Quem decide o que fazer com a falha continua sendo o `.catch` de cada argumento,
+           que devolve `false` e lista vazia. */
+        disponibilidade.catch(() => undefined);
+        return (await import('./anamnese.js')).montarAnamnese(
           raiz,
           paciente.id,
           api,
@@ -1100,8 +1116,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'saude',
       rotulo: 'Saúde',
       descarte: descarteSaude,
-      montar: (raiz, pendente) =>
-        montarSaude(
+      montar: async (raiz, pendente) =>
+        (await import('./saude.js')).montarSaude(
           raiz,
           paciente.id,
           criarServicoSaudeHttp(identidadeAtual),
@@ -1113,10 +1129,10 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'plano',
       rotulo: 'Plano de cuidado',
       descarte: descartePlano,
-      montar: (raiz, pendente) => {
+      montar: async (raiz, pendente) => {
         const servico = criarServicoPlanoHttp(identidadeAtual);
         planoAberto = { pacienteId: paciente.id, servico };
-        const desmontar = montarPlanoCuidado(
+        const desmontar = (await import('./plano-cuidado.js')).montarPlanoCuidado(
           raiz,
           paciente.id,
           servico,
@@ -1135,8 +1151,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'crise',
       rotulo: 'Plano de crise',
       descarte: descarteCrise,
-      montar: (raiz, pendente) =>
-        montarPlanoCrise(
+      montar: async (raiz, pendente) =>
+        (await import('./plano-crise.js')).montarPlanoCrise(
           raiz,
           paciente.id,
           criarServicoPlanoCriseHttp(identidadeAtual),
@@ -1150,38 +1166,43 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'tarefas',
       rotulo: 'Tarefas',
       descarte: descarteTarefa,
-      montar: (raiz, pendente) => montarSecaoTarefas(raiz, paciente.id, pendente),
+      montar: async (raiz, pendente) => montarSecaoTarefas(raiz, paciente.id, pendente),
     });
   if (atual.usuario.perfil === 'profissional')
     secoes.push({
       id: 'meu-turno',
       rotulo: 'Meu turno',
       // Visibilidade organiza a ficha; autorização continua no servidor e banco.
-      montar: (raiz, pendente) =>
+      montar: async (raiz, pendente) =>
         montarSecaoExecucaoTurno(raiz, paciente.id, atual, pendente, true),
     });
   if (atual.usuario.perfil === 'administrador')
     secoes.push({
       id: 'execucao-cuidado',
       rotulo: 'Execução e relatórios',
-      montar: (raiz, pendente) =>
+      montar: async (raiz, pendente) =>
         montarSecaoExecucaoTurno(raiz, paciente.id, atual, pendente, false),
     });
   secoes.push({
     id: 'escala-turnos',
     rotulo: 'Escala de turnos',
-    montar: (raiz, pendente) =>
-      montarEscalaTurno(raiz, paciente.id, criarServicoTurnoHttp(identidadeAtual), {
-        acessoPerdido: () => acessoPerdido(new FalhaApi('nao_autenticado', 401)),
-        alteracaoPendente: pendente,
-      }),
+    montar: async (raiz, pendente) =>
+      (await import('./escala-turno.js')).montarEscalaTurno(
+        raiz,
+        paciente.id,
+        criarServicoTurnoHttp(identidadeAtual),
+        {
+          acessoPerdido: () => acessoPerdido(new FalhaApi('nao_autenticado', 401)),
+          alteracaoPendente: pendente,
+        },
+      ),
   });
   if (administraCadastro)
     secoes.push({
       id: 'cadastro',
       rotulo: 'Cadastro',
       descarte: descarteCadastro,
-      montar: (raiz, pendente) =>
+      montar: async (raiz, pendente) =>
         montarSecaoCadastro(raiz, paciente.id, pendente, catalogoResponsaveis),
     });
   if (administraConcessoes)
@@ -1189,15 +1210,21 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'equipe',
       rotulo: 'Equipe com acesso',
       descarte: descarteEquipe,
-      montar: (raiz, pendente) =>
-        montarSelecaoProfissional(raiz, paciente.id, api, acessoPerdido, pendente),
+      montar: async (raiz, pendente) =>
+        (await import('./selecao-profissional.js')).montarSelecaoProfissional(
+          raiz,
+          paciente.id,
+          api,
+          acessoPerdido,
+          pendente,
+        ),
     });
   if (administraCadastro)
     secoes.push({
       id: 'exportacao',
       rotulo: 'Exportação',
-      montar: (raiz, pendente) =>
-        montarExportacao(
+      montar: async (raiz, pendente) =>
+        (await import('./exportacao.js')).montarExportacao(
           raiz,
           paciente.id,
           criarServicoExportacaoHttp(identidadeAtual),
@@ -1210,8 +1237,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     secoes.push({
       id: 'acesso-familia',
       rotulo: 'Acesso da família',
-      montar: (raiz) =>
-        montarPreautorizacoesFamiliares(
+      montar: async (raiz) =>
+        (await import('./preautorizacoes-familiares.js')).montarPreautorizacoesFamiliares(
           raiz,
           paciente.id,
           criarServicoPreautorizacoesHttp(identidadeAtual),
@@ -1222,8 +1249,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'pendencias',
       rotulo: 'Pendências',
-      montar: (raiz) =>
-        montarPendenciasCaso(
+      montar: async (raiz) =>
+        (await import('./pendencias-caso.js')).montarPendenciasCaso(
           raiz,
           paciente.id,
           criarServicoPendenciasHttp(identidadeAtual),
@@ -1237,8 +1264,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'encaminhamentos',
       rotulo: 'Encaminhamentos',
-      montar: (raiz) =>
-        montarEncaminhamentos(
+      montar: async (raiz) =>
+        (await import('./encaminhamentos.js')).montarEncaminhamentos(
           raiz,
           paciente.id,
           criarServicoEncaminhamentosHttp(identidadeAtual),
@@ -1248,8 +1275,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'orientacoes',
       rotulo: 'Orientações',
-      montar: (raiz) =>
-        montarOrientacoes(
+      montar: async (raiz) =>
+        (await import('./orientacoes.js')).montarOrientacoes(
           raiz,
           paciente.id,
           criarServicoOrientacoesHttp(identidadeAtual),
@@ -1261,8 +1288,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'contexto',
       rotulo: 'Rotina e recursos',
-      montar: (raiz, pendente) =>
-        montarContextoCuidado(
+      montar: async (raiz, pendente) =>
+        (await import('./contexto-cuidado.js')).montarContextoCuidado(
           raiz,
           paciente.id,
           criarServicoDocumentoPacienteHttp(
@@ -1292,8 +1319,8 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'rede',
       rotulo: 'Rede de cuidado',
-      montar: (raiz, pendente) =>
-        montarRedeCuidado(
+      montar: async (raiz, pendente) =>
+        (await import('./rede-cuidado.js')).montarRedeCuidado(
           raiz,
           paciente.id,
           criarServicoDocumentoPacienteHttp(
@@ -1310,9 +1337,9 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
   secoes.push({
     id: 'documentos',
     rotulo: 'Documentos',
-    montar: (raiz, pendente) => {
+    montar: async (raiz, pendente) => {
       pedirCategoriasDeDocumento();
-      return montarDocumentosCaso(
+      return (await import('./documentos-caso.js')).montarDocumentosCaso(
         raiz,
         paciente.id,
         criarServicoDocumentosHttp(identidadeAtual),
@@ -1326,9 +1353,9 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     id: 'diario',
     rotulo: 'Diário',
     descarte: descarteDiario,
-    montar: (raiz, pendente) => {
+    montar: async (raiz, pendente) => {
       pedirAreasDoDiario();
-      return montarDiario(
+      return (await import('./diario.js')).montarDiario(
         raiz,
         paciente.id,
         atual.usuario.id,
@@ -1428,6 +1455,17 @@ let proximoCursor: string | null = null;
 let filtrosCarteira: FiltrosCarteira = {};
 let filtrosMontadosPara: string | null = null;
 let desmontarFiltros: (() => void) | null = null;
+/* Geração da barra de filtros, no mesmo idioma de `consulta` e `consultaFicha`.
+   `filtrosMontadosPara` guarda uma ASSINATURA — `${id}|${administrador}|${disponivel}` —
+   e assinatura é valor, não identidade: perder o acesso e entrar de novo com a MESMA
+   conta reproduz a mesma string. Uma consulta de responsáveis disparada antes da queda
+   resolvia depois da volta, comparava string com string, passava, e desenhava usando o
+   fechamento da montagem ANTIGA. Nascia uma segunda ilha na mesma raiz, e a desmontagem
+   corrente só conhecia a dela — ABA clássico: o valor voltou, a identidade não.
+   A desmontagem também sobe para o módulo: enquanto era local a cada invocação, cada
+   chamada abria um rastreamento novo e perdia a ilha da anterior. */
+let geracaoFiltros = 0;
+let desmontarBarraAtual: (() => void) | null = null;
 type PedidoCadastro = { entrada: CriarPaciente; chave: string };
 let cadastroPendente: PedidoCadastro | null = null;
 let cadastroEmRevalidacao: { usuarioId: string; pedido: PedidoCadastro } | null = null;
@@ -1435,10 +1473,18 @@ const usuariosComCadastroIncerto = new Set<string>();
 let ciclo: ReturnType<typeof criarCicloCadastro> | null = null;
 let cadastroLiberado = false;
 const usuariosCadastroSemConfirmacao = new Set<string>();
-const recuperarCadastro = document.createElement('button');
-recuperarCadastro.type = 'button';
+// Uma faixa de ação só. Antes este botão era filho de `#cadastro`, depois do formulário:
+// no computador aparecia como uma SEGUNDA barra logo abaixo de "Cadastrar paciente", e as
+// duas competiam pela mesma decisão. Ele entra agora na própria faixa do rodapé, antes da
+// ação principal, como alternativa — que é o que ele é: enquanto o cadastro anterior não
+// for conferido, "Cadastrar paciente" fica desabilitado e este é o único caminho adiante.
+// Não sobe para o corpo porque o corpo rola: a ação que destrava o formulário não pode
+// depender de alguém rolar até ela. A explicação continua em `#create-feedback`, no corpo,
+// e o botão aponta para ela por `aria-describedby`.
+const recuperarCadastro = botao({ rotulo: '', peso: 'secundario' });
+recuperarCadastro.setAttribute('aria-describedby', 'create-feedback');
 recuperarCadastro.hidden = true;
-registration.append(recuperarCadastro);
+elemento('cadastro-acoes').insertBefore(recuperarCadastro, createButton);
 
 async function consultarCadastro(): Promise<void> {
   const atual = ciclo;
@@ -1574,7 +1620,10 @@ function apagarPacientes(): void {
   filtrosCarteira = {};
   desmontarFiltros?.();
   desmontarFiltros = null;
-  elemento('filtros-carteira').replaceChildren();
+  /* Sem `replaceChildren` aqui: a ilha é dona dos próprios nós e os retira ao desmontar.
+     Apagá-los por fora era uma corrida — medido em 26/11/2026, `unmount()` nem sempre
+     termina no mesmo quadro, e o React lançava `NotFoundError` ao procurar nós que esta
+     linha já havia removido. A barra fica escondida de qualquer forma. */
   elemento('filtros-carteira').hidden = true;
   fecharAdministracao();
   fecharRegras();
@@ -1662,8 +1711,26 @@ function mostrarAcesso(mensagem = '', tom: 'error' | 'success' | 'neutral' = 'ne
  */
 function acessoPerdido(erro: unknown): boolean {
   if (semPermissao(erro)) {
-    // A ficha do caso negado sai da tela: dado clínico não pode continuar visível depois de
-    // uma recusa. A lista e a sessão ficam — é só aquele caso, ou aquela área, que fechou.
+    /* Dado clínico não pode continuar visível depois de uma recusa. Mas o tamanho do que
+       sai da tela precisa corresponder ao tamanho da recusa.
+       Até 25/11/2026 qualquer 403 fechava a ficha inteira. Consequência medida: o
+       Administrador que abrisse uma aba não liberada era devolvido à lista, e não
+       conseguia alcançar "Equipe com acesso" do mesmo caso — a ficha fechava antes.
+       A recusa quase sempre é da ÁREA, não do caso. `visao` é a exceção, porque é a
+       leitura do caso em si: negá-la é negar o caso, e aí a ficha fecha mesmo. Para as
+       demais, `limparSecao()` apaga o conteúdo carregado E invalida as respostas
+       pendentes daquela seção, que é a garantia que importa; a moldura da ficha fica, e a
+       pessoa troca de aba. */
+    const secao = ficha?.secaoAtual();
+    if (ficha && secao !== undefined && secao !== 'visao') {
+      ficha.limparSecao();
+      aviso(
+        'workspace-feedback',
+        'Esta área não está liberada para o seu acesso. Sua sessão continua ativa, e as demais áreas deste caso seguem disponíveis.',
+        'error',
+      );
+      return true;
+    }
     fecharFicha();
     aviso(
       'workspace-feedback',
@@ -1725,6 +1792,7 @@ function montarFiltrosDaCarteira(atual: Sessao): void {
   const assinatura = `${atual.usuario.id}|${administrador}|${disponivel}`;
   if (filtrosMontadosPara === assinatura) return;
   filtrosMontadosPara = assinatura;
+  geracaoFiltros += 1;
   desmontarFiltros?.();
   desmontarFiltros = null;
   if (!disponivel) {
@@ -1741,8 +1809,13 @@ function montarFiltrosDaCarteira(atual: Sessao): void {
     proximoCursor = null;
     void carregarPacientes();
   };
+  /* `desenhar` é chamada DUAS vezes na mesma raiz — uma sem a equipe e outra quando a
+     lista de responsáveis chega. A montagem anterior precisa ser desfeita de verdade, não
+     só ter os filhos apagados: a raiz React continua viva depois de `replaceChildren()`, e
+     quando o React vai remover os próprios nós eles já saíram. */
   const desenhar = (responsaveis?: readonly ResponsavelOpcao[]) => {
-    montarFiltrosCarteira(
+    desmontarBarraAtual?.();
+    desmontarBarraAtual = montarFiltrosCarteira(
       raiz,
       {
         administrador,
@@ -1758,11 +1831,14 @@ function montarFiltrosDaCarteira(atual: Sessao): void {
   // justifica percorrer a equipe inteira, e revalidar o acesso não repete a consulta.
   // Até lá o filtro de responsável existe com a opção "sem responsável indicado".
   const catalogo = administrador ? catalogoDaEquipe(atual) : null;
+  const geracao = geracaoFiltros;
   const carregarResponsaveis = () => {
     raiz.removeEventListener('focusin', carregarResponsaveis);
     void catalogo?.()
       .then((responsaveis) => {
-        if (filtrosMontadosPara === assinatura) desenhar(responsaveis);
+        // Geração, não assinatura: a string volta a ser igual depois de um novo acesso
+        // da mesma conta, a identidade da montagem não.
+        if (geracao === geracaoFiltros) desenhar(responsaveis);
       })
       .catch(() => {
         /* a barra continua útil sem a lista de responsáveis */
@@ -1770,7 +1846,19 @@ function montarFiltrosDaCarteira(atual: Sessao): void {
   };
   if (catalogo) raiz.addEventListener('focusin', carregarResponsaveis);
   desmontarFiltros = () => {
+    /* Encerrar também INVALIDA o que está em voo. Sem esta linha a consulta de
+       responsáveis disparada antes da queda resolvia depois dela, passava na guarda —
+       porque a geração só avançava ao montar, nunca ao desmontar — e desenhava uma ilha
+       nova numa barra que já tinha sido encerrada. `desmontarFiltros` já era nulo nesse
+       ponto, então nada mais alcançava essa ilha, e o `replaceChildren` seguinte
+       encontrava uma raiz React viva. Era a origem dos 3 `NotFoundError` restantes. */
+    geracaoFiltros += 1;
     raiz.removeEventListener('focusin', carregarResponsaveis);
+    // Desmontar a ilha ANTES de esvaziar. Até 26/11/2026 esta função só apagava os
+    // filhos, e a raiz React ficava órfã — era a origem do `NotFoundError` que derrubava
+    // o portão de ativação sem quebrar uma única asserção.
+    desmontarBarraAtual?.();
+    desmontarBarraAtual = null;
     raiz.replaceChildren();
   };
 }
@@ -1779,7 +1867,11 @@ type AreaAdministracao = {
   id: string;
   rotulo: string;
   disponivel: (atual: Sessao) => boolean;
-  montar: (raiz: HTMLElement) => () => void;
+  /* Promete a desmontagem porque o módulo da área chega por importação dinâmica: o código
+     de cada tela de Administração só desce quando alguém abre aquela tela. Medido em
+     26/11/2026: as 13 telas pesam ~67 kB comprimidos, e quem não administra nunca as
+     abre — era peso na primeira carga de todo mundo, inclusive no celular da família. */
+  montar: (raiz: HTMLElement) => Promise<() => void>;
 };
 
 const nomeDoUsuarioNaEquipe = (() => {
@@ -1814,8 +1906,8 @@ const areasAdministracao: AreaAdministracao[] = [
     id: 'plano-cuidado',
     rotulo: 'Plano de cuidado',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: (raiz) =>
-      montarAdministracaoPlano(
+    montar: async (raiz) =>
+      (await import('./campo-extra-plano-administracao.js')).montarAdministracaoPlano(
         raiz,
         criarServicoPlanoHttp(identidadeAtual),
         acessoPerdido,
@@ -1832,8 +1924,8 @@ const areasAdministracao: AreaAdministracao[] = [
     id: 'modelo-ficha-plantao',
     rotulo: 'Ficha de plantão — modelo',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: (raiz) =>
-      montarModeloFichaPlantao(
+    montar: async (raiz) =>
+      (await import('./modelo-ficha-plantao-administracao.js')).montarModeloFichaPlantao(
         raiz,
         criarServicoModeloFormularioHttp(identidadeAtual, 'ficha_plantao'),
         acessoPerdido,
@@ -1844,8 +1936,8 @@ const areasAdministracao: AreaAdministracao[] = [
     id: 'papel-declarado',
     rotulo: 'Papéis declarados',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: (raiz) =>
-      montarPapelDeclaradoAdministracao(
+    montar: async (raiz) =>
+      (await import('./papel-declarado-administracao.js')).montarPapelDeclaradoAdministracao(
         raiz,
         criarServicoPapelDeclaradoHttp(identidadeAtual),
         acessoPerdido,
@@ -1857,8 +1949,8 @@ const areasAdministracao: AreaAdministracao[] = [
     id: 'estado-emocional',
     rotulo: 'Estado emocional observado',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: (raiz) =>
-      montarEstadoEmocionalAdministracao(
+    montar: async (raiz) =>
+      (await import('./estado-emocional-administracao.js')).montarEstadoEmocionalAdministracao(
         raiz,
         criarServicoEstadoEmocionalHttp(identidadeAtual),
         acessoPerdido,
@@ -1870,29 +1962,41 @@ const areasAdministracao: AreaAdministracao[] = [
     disponivel: (atual) =>
       atual.usuario.perfil === 'administrador' &&
       atual.capacidades.includes('administrar_concessoes'),
-    montar: (raiz) =>
-      montarAcessosAdministracao(raiz, criarServicoAcessosHttp(identidadeAtual), {
-        identidadeAtual,
-        acessoPerdido,
-      }),
+    montar: async (raiz) =>
+      (await import('./acessos-administracao.js')).montarAcessosAdministracao(
+        raiz,
+        criarServicoAcessosHttp(identidadeAtual),
+        {
+          identidadeAtual,
+          acessoPerdido,
+        },
+      ),
   },
   {
     id: 'integracoes',
     rotulo: 'Credenciais das integrações',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: (raiz) =>
-      montarSegredosIntegracoes(raiz, criarServicoSegredosIntegracoesHttp(identidadeAtual), {
-        nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
-      }),
+    montar: async (raiz) =>
+      (await import('./segredos-integracoes.js')).montarSegredosIntegracoes(
+        raiz,
+        criarServicoSegredosIntegracoesHttp(identidadeAtual),
+        {
+          nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
+        },
+      ),
   },
   {
     id: 'configuracao',
     rotulo: 'Configuração',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: (raiz) =>
-      montarConfiguracaoSistema(raiz, criarServicoConfiguracaoSistemaHttp(identidadeAtual), {
-        nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
-      }),
+    montar: async (raiz) =>
+      (await import('./configuracao-sistema.js')).montarConfiguracaoSistema(
+        raiz,
+        criarServicoConfiguracaoSistemaHttp(identidadeAtual),
+        {
+          nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
+        },
+      ),
   },
   {
     id: 'equipe',
@@ -1900,7 +2004,8 @@ const areasAdministracao: AreaAdministracao[] = [
     disponivel: (atual) =>
       atual.usuario.perfil === 'administrador' &&
       atual.capacidades.includes('administrar_concessoes'),
-    montar: (raiz) => montarConcessaoEquipe(raiz, api),
+    montar: async (raiz) =>
+      (await import('./concessao-equipe.js')).montarConcessaoEquipe(raiz, api),
   },
   {
     id: 'plano-de-crise',
@@ -1908,8 +2013,11 @@ const areasAdministracao: AreaAdministracao[] = [
     disponivel: (atual) =>
       atual.usuario.perfil === 'administrador' &&
       atual.capacidades.includes('administrar_concessoes'),
-    montar: (raiz) =>
-      montarHabilitacaoPlanoCrise(raiz, criarServicoHabilitacaoPlanoCriseHttp(identidadeAtual)),
+    montar: async (raiz) =>
+      (await import('./habilitacao-plano-crise.js')).montarHabilitacaoPlanoCrise(
+        raiz,
+        criarServicoHabilitacaoPlanoCriseHttp(identidadeAtual),
+      ),
   },
   {
     // FR-068. Conceder a audiência financeira é ato de Administrador, e não decorre de
@@ -1921,8 +2029,10 @@ const areasAdministracao: AreaAdministracao[] = [
     disponivel: (atual) =>
       atual.usuario.perfil === 'administrador' &&
       atual.capacidades.includes('administrar_concessoes'),
-    montar: (raiz) =>
-      montarFinanceiroConcessaoAdministracao(raiz, criarServicoFinanceiroHttp(identidadeAtual)),
+    montar: async (raiz) =>
+      (
+        await import('./financeiro-concessao-administracao.js')
+      ).montarFinanceiroConcessaoAdministracao(raiz, criarServicoFinanceiroHttp(identidadeAtual)),
   },
   {
     id: 'financeiro',
@@ -1932,30 +2042,41 @@ const areasAdministracao: AreaAdministracao[] = [
     // chamada financeira continua sendo autorizada no servidor e no banco.
     disponivel: (atual) =>
       atual.usuario.perfil !== 'familia' && audienciaFinanceira.permitidaPara(atual.session_id),
-    montar: (raiz) => montarFinanceiro(raiz, criarServicoFinanceiroHttp(identidadeAtual)),
+    montar: async (raiz) =>
+      (await import('./financeiro.js')).montarFinanceiro(
+        raiz,
+        criarServicoFinanceiroHttp(identidadeAtual),
+      ),
   },
   {
     id: 'auditoria',
     rotulo: 'Auditoria',
     disponivel: (atual) => atual.capacidades.includes('consultar_auditoria'),
-    montar: (raiz) =>
-      montarAuditoria(raiz, criarServicoAuditoriaHttp(identidadeAtual), {
-        nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
-        // Só para dar nome ao filtro por caso. A carteira já é autorizada no servidor, e a
-        // auditoria autoriza de novo: a lista aqui não concede nada.
-        listarCasos: async () =>
-          (await api.listarPacientes()).itens.map((item) => ({
-            id: item.id,
-            nome: item.nome_preferencia ?? item.nome,
-          })),
-      }),
+    montar: async (raiz) =>
+      (await import('./auditoria.js')).montarAuditoria(
+        raiz,
+        criarServicoAuditoriaHttp(identidadeAtual),
+        {
+          nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
+          // Só para dar nome ao filtro por caso. A carteira já é autorizada no servidor, e a
+          // auditoria autoriza de novo: a lista aqui não concede nada.
+          listarCasos: async () =>
+            (await api.listarPacientes()).itens.map((item) => ({
+              id: item.id,
+              nome: item.nome_preferencia ?? item.nome,
+            })),
+        },
+      ),
   },
   {
     id: 'solicitacoes',
     rotulo: 'Solicitações do titular',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: (raiz) =>
-      montarSolicitacoesTitular(raiz, criarServicoSolicitacaoTitularHttp(identidadeAtual)),
+    montar: async (raiz) =>
+      (await import('./solicitacoes-titular.js')).montarSolicitacoesTitular(
+        raiz,
+        criarServicoSolicitacaoTitularHttp(identidadeAtual),
+      ),
   },
 ];
 
@@ -2084,9 +2205,34 @@ function mostrarAdministracao(areaId: string): void {
   // branco até a primeira consulta responder, e o branco era lido como erro.
   conteudo.setAttribute('aria-busy', 'true');
   conteudo.replaceChildren();
-  painelAdministracao = { area: area.id, desmontar: area.montar(conteudo) };
-  if (conteudo.hasChildNodes()) conteudo.removeAttribute('aria-busy');
-  elemento('administracao-title').focus({ preventScroll: true });
+  /* O módulo da área chega por importação dinâmica, então a montagem deixou de ser
+     síncrona. Duas coisas precisam continuar valendo, e são o motivo deste cuidado:
+
+     1. Trocar de aba durante o carregamento não pode deixar a tela errada aparecer
+        depois. `area.id !== painelAdministracao?.area` é a conferência: se outra área
+        tomou o lugar enquanto o módulo descia, esta montagem é descartada e desmontada
+        na hora, sem tocar na tela.
+     2. A região fica `aria-busy` até o conteúdo existir, como já ficava — sem isso a
+        área ficava em branco até a primeira consulta responder, e o branco era lido
+        como erro. */
+  const emCarregamento = { area: area.id, desmontar: () => {} };
+  painelAdministracao = emCarregamento;
+  void area.montar(conteudo).then(
+    (desmontar) => {
+      if (painelAdministracao !== emCarregamento) {
+        desmontar();
+        return;
+      }
+      emCarregamento.desmontar = desmontar;
+      if (conteudo.hasChildNodes()) conteudo.removeAttribute('aria-busy');
+      elemento('administracao-title').focus({ preventScroll: true });
+    },
+    (erro: unknown) => {
+      if (painelAdministracao !== emCarregamento || acessoPerdido(erro)) return;
+      conteudo.removeAttribute('aria-busy');
+      aviso('workspace-feedback', `${mensagemFalha(erro)} Tente abrir a área de novo.`, 'error');
+    },
+  );
 }
 
 function mostrarRegras(): void {

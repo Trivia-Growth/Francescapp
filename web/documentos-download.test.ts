@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
 import { criarServicoDocumentosHttp } from './servico-documentos-http.ts';
-import { montarDocumentosCaso } from './documentos-caso.ts';
+import { montarDocumentosCaso } from './documentos-caso.tsx';
 import { FalhaApi } from './api.ts';
 
 const paciente = 'c0000000-0000-4000-8000-000000000003';

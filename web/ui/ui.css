@@ -406,7 +406,13 @@
   display: flex;
   flex-direction: column;
   width: min(560px, calc(100vw - var(--espaco-6)));
-  max-height: calc(100dvh - var(--espaco-7));
+  /* Teto de altura, e não só margem da janela: medido em 25/11/2026, o cadastro em
+     1440x900 ficava com 852px de altura e 24px de folga em cima e embaixo — lia como
+     lâmina colada na tela, não como algo que flutua sobre ela. Com o teto de 640px
+     sobra folga igual em cima e embaixo em qualquer tela alta, e o corpo rola de
+     verdade em vez de esticar o diálogo. Em janela baixa o teto some sozinho e volta a
+     valer a folga da janela. */
+  max-height: min(640px, calc(100dvh - var(--espaco-6) * 2));
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -462,12 +468,28 @@
 .ui-dialogo__fechar:hover {
   background: var(--panel);
 }
+/* O corpo rola, e rolar sem sinal de continuidade faz o campo cortado pelo rodapé ler
+   como defeito em vez de "continua abaixo" — foi o que apareceu na captura do cadastro no
+   computador. O sinal é o mesmo truque de pintura já usado na faixa de abas da ficha, de pé
+   em vez de deitado: a camada `local` acompanha o conteúdo e encobre a camada `scroll`
+   quando se chega à ponta. Chegou ao fim, o sinal some sozinho. Nada anima — é pintura,
+   não movimento, e por isso não depende de JavaScript nem de `prefers-reduced-motion`. */
 .ui-dialogo__corpo {
   flex: 1 1 auto;
   min-height: 0;
   padding: var(--espaco-5);
   overflow-y: auto;
   overscroll-behavior: contain;
+  background:
+    linear-gradient(to bottom, var(--white) 40%, rgb(255 255 255 / 0)) top / 100% 24px no-repeat
+    local,
+    linear-gradient(to top, var(--white) 40%, rgb(255 255 255 / 0)) bottom / 100% 24px no-repeat
+    local,
+    linear-gradient(to bottom, rgb(31 31 29 / 0.18), rgb(255 255 255 / 0)) top / 100% 18px
+    no-repeat scroll,
+    linear-gradient(to top, rgb(31 31 29 / 0.18), rgb(255 255 255 / 0)) bottom / 100% 18px
+    no-repeat scroll;
+  background-color: var(--white);
 }
 .ui-dialogo__rodape {
   flex: none;
@@ -481,6 +503,12 @@
   background: var(--white);
 }
 .ui-dialogo__rodape:empty {
+  display: none;
+}
+/* Decisão não tem corpo: o que se precisa saber está no cabeçalho e a resposta é uma das
+   ações. Sem isto, o corpo vazio ainda pintava os dois sinais de rolagem, um sobre o
+   outro, e a faixa cinza resultante lia como defeito no meio do diálogo. */
+.ui-dialogo__corpo:empty {
   display: none;
 }
 /* Decisão: cabe numa dobra e não rola, porque é uma resposta e não um texto. */

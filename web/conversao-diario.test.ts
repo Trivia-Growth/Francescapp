@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
 import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
-import { montarConversaoDiario, type PortasConversaoDiario } from './conversao-diario.ts';
+import { montarConversaoDiario, type PortasConversaoDiario } from './conversao-diario.js';
 import { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.ts';
 import { registroDiarioSchema } from '../packages/contracts/src/diario.ts';
 import type { consultaBarreiraTarefaSchema } from '../packages/contracts/src/barreira-tarefa-cuidado.ts';

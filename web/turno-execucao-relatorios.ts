@@ -9,10 +9,11 @@ import {
   dataLocalTurno,
   botaoTurno,
   estadoTurno,
-} from './turno-execucao-campos.ts';
-import { apresentarRelatorioTurno, dataTurno } from './turno-execucao-leitura.ts';
-import { apresentarConsolidadoFicha, type FichaDoPlantao } from './consolidado-ficha-plantao.ts';
+} from './turno-execucao-campos.js';
+import { apresentarRelatorioTurno, dataTurno } from './turno-execucao-leitura.js';
+import { apresentarConsolidadoFicha, type FichaDoPlantao } from './consolidado-ficha-plantao.js';
 import { criarEntregaArquivoTurno } from './turno-execucao-arquivos.ts';
+import { botao } from './ui/basicos.js';
 export function montarRelatoriosTurno(
   raiz: HTMLElement,
   servico: ServicoTurnoExecucao,
@@ -98,9 +99,7 @@ export function montarRelatoriosTurno(
   tipo.onchange = ajustar;
   inicio.addEventListener('input', ajustar);
   ajustar();
-  const consultar = el('button', 'Consultar relatório');
-  consultar.type = 'submit';
-  consultar.className = 'button-primary';
+  const consultar = botao({ rotulo: 'Consultar relatório', tipo: 'submit', peso: 'principal' });
   filtros.append(consultar);
   form.append(filtros);
   const mais = botaoTurno('Próxima página do relatório', () => {
@@ -123,9 +122,11 @@ export function montarRelatoriosTurno(
   exportacao.append(el('legend', 'PDF gerado no servidor'));
   const destinatario = campoTurno(exportacao, 'Destinatário da exportação');
   const proposito = campoTurno(exportacao, 'Propósito da exportação', { longo: true });
-  const emitir = el('button', 'Emitir PDF do período consultado');
-  emitir.type = 'submit';
-  emitir.className = 'button-secondary';
+  const emitir = botao({
+    rotulo: 'Emitir PDF do período consultado',
+    tipo: 'submit',
+    peso: 'secundario',
+  });
   exportacao.append(emitir);
   pdfForm.append(exportacao);
   const resumoPdf = el('p');

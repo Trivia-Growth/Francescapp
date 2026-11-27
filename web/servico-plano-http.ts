@@ -14,7 +14,7 @@ import {
 import { criarCicloPlano } from './ciclo-plano.ts';
 import { FalhaApi } from './api.ts';
 import { statusErroHttp } from '../packages/contracts/src/erros.ts';
-import type { ServicoPlanoCuidado } from './plano-cuidado.ts';
+import type { ServicoPlanoCuidado } from './plano-cuidado.js';
 
 type Identidade = { usuario_id: string; session_id: string };
 const rotasPlano = {

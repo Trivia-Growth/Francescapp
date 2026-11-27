@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { montarFinanceiroConcessaoAdministracao } from './financeiro-concessao-administracao.ts';
+import { montarFinanceiroConcessaoAdministracao } from './financeiro-concessao-administracao.js';
 import type { ConcessaoFinanceira } from '../packages/contracts/src/index.ts';
 import type { ServicoFinanceiro } from './servico-financeiro-http.ts';
 import { FalhaApi } from './api.ts';
@@ -92,8 +92,14 @@ it('revoga enviando a versão lida e recarrega com a marca já negada', async ()
     ),
   );
   // A leitura seguinte é um novo pedido ao servidor, não um estado local otimista.
-  await vi.waitFor(() => expect(caixaDe(raiz, concessaoColega)?.checked).toBe(false));
-  expect(raiz.textContent).toContain('Nenhum profissional está marcado');
+  //
+  // REESCRITO na migração para React: a espera passou a ser pela CONTAGEM relida, não
+  // pela caixa. A caixa é o lugar errado para esperar porque a própria prova acabou de
+  // desmarcá-la à mão — a condição já estava satisfeita antes de o servidor responder, e
+  // a prova seguia adiante lendo a tela no meio da gravação. A contagem só muda quando a
+  // listagem volta do servidor, que é exatamente o que este caso afirma.
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Nenhum profissional está marcado'));
+  expect(caixaDe(raiz, concessaoColega)?.checked).toBe(false);
 });
 
 it('a recusa de autoconcessão vem do servidor e a tela não a apresenta como sucesso', async () => {

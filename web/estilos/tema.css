@@ -1,0 +1,103 @@
+/* Ponte entre os tokens da Francescato e o vocabulário que os componentes esperam.
+ *
+ * Regra única e inegociável: NENHUM VALOR NASCE AQUI. Toda cor, raio, fonte e sombra
+ * aponta para uma variável de `web/styles.css`, que continua sendo a fonte. Assim a
+ * paleta não se perde na tradução, e `web/contrato-visual.test.ts` continua governando
+ * um lugar só.
+ *
+ * A ordem das camadas importa: `legado` fica ABAIXO de `utilities`, então uma classe
+ * utilitária sempre vence um reset global como `button { min-height }` de `styles.css`.
+ * Tela ainda não migrada continua fora de camada e não é afetada por nada disto. */
+@layer legado, components, utilities;
+
+/* `styles.css` entra NA CAMADA `legado`, e isso é o detalhe que faz a ponte funcionar.
+   Medido em Chromium em 25/11/2026: regra sem camada vence regra em camada, qualquer que
+   seja a ordem declarada. Enquanto `index.html` ligava `styles.css` direto, suas 3.400
+   linhas de regra global — `button`, `input`, `ul`, `h2` — venciam toda utilitária das
+   telas migradas, em silêncio. Trazendo-a para `legado`, que é declarada ANTES de
+   `utilities`, a utilitária volta a ganhar de um reset global, que é a intenção.
+   Por isso `index.html` liga ESTE arquivo, e não mais `styles.css`. */
+@import "../styles.css" layer(legado);
+/* `ui.css` era importada de dentro de `styles.css`. Sob `@import ... layer()` o
+   empacotador deixava uma cópia do import solta no topo da folha final, e essa cópia
+   carregaria a camada de componente FORA de camada — onde ela voltaria a vencer as
+   utilitárias, desfazendo exatamente o que o bloco acima conserta. Importada aqui, entra
+   na camada junto com o resto. */
+@import "../ui/ui.css" layer(legado);
+@import "tailwindcss/theme.css" layer(legado);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme inline {
+  --color-fundo: var(--wash);
+  --color-superficie: var(--superficie);
+  --color-superficie-2: var(--superficie-2);
+  --color-superficie-3: var(--superficie-3);
+  --color-texto: var(--ink);
+  --color-texto-suave: var(--muted);
+  --color-primaria: var(--primary);
+  --color-primaria-hover: var(--primary-hover);
+  --color-primaria-suave: var(--primary-suave);
+  --color-primaria-filete: var(--primary-filete);
+  --color-primaria-texto-suave: var(--primary-texto-suave);
+  --color-marca: var(--brand-olive);
+  --color-contraste: var(--white);
+  --color-borda: var(--borda);
+  --color-borda-forte: var(--borda-forte);
+  --color-anel: var(--primary);
+  --color-erro: var(--error);
+  --color-erro-superficie: var(--error-superficie);
+  --color-alerta: var(--alerta);
+  --color-perigo: var(--perigo);
+  --color-perigo-superficie: var(--perigo-superficie);
+  --color-perigo-texto: var(--perigo-texto);
+  --color-aviso: var(--aviso);
+  --color-aviso-filete: var(--aviso-filete);
+  --color-aviso-superficie: var(--aviso-superficie);
+  --color-aviso-texto: var(--aviso-texto);
+  --color-areia-superficie: var(--areia-superficie);
+  --color-areia-texto: var(--areia-texto);
+  --color-sobreposicao: var(--sobreposicao);
+
+  /* ATENÇÃO: o nome aqui NÃO pode ser igual ao do token de origem.
+     Defeito medido em Chromium em 25/11/2026: `--font-display: var(--font-display)` é
+     autorreferência. O Tailwind a emite como `:root { --font-display: var(--font-display) }`
+     DENTRO da mesma camada `legado` e DEPOIS da declaração real de `web/styles.css`.
+     Mesma camada, mais tarde: vence. O valor vira circular, logo inválido, e todo
+     `font-family: var(--font-display)` cai no herdado.
+     O estrago foi do produto inteiro, não só das telas migradas: a serifa Cormorant
+     Garamond sumiu do título do acesso, da carteira, da home, do nome do paciente na
+     ficha — telas que ninguém tocou. E sumiu em silêncio, porque CSS inválido não
+     reclama. Daí `--font-serifada`, que gera a utilitária `font-serifada`. */
+  --font-serifada: var(--font-display);
+  --font-sans: var(--font-body);
+
+  --text-1: var(--texto-1);
+  --text-2: var(--texto-2);
+  --text-3: var(--texto-3);
+  --text-4: var(--texto-4);
+  --text-5: var(--texto-5);
+  --text-6: var(--texto-6);
+
+  --spacing-1: var(--espaco-1);
+  --spacing-2: var(--espaco-2);
+  --spacing-3: var(--espaco-3);
+  --spacing-4: var(--espaco-4);
+  --spacing-5: var(--espaco-5);
+  --spacing-6: var(--espaco-6);
+  --spacing-7: var(--espaco-7);
+  --spacing-8: var(--espaco-8);
+  --spacing-controle-sm: var(--controle-sm);
+  --spacing-controle-md: var(--controle-md);
+
+  --radius-campo: var(--radius-field);
+  --radius-controle: var(--radius-control);
+  --radius-cartao: var(--radius-card);
+  --radius-painel: var(--radius-panel);
+
+  --shadow-controle: var(--sombra-controle);
+  --shadow-menu: var(--sombra-menu);
+  --shadow-modal: var(--sombra-modal);
+
+  --ease-entrada: var(--curva-entrada);
+  --ease-saida: var(--curva-saida);
+}

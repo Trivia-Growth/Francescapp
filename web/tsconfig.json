@@ -2,8 +2,22 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": []
+    "types": [],
+    "jsx": "react-jsx"
   },
-  "include": ["*.ts", "ui/*.ts"],
-  "exclude": ["*.test.ts", "ui/*.test.ts"]
+  "include": [
+    "*.ts",
+    "*.tsx",
+    "ui/*.ts",
+    "ponte/*.ts",
+    "componentes/**/*.ts",
+    "componentes/**/*.tsx"
+  ],
+  "exclude": [
+    "*.test.ts",
+    "*.test.tsx",
+    "ui/*.test.ts",
+    "ponte/*.test.ts",
+    "componentes/**/*.test.tsx"
+  ]
 }

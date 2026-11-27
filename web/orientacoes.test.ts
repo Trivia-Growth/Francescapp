@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { montarOrientacoes } from './orientacoes';
+import { montarOrientacoes } from './orientacoes.tsx';
 
 const vigente = {
   orientacao_id: '00000000-0000-4000-8000-000000000001',

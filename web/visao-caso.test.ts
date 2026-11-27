@@ -8,9 +8,11 @@ const id = '10000000-0000-4000-8000-000000000001';
 const paciente = { id, nome: 'Helena Fictícia', nome_preferencia: 'Lena' };
 
 let raiz: HTMLElement;
+let desmontarAtual: (() => void) | undefined;
 beforeEach(() => {
   document.body.innerHTML = '<div id="raiz"></div>';
   raiz = document.getElementById('raiz') as HTMLElement;
+  desmontarAtual = undefined;
 });
 
 const objetivo = (descricao: string, estado: string, data = '2026-11-02T12:00:00Z') => ({
@@ -117,7 +119,7 @@ it('cada bloco com origem oferece link para a seção correspondente na ficha', 
 });
 
 it('pendências e situação também linkam para a origem (Pendências e Cadastro)', async () => {
-  montarVisaoCaso(
+  desmontarAtual = montarVisaoCaso(
     raiz,
     paciente,
     fontes({
@@ -165,7 +167,7 @@ it('distingue carregando, vazio e erro com nova tentativa só no bloco que falho
   const espera = new Promise<void>((resolve) => {
     liberar = resolve;
   });
-  montarVisaoCaso(
+  desmontarAtual = montarVisaoCaso(
     raiz,
     paciente,
     fontes({
@@ -211,7 +213,7 @@ it('não mostra título nem contagem de bloco que o perfil não lê', async () =
 });
 
 it('avisa quando há mais objetivos do que a consulta mostra', async () => {
-  montarVisaoCaso(
+  desmontarAtual = montarVisaoCaso(
     raiz,
     paciente,
     fontes({
@@ -233,7 +235,7 @@ it('avisa quando há mais objetivos do que a consulta mostra', async () => {
 
 it('ao perder o acesso remove o conteúdo e aciona o fluxo de nova entrada', async () => {
   const acessoPerdido = vi.fn(() => true);
-  montarVisaoCaso(
+  desmontarAtual = montarVisaoCaso(
     raiz,
     paciente,
     fontes({
@@ -248,6 +250,57 @@ it('ao perder o acesso remove o conteúdo e aciona o fluxo de nova entrada', asy
   await vi.waitFor(() => expect(acessoPerdido).toHaveBeenCalledTimes(1));
   expect(raiz.textContent).toBe('');
   await aguardar();
+  expect(raiz.textContent).toBe('');
+});
+
+it('mantém a visão administrativa quando somente a Anamnese é recusada', async () => {
+  const acessoPerdido = vi.fn(() => true);
+  desmontarAtual = montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      anamnese: {
+        confirmarRecusaIsolada: async () => true,
+        consultarAnamnese: async () => {
+          throw new FalhaApi('sem_permissao', 403);
+        },
+      },
+    }),
+    acessoPerdido,
+  );
+  await vi.waitFor(() =>
+    expect(bloco('anamnese').textContent).toContain('Este bloco não foi carregado.'),
+  );
+  expect(raiz.textContent).toContain(paciente.nome);
+  expect(bloco('anamnese').textContent).not.toContain('Nenhuma anamnese registrada');
+  expect(acessoPerdido).not.toHaveBeenCalled();
+});
+
+it.each([
+  ['elegibilidade perdida', async () => false, new FalhaApi('sem_permissao', 403)],
+  [
+    'sessão encerrada',
+    async () => {
+      throw new FalhaApi('nao_autenticado', 401);
+    },
+    new FalhaApi('nao_autenticado', 401),
+  ],
+])('retira a visão após recusa de Anamnese com %s', async (_, confirmarRecusaIsolada, falha) => {
+  const acessoPerdido = vi.fn(() => true);
+  desmontarAtual = montarVisaoCaso(
+    raiz,
+    paciente,
+    fontes({
+      anamnese: {
+        confirmarRecusaIsolada,
+        consultarAnamnese: async () => {
+          throw new FalhaApi('sem_permissao', 403);
+        },
+      },
+    }),
+    acessoPerdido,
+  );
+  await vi.waitFor(() => expect(acessoPerdido).toHaveBeenCalledWith(falha));
   expect(raiz.textContent).toBe('');
 });
 
@@ -297,7 +350,7 @@ const mudanca = (parcial: Record<string, unknown> = {}) => ({
 });
 
 it('Administrador vê situação e responsável persistidos com a data da última atualização', async () => {
-  montarVisaoCaso(
+  desmontarAtual = montarVisaoCaso(
     raiz,
     paciente,
     fontes({
@@ -318,7 +371,7 @@ it('Administrador vê situação e responsável persistidos com a data da últim
 });
 
 it('indica a completar sem acompanhamento e sinaliza responsável inativo, sem inventar valor', async () => {
-  montarVisaoCaso(
+  desmontarAtual = montarVisaoCaso(
     raiz,
     paciente,
     fontes({ situacao: { consultarPaciente: async () => edicao([]) } }),
@@ -330,8 +383,11 @@ it('indica a completar sem acompanhamento e sinaliza responsável inativo, sem i
   // Sem data conhecida o bloco cala: não repete "indisponível" em cada seção.
   expect(bloco('situacao').textContent).not.toContain('Atualizado em');
   expect(bloco('situacao').textContent).not.toContain('indisponível');
-  raiz.replaceChildren();
-  montarVisaoCaso(
+  /* Desmontar, não esvaziar. `montarVisaoCaso` devolve a desmontagem, e uma raiz React
+     não some ao apagar os filhos: ela fica viva e lança ao tentar remover o que já saiu.
+     O idioma antigo valia quando a visão era DOM imperativo. */
+  desmontarAtual?.();
+  desmontarAtual = montarVisaoCaso(
     raiz,
     paciente,
     fontes({
@@ -352,7 +408,7 @@ it('indica a completar sem acompanhamento e sinaliza responsável inativo, sem i
 
 it('falha da leitura de situação aparece só nesse bloco, com nova tentativa', async () => {
   let tentativa = 0;
-  montarVisaoCaso(
+  desmontarAtual = montarVisaoCaso(
     raiz,
     paciente,
     fontes({
@@ -375,7 +431,7 @@ it('falha da leitura de situação aparece só nesse bloco, com nova tentativa',
 
 it('leitura negada da situação leva à nova entrada e limpa o conteúdo', async () => {
   const acessoPerdido = vi.fn(() => true);
-  montarVisaoCaso(
+  desmontarAtual = montarVisaoCaso(
     raiz,
     paciente,
     fontes({

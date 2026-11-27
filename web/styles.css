@@ -1,7 +1,6 @@
 /* A camada de componente (`web/ui/`) entra antes de tudo: as telas que já existem
    continuam podendo sobrescrever o que precisarem, e o que é compartilhado fica
    num arquivo só em vez de repetido em 246 arquivos de tela. */
-@import url("./ui/ui.css");
 
 /* Fontes provisórias do mock (OFL), reduzidas a latim. Trocar os arquivos e
    as duas variáveis --font-* basta para adotar as fontes definitivas da marca. */
@@ -36,6 +35,83 @@
   --field-line: #859077;
   --white: #fff;
   --error: #903a30;
+
+  /* Papéis semânticos promovidos em 25/11/2026 (tarefa 0.1 de
+     `openspec/changes/migrar-interface-para-react`). Antes desta data havia 25 cores
+     literais na folha e só 12 declaradas aqui: as outras 13 estavam soltas no meio das
+     regras, e o mesmo papel — aviso, por exemplo — era reescrito por extenso em cada
+     lugar que precisava dele. NENHUM VALOR MUDOU: cada token abaixo recebe exatamente o
+     valor que já estava na regra que o usava. O que muda é existir um nome só, num lugar
+     só, conferido por `web/contrato-visual.test.ts`. */
+
+  /* Superfícies e limites. Os aliases existem para o vocabulário ser um só: quem escreve
+     componente novo pede a camada, não a cor. */
+  --superficie: var(--white);
+  --superficie-2: var(--soft);
+  --superficie-3: var(--panel);
+  --superficie-trabalho: #fafbf8;
+  --borda: var(--line);
+  --borda-forte: var(--field-line);
+  --sobreposicao: rgba(0, 0, 0, 0.3);
+
+  /* Marca em área, filete e texto tonal. Oliva dá 3,35:1 sobre branco e por isso nunca é
+     cor de texto; `--primary-texto-suave` é o tom escuro que cumpre esse papel. */
+  --primary-suave: #edf2e6;
+  --primary-filete: #d4ddc8;
+  --primary-texto-suave: #4a5240;
+
+  /* Aviso: o sistema existia inteiro e sem nome, repetido literalmente em dois lugares.
+     A terceira cópia divergiria. */
+  --aviso: #b4801f;
+  --aviso-filete: #d8c08a;
+  --aviso-superficie: #fdf6e7;
+  --aviso-texto: #5c431a;
+  --aviso-texto-2: #6d5225;
+
+  /* Erro: UM vermelho só, decidido em 25/11/2026.
+     Havia dois: `--error` `#903a30` e um `#b42318` que vivia escondido no contador de
+     avisos, como valor de reserva de um token que nunca foi declarado. O solicitante
+     pediu "o mais levinho". Os números discordavam — `#b42318` é 2 pontos mais claro
+     (40,0% contra 37,6%), mas tem 76,5% de saturação contra 50%. O que pesa no olho é a
+     saturação, não a clareza: o `#b42318` é vermelho de alarme. Num produto que avisa uma
+     família sobre o tratamento de alguém, fica o tijolo lavado — que ainda contrasta
+     melhor, 7,41:1 contra 6,57:1 sobre branco.
+     `--alerta` sobrevive como apelido porque o nome já está em uso nas regras. */
+  --error-superficie: #f6ece9;
+  --alerta: var(--error);
+  /* `--perigo*` é apelido de `--error*`, não cor nova: a camada de componente pede o
+     PAPEL (ação destrutiva) e a folha responde com o vermelho que o produto já usa.
+     Não existe `--sucesso`: o produto nunca teve um verde de sucesso distinto do verde
+     da marca, e inventar um contraria a instrução de preservar as cores. Enquanto não
+     vier do marketing da Edilaine, sucesso se expressa por texto e ícone — que é o que
+     VIS-014 exige de qualquer forma, já que cor nunca pode ser o único sinal de estado.
+     PENDÊNCIA DE IDENTIDADE VISUAL, junto com a escolha entre os dois vermelhos. */
+  --perigo: var(--error);
+  --perigo-superficie: var(--error-superficie);
+  --perigo-texto: var(--white);
+
+  /* Areia: etiqueta de contexto na barra superior. */
+  --areia-superficie: #f4ece1;
+  --areia-texto: #5a4e3b;
+
+  /* Altura de controle. 46px é o alvo de toque confortável e governa o controle padrão;
+     36px é a variante compacta de barra de ferramentas. */
+  --controle-sm: 36px;
+  --controle-md: 46px;
+
+  /* Navegação. O recolhimento troca `--sidebar-width` entre estes dois valores. */
+  --largura-sidebar: 248px;
+  --largura-trilho: 80px;
+
+  /* Ícone: base no corpo do conteúdo, maior na moldura da aplicação. */
+  --icone-base: 16px;
+  --icone-chrome: 18px;
+
+  /* Profundidade. Superfície estática repousa em filete e espaço; sombra é reservada ao
+     que flutua de verdade. Três degraus e só três. */
+  --sombra-controle: 0 3px 12px rgb(39 49 35 / 12%);
+  --sombra-menu: 0 12px 28px rgb(39 49 35 / 16%);
+  --sombra-modal: 0 18px 48px rgb(39 49 35 / 20%);
   --radius-field: 7px;
   --radius-control: 8px;
   --radius-card: 12px;
@@ -482,20 +558,6 @@ input[aria-invalid="true"] {
 .workspace.with-registration {
   grid-template-columns: minmax(0, 1fr);
 }
-.dialogo {
-  width: min(560px, calc(100vw - 32px));
-  max-height: calc(100dvh - 48px);
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-panel);
-  background: var(--panel);
-  color: var(--ink);
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-.dialogo::backdrop {
-  background: rgb(39 49 35 / 48%);
-}
 /* Confirmação: substitui o `window.confirm`, que desenhava uma caixa do navegador ACIMA
    da página — fora do conteúdo, invisível para quem olhava a tela. Cabe em uma dobra e
    não rola: é uma decisão, não um texto. O botão seguro é o destaque, porque confirmar
@@ -506,34 +568,6 @@ input[aria-invalid="true"] {
   gap: var(--espaco-4);
   padding: var(--espaco-5);
   overflow: visible;
-}
-.dialogo-confirmacao__titulo {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--texto-4);
-  font-weight: 600;
-  line-height: 1.2;
-}
-.dialogo-confirmacao__detalhe {
-  max-width: 46ch;
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--texto-2);
-}
-.dialogo-confirmacao__acoes {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--espaco-3);
-}
-@media (max-width: 480px) {
-  /* No celular as duas ações ocupam a largura toda, e a segura fica acima do polegar. */
-  .dialogo-confirmacao__acoes {
-    flex-direction: column-reverse;
-  }
-  .dialogo-confirmacao__acoes button {
-    width: 100%;
-  }
 }
 .registration-heading {
   display: flex;
@@ -725,7 +759,7 @@ input[aria-invalid="true"] {
 .agenda-individual {
   margin: 1.5rem 0;
   padding: 1.5rem;
-  background: #f2f5eb;
+  background: var(--panel);
   border-radius: 14px;
 }
 .agenda-individual h2 {
@@ -747,12 +781,12 @@ input[aria-invalid="true"] {
   justify-content: space-between;
   gap: .5rem 1rem;
   padding: .8rem 0;
-  border-bottom: 1px solid #dfe5d4;
+  border-bottom: 1px solid var(--line);
 }
 
 /* Área de trabalho: navegação discreta e conteúdo em superfície clara. */
 body:has(#patients-view:not([hidden])) {
-  background: #fafbf8;
+  background: var(--superficie-trabalho);
 }
 body:has(#patients-view:not([hidden])) .topbar {
   min-height: 92px;
@@ -771,7 +805,7 @@ body:has(#patients-view:not([hidden])) .topbar .brand-organization {
   position: fixed;
   inset: 0;
   z-index: 19;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--sobreposicao);
 }
 .patients-sidebar {
   position: fixed;
@@ -808,7 +842,7 @@ body:has(#patients-view:not([hidden])) .topbar .brand-organization {
   display: block;
   padding: 12px 14px;
   border-radius: 8px;
-  background: #edf2e6;
+  background: var(--primary-suave);
   color: var(--primary);
   font-size: var(--texto-2);
   font-weight: 700;
@@ -863,8 +897,8 @@ body:has(#patients-view:not([hidden])) .footer {
 .chip-ambiente {
   padding: 4px 12px;
   border-radius: 20px;
-  background: #f4ece1;
-  color: #5a4e3b;
+  background: var(--areia-superficie);
+  color: var(--areia-texto);
   font-size: var(--texto-1);
   font-weight: 600;
 }
@@ -1163,7 +1197,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   display: block;
   margin: 0;
   padding: 16px 0;
-  border-bottom: 1px solid #d4ddc8;
+  border-bottom: 1px solid var(--primary-filete);
 }
 .ficha-secao[data-secao="anamnese"] label {
   display: block;
@@ -1362,7 +1396,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 }
 .saude-item[data-situacao="hipotese"] legend {
   color: var(--error);
-  background: #f6ece9;
+  background: var(--error-superficie);
 }
 .saude-item label {
   display: block;
@@ -1386,14 +1420,6 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   margin: 0;
   color: var(--muted);
   font-size: var(--texto-2);
-}
-.configuracao-sistema__vazio {
-  margin: 0;
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  color: var(--muted);
-  background: var(--soft);
 }
 .configuracao-sistema__lista {
   display: grid;
@@ -1482,7 +1508,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   background: var(--soft);
 }
 .sidebar-link[aria-current="page"] {
-  background: #edf2e6;
+  background: var(--primary-suave);
   color: var(--primary);
   font-weight: 700;
 }
@@ -1517,6 +1543,15 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   display: grid;
   gap: 20px;
   max-width: 78ch;
+}
+/* Item de grade tem largura mínima automática e NÃO encolhe abaixo do conteúdo. Medido a
+   390px em 25/11/2026: a Auditoria rolava na horizontal (`scrollWidth 566`) porque o
+   `overflow-x: auto` de `.auditoria__tabela` nunca chegava a ativar — o item que a
+   continha segurava a largura. É o mesmo defeito que `web/componentes/ui/superficie.tsx`
+   já corrige nas telas em React. */
+.administracao-conteudo > *,
+.regras-conteudo > * {
+  min-width: 0;
 }
 /* O formulário era caixa dentro de caixa: borda do `form`, borda do `fieldset` e a legenda
    recortando as duas. Uma só superfície, com título, grupo de campos e rodapé de ação. */
@@ -1814,11 +1849,11 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 .plano-crise__limite {
   margin: 0;
   padding: 14px 16px;
-  border: 1px solid #d8c08a;
-  border-left: 4px solid #b4801f;
+  border: 1px solid var(--aviso-filete);
+  border-left: 4px solid var(--aviso);
   border-radius: var(--radius-card);
-  background: #fdf6e7;
-  color: #5c431a;
+  background: var(--aviso-superficie);
+  color: var(--aviso-texto);
   font-size: var(--texto-2);
 }
 
@@ -1933,12 +1968,12 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   color: var(--muted);
 }
 .sinal-carteira[data-estado="atencao_operacional"] {
-  border-color: #d8c08a;
-  background: #fdf6e7;
-  color: #5c431a;
+  border-color: var(--aviso-filete);
+  background: var(--aviso-superficie);
+  color: var(--aviso-texto);
 }
 .sinal-carteira[data-estado="atencao_operacional"] .sinal-carteira-motivos {
-  color: #6d5225;
+  color: var(--aviso-texto-2);
 }
 .sinal-carteira[data-estado="informacao_insuficiente"] {
   border-color: var(--line);
@@ -2346,7 +2381,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
 
 /* Refino da casca e carteira conforme o mock aprovado. */
 :root {
-  --sidebar-width: 248px;
+  --sidebar-width: var(--largura-sidebar);
 }
 body:has(#patients-view:not([hidden])) .topbar,
 body:has(#patients-view:not([hidden])) main,
@@ -2375,20 +2410,41 @@ body:has(#patients-view:not([hidden])) .footer {
   height: 64px;
   object-fit: contain;
 }
+/* Até 25/11/2026 este controle era um `‹` solto no branco: sem borda, sem fundo, sem
+   rótulo, e a única pista de que era clicável aparecia no `:hover`. Provado em navegador
+   que o recolhimento SEMPRE funcionou — o solicitante é que nunca encontrou o botão, nas
+   três larguras. Não era defeito de comportamento, era ausência de affordance.
+   Agora tem moldura em repouso e um rótulo visível, e por isso ocupa a linha inteira em
+   vez de ficar encolhido num canto. */
 .sidebar-collapse {
-  align-self: flex-end;
-  display: grid;
-  place-items: center;
-  width: 44px;
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-2);
+  width: 100%;
   min-height: 44px;
-  padding: 0;
-  margin: 12px 0 -12px;
-  background: transparent;
+  padding: 0 var(--espaco-3);
+  margin: var(--espaco-3) 0 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--white);
   color: var(--primary);
-  font: 400 var(--texto-4) / 1 var(--font-body);
+  font: 600 var(--texto-1) / 1.2 var(--font-body);
+}
+.sidebar-collapse-sinal {
+  font-size: var(--texto-3);
+  line-height: 1;
 }
 .sidebar-collapse:hover {
+  border-color: var(--field-line);
   background: var(--soft);
+}
+/* Recolhida, a barra tem 80px: só o sinal cabe, centralizado. */
+body.sidebar-collapsed .sidebar-collapse {
+  justify-content: center;
+  padding: 0;
+}
+body.sidebar-collapsed .sidebar-collapse-rotulo {
+  display: none;
 }
 .sidebar-icon {
   width: 20px;
@@ -2399,7 +2455,7 @@ body:has(#patients-view:not([hidden])) .footer {
   display: none;
 }
 body.sidebar-collapsed {
-  --sidebar-width: 80px;
+  --sidebar-width: var(--largura-trilho);
 }
 body.sidebar-collapsed .patients-sidebar {
   padding-inline: var(--espaco-3);
@@ -2664,7 +2720,6 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
 /* Superfícies existentes compartilham bordas e hierarquia do mock. */
 .ficha-secao form,
 .administracao-conteudo form,
-.dialogo,
 .registration-panel {
   background: var(--white);
 }
@@ -2843,7 +2898,7 @@ label > .loading-indicator {
    celular, e o formulário empilha em coluna com alvos de toque confortáveis. */
 .agenda-realizacao {
   flex-basis: 100%;
-  color: #4a5240;
+  color: var(--primary-texto-suave);
 }
 .realizacao-compromisso form {
   display: flex;
@@ -2953,7 +3008,7 @@ label > .loading-indicator {
   min-height: 2.75rem;
   min-width: 2.75rem;
   padding: 0 0.6rem;
-  border: 1px solid var(--line, #d4d4d8);
+  border: 1px solid var(--line);
   border-radius: 0.5rem;
   background: transparent;
   color: inherit;
@@ -2969,8 +3024,8 @@ label > .loading-indicator {
   min-width: 1.25rem;
   padding: 0 0.3rem;
   border-radius: 999px;
-  background: var(--alerta, #b42318);
-  color: #fff;
+  background: var(--alerta);
+  color: var(--white);
   font-size: var(--texto-1);
   font-weight: 600;
   line-height: 1.25rem;
@@ -2986,9 +3041,9 @@ label > .loading-indicator {
   max-height: min(60vh, 28rem);
   overflow-y: auto;
   padding: 0.75rem;
-  border: 1px solid var(--line, #d4d4d8);
+  border: 1px solid var(--line);
   border-radius: 0.6rem;
-  background: var(--surface, #fff);
+  background: var(--superficie);
   box-shadow: 0 10px 30px rgb(0 0 0 / 12%);
 }
 
@@ -3009,7 +3064,7 @@ label > .loading-indicator {
   display: grid;
   gap: 0.2rem;
   padding: 0.5rem;
-  border: 1px solid var(--line, #d4d4d8);
+  border: 1px solid var(--line);
   border-radius: 0.5rem;
 }
 
@@ -3093,9 +3148,11 @@ label > .loading-indicator {
   animation: mov-entrada-troca var(--mov-troca) var(--curva-entrada);
 }
 
-/* Diálogo: opacidade do painel e do fundo, sem escala. */
-.dialogo[open],
-.dialogo[open]::backdrop {
+/* Diálogo: opacidade do painel e do fundo, sem escala. A regra apontava para `.dialogo`,
+   a moldura antiga que ninguém mais monta desde a camada de componente — o diálogo entrava
+   seco. Mesma duração e mesma curva de antes; nenhum movimento novo. */
+.ui-dialogo[open],
+.ui-dialogo[open]::backdrop {
   animation: mov-entrada-contexto var(--mov-contexto) var(--curva-entrada);
 }
 

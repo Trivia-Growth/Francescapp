@@ -4,7 +4,14 @@
 \ir ../migrations/20261112050000_conceder_acesso_paciente_privado.sql
 \ir ../migrations/20261112060000_revogar_acesso_paciente_privado.sql
 \ir ../migrations/20261112070000_owners_acesso_paciente_privado.sql
+\ir ../migrations/20261112100000_auditoria_carteira_auth_nao_admitido.sql
 \ir ../migrations/20261112110000_corrigir_aad_auditoria_acesso.sql
+\ir ../migrations/20261112121000_anamnese_auditoria_obrigatoria.sql
+\ir ../migrations/20261112190000_anamnese_auditoria_auth_nao_admitido.sql
+\ir ../migrations/20261112340000_historico_anamnese_privado.sql
+\ir ../migrations/20261124200000_acesso_caso_para_administrador.sql
+\ir ../migrations/20261125010000_anamnese_vinculo_caso.sql
+\ir ../migrations/20261128240000_rls_acesso_caso_para_administrador.sql
 set role authenticated;
 do $$ begin
  begin
@@ -26,19 +33,47 @@ declare
  sessao uuid := '20000000-0000-4000-8000-000000000001';
  profissional uuid := '10000000-0000-4000-8000-000000000002';
  paciente uuid := '40000000-0000-4000-8000-000000000001';
+ outro_paciente uuid := '40000000-0000-4000-8000-000000000002';
+ sessao_profissional uuid := '20000000-0000-4000-8000-000000000002';
+ jwt_admin text := jsonb_build_object('sub',ator,'session_id',sessao,'amr',jsonb_build_array(jsonb_build_object('method','oauth')))::text;
+ jwt_profissional text := jsonb_build_object('sub',profissional,'session_id',sessao_profissional,'amr',jsonb_build_array(jsonb_build_object('method','oauth')))::text;
  acesso uuid := gen_random_uuid(); outro_acesso uuid := gen_random_uuid(); e jsonb; e2 jsonb; r jsonb;
 begin
+ -- Uma anamnese conhecida no outro caso distingue isolamento de ausência de dados.
+ insert into cadastro.anamnese_versao(id,paciente_id,versao,conteudo_cifrado,criado_por_usuario_id)
+ select gen_random_uuid(),outro_paciente,1,conteudo_cifrado,ator
+ from cadastro.anamnese_versao where paciente_id=paciente and versao=1;
+ if not found then raise exception 'ANAMNESE_FIXTURE_AUSENTE'; end if;
  if has_function_privilege('authenticated','api.conceder_acesso_paciente_privado(jsonb)','execute')
   or has_function_privilege('authenticated','api.revogar_acesso_paciente_privado(jsonb)','execute')
   or has_table_privilege('authenticated','cadastro.acesso_paciente','insert') then
   raise exception 'ACESSO_DIRETO_INDEVIDO';
  end if;
- perform set_config('request.jwt.claims',jsonb_build_object('sub',ator,'session_id',sessao,'amr',jsonb_build_array(jsonb_build_object('method','oauth')))::text,true);
+ perform set_config('request.jwt.claims',jwt_admin,true);
  e:=jsonb_build_object('request_id',gen_random_uuid(),'paciente_id',paciente,'acesso_id',acesso,'usuario_id',profissional,'auditoria_id',gen_random_uuid(),
  'chave_idempotencia','acesso-fixture','digest_idempotencia',repeat('a',43),
  'motivo',jsonb_build_object('formato',1,'key_id','teste','nonce',repeat('a',16),'ciphertext','YQ','tag',repeat('a',22)));
  r:=api.conceder_acesso_paciente_privado(public.assinar_anamnese_fixture(e,'api.conceder_acesso_paciente',ator,sessao));
  if r->>'ok' is distinct from 'true' then raise exception 'ADMIN_NEGADO: %',r; end if;
+ e2:=e || jsonb_build_object('request_id',gen_random_uuid(),'auditoria_id',gen_random_uuid(),'acesso_id',gen_random_uuid(),'usuario_id',ator,'chave_idempotencia','admin-autoacesso-fixture');
+ r:=api.conceder_acesso_paciente_privado(public.assinar_anamnese_fixture(e2,'api.conceder_acesso_paciente',ator,sessao));
+ if r->>'ok' is distinct from 'true' then raise exception 'ADMIN_AUTOACESSO_NEGADO: %',r; end if;
+
+ perform set_config('request.jwt.claims',jwt_profissional,true);
+ e2:=jsonb_build_object('request_id',gen_random_uuid(),'limite',10);
+ r:=api.listar_pacientes(public.assinar_anamnese_fixture(e2,'api.listar_pacientes',profissional,sessao_profissional));
+ if r->>'ok' is distinct from 'true' or jsonb_array_length(r#>'{dados,itens}') is distinct from 1
+  or r#>>'{dados,itens,0,paciente_id}' is distinct from paciente::text then
+  raise exception 'CARTEIRA_APOS_CONCESSAO: %',r;
+ end if;
+ e2:=jsonb_build_object('request_id',gen_random_uuid(),'paciente_id',paciente);
+ r:=api.anamnese_privada(public.assinar_anamnese_fixture(e2,'api.ler_anamnese',profissional,sessao_profissional));
+ if r->>'ok' is distinct from 'true' or r#>>'{dados,registro_id}' is null then raise exception 'LEITURA_APOS_CONCESSAO: %',r; end if;
+ e2:=jsonb_build_object('request_id',gen_random_uuid(),'paciente_id',outro_paciente);
+ r:=api.anamnese_privada(public.assinar_anamnese_fixture(e2,'api.ler_anamnese',profissional,sessao_profissional));
+ if r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'OUTRO_CASO_ACEITO: %',r; end if;
+
+ perform set_config('request.jwt.claims',jwt_admin,true);
  e:=(e - 'usuario_id') || jsonb_build_object('request_id',gen_random_uuid(),'auditoria_id',gen_random_uuid(),'chave_idempotencia','revogar-fixture','versao_esperada',1,
  'motivo_auditoria',jsonb_build_object('formato',1,'key_id','auditoria','nonce',repeat('b',16),'ciphertext','Yg','tag',repeat('b',22)));
  r:=api.revogar_acesso_paciente_privado(public.assinar_anamnese_fixture(e,'api.revogar_acesso_paciente',ator,sessao));
@@ -46,6 +81,17 @@ begin
  if not exists(select 1 from auditoria.evento where id=(e->>'auditoria_id')::uuid and motivo_cifrado=e->'motivo_auditoria') then raise exception 'MOTIVO_AUDITORIA_INCORRETO'; end if;
  r:=api.revogar_acesso_paciente_privado(public.assinar_anamnese_fixture(e,'api.revogar_acesso_paciente',ator,sessao));
  if r->>'ok' is distinct from 'true' or (select versao from cadastro.acesso_paciente where id=acesso) <> 2 then raise exception 'REPLAY_FALHOU: %',r; end if;
+ perform set_config('request.jwt.claims',jwt_profissional,true);
+ e2:=jsonb_build_object('request_id',gen_random_uuid(),'limite',10);
+ r:=api.listar_pacientes(public.assinar_anamnese_fixture(e2,'api.listar_pacientes',profissional,sessao_profissional));
+ if r->>'ok' is distinct from 'true' or jsonb_array_length(r#>'{dados,itens}') is distinct from 0 then
+  raise exception 'CARTEIRA_APOS_REVOGACAO: %',r;
+ end if;
+ e2:=jsonb_build_object('request_id',gen_random_uuid(),'paciente_id',paciente);
+ r:=api.anamnese_privada(public.assinar_anamnese_fixture(e2,'api.ler_anamnese',profissional,sessao_profissional));
+ if r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'LEITURA_APOS_REVOGACAO: %',r; end if;
+
+ perform set_config('request.jwt.claims',jwt_admin,true);
  e2:=(e - 'versao_esperada' - 'motivo_auditoria') || jsonb_build_object('request_id',gen_random_uuid(),'auditoria_id',gen_random_uuid(),'acesso_id',outro_acesso,'usuario_id',profissional,'chave_idempotencia','outro-acesso');
  r:=api.conceder_acesso_paciente_privado(public.assinar_anamnese_fixture(e2,'api.conceder_acesso_paciente',ator,sessao));
  if r->>'ok' is distinct from 'true' then raise exception 'OUTRO_ACESSO_FALHOU: %',r; end if;

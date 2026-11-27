@@ -35,27 +35,47 @@
     "verificar:rapido": "lefthook run pre-push --force",
     "verificar:ativacao": "pnpm run verificar:fundacao",
     "lint": "biome check packages/contracts packages/cadastro supabase/functions/_shared supabase/functions/*/index.ts netlify/functions web scripts/validar-configuracao-local.mjs scripts/prova-celular scripts/prova-celular-vite.config.mjs playwright.config.ts",
-    "verificar:fundacao": "pnpm run lint && pnpm run typecheck && pnpm run typecheck:deno && pnpm run test:contratos && pnpm run test:cadastro && pnpm run test:funcoes && pnpm run test:proxy && pnpm run test:web && pnpm run build:web && pnpm run validar:configuracao && pnpm run verificar:celular"
+    "verificar:fundacao": "pnpm run lint && pnpm run typecheck && pnpm run typecheck:deno && pnpm run test:contratos && pnpm run test:cadastro && pnpm run test:funcoes && pnpm run test:proxy && pnpm run test:web && pnpm run build:web && node --experimental-strip-types scripts/prova-celular/trusted-types-producao.mjs && pnpm run validar:configuracao && pnpm run verificar:celular"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@fission-ai/openspec": "1.14.1",
     "@iarna/toml": "2.2.5",
     "@playwright/test": "1.65.1",
+    "@tailwindcss/vite": "^4.3.5",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.13",
     "@types/node": "22.15.34",
     "@types/pg": "8.15.5",
+    "@types/react": "^19.3.2",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "jsdom": "26.1.0",
     "lefthook": "2.2.2",
+    "lucide-react": "^1.80.0",
+    "tailwind-merge": "^3.7.1",
+    "tailwindcss": "^4.3.5",
     "typescript": "5.9.3",
     "vite": "8.3.4",
     "vitest": "4.1.11"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.3.1",
+    "@radix-ui/react-popover": "^1.3.1",
+    "@radix-ui/react-select": "^2.4.1",
+    "@radix-ui/react-slot": "^1.5.0",
+    "@radix-ui/react-tabs": "^1.2.1",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.118.0",
+    "cmdk": "^1.1.1",
     "jose": "6.2.12",
     "pdf-lib": "1.17.1",
     "pg": "8.16.3",
+    "react": "19",
+    "react-dom": "19",
     "zod": "4.1.12"
   }
 }

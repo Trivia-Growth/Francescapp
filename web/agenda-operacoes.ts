@@ -1,4 +1,5 @@
 import { iniciarAcao } from './esqueleto.js';
+import { botao } from './ui/basicos.js';
 type Evento = { id: string; inicio: string; fim: string; etag?: string };
 type Acao = 'criar' | 'alterar' | 'cancelar';
 
@@ -67,10 +68,7 @@ export function montarOperacoesAgenda(
   let evento: Evento | undefined;
   let acao: Acao = 'criar';
   let pendente: Record<string, unknown> | undefined;
-  const abrir = document.createElement('button');
-  abrir.type = 'button';
-  abrir.className = 'button-primary';
-  abrir.textContent = 'Novo compromisso';
+  const abrir = botao({ rotulo: 'Novo compromisso', peso: 'principal' });
   abrir.disabled = true;
   const formulario = document.createElement('form');
   formulario.hidden = true;
@@ -98,18 +96,12 @@ export function montarOperacoesAgenda(
   labelFim.htmlFor = fim.id;
   labelFim.textContent = 'Fim';
   campoFim.append(labelFim, fim);
-  const salvar = document.createElement('button');
-  salvar.type = 'submit';
-  salvar.className = 'button-primary';
-  const fechar = document.createElement('button');
-  fechar.type = 'button';
-  fechar.className = 'button-secondary';
-  fechar.textContent = 'Fechar';
-  const confirmar = document.createElement('button');
-  confirmar.type = 'button';
-  confirmar.className = 'button-secondary';
+  // O rótulo depende da operação e é escrito ao abrir o formulário: cancelar e salvar não
+  // são a mesma frase. Nasce vazio, como antes.
+  const salvar = botao({ rotulo: '', tipo: 'submit', peso: 'principal' });
+  const fechar = botao({ rotulo: 'Fechar', peso: 'secundario' });
+  const confirmar = botao({ rotulo: 'Manter mesmo com conflito', peso: 'secundario' });
   confirmar.hidden = true;
-  confirmar.textContent = 'Manter mesmo com conflito';
   const feedback = document.createElement('p');
   feedback.className = 'feedback';
   feedback.setAttribute('role', 'status');
@@ -118,10 +110,7 @@ export function montarOperacoesAgenda(
   const resultado = document.createElement('p');
   resultado.setAttribute('role', 'status');
   resultado.setAttribute('aria-live', 'polite');
-  const reconciliar = document.createElement('button');
-  reconciliar.type = 'button';
-  reconciliar.className = 'button-secondary';
-  reconciliar.textContent = 'Verificar situação no Google';
+  const reconciliar = botao({ rotulo: 'Verificar situação no Google', peso: 'secundario' });
   reconciliar.hidden = true;
   raiz.append(abrir, resultado, reconciliar, formulario);
 

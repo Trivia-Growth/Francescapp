@@ -134,7 +134,7 @@ it('mostra a origem do aviso e nunca o seu teor, e separa lido de ciência', asy
 
 it('não envia nada para fora do aplicativo nem registra token de dispositivo', () => {
   // Decisão 0.3: só o sino dentro do aplicativo. Qualquer chamada externa é achado.
-  const fontes = ['web/avisos.ts', 'web/servico-avisos-http.ts'].map((caminho) =>
+  const fontes = ['web/avisos.tsx', 'web/servico-avisos-http.ts'].map((caminho) =>
     readFileSync(caminho, 'utf8'),
   );
   for (const fonte of fontes) {

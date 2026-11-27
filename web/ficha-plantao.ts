@@ -28,8 +28,9 @@ import {
   dataLocalTurno,
   botaoTurno,
   estadoTurno,
-} from './turno-execucao-campos.ts';
+} from './turno-execucao-campos.js';
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
+import { botao } from './ui/basicos.js';
 
 /** FR-073 a FR-077, FR-081. Ficha de plantão: superfície ÚNICA de registro do AT e da
  * enfermagem, na ordem e no vocabulário da ficha de papel que a equipe já usa.
@@ -435,9 +436,11 @@ export function montarFichaPlantao(
     const acoes = el('div');
     acoes.className = 'turno-execucao__acoes';
     const guardar = botaoTurno('Guardar rascunho', () => void salvarRascunho());
-    const publicar = el('button', publicada ? 'Publicar correção' : 'Publicar ficha do plantão');
-    publicar.type = 'submit';
-    publicar.className = 'button-primary';
+    const publicar = botao({
+      rotulo: publicada ? 'Publicar correção' : 'Publicar ficha do plantão',
+      tipo: 'submit',
+      peso: 'principal',
+    });
     acoes.append(guardar, publicar);
     form.append(acoes);
     form.oninput = () => opcoes.alteracaoPendente?.(true);
@@ -466,9 +469,11 @@ export function montarFichaPlantao(
         const grupo = el('fieldset');
         grupo.append(el('legend', 'Resolver esta pendência'));
         const campoMotivo = campoTurno(grupo, 'O que foi feito', { longo: true });
-        const resolver = el('button', 'Registrar a resolução');
-        resolver.type = 'submit';
-        resolver.className = 'button-secondary';
+        const resolver = botao({
+          rotulo: 'Registrar a resolução',
+          tipo: 'submit',
+          peso: 'secundario',
+        });
         grupo.append(resolver);
         form.append(grupo);
         form.onsubmit = (evento) => {

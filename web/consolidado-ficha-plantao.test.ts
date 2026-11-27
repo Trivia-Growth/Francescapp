@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it } from 'vitest';
-import { apresentarConsolidadoFicha } from './consolidado-ficha-plantao.ts';
+import { apresentarConsolidadoFicha } from './consolidado-ficha-plantao.js';
 import type { RelatorioTurnoPublico } from '../packages/contracts/src/turno-execucao-http.ts';
 
 /** FR-080. Dados fictícios. O consolidado reusa a projeção autorizada de FR-062 como ela

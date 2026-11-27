@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { montarSubstituicaoCaseManager } from './substituicao-case-manager';
+import { montarSubstituicaoCaseManager } from './substituicao-case-manager.tsx';
 import { FalhaApi } from './api';
 import type { PainelSubstituicao } from '../packages/contracts/src/substituicao-case-manager.ts';
 
@@ -82,7 +82,12 @@ it('mostra carregamento, depois estado vazio sem esconder o formulário', async 
     'Sem substituição vigente.',
   );
   // Esconder controle não é autorização: o botão continua visível e habilitado.
-  expect(raiz.querySelector<HTMLButtonElement>('.button-primary')?.disabled).toBe(false);
+  // Procurado pelo rótulo, e não pela classe: o desenho do botão é da camada de
+  // componente e pode mudar de nome; o que a prova guarda é que a ação continua ali.
+  const registrar = [...raiz.querySelectorAll('button')].find(
+    (item) => item.textContent === 'Registrar substituição',
+  );
+  expect(registrar?.disabled).toBe(false);
 });
 
 it('diz quem é o titular, quem substitui e até quando', async () => {

@@ -7,7 +7,7 @@ import { statusErroHttp } from '../packages/contracts/src/erros.ts';
 import { transcricaoHttp } from '../packages/contracts/src/transcricao-http.ts';
 import type { Transcricao } from '../packages/contracts/src/transcricao.ts';
 import { FalhaApi } from './api.ts';
-import type { ServicoTranscricao } from './transcricao-audio.ts';
+import type { ServicoTranscricao } from './transcricao-audio.js';
 
 type Identidade = { usuario_id: string; session_id: string };
 type Nome = keyof typeof transcricaoHttp;

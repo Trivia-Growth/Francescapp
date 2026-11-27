@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { CATEGORIAS_CONTEXTO } from '../packages/contracts/src/contexto-cuidado.ts';
 import { VINCULOS_REDE } from '../packages/contracts/src/rede-cuidado.ts';
 import { FalhaApi } from './api.ts';
-import { montarContextoCuidado } from './contexto-cuidado.ts';
-import { montarRedeCuidado } from './rede-cuidado.ts';
+import { montarContextoCuidado } from './contexto-cuidado.tsx';
+import { montarRedeCuidado } from './rede-cuidado.tsx';
 
 const paciente = '33333333-3333-4333-8333-333333333333';
 const objetivo = '44444444-4444-4444-8444-444444444444';

@@ -4,7 +4,7 @@ import {
   coletarLocalizacaoTurno,
   montarConsentimentoTurno,
   type PortasLocalizacaoTurno,
-} from './turno-execucao-localizacao.ts';
+} from './turno-execucao-localizacao.js';
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();

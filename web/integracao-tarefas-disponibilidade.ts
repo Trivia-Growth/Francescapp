@@ -1,4 +1,5 @@
 import { FalhaApi, exigeNovoAcesso } from './api.ts';
+import { botao } from './ui/basicos.js';
 
 type Identidade = { usuario_id: string; session_id: string };
 /** Disponibilidade habilita controles, nunca substitui autorização transacional. */
@@ -36,9 +37,10 @@ export function montarTarefasComDisponibilidade(
   const aviso = document.createElement('p');
   aviso.setAttribute('role', 'status');
   aviso.textContent = 'Conferindo disponibilidade para alterar tarefas…';
-  const tentar = document.createElement('button');
-  tentar.type = 'button';
-  tentar.textContent = 'Tentar conferir disponibilidade novamente';
+  const tentar = botao({
+    rotulo: 'Tentar conferir disponibilidade novamente',
+    peso: 'secundario',
+  });
   tentar.hidden = true;
   const conteudo = document.createElement('div');
   raiz.replaceChildren(aviso, tentar, conteudo);

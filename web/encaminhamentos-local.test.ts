@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
 import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
-import { type EncaminhamentoLocal, montarEncaminhamentosLocais } from './encaminhamentos-local';
+import { type EncaminhamentoLocal, montarEncaminhamentosLocais } from './encaminhamentos-local.tsx';
 
 it('registra e atualiza somente após gravação, preservando rascunho em falha', async () => {
   const raiz = document.createElement('div');

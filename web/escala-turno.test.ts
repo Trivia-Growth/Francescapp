@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
-import { montarEscalaTurno } from './escala-turno.ts';
+import { montarEscalaTurno } from './escala-turno.js';
 import { FalhaApi } from './api.ts';
 import { criarServicoTurnoHttp } from './servico-turno-http.ts';
 import type { EscalaCaso } from '../packages/contracts/src/turno-passagem.ts';
@@ -23,8 +23,12 @@ const versao = {
   autor_usuario_id: usuario,
   registrado_em: '2026-11-17T10:00:00Z',
 };
+/* A espera precisa ceder a vez ao agendador, não só à fila de microtarefas.
+   Medido em 25/11/2026: o React agenda a repintura de uma atualização vinda de
+   `then`/`await` fora de evento numa macrotarefa, então `await Promise.resolve()`
+   repetido voltava com a tela ainda no estado anterior. Nenhuma asserção mudou. */
 const aguardar = async () => {
-  for (let i = 0; i < 20; i++) await Promise.resolve();
+  for (let i = 0; i < 20; i++) await new Promise((resolver) => setTimeout(resolver, 0));
 };
 afterEach(() => vi.restoreAllMocks());
 function preparar(dados: EscalaCaso) {

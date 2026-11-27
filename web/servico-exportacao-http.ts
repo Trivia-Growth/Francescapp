@@ -12,7 +12,7 @@ import {
 } from '../packages/contracts/src/comum.ts';
 import { FalhaApi } from './api.ts';
 import { statusErroHttp } from '../packages/contracts/src/erros.ts';
-import type { ServicoExportacao } from './exportacao.ts';
+import type { ServicoExportacao } from './exportacao.js';
 import { criarServicoDocumentosHttp } from './servico-documentos-http.ts';
 
 type Identidade = { usuario_id: string; session_id: string };

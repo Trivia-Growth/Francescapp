@@ -9,7 +9,7 @@ import {
 } from '../packages/contracts/src/identidade.ts';
 import { statusErroHttp } from '../packages/contracts/src/erros.ts';
 import { FalhaApi } from './api.ts';
-import type { ServicoPreautorizacoes } from './preautorizacoes-familiares.ts';
+import type { ServicoPreautorizacoes } from './preautorizacoes-familiares.js';
 import type { z } from 'zod';
 
 type Identidade = { usuario_id: string; session_id: string };
