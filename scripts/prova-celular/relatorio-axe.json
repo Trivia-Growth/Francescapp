@@ -1,6 +1,6 @@
 {
   "resumo": {
-    "paginas": 30,
+    "paginas": 34,
     "violacoes": 0,
     "toleradas": 0
   },
@@ -62,6 +62,26 @@
     },
     {
       "rotulo": "conforto-celular — financeiro 390x844 — Valor por turno",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "convidar-equipe — com erros 1440x900",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "convidar-equipe — com erros 390x844",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "convidar-equipe — inicial 1440x900",
+      "violacoes": [],
+      "toleradas": []
+    },
+    {
+      "rotulo": "convidar-equipe — inicial 390x844",
       "violacoes": [],
       "toleradas": []
     },

@@ -1974,6 +1974,16 @@ const areasAdministracao: AreaAdministracao[] = [
       (await import('./concessao-equipe.js')).montarConcessaoEquipe(raiz, api),
   },
   {
+    // Convidar é página própria (fatia 7 do plano visual). Mesma regra de disponibilidade da
+    // Equipe, e a mesma não-autorização: quem concede é o servidor e o banco, não esta lista.
+    id: 'convidar-equipe',
+    rotulo: 'Convidar alguém',
+    disponivel: (atual) =>
+      atual.usuario.perfil === 'administrador' &&
+      atual.capacidades.includes('administrar_concessoes'),
+    montar: async (raiz) => (await import('./convidar-equipe.js')).montarConvidarEquipe(raiz, api),
+  },
+  {
     id: 'plano-de-crise',
     rotulo: 'Quem aprova plano de crise',
     disponivel: (atual) =>
