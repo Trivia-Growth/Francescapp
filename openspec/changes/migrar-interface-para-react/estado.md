@@ -6,22 +6,21 @@
 
 Bloco turno/plantão (tarefa 5.2, leva 2) em migração, um commit por módulo. Alvo da
 sequência de blocos: `web/ui/` sem importador, para apagar `ui/` e `ui.css`.
-Importadores de `web/ui/` fora de testes: **19** (eram 22 na `main` `80f7583`).
+Importadores de `web/ui/` fora de testes: **18** (eram 22 na `main` `80f7583`).
 
 ## Última tarefa concluída
 
-- 5.2 leva 2 — `turno-execucao-relatorios` migrado para `.tsx` (`RelatoriosTurno`), compondo
-  `RelatorioTurno` e `ConsolidadoFicha` direto, sem nó inerte. `usarProtocoloTurno` passa a
-  liberar `ocupada` com `flushSync`: sem isso o botão de conferir o PDF seguia desabilitado
-  no DOM depois da falha e o clique se perdia (pego pela prova existente).
-  Antes: `-arquivos` (`89777de`), `-localizacao-coordenacao` (`1f6fc3a`).
-- Evidência: `turno-execucao-relatorios.test.ts` 4/4 sem mudança de asserção (só o
-  especificador do import), `turno-execucao.test.ts` e `consolidado-ficha-plantao.test.ts`
-  verdes; `pnpm run verificar:rapido` verde.
+- 5.2 leva 2 — `turno-execucao-gestao` migrado para `.tsx` (`GestaoExecucaoTurno`).
+  Recarregar continua redesenhando (chave `geracao`) depois da confirmação de descarte.
+  Antes: `-arquivos` (`89777de`), `-localizacao-coordenacao` (`1f6fc3a`),
+  `-relatorios` (`97c0710`).
+- Evidência: `turno-execucao-gestao.test.ts` 3/3 — as 2 existentes sem mudança de asserção e
+  1 nova (concessão de medicação incerta bloqueia alterações e só se repete igual);
+  `turno-execucao.test.ts` verde; `pnpm run verificar:rapido` verde.
 
 ## Próximo passo
 
-- `turno-execucao-gestao`, `ficha-plantao`,
+- `ficha-plantao`,
   `turno-execucao`, `turno-execucao-integracao`; depois retirar as fábricas imperativas de
   `turno-execucao-campos.tsx` e resolver a costura da síntese (`modelo-sintese.ts` em
   `diario.tsx` e `passagem-turno.tsx`).

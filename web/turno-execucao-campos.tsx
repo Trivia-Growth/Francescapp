@@ -70,6 +70,8 @@ export function CampoTurno({
    *  imperativa fazia atribuindo `.step`/`.min` após criar o controle. */
   step?: string;
   min?: string;
+  /** Limite do contrato aplicado no próprio controle: a tela não oferece o que vai recusar. */
+  maxLength?: number;
 }) {
   const gerado = useId();
   const identificador = id ?? `turno-campo-${gerado}`;
@@ -206,18 +208,21 @@ export function usarMudancaNativa(
   envolucroRef: RefObject<HTMLElement | null>,
   id: string,
   aoMudar: (valor: string) => void,
+  /** Troca quando o nó é recriado (lista recarregada, chave nova): o ouvinte vai junto. */
+  recriacao?: unknown,
 ) {
   const guardado = useRef(aoMudar);
   guardado.current = aoMudar;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `recriacao` é justamente o sinal de que o nó mudou.
   useEffect(() => {
-    const no = envolucroRef.current?.querySelector<HTMLSelectElement | HTMLInputElement>(
-      `#${CSS.escape(id)}`,
-    );
+    // Ids fixos escritos no código, sem caractere especial: dispensa `CSS.escape`, que o
+    // jsdom das provas não implementa.
+    const no = envolucroRef.current?.querySelector<HTMLSelectElement | HTMLInputElement>(`#${id}`);
     if (!no) return;
     const ouvir = () => flushSync(() => guardado.current(no.value));
     no.addEventListener('change', ouvir);
     return () => no.removeEventListener('change', ouvir);
-  }, [envolucroRef, id]);
+  }, [envolucroRef, id, recriacao]);
 }
 
 /** Entrega de arquivo recebido do servidor, revogando a URL temporária logo depois e na

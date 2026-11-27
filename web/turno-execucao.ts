@@ -30,7 +30,7 @@ import {
 } from './turno-execucao-conversao.js';
 import { montarRelatoriosTurno } from './turno-execucao-relatorios.js';
 import { montarLocalizacaoCoordenacao } from './turno-execucao-localizacao-coordenacao.js';
-import { montarGestaoExecucaoTurno } from './turno-execucao-gestao.ts';
+import { montarGestaoExecucaoTurno } from './turno-execucao-gestao.js';
 import { montarFichaPlantao, type ServicosFichaPlantao } from './ficha-plantao.ts';
 import { confirmarDescarte } from './confirmacao.js';
 import { botao } from './ui/basicos.js';
