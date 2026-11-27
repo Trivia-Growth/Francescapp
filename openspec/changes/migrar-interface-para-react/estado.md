@@ -2,6 +2,24 @@
 
 **Atualizado em:** 27/11/2026 · **Branch:** `codex/remover-web-ui` · **Por:** Codex
 
+## Fatia 8b do plano visual — lateral, gaveta, barra e linhas da Carteira
+
+Sobre `b5db640`, a raiz da casca desenha a navegação responsiva, barra, Avisos,
+Seu dia, Como funciona e linhas da Carteira. A revalidação continua ocultando o
+conteúdo protegido. Os painéis e seções com montagem imperativa ainda precisam
+ser migrados para cumprir a tarefa 7.2.
+
+- Chromium, build de produção: 240 px de lateral em 1440 px, gaveta de 358 px em
+  390 px, barra sticky de no mínimo 72/64 px e um título principal nas seis capturas.
+  As folhas carregadas foram `index-X-zgnAef.css` na base e `index-BceTrjlW.css`
+  na fatia. O JavaScript inicial passou de 242.878 a 245.169 bytes gzip em seis arquivos.
+- Axe integral sem violações nas seis vistas e na gaveta. Na base, os cinco botões
+  da Carteira tinham nome incompatível com o texto visível, e o corpo do diálogo
+  de cadastro era rolável sem foco. Reintroduzir o rótulo anterior nos botões
+  reproduziu a violação a 390 e 1440 px. Alteração temporária revertida.
+- Próximo passo: ativação da fatia, aprovação das capturas e portabilidade dos
+  painéis restantes. O corte preexistente do sinal operacional fica no PR #51.
+
 ## Fatia 8a do plano visual — roteador por fragmento
 
 Sobre `23d0daa`, a raiz da casca React controla o histórico e desenha Seu dia e

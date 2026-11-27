@@ -50,18 +50,8 @@ it('abre tarefas da carteira em modo somente leitura', async () => {
     throw new Error('Rota inesperada');
   });
   await montarCascaParaTeste();
-  await vi.waitFor(() =>
-    expect(
-      document.querySelector(
-        '#patients-body button[aria-label="Abrir ficha de Paciente fictício"]',
-      ),
-    ).not.toBeNull(),
-  );
-  document
-    .querySelector<HTMLButtonElement>(
-      '#patients-body button[aria-label="Abrir ficha de Paciente fictício"]',
-    )
-    ?.click();
+  await vi.waitFor(() => expect(document.querySelector('button[data-paciente-id]')).not.toBeNull());
+  document.querySelector<HTMLButtonElement>('button[data-paciente-id]')?.click();
   document.getElementById('ficha-aba-tarefas')?.click();
   const raiz = document.querySelector('[data-secao="tarefas"]');
   await vi.waitFor(() => expect(raiz?.textContent).toContain('Ligar para família'));

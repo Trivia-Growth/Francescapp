@@ -1015,7 +1015,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   height: 64px;
   font-size: var(--texto-3);
 }
-.ficha-identidade h1 {
+.ficha-identidade :is(h1, h2) {
   overflow-wrap: anywhere;
 }
 .ficha-preferencia {

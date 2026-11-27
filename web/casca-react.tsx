@@ -1,10 +1,16 @@
-import { useEffect } from 'react';
+import { createRef, type ComponentProps, useEffect } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
+import type { PacienteLista } from '../packages/contracts/src/cadastro.js';
 import { lerRotaFicha, type RotaFicha } from './ficha-paciente.js';
 import { TelaHomeProfissional, type ServicoHome } from './home-profissional.js';
+import { LinhasCarteira } from './linhas-carteira.js';
 import { TelaRegrasAtendimento } from './regras-atendimento.js';
 import type { ServicoRegrasAtendimento } from './servico-regras-atendimento-http.js';
+import { type ComandoGaveta, type EstadoNavegacao, NavegacaoCasca } from './navegacao-casca.js';
+
+type Navegacao = ComponentProps<typeof NavegacaoCasca>;
+type Carteira = { raiz: HTMLElement; abrir: (paciente: PacienteLista) => void };
 
 type Rota =
   | { tipo: 'ficha'; ficha: RotaFicha }
@@ -41,9 +47,13 @@ export function gravarRota(hash: string, acao: 'push' | 'replace'): void {
 function Casca({
   vista,
   aoHistorico,
+  navegacao,
+  carteira,
 }: {
   vista: Vista | null;
   aoHistorico: () => void;
+  navegacao: Navegacao;
+  carteira: Carteira & { pacientes: readonly PacienteLista[] };
 }) {
   useEffect(() => {
     const eventos = new window.AbortController();
@@ -64,29 +74,85 @@ function Casca({
     return () => eventos.abort();
   }, [aoHistorico]);
 
-  if (!vista) return null;
-  return createPortal(
-    vista.tipo === 'home' ? (
-      <TelaHomeProfissional servico={vista.servico} acessoPerdido={vista.acessoPerdido} />
-    ) : (
-      <TelaRegrasAtendimento servico={vista.servico} />
-    ),
-    vista.destino,
+  return (
+    <>
+      <NavegacaoCasca {...navegacao} />
+      {createPortal(
+        <LinhasCarteira pacientes={carteira.pacientes} aoAbrir={carteira.abrir} />,
+        carteira.raiz,
+      )}
+      {vista
+        ? createPortal(
+            vista.tipo === 'home' ? (
+              <TelaHomeProfissional
+                servico={vista.servico}
+                acessoPerdido={vista.acessoPerdido}
+                nivelTitulo={2}
+              />
+            ) : (
+              <TelaRegrasAtendimento servico={vista.servico} />
+            ),
+            vista.destino,
+          )
+        : null}
+    </>
   );
 }
 
 /** Durante a transição, as vistas convertidas são renderizadas dentro dos
  * contêineres existentes, preservando os pontos de foco e a montagem do HTML. */
-export function iniciarCasca(raiz: HTMLElement, aoHistorico: () => void) {
+export function iniciarCasca(
+  raiz: HTMLElement,
+  aoHistorico: () => void,
+  opcoes: Omit<Navegacao, 'comando' | 'estado'>,
+  carteira: Carteira,
+) {
   const arvore = createRoot(raiz);
+  const comando = createRef<ComandoGaveta>();
   let encerrada = false;
-  const desenhar = (vista: Vista | null) => {
-    if (!encerrada)
-      flushSync(() => arvore.render(<Casca vista={vista} aoHistorico={aoHistorico} />));
+  let vista: Vista | null = null;
+  let pacientes: readonly PacienteLista[] = [];
+  let estado: EstadoNavegacao = {
+    visivel: false,
+    destino: 'home',
+    home: false,
+    administracao: false,
+    perfil: '',
+    pessoa: '',
+    area: '',
+    busca: null,
+    avisos: null,
   };
-  desenhar(null);
+  const atualizar = () => {
+    if (!encerrada)
+      flushSync(() =>
+        arvore.render(
+          <Casca
+            vista={vista}
+            aoHistorico={aoHistorico}
+            navegacao={{ ...opcoes, estado, comando }}
+            carteira={{ ...carteira, pacientes }}
+          />,
+        ),
+      );
+  };
+  atualizar();
   return {
-    desenhar,
+    desenhar(proxima: Vista | null) {
+      vista = proxima;
+      atualizar();
+    },
+    atualizarNavegacao(dados: Partial<EstadoNavegacao>) {
+      estado = { ...estado, ...dados };
+      atualizar();
+    },
+    atualizarLista(itens: readonly PacienteLista[]) {
+      pacientes = itens;
+      atualizar();
+    },
+    fecharGaveta() {
+      flushSync(() => comando.current?.fechar());
+    },
     encerrar() {
       if (encerrada) return;
       encerrada = true;

@@ -155,7 +155,7 @@ test('Encaminhamentos mostram a etapa do registro em edição', async ({ page })
 
 test('Gestão do Turno restaura o familiar ao continuar editando o fundamento', async ({ page }) => {
   await page.goto(`${origem}/#carteira`);
-  await page.getByRole('button', { name: `Abrir ficha de ${caso.nome}` }).click();
+  await page.locator('#patients-body').getByRole('button', { name: caso.nome }).click();
   await page.getByText('Mais seções', { exact: true }).click();
   await page.getByText('Execução e relatórios', { exact: true }).click();
   await expect(page.getByText(/Catálogo consultado/)).toBeVisible();

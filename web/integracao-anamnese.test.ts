@@ -7,7 +7,7 @@ import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.
 const id = '10000000-0000-4000-8000-000000000001';
 const sessionId = '20000000-0000-4000-8000-000000000001';
 const envelope = (dados: unknown) => Response.json({ dados, request_id: id });
-const abrirFicha = '[aria-label="Abrir ficha de Paciente fictício"]';
+const abrirFicha = 'button[data-paciente-id]';
 
 afterEach(() => {
   sessionStorage.clear();

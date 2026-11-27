@@ -35,14 +35,8 @@ it('não oferece edição enquanto as rotas de paciente não estão disponíveis
   });
   vi.stubGlobal('fetch', fetch);
   desmontarCampos = (await import('./main.js')).desmontarCamposDeCadastro;
-  await vi.waitFor(() =>
-    expect(
-      document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
-    ).not.toBeNull(),
-  );
-  document
-    .querySelector<HTMLButtonElement>('[aria-label="Abrir ficha de Paciente fictício"]')
-    ?.click();
+  await vi.waitFor(() => expect(document.querySelector('button[data-paciente-id]')).not.toBeNull());
+  document.querySelector<HTMLButtonElement>('button[data-paciente-id]')?.click();
   document.getElementById('ficha-aba-cadastro')?.click();
   expect(document.getElementById('ficha-painel')?.textContent).toContain(
     'A edição do cadastro ainda não está disponível neste ambiente.',
@@ -81,13 +75,9 @@ it.each([
     );
     desmontarCampos = (await import('./main.js')).desmontarCamposDeCadastro;
     await vi.waitFor(() =>
-      expect(
-        document.querySelector('[aria-label="Abrir ficha de Paciente fictício"]'),
-      ).not.toBeNull(),
+      expect(document.querySelector('button[data-paciente-id]')).not.toBeNull(),
     );
-    document
-      .querySelector<HTMLButtonElement>('[aria-label="Abrir ficha de Paciente fictício"]')
-      ?.click();
+    document.querySelector<HTMLButtonElement>('button[data-paciente-id]')?.click();
     expect(Boolean(document.getElementById('ficha-aba-cadastro'))).toBe(visivel);
     if (visivel) {
       document.getElementById('ficha-aba-cadastro')?.click();

@@ -28,13 +28,16 @@ test('link antigo, consulta da URL, histórico e foco da gaveta', async ({ page 
       : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
   });
   await page.goto('/web/index.html?agenda=conectada#administracao/configuracao');
-  const admin = page.locator('#administracao-title');
-  const carteira = page.locator('#patients-title');
+  const admin = page.getByRole('heading', { name: 'Administração', level: 1 });
+  const carteira = page.getByRole('heading', { name: 'Pessoas acompanhadas', level: 1 });
   const menu = page.getByRole('button', { name: 'Menu', exact: true });
   await expect(admin).toBeVisible();
   await menu.click();
   await expect(page.getByRole('button', { name: 'Fechar menu' })).toBeFocused();
   await page.keyboard.press('Escape');
+  await expect(menu).toBeFocused();
+  await menu.click();
+  await page.mouse.click(385, 420);
   await expect(menu).toBeFocused();
   await menu.click();
   await page.getByRole('link', { name: 'Pessoas acompanhadas' }).click();
