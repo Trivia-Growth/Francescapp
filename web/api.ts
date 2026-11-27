@@ -289,6 +289,21 @@ export function resultadoIncerto(erro: unknown): boolean {
   );
 }
 
+/* Leituras guardadas em memória por outros módulos (hoje só `web/consultas.ts`) se
+ * registram aqui para serem esquecidas junto com a sessão. O registro existe para o cache
+ * não entrar no caminho crítico: este módulo é carregado na abertura, o cache só com a
+ * tela que o usa. Quem não registrou nada não tem nada guardado. */
+const esquecimentos = new Set<() => void>();
+
+/** Registra o que precisa ser apagado sempre que a sessão desta página é descartada. */
+export function aoEsquecerSessao(esquecer: () => void): void {
+  esquecimentos.add(esquecer);
+}
+
+function esquecerLeituras(): void {
+  for (const esquecer of esquecimentos) esquecer();
+}
+
 /** Uma instância por página. Credenciais e respostas nunca entram em armazenamento ou logs. */
 export class ClienteFFCM {
   #sessionId: string | null = null;
@@ -308,6 +323,7 @@ export class ClienteFFCM {
     this.#familiaConta = false;
     this.#saindo = false;
     this.#revisao += 1;
+    esquecerLeituras();
   }
 
   async #enviar<R extends Rota>(
@@ -930,6 +946,9 @@ export class ClienteFFCM {
   }
 
   async #sair(familiar: boolean): Promise<Dados<'sairSessao'>> {
+    // A saída começou: nada lido por esta sessão continua em memória — nem se uma guarda
+    // abaixo recusar, nem se o servidor não confirmar e a pessoa precisar tentar de novo.
+    esquecerLeituras();
     if (!this.#sessionId) throw new FalhaApi('nao_autenticado', 401);
     try {
       const modo = sessionStorage.getItem('modo-acesso');

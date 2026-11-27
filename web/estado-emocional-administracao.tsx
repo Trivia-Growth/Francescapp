@@ -12,7 +12,12 @@ import { Superficie } from './componentes/ui/superficie.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 import { MolduraTela } from './telas/moldura-tela.js';
 import { ilha } from './ponte/ilha.js';
-import { Recuperacao, useCatalogoAdministrado } from './telas/catalogo-administrado.js';
+import {
+  Recuperacao,
+  useCatalogoAdministrado,
+  type LeituraRetida,
+} from './telas/catalogo-administrado.js';
+import { chaveDaSessao, clienteConsultas } from './consultas.js';
 
 /** FR-076/FR-081. Catálogo de estado emocional observado na ficha de plantão. É vocabulário
  * de OBSERVAÇÃO: não há nota, escala, pontuação nem ordem de gravidade, e por isso o registro
@@ -20,9 +25,11 @@ import { Recuperacao, useCatalogoAdministrado } from './telas/catalogo-administr
  * Desativar um termo não reescreve ficha antiga, que guarda o rótulo da época. */
 function Tela({
   servico,
+  leitura,
   acessoPerdido,
 }: {
   servico: ServicoEstadoEmocional;
+  leitura: LeituraRetida<readonly EstadoEmocional[]>;
   acessoPerdido: (erro: unknown) => void;
 }) {
   const catalogo = useCatalogoAdministrado<readonly EstadoEmocional[], GravarEstadoEmocional>(
@@ -42,6 +49,7 @@ function Tela({
           termo.ativo === entrada.ativo,
       ),
     [],
+    leitura,
   );
   if (catalogo.perdido) return null;
 
@@ -59,7 +67,13 @@ function Tela({
     <MolduraTela
       titulo="Estado emocional observado"
       explicacao="Termos que o profissional escolhe ao registrar o estado emocional observado na ficha de plantão, como tranquilo, agitado ou comunicativo. São palavras de observação: não existe nota, escala, pontuação nem ordem de gravidade, e o registro guardado não tem número. Desativar um termo não altera ficha já gravada."
-      acao={<Botao aoAtivar={catalogo.atualizar}>Atualizar catálogo de termos</Botao>}
+      acao={
+        // `aria-disabled`, não `disabled`: quem acionou continua com o foco no botão
+        // enquanto a consulta corre, e o `Botao` ignora o clique repetido.
+        <Botao aria-disabled={catalogo.ocupado} aoAtivar={catalogo.atualizar}>
+          Atualizar catálogo de termos
+        </Botao>
+      }
       status={catalogo.status}
       ocupado={catalogo.ocupado}
       antes={
@@ -172,10 +186,24 @@ function FormularioTermo({
   );
 }
 
+/** Piloto do cache de leituras (`web/consultas.ts`). A lista é vocabulário institucional,
+ *  não dado de paciente: volta à tela mostra o que já foi lido, sem novo GET, enquanto a
+ *  leitura estiver guardada (`gcTime` padrão, 5 min desde a última). Atualizar, salvar e
+ *  repetir releem sempre; consultas simultâneas da mesma chave viram um GET só. */
 export function montarEstadoEmocionalAdministracao(
   raiz: HTMLElement,
   servico: ServicoEstadoEmocional,
   acessoPerdido: (erro: unknown) => void,
 ): () => void {
-  return ilha(raiz, <Tela servico={servico} acessoPerdido={acessoPerdido} />);
+  const queryKey = chaveDaSessao(servico.identidade, 'admin', 'estado-emocional');
+  const comCache: ServicoEstadoEmocional = {
+    ...servico,
+    consultar: () =>
+      clienteConsultas.fetchQuery({ queryKey, queryFn: () => servico.consultar(), staleTime: 0 }),
+  };
+  const leitura: LeituraRetida<readonly EstadoEmocional[]> = {
+    retida: () => clienteConsultas.getQueryData<EstadoEmocional[]>(queryKey),
+    descartar: () => clienteConsultas.removeQueries({ queryKey, exact: true }),
+  };
+  return ilha(raiz, <Tela servico={comCache} leitura={leitura} acessoPerdido={acessoPerdido} />);
 }
