@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { criarErroPublico } from '../../packages/contracts/src/comum.ts';
-import { conferirSelecaoNativa } from './controles-nativos.js';
+import { conferirControlesNativos } from './controles-nativos.js';
 
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
@@ -66,7 +66,7 @@ test('agenda monta a seleção React depois da carga', async ({ page }) => {
   await page.goto('/scripts/prova-celular/agenda-individual.html');
   await expect(page.getByText('Consulta fictícia')).toBeVisible();
 
-  await conferirSelecaoNativa(page, '#agenda-individual');
+  await conferirControlesNativos(page, '#agenda-individual');
 
   await page.getByRole('button', { name: 'Registrar realização' }).click();
   const painel = page.locator('.realizacao-compromisso');

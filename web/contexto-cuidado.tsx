@@ -15,7 +15,7 @@
  *
  * Botões passaram a ser o `Botao` de `componentes/ui` em 26/11/2026. Antes desta data a
  * tela montava `<button className="ui-botao">`, do kit imperativo antigo: marcador React
- * com aparência vinda de `web/ui/ui.css`. Dois sistemas visuais na mesma tela é
+ * com aparência vinda de `web/estilos/ui.css`. Dois sistemas visuais na mesma tela é
  * exatamente a falta de padronização que o solicitante pediu para eliminar, e era
  * invisível numa revisão de código React.
  * As classes de layout da própria tela (`contexto-cuidado`, `contexto-cuidado__item`,

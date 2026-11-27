@@ -4,7 +4,7 @@ import { type ViteDevServer, createServer } from 'vite';
 import { envelope } from '../../web/fixtures/comum.ts';
 import { responder } from '../../web/fixtures/despachante.ts';
 import { PACIENTE_IDS, concessoesEquipe, sessaoAdministrador } from '../../web/fixtures/sessao.ts';
-import { conferirSelecaoNativa } from './controles-nativos.js';
+import { conferirControlesNativos } from './controles-nativos.js';
 
 const caso = PACIENTE_IDS[0];
 const caminhoAuditoria = '/api/admin/auditoria';
@@ -67,12 +67,27 @@ async function consultarAuditoria(page: Page) {
   return new URL((await pedido).url()).searchParams;
 }
 
+for (const seletor of [
+  '#cadastro',
+  '#administracao-conteudo',
+  '#ficha-view',
+  '#regras-conteudo',
+  '#home-view',
+  '#agenda-individual',
+]) {
+  test(`a casca mantém seleção e data nativas em ${seletor}`, async ({ page }) => {
+    await page.goto(`${origem}/#home`);
+    await expect(page.locator('#home-view')).toBeVisible();
+    await conferirControlesNativos(page, seletor);
+  });
+}
+
 test('Auditoria envia o limite inicial digitado e retira o filtro ao apagar', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${origem}/#administracao/auditoria`);
   const aplicar = page.getByRole('button', { name: 'Aplicar filtros' });
   await expect(aplicar).toBeEnabled();
-  await conferirSelecaoNativa(page, '#administracao-conteudo');
+  await conferirControlesNativos(page, '#administracao-conteudo');
   const { grupo: inicioGrupo, visivel: inicio } = await dataVisivel(page, 'auditoria-de');
   await expect(inicio).toHaveAttribute('id', 'auditoria-de-texto');
   expect(await inicioGrupo.evaluate((no) => no.parentElement?.closest('.ui-data') === null)).toBe(
@@ -172,7 +187,7 @@ test('Ficha renova a seleção de profissional ao avançar a página', async ({ 
   await page.goto(`${origem}/#paciente/${caso}/equipe`);
   const proxima = page.getByRole('button', { name: 'Próxima página' });
   await expect(proxima).toBeVisible();
-  await conferirSelecaoNativa(page, '#ficha-view');
+  await conferirControlesNativos(page, '#ficha-view');
   const id = 'profissional-selecionado';
   const grupo = page.locator(`.ui-selecao[data-aprimorada]:has(> #${id})`);
   const nativo = grupo.locator(`#${id}`);
@@ -235,7 +250,7 @@ test('Cadastro mantém os controles React ao carregar a equipe e adicionar conta
     const dialogo = page.locator('#cadastro-dialogo');
     await expect(dialogo).toBeVisible();
     await dialogo.getByRole('button', { name: 'Conferir e liberar' }).click();
-    await conferirSelecaoNativa(page, '#cadastro');
+    await conferirControlesNativos(page, '#cadastro');
     const { visivel: nascimento } = await dataVisivel(page, 'birth-date');
     await expect(nascimento).toHaveAttribute('id', 'birth-date-texto');
 

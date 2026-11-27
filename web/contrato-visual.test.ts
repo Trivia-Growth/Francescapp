@@ -155,14 +155,14 @@ it('mantém o CSS legado dentro de uma camada, para a utilitária poder vencer',
 
   expect(tema).toContain('@layer legado, components, utilities;');
   expect(tema).toContain('@import "../styles.css" layer(legado);');
-  expect(tema).toContain('@import "../ui/ui.css" layer(legado);');
+  expect(tema).toContain('@import "./ui.css" layer(legado);');
 
   expect(html).toContain('href="./estilos/tema.css"');
   expect(html).not.toContain('href="./styles.css"');
 
   // `ui.css` importada de dentro de `styles.css` deixava uma cópia solta no topo da folha
   // final, fora de camada — onde voltava a vencer as utilitárias.
-  expect(folha).not.toMatch(/@import\s+url\(["']\.\/ui\/ui\.css["']\)/);
+  expect(folha).not.toMatch(/@import[^;]*\/ui\.css/);
 });
 
 it('impede token autorreferente na ponte do tema', () => {

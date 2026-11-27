@@ -1,16 +1,27 @@
 import { type Page, expect } from '@playwright/test';
 
-/** Mede um select inserido depois da carga. O produtor do nó escolhe seu controle. */
-export async function conferirSelecaoNativa(page: Page, seletor: string) {
-  const semInvólucro = await page.locator(seletor).evaluate(async (raiz) => {
-    const nativo = document.createElement('select');
-    nativo.add(new Option('Valor fictício', 'teste'));
-    raiz.append(nativo);
+/** Inseridos após a carga, seleção e data continuam sob o pai que os criou. */
+export async function conferirControlesNativos(page: Page, seletor: string) {
+  const estado = await page.locator(seletor).evaluate(async (raiz) => {
+    const selecao = document.createElement('select');
+    selecao.add(new Option('Valor fictício', 'teste'));
+    const data = document.createElement('input');
+    data.type = 'date';
+    raiz.append(selecao, data);
     // Uma entrega do observador legado ocorreria antes do próximo quadro.
     await new Promise<void>((resolver) => requestAnimationFrame(() => resolver()));
-    const intacto = nativo.parentElement === raiz;
-    nativo.remove();
-    return intacto;
+    return [selecao, data].map((controle) => {
+      const resultado = {
+        tipo: controle.type,
+        mesmoPai: controle.parentElement === raiz,
+        opacidade: getComputedStyle(controle).opacity,
+      };
+      controle.remove();
+      return resultado;
+    });
   });
-  expect(semInvólucro, `select inserido em ${seletor} deve permanecer nativo`).toBe(true);
+  expect(estado, `controles inseridos em ${seletor} devem permanecer nativos`).toEqual([
+    { tipo: 'select-one', mesmoPai: true, opacidade: '1' },
+    { tipo: 'date', mesmoPai: true, opacidade: '1' },
+  ]);
 }

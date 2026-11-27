@@ -23,7 +23,7 @@
    carregaria a camada de componente FORA de camada — onde ela voltaria a vencer as
    utilitárias, desfazendo exatamente o que o bloco acima conserta. Importada aqui, entra
    na camada junto com o resto. */
-@import "../ui/ui.css" layer(legado);
+@import "./ui.css" layer(legado);
 @import "tailwindcss/theme.css" layer(legado);
 @import "tailwindcss/utilities.css" layer(utilities);
 
