@@ -35,6 +35,7 @@ export type PropsEnvelope = {
   /** Id do controle: liga `label`, dica e erro. Obrigatório, como em `basicos.ts:35`. */
   id: string;
   rotulo: string;
+  idRotulo?: string;
   /** Texto curto à direita do rótulo: "obrigatório", "opcional", a unidade. */
   marcaRotulo?: string;
   /** A linha que explica o campo, abaixo dele. */
@@ -50,6 +51,7 @@ export type PropsEnvelope = {
 export function EnvelopeCampo({
   id,
   rotulo,
+  idRotulo,
   marcaRotulo,
   dica,
   erro,
@@ -59,6 +61,7 @@ export function EnvelopeCampo({
   return (
     <div className={juntar('grid min-w-0 gap-2 mb-4', className)}>
       <label
+        id={idRotulo}
         htmlFor={id}
         className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 m-0 text-(length:--texto-2) font-semibold leading-[1.4]"
       >

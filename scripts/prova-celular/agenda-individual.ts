@@ -1,15 +1,9 @@
 /**
  * Bancada da prova de controles próprios sobre a agenda individual.
  *
- * Por que existe: `web/main.ts` aplica `aplicarControlesProprios` (MutationObserver de
- * `web/ui/controles.ts`) sobre a MESMA raiz onde `montarAgendaIndividual` monta a árvore
- * React — `agenda-individual` é uma das seis regiões vigiadas. O observador move todo
- * `<select>` e `input[type=date]`/`datetime-local` que aparece para dentro de um invólucro
- * próprio, inclusive os que o React desenha. Esta bancada reproduz a MESMA wiring de
- * `main.ts` (não uma cópia simplificada) para que a prova de navegador valha para o
- * produto: se o React tentar remover um controle vigiado de um jeito que o observador
- * invalidou, o defeito aparece aqui — e só aqui, porque o jsdom dos testes de unidade não
- * tem `MutationObserver` reagindo a controles nativos.
+ * A raiz recebe o mesmo observador de main.ts antes da montagem da agenda. Ele ainda
+ * processa selects e input[type=date] legados enquanto os campos React já nascem
+ * marcados e são montados e desmontados depois da carga.
  *
  * Nada de rede de verdade: toda requisição é para `/api/...` relativo, interceptada pelo
  * Playwright (ver o `.pw.ts` desta bancada). Dados fictícios.

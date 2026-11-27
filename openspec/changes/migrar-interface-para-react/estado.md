@@ -1,12 +1,34 @@
 # Estado — migrar-interface-para-react
 
-**Atualizado em:** 27/11/2026 · **Branch:** `claude/migrar-bloco-turno` · **Por:** Claude Code
+**Atualizado em:** 27/11/2026 · **Branch:** `migracao/controles-react` · **Por:** Codex
 
-## Onde está
+## Retirada do observador de controles
 
-Bloco turno/plantão (tarefa 5.2, leva 2) em migração, um commit por módulo. Alvo da
-sequência de blocos: `web/ui/` sem importador, para apagar `ui/` e `ui.css`.
-Importadores de `web/ui/` fora de testes: **15** (eram 22 na `main` `80f7583`).
+A agenda individual adota `SelecaoAprimorada` em Situação e Motivo. O nativo já nasce
+no invólucro com `data-aprimorada`, que o observador pula. As seis inscrições de
+`main.ts` seguem ativas até cadastro, administração e ficha migrarem e comprovarem
+a convivência. Regras e Início não renderizam os tipos de controle observados.
+
+- `pnpm run verificar:celular agenda-individual-controles.pw.ts` passou em Chromium a
+  390 × 844 com o tema real e dublês HTTP. O observador processou um select legado de
+  prova. Motivo entrou e saiu três vezes, seus valores chegaram ao FormData, e a
+  recusa simulada da gravação (403) apareceu no formulário. Início e Fim da operação
+  permaneceram `datetime-local` sem invólucro.
+- Contraprovas revertidas: a regra de opacidade alterada para `1` falhou em
+  `#realizacao-situacao` com esperado `0` e recebido `1`. Sem `data-aprimorada`,
+  o observador gerou dois invólucros e a prova esperava um. Nenhuma falha foi por
+  tempo esgotado.
+- Próximo passo: levar o mesmo contrato a cadastro, administração e ficha, com
+  uma contraprova por região. Antes de remover o contorno de chave em
+  `selecao-profissional`, reproduzir e relatar a falha que ele evita.
+- A remoção integral de `web/ui/` segue em tarefa própria. Restam `main.ts`
+  (`botao`/`linhaLista`), a frente de `confirmacao.ts`, três módulos da
+  demonstração com decisão pendente e o import de `ui.css` no tema.
+
+## Histórico da integração do turno e plantão
+
+O PR #22 integrou o bloco turno/plantão (tarefa 5.2, leva 2), com um commit por
+módulo. A sequência de blocos tem por alvo retirar os importadores de `web/ui/`.
 
 ## Última tarefa concluída
 
