@@ -20,6 +20,13 @@ Importadores de `web/ui/` fora de testes: **15** (eram 22 na `main` `80f7583`).
   `modulepreload`. Aviso do build mantido: `turno-execucao-relatorios` preso por import
   estático, agora de `turno-execucao.tsx`.
 
+- Prova de navegador pela casca real (`scripts/prova-celular/turno-casca-producao.mjs`,
+  build de produção, Chromium, dublê HTTP): exercita os `<select>` e datas do turno com o
+  observador `aplicarControlesProprios` de `main.ts` ATIVO. Código real: passou (e passou
+  também na `main` `80f7583`, linha de base). Contraprova: com o seletor de turno dos
+  relatórios trocado por `<select>` cru condicional, falhou com `NotFoundError: Failed to
+  execute 'removeChild'`; revertido e repassou.
+
 ## Próximo passo
 
 - Bloco agenda (4 módulos), avulsos, `confirmacao.ts`, `main.ts`.
@@ -31,8 +38,8 @@ Importadores de `web/ui/` fora de testes: **15** (eram 22 na `main` `80f7583`).
 
 - A7 fica com a frente que já o conduz (branches locais `LmAzevedo94/validar-a7-vault` e
   `LmAzevedo94/inventario-ffcm`); pendências dele são do dono.
-- Roteiro de navegador com backend real para a tela do turno não executado (sem servidor
-  nesta fatia); o PR registra a pendência.
+- Roteiro de navegador com backend REAL para a tela do turno não executado; a prova de
+  navegador desta fatia usa dublê HTTP (ver abaixo).
 
 ## Decisões vigentes nesta mudança
 
