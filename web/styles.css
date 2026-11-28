@@ -1514,11 +1514,8 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   gap: 20px;
   max-width: 78ch;
 }
-/* Item de grade tem largura mínima automática e NÃO encolhe abaixo do conteúdo. Medido a
-   390px em 25/11/2026: a Auditoria rolava na horizontal (`scrollWidth 566`) porque o
-   `overflow-x: auto` de `.auditoria__tabela` nunca chegava a ativar — o item que a
-   continha segurava a largura. É o mesmo defeito que `web/componentes/ui/superficie.tsx`
-   já corrige nas telas em React. */
+/* A largura mínima automática do item de grade pode empurrar a página.
+   Deixe os painéis encolherem para suas próprias regiões tratarem o conteúdo. */
 .administracao-conteudo > *,
 .regras-conteudo > * {
   min-width: 0;
@@ -1640,69 +1637,6 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   margin: 0;
   color: var(--muted);
   font-size: var(--texto-1);
-}
-
-/* ---- Auditoria (FR-039) ------------------------------------------------- */
-.auditoria__explicacao,
-.auditoria__status {
-  margin: 0;
-  color: var(--muted);
-}
-.auditoria__status {
-  font-size: var(--texto-2);
-}
-.auditoria__filtros {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: var(--espaco-3);
-  max-width: none;
-}
-.auditoria__campo {
-  display: grid;
-  gap: 6px;
-  min-width: 170px;
-  font-size: var(--texto-1);
-  font-weight: 550;
-}
-.auditoria__acoes,
-.auditoria__paginacao {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 14px;
-}
-/* Tabela larga em tela estreita rola na horizontal, em vez de empurrar a página. */
-.auditoria__tabela {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  overflow-x: auto;
-  border-collapse: collapse;
-  font-size: var(--texto-1);
-}
-.auditoria__tabela thead,
-.auditoria__tabela tbody {
-  display: table;
-  width: 100%;
-  min-width: 34rem;
-}
-.auditoria__tabela th,
-.auditoria__tabela td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
-  text-align: left;
-  vertical-align: top;
-}
-.auditoria__tabela th {
-  color: var(--muted);
-  font-size: var(--texto-1);
-  font-weight: 700;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-.auditoria__tabela td:last-child {
-  white-space: nowrap;
 }
 
 /* ---- Solicitações do titular (FR-040) ----------------------------------- */
@@ -1970,13 +1904,6 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   .administracao-conteudo,
   .regras-conteudo {
     gap: var(--espaco-4);
-  }
-  .auditoria__tabela {
-    font-size: var(--texto-1);
-  }
-  .auditoria__tabela th,
-  .auditoria__tabela td {
-    padding: var(--espaco-2);
   }
   .habilitacao-crise__acoes .button-primary,
   .pendencia-acoes .button-primary {

@@ -65,23 +65,16 @@ function enviarFiltros(raiz: HTMLElement) {
   fireEvent.submit(formulario);
 }
 
-/* REESCRITO na migração para React (VIS-018 manda nomear).
- *
- * A versão imperativa desenhava `<table>`/`<tbody>`/`<tr>`/`<td>`, e os testes antigos liam
- * a trilha por essa forma de nó. A migração troca a tabela por `Lista` (registro é LINHA,
- * não cartão — VIS-016), que é `<ul aria-label="…">` com um `<li>` por evento e um `<span>`
- * por coluna. O comportamento observado — quantos registros aparecem, o texto de cada
- * coluna, a ordem — é o mesmo; só a forma do nó mudou, e os auxiliares abaixo passaram a
- * seguir essa forma em vez da tabela. */
 function linhas(raiz: HTMLElement): HTMLElement[] {
   return [...raiz.querySelectorAll<HTMLElement>('ul[aria-label="Registros de auditoria"] > li')];
 }
 
-/** As colunas de uma linha, na ordem em que a tela declara (Quando, Quem, Operação, Objeto,
- *  Resultado). `div > span` pega só o span de cada coluna — o span aninhado do título da
- *  operação e o da marca de resultado têm `span` como pai, não `div`, e ficam de fora. */
 function colunasDaLinha(linha: HTMLElement): string[] {
-  return [...linha.querySelectorAll('div > span')].map((celula) => celula.textContent ?? '');
+  return [...linha.querySelectorAll('dl > div > dd')].map((celula) => celula.textContent ?? '');
+}
+
+function resultados(raiz: HTMLElement) {
+  return raiz.querySelector('[aria-label="Resultados da auditoria"]');
 }
 
 const recusa = Object.assign(new FalhaApi('sem_permissao', 403), { codigo: 'sem_permissao' });
@@ -118,9 +111,7 @@ describe('consulta da trilha de auditoria (FR-039)', () => {
     expect(raiz.textContent).not.toContain('Consultar auditoria');
     // Sem sucesso silencioso e sem paginação para frente a partir de uma recusa.
     expect(botao(raiz, 'Próxima página').disabled).toBe(true);
-    expect(
-      raiz.querySelector('ul[aria-label="Registros de auditoria"]')?.hasAttribute('aria-busy'),
-    ).toBe(false);
+    expect(resultados(raiz)?.getAttribute('aria-busy')).toBe('false');
   });
 
   it('recusa depois de uma consulta boa retira os registros já mostrados', async () => {
@@ -229,12 +220,7 @@ describe('consulta da trilha de auditoria (FR-039)', () => {
     montarAuditoria(raiz, servicoFalso());
 
     await vi.waitFor(() => expect(linhas(raiz)).toHaveLength(1));
-    // O envelope que precisa de `min-w-0` é a região de conteúdo da moldura da tela
-    // (`Esqueleto`, dentro de `MolduraTela`): é ela quem é item de grade e quem, sem a
-    // classe, prendia a largura do que havia dentro — o defeito medido a 390px.
-    const lista = raiz.querySelector('ul[aria-label="Registros de auditoria"]');
-    const envelope = lista?.closest('[aria-busy]');
-    expect(envelope?.className).toContain('min-w-0');
+    expect(resultados(raiz)?.className).toContain('min-w-0');
   });
 
   it('paginação avança e volta sem perder a posição anterior', async () => {
@@ -270,11 +256,7 @@ describe('consulta da trilha de auditoria (FR-039)', () => {
     await vi.waitFor(() =>
       expect(consultar).toHaveBeenLastCalledWith({ limite: 25, cursor: undefined }),
     );
-    await vi.waitFor(() =>
-      expect(
-        raiz.querySelector('ul[aria-label="Registros de auditoria"]')?.hasAttribute('aria-busy'),
-      ).toBe(false),
-    );
+    await vi.waitFor(() => expect(resultados(raiz)?.getAttribute('aria-busy')).toBe('false'));
     expect(botao(raiz, 'Página anterior').disabled).toBe(true);
   });
 });

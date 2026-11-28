@@ -1,34 +1,15 @@
-/* Consulta da trilha de auditoria (FR-039), reconstruída em React sobre a ilha.
- *
- * Mostra identidade, data, operação e objeto. NÃO mostra conteúdo: o motivo cifrado de uma
- * edição e o `request_id` nem chegam ao navegador — o banco não concede essas colunas a esta
- * operação. Abrir esta tela é, ela própria, um evento registrado na trilha.
- *
- * Defeitos medidos na versão imperativa, corrigidos nesta migração:
- * 1. Os campos de filtro usavam `<input>`/`<select>` crus, sem o tamanho de fonte de
- *    `--texto-2` (16px): abaixo disso o iOS dá zoom ao focar. `Campo` e `SelecaoAprimorada`
- *    já fixam 16px, então o defeito desaparece ao usar os componentes em vez do DOM cru.
- * 2. A tabela rolava na horizontal a 390px. Aqui o registro é LINHA (VIS-016): `Lista`
- *    substitui a `<table>`, e tanto `Lista` quanto `Superficie` aplicam `min-w-0` ao
- *    envelope, o que impede a região de segurar a largura do conteúdo.
- *
- * O que NÃO mudou (VIS-018): o recorte por caso continua dependendo de uma lista de casos
- * já autorizada por outro caminho (sem ela, nenhum campo de identificador cru aparece), a
- * ressalva de que o filtro por caso não alcança registros anteriores à coluna existir, a
- * paginação por cursor com pilha de anteriores, e a troca de mensagem entre recusa de
- * permissão e falha passageira.
- */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+/* Consulta da trilha de auditoria (FR-039). Os registros identificam autor,
+ * instante, operação e objeto. O motivo cifrado e o request_id de cada registro ficam no banco. */
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { leituraPorSessao } from './consultas.js';
 import type { EventoAuditoria } from '../packages/contracts/src/auditoria.js';
 import { FalhaApi } from './api.js';
 import { Botao } from './componentes/ui/botao.js';
 import { CampoData } from './componentes/ui/campo-data.js';
 import { Campo } from './componentes/ui/campo.js';
-import { type Coluna, Lista } from './componentes/ui/lista.js';
 import { MarcaEstado } from './componentes/ui/marca-estado.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
-import { Superficie } from './componentes/ui/superficie.js';
+import { type ColunaTabela, ListaRotulada, Tabela } from './componentes/ui/tabela.js';
 import type { FiltrosAuditoria, ServicoAuditoria } from './servico-auditoria-http.js';
 import { MolduraTela } from './telas/moldura-tela.js';
 
@@ -98,6 +79,7 @@ export function TelaAuditoria({
   servico: ServicoAuditoria & { identidade: { usuario_id: string; session_id: string } };
   opcoes: Opcoes;
 }) {
+  const idFiltros = useId();
   const [itens, definirItens] = useState<readonly EventoAuditoria[]>([]);
   const [status, definirStatus] = useState('Carregando registros…');
   const [ocupada, definirOcupada] = useState(true);
@@ -231,25 +213,37 @@ export function TelaAuditoria({
     void carregar(anterior, filtrosAtuais());
   }
 
-  const colunas: ReadonlyArray<Coluna<EventoAuditoria>> = useMemo(
+  const colunas: readonly ColunaTabela<EventoAuditoria>[] = useMemo(
     () => [
-      { titulo: 'Quando', celula: (item) => instanteLegivel(item.instante) },
-      { titulo: 'Quem', celula: (item) => autorDoEvento(item, opcoes.nomeDoUsuario) },
+      {
+        titulo: 'Quando',
+        largura: 'w-1/5',
+        celula: (item) => <time dateTime={item.instante}>{instanteLegivel(item.instante)}</time>,
+      },
+      {
+        titulo: 'Quem',
+        largura: 'w-[21%]',
+        celula: (item) => autorDoEvento(item, opcoes.nomeDoUsuario),
+      },
       {
         titulo: 'Operação',
-        secundaria: true,
+        largura: 'w-[23%]',
         celula: (item) => <span title={item.acao}>{acaoLegivel(item.acao)}</span>,
       },
       {
         titulo: 'Objeto',
-        secundaria: true,
+        largura: 'w-1/5',
         celula: (item) =>
           item.objeto_id ? `${item.tipo_objeto} ${item.objeto_id.slice(0, 8)}` : item.tipo_objeto,
       },
       {
         titulo: 'Resultado',
+        largura: 'w-[16%]',
         celula: (item) => (
-          <MarcaEstado tom={item.resultado === 'permitido' ? 'padrao' : 'contorno'}>
+          <MarcaEstado
+            tom={item.resultado === 'permitido' ? 'padrao' : 'contorno'}
+            className="whitespace-nowrap text-meta"
+          >
             {RESULTADOS[item.resultado]}
           </MarcaEstado>
         ),
@@ -259,23 +253,26 @@ export function TelaAuditoria({
   );
 
   return (
-    <div data-tela="auditoria" className="grid gap-6">
+    <div data-tela="auditoria" className="min-w-0">
       <MolduraTela
         titulo="Registro de acessos e alterações"
         explicacao="Cada consulta, alteração e mudança de acesso fica registrada com quem fez, quando e sobre o quê. O registro não guarda o conteúdo em si, e não pode ser apagado nem corrigido depois."
         status={status}
         ocupado={ocupada}
       >
-        <Superficie plana titulo="Filtrar registros">
+        <section className="grid min-w-0 gap-sistema-3" aria-labelledby={idFiltros}>
+          <h3 id={idFiltros} className="m-0 font-serifada text-secao">
+            Filtrar registros
+          </h3>
           <form
-            className="auditoria__filtros grid gap-4"
+            className="@container/filtros m-0 grid min-w-0 max-w-none gap-sistema-4 rounded-superficie border-0 bg-sistema-superficie p-sistema-4 shadow-cartao lateral:p-sistema-5"
             noValidate
             onSubmit={(evento) => {
               evento.preventDefault();
               aplicarFiltros();
             }}
           >
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-sistema-4 @min-[40rem]/filtros:grid-cols-2">
               {opcoes.listarCasos ? (
                 <SelecaoAprimorada
                   id="auditoria-caso"
@@ -330,7 +327,7 @@ export function TelaAuditoria({
                 classeEnvelope="mb-0"
               />
             </div>
-            <div className="auditoria__acoes flex flex-wrap gap-3">
+            <div className="flex flex-wrap justify-end gap-sistema-2">
               <Botao peso="secundario" tipo="submit" disabled={ocupada}>
                 Aplicar filtros
               </Botao>
@@ -339,17 +336,34 @@ export function TelaAuditoria({
               </Botao>
             </div>
           </form>
-        </Superficie>
+        </section>
 
-        <Lista
-          itens={itens}
-          colunas={colunas}
-          chave={(item) => item.id}
-          rotulo="Registros de auditoria"
-          carregando={ocupada}
-        />
+        <section
+          aria-label="Resultados da auditoria"
+          aria-busy={ocupada}
+          className="@container/auditoria min-w-0 rounded-superficie bg-sistema-superficie px-sistema-4 shadow-cartao empty:hidden lateral:px-sistema-5"
+        >
+          {itens.length ? (
+            <>
+              <ListaRotulada
+                itens={itens}
+                colunas={colunas}
+                chave={(item) => item.id}
+                rotulo="Registros de auditoria"
+                className="@tabela/auditoria:hidden"
+              />
+              <Tabela
+                itens={itens}
+                colunas={colunas}
+                chave={(item) => item.id}
+                rotulo="Registros de auditoria"
+                className="hidden @tabela/auditoria:table"
+              />
+            </>
+          ) : null}
+        </section>
 
-        <div className="auditoria__paginacao flex flex-wrap gap-3">
+        <div className="flex flex-wrap justify-end gap-sistema-2">
           <Botao peso="secundario" disabled={ocupada || !temAnteriores} aoAtivar={voltarPagina}>
             Página anterior
           </Botao>
