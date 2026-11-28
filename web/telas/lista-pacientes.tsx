@@ -12,7 +12,6 @@ import { MarcaEstado } from '../componentes/ui/marca-estado.js';
 import { Superficie } from '../componentes/ui/superficie.js';
 import { type AoFiltrar, BarraFiltrosCarteira, SinalCarteira } from '../filtros-carteira.js';
 import { IndicadoresCarteiraLocal } from '../indicadores-carteira-local.js';
-import { ilhaSincrona } from './ilha-sincrona.js';
 
 /* A carteira como LISTA (VIS-016), que é a queixa literal do solicitante em 24/11/2026:
  * *"não existe visão de lista de pacientes, lista de profissionais"*.
@@ -198,10 +197,4 @@ export function TelaListaPacientes({
       </div>
     </Superficie>
   );
-}
-
-/** O mesmo contrato das demais visões: `web/main.ts` chamaria `montarListaPacientes(raiz,
- *  props)` e desmontaria com o retorno, sem saber que por dentro é React. */
-export function montarListaPacientes(raiz: HTMLElement, props: PropsListaPacientes): () => void {
-  return ilhaSincrona(raiz, <TelaListaPacientes {...props} />);
 }

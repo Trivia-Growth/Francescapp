@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
+import { cleanup, render } from '@testing-library/react';
+import { createElement } from 'react';
 import { readFileSync } from 'node:fs';
-import { expect, it, vi } from 'vitest';
-import { montarAvisos, type ServicoAvisos } from './avisos.js';
+import { afterEach, expect, it, vi } from 'vitest';
+import { TelaAvisos, type ServicoAvisos } from './avisos.js';
 import type { ListaAvisos } from '../packages/contracts/src/aviso.js';
 
 const paciente = '47000000-0000-4000-8000-000000000001';
@@ -19,14 +21,23 @@ const aviso = (parcial: Partial<ListaAvisos['itens'][number]> = {}) => ({
   ...parcial,
 });
 
+afterEach(cleanup);
+
 function montar(servico: Partial<ServicoAvisos>) {
-  const raiz = document.createElement('div');
-  document.body.replaceChildren(raiz);
   const completo: ServicoAvisos = {
     listar: servico.listar ?? (() => Promise.reject(new Error())),
     marcarLido: servico.marcarLido ?? (() => Promise.reject(new Error())),
   };
-  return { raiz, tela: montarAvisos(raiz, completo) };
+  const { container: raiz } = render(createElement(TelaAvisos, { servico: completo }));
+  const sino = raiz.querySelector<HTMLButtonElement>('#avisos-sino');
+  if (!sino) throw new Error('Sino de avisos indisponível.');
+  return {
+    raiz,
+    abrirAvisos() {
+      if (sino.getAttribute('aria-expanded') === 'true') sino.click();
+      sino.click();
+    },
+  };
 }
 
 const indicador = () => document.getElementById('avisos-indicador') as HTMLElement;
@@ -40,14 +51,13 @@ it('percorre os quatro estados sem confundir vazio com falha', async () => {
         resolver = ok;
       }),
   );
-  const { raiz, tela } = montar({ listar });
+  const { raiz, abrirAvisos } = montar({ listar });
 
   // Inicial: nada consultado ainda, nenhum indicador inventado.
-  expect(tela.estado()).toBe('inicial');
+  expect(situacao().textContent).toBe('');
   expect(indicador().hidden).toBe(true);
 
-  const pendente = tela.atualizar();
-  expect(tela.estado()).toBe('carregando');
+  abrirAvisos();
   expect(situacao().textContent).toContain('Carregando');
   expect(indicador().hidden).toBe(true);
 
@@ -55,28 +65,24 @@ it('percorre os quatro estados sem confundir vazio com falha', async () => {
     itens: [aviso(), aviso({ tipo: 'relato_em_atencao', chave_origem: 'relato:1' })],
     nao_lidos: 2,
   });
-  await pendente;
-  expect(tela.estado()).toBe('lista');
+  await vi.waitFor(() => expect(situacao().textContent).toBe('2 aviso(s) na lista.'));
   expect(indicador().hidden).toBe(false);
   expect(indicador().textContent).toBe('2');
   expect(raiz.querySelectorAll('.avisos-item')).toHaveLength(2);
 
   // Vazio só depois de consulta real bem-sucedida, e sem indicador de quantidade.
   listar.mockImplementation(() => Promise.resolve({ itens: [], nao_lidos: 0 }));
-  await tela.atualizar();
-  expect(tela.estado()).toBe('vazio');
-  expect(situacao().textContent).toContain('Nenhum aviso');
+  abrirAvisos();
+  await vi.waitFor(() => expect(situacao().textContent).toContain('Nenhum aviso'));
   expect(indicador().hidden).toBe(true);
 
   // Falha: nem lista vazia apresentada como ausência, nem contagem da consulta anterior.
   listar.mockImplementation(() => Promise.resolve({ itens: [aviso()], nao_lidos: 1 }));
-  await tela.atualizar();
-  expect(indicador().textContent).toBe('1');
+  abrirAvisos();
+  await vi.waitFor(() => expect(indicador().textContent).toBe('1'));
   listar.mockImplementation(() => Promise.reject(new Error('rede')));
-  await tela.atualizar();
-  expect(tela.estado()).toBe('falha');
-  expect(tela.estado()).not.toBe('vazio');
-  expect(situacao().textContent).toContain('Não foi possível carregar');
+  abrirAvisos();
+  await vi.waitFor(() => expect(situacao().textContent).toContain('Não foi possível carregar'));
   expect(situacao().textContent).not.toContain('Nenhum aviso');
   expect(indicador().hidden).toBe(true);
   expect(indicador().textContent).toBe('');
@@ -102,8 +108,9 @@ it('mostra a origem do aviso e nunca o seu teor, e separa lido de ciência', asy
       nao_lidos: 0,
     }),
   );
-  const { raiz, tela } = montar({ listar: () => Promise.resolve(lista), marcarLido });
-  await tela.atualizar();
+  const { raiz, abrirAvisos } = montar({ listar: () => Promise.resolve(lista), marcarLido });
+  abrirAvisos();
+  await vi.waitFor(() => expect(raiz.querySelectorAll('.avisos-item')).toHaveLength(3));
 
   // O texto descreve a origem; nada do conteúdo do caso aparece.
   const textos = [...raiz.querySelectorAll('.avisos-item')].map((item) => item.textContent ?? '');
@@ -129,7 +136,7 @@ it('mostra a origem do aviso e nunca o seu teor, e separa lido de ciência', asy
   });
   // Permanência: o aviso lido continua na lista.
   expect(raiz.querySelectorAll('.avisos-item')).toHaveLength(3);
-  expect(tela.estado()).toBe('lista');
+  expect(situacao().textContent).toBe('3 aviso(s) na lista.');
 });
 
 it('não envia nada para fora do aplicativo nem registra token de dispositivo', () => {

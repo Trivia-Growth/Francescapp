@@ -41,6 +41,17 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8k do plano visual — adaptadores sem uso no aplicativo
+
+Saíram sete montagens de Avisos, Seu dia, Como funciona, Lista de pacientes,
+Revogação, Síntese e Transcrição. As provas passam a renderizar os componentes
+diretamente. A tarefa 7.2 permanece aberta.
+
+- Passaram 35 testes Vitest, cinco cenários Chromium e lint/typecheck.
+- Sem iniciar a consulta ao abrir o sino, o teste de Avisos falhou esperando
+  o texto de carregamento. Alteração revertida.
+- Próximo passo: rebase após o squash da fatia anterior e ativação.
+
 ## Fatia 8j do plano visual — Tarefas
 
 A disponibilidade e a tela de tarefas são compostas na ficha. A autorização

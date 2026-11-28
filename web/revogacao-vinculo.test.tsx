@@ -1,8 +1,34 @@
 // @vitest-environment jsdom
-import { fireEvent } from '@testing-library/dom';
+import { fireEvent, render } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { responderConfirmacoes } from './confirmacao-prova.js';
-import { montarRevogacaoVinculo } from './revogacao-vinculo.js';
+import { PainelRevogacao, type PropsPainel, type PunhoInterno } from './revogacao-vinculo.js';
+
+function montarRevogacaoVinculo(
+  raiz: HTMLElement,
+  revogar: PropsPainel['revogar'],
+  atualizarVinculos: PropsPainel['atualizarVinculos'],
+  acessoPerdido: PropsPainel['acessoPerdido'],
+  alteracaoPendente: PropsPainel['alteracaoPendente'],
+): PunhoInterno {
+  const abortar = new AbortController();
+  let punho: PunhoInterno | undefined;
+  render(
+    <PainelRevogacao
+      revogar={revogar}
+      atualizarVinculos={atualizarVinculos}
+      acessoPerdido={acessoPerdido}
+      alteracaoPendente={alteracaoPendente}
+      sinal={abortar.signal}
+      registrar={(recebido) => {
+        punho = recebido;
+      }}
+    />,
+    { container: raiz },
+  );
+  if (!punho) throw new Error('Painel de revogação indisponível.');
+  return punho;
+}
 
 /* REESCRITA nomeada (VIS-018). Antes, as provas escreviam `motivo.value = …` e
  * despachavam um `Event('input')` cru. Isso não é o comportamento de quem digita: é a

@@ -1,7 +1,16 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
-import { montarRegrasAtendimento } from './regras-atendimento.js';
+import { TelaRegrasAtendimento } from './regras-atendimento.js';
 import { FalhaApi } from './api.ts';
+
+function montarRegrasAtendimento(
+  raiz: HTMLElement,
+  servico: ComponentProps<typeof TelaRegrasAtendimento>['servico'],
+) {
+  return render(createElement(TelaRegrasAtendimento, { servico }), { container: raiz }).unmount;
+}
 
 /* Primeira prova desta tela (25/11/2026, migração para React). FR-041: as regras são
  * leitura aberta a QUALQUER sessão autenticada — profissional, paciente e familiar veem a

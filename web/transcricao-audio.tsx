@@ -1,20 +1,8 @@
-/* Relato por áudio do Diário (FR-010), reconstruído em React sobre a ilha
- * (`web/ponte/ilha.ts`).
+/* Relato por áudio do Diário (FR-010).
  *
- * O contrato exportado não muda: `montarTranscricaoAudio(raiz, pacienteId, servico,
- * aoConfirmar, acessoPerdido, opcoes) => desmontar`, e `bytesDoBlob`/`mimeDoBlob`
- * continuam as mesmas funções puras de antes.
- *
- * O que a migração entrega (VIS-012): a versão imperativa tinha uma flag `ativa` conferida
- * em NOVE pontos para proteger escritas em DOM já desmontado. Aqui ela também existia para
- * outra coisa, que `ilha()` não resolve sozinha: o microfone é hardware, não estado React.
- * `root.unmount()` cancela os efeitos, mas não solta a trilha de áudio nem limpa o
- * temporizador — por isso a referência `ativaRef` permanece, só que com um papel mais
- * estreito: impedir que uma continuação assíncrona (acesso ao microfone, leitura do Blob,
- * chamada ao servidor) prossiga depois que o caso saiu de cena ou que o acesso foi perdido.
- * A limpeza de hardware (`limpar`) roda nos dois pontos em que isso pode acontecer: na
- * desmontagem da ilha e na revalidação de acesso — exatamente os dois pontos em que a
- * versão imperativa também a chamava.
+ * O descarte por perda de acesso e a desmontagem encerram a trilha de áudio e
+ * o temporizador. A guarda da gravação impede que operações assíncronas
+ * retomem depois que o caso sai de cena.
  *
  * O que NÃO mudou, de propósito (VIS-018):
  *
@@ -46,7 +34,6 @@ import {
 import { exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Botao } from './componentes/ui/botao.js';
-import { ilha } from './ponte/ilha.js';
 
 export type ServicoTranscricao = {
   registrar(
@@ -126,7 +113,7 @@ function campoDeTexto(raiz: HTMLElement | null): HTMLTextAreaElement | null {
  *    revisão aparece junto do texto.
  *
  * O componente não publica nada: devolve o texto revisado a quem o montou (o diário). */
-function TelaTranscricaoAudio({
+export function TelaTranscricaoAudio({
   pacienteId,
   servico,
   aoConfirmar,
@@ -520,28 +507,8 @@ function TelaTranscricaoAudio({
 }
 
 /** Interface isolada; não publica nada — devolve o texto revisado a quem a montou. */
-export function montarTranscricaoAudio(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: ServicoTranscricao,
-  aoConfirmar: (texto: string) => void,
-  acessoPerdido: (erro: unknown) => void,
-  opcoes: Opcoes = {},
-): () => void {
-  return ilha(
-    raiz,
-    <TelaTranscricaoAudio
-      pacienteId={pacienteId}
-      servico={servico}
-      aoConfirmar={aoConfirmar}
-      acessoPerdido={acessoPerdido}
-      opcoes={opcoes}
-    />,
-  );
-}
-
 /** A entrada por áudio composta por quem já está em React (o diário). O serviço é criado
- *  uma vez por montagem da entrada, como `montarTranscricaoAudio` fazia a cada montagem. */
+ *  uma vez por montagem da entrada. */
 function EntradaTranscricaoAudio({
   pacienteId,
   criarServico,

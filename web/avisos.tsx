@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { rotulosTipoAviso, type Aviso, type ListaAvisos } from '../packages/contracts/src/aviso.ts';
 import { Botao } from './componentes/ui/botao.js';
-import { ilha } from './ponte/ilha.js';
 
 /** Serviço dos avisos no aplicativo (FR-072). Implementado por `servico-avisos-http.ts`;
  * aqui só existe o contrato, para que a tela seja testável sem rede. */
@@ -11,9 +10,6 @@ export type ServicoAvisos = {
   listar(): Promise<ListaAvisos>;
   marcarLido(aviso: Pick<Aviso, 'paciente_id' | 'tipo' | 'chave_origem'>): Promise<ListaAvisos>;
 };
-
-const estados = ['inicial', 'carregando', 'lista', 'vazio', 'falha'] as const;
-export type EstadoAvisos = (typeof estados)[number];
 
 function formatarInstante(valor: string | null): string {
   if (!valor) return 'sem data registrada';
@@ -45,16 +41,11 @@ function chaveAviso(item: Pick<Aviso, 'tipo' | 'chave_origem'>): string {
  * resultado final em tela. */
 export function TelaAvisos({
   servico,
-  raiz,
-  expor,
   revisao,
 }: {
   servico: ServicoAvisos;
-  raiz?: HTMLElement;
-  expor?: (api: { atualizar(): Promise<void> }) => void;
   revisao?: number;
 }) {
-  const [fase, definirFase] = useState<EstadoAvisos>('inicial');
   const [itens, definirItens] = useState<readonly Aviso[]>([]);
   const [naoLidos, definirNaoLidos] = useState(0);
   const [situacao, definirSituacao] = useState('');
@@ -69,10 +60,8 @@ export function TelaAvisos({
     definirItens(dados.itens);
     definirNaoLidos(dados.nao_lidos);
     if (dados.itens.length === 0) {
-      definirFase('vazio');
       definirSituacao('Nenhum aviso para você agora.');
     } else {
-      definirFase('lista');
       definirSituacao(`${dados.itens.length} aviso(s) na lista.`);
     }
   }, []);
@@ -82,13 +71,11 @@ export function TelaAvisos({
     // a lista é esvaziada, porque "não sabemos" não é "não há".
     definirItens([]);
     definirNaoLidos(0);
-    definirFase('falha');
     definirSituacao('Não foi possível carregar os avisos. Tente novamente.');
   }, []);
 
   const atualizar = useCallback(async (): Promise<void> => {
     flushSync(() => {
-      definirFase('carregando');
       definirSituacao('Carregando avisos…');
       definirItens([]);
       definirNaoLidos(0);
@@ -152,17 +139,6 @@ export function TelaAvisos({
     };
   }, [revisao, atualizar]);
 
-  /* Duas escritas fora de efeito, no próprio corpo do componente: `raiz` é o nó que
-   * `main.ts` recebeu de volta e continua manipulando por fora (`avisosRaiz.id`,
-   * `avisosRaiz.hidden`), então seu `dataset.estado` é atributo do CONTAINER, não algo que
-   * esta árvore React desenha — mexer nele dentro de um efeito só atrasaria a sincronia que
-   * o contrato imperativo (`estado()` chamado logo depois de `atualizar()`) exige. E
-   * `expor` precisa estar pronto ANTES de `ilha()` devolver: `montarAvisos` lê o resultado
-   * na mesma linha, como `main.ts:349` faz (`avisos ??= montarAvisos(...); void
-   * avisos.atualizar();`). */
-  if (raiz) raiz.dataset.estado = fase;
-  expor?.({ atualizar });
-
   return (
     <>
       <button
@@ -221,33 +197,4 @@ export function TelaAvisos({
       </div>
     </>
   );
-}
-
-export function montarAvisos(
-  raiz: HTMLElement,
-  servico: ServicoAvisos,
-): { atualizar(): Promise<void>; estado(): EstadoAvisos; desmontar(): void } {
-  raiz.classList.add('avisos');
-  let atualizarAtual: () => Promise<void> = () => Promise.resolve();
-  const desmontarIlha = ilha(
-    raiz,
-    <TelaAvisos
-      servico={servico}
-      raiz={raiz}
-      expor={(api) => {
-        atualizarAtual = api.atualizar;
-      }}
-    />,
-  );
-  return {
-    atualizar: () => atualizarAtual(),
-    estado: () => (raiz.dataset.estado as EstadoAvisos | undefined) ?? 'inicial',
-    /* A versão imperativa não precisava de desmontagem: quem encerrava o sino apagava os
-       filhos da raiz e pronto. Uma raiz React não some assim — ela continua viva, e
-       quando o React vai remover os nós dela, eles já saíram. Resultado medido em
-       26/11/2026: `NotFoundError: The node to be removed is not a child of this node`,
-       15 vezes no portão de ativação, sempre em caminho de perda de acesso, sem
-       derrubar uma única asserção. */
-    desmontar: desmontarIlha,
-  };
 }

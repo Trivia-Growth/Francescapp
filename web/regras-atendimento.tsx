@@ -4,7 +4,6 @@ import type { ServicoRegrasAtendimento } from './servico-regras-atendimento-http
 import { Botao } from './componentes/ui/botao.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { MolduraTela } from './telas/moldura-tela.js';
-import { ilha } from './ponte/ilha.js';
 
 const formatadorData = new Intl.DateTimeFormat('pt-BR', {
   dateStyle: 'long',
@@ -103,11 +102,4 @@ export function TelaRegrasAtendimento({ servico }: { servico: ServicoRegrasAtend
           })}
     </MolduraTela>
   );
-}
-
-export function montarRegrasAtendimento(
-  raiz: HTMLElement,
-  servico: ServicoRegrasAtendimento,
-): () => void {
-  return ilha(raiz, <TelaRegrasAtendimento servico={servico} />);
 }

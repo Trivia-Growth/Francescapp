@@ -2,7 +2,7 @@
 import { render } from '@testing-library/react';
 import { type ComponentProps, createElement } from 'react';
 import { expect, it } from 'vitest';
-import { montarCamposSintese } from './modelo-sintese.js';
+import { CamposSintese, controleSintese, lerSintese } from './modelo-sintese.js';
 import { TelaDiario } from './diario.js';
 
 function montarDiario(
@@ -37,19 +37,24 @@ function montarDiario(
 it('compartilha campos FR009 sem colidir IDs e preserva validação do contrato', () => {
   const diario = document.createElement('form');
   const passagem = document.createElement('form');
-  const a = montarCamposSintese(diario, ['Área configurada'], 'diario');
-  const b = montarCamposSintese(passagem, ['Área configurada'], 'passagem');
-  expect(a.atividade.id).not.toBe(b.atividade.id);
-  expect(a.ler()).toBeUndefined();
-  a.data.value = '2026-11-18';
-  a.atividade.value = 'Atividade fictícia';
-  expect(a.ler()).toMatchObject({
+  const areas = ['Área configurada'];
+  render(createElement(CamposSintese, { areas, prefixo: 'diario' }), { container: diario });
+  render(createElement(CamposSintese, { areas, prefixo: 'passagem' }), { container: passagem });
+  const atividade = controleSintese(diario, 'diario', 'atividade');
+  const data = controleSintese(diario, 'diario', 'data');
+  const atividadePassagem = controleSintese(passagem, 'passagem', 'atividade');
+  if (!atividade || !data || !atividadePassagem) throw new Error('Campos de síntese ausentes.');
+  expect(atividade.id).not.toBe(atividadePassagem.id);
+  expect(lerSintese(diario, 'diario')).toBeUndefined();
+  data.value = '2026-11-18';
+  atividade.value = 'Atividade fictícia';
+  expect(lerSintese(diario, 'diario')).toMatchObject({
     data: '2026-11-18',
     area: 'Área configurada',
     atividade: 'Atividade fictícia',
   });
-  a.atividade.value = 'x'.repeat(2001);
-  expect(a.ler()).toBeUndefined();
+  atividade.value = 'x'.repeat(2001);
+  expect(lerSintese(diario, 'diario')).toBeUndefined();
 });
 it('Diário mantém campos, rascunho, publicação e entrada por áudio após extração', async () => {
   const raiz = document.createElement('div');
