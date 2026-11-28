@@ -1,12 +1,19 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
-import { montarIndicadoresCarteiraLocal } from './indicadores-carteira-local';
+import { IndicadoresCarteiraLocal } from './indicadores-carteira-local';
+
+function renderizar(raiz: HTMLElement, dados: ComponentProps<typeof IndicadoresCarteiraLocal>) {
+  const painel = render(createElement(IndicadoresCarteiraLocal, dados), { container: raiz });
+  return () => painel.rerender(null);
+}
 
 it('conta situações registradas e permite filtrar inclusive não informada', () => {
   const raiz = document.createElement('div');
   document.body.append(raiz);
   const filtrar = vi.fn();
-  const desmontar = montarIndicadoresCarteiraLocal(raiz, {
+  const desmontar = renderizar(raiz, {
     pacientes: [{ situacao: 'ativo' }, { situacao: 'ativo' }, { situacao: 'pausado' }, {}],
     filtrar,
   });
@@ -28,7 +35,7 @@ it('conta situações registradas e permite filtrar inclusive não informada', (
 it('mostra contagens sem botões quando filtro não está disponível', () => {
   const raiz = document.createElement('div');
   document.body.append(raiz);
-  const desmontar = montarIndicadoresCarteiraLocal(raiz, { pacientes: [] });
+  const desmontar = renderizar(raiz, { pacientes: [] });
   expect(raiz.textContent).toContain('Não informada: 0');
   expect(raiz.querySelector('button')).toBeNull();
   desmontar();

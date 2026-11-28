@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it } from 'vitest';
-import { montarLinhaTempoLocal } from './linha-tempo-local';
+import { LinhaTempoLocal } from './linha-tempo-local';
+
+function renderizar(raiz: HTMLElement, dados: ComponentProps<typeof LinhaTempoLocal>['dados']) {
+  render(createElement(LinhaTempoLocal, { dados }), { container: raiz });
+}
 
 it('ordena datas fornecidas e distingue acontecimento, prazo e compromisso sem interpretar HTML', () => {
   const raiz = document.createElement('div');
-  montarLinhaTempoLocal(raiz, {
+  renderizar(raiz, {
     relatos: [{ dataAcontecimento: '2026-11-02', descricao: '<img src=x>' }],
     tarefas: [{ prazo: '2026-11-04', descricao: 'Retorno', estado: 'pendente' }],
     compromissos: [
@@ -23,13 +29,13 @@ it('ordena datas fornecidas e distingue acontecimento, prazo e compromisso sem i
 it('informa ausência de eventos e substitui conteúdo anterior', () => {
   const raiz = document.createElement('div');
   raiz.textContent = 'Anterior';
-  montarLinhaTempoLocal(raiz, { relatos: [], tarefas: [], compromissos: [] });
+  renderizar(raiz, { relatos: [], tarefas: [], compromissos: [] });
   expect(raiz.textContent).toBe('Nenhum evento registrado nesta prévia.');
 });
 
 it('inclui evoluções na cronologia e identifica rascunhos sem interpretar HTML', () => {
   const raiz = document.createElement('div');
-  montarLinhaTempoLocal(raiz, {
+  renderizar(raiz, {
     relatos: [{ dataAcontecimento: '2026-11-02', descricao: 'Relato fictício' }],
     tarefas: [],
     compromissos: [],

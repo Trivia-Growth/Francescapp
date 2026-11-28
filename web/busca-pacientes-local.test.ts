@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import { render, fireEvent } from '@testing-library/react';
+import { createElement } from 'react';
 import { expect, it, vi } from 'vitest';
-import { correspondeBuscaPacienteLocal, montarBuscaPacientesLocal } from './busca-pacientes-local';
+import { correspondeBuscaPacienteLocal, BuscaPacientesLocal } from './busca-pacientes-local';
 
 it('busca por nome ou preferência sem distinguir acentos e maiúsculas', () => {
   const paciente = { name: 'João Silva', preferredName: 'Jô' };
@@ -13,13 +15,11 @@ it('busca por nome ou preferência sem distinguir acentos e maiúsculas', () => 
 it('oferece campo rotulado e comunica alterações, inclusive limpeza', () => {
   const raiz = document.createElement('div');
   const buscar = vi.fn();
-  montarBuscaPacientesLocal(raiz, buscar);
+  render(createElement(BuscaPacientesLocal, { aoBuscar: buscar }), { container: raiz });
   const campo = raiz.querySelector('input');
   expect(campo?.labels?.[0]?.textContent).toContain('Buscar paciente por nome ou nome preferido');
   if (!campo) throw new Error('Campo de busca ausente');
-  campo.value = 'Maria';
-  campo.dispatchEvent(new Event('input'));
-  campo.value = '';
-  campo.dispatchEvent(new Event('input'));
+  fireEvent.input(campo, { target: { value: 'Maria' } });
+  fireEvent.input(campo, { target: { value: '' } });
   expect(buscar.mock.calls).toEqual([['Maria'], ['']]);
 });

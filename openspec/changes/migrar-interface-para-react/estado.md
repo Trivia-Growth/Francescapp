@@ -41,6 +41,17 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8x do plano visual — busca, resumo e linha do tempo da demonstração
+
+A raiz da demonstração compõe busca, resumo e linha do tempo. A prova dos
+indicadores usa diretamente o componente da Carteira. A tarefa 7.2 está aberta.
+
+- Passaram 44 testes Vitest e lint/typecheck. Chromium a 390 px filtrou pelo
+  nome preferido sem acento, limpou a busca e abriu o resumo e a linha do tempo.
+- Ao retirar o evento de entrada da busca, a prova deixou de receber o texto
+  digitado e sua limpeza. Alteração revertida.
+- Próximo passo: rebase após o squash da fatia anterior e ativação.
+
 ## Fatia 8w do plano visual — relato de texto e pendências da demonstração
 
 A raiz da demonstração compõe o Relato e os estados de carregamento, erro e
