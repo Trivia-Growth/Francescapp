@@ -64,6 +64,8 @@ import { criarServicoConversaoDiarioHttp } from './servico-conversao-diario-http
 import type { ConversaoEmTarefa } from './diario.js';
 import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
 import { botao } from './ponte/botao-imperativo.js';
+import { classesBotao } from './componentes/ui/botao.js';
+import { classesCampo } from './componentes/ui/campo.js';
 import { criarServicoLinhaTempoHttp } from './servico-linha-tempo-http.js';
 import { criarServicoExportacaoHttp } from './servico-exportacao-http.js';
 import { criarServicoPreautorizacoesHttp } from './servico-preautorizacoes-http.js';
@@ -254,8 +256,8 @@ function reiniciarFormularioCadastro(): void {
 const reloadButton = elemento<HTMLButtonElement>('reload-patients');
 const previousButton = elemento<HTMLButtonElement>('previous-page');
 const nextButton = elemento<HTMLButtonElement>('next-page');
-const listaPacientes = elemento<HTMLUListElement>('patients-body');
-const listLoading = elemento('list-loading');
+const listaPacientes = elemento('patients-body');
+const listLoading = elemento('carteira-carregando');
 const listEmpty = elemento('list-empty');
 const pagination = elemento('pagination');
 const registration = elemento('cadastro');
@@ -265,6 +267,13 @@ const homeView = elemento('home-view');
 const fichaView = elemento('ficha-view');
 const buscaCampo = elemento<HTMLInputElement>('busca-pacientes');
 const buscaVazia = elemento('busca-vazia');
+
+// O HTML mantém a posse destes controles e seus ouvintes nativos.
+newPatientLink.classList.add(...classesBotao({ peso: 'principal' }).split(' '));
+for (const controle of [reloadButton, previousButton, nextButton]) {
+  controle.classList.add(...classesBotao({ peso: 'secundario' }).split(' '));
+}
+buscaCampo.classList.add(...classesCampo().split(' '));
 
 // A navegação mantém os mesmos links e seu estado de autorização nas duas larguras.
 let revisaoAvisos = 0;
@@ -2188,7 +2197,6 @@ function aplicarSessao(atual: Sessao): boolean {
   descartarAreaNaoPermitida(areasPermitidas);
   registration.hidden = !podeCadastrar;
   newPatientLink.hidden = !podeCadastrar;
-  elemento('workspace').classList.toggle('with-registration', podeCadastrar);
   elemento('scope-description').textContent = atual.capacidades.includes(
     'consultar_carteira_integral',
   )

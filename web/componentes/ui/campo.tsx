@@ -42,6 +42,11 @@ const estiloCampo = cva(
   },
 );
 
+/** Estilo do controle para campos que pertencem ao HTML da página. */
+export function classesCampo(invalido = false, className?: string): string {
+  return juntar(estiloCampo({ invalido }), className);
+}
+
 export type PropsEnvelope = {
   /** Id do controle: liga `label`, dica e erro. Obrigatório, como em `basicos.ts:35`. */
   id: string;
@@ -141,7 +146,7 @@ export function Campo({
         type={tipo}
         aria-describedby={descritores(id, dica)}
         aria-invalid={erro ? true : undefined}
-        className={juntar(estiloCampo({ invalido: Boolean(erro) }), className)}
+        className={classesCampo(Boolean(erro), className)}
         {...resto}
       />
     </EnvelopeCampo>

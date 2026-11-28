@@ -68,11 +68,9 @@ export function gravarRota(hash: string, acao: 'push' | 'replace'): void {
 
 function PainelCasca({
   children,
-  itemDaLista = false,
   aoTentarNovamente,
 }: {
   children: ReactElement;
-  itemDaLista?: boolean;
   aoTentarNovamente?: () => void;
 }) {
   const [tentativa, definirTentativa] = useState(0);
@@ -83,7 +81,6 @@ function PainelCasca({
         aoTentarNovamente?.();
         definirTentativa((anterior) => anterior + 1);
       }}
-      itemDaLista={itemDaLista}
     >
       {children}
     </LimiteErroPainel>
@@ -190,7 +187,7 @@ function Casca({
         entrada.destinoLogin,
       )}
       {createPortal(
-        <PainelCasca itemDaLista>
+        <PainelCasca>
           <LinhasCarteira pacientes={carteira.pacientes} aoAbrir={carteira.abrir} />
         </PainelCasca>,
         carteira.raiz,

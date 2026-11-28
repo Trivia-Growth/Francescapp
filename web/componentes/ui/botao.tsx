@@ -66,9 +66,7 @@ const estiloBotao = cva(
   },
 );
 
-/** As classes do botão, para quem monta o `<button>` fora do React — hoje só
- *  `ponte/botao-imperativo.ts`, enquanto a tela que o hospeda não migra (ver lá o motivo).
- *  Única fonte da aparência: aqui ou lá, nunca as duas. */
+/** Aparência do botão para os controles e links que pertencem ao HTML da página. */
 export function classesBotao({
   peso,
   largo,

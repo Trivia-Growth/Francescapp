@@ -376,11 +376,11 @@ it('mostra a situação de cada pessoa na lista do Administrador, inclusive "a c
   await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
   const comSituacao = document.querySelector<HTMLElement>(linha(A));
-  expect(comSituacao?.querySelector('.pessoa-situacao')?.textContent).toBe('Situação: Ativo');
+  expect(comSituacao?.querySelector('[data-situacao]')?.textContent).toBe('Situação: Ativo');
   expect(comSituacao?.textContent).toContain('Helena Souza');
   const aCompletar = document.querySelector<HTMLElement>(linha(B));
-  expect(aCompletar?.querySelector('.pessoa-situacao')?.textContent).toBe('Situação a completar');
-  expect(aCompletar?.querySelector<HTMLElement>('.pessoa-situacao')?.dataset.situacao).toBe(
+  expect(aCompletar?.querySelector('[data-situacao]')?.textContent).toBe('Situação a completar');
+  expect(aCompletar?.querySelector<HTMLElement>('[data-situacao]')?.dataset.situacao).toBe(
     'completar',
   );
   expect(aCompletar?.textContent).toContain('Bruno Costa');
@@ -390,7 +390,7 @@ it('não mostra situação na lista quando o servidor não devolve o campo', asy
   preparar('profissional', []);
   await montarCascaParaTeste();
   await vi.waitFor(() => expect(document.querySelector(linha(A))).not.toBeNull());
-  expect(document.querySelector('.pessoa-situacao')).toBeNull();
+  expect(document.querySelector('#patients-body [data-situacao]')).toBeNull();
   expect(document.querySelector(linha(A))?.textContent).toContain('Helena Souza');
   // O rótulo "Situação" do formulário de cadastro novo não conta: só a lista de pacientes.
   expect(document.getElementById('patients-body')?.textContent).not.toContain('Situação');

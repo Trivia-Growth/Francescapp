@@ -147,29 +147,35 @@ SOFTWARE.
           <!-- Carteira. As ferramentas de filtrar, buscar e atualizar ficam numa faixa,
                e a lista em outra. O cadastro abre no diálogo gerido por
                `web/painel-cadastro.ts` e aparece como folha no celular. -->
-          <div class="page-heading">
-            <div><h2 id="patients-title" class="sr-only" tabindex="-1">Pessoas acompanhadas</h2><p id="scope-description">Cadastros disponíveis para seu acesso.</p></div>
-            <a id="new-patient-link" class="ui-botao" data-peso="principal" href="#cadastro" hidden>Novo paciente</a>
+          <div class="mb-sistema-5 flex flex-wrap items-center justify-between gap-sistema-3">
+            <div><h2 id="patients-title" class="sr-only" tabindex="-1">Pessoas acompanhadas</h2><p id="scope-description" class="m-0 text-corpo text-sistema-texto-secundario">Cadastros disponíveis para seu acesso.</p></div>
+            <a id="new-patient-link" class="max-sm:w-full" data-peso="principal" href="#cadastro" hidden>Novo paciente</a>
           </div>
           <section id="agenda-individual" class="agenda-individual" aria-label="Minha agenda" hidden></section>
-          <div id="workspace" class="workspace">
-            <section class="patient-register" aria-labelledby="list-title">
-              <div class="section-heading"><h2 id="list-title" class="sr-only">Lista de pacientes</h2></div>
-              <div class="carteira-tools">
-              <div id="filtros-carteira" hidden></div>
-              <div id="busca" class="busca ui-campo" hidden>
-                <label class="ui-campo__rotulo" for="busca-pacientes">Buscar por nome</label>
-                <input class="ui-campo__controle" id="busca-pacientes" type="search" autocomplete="off" maxlength="200" aria-describedby="busca-aviso">
-                <p id="busca-aviso" class="ui-campo__dica">Filtra os pacientes desta página enquanto você digita.</p>
+          <div id="workspace" class="min-w-0">
+            <section class="min-w-0" aria-labelledby="list-title">
+              <h2 id="list-title" class="sr-only">Lista de pacientes</h2>
+              <div class="flex flex-wrap items-start gap-sistema-3">
+                <div id="busca" class="min-w-0 basis-full min-[761px]:flex-1" hidden>
+                  <div class="grid gap-sistema-1">
+                    <label class="mb-sistema-1 text-controle" for="busca-pacientes">Buscar por nome</label>
+                    <input id="busca-pacientes" type="search" autocomplete="off" maxlength="200" aria-describedby="busca-aviso">
+                    <p id="busca-aviso" class="m-0 text-meta text-sistema-texto-secundario">Filtra os pacientes desta página enquanto você digita.</p>
+                  </div>
+                </div>
+                <button id="reload-patients" class="min-[761px]:max-[1199px]:mt-sistema-6" data-peso="secundario" type="button">Atualizar lista</button>
+                <div id="filtros-carteira" class="min-w-0 max-w-full min-[761px]:max-[1199px]:mt-sistema-6 has-[details[open]]:basis-full has-[details[open]]:mt-0" hidden></div>
               </div>
-              <button id="reload-patients" class="ui-botao" data-peso="secundario" type="button">Atualizar lista</button>
-              </div>
-              <p id="list-status" class="list-status" role="status" aria-live="polite" aria-atomic="true"></p>
-              <div id="list-loading" class="list-loading" aria-hidden="true" hidden><span></span><span></span><span></span></div>
-              <div id="list-empty" class="ui-vazio" hidden><h3 class="ui-vazio__titulo">Nenhum paciente nesta lista</h3><p id="empty-description" class="ui-vazio__texto">Nenhum cadastro disponível para seu acesso.</p></div>
-              <p id="busca-vazia" class="ui-vazio ui-vazio__texto" hidden>Nenhum paciente desta página corresponde ao que você digitou. Avance para as próximas páginas para continuar procurando.</p>
-              <ul id="patients-body" class="ui-lista" aria-label="Pacientes retornados pelo serviço para seu acesso atual" hidden></ul>
-              <nav id="pagination" class="pagination" aria-label="Páginas de pacientes" hidden><button id="previous-page" class="ui-botao" data-peso="secundario" type="button">Página anterior</button><span id="page-number"></span><button id="next-page" class="ui-botao" data-peso="secundario" type="button">Próxima página</button></nav>
+              <p id="list-status" class="my-sistema-4 text-meta text-sistema-texto-secundario data-[tone=error]:text-sistema-erro" role="status" aria-live="polite" aria-atomic="true"></p>
+              <div id="carteira-carregando" class="grid gap-sistema-2 [&>span]:h-14 [&>span]:rounded-sistema-controle [&>span]:bg-sistema-hoje" aria-hidden="true" hidden><span></span><span></span></div>
+              <div id="list-empty" class="grid gap-sistema-2 rounded-superficie border border-sistema-divisor bg-sistema-superficie p-sistema-4" hidden><h3 class="m-0 font-sans text-lg font-semibold">Nenhum paciente nesta lista</h3><p id="empty-description" class="m-0 max-w-texto text-corpo text-sistema-texto-secundario">Nenhum cadastro disponível para seu acesso.</p></div>
+              <p id="busca-vazia" class="m-0 rounded-superficie border border-sistema-divisor bg-sistema-superficie p-sistema-4 text-corpo text-sistema-texto-secundario" hidden>Nenhum paciente desta página corresponde ao que você digitou. Avance para as próximas páginas para continuar procurando.</p>
+              <div id="patients-body" class="min-w-0 rounded-superficie border border-sistema-divisor bg-sistema-superficie px-sistema-3" hidden></div>
+              <nav id="pagination" class="mt-sistema-5 flex flex-wrap items-center justify-end gap-sistema-2" aria-label="Páginas de pacientes" hidden>
+                <button id="previous-page" class="flex-1 sm:flex-none" data-peso="secundario" type="button">Página anterior</button>
+                <span id="page-number" class="-order-1 w-full text-center text-meta text-sistema-texto-secundario sm:order-none sm:w-auto"></span>
+                <button id="next-page" class="flex-1 sm:flex-none" data-peso="secundario" type="button">Próxima página</button>
+              </nav>
             </section>
           </div>
           <dialog id="cadastro-dialogo" class="ui-dialogo" data-medida="formulario" aria-labelledby="create-title">
