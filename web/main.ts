@@ -1,4 +1,11 @@
-import { createElement, createRef, Fragment, type ReactElement } from 'react';
+import {
+  createElement,
+  createRef,
+  Fragment,
+  type ReactElement,
+  useLayoutEffect,
+  useState,
+} from 'react';
 import { criarServicoAcessosHttp } from './servico-acessos-http.js';
 import { type ComandoLoginInterno, TelaLoginInterno } from './login-interno.js';
 import { iniciarAcao } from './esqueleto.js';
@@ -45,8 +52,8 @@ import { criarServicoHabilitacaoPlanoCriseHttp } from './servico-habilitacao-pla
 import { criarServicoSubstituicaoCmHttp } from './servico-substituicao-cm-http.js';
 import { criarServicoFinanceiroHttp } from './servico-financeiro-http.js';
 import { criarAudienciaFinanceira } from './financeiro-audiencia.js';
-import { montarTurnoComExecucao } from './turno-execucao-integracao.js';
-import { montarExecucaoTurno } from './turno-execucao.js';
+import { TurnoComExecucao } from './turno-execucao-integracao.js';
+import { ExecucaoTurno } from './turno-execucao.js';
 import { criarServicoTurnoExecucaoHttp } from './servico-turno-execucao-http.js';
 import { criarServicoFichaPlantaoHttp } from './servico-ficha-plantao-http.js';
 import { criarServicoTurnoHttp } from './servico-turno-http.js';
@@ -602,79 +609,90 @@ function comporSecaoCadastro(
   );
 }
 
-function montarSecaoExecucaoTurno(
-  raiz: HTMLElement,
-  pacienteId: string,
-  atual: Sessao,
-  pendente: (valor: boolean) => void,
-  comTurno: boolean,
-): () => void {
-  const identidade = identidadeAtual();
-  let ativa = true;
-  const identidadeDaSecao = () => {
-    const corrente = identidadeAtual();
-    return ativa &&
-      identidade &&
-      corrente &&
-      fichaPaciente?.id === pacienteId &&
-      corrente.usuario_id === identidade.usuario_id &&
-      corrente.session_id === identidade.session_id
-      ? corrente
-      : null;
-  };
-  const servico = criarServicoTurnoExecucaoHttp(pacienteId, identidadeDaSecao);
-  const tarefas = criarServicoTarefasHttp(identidadeDaSecao);
-  const conversao = {
-    consultar: (registroId: string) =>
-      servico.consultarConversaoOcorrencia({ registro_id: registroId }),
-    contexto: async () => {
-      const [capacidade, diario] = await Promise.all([
-        tarefas.consultarDisponibilidade(pacienteId),
-        consultarDisponibilidadeDiario(),
-      ]);
-      return {
-        escrita_disponivel: capacidade.escrita_disponivel && diario.disponivel,
-        areas: diario.areas,
-      };
-    },
-    criarCiclo: (gravar: Parameters<typeof criarCicloTarefaCuidado>[0]['gravar']) =>
-      criarCicloTarefaCuidado({
-        identidadeAtual: identidadeDaSecao,
-        consultar: () => api.consultarBarreiraTarefa(),
-        reservar: async (entrada) => (await api.reservarBarreiraTarefa(entrada)).estado,
-        encerrar: async (entrada) => (await api.encerrarBarreiraTarefa(entrada)).estado,
-        reconhecer: async (entrada) => (await api.reconhecerBarreiraTarefa(entrada)).estado,
-        gravar,
+function SecaoExecucaoTurno({
+  pacienteId,
+  atual,
+  pendente,
+  comTurno,
+}: {
+  pacienteId: string;
+  atual: Sessao;
+  pendente: (valor: boolean) => void;
+  comTurno: boolean;
+}) {
+  const [tela, definirTela] = useState<ReactElement | null>(null);
+
+  useLayoutEffect(() => {
+    const identidade = identidadeAtual();
+    let ativa = true;
+    const identidadeDaSecao = () => {
+      const corrente = identidadeAtual();
+      return ativa &&
+        identidade &&
+        corrente &&
+        fichaPaciente?.id === pacienteId &&
+        corrente.usuario_id === identidade.usuario_id &&
+        corrente.session_id === identidade.session_id
+        ? corrente
+        : null;
+    };
+    const servico = criarServicoTurnoExecucaoHttp(pacienteId, identidadeDaSecao);
+    const tarefas = criarServicoTarefasHttp(identidadeDaSecao);
+    const conversao = {
+      consultar: (registroId: string) =>
+        servico.consultarConversaoOcorrencia({ registro_id: registroId }),
+      contexto: async () => {
+        const [capacidade, diario] = await Promise.all([
+          tarefas.consultarDisponibilidade(pacienteId),
+          consultarDisponibilidadeDiario(),
+        ]);
+        return {
+          escrita_disponivel: capacidade.escrita_disponivel && diario.disponivel,
+          areas: diario.areas,
+        };
+      },
+      criarCiclo: (gravar: Parameters<typeof criarCicloTarefaCuidado>[0]['gravar']) =>
+        criarCicloTarefaCuidado({
+          identidadeAtual: identidadeDaSecao,
+          consultar: () => api.consultarBarreiraTarefa(),
+          reservar: async (entrada) => (await api.reservarBarreiraTarefa(entrada)).estado,
+          encerrar: async (entrada) => (await api.encerrarBarreiraTarefa(entrada)).estado,
+          reconhecer: async (entrada) => (await api.reconhecerBarreiraTarefa(entrada)).estado,
+          gravar,
+        }),
+    };
+    const opcoes = {
+      usuarioId: atual.usuario.id,
+      administrador: atual.usuario.perfil === 'administrador',
+      acessoPerdido: (erro?: unknown) =>
+        acessoPerdido(erro ?? new FalhaApi('nao_autenticado', 401)),
+      alteracaoPendente: pendente,
+      conversao,
+      // FR-073/FR-078/FR-079. Criados sob demanda: a seção da ficha não faz pedido nenhum
+      // antes de ser aberta. Esconder a seção não autoriza nada — servidor e banco decidem.
+      criarServicosFicha: () => ({
+        ficha: criarServicoFichaPlantaoHttp(identidadeDaSecao),
+        modelo: criarServicoModeloFormularioHttp(identidadeDaSecao, 'ficha_plantao'),
+        papeis: criarServicoPapelDeclaradoHttp(identidadeDaSecao),
       }),
-  };
-  const opcoes = {
-    usuarioId: atual.usuario.id,
-    administrador: atual.usuario.perfil === 'administrador',
-    acessoPerdido: (erro?: unknown) => acessoPerdido(erro ?? new FalhaApi('nao_autenticado', 401)),
-    alteracaoPendente: pendente,
-    conversao,
-    // FR-073/FR-078/FR-079. Criados sob demanda: a seção da ficha não faz pedido nenhum
-    // antes de ser aberta. Esconder a seção não autoriza nada — servidor e banco decidem.
-    criarServicosFicha: () => ({
-      ficha: criarServicoFichaPlantaoHttp(identidadeDaSecao),
-      modelo: criarServicoModeloFormularioHttp(identidadeDaSecao, 'ficha_plantao'),
-      papeis: criarServicoPapelDeclaradoHttp(identidadeDaSecao),
-    }),
-  };
-  const desmontar = comTurno
-    ? montarTurnoComExecucao(
-        raiz,
-        pacienteId,
-        criarServicoTurnoHttp(identidadeDaSecao),
-        servico,
-        opcoes,
-      )
-    : montarExecucaoTurno(raiz, pacienteId, null, servico, opcoes);
-  return () => {
-    ativa = false;
-    desmontar();
-    servico.desmontar();
-  };
+    };
+    definirTela(
+      comTurno
+        ? createElement(TurnoComExecucao, {
+            pacienteId,
+            turno: criarServicoTurnoHttp(identidadeDaSecao),
+            execucao: servico,
+            opcoes,
+          })
+        : createElement(ExecucaoTurno, { pacienteId, turno: null, servico, opcoes }),
+    );
+    return () => {
+      ativa = false;
+      servico.desmontar();
+    };
+  }, [pacienteId, atual, pendente, comTurno]);
+
+  return tela;
 }
 
 function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
@@ -921,15 +939,25 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'meu-turno',
       rotulo: 'Meu turno',
       // Visibilidade organiza a ficha; autorização continua no servidor e banco.
-      montar: async (raiz, pendente) =>
-        montarSecaoExecucaoTurno(raiz, paciente.id, atual, pendente, true),
+      compor: async (pendente) =>
+        createElement(SecaoExecucaoTurno, {
+          pacienteId: paciente.id,
+          atual,
+          pendente,
+          comTurno: true,
+        }),
     });
   if (atual.usuario.perfil === 'administrador')
     secoes.push({
       id: 'execucao-cuidado',
       rotulo: 'Execução e relatórios',
-      montar: async (raiz, pendente) =>
-        montarSecaoExecucaoTurno(raiz, paciente.id, atual, pendente, false),
+      compor: async (pendente) =>
+        createElement(SecaoExecucaoTurno, {
+          pacienteId: paciente.id,
+          atual,
+          pendente,
+          comTurno: false,
+        }),
     });
   secoes.push({
     id: 'escala-turnos',

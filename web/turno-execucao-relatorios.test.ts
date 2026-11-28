@@ -2,9 +2,10 @@
 import { render } from '@testing-library/react';
 import { createElement, type ComponentProps } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { RelatoriosTurno } from './turno-execucao-relatorios.js';
+import { RelatoriosTurno, RelatoriosTurnoFamilia } from './turno-execucao-relatorios.js';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
 import { FalhaApi } from './api.ts';
+import { envelope } from './fixtures/comum.js';
 function renderizarRelatorios(
   raiz: HTMLElement,
   servico: ServicoTurnoExecucao,
@@ -36,6 +37,61 @@ it('família dispõe de turno/diário/semanal e não recebe opção exportação
   ).not.toBeNull();
   expect(raiz.querySelector('input[name="latitude"]')).toBeNull();
 });
+
+it('relatórios da Família limpam o paciente anterior e cancelam a leitura ao sair', async () => {
+  const outroPaciente = '10000000-0000-4000-8000-000000000002';
+  const itensSessao = new Map([
+    ['modo-acesso', 'familiar'],
+    ['fluxo-familiar', 'AAAAAAAAAAAAAAAAAAAAAA'],
+  ]);
+  vi.stubGlobal('sessionStorage', { getItem: (chave: string) => itensSessao.get(chave) ?? null });
+  const buscar = vi
+    .fn<typeof fetch>()
+    .mockImplementationOnce(async (caminho) => {
+      const url = new URL(String(caminho), 'http://127.0.0.1');
+      return Response.json(
+        envelope({
+          consulta_id: id,
+          paciente_id: id,
+          tipo: 'diario',
+          inicio: url.searchParams.get('inicio'),
+          fim: url.searchParams.get('fim'),
+          instante_corte: '2026-11-19T12:00:00Z',
+          rotulos_atuais: true,
+          itens: [],
+          lacunas: [],
+          proximo_cursor: null,
+        }),
+      );
+    })
+    .mockImplementationOnce(
+      (_caminho, opcoes) =>
+        new Promise<Response>((_resolver, rejeitar) => {
+          const sinal = opcoes?.signal;
+          sinal?.addEventListener('abort', () => rejeitar(sinal.reason), { once: true });
+        }),
+    );
+  vi.stubGlobal('fetch', buscar);
+  const portas = {
+    identidadeAtual: () => ({ usuario_id: id, session_id: id }),
+    acessoPerdido: vi.fn(),
+  };
+  const painel = render(createElement(RelatoriosTurnoFamilia, { ...portas, pacienteId: id }));
+  expect(painel.container.querySelector('option[value="caso"]')).toBeNull();
+  botao(painel.container, 'Consultar relatório').click();
+  await painel.findByText(/Corte dos registros/);
+
+  painel.rerender(createElement(RelatoriosTurnoFamilia, { ...portas, pacienteId: outroPaciente }));
+  expect(painel.queryByText(/Corte dos registros/)).toBeNull();
+  botao(painel.container, 'Consultar relatório').click();
+  await vi.waitFor(() => expect(buscar).toHaveBeenCalledTimes(2));
+  const [caminho, opcoes] = buscar.mock.calls[1] ?? [];
+  expect(caminho).toContain(`/api/pacientes/${outroPaciente}/`);
+  expect(opcoes?.signal?.aborted).toBe(false);
+  painel.unmount();
+  expect(opcoes?.signal?.aborted).toBe(true);
+});
+
 it('PDF usa somente seletores/metadados e resultado perdido exige conferência sem sucesso falso', async () => {
   const raiz = document.createElement('div');
   document.body.append(raiz);

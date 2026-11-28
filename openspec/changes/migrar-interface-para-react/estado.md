@@ -41,6 +41,24 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8r do plano visual — Meu turno e Execução do cuidado
+
+A ficha compõe Meu turno e Execução e relatórios. Sair da seção invalida a
+identidade usada pelas requisições da seção e cancela o transporte da execução.
+A tarefa 7.2 permanece aberta.
+
+- Passaram 22 testes Vitest e dois cenários Chromium. O navegador conferiu o
+  rascunho da gestão, a ausência de reconciliação antes de abrir Execução e o
+  cancelamento da consulta pendente ao voltar para Visão do caso.
+- Ao retirar a limpeza do transporte, a prova falhou ao esperar seu sinal de
+  cancelamento. Alteração revertida.
+- O componente de relatórios da Família inicia uma tela nova na troca de
+  paciente. O Vitest conferiu que a opção de exportar o caso não aparece,
+  os dados anteriores saem e a leitura pendente é cancelada ao desmontar.
+  Sem a chave, o relatório anterior permaneceu. Sem a limpeza, o sinal
+  continuou ativo. As duas alterações foram revertidas.
+- Próximo passo: rebase após o squash da fatia anterior e ativação.
+
 ## Fatia 8q do plano visual — relatórios do cuidado para a Família
 
 A ficha compõe a consulta familiar e cancela o serviço ao sair da seção.

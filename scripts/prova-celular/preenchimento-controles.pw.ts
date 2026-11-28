@@ -177,3 +177,47 @@ test('Gestão do Turno restaura o familiar ao continuar editando o fundamento', 
   await conferirAxe(page, 'preenchimento-controles — gestão do turno');
   expect(consultasFundamento).toEqual([familiar]);
 });
+
+test('Execução aguarda a abertura da seção e cancela a reconciliação ao sair', async ({ page }) => {
+  const caminho = `${caminhoCaso}/execucao-turno/reconciliar`;
+  await page.addInitScript((caminho) => {
+    const fetchOriginal = window.fetch.bind(window);
+    window.fetch = (entrada, opcoes) => {
+      if (typeof entrada === 'string' && new URL(entrada, location.href).pathname === caminho)
+        opcoes?.signal?.addEventListener('abort', () => {
+          document.body.dataset.reconciliacaoAbortada = 'sim';
+        });
+      return fetchOriginal(entrada, opcoes);
+    };
+  }, caminho);
+  let liberar = () => {};
+  const espera = new Promise<void>((resolver) => {
+    liberar = resolver;
+  });
+  let reconciliacoes = 0;
+  await page.route(`**${caminho}`, async (rota) => {
+    reconciliacoes += 1;
+    await espera;
+    return rota.fulfill({ json: envelope({ epoca: 1, resultado_pendente: null }) });
+  });
+
+  const painel = page.locator('#ficha-painel');
+  try {
+    await page.goto(`${origem}/#paciente/${caso.id}/visao`);
+    await expect(painel.locator('.ficha-secao')).toHaveAttribute('data-secao', 'visao');
+    expect(reconciliacoes).toBe(0);
+
+    const pedido = page.waitForRequest(
+      (requisicao) => new URL(requisicao.url()).pathname === caminho,
+    );
+    await page.getByText('Mais seções', { exact: true }).click();
+    await page.getByText('Execução e relatórios', { exact: true }).click();
+    await pedido;
+    await page.getByRole('tab', { name: 'Visão do caso' }).click();
+    await expect(page.locator('body')).toHaveAttribute('data-reconciliacao-abortada', 'sim');
+    await expect(painel.locator('.ficha-secao')).toHaveAttribute('data-secao', 'visao');
+  } finally {
+    liberar();
+  }
+  expect(reconciliacoes).toBe(1);
+});
