@@ -166,9 +166,136 @@ test('link direto de Administração não monta área nem consulta recursos para
   await expect(page.locator('#patients-title')).toBeVisible();
   await expect(page).toHaveURL(/#carteira$/);
   await expect(page.locator('#administracao-view')).toBeHidden();
+  await expect(page.locator('#filtros-carteira')).toBeEmpty();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Administração' })).toHaveCount(0);
   expect(recursosAdministrativos).toEqual([]);
+});
+
+test('sair limpa os filtros mesmo com os responsáveis em consulta', async ({ page }) => {
+  await prepararSessao(page, 'tecnica');
+  let liberarEquipe = () => {};
+  const esperaEquipe = new Promise<void>((resolver) => {
+    liberarEquipe = resolver;
+  });
+  const caminhoEquipe = '/api/admin/concessoes-equipe';
+  await page.route('**/api/**', async (rota) => {
+    const url = new URL(rota.request().url());
+    if (url.pathname === caminhoEquipe) await esperaEquipe;
+    if (url.pathname === '/api/sessao/sair')
+      return rota.fulfill({
+        json: envelope({ encerrada_localmente: true, pendencia_externa: false }),
+      });
+    if (url.pathname === '/api/sessao')
+      return rota.fulfill({
+        json: envelope({
+          ...sessaoAdministrador,
+          capacidades: ['administrar_concessoes', 'consultar_carteira_integral'],
+        }),
+      });
+    const fixture = responder(url.href);
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  await page.goto('/web/index.html#carteira');
+  const filtros = page.locator('#filtros-carteira');
+  const consultaEquipe = page.waitForRequest(
+    (pedido) => new URL(pedido.url()).pathname === caminhoEquipe,
+  );
+  try {
+    await filtros.locator('summary').click();
+    await consultaEquipe;
+    const filtragem = page.waitForRequest((pedido) => {
+      const url = new URL(pedido.url());
+      return (
+        url.pathname === '/api/pacientes' && url.searchParams.get('filtro_revisao') === 'vencida'
+      );
+    });
+    await filtros.getByLabel('Revisão').selectOption('vencida');
+    await filtragem;
+    await expect(filtros.locator('summary')).toHaveText('Filtrar pessoas (1 filtro ativo)');
+    await page.locator('summary[aria-label="Conta"]').click();
+    await page.getByRole('button', { name: 'Sair', exact: true }).click();
+    await expect(page.locator('#login-title')).toBeVisible();
+  } finally {
+    liberarEquipe();
+  }
+  await expect(filtros).toBeHidden();
+  await expect(filtros).toBeEmpty();
+});
+
+test('falha dos filtros preserva a Carteira e a navegação', async ({ page }) => {
+  await prepararSessao(page, 'tecnica');
+  await page.route('**/web/filtros-carteira.tsx', (rota) =>
+    rota.fulfill({
+      contentType: 'application/javascript',
+      body: `export function SinalCarteira() { return null; }
+        export function BarraFiltrosCarteira() {
+          window.filtrosFalharam = true;
+          throw new Error('Falha fictícia nos filtros');
+        }`,
+    }),
+  );
+  await page.route('**/api/**', (rota) => {
+    const fixture = responder(rota.request().url());
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  await page.goto('/web/index.html#carteira');
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, 'filtrosFalharam'))).toBe(true);
+  await expect(page.locator('#patients-body button').first()).toBeVisible();
+  await expect(page.locator('#filtros-carteira')).toContainText('Tente abrir a área de novo.');
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Fechar menu' })).toBeFocused();
+});
+
+test('receber responsáveis mantém os filtros abertos e com foco', async ({ page }) => {
+  await prepararSessao(page, 'tecnica');
+  const caminhoEquipe = '/api/admin/concessoes-equipe';
+  let liberar = () => {};
+  const espera = new Promise<void>((resolver) => {
+    liberar = resolver;
+  });
+  await page.route('**/api/**', async (rota) => {
+    if (new URL(rota.request().url()).pathname === caminhoEquipe) await espera;
+    const fixture = responder(rota.request().url());
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  await page.goto('/web/index.html#carteira');
+  const filtros = page.locator('#filtros-carteira');
+  const painel = filtros.locator('details');
+  const revisao = filtros.getByLabel('Revisão', { exact: true });
+  const consultaEquipe = page.waitForRequest(
+    (pedido) => new URL(pedido.url()).pathname === caminhoEquipe,
+  );
+  try {
+    await painel.locator('summary').click();
+    await consultaEquipe;
+    await revisao.selectOption('vencida');
+    await revisao.focus();
+  } finally {
+    liberar();
+  }
+  const responsavel = filtros.getByLabel('Responsável', { exact: true });
+  const opcao = responsavel.locator('option').nth(2);
+  await expect(opcao).toBeAttached();
+  await expect(painel).toHaveAttribute('open', '');
+  await expect(revisao).toBeFocused();
+  await expect(revisao).toHaveValue('vencida');
+  const usuario = await opcao.getAttribute('value');
+  if (!usuario) throw new Error('Responsável fictício ausente.');
+  const pedido = page.waitForRequest((requisicao) => {
+    const url = new URL(requisicao.url());
+    return (
+      url.pathname === '/api/pacientes' && url.searchParams.get('filtro_responsavel') === usuario
+    );
+  });
+  await responsavel.selectOption(usuario);
+  await pedido;
 });
 
 test('volta da ficha devolve foco à linha da Carteira', async ({ page }) => {

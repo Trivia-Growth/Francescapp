@@ -3,7 +3,7 @@ import { render } from '@testing-library/react';
 import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
 import { TelaPendenciasCaso } from './pendencias-caso';
-import { montarFiltrosCarteira, montarSinalCarteira } from './filtros-carteira';
+import { BarraFiltrosCarteira, SinalCarteira } from './filtros-carteira';
 import type { SinalOperacional } from '../packages/contracts/src/pendencia';
 
 function montarPendenciasCaso(
@@ -194,7 +194,12 @@ it('acordar envia a versão vigente e aceita periodicidade em branco', async () 
 it('a barra de filtros entrega o recorte escolhido e esconde responsável fora do Administrador', () => {
   const raiz = document.createElement('div');
   const aoFiltrar = vi.fn();
-  montarFiltrosCarteira(raiz, { administrador: true, responsaveis: EQUIPE }, aoFiltrar);
+  render(
+    createElement(BarraFiltrosCarteira, { administrador: true, responsaveis: EQUIPE, aoFiltrar }),
+    {
+      container: raiz,
+    },
+  );
   const painel = raiz.querySelector('details.filtros-carteira-painel') as HTMLDetailsElement;
   const resumo = painel.querySelector('summary') as HTMLElement;
   expect(painel.open).toBe(false);
@@ -223,17 +228,22 @@ it('a barra de filtros entrega o recorte escolhido e esconde responsável fora d
   expect(resumo.textContent).toBe('Filtrar pessoas');
 
   const outra = document.createElement('div');
-  montarFiltrosCarteira(outra, { administrador: false }, vi.fn());
+  render(createElement(BarraFiltrosCarteira, { administrador: false, aoFiltrar: vi.fn() }), {
+    container: outra,
+  });
   expect(outra.querySelector('select[name="responsavel"]')).toBeNull();
   expect(outra.querySelector('select[name="situacao"]')).toBeNull();
   expect(outra.querySelector('select[name="revisao"]')).not.toBeNull();
 });
 
 it('o selo do sinal sempre carrega motivo e o aviso de que não é leitura clínica', () => {
-  const selo = montarSinalCarteira({
-    estado: 'em_dia',
-    motivos: ['Nenhum compromisso operacional em atraso.'],
-  });
+  const { container } = render(
+    createElement(SinalCarteira, {
+      sinal: { estado: 'em_dia', motivos: ['Nenhum compromisso operacional em atraso.'] },
+    }),
+  );
+  const selo = container.querySelector<HTMLElement>('.sinal-carteira');
+  if (!selo) throw new Error('Sinal operacional ausente.');
   expect(selo.dataset.estado).toBe('em_dia');
   expect(selo.textContent).toContain('Nenhum compromisso operacional em atraso.');
   expect(selo.textContent).toContain('Não é avaliação clínica');
