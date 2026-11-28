@@ -26,6 +26,12 @@ do $$ begin
   raise exception 'PRE_DONO_INESPERADO';
  end if;
  -- A migração devolve CREATE e participação temporários ao estado anterior.
+ -- Owner continua isolado: noinherit, sem login/bypass e sem membro que herde seus direitos.
+ if exists(select 1 from pg_roles r where r.rolname='ffcmapp_audio_transcricao_owner'
+    and (r.rolinherit or r.rolcanlogin or r.rolsuper or r.rolbypassrls or r.rolcreaterole or r.rolcreatedb))
+  or exists(select 1 from pg_auth_members m where m.roleid='ffcmapp_audio_transcricao_owner'::regrole and m.inherit_option) then
+  raise exception 'OWNER_NAO_ISOLADO';
+ end if;
  if has_schema_privilege('ffcmapp_audio_transcricao_owner','api','create') is distinct from (select tinha from pre_create_antes)
   or exists(select roleid,member,grantor from pg_auth_members except select * from pre_membros_antes)
   or exists(select * from pre_membros_antes except select roleid,member,grantor from pg_auth_members) then
@@ -148,8 +154,34 @@ begin
   if alvo='44000000-0000-4000-8000-000000000002' and r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'OP_CASO_B_ACEITO: %',r; end if;
   if alvo='44000000-0000-4000-8000-000000000001' then perform set_config('fixture.audio_caso_a',registro::text,false); end if;
  end loop;
+ -- Revisão confirmada ANTES da revogação: assim a exclusão seria aceita se o acesso valesse,
+ -- e a negativa abaixo prova o recorte, não um conflito de estado.
+ registro:=current_setting('fixture.audio_caso_a')::uuid;
+ t:=public.acessos_assinar_fixture(jsonb_build_object('request_id',gen_random_uuid(),'paciente_id','44000000-0000-4000-8000-000000000001','registro_id',registro,
+   'texto_revisado',public.acessos_envelope_fixture(),'chave_idempotencia','revisao-'||registro,'digest_idempotencia',repeat('b',43),
+   'aad',jsonb_build_object('tabela','cadastro.audio_transcricao','paciente_id','44000000-0000-4000-8000-000000000001','registro_id',registro::text,'parte',0,'campo','texto_revisado','formato',1)),
+   'api.confirmar_revisao_audio');
+ set local role authenticated; r:=api.transcricao_operacao_privada(t); reset role;
+ if r->>'ok' is distinct from 'true' or r#>>'{dados,exclusao_estado}' is distinct from 'pendente' then raise exception 'OP_REVISAO_ANTES_DA_REVOGACAO: %',r; end if;
  update cadastro.acesso_paciente set revogada_em=clock_timestamp(),revogado_por_usuario_id='11000000-0000-4000-8000-000000000001',motivo_revogacao_cifrado=public.acessos_envelope_fixture()
   where usuario_id=c.usuario_id and revogada_em is null;
+ -- Depois da revogação: gravar de novo no caso é negado.
+ registro:=gen_random_uuid();
+ t:=public.acessos_assinar_fixture(jsonb_build_object('request_id',gen_random_uuid(),'paciente_id','44000000-0000-4000-8000-000000000001','registro_id',registro,
+   'audio',jsonb_build_array(public.acessos_envelope_fixture()),'transcricao',public.acessos_envelope_fixture(),
+   'mime','audio/webm','duracao_segundos',5,'modelo','openai/whisper-large-v3',
+   'chave_idempotencia',registro::text,'digest_idempotencia',repeat('a',43),
+   'aad',jsonb_build_object('tabela','cadastro.audio_transcricao','paciente_id','44000000-0000-4000-8000-000000000001','registro_id',registro::text,'parte',0,'campo','transcricao','formato',1)),
+   'api.registrar_audio_transcricao');
+ set local role authenticated; r:=api.transcricao_operacao_privada(t); reset role;
+ if r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'OP_REVOGADO_GRAVA: %',r; end if;
+ -- Excluir o próprio áudio (já revisado) também é negado, e o áudio fica intacto para o expurgo.
+ t:=public.acessos_assinar_fixture(jsonb_build_object('request_id',gen_random_uuid(),'paciente_id','44000000-0000-4000-8000-000000000001','registro_id',current_setting('fixture.audio_caso_a')),'api.excluir_audio_transcricao');
+ set local role authenticated; r:=api.transcricao_operacao_privada(t); reset role;
+ if r#>>'{erro,codigo}' is distinct from 'sem_permissao'
+  or not exists(select 1 from cadastro.audio_transcricao where id=current_setting('fixture.audio_caso_a')::uuid and audio_cifrado is not null and exclusao_estado='pendente') then
+  raise exception 'OP_REVOGADO_EXCLUI: %',r;
+ end if;
  t:=public.acessos_assinar_fixture(jsonb_build_object('request_id',gen_random_uuid(),'paciente_id','44000000-0000-4000-8000-000000000001','registro_id',current_setting('fixture.audio_caso_a')),'api.ler_audio_transcricao');
  set local role authenticated; r:=api.transcricao_operacao_privada(t); reset role;
  if r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'OP_REVOGADO_OUVE_AUDIO: %',r; end if;

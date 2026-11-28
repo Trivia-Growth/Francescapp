@@ -316,6 +316,11 @@ via isso.
   provedor; autorizado chama o provedor depois da pré-autorização. O teste antigo foi
   renomeado para dizer o que prova (só a ordem dentro de `operarTranscricaoNativa`).
   **Contraprova:** voltar a porta para `async () => inicial` → os 3 casos falham. Revertido.
+  **Janela residual (aceita, registrada):** a pré-autorização é uma transação própria e o
+  provedor é chamado depois dela, então uma revogação que caia nesse intervalo (da ordem de
+  milissegundos até o teto de 75 s da composição) não impede que aquele áudio chegue ao
+  provedor. Nada persiste: a operação privada reconfere tudo na gravação e nega. Fechar a janela
+  exigiria segurar trava no banco durante a chamada externa, o que não compensa.
 - [x] 7.3 Recorte por caso (`cadastro.acesso_paciente`) no áudio.
   **Decisão do dono, 27/11/2026, opção (a):** profissional exige acesso vigente ao caso;
   administrador alcança todos os casos (decisão de 24/11/2026). A operação de áudio não
@@ -331,8 +336,14 @@ via isso.
   pré-autorização nega; família negada (matriz 7.1); `anon` sem EXECUTE nas duas funções.
   **Contraprova:** trocar `ap.revogada_em is null` por `true` → saída 3,
   `OP_REVOGADO_OUVE_AUDIO` (autor revogado ainda ouvia o áudio). Revertido.
-  **Efeito registrado:** quem perde o caso também não exclui o próprio áudio pendente; o
-  expurgo de 30 dias (6.1) continua cobrindo o áudio abandonado.
+  Revisão independente (27/11/2026) pediu e a prova cobre também: após a revogação, gravar
+  de novo no caso e excluir o próprio áudio já revisado são negados (`OP_REVOGADO_GRAVA`,
+  `OP_REVOGADO_EXCLUI`), e o owner segue `noinherit`, sem login/bypass e sem membro com
+  `inherit` (`OWNER_NAO_ISOLADO`). Contraprovas: recorte desligado → `OP_REVOGADO_GRAVA`;
+  `alter role … inherit` → `OWNER_NAO_ISOLADO`. Revertidas.
+  **Mudança de produto (decidida pelo dono):** quem perde o caso deixa de ouvir, revisar e
+  excluir o próprio áudio, inclusive o que estava com exclusão pendente. Esse áudio só sai pelo
+  expurgo de 30 dias (6.1), que hoje nasce desligado (`ffcm.transcricao.expurgo_ativo=false`).
 - [ ] 7.4 Tela (`web/main.ts:1136`): oferecer o gravador só quando
   `/api/transcricao/disponibilidade` declarar disponível. Não é controle de segurança.
   **Com o worker da casca React**, ao portar a seção de áudio.

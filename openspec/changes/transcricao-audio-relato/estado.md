@@ -12,7 +12,8 @@ banco, e o áudio passa a exigir acesso vigente ao caso para profissional (`task
 
 - `tasks.md` 7.3 — recorte por caso (policy restritiva, migration `20261128260000`).
 - Evidência: `sh scripts/testar-audio-pre-autorizacao-local.sh` saída 0 (7.1 e 7.3);
-  contraprovas SQL saída 3 (`PRE_PACIENTE_INEXISTENTE`, `OP_REVOGADO_OUVE_AUDIO`); vitest
+  contraprovas SQL saída 3 (`PRE_PACIENTE_INEXISTENTE`, `OP_REVOGADO_OUVE_AUDIO`,
+  `OP_REVOGADO_GRAVA`, `OWNER_NAO_ISOLADO`); vitest
   `compor-transcricao-nativa.test.ts` 3/3 e contraprova 3/3 falhando; `transcricao-nativa.test.ts` 8/8.
 
 ## Próximo passo
@@ -32,6 +33,10 @@ banco, e o áudio passa a exigir acesso vigente ao caso para profissional (`task
 - A operação privada continua sendo a autoridade final; a pré-autorização não a substitui.
 - Recorte por caso no áudio: profissional com acesso vigente, administrador todos os casos —
   dono, 27/11/2026, `tasks.md` 7.3.
+- Quem perde o caso deixa de ouvir, revisar e excluir o próprio áudio; só o expurgo de 30 dias
+  (hoje desligado) o remove — `tasks.md` 7.3.
+- Janela residual aceita: revogação entre a pré-autorização e a resposta do provedor (até 75 s)
+  não impede o envio daquele áudio; nada persiste — `tasks.md` 7.2.
 
 ## Pendente de confirmação do solicitante
 
