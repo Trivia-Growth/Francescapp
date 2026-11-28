@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import { cleanup, render } from '@testing-library/react';
+import { createElement } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { montarAgendaIndividual } from './agenda-individual.tsx';
+import { AgendaIndividual } from './agenda-individual.tsx';
 
 /* Prova de integração do hospedeiro com os três corpos (`agenda-operacoes.tsx`,
  * `agenda-vinculo.tsx`, `realizacao-compromisso.tsx`): o punho que cada corpo registra
@@ -14,7 +16,7 @@ const UUID = '00000000-0000-4000-8000-000000000000';
 afterEach(() => {
   sessionStorage.clear();
   vi.unstubAllGlobals();
-  document.body.replaceChildren();
+  cleanup();
 });
 
 function stubFetch() {
@@ -59,16 +61,15 @@ function montar() {
   stubFetch();
   const raiz = document.createElement('div');
   document.body.append(raiz);
-  const desmontar = montarAgendaIndividual(
-    raiz,
-    'sessao-ficticia',
-    'usuario-ficticio',
-    async () => ({
-      itens: [],
-      proximo_cursor: null,
+  const painel = render(
+    createElement(AgendaIndividual, {
+      sessaoId: 'sessao-ficticia',
+      usuarioId: 'usuario-ficticio',
+      listarPacientes: async () => ({ itens: [], proximo_cursor: null }),
     }),
+    { container: raiz },
   );
-  return { raiz, desmontar };
+  return { raiz, desmontar: painel.unmount };
 }
 
 function clicarNaLista(raiz: HTMLElement, texto: string): void {

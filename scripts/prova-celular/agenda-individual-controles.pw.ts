@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { conferirAxe } from './axe.ts';
 import { criarErroPublico } from '../../packages/contracts/src/comum.ts';
+import { envelope } from '../../web/fixtures/comum.js';
+import { responder } from '../../web/fixtures/despachante.js';
+import { sessaoAdministrador } from '../../web/fixtures/sessao.js';
 import { conferirControlesNativos } from './controles-nativos.js';
 
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
@@ -52,6 +55,38 @@ test.beforeEach(async ({ context, page }) => {
   await page.route('**/api/agenda/google/vinculos/consulta', (rota) =>
     rota.fulfill({ json: { dados: [] } }),
   );
+});
+
+test('agenda do profissional é removida da casca ao mudar o perfil na revalidação', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem('modo-acesso', 'google');
+    sessionStorage.setItem('fluxo-google', 'AAAAAAAAAAAAAAAAAAAAAA');
+  });
+  let profissional = true;
+  await page.route('**/api/**', (rota) => {
+    const url = new URL(rota.request().url());
+    if (url.pathname === '/api/sessao' && profissional)
+      return rota.fulfill({
+        json: envelope({
+          ...sessaoAdministrador,
+          capacidades: [],
+          usuario: { ...sessaoAdministrador.usuario, perfil: 'profissional' },
+        }),
+      });
+    const fixture = responder(url.href);
+    return fixture ? rota.fulfill({ json: fixture }) : rota.fallback();
+  });
+  await page.goto('/web/index.html#carteira');
+  const agenda = page.locator('#agenda-individual');
+  await expect(agenda.getByText('Consulta fictícia')).toBeVisible();
+
+  profissional = false;
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByRole('heading', { name: 'Pessoas acompanhadas', level: 1 })).toBeVisible();
+  await expect(agenda).toBeHidden();
+  await expect(agenda).toBeEmpty();
 });
 
 test('agenda monta a seleção React depois da carga', async ({ page }) => {
