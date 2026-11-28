@@ -2,6 +2,28 @@
 
 **Atualizado em:** 27/11/2026 · **Branch:** `codex/remover-web-ui` · **Por:** Codex
 
+## Fatia 8d do plano visual — moldura da ficha
+
+Cabeçalho, abas, atalhos e painel da ficha passam para a raiz da casca. A ficha
+mantém as confirmações de descarte e a invalidação de seção durante a revalidação.
+Nas seções que ainda usam `montar*`, a moldura cria o contêiner e a integração
+legada cria e desmonta seus filhos. Tarefa 7.2 aberta.
+
+- Chromium a 390 px chegou por link antigo de Anamnese, reteve o módulo e abriu
+  Plano. Após liberar a importação antiga, Plano permaneceu como a única seção
+  e a navegação continuou viva. Sem a guarda de geração, a contraprova encontrou
+  `data-secao="anamnese"` no painel de Plano. A guarda foi restaurada.
+- Passaram 37 testes da ficha, da integração e da gaveta, e seis cenários
+  Chromium de ficha e da casca. A ativação inicial de `04360b9` confirmou
+  929 testes web e 58 cenários Chromium, com um cenário preexistente pulado.
+  A prova SQL de autorização passou em PostgreSQL 17 descartável.
+- Revisão do PR #55: a primeira falha da ficha pode ser recuperada no mesmo
+  link, a navegação por seta seguida de clique conserva uma só aba tabulável,
+  e desmontar a moldura invalida a pendência e libera a seção legada. Passaram
+  39 testes locais e sete cenários Chromium. Sem encerrar a vista quando o
+  controlador ainda é nulo, a contraprova ficou no fallback de erro.
+- Próximo passo: rebase depois do squash de #54 e ativação da fatia.
+
 ## Fatia 8c do plano visual — painéis administrativos
 
 Treze painéis administrativos passam para a raiz da casca, preservando links

@@ -27,9 +27,9 @@ type Vista =
     }
   | { tipo: 'regras'; destino: HTMLElement; servico: ServicoRegrasAtendimento }
   | {
-      tipo: 'administracao';
+      tipo: 'administracao' | 'ficha';
       destino: HTMLElement;
-      area: string;
+      chave: string;
       tela: ReactElement;
       aoTentarNovamente: () => void;
     };
@@ -65,8 +65,12 @@ function conteudoDaVista(vista: Vista): ReactElement {
     case 'regras':
       return <TelaRegrasAtendimento servico={vista.servico} />;
     case 'administracao':
+    case 'ficha':
       return (
-        <LimiteErroPainel key={vista.area} aoTentarNovamente={vista.aoTentarNovamente}>
+        <LimiteErroPainel
+          key={`${vista.tipo}:${vista.chave}`}
+          aoTentarNovamente={vista.aoTentarNovamente}
+        >
           {vista.tela}
         </LimiteErroPainel>
       );
@@ -156,6 +160,11 @@ export function iniciarCasca(
   return {
     desenhar(proxima: Vista | null) {
       vista = proxima;
+      atualizar();
+    },
+    fecharVista(tipo: Vista['tipo']) {
+      if (vista?.tipo !== tipo) return;
+      vista = null;
       atualizar();
     },
     atualizarNavegacao(dados: Partial<EstadoNavegacao>) {

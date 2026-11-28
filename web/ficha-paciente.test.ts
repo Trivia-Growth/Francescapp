@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
+import { createElement, createRef } from 'react';
+import { render } from '@testing-library/react';
+import { secaoInicialDaFicha, TelaFicha } from './ficha.js';
+import type { Ficha } from './ficha-paciente.js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { aguardarConfirmacao } from './confirmacao-prova.js';
 import {
   hashFicha,
   iniciais,
   lerRotaFicha,
-  montarFicha,
   type OpcoesFicha,
   type SecaoFicha,
 } from './ficha-paciente.js';
@@ -47,7 +50,11 @@ function abrir(secoes: SecaoFicha[], extra: Partial<OpcoesFicha> = {}) {
   const confirmar = vi.fn(async () => true);
   const aoSelecionar = vi.fn();
   const aoVoltar = vi.fn();
-  const ficha = montarFicha({
+  const {
+    secaoInicial,
+    raiz: destino,
+    ...opcoes
+  } = {
     raiz,
     paciente,
     secoes,
@@ -55,11 +62,45 @@ function abrir(secoes: SecaoFicha[], extra: Partial<OpcoesFicha> = {}) {
     aoSelecionar,
     aoVoltar,
     ...extra,
-  });
-  return { ficha, confirmar, aoSelecionar, aoVoltar };
+  };
+  const comando = createRef<Ficha>();
+  const painel = render(createElement(TelaFicha, { ...opcoes, comando }), { container: destino });
+  const controlador = comando.current;
+  if (!controlador) throw new Error('Ficha indisponível no teste.');
+  const inicial = secaoInicialDaFicha(opcoes.secoes, secaoInicial);
+  if (inicial) void controlador.selecionar(inicial, { confirmar: false });
+  const ficha: Ficha = {
+    ...controlador,
+    desmontar() {
+      controlador.desmontar();
+      painel.rerender(null);
+    },
+  };
+
+  return { ficha, confirmar, aoSelecionar, aoVoltar, retirarMoldura: () => painel.rerender(null) };
 }
 
 const aba = (nome: string) => document.getElementById(`ficha-aba-${nome}`) as HTMLButtonElement;
+
+it('elimina o tabIndex anterior ao clicar após navegar por seta', () => {
+  abrir(['visao', 'diario', 'pendencias'].map((nome) => secao(nome).definicao));
+  aba('visao').focus();
+  aba('visao').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+  expect(document.activeElement).toBe(aba('diario'));
+  aba('pendencias').click();
+  expect(document.querySelectorAll('[role="tab"][tabindex="0"]')).toHaveLength(1);
+  expect(aba('pendencias').tabIndex).toBe(0);
+});
+
+it('desmontar a moldura invalida a pendência e encerra a seção legada', async () => {
+  const dados = secao('dados');
+  const { ficha, retirarMoldura } = abrir([dados.definicao]);
+  dados.pendenteRef.atual?.(true);
+  expect(ficha.pendencia()).not.toBeNull();
+  retirarMoldura();
+  expect(ficha.pendencia()).toBeNull();
+  await vi.waitFor(() => expect(dados.desmontar).toHaveBeenCalledTimes(1));
+});
 
 it('lê só rota com identificador e seção bem formados', () => {
   expect(lerRotaFicha(hashFicha(id, 'plano'))).toEqual({ id, secao: 'plano' });
