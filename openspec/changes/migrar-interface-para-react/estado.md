@@ -17,11 +17,17 @@ também). Escritas inalteradas; `main.ts` não muda. Branch `claude/leituras-cat
   `main@313adfb` Papéis `1,1,1,1,1` e Modelo `1,1,1,1,1`; branch `0,0,0,0,0` nos dois
   (Estado emocional já era `0`). Axe 0 nas três telas. 403 ao Atualizar esvazia a tela e a
   volta relê. Capturas 390/1440 das três telas idênticas byte a byte às da `main`.
-- Vitest: `web/catalogos-cache.test.ts` (10 casos, 5 por família: voltas, revogação, 403,
-  troca de conta, resposta atrasada da conta anterior) e os testes das telas (15) passam.
+- Vitest: `web/catalogos-cache.test.ts` (14 casos, 7 por família: voltas, revogação, 403,
+  gravação com releitura em erro, resultado incerto, troca de conta, resposta atrasada da
+  conta anterior) e os testes das telas (16) passam.
 - Contraprovas registradas no PR: sem leitura retida, sem descarte, sem `clear()` na troca
   de identidade, sem `aoEsquecerSessao` e o roteiro de navegador contra o build da `main`
   falham pelo motivo certo.
+- Revisão independente do #81: (1) gravação confirmada com releitura em erro, ou resultado
+  incerto, deixava a lista anterior guardada; a máquina agora descarta a entrada assim que
+  a gravação resolve ou termina incerta, antes de reler. Testes nas duas famílias e no
+  piloto; contraprovas sem cada descarte falham. (2) A chave do modelo leva o escopo
+  (`['admin', 'modelo-formulario', escopo]`), exposto pelo serviço HTTP.
 - Fica para a 9b: Plano de cuidado (lê equipe e aprovadores), Equipe e Auditoria, com
   política própria. A leitura do modelo e dos papéis pela ficha do turno continua sem cache.
 
