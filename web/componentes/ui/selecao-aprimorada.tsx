@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import {
   type ComponentPropsWithRef,
   type KeyboardEvent,
@@ -7,7 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { EnvelopeCampo, descritores } from './campo.js';
+import { EnvelopeCampo, classesCampo, descritores } from './campo.js';
 import { EVENTO_VALOR_NATIVO } from './valor-nativo.js';
 
 type PropsSelecaoAprimorada = Omit<ComponentPropsWithRef<'select'>, 'id' | 'multiple' | 'size'> & {
@@ -189,7 +190,7 @@ export function SelecaoAprimorada({
   }
 
   const controle = (
-    <div ref={grupo} className="ui-selecao" data-aprimorada="">
+    <div ref={grupo} className="relative min-w-0" data-aprimorada="selecao">
       <select
         {...resto}
         ref={(campo) => {
@@ -216,7 +217,10 @@ export function SelecaoAprimorada({
       <button
         ref={gatilho}
         type="button"
-        className="ui-selecao__gatilho"
+        className={classesCampo(
+          false,
+          'flex cursor-pointer items-center justify-between gap-sistema-2 text-left disabled:cursor-not-allowed',
+        )}
         // biome-ignore lint/a11y/useSemanticElements: o gatilho mostra o valor do select nativo.
         role="combobox"
         aria-label={nome}
@@ -234,10 +238,14 @@ export function SelecaoAprimorada({
         onClick={() => (aberta ? definirAtiva(null) : abrir())}
         onKeyDown={aoTeclar}
       >
-        <span className="ui-selecao__valor" data-vazio={escolhida?.valor ? 'nao' : 'sim'}>
+        <span
+          className="min-w-0 wrap-anywhere data-[vazio=sim]:text-sistema-texto-secundario"
+          data-valor-visivel=""
+          data-vazio={escolhida?.valor ? 'nao' : 'sim'}
+        >
           {escolhida?.texto}
         </span>
-        <span className="ui-selecao__seta" aria-hidden="true" />
+        <ChevronDown className="shrink-0 text-sistema-acao" size={16} aria-hidden="true" />
       </button>
       <div
         ref={lista}
@@ -245,7 +253,7 @@ export function SelecaoAprimorada({
         // biome-ignore lint/a11y/useSemanticElements: a lista pertence ao combobox e é navegada pelo gatilho.
         role="listbox"
         tabIndex={-1}
-        className="ui-selecao__lista"
+        className="absolute inset-x-0 top-[calc(100%+var(--spacing-sistema-1))] z-30 m-0 max-h-68 overflow-y-auto overscroll-contain rounded-sistema-controle border border-sistema-divisor bg-sistema-superficie p-sistema-1 shadow-cartao"
         aria-label={nome}
         aria-labelledby={rotuladoPor ?? (rotulo ? idRotulo : undefined)}
         hidden={!aberta}
@@ -256,7 +264,7 @@ export function SelecaoAprimorada({
             // biome-ignore lint/suspicious/noArrayIndexKey: a posição é o selectedIndex nativo e a identidade de foco.
             key={posicao}
             id={`${idLista}-opcao-${posicao}`}
-            className="ui-selecao__opcao"
+            className="flex min-h-alvo-toque cursor-pointer items-center gap-sistema-2 rounded-sistema-controle px-sistema-2 py-sistema-1 wrap-anywhere text-corpo text-sistema-texto before:w-[var(--espessura-filete)] before:shrink-0 before:self-stretch before:rounded-full data-[ativa=sim]:bg-sistema-hoje aria-disabled:cursor-not-allowed aria-disabled:text-sistema-desabilitado aria-selected:font-semibold aria-selected:before:bg-sistema-marca"
             // biome-ignore lint/a11y/useSemanticElements: a opção visual espelha a opção nativa.
             role="option"
             tabIndex={-1}

@@ -51,8 +51,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function dataVisivel(page: Page, id: string) {
-  const grupo = page.locator(`.ui-data[data-aprimorada]:has(> #${id})`);
-  const visivel = grupo.locator('.ui-data__texto');
+  const grupo = page.locator(`[data-aprimorada=data]:has(> #${id})`);
+  const visivel = grupo.locator('[data-valor-visivel]');
   await expect(visivel).toBeVisible();
   const opacidade = await grupo
     .locator(`#${id}`)
@@ -92,21 +92,25 @@ test('Auditoria envia o limite inicial digitado e retira o filtro ao apagar', as
   await conferirControlesNativos(page, '#administracao-conteudo');
   const { grupo: inicioGrupo, visivel: inicio } = await dataVisivel(page, 'auditoria-de');
   await expect(inicio).toHaveAttribute('id', 'auditoria-de-texto');
-  expect(await inicioGrupo.evaluate((no) => no.parentElement?.closest('.ui-data') === null)).toBe(
-    true,
-  );
+  expect(
+    await inicioGrupo.evaluate(
+      (no) => no.parentElement?.closest('[data-aprimorada=data]') === null,
+    ),
+  ).toBe(true);
 
-  const resultado = page.locator('.ui-selecao[data-aprimorada]:has(> #auditoria-resultado)');
+  const resultado = page.locator('[data-aprimorada=selecao]:has(> #auditoria-resultado)');
   await expect(resultado.locator('#auditoria-resultado')).toHaveCSS('opacity', '0');
-  expect(await resultado.evaluate((no) => no.parentElement?.closest('.ui-selecao') === null)).toBe(
-    true,
-  );
+  expect(
+    await resultado.evaluate(
+      (no) => no.parentElement?.closest('[data-aprimorada=selecao]') === null,
+    ),
+  ).toBe(true);
 
   // No iOS, campos com menos de 16px provocam zoom ao receber foco.
   for (const seletor of [
-    '.ui-selecao:has(> #auditoria-caso) > .ui-selecao__gatilho',
+    '[data-aprimorada=selecao]:has(> #auditoria-caso) > [role=combobox]',
     '#auditoria-acao',
-    '.ui-selecao:has(> #auditoria-resultado) > .ui-selecao__gatilho',
+    '[data-aprimorada=selecao]:has(> #auditoria-resultado) > [role=combobox]',
     '#auditoria-de-texto',
     '#auditoria-ate-texto',
   ]) {
@@ -118,6 +122,8 @@ test('Auditoria envia o limite inicial digitado e retira o filtro ao apagar', as
   // A seleção e a data podem ser usadas juntas na mesma consulta.
   await page.getByRole('combobox', { name: /^Resultado/ }).click();
   await page.getByRole('option', { name: 'Negado', exact: true }).click();
+  await expect(resultado.getByRole('combobox')).toContainText('Negado');
+  await expect(resultado.locator('#auditoria-resultado')).toHaveValue('negado');
 
   await inicio.fill('15/10/2026');
   await expect(page.locator('#auditoria-de')).toHaveValue('2026-10-15');
@@ -140,11 +146,11 @@ test('Auditoria envia o limite final escolhido no calendário', async ({ page })
   const { grupo: fim, visivel } = await dataVisivel(page, 'auditoria-ate');
   await fim.getByRole('button', { name: 'Escolher no calendário' }).click();
   await fim.getByRole('button', { name: '25 de outubro de 2026' }).click();
+  await expect(visivel).toHaveValue('25/10/2026');
   const filtros = await consultarAuditoria(page);
   expect(filtros.get('instante_ate'), 'limite final do GET de Auditoria').toBe(
     '2026-10-25T23:59:59.999Z',
   );
-  await expect(visivel).toHaveValue('25/10/2026');
   await expect(page.locator('#auditoria-ate')).toHaveValue('2026-10-25');
 });
 
@@ -193,14 +199,15 @@ test('Ficha renova a seleção de profissional ao avançar a página', async ({ 
   await conferirControlesNativos(page, '#ficha-view');
   await conferirAxe(page, 'filtros-data — equipe do caso');
   const id = 'profissional-selecionado';
-  const grupo = page.locator(`.ui-selecao[data-aprimorada]:has(> #${id})`);
+  const grupo = page.locator(`[data-aprimorada=selecao]:has(> #${id})`);
   const nativo = grupo.locator(`#${id}`);
 
   async function conferirSelecao() {
     await expect(grupo).toHaveCount(1);
     const medidas = await nativo.evaluate((no) => ({
       opacidade: getComputedStyle(no).opacity,
-      invólucroÚnico: no.parentElement?.parentElement?.closest('.ui-selecao') === null,
+      invólucroÚnico:
+        no.parentElement?.parentElement?.closest('[data-aprimorada=selecao]') === null,
     }));
     expect(medidas.opacidade, 'CSS de tema para #profissional-selecionado').toBe('0');
     expect(medidas.invólucroÚnico).toBe(true);
@@ -261,11 +268,13 @@ test('Cadastro mantém os controles React ao carregar a equipe e adicionar conta
     await expect(nascimento).toHaveAttribute('id', 'birth-date-texto');
 
     async function selecao(id: string) {
-      const grupo = dialogo.locator(`.ui-selecao[data-aprimorada]:has(> #${id})`);
+      const grupo = dialogo.locator(`[data-aprimorada=selecao]:has(> #${id})`);
       await expect(grupo.locator(`#${id}`)).toHaveCSS('opacity', '0');
-      expect(await grupo.evaluate((no) => no.parentElement?.closest('.ui-selecao') === null)).toBe(
-        true,
-      );
+      expect(
+        await grupo.evaluate(
+          (no) => no.parentElement?.closest('[data-aprimorada=selecao]') === null,
+        ),
+      ).toBe(true);
       return grupo.getByRole('combobox');
     }
 
@@ -322,8 +331,8 @@ test('Cadastro mantém os controles React ao carregar a equipe e adicionar conta
     await expect(nascimento).toHaveValue('');
     await expect(dialogo.locator('#case-status')).toHaveValue('');
     await expect(dialogo.locator('#case-manager')).toHaveValue('');
-    await expect(situacao.locator('.ui-selecao__valor')).toHaveText('Selecione a situação');
-    await expect(responsavel.locator('.ui-selecao__valor')).toHaveText(
+    await expect(situacao.locator('[data-valor-visivel]')).toHaveText('Selecione a situação');
+    await expect(responsavel.locator('[data-valor-visivel]')).toHaveText(
       'Selecione quem acompanha o caso',
     );
     expect(erros).toEqual([]);
@@ -352,6 +361,9 @@ test('Cadastro mantém a ação à vista e sem rolagem horizontal a 320 px', asy
     await expect(controle).toHaveCSS('min-height', '46px');
   }
 
+  await expect(
+    dialogo.locator('[class*="ui-campo"], [class*="ui-data"], [class*="ui-selecao"]'),
+  ).toHaveCount(0);
   const corpo = dialogo.locator('#cadastro-corpo');
   const medidas = await corpo.evaluate((no) => ({
     largura: no.clientWidth,

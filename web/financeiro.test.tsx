@@ -489,7 +489,7 @@ describe('conforto no celular (tarefa 4.3)', () => {
     const raiz = document.createElement('div');
     montarFinanceiro(raiz, servicoFalso());
     const entradas = [...raiz.querySelectorAll('input:not([aria-hidden="true"])')];
-    expect(entradas.some((entrada) => entrada.classList.contains('ui-data__texto'))).toBe(true);
+    expect(entradas.some((entrada) => entrada.hasAttribute('data-valor-visivel'))).toBe(true);
     for (const entrada of entradas)
       expect(raiz.querySelector(`label[for="${entrada.id}"]`)).not.toBeNull();
   });

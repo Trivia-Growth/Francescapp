@@ -1,3 +1,4 @@
+import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   type KeyboardEvent,
   useCallback,
@@ -6,7 +7,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import { EnvelopeCampo, type PropsCampo, descritores } from './campo.js';
+import { Botao } from './botao.js';
+import { EnvelopeCampo, classesCampo, type PropsCampo, descritores } from './campo.js';
 import {
   DIAS,
   MESES,
@@ -171,7 +173,7 @@ export function CampoData({
   }
 
   const controle = (
-    <div ref={grupo} className="ui-data" data-aprimorada="">
+    <div ref={grupo} className="relative min-w-0" data-aprimorada="data">
       <input
         {...resto}
         ref={(campo) => {
@@ -196,12 +198,13 @@ export function CampoData({
         }}
         onChange={(evento) => aoAlterar?.(evento.currentTarget.value)}
       />
-      <div className="ui-data__linha">
+      <div className="flex items-stretch gap-sistema-2">
         <input
           ref={editor}
           id={textoId}
           type="text"
-          className="ui-campo__controle ui-data__texto"
+          className={classesCampo(false, 'min-w-0 flex-1')}
+          data-valor-visivel=""
           inputMode="numeric"
           autoComplete="off"
           placeholder="dd/mm/aaaa"
@@ -221,10 +224,9 @@ export function CampoData({
             definirData(doVisivel(entrada) ?? '', entrada);
           }}
         />
-        <button
+        <Botao
           ref={gatilho}
-          type="button"
-          className="ui-data__abrir"
+          className="size-alvo-toque shrink-0 p-0"
           data-ui="calendario"
           disabled={disabled || readOnly}
           aria-expanded={aberto}
@@ -236,15 +238,15 @@ export function CampoData({
             else definirFoco(doIso(nativo.current?.value || hojeIso));
           }}
         >
-          ▦
-        </button>
+          <CalendarDays aria-hidden="true" size={16} />
+        </Botao>
       </div>
       <p id={formatoId} className="sr-only">
         Formato dia, mês e ano, com quatro dígitos no ano. Exemplo: 31/01/2000.
       </p>
       <div
         id={calendarioId}
-        className="ui-data__calendario"
+        className="absolute top-[calc(100%+var(--spacing-sistema-1))] left-0 z-30 w-[min(21rem,calc(100vw-var(--spacing-sistema-6)))] rounded-sistema-controle border border-sistema-divisor bg-sistema-superficie p-sistema-3 shadow-cartao"
         // biome-ignore lint/a11y/useSemanticElements: calendário ancorado no campo, com o foco no dia ativo.
         role="dialog"
         aria-label="Calendário"
@@ -253,30 +255,32 @@ export function CampoData({
       >
         {foco ? (
           <>
-            <div className="ui-data__navegacao">
-              <button
-                type="button"
-                className="ui-data__passo"
+            <div className="mb-sistema-2 flex items-center justify-between gap-sistema-2">
+              <Botao
+                className="size-alvo-toque shrink-0 p-0"
                 aria-label="Mês anterior"
                 onClick={() => mover(0, -1)}
               >
-                ‹
-              </button>
-              <p className="ui-data__mes" aria-live="polite">
+                <ChevronLeft aria-hidden="true" size={16} />
+              </Botao>
+              <p className="m-0 text-center text-controle" aria-live="polite">
                 {MESES[foco.mes - 1]} de {foco.ano}
               </p>
-              <button
-                type="button"
-                className="ui-data__passo"
+              <Botao
+                className="size-alvo-toque shrink-0 p-0"
                 aria-label="Próximo mês"
                 onClick={() => mover(0, 1)}
               >
-                ›
-              </button>
+                <ChevronRight aria-hidden="true" size={16} />
+              </Botao>
             </div>
-            <div className="ui-data__grade">
+            <div className="grid grid-cols-7 gap-0.5">
               {DIAS.map((dia) => (
-                <span key={dia} className="ui-data__cabecalho-dia" aria-hidden="true">
+                <span
+                  key={dia}
+                  className="py-sistema-1 text-center text-meta text-sistema-texto-secundario"
+                  aria-hidden="true"
+                >
                   {dia}
                 </span>
               ))}
@@ -291,7 +295,7 @@ export function CampoData({
                     key={iso}
                     type="button"
                     ref={dia === foco.dia ? diaAtivo : undefined}
-                    className="ui-data__dia"
+                    className="min-h-alvo-toque min-w-0 cursor-pointer rounded-sistema-controle border border-transparent bg-transparent p-0 text-corpo text-sistema-texto hover:bg-sistema-hoje data-[hoje=sim]:border-sistema-marca aria-pressed:bg-sistema-acao aria-pressed:font-semibold aria-pressed:text-sistema-superficie"
                     data-dia={dia}
                     data-hoje={iso === hojeIso ? 'sim' : undefined}
                     aria-label={`${dia} de ${MESES[foco.mes - 1]} de ${foco.ano}`}

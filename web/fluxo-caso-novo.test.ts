@@ -112,8 +112,8 @@ const CONTROLES = [
  *  Focar um elemento invisível seria o mesmo defeito do `window.confirm` que já saiu. */
 const visivel = (controle: string): HTMLElement => {
   const nativo = el(controle);
-  const grupo = nativo.closest('.ui-selecao, .ui-data');
-  return grupo?.querySelector<HTMLElement>('.ui-selecao__gatilho, .ui-data__texto') ?? nativo;
+  const grupo = nativo.closest('[data-aprimorada=selecao], [data-aprimorada=data]');
+  return grupo?.querySelector<HTMLElement>('[role=combobox], input[data-valor-visivel]') ?? nativo;
 };
 
 const invalidos = () =>
