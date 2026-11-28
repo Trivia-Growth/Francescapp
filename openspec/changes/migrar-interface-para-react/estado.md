@@ -41,6 +41,18 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8q do plano visual — relatórios do cuidado para a Família
+
+A ficha compõe a consulta familiar e cancela o serviço ao sair da seção.
+Reabrir a seção cria um serviço novo. A tarefa 7.2 permanece aberta.
+
+- Passaram quatro testes Vitest e um cenário Chromium. A Família consultou
+  o diário sem opção de exportação de caso. Sair cancelou a leitura pendente e
+  reabrir permitiu consultar novamente.
+- Sem a limpeza do serviço, o sinal da consulta ficou ativo depois da troca
+  de seção e a prova de cancelamento falhou. Alteração revertida.
+- Próximo passo: rebase após o squash da fatia anterior e ativação.
+
 ## Fatia 8p do plano visual — bancadas de Plantão e Passagem
 
 Os testes e a bancada de plantão renderizam os mesmos componentes usados pela

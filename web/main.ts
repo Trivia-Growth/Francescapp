@@ -47,7 +47,6 @@ import { criarServicoFinanceiroHttp } from './servico-financeiro-http.js';
 import { criarAudienciaFinanceira } from './financeiro-audiencia.js';
 import { montarTurnoComExecucao } from './turno-execucao-integracao.js';
 import { montarExecucaoTurno } from './turno-execucao.js';
-import { montarRelatoriosTurno } from './turno-execucao-relatorios.js';
 import { criarServicoTurnoExecucaoHttp } from './servico-turno-execucao-http.js';
 import { criarServicoFichaPlantaoHttp } from './servico-ficha-plantao-http.js';
 import { criarServicoTurnoHttp } from './servico-turno-http.js';
@@ -717,18 +716,13 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       {
         id: 'relatorios-turno',
         rotulo: 'Relatórios do cuidado',
-        montar: async (raiz, pendente) => {
-          const servico = criarServicoTurnoExecucaoHttp(paciente.id, identidadeAtual);
-          const desmontar = montarRelatoriosTurno(raiz, servico, {
-            familia: true,
+        compor: async (pendente) =>
+          createElement((await import('./turno-execucao-relatorios.js')).RelatoriosTurnoFamilia, {
+            pacienteId: paciente.id,
+            identidadeAtual,
             acessoPerdido,
             alteracaoPendente: pendente,
-          });
-          return () => {
-            desmontar();
-            servico.desmontar();
-          };
-        },
+          }),
       },
       {
         id: 'plano',
