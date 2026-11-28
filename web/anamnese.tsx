@@ -1,18 +1,8 @@
-/* Anamnese de coordenação (FR-003), reconstruída em React sobre a ilha
- * (`web/ponte/ilha.ts`).
+/* Anamnese de coordenação (FR-003), composta pela ficha em React.
+ * `lerRoteiroAnamnese` interpreta as sugestões de roteiro.
  *
- * O contrato exportado não muda: `montarAnamnese(raiz, pacienteId, servico, acessoPerdido,
- * alteracaoPendente, historicoHabilitado, roteiroSugerido) => desmontar`, e
- * `lerRoteiroAnamnese` continua a mesma função pura de antes.
- *
- * O que a migração entrega:
- *
- * 1. VIS-012. A versão imperativa tinha NOVE guardas `ativa` espalhadas — no desenho, na
- *    consulta, no envio, no histórico, na disponibilidade e no roteiro — cada uma
- *    protegendo uma escrita em DOM já desmontado. Não sobrou nenhuma: `ilha()` desmonta a
- *    raiz React e os efeitos são cancelados por construção. O que ficou no lugar são
- *    guardas de GERAÇÃO dentro de cada efeito, que é coisa diferente: elas impedem a
- *    resposta de uma tentativa anterior sobrescrever a seguinte.
+ * 1. VIS-012. A ficha desmonta a seção ao sair. Os efeitos usam geração para impedir que
+ *    a resposta de uma tentativa anterior sobrescreva a seguinte.
  * 2. A moldura deixa de sumir durante a consulta (VIS-014).
  * 3. Superfície plana do `DESIGN.md`: um assunto, uma superfície.
  *

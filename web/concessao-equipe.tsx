@@ -1,15 +1,6 @@
-/* Área Administração › Equipe, reconstruída em React sobre a ilha (`web/ponte/ilha.ts`).
+/* Lista de concessões da equipe, renderizada na área de Administração da casca.
  *
- * O contrato exportado não muda: `montarConcessaoEquipe(raiz, api) => desmontar`. Quem
- * chama — `web/main.ts` — não sabe que aqui dentro é React, e não precisou de uma linha.
- *
- * O que a migração entrega, além do visual:
- *
- * 1. VIS-012. A versão imperativa tinha SETE `if (!ativa) return` e mais cinco `if (ativa)`
- *    protegendo escritas em DOM já desmontado — vigilância humana sobre um problema que o
- *    ciclo de vida resolve por construção. `ilha()` desmonta a raiz React, os efeitos são
- *    cancelados e escrever estado depois disso não faz nada. Não sobrou nenhuma.
- *    O único ponto em que o ciclo de vida NÃO basta está anotado em `perguntar()`.
+ * 1. VIS-012. A casca desmonta o painel ao sair da área de Equipe.
  * 2. VIS-016. A listagem era um `<ul>` montado à mão: uma linha com conteúdo inesperado
  *    derrubava a lista inteira, que foi o que aconteceu em 24/11/2026. a lista tem
  *    barreira por linha, e os rótulos de perfil e estado passaram a RECUSAR valor

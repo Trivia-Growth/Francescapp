@@ -346,8 +346,15 @@ autorização onde a tela tiver autorização própria.
   *Dependência:* Fase 6 completa.
   *Evidência:* nenhuma tela importa o CSS removido; captura sem regressão.
 
-- [ ] **7.2 [C]** Remover `web/ponte/ilha.ts` e o último `montar*` imperativo.
-  *Evidência:* `rtk grep -rn "export function montar" web/` sem resultado.
+- [x] **7.2 [C]** Remover `web/ponte/ilha.ts` e o último `montar*` que escreve no DOM.
+  *Evidência:* `rg -n '^export function montar' web` encontra só os seis geradores puros de
+  `web/pacote-exportacao.ts`: `montarResumoHtml`, `montarDadosJson`, `montarBytesZip`,
+  `montarZip`, `montarBytesPacoteExportacao` e `montarPacoteExportacao`.
+  `montarCascaParaTeste` é um helper exclusivo de teste. Os `createRoot` da Web são
+  raízes de página em `web/casca-react.tsx`, `web/demonstracao.ts` e
+  `web/demonstracao-componentes.tsx`.
+  A ativação passou com 84 cenários Chromium, axe sem violação e autorização local
+  positiva e negativa. A contraprova da importação tardia foi revertida e consta em `estado.md`.
 
 - [ ] **7.3 [C]** Conferir os textos `ffcm.regras.*` que ainda mostram marcador de semente
   às famílias.

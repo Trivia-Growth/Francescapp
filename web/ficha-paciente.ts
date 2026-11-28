@@ -14,28 +14,14 @@ export type SecaoFicha = {
   rotulo: string;
   /** Seção carregada sob demanda e renderizada no painel React da ficha. */
   compor?: (pendente: (pendente: boolean) => void) => Promise<ReactElement>;
-  /** Adaptador para as seções que ainda têm contêiner próprio.
-   *
-   *  Pode devolver a desmontagem direto ou uma promessa dela. A promessa existe para a
-   *  seção poder chegar por importação dinâmica: o código de uma aba só desce quando
-   *  alguém abre aquela aba. Seção leve continua síncrona — não há ganho em adiar o que
-   *  já está no pacote, e manter as duas formas evita converter o que não precisa. */
-  montar?:
-    | ((
-        raiz: HTMLElement,
-        pendente: (pendente: boolean) => void,
-      ) => (() => void) | Promise<() => void>)
-    | null;
   /** Aviso de descarte quando a seção tem alteração não confirmada. */
   descarte?: string;
 };
 
 export type OpcoesFicha = {
-  raiz: HTMLElement;
   paciente: PacienteFicha;
   secoes: SecaoFicha[];
   nivelTitulo?: 1 | 2;
-  secaoInicial?: string;
   /** Ids que ficam na primeira faixa; os demais entram em "Mais seções". Sem esta lista, ou
    * se ela cobrir todas as seções recebidas, a ficha mantém a faixa única de sempre. */
   primarias?: readonly string[];

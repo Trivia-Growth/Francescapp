@@ -1,6 +1,47 @@
 # Estado — migrar-interface-para-react
 
-**Atualizado em:** 27/11/2026 · **Branch:** `claude/financeiro-react` · **Por:** Claude Code
+**Atualizado em:** 28/11/2026 · **Branch:** `codex/casca-finalizacao-react` · **Por:** Codex
+
+## Fatia 8z do plano visual — tarefa 7.2 concluída
+
+A aplicação tem uma raiz React para entrada, navegação, Carteira, ficha e Administração.
+O roteador por hash preserva os endereços antigos. A demonstração e a vitrine, em páginas
+separadas, têm uma raiz cada. A ficha compõe suas seções por React e a ponte
+`web/ponte/ilha.ts` foi removida. Nenhuma função `montar*` escreve DOM.
+
+- `rg -n '^export function montar' web` encontra apenas seis geradores puros em
+  `web/pacote-exportacao.ts`: `montarResumoHtml`, `montarDadosJson`, `montarBytesZip`,
+  `montarZip`, `montarBytesPacoteExportacao` e `montarPacoteExportacao`. Eles produzem
+  texto, bytes ou `Blob`. A busca que inclui funções assíncronas também encontra
+  `montarCascaParaTeste`, que importa a entrada só para testes. Os nomes internos
+  `montarConteudo`, `montarEntradaPorAudio`, `montarNomeador` e `montarVista`
+  correspondem a composição React ou construção de valores.
+- `pnpm run verificar:ativacao` passou com 84 cenários Chromium e a bancada de
+  Trusted Types do build. A prova de autorização local, positiva e negativa,
+  passou no PostgreSQL 17 com dados fictícios. Na revisão, 36 testes Vitest focados
+  passaram após a retirada de `linha-lista-imperativa` e da sonda de resolução.
+- O Chromium verificou links antigos, Voltar/Avançar, retorno de foco ao fechar
+  a gaveta e Administração bloqueada para Família por link direto. O axe passou
+  em 36 páginas sem violações. `capturas-casca.mjs` verificou a folha
+  `index-B4TJL7Mf.css` antes de capturar Seu dia, Pessoas acompanhadas e Administração a
+  390 e 1440 px. As seis telas e a gaveta também passaram no axe do build.
+  As sete capturas da 8z foram pixel a pixel idênticas às de `c5e4472`.
+  As comparações antes/depois da reforma estão em `docs/auditoria-visual-2026-11/`
+  (`fatia-8b-*` e `fatia-8-base-carteira-390.png`).
+- Ao retirar a guarda de geração da ficha, uma importação antiga de Anamnese
+  substituiu Plano. O Chromium falhou esperando `data-secao="plano"`. Com a guarda
+  restaurada, o cenário passou.
+- No mesmo build e com a mesma medição gzip dos scripts do HTML inicial, a 8z
+  passou de 248.016 bytes em `c5e4472` para 247.865 bytes no head rebaseado
+  (−151 bytes, sete arquivos nos dois builds). Ao longo de toda a reforma da casca,
+  a medida passou de 242.878 bytes em `23d0daa` para 247.865 bytes (+4.987 bytes).
+  Login e restauração da sessão compartilham a entrada e os contratos de validação.
+- Nas confirmações, o #79 verificou que sair da ficha pelo histórico encerra a pergunta
+  de revogação, devolve o foco à linha e não envia a revogação.
+- `openspec validate migrar-interface-para-react` passou. O modo `--strict`
+  acusa o aviso preexistente de comprimento do requisito VIS-018.
+- Próximas tarefas da fase 7: 7.1 (CSS legado), 7.3 (textos das regras) e 7.4
+  (avaliação final contra D8, documentação, sincronização e arquivamento).
 
 ## Fatia 7.2 — Financeiro em React
 
@@ -36,10 +77,8 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   ficou em `#administracao/financeiro`. (3) `useCiclo` reativa no efeito, e sem isso o modo estrito
   deixava a consulta inerte (teste falhou). Apuração com falha após sucesso não mantém o total
   anterior (defeito antigo da auditoria), com teste. 25 testes e 23 cenários Chromium passaram.
-- Pendente: o ramo `typeof tela === 'function'` de `mostrarAdministracao` e a ponte `ilha.ts` ainda
-  existem (ficha); a tarefa 7.2 só fecha quando a ficha migrar. Regras `.financeiro__aba` mortas no
-  CSS ficam para a retirada do CSS legado.
-- Próximo passo: CI/ativação do PR.
+- O #57 foi integrado. A retirada da ponte e do adaptador da ficha foi concluída na 8z.
+  As regras `.financeiro__aba` mortas no CSS ficam para a tarefa 7.1.
 
 ## Fatia 8y do plano visual — confirmações da página
 

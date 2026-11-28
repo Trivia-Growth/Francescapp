@@ -29,14 +29,13 @@ type Conteudo = {
   tela?: ReactElement;
 };
 
-const disponivel = (secao: SecaoFicha) => Boolean(secao.compor || secao.montar);
+const disponivel = (secao: SecaoFicha) => Boolean(secao.compor);
 type EstadoFicha = {
   ativa: boolean;
   atual: SecaoFicha | null;
   pendente: boolean;
   geracao: number;
   vazia: boolean;
-  desmontar: (() => void) | null;
 };
 
 export function secaoInicialDaFicha(
@@ -55,7 +54,7 @@ export function TelaFicha({
   aoSelecionar,
   aoVoltar,
   comando,
-}: Omit<OpcoesFicha, 'raiz' | 'secaoInicial'> & { comando: Ref<Ficha> }) {
+}: OpcoesFicha & { comando: Ref<Ficha> }) {
   const [selecionada, definirSelecionada] = useState('');
   const [abaFocavel, definirAbaFocavel] = useState('');
   const [conteudo, definirConteudo] = useState<Conteudo | null>(null);
@@ -65,10 +64,8 @@ export function TelaFicha({
     pendente: false,
     geracao: 0,
     vazia: true,
-    desmontar: null,
   }).current;
   const titulo = useRef<HTMLHeadingElement>(null);
-  const destino = useRef<HTMLDivElement>(null);
   const mais = useRef<HTMLDetailsElement>(null);
   const botoes = useRef(new Map<string, HTMLButtonElement>()).current;
   const porId = new Map(secoes.map((secao) => [secao.id, secao]));
@@ -83,28 +80,19 @@ export function TelaFicha({
   const Titulo = nivelTitulo === 2 ? 'h2' : 'h1';
   const mensagemAtual = () => estado.atual?.descarte ?? descartePadrao;
 
-  const invalidar = useCallback(() => {
+  const descartar = useCallback(() => {
     estado.geracao += 1;
     estado.pendente = false;
-    const desmontar = estado.desmontar;
-    estado.desmontar = null;
     estado.vazia = true;
-    return desmontar;
   }, [estado]);
 
   useLayoutEffect(() => {
     estado.ativa = true;
     return () => {
       estado.ativa = false;
-      const desmontar = invalidar();
-      // Em caso de falha na moldura, libera a raiz legada após o commit do React.
-      if (desmontar) queueMicrotask(desmontar);
+      descartar();
     };
-  }, [estado, invalidar]);
-
-  function descartar() {
-    invalidar()?.();
-  }
+  }, [estado, descartar]);
 
   function montarConteudo(secao: SecaoFicha) {
     const geracao = ++estado.geracao;
@@ -122,28 +110,10 @@ export function TelaFicha({
     const aoAlterarPendencia = (pendente: boolean) => {
       if (estaAtiva()) estado.pendente = pendente;
     };
+    if (!secao.compor) return;
     try {
-      if (secao.compor) {
-        void secao.compor(aoAlterarPendencia).then((tela) => {
-          if (estaAtiva()) mostrar('pronta', geracao, tela);
-        }, falhar);
-        return;
-      }
-      const raiz = destino.current;
-      if (!raiz || !secao.montar) return;
-      const montada = secao.montar(raiz, aoAlterarPendencia);
-      if (typeof montada === 'function') {
-        estado.desmontar = montada;
-        return;
-      }
-      mostrar('carregando');
-      void montada.then((desmontar) => {
-        if (!estaAtiva()) {
-          desmontar();
-          return;
-        }
-        estado.desmontar = desmontar;
-        mostrar('pronta');
+      void secao.compor(aoAlterarPendencia).then((tela) => {
+        if (estaAtiva()) mostrar('pronta', geracao, tela);
       }, falhar);
     } catch {
       falhar();
@@ -325,7 +295,6 @@ export function TelaFicha({
             className="ficha-secao"
             data-secao={conteudo.secao.id}
             aria-busy={conteudo.fase === 'carregando' || undefined}
-            ref={destino}
           >
             {conteudo.fase === 'falha' ? (
               <p data-tone="error">Não foi possível abrir esta seção. Tente novamente.</p>

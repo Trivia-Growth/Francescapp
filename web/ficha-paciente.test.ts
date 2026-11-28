@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createElement, createRef, useState } from 'react';
+import { createElement, createRef, useLayoutEffect, useState } from 'react';
 import { fireEvent, render } from '@testing-library/react';
 import { secaoInicialDaFicha, TelaFicha } from './ficha.js';
 import type { Ficha } from './ficha-paciente.js';
@@ -30,23 +30,26 @@ afterEach(() => {
 function secao(nome: string, extra: Partial<SecaoFicha> = {}) {
   const desmontar = vi.fn();
   const pendenteRef: { atual: ((valor: boolean) => void) | null } = { atual: null };
+  function TelaDeTeste() {
+    useLayoutEffect(() => () => desmontar(), []);
+    return createElement('span', null, `conteúdo de ${nome}`);
+  }
   const definicao: SecaoFicha = {
     id: nome,
     rotulo: nome.toUpperCase(),
-    montar: (conteudo, pendente) => {
+    compor: async (pendente) => {
       pendenteRef.atual = pendente;
-      conteudo.textContent = `conteúdo de ${nome}`;
-      return () => {
-        desmontar();
-        conteudo.replaceChildren();
-      };
+      return createElement(TelaDeTeste);
     },
     ...extra,
   };
   return { definicao, desmontar, pendenteRef };
 }
 
-function abrir(secoes: SecaoFicha[], extra: Partial<OpcoesFicha> = {}) {
+function abrir(
+  secoes: SecaoFicha[],
+  extra: Partial<OpcoesFicha & { raiz: HTMLElement; secaoInicial: string }> = {},
+) {
   const confirmar = vi.fn(async () => true);
   const aoSelecionar = vi.fn();
   const aoVoltar = vi.fn();
@@ -92,9 +95,10 @@ it('elimina o tabIndex anterior ao clicar após navegar por seta', () => {
   expect(aba('pendencias').tabIndex).toBe(0);
 });
 
-it('desmontar a moldura invalida a pendência e encerra a seção legada', async () => {
+it('desmontar a moldura invalida a pendência e encerra a seção', async () => {
   const dados = secao('dados');
   const { ficha, retirarMoldura } = abrir([dados.definicao]);
+  await vi.waitFor(() => expect(raiz.textContent).toContain('conteúdo de dados'));
   dados.pendenteRef.atual?.(true);
   expect(ficha.pendencia()).not.toBeNull();
   retirarMoldura();
@@ -162,7 +166,7 @@ it('gera iniciais de nome simples, composto e vazio', () => {
   expect(iniciais('')).toBe('?');
 });
 
-it('monta cabeçalho, abas ARIA e a seção inicial indicada', () => {
+it('monta cabeçalho, abas ARIA e a seção inicial indicada', async () => {
   const um = secao('visao');
   const dois = secao('plano');
   const { aoSelecionar } = abrir([um.definicao, dois.definicao], { secaoInicial: 'plano' });
@@ -178,7 +182,7 @@ it('monta cabeçalho, abas ARIA e a seção inicial indicada', () => {
   const painel = document.getElementById('ficha-painel');
   expect(painel?.getAttribute('role')).toBe('tabpanel');
   expect(painel?.getAttribute('aria-labelledby')).toBe('ficha-aba-plano');
-  expect(painel?.textContent).toBe('conteúdo de plano');
+  await vi.waitFor(() => expect(painel?.textContent).toBe('conteúdo de plano'));
   expect(um.desmontar).not.toHaveBeenCalled();
   expect(aoSelecionar).toHaveBeenCalledWith('plano');
 });
@@ -188,13 +192,16 @@ it('usa a primeira seção quando a inicial não existe', () => {
   expect(aba('visao').getAttribute('aria-selected')).toBe('true');
 });
 
-it('troca de seção desmontando a anterior e mantendo uma só montada', () => {
+it('troca de seção desmontando a anterior e mantendo uma só montada', async () => {
   const um = secao('visao');
   const dois = secao('plano');
   const { aoSelecionar } = abrir([um.definicao, dois.definicao]);
+  await vi.waitFor(() => expect(raiz.textContent).toContain('conteúdo de visao'));
   aba('plano').click();
   expect(um.desmontar).toHaveBeenCalledTimes(1);
-  expect(document.getElementById('ficha-painel')?.textContent).toBe('conteúdo de plano');
+  await vi.waitFor(() =>
+    expect(document.getElementById('ficha-painel')?.textContent).toBe('conteúdo de plano'),
+  );
   expect(document.querySelectorAll('.ficha-secao')).toHaveLength(1);
   expect(aoSelecionar).toHaveBeenLastCalledWith('plano');
 });
@@ -223,9 +230,10 @@ it('navega as abas por teclado sem ativar até confirmar', () => {
   expect(aba('plano').getAttribute('aria-selected')).toBe('true');
 });
 
-it('indica seção sem fonte como em breve, sem dados nem ação de gravação', () => {
+it('indica seção sem fonte como em breve, sem dados nem ação de gravação', async () => {
   const um = secao('visao');
-  abrir([um.definicao, { id: 'diario', rotulo: 'Diário', montar: null }]);
+  abrir([um.definicao, { id: 'diario', rotulo: 'Diário' }]);
+  await vi.waitFor(() => expect(raiz.textContent).toContain('conteúdo de visao'));
   expect(aba('diario').textContent).toContain('em breve');
   aba('diario').click();
   const painel = document.getElementById('ficha-painel') as HTMLElement;
@@ -239,6 +247,7 @@ it('pede confirmação ao sair de seção com alteração pendente e respeita a 
   const um = secao('anamnese', { descarte: 'Descartar anamnese?' });
   const dois = secao('plano');
   const { confirmar } = abrir([um.definicao, dois.definicao]);
+  await vi.waitFor(() => expect(raiz.textContent).toContain('conteúdo de anamnese'));
   um.pendenteRef.atual?.(true);
   confirmar.mockResolvedValueOnce(false);
   aba('plano').click();
@@ -270,9 +279,10 @@ it('pede confirmação ao voltar com alteração pendente e só então avisa a s
   expect(aoVoltar).toHaveBeenCalledTimes(2);
 });
 
-it('não deixa resíduo do paciente anterior nem herda pendência dele', () => {
+it('não deixa resíduo do paciente anterior nem herda pendência dele', async () => {
   const anterior = secao('visao');
   const { ficha } = abrir([anterior.definicao]);
+  await vi.waitFor(() => expect(raiz.textContent).toContain('conteúdo de visao'));
   const pendenteAntiga = anterior.pendenteRef.atual;
   pendenteAntiga?.(true);
   expect(ficha.pendencia()).not.toBeNull();
@@ -293,30 +303,35 @@ it('não deixa resíduo do paciente anterior nem herda pendência dele', () => {
   expect(raiz.textContent).toContain('Nome de preferência não informado');
 });
 
-it('limpa a seção atual e a remonta quando pedido', () => {
+it('limpa a seção atual e a remonta quando pedido', async () => {
   const um = secao('visao');
   const { ficha } = abrir([um.definicao]);
+  await vi.waitFor(() => expect(raiz.textContent).toContain('conteúdo de visao'));
   ficha.limparSecao();
   expect(ficha.secaoVazia()).toBe(true);
   expect(document.getElementById('ficha-painel')?.textContent).toBe('');
   expect(um.desmontar).toHaveBeenCalledTimes(1);
   ficha.remontarSecao();
   expect(ficha.secaoVazia()).toBe(false);
-  expect(document.getElementById('ficha-painel')?.textContent).toBe('conteúdo de visao');
+  await vi.waitFor(() =>
+    expect(document.getElementById('ficha-painel')?.textContent).toBe('conteúdo de visao'),
+  );
 });
 
-it('mostra erro genérico quando a seção não consegue montar', () => {
+it('mostra erro genérico quando a seção não consegue montar', async () => {
   abrir([
     {
       id: 'visao',
       rotulo: 'Visão',
-      montar: () => {
+      compor: async () => {
         throw new Error('detalhe interno');
       },
     },
   ]);
   const painel = document.getElementById('ficha-painel') as HTMLElement;
-  expect(painel.textContent).toBe('Não foi possível abrir esta seção. Tente novamente.');
+  await vi.waitFor(() =>
+    expect(painel.textContent).toBe('Não foi possível abrir esta seção. Tente novamente.'),
+  );
   expect(painel.textContent).not.toContain('detalhe interno');
 });
 
@@ -327,7 +342,7 @@ it('sem lista de primárias mantém todas as seções numa faixa só, como antes
   expect(aba('anamnese').getAttribute('role')).toBe('tab');
 });
 
-it('separa seções primárias de "Mais seções" e permite acesso a todas as permitidas', () => {
+it('separa seções primárias de "Mais seções" e permite acesso a todas as permitidas', async () => {
   const visao = secao('visao');
   const plano = secao('plano');
   const anamnese = secao('anamnese');
@@ -349,7 +364,9 @@ it('separa seções primárias de "Mais seções" e permite acesso a todas as pe
   expect(mais.contains(aba('rede'))).toBe(true);
   // Toda seção autorizada continua acessível, esteja na faixa primária ou em "Mais seções".
   aba('rede').click();
-  expect(document.getElementById('ficha-painel')?.textContent).toBe('conteúdo de rede');
+  await vi.waitFor(() =>
+    expect(document.getElementById('ficha-painel')?.textContent).toBe('conteúdo de rede'),
+  );
   expect(aoSelecionar).toHaveBeenLastCalledWith('rede');
 });
 

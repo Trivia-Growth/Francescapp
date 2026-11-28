@@ -15,7 +15,7 @@ import { type Coluna, Lista, valor } from './componentes/ui/lista';
 import { MarcaEstado } from './componentes/ui/marca-estado';
 import { SelecaoSimples } from './componentes/ui/selecao-simples';
 import { Superficie } from './componentes/ui/superficie';
-import { ilha } from './ponte/ilha';
+import { createRoot } from 'react-dom/client';
 import { Formulario } from './telas/formulario';
 
 type Pessoa = {
@@ -262,4 +262,4 @@ function Vitrine() {
 }
 
 const raiz = document.getElementById('raiz');
-if (raiz) ilha(raiz, <Vitrine />);
+if (raiz) createRoot(raiz).render(<Vitrine />);

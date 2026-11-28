@@ -1,7 +1,5 @@
 /* FR-068: tela em que o Administrador concede e revoga a audiência financeira.
- *
- * Reconstruída em React sobre a ilha (`web/telas/ilha-sincrona.ts`). O contrato exportado
- * é o mesmo de antes: `montarFinanceiroConcessaoAdministracao(raiz, servico) => desmontar`.
+ * `TelaFinanceiroConcessao` é composta na área de Administração da casca.
  *
  * Esta tela NÃO mostra conteúdo financeiro: não há valor acordado, lançamento, apuração
  * nem total em nenhum campo. Ela trata só de quem pode ver o financeiro, e a marca mora na

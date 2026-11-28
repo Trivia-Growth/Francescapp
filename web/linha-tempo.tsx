@@ -1,18 +1,8 @@
-/* Linha do tempo do caso (FR-007), reconstruída em React sobre a ilha
- * (`web/ponte/ilha.ts`).
+/* Linha do tempo do caso (FR-007), composta pela ficha em React.
  *
- * O contrato exportado não muda: `montarLinhaTempo(raiz, pacienteId, servico,
- * acessoPerdido) => desmontar`.
- *
- * O que a migração entrega:
- *
- * 1. VIS-012. A versão imperativa tinha TRÊS guardas `vivo` — depois do sucesso da
- *    consulta, no início do `catch`, e no `finally` protegendo `mais.disabled` — cada uma
- *    defendendo uma escrita em DOM já desmontado. Não sobrou nenhuma: `ilha()` desmonta a
- *    raiz React e qualquer atualização de estado depois disso é descartada por
- *    construção. O que ficou é só a guarda de GERAÇÃO (`carga === cargaRef.current`), que
- *    é coisa diferente: ela impede que uma resposta mais lenta e mais antiga apague o
- *    estado "ocupado" que uma consulta mais nova acabou de terminar de desenhar.
+ * 1. VIS-012. A ficha desmonta o painel ao sair da seção. A guarda de geração
+ *    (`carga === cargaRef.current`) impede que uma resposta antiga substitua
+ *    o resultado ou o estado ocupado de uma consulta mais recente.
  * 2. Uma única `Superficie` para o assunto, no lugar da `<section>` solta de antes
  *    (regra "superfície plana" do `DESIGN.md`).
  * 3. O "nada registrado ainda" passa a usar `EstadoVazio`, não mais texto solto no
