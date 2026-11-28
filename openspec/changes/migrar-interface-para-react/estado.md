@@ -52,6 +52,9 @@ sinal operacional diretamente. A tarefa 7.2 permanece aberta.
   em consulta, sair da conta esvaziou o contêiner.
 - Sem desmontar os filtros, o contêiner ficou oculto e com os controles no
   DOM. O cenário falhou em `toBeEmpty`. Alteração revertida.
+- A fronteira dos filtros preservou as linhas e o foco do Menu quando o
+  componente lançou erro. Sem a fronteira, Chromium perdeu as linhas da
+  Carteira. Alteração revertida.
 - Próximo passo: rebase após o squash da fatia anterior e ativação.
 
 ## Fatia 8l do plano visual — entrada interna e aviso de rede

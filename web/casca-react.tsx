@@ -177,7 +177,9 @@ function Casca({
         </PainelCasca>,
         carteira.raiz,
       )}
-      {carteira.filtros ? createPortal(carteira.filtros, carteira.destinoFiltros) : null}
+      {carteira.filtros
+        ? createPortal(<PainelCasca>{carteira.filtros}</PainelCasca>, carteira.destinoFiltros)
+        : null}
       {vista ? createPortal(conteudoDaVista(vista), vista.destino) : null}
       {agenda
         ? createPortal(

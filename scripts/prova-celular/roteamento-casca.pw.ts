@@ -225,6 +225,32 @@ test('sair limpa os filtros mesmo com os responsáveis em consulta', async ({ pa
   await expect(filtros).toBeEmpty();
 });
 
+test('falha dos filtros preserva a Carteira e a navegação', async ({ page }) => {
+  await prepararSessao(page, 'tecnica');
+  await page.route('**/web/filtros-carteira.tsx', (rota) =>
+    rota.fulfill({
+      contentType: 'application/javascript',
+      body: `export function SinalCarteira() { return null; }
+        export function BarraFiltrosCarteira() {
+          window.filtrosFalharam = true;
+          throw new Error('Falha fictícia nos filtros');
+        }`,
+    }),
+  );
+  await page.route('**/api/**', (rota) => {
+    const fixture = responder(rota.request().url());
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  await page.goto('/web/index.html#carteira');
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, 'filtrosFalharam'))).toBe(true);
+  await expect(page.locator('#patients-body button').first()).toBeVisible();
+  await expect(page.locator('#filtros-carteira')).toContainText('Tente abrir a área de novo.');
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Fechar menu' })).toBeFocused();
+});
+
 test('volta da ficha devolve foco à linha da Carteira', async ({ page }) => {
   await prepararSessao(page, 'tecnica');
   await page.route('**/api/**', (rota) => {
