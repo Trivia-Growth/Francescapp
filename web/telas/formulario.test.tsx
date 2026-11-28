@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { useEffect, useState } from 'react';
 import { expect, it, vi } from 'vitest';
-import { ilha } from '../ponte/ilha.js';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 import { Formulario } from './formulario.js';
 
 /* Regressão de 26/11/2026. O portão do CI reprovou
@@ -34,7 +35,8 @@ it('o ouvinte de envio existe na mesma tarefa em que o formulário aparece', asy
   const raiz = document.createElement('div');
   document.body.append(raiz);
   const aoEnviar = vi.fn();
-  const desmontar = ilha(raiz, <TelaTardia aoEnviar={aoEnviar} />);
+  const arvore = createRoot(raiz);
+  flushSync(() => arvore.render(<TelaTardia aoEnviar={aoEnviar} />));
   try {
     for (let volta = 0; volta < 200 && !raiz.querySelector('form'); volta += 1) {
       await new Promise((seguir) => setTimeout(seguir, 0));
@@ -44,7 +46,7 @@ it('o ouvinte de envio existe na mesma tarefa em que o formulário aparece', asy
     formulario?.requestSubmit();
     expect(aoEnviar).toHaveBeenCalledOnce();
   } finally {
-    desmontar();
+    arvore.unmount();
     raiz.remove();
   }
 });
@@ -52,11 +54,13 @@ it('o ouvinte de envio existe na mesma tarefa em que o formulário aparece', asy
 it('o envio é impedido: o formulário nunca navega', () => {
   const raiz = document.createElement('div');
   document.body.append(raiz);
-  const desmontar = ilha(
-    raiz,
-    <Formulario aoEnviar={() => {}}>
-      <button type="submit">Salvar</button>
-    </Formulario>,
+  const arvore = createRoot(raiz);
+  flushSync(() =>
+    arvore.render(
+      <Formulario aoEnviar={() => {}}>
+        <button type="submit">Salvar</button>
+      </Formulario>,
+    ),
   );
   try {
     const formulario = raiz.querySelector('form');
@@ -64,7 +68,7 @@ it('o envio é impedido: o formulário nunca navega', () => {
     formulario?.dispatchEvent(evento);
     expect(evento.defaultPrevented).toBe(true);
   } finally {
-    desmontar();
+    arvore.unmount();
     raiz.remove();
   }
 });

@@ -41,6 +41,25 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8z do plano visual — retirada da ponte
+
+A ficha compõe todas as seções e a vitrine tem a própria raiz React da página.
+Saíram a ponte e seu teste de compatibilidade. `rg '^export function montar' web`
+encontra os seis geradores puros de `web/pacote-exportacao.ts`, conforme a decisão
+da fatia 8e. A integração da tarefa 7.2 na main aguarda os recortes anteriores.
+
+- Passaram 32 testes Vitest, 22 cenários Chromium e a bancada de Trusted Types
+  do build de produção. Chromium verificou links antigos, histórico, foco da
+  gaveta, Administração recusada para Família e disponibilidade do áudio.
+- `capturas-casca.mjs` conferiu a folha `index-B4TJL7Mf.css` nas três telas a
+  390 e 1440 px antes das capturas. Axe passou nas seis telas e na gaveta.
+- Sem a guarda de geração, a importação tardia de Anamnese substituiu Plano.
+  Chromium falhou esperando `data-secao="plano"`. Alteração revertida.
+- O HTML inicial referencia 248.478 bytes gzip de JavaScript em sete arquivos.
+  Na base `23d0daa` eram 242.878 bytes em seis arquivos. A entrada segue
+  compartilhada entre login e restauração da sessão.
+- Próximo passo: rebase após o squash da fatia anterior e ativação final.
+
 ## Fatia 8y do plano visual — confirmações da página
 
 A raiz da casca e a raiz da demonstração hospedam suas confirmações. O
