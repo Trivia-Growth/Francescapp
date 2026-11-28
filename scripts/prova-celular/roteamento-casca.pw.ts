@@ -251,6 +251,53 @@ test('falha dos filtros preserva a Carteira e a navegação', async ({ page }) =
   await expect(page.getByRole('button', { name: 'Fechar menu' })).toBeFocused();
 });
 
+test('receber responsáveis mantém os filtros abertos e com foco', async ({ page }) => {
+  await prepararSessao(page, 'tecnica');
+  const caminhoEquipe = '/api/admin/concessoes-equipe';
+  let liberar = () => {};
+  const espera = new Promise<void>((resolver) => {
+    liberar = resolver;
+  });
+  await page.route('**/api/**', async (rota) => {
+    if (new URL(rota.request().url()).pathname === caminhoEquipe) await espera;
+    const fixture = responder(rota.request().url());
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  await page.goto('/web/index.html#carteira');
+  const filtros = page.locator('#filtros-carteira');
+  const painel = filtros.locator('details');
+  const revisao = filtros.getByLabel('Revisão', { exact: true });
+  const consultaEquipe = page.waitForRequest(
+    (pedido) => new URL(pedido.url()).pathname === caminhoEquipe,
+  );
+  try {
+    await painel.locator('summary').click();
+    await consultaEquipe;
+    await revisao.selectOption('vencida');
+    await revisao.focus();
+  } finally {
+    liberar();
+  }
+  const responsavel = filtros.getByLabel('Responsável', { exact: true });
+  const opcao = responsavel.locator('option').nth(2);
+  await expect(opcao).toBeAttached();
+  await expect(painel).toHaveAttribute('open', '');
+  await expect(revisao).toBeFocused();
+  await expect(revisao).toHaveValue('vencida');
+  const usuario = await opcao.getAttribute('value');
+  if (!usuario) throw new Error('Responsável fictício ausente.');
+  const pedido = page.waitForRequest((requisicao) => {
+    const url = new URL(requisicao.url());
+    return (
+      url.pathname === '/api/pacientes' && url.searchParams.get('filtro_responsavel') === usuario
+    );
+  });
+  await responsavel.selectOption(usuario);
+  await pedido;
+});
+
 test('volta da ficha devolve foco à linha da Carteira', async ({ page }) => {
   await prepararSessao(page, 'tecnica');
   await page.route('**/api/**', (rota) => {

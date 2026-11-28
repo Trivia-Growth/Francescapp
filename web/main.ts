@@ -1552,7 +1552,7 @@ function atualizarFiltrosDaCarteira(atual: Sessao): void {
   const desenhar = (responsaveis?: readonly ResponsavelOpcao[]) => {
     casca.desenharFiltros(
       createElement(BarraFiltrosCarteira, {
-        key: `${geracao}:${responsaveis !== undefined}`,
+        key: geracao,
         administrador,
         responsaveis,
         inicial: filtrosCarteira,

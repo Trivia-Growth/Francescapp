@@ -29,12 +29,9 @@ import { createRoot, type Root } from 'react-dom/client';
  *    síncrono, então `flushSync` é obrigatório aqui, não otimização. O teste original não
  *    pegou porque usava `act()`, que descarrega a fila e escondia o problema.
  *
- * 2. A MESMA RAIZ PODE RECEBER `montar*` DUAS VEZES. `main.ts` faz isso em
- *    `montarFiltrosCarteira`, chamada uma vez sem e outra com a equipe, e também desmonta
- *    algumas áreas com `raiz.replaceChildren()` em vez de chamar a função devolvida.
- *    `createRoot` duas vezes na mesma raiz é erro de React. O registro abaixo desmonta a
- *    anterior antes de criar a nova, então a ponte tolera o chamador como ele é em vez de
- *    exigir que 90 módulos sejam corrigidos primeiro. */
+ * 2. Uma montagem antiga pode reencontrar o mesmo contêiner. O registro abaixo
+ *    desmonta a raiz anterior antes de criar a próxima, para que cada contêiner
+ *    tenha uma única raiz React. */
 const raizesVivas = new WeakMap<HTMLElement, Root>();
 
 export function ilha(raiz: HTMLElement, elemento: ReactElement): () => void {

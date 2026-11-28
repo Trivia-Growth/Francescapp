@@ -55,6 +55,8 @@ sinal operacional diretamente. A tarefa 7.2 permanece aberta.
 - A fronteira dos filtros preservou as linhas e o foco do Menu quando o
   componente lançou erro. Sem a fronteira, Chromium perdeu as linhas da
   Carteira. Alteração revertida.
+- Receber os responsáveis mantém o painel aberto, o valor de Revisão e o
+  foco no controle. Selecionar uma opção nova envia o filtro Responsável.
 - Próximo passo: rebase após o squash da fatia anterior e ativação.
 
 ## Fatia 8l do plano visual — entrada interna e aviso de rede
