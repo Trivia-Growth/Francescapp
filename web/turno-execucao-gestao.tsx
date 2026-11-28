@@ -18,7 +18,6 @@ import { Botao } from './componentes/ui/botao.js';
 import { definirValorNativo } from './componentes/ui/valor-nativo.js';
 import { confirmarDescarte } from './confirmacao.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
 import { CaixaDeMarcacao } from './telas/caixa-de-marcacao.js';
 import { Formulario, marcado, valorDe } from './telas/formulario.js';
@@ -555,12 +554,4 @@ export function GestaoExecucaoTurno({
       )}
     </section>
   );
-}
-
-export function montarGestaoExecucaoTurno(
-  raiz: HTMLElement,
-  servico: ServicoTurnoExecucao,
-  opcoes: Opcoes,
-): () => void {
-  return ilha(raiz, <GestaoExecucaoTurno servico={servico} {...opcoes} />);
 }

@@ -41,6 +41,31 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8s do plano visual — adaptadores de execução usados em testes
+
+Oito montagens do bloco Meu turno e Execução saíram. As provas usam os
+componentes ou, para coleta de localização, o controlador já usado pela ficha.
+A tarefa 7.2 permanece aberta.
+
+- Passaram 34 testes Vitest em sete arquivos. As provas de coordenação
+  verificaram a recusa sem `pode_gerir` e o esvaziamento após revogação.
+- Ao exibir a localização sem a permissão de gestão, a prova encontrou o corpo
+  visível e falhou. Alteração revertida.
+- Chromium confirmou que sair de Execução aborta no mesmo evento e que o
+  401 tardio deixa a ficha aberta. Sem `flushSync` na troca de painel, o
+  cancelamento só ocorreu depois do evento e a prova falhou.
+- Nos relatórios da Família, a chave acompanha o componente que cria o
+  serviço. Com a chave apenas no painel, a contraprova em Chromium registrou
+  o serviço do paciente anterior na segunda montagem. Com a chave no dono
+  do serviço, cada montagem recebeu o próprio paciente.
+- O Vitest compara qual serviço cada painel recebe na primeira montagem.
+  A implementação de `744cbee` entregou o serviço anterior ao novo painel.
+  Com a chave na criação do serviço, a prova passou.
+- A seção descarta avisos de acesso perdido após desmonte. Em Chromium, um
+  aviso tardio fictício vindo de um filho desmontado preservou a ficha.
+  Sem essa guarda, a ficha fechou. A contraprova foi revertida.
+- Próximo passo: rebase após o squash da fatia anterior e ativação.
+
 ## Fatia 8r do plano visual — Meu turno e Execução do cuidado
 
 A ficha compõe Meu turno e Execução e relatórios. Sair da seção invalida a

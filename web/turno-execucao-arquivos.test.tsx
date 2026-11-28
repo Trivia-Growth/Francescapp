@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 /* O módulo não tinha prova nenhuma antes da migração. Estas duas cobrem o que custaria
  * caro se regredisse: a perda de acesso precisa esvaziar a superfície (nenhuma foto de
  * outro caso fica na tela), e um envio de resultado incerto só pode ser repetido IGUAL —
@@ -7,7 +9,16 @@ import { expect, it, vi } from 'vitest';
 import type { RegistroExecucaoPublico } from '../packages/contracts/src/turno-execucao-http.ts';
 import { FalhaApi } from './api.ts';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
-import { montarAnexosOcorrencia } from './turno-execucao-arquivos.js';
+import { AnexosOcorrencia } from './turno-execucao-arquivos.js';
+
+function renderizarTela(
+  raiz: HTMLElement,
+  registro: ComponentProps<typeof AnexosOcorrencia>['registro'],
+  servico: ServicoTurnoExecucao,
+  opcoes: Omit<ComponentProps<typeof AnexosOcorrencia>, 'servico' | 'registro'>,
+) {
+  render(createElement(AnexosOcorrencia, { registro, servico, ...opcoes }), { container: raiz });
+}
 
 const id = '40000000-0000-4000-8000-000000000001';
 const registro = {
@@ -27,7 +38,7 @@ it('perda de acesso na consulta esvazia a superfície e avisa quem hospeda', asy
   document.body.append(raiz);
   const perdido = vi.fn();
   const api = { anexos: vi.fn().mockRejectedValue(new FalhaApi('sem_permissao', 403)) };
-  montarAnexosOcorrencia(raiz, registro, api as unknown as ServicoTurnoExecucao, {
+  renderizarTela(raiz, registro, api as unknown as ServicoTurnoExecucao, {
     podeAnexar: true,
     acessoPerdido: perdido,
   });
@@ -49,7 +60,7 @@ it('envio incerto só se repete igual, e só depois de consultar todas as págin
       .fn<ServicoTurnoExecucao['anexos']>()
       .mockResolvedValue({ itens: [], proximo_cursor: null }),
   };
-  montarAnexosOcorrencia(raiz, registro, api as unknown as ServicoTurnoExecucao, {
+  renderizarTela(raiz, registro, api as unknown as ServicoTurnoExecucao, {
     podeAnexar: true,
     acessoPerdido: vi.fn(),
     alteracaoPendente: pendente,

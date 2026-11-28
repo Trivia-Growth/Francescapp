@@ -9,7 +9,6 @@ import { resultadoIncerto } from './api.ts';
 import { Botao } from './componentes/ui/botao.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
 import { Formulario, valorDe } from './telas/formulario.js';
 import {
@@ -366,12 +365,4 @@ function ResultadoLocalizacao({ resposta }: { resposta: Localizacao }) {
       ))}
     </div>
   );
-}
-
-export function montarLocalizacaoCoordenacao(
-  raiz: HTMLElement,
-  servico: ServicoTurnoExecucao,
-  opcoes: Opcoes,
-): () => void {
-  return ilha(raiz, <LocalizacaoCoordenacao servico={servico} {...opcoes} />);
 }

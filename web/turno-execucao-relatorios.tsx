@@ -8,7 +8,7 @@
  *
  *  As classes `relatorios-turno*` e `list-status` continuam: são de `web/styles.css`, não
  *  do kit `web/ui/`, e mantêm o desenho que a tela já tinha. */
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { RelatorioTurnoPublico } from '../packages/contracts/src/turno-execucao-http.ts';
 import type { Turno } from '../packages/contracts/src/turno.ts';
 import { resultadoIncerto } from './api.ts';
@@ -17,10 +17,7 @@ import { Campo } from './componentes/ui/campo.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { ConsolidadoFicha, type FichaDoPlantao } from './consolidado-ficha-plantao.js';
 import './estilos/tema.css';
-import {
-  criarServicoTurnoExecucaoHttp,
-  type ServicoTurnoExecucao,
-} from './servico-turno-execucao-http.ts';
+import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
 import { Formulario, valorDe } from './telas/formulario.js';
 import {
   CampoTurno,
@@ -515,35 +512,6 @@ function CampoDeData({
       readOnly={somenteLeitura}
       value={valor}
       onChange={(evento) => aoMudar(evento.currentTarget.value)}
-    />
-  );
-}
-
-export function RelatoriosTurnoFamilia({
-  pacienteId,
-  identidadeAtual,
-  acessoPerdido,
-  alteracaoPendente,
-}: Pick<OpcoesRelatorios, 'acessoPerdido' | 'alteracaoPendente'> & {
-  pacienteId: string;
-  identidadeAtual: Parameters<typeof criarServicoTurnoExecucaoHttp>[1];
-}) {
-  const [servico, definirServico] = useState<ServicoTurnoExecucao | null>(null);
-
-  useLayoutEffect(() => {
-    const atual = criarServicoTurnoExecucaoHttp(pacienteId, identidadeAtual);
-    definirServico(atual);
-    return () => atual.desmontar();
-  }, [pacienteId, identidadeAtual]);
-
-  if (!servico) return null;
-  return (
-    <RelatoriosTurno
-      key={pacienteId}
-      servico={servico}
-      familia
-      acessoPerdido={acessoPerdido}
-      alteracaoPendente={alteracaoPendente}
     />
   );
 }

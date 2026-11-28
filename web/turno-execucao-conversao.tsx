@@ -1,9 +1,4 @@
-/** Conversão de uma ocorrência do turno em tarefa de cuidado e evolução interna,
- *  reconstruída em React sobre a ilha (`web/ponte/ilha.ts`). VIS-018.
- *
- *  Contrato exportado inalterado: `montarConversaoOcorrenciaTurno(raiz, pacienteId,
- *  origem, servico, portas, opcoes)` devolve a desmontagem, e `turno-execucao.ts`
- *  continua chamando exatamente assim.
+/** Conversão de ocorrência em tarefa de cuidado e evolução interna (VIS-018).
  *
  *  **O protocolo de barreira não mudou.** A máquina continua sendo a de
  *  `web/ciclo-tarefa-cuidado.ts`, criada por `portas.criarCiclo` e apenas consumida
@@ -32,7 +27,6 @@ import { FalhaApi, exigeNovoAcesso, mensagemFalha } from './api.ts';
 import { Botao } from './componentes/ui/botao.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 import { CampoTurno, EstadoTurno, SelecaoTurno } from './turno-execucao-campos.js';
 
@@ -409,25 +403,5 @@ export function TelaConversao({
         </fieldset>
       </Formulario>
     </section>
-  );
-}
-
-export function montarConversaoOcorrenciaTurno(
-  raiz: HTMLElement,
-  pacienteId: string,
-  origem: RegistroExecucaoPublico,
-  servico: ServicoTurnoExecucao,
-  portas: PortasConversaoOcorrencia,
-  opcoes: OpcoesConversao,
-): () => void {
-  return ilha(
-    raiz,
-    <TelaConversao
-      pacienteId={pacienteId}
-      origem={origem}
-      servico={servico}
-      portas={portas}
-      opcoes={opcoes}
-    />,
   );
 }

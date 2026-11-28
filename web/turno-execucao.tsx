@@ -34,7 +34,6 @@ import { Botao } from './componentes/ui/botao.js';
 import { confirmarDescarte } from './confirmacao.js';
 import './estilos/tema.css';
 import { FichaPlantao, type ServicosFichaPlantao } from './ficha-plantao.js';
-import { ilha } from './ponte/ilha.js';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
 import { Formulario, valorDe } from './telas/formulario.js';
 import { AnexosOcorrencia } from './turno-execucao-arquivos.js';
@@ -933,18 +932,5 @@ export function ExecucaoTurno({
         ) : null}
       </details>
     </section>
-  );
-}
-
-export function montarExecucaoTurno(
-  raiz: HTMLElement,
-  pacienteId: string,
-  turno: Turno | null,
-  servico: ServicoTurnoExecucao,
-  opcoes: Opcoes,
-): () => void {
-  return ilha(
-    raiz,
-    <ExecucaoTurno pacienteId={pacienteId} turno={turno} servico={servico} opcoes={opcoes} />,
   );
 }

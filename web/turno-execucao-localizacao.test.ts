@@ -2,7 +2,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import {
   coletarLocalizacaoTurno,
-  montarConsentimentoTurno,
+  criarConsentimentoTurno,
   type PortasLocalizacaoTurno,
 } from './turno-execucao-localizacao.js';
 afterEach(() => {
@@ -73,7 +73,6 @@ it('desmontagem interrompe coleta e ignora coordenada posterior', async () => {
 });
 it('consulta de consentimento sem resposta vence prazo e não inicia geolocalização', async () => {
   vi.useFakeTimers();
-  const raiz = document.createElement('div');
   const getCurrentPosition = vi.fn();
   vi.stubGlobal('navigator', { geolocation: { getCurrentPosition } });
   const servico: PortasLocalizacaoTurno = {
@@ -81,11 +80,12 @@ it('consulta de consentimento sem resposta vence prazo e não inicia geolocaliza
     gravar: vi.fn(),
     registrar: vi.fn(),
   };
-  const montagem = montarConsentimentoTurno(raiz, servico, { acessoPerdido: vi.fn() });
-  const promessa = montagem.coletar();
+  const controle = criarConsentimentoTurno(servico, { acessoPerdido: vi.fn() });
+  controle.iniciar();
+  const promessa = controle.coletar();
   await vi.advanceTimersByTimeAsync(2_000);
   await expect(promessa).resolves.toEqual({ motivo_ausencia: 'falha' });
   expect(getCurrentPosition).not.toHaveBeenCalled();
-  montagem.desmontar();
+  controle.desmontar();
   vi.unstubAllGlobals();
 });

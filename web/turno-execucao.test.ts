@@ -1,11 +1,37 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
-import { montarExecucaoTurno } from './turno-execucao.js';
-import { montarEditorExecucao } from './turno-execucao-editor.js';
+import { ExecucaoTurno } from './turno-execucao.js';
+import { EditorExecucao } from './turno-execucao-editor.js';
 import { apresentarRegistroTurno } from './turno-execucao-leitura.js';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
 import type { RegistroExecucaoPublico } from '../packages/contracts/src/turno-execucao-http.ts';
 import { FalhaApi } from './api.ts';
+function renderizarExecucao(
+  raiz: HTMLElement,
+  pacienteId: string,
+  turno: ComponentProps<typeof ExecucaoTurno>['turno'],
+  servico: ServicoTurnoExecucao,
+  opcoes: ComponentProps<typeof ExecucaoTurno>['opcoes'],
+) {
+  const painel = render(createElement(ExecucaoTurno, { pacienteId, turno, servico, opcoes }), {
+    container: raiz,
+  });
+  return () => painel.rerender(null);
+}
+
+function renderizarEditor(
+  raiz: HTMLElement,
+  classe: ComponentProps<typeof EditorExecucao>['classe'],
+  contexto: ComponentProps<typeof EditorExecucao>['contexto'],
+  opcoes: ComponentProps<typeof EditorExecucao>['opcoes'],
+) {
+  render(createElement(EditorExecucao, { classe, contexto, opcoes, registrar: vi.fn() }), {
+    container: raiz,
+  });
+}
+
 const usuario = '10000000-0000-4000-8000-000000000001';
 const paciente = '20000000-0000-4000-8000-000000000001';
 const turnoId = '30000000-0000-4000-8000-000000000001';
@@ -108,7 +134,7 @@ it('resposta perdida exige reconciliar; consulta anterior vazia não permite ret
   api.reconciliar
     .mockResolvedValueOnce({ epoca: 1, resultado_pendente: null })
     .mockResolvedValue({ epoca: 2, resultado_pendente: null });
-  const desmontar = montarExecucaoTurno(raiz, paciente, turno, api as ServicoTurnoExecucao, {
+  const desmontar = renderizarExecucao(raiz, paciente, turno, api as ServicoTurnoExecucao, {
     usuarioId: usuario,
     administrador: false,
     acessoPerdido: vi.fn(),
@@ -147,7 +173,7 @@ it('reload preserva barreira durável de outro caso; somente reconhecimento expl
     },
   });
   api.reconhecer.mockResolvedValue({ epoca: 3, resultado_pendente: null });
-  const desmontar = montarExecucaoTurno(raiz, paciente, turno, api as ServicoTurnoExecucao, {
+  const desmontar = renderizarExecucao(raiz, paciente, turno, api as ServicoTurnoExecucao, {
     usuarioId: usuario,
     administrador: false,
     acessoPerdido: vi.fn(),
@@ -170,7 +196,7 @@ it('última versão2 continua retificável para versão3 e prescrição admite p
   const api = servico();
   const atual = { ...registro, versao: 2, retificada: true };
   api.consultar.mockResolvedValue({ itens: [atual], proximo_cursor: null });
-  const desmontar = montarExecucaoTurno(raiz, paciente, turno, api as ServicoTurnoExecucao, {
+  const desmontar = renderizarExecucao(raiz, paciente, turno, api as ServicoTurnoExecucao, {
     usuarioId: usuario,
     administrador: false,
     acessoPerdido: vi.fn(),
@@ -191,7 +217,7 @@ it('sem turno aberto oferece séries/prescrição e mantém novas aferições in
   const raiz = document.createElement('div');
   document.body.append(raiz);
   const api = servico();
-  const desmontar = montarExecucaoTurno(raiz, paciente, null, api as ServicoTurnoExecucao, {
+  const desmontar = renderizarExecucao(raiz, paciente, null, api as ServicoTurnoExecucao, {
     usuarioId: usuario,
     administrador: false,
     acessoPerdido: vi.fn(),
@@ -219,7 +245,7 @@ it('retificação de administração conserva prescrição histórica travada e 
       },
     },
   };
-  montarEditorExecucao(
+  renderizarEditor(
     raiz,
     'administracao',
     { turnoId, catalogo, prescricoes: [], atual: original },
@@ -244,7 +270,7 @@ it('registro de rotina não preenche valor a partir de histórico e rejeita conj
   const raiz = document.createElement('div');
   document.body.append(raiz);
   const enviar = vi.fn();
-  montarEditorExecucao(
+  renderizarEditor(
     raiz,
     'rotina',
     { turnoId, catalogo, prescricoes: [] },
@@ -264,7 +290,7 @@ it('revogação na consulta limpa conteúdo, sem confundir falha com vazio', asy
   const api = servico();
   const perdido = vi.fn();
   api.consultar.mockRejectedValue(new FalhaApi('sem_permissao', 403));
-  const desmontar = montarExecucaoTurno(raiz, paciente, turno, api as ServicoTurnoExecucao, {
+  const desmontar = renderizarExecucao(raiz, paciente, turno, api as ServicoTurnoExecucao, {
     usuarioId: usuario,
     administrador: false,
     acessoPerdido: perdido,
@@ -281,7 +307,7 @@ it('conferência não apaga rascunho ainda não enviado', async () => {
   const raiz = document.createElement('div');
   document.body.append(raiz);
   const api = servico();
-  const desmontar = montarExecucaoTurno(raiz, paciente, turno, api as ServicoTurnoExecucao, {
+  const desmontar = renderizarExecucao(raiz, paciente, turno, api as ServicoTurnoExecucao, {
     usuarioId: usuario,
     administrador: false,
     acessoPerdido: vi.fn(),
@@ -320,7 +346,7 @@ it('prescrição externa corrente permite solicitar retificação por outro prof
     },
   };
   api.consultar.mockResolvedValue({ itens: [prescricao], proximo_cursor: null });
-  const desmontar = montarExecucaoTurno(raiz, paciente, turno, api as ServicoTurnoExecucao, {
+  const desmontar = renderizarExecucao(raiz, paciente, turno, api as ServicoTurnoExecucao, {
     usuarioId: usuario,
     administrador: false,
     acessoPerdido: vi.fn(),
