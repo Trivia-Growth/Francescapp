@@ -72,6 +72,11 @@ export type ConversaoEmTarefa = (
  * formulário — antes era uma função que montava DOM numa `div` de ref. */
 export type EntradaPorAudio = (aoConfirmar: (texto: string) => void) => ReactNode;
 
+type AudioDoDiario = {
+  compor: EntradaPorAudio;
+  consultarDisponibilidade: (sinal: AbortSignal) => Promise<boolean>;
+};
+
 const rotuloEstado: Record<RegistroDiario['estado'], string> = {
   rascunho: 'Rascunho',
   publicado: 'Publicado',
@@ -890,7 +895,7 @@ export function TelaDiario({
   acessoPerdido,
   alteracaoPendente,
   converterEmTarefa,
-  montarEntradaPorAudio,
+  audio,
   ehFamilia,
 }: {
   pacienteId: string;
@@ -900,7 +905,7 @@ export function TelaDiario({
   acessoPerdido: (erro: unknown) => void;
   alteracaoPendente: (pendente: boolean) => void;
   converterEmTarefa?: ConversaoEmTarefa;
-  montarEntradaPorAudio?: EntradaPorAudio;
+  audio?: AudioDoDiario;
   ehFamilia: boolean;
 }) {
   const ativaRef = useRef(true);
@@ -923,6 +928,24 @@ export function TelaDiario({
   const [mensagemTopo, definirMensagemTopo] = useState<string | undefined>(undefined);
   const [chaveEditor, definirChaveEditor] = useState(0);
   const [editorFamiliar, definirEditorFamiliar] = useState<EditorFamiliar>({ tipo: 'novo' });
+  const [audioConfirmado, definirAudioConfirmado] = useState<AudioDoDiario | null>(null);
+
+  useEffect(() => {
+    if (ehFamilia || !audio) return;
+    const cancelamento = new AbortController();
+    void audio.consultarDisponibilidade(cancelamento.signal).then(
+      (disponivel) => {
+        if (!cancelamento.signal.aborted) definirAudioConfirmado(disponivel ? audio : null);
+      },
+      () => {
+        if (!cancelamento.signal.aborted) definirAudioConfirmado(null);
+      },
+    );
+    return () => cancelamento.abort();
+  }, [audio, ehFamilia]);
+
+  const montarEntradaPorAudio = !ehFamilia && audioConfirmado === audio ? audio?.compor : undefined;
+
   function registrarPendencia(valor: boolean) {
     pendenteEditorRef.current = valor;
     alteracaoPendente(valor || pendenciasConversaoRef.current.size > 0);

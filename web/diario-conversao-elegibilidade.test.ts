@@ -22,7 +22,7 @@ function montarDiario(
   acessoPerdido: ComponentProps<typeof TelaDiario>['acessoPerdido'],
   alteracaoPendente: ComponentProps<typeof TelaDiario>['alteracaoPendente'] = () => {},
   converterEmTarefa: ComponentProps<typeof TelaDiario>['converterEmTarefa'] = undefined,
-  montarEntradaPorAudio: ComponentProps<typeof TelaDiario>['montarEntradaPorAudio'] = undefined,
+  audio: ComponentProps<typeof TelaDiario>['audio'] = undefined,
   ehFamilia: ComponentProps<typeof TelaDiario>['ehFamilia'] = false,
 ) {
   const painel = render(
@@ -34,7 +34,7 @@ function montarDiario(
       acessoPerdido,
       alteracaoPendente,
       converterEmTarefa,
-      montarEntradaPorAudio,
+      audio,
       ehFamilia,
     }),
     { container: raiz },

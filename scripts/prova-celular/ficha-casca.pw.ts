@@ -317,3 +317,62 @@ test('Diário oferece conversão no relato publicado e preserva o rascunho como 
     rascunho.getByRole('button', { name: 'Sinalizar atenção e converter em tarefa' }),
   ).toHaveCount(0);
 });
+
+for (const { modo, disponivel } of [
+  { modo: 'google', disponivel: true },
+  { modo: 'google', disponivel: false },
+  { modo: 'interno', disponivel: true },
+] as const) {
+  test(`gravador no Diário com sessão ${modo} e disponibilidade ${disponivel}`, async ({
+    page,
+  }) => {
+    await page.addInitScript(
+      ({ modo, sessaoId }) => {
+        sessionStorage.setItem('modo-acesso', modo);
+        sessionStorage.setItem(`fluxo-${modo}`, 'AAAAAAAAAAAAAAAAAAAAAA');
+        if (modo === 'interno') sessionStorage.setItem('sessao-interno', sessaoId);
+      },
+      { modo, sessaoId: sessaoAdministrador.session_id },
+    );
+    let liberar = () => {};
+    const espera = new Promise<void>((resolver) => {
+      liberar = resolver;
+    });
+    const caminhoAudio = '/api/transcricao/disponibilidade';
+    let consultas = 0;
+    await page.route('**/api/**', async (rota) => {
+      const url = new URL(rota.request().url());
+      if (url.pathname === caminhoAudio) {
+        consultas += 1;
+        await espera;
+        return rota.fulfill({ json: envelope({ disponivel }) });
+      }
+      if (url.pathname === `/api/pacientes/${PACIENTE_IDS[0]}/diario`)
+        return rota.fulfill({ json: envelope([]) });
+      const fixture = responder(url.href);
+      return fixture
+        ? rota.fulfill({ json: fixture })
+        : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+    });
+    const resposta =
+      modo === 'google'
+        ? page.waitForResponse((resposta) => new URL(resposta.url()).pathname === caminhoAudio)
+        : undefined;
+    const painel = page.locator('#ficha-painel');
+    const gravador = painel.getByRole('button', { name: 'Gravar áudio' });
+    try {
+      await page.goto(`/web/index.html#paciente/${PACIENTE_IDS[0]}/diario`);
+      await expect(painel.getByRole('button', { name: 'Publicar', exact: true })).toBeVisible();
+      await expect(gravador).toHaveCount(0);
+    } finally {
+      liberar();
+    }
+    await resposta;
+    if (modo === 'google' && disponivel) await expect(gravador).toBeVisible();
+    else {
+      await page.evaluate(() => new Promise(requestAnimationFrame));
+      await expect(gravador).toHaveCount(0);
+    }
+    expect(consultas).toBe(modo === 'google' ? 1 : 0);
+  });
+}

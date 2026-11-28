@@ -41,6 +41,20 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8o do plano visual — disponibilidade de áudio no Diário
+
+A ficha oferece gravação depois de uma resposta positiva de disponibilidade e
+somente para sessão Google. O formulário de texto continua disponível enquanto
+a consulta está pendente, quando ela falha ou quando a gravação é recusada.
+A consulta é cancelada na saída do Diário. A tarefa 7.2 permanece aberta.
+
+- Passaram 25 testes Vitest, três cenários Chromium e lint/typecheck. Os cenários
+  verificaram a espera pela resposta positiva, a resposta negativa com texto
+  disponível e a sessão interna sem consulta ou gravador.
+- Ao ignorar a resposta negativa ou permitir a consulta pela sessão interna, o
+  gravador apareceu e o cenário correspondente falhou. Alterações revertidas.
+- Próximo passo: rebase após o squash da fatia anterior e ativação.
+
 ## Fatia 8n do plano visual — conversão do Diário
 
 A conversão de registro em tarefa e evolução interna nasce na árvore da

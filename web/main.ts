@@ -76,7 +76,10 @@ import { criarServicoSolicitacaoTitularHttp } from './servico-solicitacao-titula
 import { criarServicoSegredosIntegracoesHttp } from './servico-segredos-integracoes-http.js';
 import { BarraFiltrosCarteira } from './filtros-carteira.js';
 import { entradaTranscricaoAudio } from './transcricao-audio.js';
-import { criarServicoTranscricaoHttp } from './servico-transcricao-http.js';
+import {
+  consultarDisponibilidadeTranscricao,
+  criarServicoTranscricaoHttp,
+} from './servico-transcricao-http.js';
 import { confirmar } from './confirmacao.js';
 import type { FiltrosCarteira } from '../packages/contracts/src/cadastro.js';
 import { criarCatalogoResponsaveis, type ResponsavelOpcao } from './acompanhamento-caso.js';
@@ -395,12 +398,11 @@ function voltarParaLista(): void {
   else focarTituloCasca();
 }
 
-function modoPermiteConversaoDiario(): boolean {
+function modoDeAcessoAtual(): string | null {
   try {
-    const modo = sessionStorage.getItem('modo-acesso');
-    return modo === 'google' || modo === 'interno';
+    return sessionStorage.getItem('modo-acesso');
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -412,7 +414,12 @@ function comporConversaoDaFicha(
   comando: Parameters<ConversaoEmTarefa>[3],
 ): ReactElement | null {
   const identidade = identidadeAtual();
-  if (!identidade || sessao?.usuario.perfil !== 'profissional' || !modoPermiteConversaoDiario())
+  const modo = modoDeAcessoAtual();
+  if (
+    !identidade ||
+    sessao?.usuario.perfil !== 'profissional' ||
+    (modo !== 'google' && modo !== 'interno')
+  )
     return null;
   let ativa = true;
   const identidadeDaConversao = () => {
@@ -1097,8 +1104,9 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     descarte: descarteDiario,
     compor: async (pendente) => {
       pedirAreasDoDiario();
+      const modo = modoDeAcessoAtual();
       const converterEmTarefa: ConversaoEmTarefa | undefined =
-        atual.usuario.perfil === 'profissional' && modoPermiteConversaoDiario()
+        atual.usuario.perfil === 'profissional' && (modo === 'google' || modo === 'interno')
           ? (origem, alteracao, concluido, comando) =>
               comporConversaoDaFicha(paciente.id, origem, alteracao, concluido, comando)
           : undefined;
@@ -1109,13 +1117,20 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         obterAreas: () => areasDiario,
         acessoPerdido,
         alteracaoPendente: pendente,
-        ...(converterEmTarefa ? { converterEmTarefa } : {}),
-        montarEntradaPorAudio: entradaTranscricaoAudio(
-          paciente.id,
-          () => criarServicoTranscricaoHttp(identidadeAtual),
-          acessoPerdido,
-        ),
         ehFamilia: false,
+        ...(converterEmTarefa ? { converterEmTarefa } : {}),
+        ...(modo === 'google'
+          ? {
+              audio: {
+                compor: entradaTranscricaoAudio(
+                  paciente.id,
+                  () => criarServicoTranscricaoHttp(identidadeAtual),
+                  acessoPerdido,
+                ),
+                consultarDisponibilidade: consultarDisponibilidadeTranscricao,
+              },
+            }
+          : {}),
       });
     },
   });
