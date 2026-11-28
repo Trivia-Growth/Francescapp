@@ -8,7 +8,9 @@
  * sucesso das duas telas — ele não autoriza nada e não substitui os testes de autorização
  * de servidor e de banco.
  */
-import { montarFichaPlantao, type ServicosFichaPlantao } from '../../web/ficha-plantao.js';
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { FichaPlantao, type ServicosFichaPlantao } from '../../web/ficha-plantao.js';
 import { apresentarConsolidadoFicha } from '../../web/consolidado-ficha-plantao.js';
 import type { CampoExtraCatalogoGeneralizado } from '../../packages/contracts/src/campo-extra-catalogo.ts';
 import type { RelatorioTurnoPublico } from '../../packages/contracts/src/turno-execucao-http.ts';
@@ -179,11 +181,14 @@ const relatorio: RelatorioTurnoPublico = {
 
 const raizFicha = document.getElementById('ficha');
 if (raizFicha)
-  montarFichaPlantao(raizFicha, servicos, {
-    pacienteId: paciente,
-    turno,
-    acessoPerdido: () => {},
-  });
+  createRoot(raizFicha).render(
+    createElement(FichaPlantao, {
+      servicos,
+      pacienteId: paciente,
+      turno,
+      acessoPerdido: () => {},
+    }),
+  );
 
 const raizConsolidado = document.getElementById('consolidado');
 if (raizConsolidado) {

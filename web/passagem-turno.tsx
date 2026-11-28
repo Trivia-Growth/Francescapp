@@ -1,28 +1,5 @@
-/* Passagem de turno — consultar a anterior, registrar ciência, publicar a própria síntese
- * e só então encerrar —, reconstruída em React sobre a ilha (`web/ponte/ilha.ts`).
- *
- * O contrato exportado não muda: `montarPassagemTurno(raiz, pacienteId, turno, servico,
- * opcoes)` devolve a desmontagem, e `opcoes.encerrar(registroId)` continua sendo quem
- * fecha o turno — esta tela nunca encerra sozinha.
- *
- * O que a migração entrega:
- *
- * 1. VIS-012. Sumiram os cinco `if (!ativa)`/`if (ativa)` que protegiam escrita em DOM já
- *    removido. Sobrou o sinal nos pontos que moram FORA da ilha, reunidos em `fora()`.
- * 2. A árvore de leitura — passagem anterior, autoria, ciência, recebimento — deixa de ser
- *    montada nó a nó e passa a ser descrita uma vez só.
- *
- * Os campos da síntese (`web/modelo-sintese.tsx`) são compostos nesta árvore desde
- * 27/11/2026. Antes eram montados à mão num contêiner com ref — DOM escrito por fora numa
- * árvore do React, a direção que produziu os `NotFoundError` desta migração. Os `id`, a
- * precedência dos valores e a remontagem a cada consulta continuam os mesmos.
- *
- * O que NÃO mudou, de propósito (VIS-018): consultar NÃO registra ciência; sem publicação
- * confirmada não há encerramento; o encerramento exige confirmação explícita em caixa; a
- * tentativa sem confirmação preserva dados, versão e MESMA CHAVE até ser repetida ou
- * descartada à mão; o descarte exige consulta posterior à recusa; e nenhuma mensagem
- * mudou de palavra.
- */
+/** Consulta a passagem anterior, registra ciência e publica a síntese. O comando
+ *  de encerramento pertence ao turno e exige publicação e confirmação explícita. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { statusErroHttp } from '../packages/contracts/src/erros.js';
@@ -42,7 +19,6 @@ import {
   controleSintese,
   lerSintese,
 } from './modelo-sintese.js';
-import { ilha } from './ponte/ilha.js';
 import type { ServicoTurnoHttp } from './servico-turno-http.js';
 import { Formulario } from './telas/formulario.js';
 
@@ -129,15 +105,11 @@ function ConfirmacaoEncerramento({ aoMudar }: { aoMudar: (marcado: boolean) => v
 }
 
 export function PassagemTurnoTela({
-  raiz,
   pacienteId,
   turno,
   servico,
   opcoes,
 }: {
-  /** Só para `montarPassagemTurno`: a raiz recebe `aria-busy`. Composta, a tela marca o
-   *  próprio invólucro. */
-  raiz?: HTMLElement;
   pacienteId: string;
   turno: Turno;
   servico: ServicoTurnoHttp;
@@ -178,7 +150,7 @@ export function PassagemTurnoTela({
   const controladorRef = useRef<AbortController | null>(null);
   controladorRef.current ??= new AbortController();
 
-  /** O que mora FORA da ilha continua precisando do sinal (VIS-012). */
+  /** Só propaga efeitos ao turno enquanto a passagem estiver aberta. */
   const fora = useCallback(
     <T,>(acao: (destino: OpcoesPassagem) => T): T | undefined =>
       controladorRef.current?.signal.aborted ? undefined : acao(opcoes),
@@ -276,10 +248,6 @@ export function PassagemTurnoTela({
     return () => controlador?.abort();
   }, []);
 
-  useEffect(() => {
-    raiz?.setAttribute('aria-busy', String(ocupada));
-  }, [raiz, ocupada]);
-
   const areaPassagem = passagem?.area_passagem ?? null;
   const mostraEditor =
     passagem !== null &&
@@ -372,7 +340,7 @@ export function PassagemTurnoTela({
   }
 
   return (
-    <div className="grid min-w-0 gap-5" aria-busy={raiz ? undefined : ocupada}>
+    <div className="grid min-w-0 gap-5" aria-busy={ocupada}>
       <p
         // biome-ignore lint/a11y/useSemanticElements: `role="status"` em `<p>` é o que as telas e as provas já usam; `<output>` muda a semântica de formulário e o gancho que as provas procuram.
         role="status"
@@ -543,27 +511,4 @@ export function PassagemTurnoTela({
       </div>
     </div>
   );
-}
-
-export function montarPassagemTurno(
-  raiz: HTMLElement,
-  pacienteId: string,
-  turno: Turno,
-  servico: ServicoTurnoHttp,
-  opcoes: OpcoesPassagem,
-): () => void {
-  const desmontar = ilha(
-    raiz,
-    <PassagemTurnoTela
-      raiz={raiz}
-      pacienteId={pacienteId}
-      turno={turno}
-      servico={servico}
-      opcoes={opcoes}
-    />,
-  );
-  return () => {
-    desmontar();
-    raiz.removeAttribute('aria-busy');
-  };
 }

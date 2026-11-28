@@ -41,6 +41,18 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8p do plano visual — bancadas de Plantão e Passagem
+
+Os testes e a bancada de plantão renderizam os mesmos componentes usados pela
+ficha. O React controla `aria-busy` da Passagem no próprio painel. A tarefa 7.2
+permanece aberta.
+
+- Passaram 17 testes Vitest e cinco cenários Chromium, com axe na Ficha e no
+  Consolidado a 360 e 390 px e após recarregar a Ficha.
+- Ao retirar `aria-busy`, a prova de consulta recebeu `null` no lugar de `true`.
+  Alteração revertida.
+- Próximo passo: rebase após o squash da fatia anterior e ativação.
+
 ## Fatia 8o do plano visual — disponibilidade de áudio no Diário
 
 A ficha oferece gravação com sessão Google ou interna da equipe depois de uma
