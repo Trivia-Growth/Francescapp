@@ -1,27 +1,6 @@
-/** Editor de execução do cuidado, reconstruído em React sobre a ilha
- *  (`web/ponte/ilha.ts`). VIS-018.
- *
- *  Desde 27/11/2026 `turno-execucao.tsx` compõe `EditorExecucao` direto, recebe o punho
- *  (`bloquear`, `informar`, `focar`) por `registrar` e soma a sua própria trava por
- *  `travado`. `montarEditorExecucao(raiz, classe, contexto, opcoes)` continua exportada com
- *  o contrato antigo para as provas que montam o editor sozinho; ela ainda esvazia `raiz`
- *  depois de desmontar, como a versão imperativa fazia.
- *
- *  Os campos cujo valor muda o que mais aparece no formulário — tipo da aferição (unidade
- *  e referência), item prescrito (detalhe) e situação da administração (obrigatoriedade do
- *  motivo), e o tipo da observação de rotina (os campos específicos) — continuam NÃO
- *  controlados: o DOM é dono do valor. A leitura do `change` não usa a delegação do React
- *  (que exige `bubbles`, e as provas desta tela disparam `new Event('change')` sem isso);
- *  usa um ouvinte nativo preso ao próprio nó, como em `web/turno-proprio.tsx`, com
- *  `flushSync` para a repintura acontecer antes da próxima linha síncrona da prova.
- *
- *  `CampoTurno`, `SelecaoTurno` e `Botao` não aceitam `ref` — os nós são lidos por `id` a
- *  partir do invólucro da ilha (`envolucroRef`), nunca por `document.getElementById`: as
- *  provas montam `raiz` destacada do documento.
- *
- *  O que a migração entrega (VIS-012): a versão imperativa não tinha `if (!ativa)` aqui —
- *  é `turno-execucao.ts`, o consumidor ainda não migrado, quem protege as chamadas a este
- *  editor. Nada foi removido deste lado por não existir. */
+/** Editor de execução do cuidado (VIS-018). O turno recebe os comandos por
+ *  `registrar`. Os seletores atualizam somente os campos dependentes, e o valor
+ *  preenchido é lido do próprio formulário. */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { flushSync } from 'react-dom';
 import {
@@ -32,7 +11,6 @@ import {
 } from '../packages/contracts/src/turno-execucao-http.ts';
 import { Botao } from './componentes/ui/botao.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 import {
   CampoTurno,
@@ -122,16 +100,14 @@ type OpcoesEditor = {
   cancelar(): void;
   alteracaoPendente(valor: boolean): void;
 };
-/** O punho visto por dentro: idêntico ao devolvido por `montarEditorExecucao`, só que
- *  entregue via `registrar` em vez de retorno direto — o mesmo desenho de
- *  `web/revogacao-vinculo.tsx`. */
+/** Comandos que a execução usa enquanto o editor está aberto. */
 export type PunhoEditor = {
   bloquear(valor: boolean): void;
   informar(mensagem: string): void;
   focar(): void;
 };
 
-/** Ouve `change` diretamente no nó com este `id`, dentro do invólucro da ilha — não pela
+/** Ouve `change` diretamente no nó com este `id`, dentro do invólucro do editor — não pela
  *  delegação do React, que as provas desta tela não alcançam ao disparar o evento sem
  *  `bubbles`. `flushSync` porque quem chama costuma conferir o efeito na linha seguinte,
  *  sem esperar repintura agendada. */
@@ -639,45 +615,4 @@ export function EditorExecucao({
       </Formulario>
     </div>
   );
-}
-
-/** Formulário explícito. Instantes informados são dados clínicos; autoria vem do servidor. */
-export function montarEditorExecucao(
-  raiz: HTMLElement,
-  classe: ClasseExecucao,
-  contexto: Contexto,
-  opcoes: OpcoesEditor,
-): {
-  bloquear(valor: boolean): void;
-  informar(mensagem: string): void;
-  focar(): void;
-  desmontar(): void;
-} {
-  let punho: PunhoEditor | null = null;
-  const desmontarIlha = ilha(
-    raiz,
-    <EditorExecucao
-      classe={classe}
-      contexto={contexto}
-      opcoes={opcoes}
-      registrar={(recebido) => {
-        punho = recebido;
-      }}
-    />,
-  );
-  const atual = (): PunhoEditor => {
-    if (!punho) throw new Error('Editor de execução não montado.');
-    return punho;
-  };
-  return {
-    bloquear: (valor) => atual().bloquear(valor),
-    informar: (mensagem) => atual().informar(mensagem),
-    focar: () => atual().focar(),
-    desmontar() {
-      desmontarIlha();
-      // Esvazia o que `turno-execucao.ts` possa ter anexado fora desta ilha (o botão
-      // "Mais prescrições vigentes"), como a versão imperativa fazia por inteiro.
-      raiz.replaceChildren();
-    },
-  };
 }

@@ -1,8 +1,21 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
-import { montarGestaoExecucaoTurno } from './turno-execucao-gestao.js';
+import { GestaoExecucaoTurno } from './turno-execucao-gestao.js';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
 import { FalhaApi } from './api.ts';
+function renderizarTela(
+  raiz: HTMLElement,
+  servico: ServicoTurnoExecucao,
+  opcoes: Omit<ComponentProps<typeof GestaoExecucaoTurno>, 'servico'>,
+) {
+  const painel = render(createElement(GestaoExecucaoTurno, { servico, ...opcoes }), {
+    container: raiz,
+  });
+  return () => painel.rerender(null);
+}
+
 const id = '10000000-0000-4000-8000-000000000001';
 it('sem capacidade de gestão não consulta familiares nem oferece concessão', async () => {
   const raiz = document.createElement('div');
@@ -14,7 +27,7 @@ it('sem capacidade de gestão não consulta familiares nem oferece concessão', 
     catalogo: vi.fn(),
     concederMedicacao: vi.fn(),
   };
-  const desmontar = montarGestaoExecucaoTurno(raiz, api as unknown as ServicoTurnoExecucao, {
+  const desmontar = renderizarTela(raiz, api as unknown as ServicoTurnoExecucao, {
     administrador: false,
     acessoPerdido: vi.fn(),
   });
@@ -40,7 +53,7 @@ it('case manager autorizado escolhe familiar por nome, sem entrada manual de ide
     consultarFundamento: vi.fn().mockResolvedValue(null),
     catalogo: vi.fn(),
   };
-  const desmontar = montarGestaoExecucaoTurno(raiz, api as unknown as ServicoTurnoExecucao, {
+  const desmontar = renderizarTela(raiz, api as unknown as ServicoTurnoExecucao, {
     administrador: false,
     acessoPerdido: vi.fn(),
   });
@@ -77,7 +90,7 @@ it('concessão incerta bloqueia novas alterações e só se repete igual depois 
       .mockResolvedValue(undefined),
     catalogo: vi.fn(),
   };
-  montarGestaoExecucaoTurno(raiz, api as unknown as ServicoTurnoExecucao, {
+  renderizarTela(raiz, api as unknown as ServicoTurnoExecucao, {
     administrador: false,
     acessoPerdido: vi.fn(),
   });

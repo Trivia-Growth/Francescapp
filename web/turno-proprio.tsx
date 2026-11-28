@@ -1,36 +1,12 @@
-/* "Meu turno" na ficha da equipe, reconstruído em React sobre a ilha
- * (`web/ponte/ilha.ts`). Autorização continua decidida no servidor e no banco.
- *
- * `montarTurnoProprio(raiz, pacienteId, servico, opcoes)` continua devolvendo a desmontagem.
- * Desde 27/11/2026 a execução chega como componente (`opcoes.renderizarExecucao`) e a
- * passagem é composta direto: antes as duas eram montadas por `useEffect` numa `div` de
- * ref — raízes alheias dentro de um contêiner que o React governa, a mesma direção que
- * produziu os `NotFoundError` desta migração. A remontagem a cada turno consultado, que os
- * efeitos faziam, continua: a chave troca com o objeto do turno.
- *
- * O que a migração entrega:
- *
- * 1. VIS-012. A versão imperativa tinha DEZESSEIS `if (!ativa)` espalhados pelo meio do
- *    protocolo de barreira — cada um protegendo uma escrita em DOM já removido, e cada
- *    esquecimento sendo um defeito que nenhuma ferramenta aponta. Sobraram apenas os que
- *    protegem o que mora FORA da ilha, reunidos em `fora()` e nos dois pontos em que o
- *    chamador imperativo entra aqui.
- * 2. A execução e a passagem deixam de ser desmontadas à mão em quatro lugares
- *    diferentes: são efeitos com limpeza, e a limpeza é do React.
- *
- * O que NÃO mudou, de propósito (VIS-018): o protocolo reservar → confirmar →
- * reconhecer, com a reserva por paciente e `geracao_reserva` sendo a época devolvida
- * pelo servidor; a reconciliação obrigatória antes de dar o encerramento por bom; a
- * recusa a reconhecer resultado confirmado antes da consulta real; a pendência de outro
- * caso que não consulta conteúdo; e todas as mensagens, palavra por palavra.
- */
+/** Meu turno compõe a execução e a passagem com uma chave por consulta do turno.
+ * O protocolo reserva, confirma e reconhece na época devolvida pelo servidor.
+ * A reconciliação precede o encerramento e a consulta precede o reconhecimento. */
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { Turno } from '../packages/contracts/src/turno.js';
 import { Botao } from './componentes/ui/botao.js';
 import './estilos/tema.css';
 import { PassagemTurnoTela } from './passagem-turno.js';
-import { ilha } from './ponte/ilha.js';
 import type { ServicoTurnoHttp } from './servico-turno-http.js';
 import { Formulario } from './telas/formulario.js';
 import type { DeclaracaoLocalizacao } from './turno-execucao-localizacao.js';
@@ -335,7 +311,7 @@ export function TelaTurnoProprio({
       if (sinal?.aborted) return;
       /* `flushSync` porque quem chama é imperativo: a passagem lê a tela na linha
          seguinte ao `await`, e uma repintura agendada chegaria tarde demais. É a mesma
-         razão pela qual `web/ponte/ilha.ts` é síncrona. */
+         repintura ocorre antes de devolver o controle. */
       flushSync(() => {
         mostrar(fechado);
         definirStatus('Turno encerrado com síntese publicada.');
@@ -530,14 +506,4 @@ export function TelaTurnoProprio({
       </p>
     </section>
   );
-}
-
-/** Seção da ficha da equipe. Regras de autorização continuam no servidor e banco. */
-export function montarTurnoProprio(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: ServicoTurnoHttp,
-  opcoes: OpcoesTurnoProprio,
-): () => void {
-  return ilha(raiz, <TelaTurnoProprio pacienteId={pacienteId} servico={servico} opcoes={opcoes} />);
 }

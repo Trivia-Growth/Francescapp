@@ -41,6 +41,18 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8s do plano visual — adaptadores de execução usados em testes
+
+Oito montagens do bloco Meu turno e Execução saíram. As provas usam os
+componentes ou, para coleta de localização, o controlador já usado pela ficha.
+A tarefa 7.2 permanece aberta.
+
+- Passaram 34 testes Vitest em sete arquivos. As provas de coordenação
+  verificaram a recusa sem `pode_gerir` e o esvaziamento após revogação.
+- Ao exibir a localização sem a permissão de gestão, a prova encontrou o corpo
+  visível e falhou. Alteração revertida.
+- Próximo passo: rebase após o squash da fatia anterior e ativação.
+
 ## Fatia 8r do plano visual — Meu turno e Execução do cuidado
 
 A ficha compõe Meu turno e Execução e relatórios. Sair da seção invalida a

@@ -4,9 +4,7 @@
  *  `tentativa`; resultado incerto mantém a tentativa, que só pode ser repetida IGUAL depois
  *  de consultar todas as páginas de fotos sem encontrá-la; achar a foto na consulta dá a
  *  tentativa por confirmada. Perda de acesso esvazia a superfície e avisa quem a hospeda.
- *
- *  `AnexosOcorrencia` é a peça que `turno-execucao.tsx` compõe. `montarAnexosOcorrencia`
- *  continua exportada com o contrato antigo para quem ainda monta numa raiz. */
+ */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   TAMANHO_MAXIMO_ANEXO_TURNO,
@@ -15,7 +13,6 @@ import {
 import { resultadoIncerto } from './api.ts';
 import { Botao } from './componentes/ui/botao.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
 import {
@@ -292,13 +289,4 @@ export function AnexosOcorrencia({
       ) : null}
     </section>
   );
-}
-
-export function montarAnexosOcorrencia(
-  raiz: HTMLElement,
-  registro: RegistroExecucaoPublico,
-  servico: ServicoTurnoExecucao,
-  opcoes: OpcoesAnexos,
-): () => void {
-  return ilha(raiz, <AnexosOcorrencia registro={registro} servico={servico} {...opcoes} />);
 }

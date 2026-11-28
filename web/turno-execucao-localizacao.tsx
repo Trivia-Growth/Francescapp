@@ -1,39 +1,11 @@
-/** Consentimento e coleta de localização do turno, reconstruído em React sobre a ilha
- *  (`web/ponte/ilha.ts`). VIS-018.
- *
- *  O contrato exportado NÃO muda: `montarConsentimentoTurno(raiz, servico, opcoes)`
- *  devolve `{ coletar, registrar, desmontar }`. `turno-execucao-integracao.tsx` usa o mesmo
- *  controlador por `usarConsentimentoTurno` e compõe `ConsentimentoTurno` na sua árvore,
- *  passando esse mesmo objeto ao turno próprio.
- *
- *  **Por que a lógica mora fora do componente.** `coletar` e `registrar` são chamados por
- *  código imperativo na linha seguinte à montagem e no meio do protocolo de barreira —
- *  `turno-proprio.tsx` pede a coleta depois de o cuidado já estar confirmado. Um estado
- *  que vivesse dentro do React só estaria disponível depois do primeiro efeito, e a
- *  reconciliação clínica não pode esperar repintura. Então a máquina de consentimento é
- *  um objeto simples com assinantes, e a tela a lê por `useSyncExternalStore`. A ilha
- *  cuida do desenho; o protocolo continua síncrono.
- *
- *  **O que a migração entrega (VIS-012).** Os treze `if (!ativa)` da versão imperativa
- *  existiam porque cada um deles protegia uma escrita em DOM possivelmente já removido.
- *  Escrever situação agora é escrever estado, e estado de árvore desmontada não é
- *  defeito. Sobraram quatro, todos em travessia de fronteira: os dois avisos que saem
- *  para `opcoes` (reunidos em `fora()`) e as duas portas pelas quais o chamador
- *  imperativo entra aqui, `coletar` e `registrar`.
- *
- *  **O que NÃO mudou, de propósito.** Nunca há `watchPosition`: a consulta é pontual e só
- *  quando abrir ou encerrar foi confirmado. O consentimento é revalidado antes de cada
- *  coleta, e a revalidação que não responde dentro do prazo recusa a coleta em vez de
- *  buscar coordenada. `pendencia_externa` não derruba o acesso. E os textos de
- *  finalidade, audiência e retenção continuam literais no código, palavra por palavra —
- *  `web/textos-obrigatorios-nao-configuraveis.test.ts` trava isso, porque a retenção de
- *  90 dias é a promessa aceita, não um parâmetro de configuração. */
+/** Consentimento e coleta pontual de localização do turno (VIS-018).
+ * O controlador é compartilhado pelo painel de consentimento e pelas ações de abertura
+ * e encerramento. Revalida o consentimento antes de consultar a localização. */
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.ts';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { Botao } from './componentes/ui/botao.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { EstadoTurno } from './turno-execucao-campos.js';
 
 export const finalidadeLocalizacao =
@@ -204,9 +176,7 @@ type OpcoesConsentimento = {
   alteracaoPendente?(valor: boolean): void;
 };
 
-/** A máquina do consentimento, sem desenho. Quem compõe a tela usa `usarConsentimentoTurno`
- *  e `ConsentimentoTurno`; quem tem só uma raiz usa `montarConsentimentoTurno`. A coleta e
- *  o registro saem daqui para o turno próprio, que os chama na abertura e no encerramento. */
+/** Controlador compartilhado com o turno próprio para coleta e registro. */
 export function criarConsentimentoTurno(
   servico: PortasLocalizacaoTurno,
   opcoes: OpcoesConsentimento,
@@ -462,24 +432,4 @@ export function usarConsentimentoTurno(
     return () => atual?.desmontar();
   }, []);
   return controle.current;
-}
-
-/** Contrato de quem tem só uma raiz: monta a tela numa ilha e devolve coleta, registro e
- *  desmontagem, como antes. */
-export function montarConsentimentoTurno(
-  raiz: HTMLElement,
-  servico: PortasLocalizacaoTurno,
-  opcoes: OpcoesConsentimento,
-) {
-  const controle = criarConsentimentoTurno(servico, opcoes);
-  const desmontarIlha = ilha(raiz, <ConsentimentoTurno controle={controle} />);
-  controle.iniciar();
-  return {
-    coletar: controle.coletar,
-    registrar: controle.registrar,
-    desmontar() {
-      controle.desmontar();
-      desmontarIlha();
-    },
-  };
 }

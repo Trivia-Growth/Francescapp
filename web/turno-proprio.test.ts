@@ -1,9 +1,23 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { montarTurnoProprio } from './turno-proprio.js';
+import { TelaTurnoProprio } from './turno-proprio.js';
 import type { ServicoTurnoHttp } from './servico-turno-http.ts';
 import type { Turno } from '../packages/contracts/src/turno.ts';
 import { FalhaApi } from './api.ts';
+
+function renderizarTurno(
+  raiz: HTMLElement,
+  pacienteId: string,
+  servico: ServicoTurnoHttp,
+  opcoes: ComponentProps<typeof TelaTurnoProprio>['opcoes'],
+) {
+  const painel = render(createElement(TelaTurnoProprio, { pacienteId, servico, opcoes }), {
+    container: raiz,
+  });
+  return () => painel.rerender(null);
+}
 
 const usuario = '10000000-0000-4000-8000-000000000001';
 const paciente = '20000000-0000-4000-8000-000000000001';
@@ -84,7 +98,7 @@ afterEach(() => {
 
 it('apresenta carregamento e vazio confirmado; abertura exige confirmação explícita', async () => {
   const { raiz, servico, acessoPerdido } = preparar();
-  montarTurnoProprio(raiz, paciente, servico, { acessoPerdido });
+  renderizarTurno(raiz, paciente, servico, { acessoPerdido });
   expect(raiz.textContent).toContain('Consultando seu turno');
   await aguardar();
   expect(raiz.textContent).toContain('Você não tem turno aberto neste caso');
@@ -94,7 +108,7 @@ it('apresenta carregamento e vazio confirmado; abertura exige confirmação expl
 it('erro não apresenta vazio nem dados de exemplo e permite atualizar', async () => {
   const { raiz, servico, acessoPerdido } = preparar();
   servico.consultarAtual.mockRejectedValueOnce(new Error());
-  montarTurnoProprio(raiz, paciente, servico, { acessoPerdido });
+  renderizarTurno(raiz, paciente, servico, { acessoPerdido });
   await aguardar();
   expect(raiz.textContent).toContain('Não foi possível consultar');
   expect(raiz.textContent).not.toContain('Você não tem turno');
@@ -108,7 +122,7 @@ it('desmontagem ignora resposta tardia e limpa conteúdo', async () => {
       resolver = resolve;
     }),
   );
-  const desmontar = montarTurnoProprio(raiz, paciente, servico, { acessoPerdido });
+  const desmontar = renderizarTurno(raiz, paciente, servico, { acessoPerdido });
   await aguardar();
   desmontar();
   resolver(turno);
@@ -118,7 +132,7 @@ it('desmontagem ignora resposta tardia e limpa conteúdo', async () => {
 it('perda de acesso limpa seção e chama descarte da ficha', async () => {
   const { raiz, servico, acessoPerdido } = preparar();
   servico.consultarAtual.mockRejectedValueOnce(new FalhaApi('sem_permissao', 403));
-  montarTurnoProprio(raiz, paciente, servico, { acessoPerdido });
+  renderizarTurno(raiz, paciente, servico, { acessoPerdido });
   await aguardar();
   expect(raiz.textContent).toBe('');
   expect(acessoPerdido).toHaveBeenCalledOnce();
@@ -127,7 +141,7 @@ it('não reconhece resultado confirmado antes de consulta real bem-sucedida', as
   const { raiz, servico, acessoPerdido } = preparar();
   servico.consultarBarreira.mockResolvedValue({ ...barreira, resultado_pendente: recibo });
   servico.consultar.mockRejectedValueOnce(new Error());
-  montarTurnoProprio(raiz, paciente, servico, { acessoPerdido });
+  renderizarTurno(raiz, paciente, servico, { acessoPerdido });
   await aguardar();
   botao(raiz, 'Recuperar operação pendente').click();
   await aguardar();
@@ -140,7 +154,7 @@ it('pendência de outro caso preserva recibo e não consulta conteúdo', async (
     ...barreira,
     resultado_pendente: { ...recibo, paciente_id: usuario },
   });
-  montarTurnoProprio(raiz, paciente, servico, { acessoPerdido });
+  renderizarTurno(raiz, paciente, servico, { acessoPerdido });
   await aguardar();
   botao(raiz, 'Recuperar operação pendente').click();
   await aguardar();
@@ -151,7 +165,7 @@ it('pendência de outro caso preserva recibo e não consulta conteúdo', async (
 it('consulta turno próprio real e mantém encerramento indisponível', async () => {
   const { raiz, servico, acessoPerdido } = preparar();
   servico.consultarAtual.mockResolvedValue(turno);
-  montarTurnoProprio(raiz, paciente, servico, { acessoPerdido });
+  renderizarTurno(raiz, paciente, servico, { acessoPerdido });
   await aguardar();
   expect(raiz.textContent).toContain('Aberto');
   expect(raiz.textContent).toContain('60 minutos');
@@ -174,7 +188,7 @@ it('recuperação confirmada consulta antes de reconhecer e recarrega turno atua
     return { estado: 'reconhecido' };
   });
   servico.consultarAtual.mockResolvedValueOnce(null).mockResolvedValue(turno);
-  montarTurnoProprio(raiz, paciente, servico, { acessoPerdido });
+  renderizarTurno(raiz, paciente, servico, { acessoPerdido });
   await aguardar();
   botao(raiz, 'Recuperar operação pendente').click();
   await aguardar();
@@ -192,7 +206,7 @@ it('recuperação cancelada não fabrica turno confirmado', async () => {
     .mockResolvedValueOnce(cancelada)
     .mockResolvedValueOnce(cancelada)
     .mockResolvedValue(barreira);
-  montarTurnoProprio(raiz, paciente, servico, { acessoPerdido });
+  renderizarTurno(raiz, paciente, servico, { acessoPerdido });
   await aguardar();
   botao(raiz, 'Recuperar operação pendente').click();
   await aguardar();
@@ -204,7 +218,7 @@ it('recuperação cancelada não fabrica turno confirmado', async () => {
 it('usa geração recebida do servidor e não repete abertura após resposta perdida', async () => {
   const { raiz, servico, acessoPerdido } = preparar();
   servico.abrir.mockRejectedValueOnce(new FalhaApi('pendencia_externa', 0, true));
-  montarTurnoProprio(raiz, paciente, servico, { acessoPerdido });
+  renderizarTurno(raiz, paciente, servico, { acessoPerdido });
   await aguardar();
   const caixa = raiz.querySelector<HTMLInputElement>('input');
   if (!caixa) throw new Error('Confirmação de abertura ausente no teste');
@@ -229,7 +243,7 @@ it('recarga recupera passagem do último turno encerrado e mantém abertura sepa
     situacao: 'encerrado',
     encerrado_em: '2026-11-18T13:00:00Z',
   });
-  montarTurnoProprio(raiz, paciente, servico, { acessoPerdido });
+  renderizarTurno(raiz, paciente, servico, { acessoPerdido });
   await aguardar();
   expect(servico.consultarAtual).toHaveBeenCalledWith(paciente);
   expect(servico.consultarUltimo).toHaveBeenCalledWith(paciente);

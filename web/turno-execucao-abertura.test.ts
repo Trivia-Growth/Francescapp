@@ -1,7 +1,21 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ServicoTurnoHttp } from './servico-turno-http.ts';
-import { montarTurnoProprio } from './turno-proprio.js';
+import { TelaTurnoProprio } from './turno-proprio.js';
+function renderizarTurno(
+  raiz: HTMLElement,
+  pacienteId: string,
+  servico: ServicoTurnoHttp,
+  opcoes: ComponentProps<typeof TelaTurnoProprio>['opcoes'],
+) {
+  const painel = render(createElement(TelaTurnoProprio, { pacienteId, servico, opcoes }), {
+    container: raiz,
+  });
+  return () => painel.rerender(null);
+}
+
 const passagem = vi.hoisted(() => ({ encerrar: null as null | ((id: string) => Promise<void>) }));
 // O dublê captura o comando de encerramento que o turno entrega à Passagem por props.
 vi.mock('./passagem-turno.js', () => ({
@@ -73,7 +87,7 @@ it('permissão de localização pendente não impede abertura confirmada nem rec
   const coletar = vi.fn(() => new Promise<never>(() => {}));
   const registrar = vi.fn();
   const raiz = document.createElement('div');
-  const desmontar = montarTurnoProprio(raiz, paciente, api as ServicoTurnoHttp, {
+  const desmontar = renderizarTurno(raiz, paciente, api as ServicoTurnoHttp, {
     acessoPerdido: vi.fn(),
     localizacao: { coletar, registrar },
   });
@@ -104,7 +118,7 @@ it('consulta de consentimento sem resposta não impede encerramento com passagem
     .mockResolvedValue(vazio);
   const coletar = vi.fn(() => new Promise<never>(() => {}));
   const raiz = document.createElement('div');
-  const desmontar = montarTurnoProprio(raiz, paciente, api as ServicoTurnoHttp, {
+  const desmontar = renderizarTurno(raiz, paciente, api as ServicoTurnoHttp, {
     acessoPerdido: vi.fn(),
     localizacao: { coletar, registrar: vi.fn() },
   });

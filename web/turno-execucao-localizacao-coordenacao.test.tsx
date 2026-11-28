@@ -1,11 +1,21 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 /* O módulo não tinha prova. Localização é dado sensível com audiência própria, então as
  * duas fronteiras provadas aqui são as de autorização: sem `pode_gerir` nada é consultado
  * nem oferecido; com ela, perder o acesso no meio esvazia a tela. */
 import { expect, it, vi } from 'vitest';
 import { FalhaApi } from './api.ts';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
-import { montarLocalizacaoCoordenacao } from './turno-execucao-localizacao-coordenacao.js';
+import { LocalizacaoCoordenacao } from './turno-execucao-localizacao-coordenacao.js';
+
+function renderizarTela(
+  raiz: HTMLElement,
+  servico: ServicoTurnoExecucao,
+  opcoes: Omit<ComponentProps<typeof LocalizacaoCoordenacao>, 'servico'>,
+) {
+  render(createElement(LocalizacaoCoordenacao, { servico, ...opcoes }), { container: raiz });
+}
 
 const turnoId = '30000000-0000-4000-8000-000000000001';
 const botao = (raiz: HTMLElement, texto: string) => {
@@ -24,7 +34,7 @@ it('sem permissão vigente, o corpo fica oculto e nenhum turno é consultado', a
     relatorio: vi.fn(),
     consultarLocalizacao: vi.fn(),
   };
-  montarLocalizacaoCoordenacao(raiz, api as unknown as ServicoTurnoExecucao, {
+  renderizarTela(raiz, api as unknown as ServicoTurnoExecucao, {
     acessoPerdido: vi.fn(),
   });
   await vi.waitFor(() =>
@@ -54,7 +64,7 @@ it('perda de acesso ao consultar a localização esvazia a tela e avisa o hosped
     }),
     consultarLocalizacao: vi.fn().mockRejectedValue(new FalhaApi('sem_permissao', 403)),
   };
-  montarLocalizacaoCoordenacao(raiz, api as unknown as ServicoTurnoExecucao, {
+  renderizarTela(raiz, api as unknown as ServicoTurnoExecucao, {
     acessoPerdido: perdido,
   });
   await vi.waitFor(() => expect(raiz.textContent).toContain('Operação restrita disponível'));
