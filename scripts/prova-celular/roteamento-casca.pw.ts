@@ -55,6 +55,60 @@ async function prepararSessao(pagina: Page, modo: 'tecnica' | 'familiar') {
   );
 }
 
+test('entrada interna continua funcionando após falha de renderização na navegação', async ({
+  page,
+}) => {
+  await prepararSessao(page, 'tecnica');
+  await page.route('**/web/navegacao-casca.tsx', (rota) =>
+    rota.fulfill({
+      contentType: 'application/javascript',
+      body: `export function NavegacaoCasca({ estado }) {
+        if (!estado.visivel) return null;
+        if (!window.navegacaoRecuperada) {
+          window.navegacaoFalhou = true;
+          throw new Error('Falha fictícia de navegação');
+        }
+        return 'Navegação fictícia recuperada';
+      }`,
+    }),
+  );
+  let expirou = false;
+  await page.route('**/api/**', (rota) => {
+    const url = new URL(rota.request().url());
+    if (url.pathname === '/api/sessao' && expirou)
+      return rota.fulfill({
+        status: 401,
+        json: criarErroPublico('nao_autenticado', PACIENTE_IDS[0]),
+      });
+    if (url.pathname === '/api/auth/interno') {
+      expirou = false;
+      return rota.fulfill({ json: envelope(sessaoAdministrador) });
+    }
+    const fixture = responder(url.href);
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  await page.goto('/web/index.html#carteira');
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, 'navegacaoFalhou'))).toBe(true);
+  const interno = page.locator('#acesso-interno');
+  await expect(interno.locator('form').first()).toHaveCount(1);
+  await expect(page.locator('#casca-barra')).toContainText('Tente abrir a área de novo.');
+
+  expirou = true;
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.locator('#login-view')).toBeVisible();
+  await interno.locator('summary').first().click();
+  await interno.getByLabel('E-mail', { exact: true }).fill('equipe@example.test');
+  await interno.getByLabel('Senha', { exact: true }).fill('senha-ficticia');
+  await page.evaluate(() => Reflect.set(window, 'navegacaoRecuperada', true));
+  const login = page.waitForResponse('**/api/auth/interno');
+  await interno.getByRole('button', { name: 'Entrar com e-mail e senha' }).click();
+  expect((await login).status()).toBe(200);
+  await expect(page.locator('#login-view')).toBeHidden();
+  await expect(page.locator('#casca-barra')).toContainText('Navegação fictícia recuperada');
+});
+
 test('link antigo, consulta da URL, histórico e foco da gaveta', async ({ page }) => {
   await prepararSessao(page, 'tecnica');
   await page.route('**/api/**', (rota) => {

@@ -54,18 +54,43 @@ export function gravarRota(hash: string, acao: 'push' | 'replace'): void {
   enderecoTratado = window.location.href;
 }
 
+function PainelCasca({
+  children,
+  itemDaLista = false,
+}: {
+  children: ReactElement;
+  itemDaLista?: boolean;
+}) {
+  const [tentativa, definirTentativa] = useState(0);
+  return (
+    <LimiteErroPainel
+      key={tentativa}
+      aoTentarNovamente={() => definirTentativa((anterior) => anterior + 1)}
+      itemDaLista={itemDaLista}
+    >
+      {children}
+    </LimiteErroPainel>
+  );
+}
+
 function conteudoDaVista(vista: Vista): ReactElement {
   switch (vista.tipo) {
     case 'home':
       return (
-        <TelaHomeProfissional
-          servico={vista.servico}
-          acessoPerdido={vista.acessoPerdido}
-          nivelTitulo={2}
-        />
+        <PainelCasca key="home">
+          <TelaHomeProfissional
+            servico={vista.servico}
+            acessoPerdido={vista.acessoPerdido}
+            nivelTitulo={2}
+          />
+        </PainelCasca>
       );
     case 'regras':
-      return <TelaRegrasAtendimento servico={vista.servico} />;
+      return (
+        <PainelCasca key="regras">
+          <TelaRegrasAtendimento servico={vista.servico} />
+        </PainelCasca>
+      );
     case 'administracao':
     case 'ficha':
       return (
@@ -119,8 +144,20 @@ function Casca({
 
   return (
     <>
-      <NavegacaoCasca {...navegacao} />
-      {createPortal(<EstadoDeRede />, entrada.destinoRede)}
+      {navegacao.estado.visivel
+        ? createPortal(
+            <PainelCasca>
+              <NavegacaoCasca {...navegacao} />
+            </PainelCasca>,
+            navegacao.barra,
+          )
+        : null}
+      {createPortal(
+        <PainelCasca>
+          <EstadoDeRede />
+        </PainelCasca>,
+        entrada.destinoRede,
+      )}
       {createPortal(
         <LimiteErroPainel
           key={tentativaEntrada}
@@ -131,7 +168,9 @@ function Casca({
         entrada.destinoLogin,
       )}
       {createPortal(
-        <LinhasCarteira pacientes={carteira.pacientes} aoAbrir={carteira.abrir} />,
+        <PainelCasca itemDaLista>
+          <LinhasCarteira pacientes={carteira.pacientes} aoAbrir={carteira.abrir} />
+        </PainelCasca>,
         carteira.raiz,
       )}
       {vista ? createPortal(conteudoDaVista(vista), vista.destino) : null}

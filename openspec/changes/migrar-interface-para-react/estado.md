@@ -52,6 +52,11 @@ registra o comando de limpeza pelo React. A tarefa 7.2 permanece aberta.
   apagada antes da resposta, os controles ocupados e Administração oculta.
 - Sem apagar a senha no envio, o Chromium encontrou o valor no controle e
   falhou em `toHaveValue`. Alteração revertida.
+- Navegação, Carteira, Seu dia, Como funciona e aviso de rede têm fronteiras
+  próprias. Após um erro fictício na navegação e a expiração da sessão,
+  Chromium entrou com a conta interna fictícia e confirmou a nova sessão.
+- Pendência anterior: a limpeza invalida o retorno na tela. Uma requisição
+  de entrada já enviada ainda pode terminar no servidor.
 - Próximo passo: rebase depois do squash da fatia anterior e ativação.
 
 ## Fatia 8k do plano visual — adaptadores sem uso no aplicativo
