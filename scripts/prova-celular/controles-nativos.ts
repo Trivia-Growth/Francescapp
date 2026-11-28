@@ -1,4 +1,4 @@
-import { type Page, expect } from '@playwright/test';
+import { type Locator, type Page, expect } from '@playwright/test';
 
 /** Inseridos após a carga, seleção e data continuam sob o pai que os criou. */
 export async function conferirControlesNativos(page: Page, seletor: string) {
@@ -24,4 +24,17 @@ export async function conferirControlesNativos(page: Page, seletor: string) {
     { tipo: 'select-one', mesmoPai: true, opacidade: '1' },
     { tipo: 'date', mesmoPai: true, opacidade: '1' },
   ]);
+}
+
+/** O campo e o botão formam um controle com o mesmo eixo visual. */
+export async function conferirAlinhamentoDaData(grupo: Locator) {
+  const campo = grupo.locator('[data-valor-visivel]');
+  const botao = grupo.getByRole('button', { name: 'Escolher no calendário' });
+  await expect(campo).toBeVisible();
+  await expect(botao).toBeVisible();
+  const [campoCaixa, botaoCaixa] = await Promise.all([campo.boundingBox(), botao.boundingBox()]);
+  if (!campoCaixa || !botaoCaixa) throw new Error('Campo de data ou calendário sem caixa visível.');
+  const deslocamento =
+    botaoCaixa.y + botaoCaixa.height / 2 - (campoCaixa.y + campoCaixa.height / 2);
+  expect(deslocamento, 'centro vertical do botão em relação ao campo de data').toBeCloseTo(0, 0);
 }

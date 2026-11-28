@@ -198,7 +198,7 @@ export function CampoData({
         }}
         onChange={(evento) => aoAlterar?.(evento.currentTarget.value)}
       />
-      <div className="flex items-stretch gap-sistema-2">
+      <div className="flex items-center gap-sistema-2">
         <input
           ref={editor}
           id={textoId}
@@ -226,7 +226,7 @@ export function CampoData({
         />
         <Botao
           ref={gatilho}
-          className="size-alvo-toque shrink-0 p-0"
+          className="m-0 size-alvo-toque shrink-0 p-0"
           data-ui="calendario"
           disabled={disabled || readOnly}
           aria-expanded={aberto}
