@@ -1,6 +1,44 @@
 # Estado — migrar-interface-para-react
 
-**Atualizado em:** 27/11/2026 · **Branch:** `claude/financeiro-react` · **Por:** Claude Code
+**Atualizado em:** 28/11/2026 · **Branch:** `codex/casca-finalizacao-react` · **Por:** Codex
+
+## Fatia 8z do plano visual — tarefa 7.2 concluída
+
+A aplicação tem uma raiz React para entrada, navegação, Carteira, ficha e Administração.
+O roteador por hash preserva os endereços antigos. A demonstração e a vitrine, em páginas
+separadas, têm uma raiz cada. A ficha compõe suas seções por React e a ponte
+`web/ponte/ilha.ts` foi removida. Nenhuma função `montar*` escreve DOM.
+
+- `rg -n '^export function montar' web` encontra apenas seis geradores puros em
+  `web/pacote-exportacao.ts`: `montarResumoHtml`, `montarDadosJson`, `montarBytesZip`,
+  `montarZip`, `montarBytesPacoteExportacao` e `montarPacoteExportacao`. Eles produzem
+  texto, bytes ou `Blob`. A busca que inclui funções assíncronas também encontra
+  `montarCascaParaTeste`, que importa a entrada só para testes. Os nomes internos
+  `montarConteudo`, `montarEntradaPorAudio`, `montarNomeador` e `montarVista`
+  correspondem a composição React ou construção de valores.
+- `pnpm run verificar:ativacao` passou com 943 testes Vitest da Web, 84
+  cenários Chromium e a bancada de Trusted Types do build. A prova de autorização
+  local, positiva e negativa, passou no PostgreSQL 17 com dados fictícios.
+- O Chromium verificou links antigos, Voltar/Avançar, retorno de foco ao fechar
+  a gaveta e Administração bloqueada para Família por link direto. O axe passou
+  em 36 páginas sem violações. `capturas-casca.mjs` verificou a folha
+  `index-B4TJL7Mf.css` antes de capturar Seu dia, Pessoas acompanhadas e Administração a
+  390 e 1440 px. As seis telas e a gaveta também passaram no axe do build.
+  As sete capturas da 8z foram pixel a pixel idênticas às de `c5e4472`.
+  As comparações antes/depois da reforma estão em `docs/auditoria-visual-2026-11/`
+  (`fatia-8b-*` e `fatia-8-base-carteira-390.png`).
+- Ao retirar a guarda de geração da ficha, uma importação antiga de Anamnese
+  substituiu Plano. O Chromium falhou esperando `data-secao="plano"`. Com a guarda
+  restaurada, o cenário passou.
+- O HTML inicial referencia 247.865 bytes gzip de JavaScript em sete arquivos,
+  contra 242.878 bytes em seis arquivos na base `23d0daa` (+4.987 bytes).
+  Login e restauração da sessão compartilham a entrada e os contratos de validação.
+- Nas confirmações, o #79 verificou que sair da ficha pelo histórico encerra a pergunta
+  de revogação, devolve o foco à linha e não envia a revogação.
+- `openspec validate migrar-interface-para-react` passou. O modo `--strict`
+  acusa o aviso preexistente de comprimento do requisito VIS-018.
+- Próximas tarefas da fase 7: 7.1 (CSS legado), 7.3 (textos das regras) e 7.4
+  (avaliação final contra D8, documentação, sincronização e arquivamento).
 
 ## Fatia 7.2 — Financeiro em React
 
@@ -36,29 +74,8 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   ficou em `#administracao/financeiro`. (3) `useCiclo` reativa no efeito, e sem isso o modo estrito
   deixava a consulta inerte (teste falhou). Apuração com falha após sucesso não mantém o total
   anterior (defeito antigo da auditoria), com teste. 25 testes e 23 cenários Chromium passaram.
-- Pendente: o ramo `typeof tela === 'function'` de `mostrarAdministracao` e a ponte `ilha.ts` ainda
-  existem (ficha); a tarefa 7.2 só fecha quando a ficha migrar. Regras `.financeiro__aba` mortas no
-  CSS ficam para a retirada do CSS legado.
-- Próximo passo: CI/ativação do PR.
-
-## Fatia 8z do plano visual — retirada da ponte
-
-A ficha compõe todas as seções e a vitrine tem a própria raiz React da página.
-Saíram a ponte e seu teste de compatibilidade. `rg '^export function montar' web`
-encontra os seis geradores puros de `web/pacote-exportacao.ts`, conforme a decisão
-da fatia 8e. A integração da tarefa 7.2 na main aguarda os recortes anteriores.
-
-- Passaram 32 testes Vitest, 22 cenários Chromium e a bancada de Trusted Types
-  do build de produção. Chromium verificou links antigos, histórico, foco da
-  gaveta, Administração recusada para Família e disponibilidade do áudio.
-- `capturas-casca.mjs` conferiu a folha `index-B4TJL7Mf.css` nas três telas a
-  390 e 1440 px antes das capturas. Axe passou nas seis telas e na gaveta.
-- Sem a guarda de geração, a importação tardia de Anamnese substituiu Plano.
-  Chromium falhou esperando `data-secao="plano"`. Alteração revertida.
-- O HTML inicial referencia 248.478 bytes gzip de JavaScript em sete arquivos.
-  Na base `23d0daa` eram 242.878 bytes em seis arquivos. A entrada segue
-  compartilhada entre login e restauração da sessão.
-- Próximo passo: rebase após o squash da fatia anterior e ativação final.
+- O #57 foi integrado. A retirada da ponte e do adaptador da ficha foi concluída na 8z.
+  As regras `.financeiro__aba` mortas no CSS ficam para a tarefa 7.1.
 
 ## Fatia 8y do plano visual — confirmações da página
 
