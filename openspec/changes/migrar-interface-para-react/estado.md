@@ -2,6 +2,29 @@
 
 **Atualizado em:** 28/11/2026 · **Branch:** `codex/casca-finalizacao-react` · **Por:** Codex
 
+## Fatia 9b do plano visual — Equipe, Plano de cuidado e Auditoria com política própria
+
+Branch `claude/leituras-equipe-auditoria`. Políticas decididas pelo coordenador em 28/11:
+- **Equipe e Plano de cuidado (A):** guardado por até 60 s desde a última leitura; a volta
+  o mostra recuado no primeiro quadro e relê em seguida. Falha, recusa, identidade nova e
+  gravação descartam (Equipe: convite em `convidar-equipe.tsx`; Plano: a máquina dos
+  catálogos, desde a revisão do #81).
+- **Auditoria:** nada guardado (`gcTime: 0`); o cache só junta pedidos iguais em voo, e a
+  resposta de uma consulta superada é descartada por geração.
+- **Defeito corrigido:** `catalogoDaEquipe` (main.ts) guardava a equipe por `usuario.id` e
+  sobrevivia à saída. Agora `web/catalogo-equipe.ts` guarda por conta+sessão, esquece
+  catálogo e nomes em `aoEsquecerSessao` e ignora a resposta atrasada de identidade
+  anterior; o caso novo também passou a se ligar à sessão. `api.ts` não mudou.
+- Navegador (`scripts/prova-celular/cache-equipe-auditoria.mjs`, build de produção, 5
+  voltas com resposta atrasada 800 ms): Equipe e Plano `1,1,1,1,1` GET por volta nos dois
+  builds, lista no primeiro quadro `false` em `main@bf7a29b` → `true` na branch; Auditoria
+  igual nos dois (1 GET, nada no primeiro quadro). 403 → a volta não mostra o guardado.
+  Axe 0 nas três. Capturas 390/1440 idênticas byte a byte às da main.
+- Vitest: `catalogo-equipe.test.ts` (5), Equipe (+6), convidar (+1), Plano (+5),
+  Auditoria (+4). Onze contraprovas falharam pelo motivo certo (registradas no PR).
+- JS do HTML inicial: 247.898 → 246.835 bytes gzip (o chunk `src` dos contratos, já
+  pré-carregado, foi fundido ao `index`).
+
 ## Fatia 9a do plano visual — leituras dos catálogos com TanStack Query
 
 Papéis declarados e Modelo da ficha de plantão passam ao cache de leituras do piloto (#48),
