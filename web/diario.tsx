@@ -1,36 +1,12 @@
-/* Aba de Diário e evolução (FR-008, FR-009, FR-012, FR-013, FR-014), reconstruída em React
- * sobre a ilha (`web/ponte/ilha.ts`), com os três módulos do bloco já migrados por baixo:
- * `web/transcricao-audio.tsx`, `web/relato-textual.tsx` (alternativa textual — não usada
- * aqui diretamente, mas o mesmo papel é cumprido por `montarEntradaPorAudio`, que é
- * SEMPRE complementar ao campo de texto, nunca substituto dele) e `web/conversao-diario.tsx`.
+/* Diário e evolução na ficha, FR-008, FR-009, FR-012, FR-013 e FR-014.
  *
- * O contrato exportado não muda: `montarDiario(raiz, pacienteId, usuarioId, servico,
- * obterAreas, acessoPerdido, alteracaoPendente?, converterEmTarefa?, montarEntradaPorAudio?,
- * ehFamilia?) => desmontar`.
+ * A guarda de geração descarta respostas de leituras anteriores. Ao sair do
+ * caso, as continuações de consulta e gravação são invalidadas. O áudio
+ * é composição do editor, com o texto disponível durante todo o fluxo.
  *
- * O que a migração entrega (VIS-012): a versão imperativa tinha `ativa` conferida em cerca
- * de uma dezena de pontos (`descartarAcesso`, `consultar`, `desenhar`, `desenharLeituras`)
- * para proteger escritas em DOM já desmontado. Ela sai como guarda de CICLO DE VIDA —
- * `ilha()` desmonta a raiz React e os efeitos são cancelados por construção — e sobra só
- * como `ativaRef`, que continua tendo um papel: impedir que uma resposta tardia do servidor
- * (consulta ou gravação) prossiga depois que o caso saiu de cena. `geracaoConsulta` também
- * fica: não é sobre ciclo de vida, é sobre uma consulta mais nova invalidar a anterior
- * (reconsulta ao voltar de aba oculta pode se sobrepor à que já estava em voo).
- *
- * Um ponto em que o ciclo de vida do React NÃO basta, e por isso tem guarda própria: os
- * widgets de conversão (`converterEmTarefa`) e de áudio (`montarEntradaPorAudio`) são
- * raízes React PRÓPRIAS, independentes desta árvore (a mesma técnica de `ilha()`, usada de
- * fora). Esvaziar ou substituir esta árvore não as desmonta sozinho — por isso
- * `desmontarConversoes` é chamado explicitamente tanto na perda de acesso quanto na
- * desmontagem real, exatamente como a versão imperativa fazia.
- *
- * Por que o botão "Descartar campos e usar versão atual" vira IRMÃO do nó de destino da
- * conversão, e não é mais anexado DENTRO dele: a versão imperativa media `conversao.raiz`
- * como um container qualquer e podia `.append()` o botão depois. Agora que
- * `web/conversao-diario.tsx` também é uma raiz React (via `ilha()`), escrever direto nos
- * filhos desse nó por fora seria indefinido — o próximo repintura daquela raiz não sabe do
- * nó extra e pode descartá-lo. O botão sai como elemento irmão desta árvore; o efeito
- * visual (aparece logo depois do bloco de conversão) é o mesmo.
+ * A conversão em tarefa ainda cria os próprios filhos no seu contêiner. O
+ * Diário chama a desmontagem explícita da conversão ao perder acesso ou
+ * sair da ficha. O botão de descarte fica ao lado do contêiner.
  *
  * O que NÃO mudou, de propósito:
  *
@@ -72,7 +48,6 @@ import { EstadoVazio } from './componentes/ui/estado-vazio.js';
 import { confirmar, confirmarDescarte } from './confirmacao.js';
 import type { MontagemConversaoDiario } from './conversao-diario.js';
 import { CamposSintese, controleSintese, lerSintese } from './modelo-sintese.js';
-import { ilha } from './ponte/ilha.js';
 import { Formulario } from './telas/formulario.js';
 
 export type ServicoDiarioTela = {

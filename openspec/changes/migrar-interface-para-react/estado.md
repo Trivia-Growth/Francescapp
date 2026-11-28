@@ -41,6 +41,32 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8g do plano visual — Plano, Documentos e Escala de turnos
+
+Plano de cuidado, Documentos e Escala de turnos renderizam no painel React da
+ficha. O Plano da equipe acompanha a revalidação enquanto a seção está montada.
+Documentos encerra o download pendente ao desmontar a seção. A tarefa 7.2 segue
+aberta.
+
+- Passaram 41 testes Vitest, oito cenários Chromium e lint/typecheck. Após sair
+  de Documentos antes do carregamento do módulo, nenhum GET da seção saiu.
+- Sem a guarda do botão Baixar arquivo, a resposta tardia criou um Blob URL
+  após a desmontagem e falhou em `not.toHaveBeenCalled`. Alteração revertida.
+- Rebase sobre `9d7c3c6`. Foram removidos cinco imports sem uso da ponte e
+  atualizados os comentários das seções que já compõem a ficha. Próximo passo:
+  ativação e revisão independente.
+- A ativação inicial passou com 933 testes web, 61 cenários Chromium e um
+  cenário preexistente pulado. A autorização de pacientes passou em
+  PostgreSQL 17 descartável.
+- Revisão do #59: o estado do download acompanha a seção e preserva o
+  andamento quando chega outro anexo. A saída só repassa recusa de sessão à
+  mesma sessão que iniciou a operação. Passaram 16 Vitest e cinco cenários
+  Chromium. Com a guarda antiga, o botão voltou a habilitar durante o
+  download e a prova falhou em `toBeDisabled`. Sem repassar a recusa 401
+  tardia, o teste encontrou zero chamadas ao tratamento de sessão. As duas
+  alterações foram revertidas.
+- O PR #59 foi rebaseado sobre `dda7b07` após a entrada do Financeiro.
+
 ## Fatia 8f do plano visual — seções operacionais da ficha
 
 Diário, Pendências, Exportação, Equipe com acesso, Rotina e recursos e Rede de

@@ -1,22 +1,7 @@
-/* Pendências do caso (FR-027) e sinal operacional (FR-028), reconstruído em React sobre a
- * ilha (`web/ponte/ilha.ts`).
+/* Pendências do caso (FR-027) e sinal operacional (FR-028) na ficha.
  *
- * O contrato exportado não muda: `montarPendenciasCaso(raiz, pacienteId, servico,
- * acessoPerdido, listarResponsaveis?, listarPendenciasEscritas?) => desmontar`.
- *
- * O que a migração entrega:
- *
- * 1. VIS-012. A versão imperativa tinha SETE `if (!ativa) return` protegendo escritas em
- *    DOM já desmontado: duas no carregamento inicial, quatro nas continuações de
- *    "aplicar"/"acordar" e uma no desenho. Não sobrou nenhuma — `ilha()` desmonta a raiz
- *    React e escrever estado depois disso não faz nada, como nas demais telas já
- *    migradas. O único guardião que sobrou é de GERAÇÃO, não de vida: o efeito de
- *    carregamento inicial marca a própria consulta como `valida` para a resposta de uma
- *    chamada anterior não sobrescrever uma mais nova, caso `pacienteId` troque com o
- *    componente ainda montado — o mesmo papel que a anotação de `anamnese.tsx` e
- *    `visao-caso.tsx` já descrevem.
- * 2. Superfície plana do `DESIGN.md`: um assunto (pendências e sinal), uma superfície, com
- *    subseções em `<h3>` — a hierarquia de cabeçalho que a versão imperativa já tinha.
+ * O efeito de carregamento invalida a leitura anterior quando muda o caso.
+ * O sinal e as pendências compartilham uma superfície com subseções em h3.
  *
  * O que NÃO mudou, de propósito (VIS-018):
  *
@@ -74,7 +59,6 @@ import { MarcaEstado } from './componentes/ui/marca-estado.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { dataDeInstante } from './datas.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 
 export type ServicoPendencias = {

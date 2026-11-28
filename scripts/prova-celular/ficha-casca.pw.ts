@@ -1,10 +1,99 @@
 import { expect, test } from '@playwright/test';
+import { envelope, id } from '../../web/fixtures/comum.js';
 import { responder } from '../../web/fixtures/despachante.js';
 import { PACIENTE_IDS, sessaoAdministrador } from '../../web/fixtures/sessao.js';
 
 test.use({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
 
-for (const secao of ['anamnese', 'diario']) {
+test('documento continua baixando enquanto um novo anexo atualiza a lista', async ({ page }) => {
+  await page.addInitScript((sessaoId) => {
+    sessionStorage.setItem('modo-acesso', 'tecnica');
+    sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
+    sessionStorage.setItem('sessao-tecnica', sessaoId);
+  }, sessaoAdministrador.session_id);
+  const documento = {
+    documento_id: id(18, 1),
+    registro_id: id(18, 2),
+    versao: 1,
+    categoria: 'Laudo',
+    audiencia: 'equipe',
+    estado: 'disponivel',
+    nome_visivel: 'origem-ficticia.pdf',
+    drive_file_id: 'arquivo-ficticio',
+  };
+  const novo = {
+    ...documento,
+    documento_id: id(18, 3),
+    registro_id: id(18, 4),
+    nome_visivel: 'novo-ficticio.pdf',
+  };
+  const base = `/api/pacientes/${PACIENTE_IDS[0]}/documentos`;
+  const arquivo = `${base}/${documento.documento_id}/arquivo`;
+  let liberar = () => {};
+  const esperaDownload = new Promise<void>((resolver) => {
+    liberar = resolver;
+  });
+  let liberarCategorias = () => {};
+  const esperaCategorias = new Promise<void>((resolver) => {
+    liberarCategorias = resolver;
+  });
+  await page.route('**/api/**', async (rota) => {
+    const url = new URL(rota.request().url());
+    if (url.pathname === '/api/documentos/disponibilidade') {
+      await rota.fulfill({ json: envelope({ disponivel: true, categorias: ['Laudo'] }) });
+      liberarCategorias();
+      return;
+    }
+    if (url.pathname === base) {
+      await esperaCategorias;
+      return rota.fulfill({
+        json: envelope({
+          documentos: rota.request().method() === 'GET' ? [documento] : [documento, novo],
+        }),
+      });
+    }
+    if (url.pathname === arquivo) {
+      await esperaDownload;
+      return rota.fulfill({
+        body: 'Arquivo fictício',
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': 'attachment; filename="origem-ficticia.pdf"',
+        },
+      });
+    }
+    const fixture = responder(url.href);
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  await page.goto(`/web/index.html#paciente/${PACIENTE_IDS[0]}/documentos`);
+  const painel = page.locator('#ficha-painel');
+  const baixar = painel.getByRole('button', { name: 'Baixar origem-ficticia.pdf' });
+  const pedido = page.waitForRequest((req) => new URL(req.url()).pathname === arquivo);
+  const download = page.waitForEvent('download');
+  try {
+    await baixar.click();
+    await pedido;
+    await painel.locator('#documento-arquivo').setInputFiles({
+      name: 'novo-ficticio.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('Anexo fictício'),
+    });
+    await painel.locator('#documento-categoria').selectOption('Laudo');
+    await painel.locator('#documento-audiencia').selectOption('equipe');
+    await painel.getByRole('button', { name: 'Anexar', exact: true }).click();
+    await expect(painel.getByText('novo-ficticio.pdf', { exact: true })).toBeVisible();
+    await expect(baixar).toBeDisabled();
+    await expect(painel.getByText('Preparando arquivo…')).toBeVisible();
+  } finally {
+    liberar();
+  }
+  expect((await download).suggestedFilename()).toBe('origem-ficticia.pdf');
+  await expect(painel.getByText('Arquivo enviado ao navegador para download.')).toBeVisible();
+});
+
+for (const secao of ['anamnese', 'diario', 'documentos']) {
   test(`módulo antigo de ${secao} não substitui a seção que permaneceu aberta`, async ({
     page,
   }) => {
@@ -17,7 +106,8 @@ for (const secao of ['anamnese', 'diario']) {
     const espera = new Promise<void>((resolver) => {
       liberarModulo = resolver;
     });
-    await page.route(`**/web/${secao}.tsx`, async (rota) => {
+    const moduloDaSecao = secao === 'documentos' ? 'documentos-caso' : secao;
+    await page.route(`**/web/${moduloDaSecao}.tsx`, async (rota) => {
       await espera;
       await rota.continue();
     });
@@ -30,7 +120,7 @@ for (const secao of ['anamnese', 'diario']) {
         ? rota.fulfill({ json: fixture })
         : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
     });
-    const modulo = page.waitForRequest(`**/web/${secao}.tsx`);
+    const modulo = page.waitForRequest(`**/web/${moduloDaSecao}.tsx`);
     await page.goto(`/web/index.html#paciente/${PACIENTE_IDS[0]}/${secao}`);
     const painel = page.locator('#ficha-painel');
     try {
@@ -44,7 +134,7 @@ for (const secao of ['anamnese', 'diario']) {
     await page.evaluate(async (caminho) => {
       await import(caminho);
       await new Promise(requestAnimationFrame);
-    }, `/web/${secao}.tsx`);
+    }, `/web/${moduloDaSecao}.tsx`);
     await expect(painel.locator('.ficha-secao')).toHaveCount(1);
     await expect(painel.locator('.ficha-secao')).toHaveAttribute('data-secao', 'plano');
     await expect(page.locator('#ficha-aba-plano')).toHaveAttribute('aria-selected', 'true');

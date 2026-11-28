@@ -1,17 +1,5 @@
-/* Plano de cuidado (objetivos, ESP-06 campos extras, aprovação e histórico), reconstruído
- * em React sobre a ilha (`web/ponte/ilha.ts`).
- *
- * O contrato exportado não muda: `montarPlanoCuidado(raiz, pacienteId, servico,
- * acessoPerdido, alteracaoPendente, ehFamilia, nomeDoUsuario) => desmontar`.
- *
- * O que a migração entrega:
- *
- * 1. VIS-012. A versão imperativa tinha UMA flag `ativa` conferida em treze pontos
- *    (`if (!ativa) return`): duas na consulta, três na barreira de criação, duas no
- *    envio de revisão/criação, duas na aprovação, duas no histórico e uma no `desenhar`.
- *    Não sobrou nenhuma — `ilha()` desmonta a raiz React e escrever estado depois disso
- *    não faz nada, como nas demais telas já migradas.
- * 2. Superfície plana do `DESIGN.md` nas molduras de lista, vazio e erro.
+/* Plano de cuidado no painel React da ficha, com objetivos, campos extras (ESP-06),
+ * aprovação, histórico e registro temporário do painel da equipe para revalidação.
  *
  * O que NÃO mudou, de propósito (VIS-018):
  *
@@ -49,7 +37,7 @@
  * `htmlFor` (o padrão do resto do produto) quebraria essa busca em quase toda prova deste
  * arquivo; preservar o aninhamento é o hook, não um detalhe de estilo.
  */
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
   objetivoSchema,
@@ -72,7 +60,6 @@ import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { confirmarDescarte } from './confirmacao.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 
 export type ObjetivoAtual = {
@@ -1093,13 +1080,14 @@ type Fase =
   | { fase: 'pronta'; pagina: Pagina<ObjetivoAtual>; cursorAtual?: string }
   | { fase: 'erro'; erro: unknown; cursor?: string };
 
-function TelaPlanoCuidado({
+export function TelaPlanoCuidado({
   pacienteId,
   servico,
   acessoPerdido,
   alteracaoPendente,
   ehFamilia,
   nomeDoUsuario,
+  acompanharRevalidacao,
 }: {
   pacienteId: string;
   servico: ServicoPlanoCuidado;
@@ -1107,7 +1095,9 @@ function TelaPlanoCuidado({
   alteracaoPendente: (pendente: boolean) => void;
   ehFamilia: boolean;
   nomeDoUsuario: (usuarioId: string) => string | undefined;
+  acompanharRevalidacao?: () => () => void;
 }) {
+  useLayoutEffect(() => acompanharRevalidacao?.(), [acompanharRevalidacao]);
   const [descartada, definirDescartada] = useState(false);
   const [fase, definirFase] = useState<Fase>({ fase: 'carregando' });
   const [catalogo, definirCatalogo] = useState<CampoExtraCatalogo[]>([]);
@@ -1372,27 +1362,5 @@ function TelaPlanoCuidado({
         </>
       )}
     </section>
-  );
-}
-
-export function montarPlanoCuidado(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: ServicoPlanoCuidado,
-  acessoPerdido: (erro: unknown) => void,
-  alteracaoPendente: (pendente: boolean) => void = () => {},
-  ehFamilia = false,
-  nomeDoUsuario: (usuarioId: string) => string | undefined = () => undefined,
-): () => void {
-  return ilha(
-    raiz,
-    <TelaPlanoCuidado
-      pacienteId={pacienteId}
-      servico={servico}
-      acessoPerdido={acessoPerdido}
-      alteracaoPendente={alteracaoPendente}
-      ehFamilia={ehFamilia}
-      nomeDoUsuario={nomeDoUsuario}
-    />,
   );
 }
