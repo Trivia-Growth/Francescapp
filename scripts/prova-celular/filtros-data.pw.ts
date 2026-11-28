@@ -5,7 +5,7 @@ import { envelope } from '../../web/fixtures/comum.ts';
 import { responder } from '../../web/fixtures/despachante.ts';
 import { PACIENTE_IDS, concessoesEquipe, sessaoAdministrador } from '../../web/fixtures/sessao.ts';
 import { conferirAxe } from './axe.ts';
-import { conferirControlesNativos } from './controles-nativos.js';
+import { conferirAlinhamentoDaData, conferirControlesNativos } from './controles-nativos.js';
 
 const caso = PACIENTE_IDS[0];
 const caminhoAuditoria = '/api/admin/auditoria';
@@ -164,7 +164,8 @@ test('Linha do tempo encaminha a data escolhida junto dos demais filtros', async
   await expect(
     page.locator('output').filter({ hasText: 'Nada registrado neste caso ainda.' }),
   ).toBeVisible();
-  const { visivel } = await dataVisivel(page, `linha-tempo-de-${caso}`);
+  const { grupo, visivel } = await dataVisivel(page, `linha-tempo-de-${caso}`);
+  await conferirAlinhamentoDaData(grupo);
   await expect(visivel).toHaveAttribute('id', `linha-tempo-de-${caso}-texto`);
   await conferirAxe(page, 'filtros-data — linha do tempo');
   await visivel.fill('15/10/2026');

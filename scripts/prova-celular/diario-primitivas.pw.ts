@@ -6,6 +6,7 @@ import { envelope, id } from '../../web/fixtures/comum.js';
 import { responder } from '../../web/fixtures/despachante.js';
 import { PACIENTE_IDS, pacientes, sessaoAdministrador } from '../../web/fixtures/sessao.js';
 import { conferirAxe } from './axe.js';
+import { conferirAlinhamentoDaData } from './controles-nativos.js';
 
 let servidor: ViteDevServer | undefined;
 let origem: string;
@@ -106,6 +107,7 @@ test('Diário exibe prosa inteira a 320 px e publica a data e a audiência visí
   await preparar(page, 'profissional');
   const diario = page.locator('[data-secao=diario]');
   const registroPublicado = diario.getByRole('article');
+  await conferirAlinhamentoDaData(diario.locator('[data-aprimorada=data]:visible'));
   await expect(registroPublicado.getByText('Publicado', { exact: true })).toHaveCSS(
     'border-radius',
     '999px',
@@ -156,6 +158,7 @@ test('Diário da Família mantém rótulos dos campos e não oferece comandos da
   await preparar(page, 'familia');
   const diario = page.locator('[data-secao=diario]');
   await expect(diario.getByRole('heading', { name: 'Registrar no diário' })).toBeVisible();
+  await conferirAlinhamentoDaData(diario.locator('[data-aprimorada=data]:visible'));
   const categoria = diario.getByRole('textbox', { name: 'Categoria (opcional)' });
   await expect(categoria).toHaveCSS('border-radius', '999px');
   await expect(
@@ -165,4 +168,12 @@ test('Diário da Família mantém rótulos dos campos e não oferece comandos da
   await expect(diario.getByRole('button', { name: 'Gravar áudio' })).toHaveCount(0);
   await expect(diario.getByRole('button', { name: /converter em tarefa/ })).toHaveCount(0);
   expect((await conferirAxe(page, 'Diário da Família a 320 px')).toleradas).toEqual([]);
+});
+
+test('campo e calendário do Diário ficam no mesmo eixo vertical no desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await preparar(page, 'profissional');
+  await conferirAlinhamentoDaData(
+    page.locator('[data-secao=diario] [data-aprimorada=data]:visible'),
+  );
 });
