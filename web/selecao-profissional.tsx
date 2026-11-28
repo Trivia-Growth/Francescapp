@@ -25,7 +25,6 @@ import { type Coluna, Lista, valor } from './componentes/ui/lista.js';
 import { MarcaEstado } from './componentes/ui/marca-estado.js';
 import { confirmar } from './confirmacao.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { PainelRevogacao, type PunhoInterno } from './revogacao-vinculo.js';
 
 /** Um vínculo profissional como a lista o apresenta. `nome` ausente significa que a
@@ -209,7 +208,7 @@ function Indicador() {
   return <span className="loading-indicator" aria-hidden="true" />;
 }
 
-function TelaSelecaoProfissional({
+export function TelaSelecaoProfissional({
   pacienteId,
   api,
   acessoPerdido,
@@ -775,23 +774,5 @@ function TelaSelecaoProfissional({
         />
       </section>
     </div>
-  );
-}
-
-export function montarSelecaoProfissional(
-  raiz: HTMLElement,
-  pacienteId: string,
-  api: ClienteFFCM,
-  acessoPerdido: (erro: unknown) => boolean,
-  alteracaoPendente: (pendente: boolean) => void = () => {},
-): () => void {
-  return ilha(
-    raiz,
-    <TelaSelecaoProfissional
-      pacienteId={pacienteId}
-      api={api}
-      acessoPerdido={acessoPerdido}
-      alteracaoPendente={alteracaoPendente}
-    />,
   );
 }

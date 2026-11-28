@@ -1,7 +1,33 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
-import { montarContextoCuidado, type ConsultaObjetivosContexto } from './contexto-cuidado.tsx';
+import { TelaContextoCuidado, type ConsultaObjetivosContexto } from './contexto-cuidado.tsx';
 import { FalhaApi } from './api.ts';
+
+function montarContextoCuidado(
+  raiz: HTMLElement,
+  pacienteId: ComponentProps<typeof TelaContextoCuidado>['pacienteId'],
+  servico: ComponentProps<typeof TelaContextoCuidado>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaContextoCuidado>['acessoPerdido'],
+  alteracaoPendente: ComponentProps<typeof TelaContextoCuidado>['alteracaoPendente'] = () => {},
+  objetivosIniciais: ComponentProps<typeof TelaContextoCuidado>['objetivosIniciais'] = [],
+  consultarObjetivos: ComponentProps<typeof TelaContextoCuidado>['consultarObjetivos'] = undefined,
+) {
+  const painel = render(
+    createElement(TelaContextoCuidado, {
+      pacienteId,
+      servico,
+      acessoPerdido,
+      alteracaoPendente,
+      objetivosIniciais,
+      consultarObjetivos,
+    }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
+
 const paciente = '33333333-3333-4333-8333-333333333333';
 const primeiro = '44444444-4444-4444-8444-444444444444';
 const segundo = '55555555-5555-4555-8555-555555555555';

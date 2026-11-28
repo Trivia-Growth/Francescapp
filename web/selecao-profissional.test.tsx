@@ -1,9 +1,25 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import usuario from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
 import { responderConfirmacoes } from './confirmacao-prova.ts';
-import { montarSelecaoProfissional } from './selecao-profissional.js';
+import { TelaSelecaoProfissional } from './selecao-profissional.js';
 import type { ClienteFFCM } from './api.ts';
+
+function montarSelecaoProfissional(
+  raiz: HTMLElement,
+  pacienteId: ComponentProps<typeof TelaSelecaoProfissional>['pacienteId'],
+  api: ComponentProps<typeof TelaSelecaoProfissional>['api'],
+  acessoPerdido: ComponentProps<typeof TelaSelecaoProfissional>['acessoPerdido'],
+  alteracaoPendente: ComponentProps<typeof TelaSelecaoProfissional>['alteracaoPendente'] = () => {},
+) {
+  const painel = render(
+    createElement(TelaSelecaoProfissional, { pacienteId, api, acessoPerdido, alteracaoPendente }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
 
 /* A lista de vínculos deixou de colar nome, situação e versão numa frase só separada por
    ` · ` e passou a ser linha com colunas (VIS-016). As afirmações abaixo deixaram de

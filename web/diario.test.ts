@@ -1,9 +1,40 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
 import type { RegistroDiario } from '../packages/contracts/src/diario.ts';
 import { responderConfirmacoes } from './confirmacao-prova.js';
-import { montarDiario, type ServicoDiarioTela } from './diario.js';
+import { TelaDiario, type ServicoDiarioTela } from './diario.js';
 import { FalhaApi } from './api.js';
+
+function montarDiario(
+  raiz: HTMLElement,
+  pacienteId: ComponentProps<typeof TelaDiario>['pacienteId'],
+  usuarioId: ComponentProps<typeof TelaDiario>['usuarioId'],
+  servico: ComponentProps<typeof TelaDiario>['servico'],
+  obterAreas: ComponentProps<typeof TelaDiario>['obterAreas'],
+  acessoPerdido: ComponentProps<typeof TelaDiario>['acessoPerdido'],
+  alteracaoPendente: ComponentProps<typeof TelaDiario>['alteracaoPendente'] = () => {},
+  converterEmTarefa: ComponentProps<typeof TelaDiario>['converterEmTarefa'] = undefined,
+  montarEntradaPorAudio: ComponentProps<typeof TelaDiario>['montarEntradaPorAudio'] = undefined,
+  ehFamilia: ComponentProps<typeof TelaDiario>['ehFamilia'] = false,
+) {
+  const painel = render(
+    createElement(TelaDiario, {
+      pacienteId,
+      usuarioId,
+      servico,
+      obterAreas,
+      acessoPerdido,
+      alteracaoPendente,
+      converterEmTarefa,
+      montarEntradaPorAudio,
+      ehFamilia,
+    }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
 
 const pacienteId = '10000000-0000-4000-8000-000000000001';
 const familiaId = '30000000-0000-4000-8000-000000000001';

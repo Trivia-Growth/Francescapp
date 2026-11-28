@@ -1,8 +1,31 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
 import type { RegistroExportacoes } from '../packages/contracts/src/exportacao.js';
 import { FalhaApi } from './api.js';
-import { montarExportacao } from './exportacao.js';
+import { TelaExportacao } from './exportacao.js';
+
+function montarExportacao(
+  raiz: HTMLElement,
+  pacienteId: ComponentProps<typeof TelaExportacao>['pacienteId'],
+  servico: ComponentProps<typeof TelaExportacao>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaExportacao>['acessoPerdido'],
+  alteracaoPendente: ComponentProps<typeof TelaExportacao>['alteracaoPendente'] = () => {},
+  pacienteRotulo: ComponentProps<typeof TelaExportacao>['pacienteRotulo'] = 'Pessoa acompanhada',
+) {
+  const painel = render(
+    createElement(TelaExportacao, {
+      pacienteId,
+      servico,
+      acessoPerdido,
+      alteracaoPendente,
+      pacienteRotulo,
+    }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
 
 const PACIENTE = '2c9e1e16-33d1-4740-b428-ab75a4c6c937';
 

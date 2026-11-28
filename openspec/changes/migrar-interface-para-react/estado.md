@@ -2,6 +2,19 @@
 
 **Atualizado em:** 27/11/2026 · **Branch:** `codex/remover-web-ui` · **Por:** Codex
 
+## Fatia 8f do plano visual — seções operacionais da ficha
+
+Diário, Pendências, Exportação, Equipe com acesso, Rotina e recursos e Rede de
+cuidado passam a renderizar no painel React. As integrações de áudio e conversão
+de relato ainda são legadas. A tarefa 7.2 permanece aberta.
+
+- Passaram 52 testes Vitest, cinco cenários Chromium e lint/typecheck. O roteiro
+  de Diário confirmou que uma importação atrasada não monta a seção nem consulta
+  o diário. Sem conferir a geração, Diário substituiu Plano e falhou em
+  `toHaveAttribute`. A contraprova foi revertida.
+- Fatia rebaseada sobre `5131029`, com a prova de recuperação da ficha
+  preservada. Próximo passo: ativação e revisão independente.
+
 ## Fatia 8e do plano visual — primeiras seções da ficha
 
 Visão do caso, Linha do tempo, Dados do paciente, Orientações, Encaminhamentos,
