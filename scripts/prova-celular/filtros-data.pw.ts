@@ -331,3 +331,46 @@ test('Cadastro mantém os controles React ao carregar a equipe e adicionar conta
     liberarEquipe();
   }
 });
+
+test('Cadastro mantém a ação à vista e sem rolagem horizontal a 320 px', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto(`${origem}/#carteira`);
+  const abrir = page.getByRole('link', { name: 'Novo paciente' });
+  await abrir.click();
+
+  const dialogo = page.getByRole('dialog', { name: 'Novo paciente' });
+  await expect(dialogo.locator('#create-title')).toBeFocused();
+  await dialogo.getByRole('button', { name: 'Conferir e liberar' }).click();
+  const cadastrar = dialogo.getByRole('button', { name: 'Cadastrar paciente' });
+  await expect(cadastrar).toBeEnabled();
+  for (const controle of [
+    cadastrar,
+    dialogo.locator('#patient-name'),
+    dialogo.locator('#add-contact'),
+  ]) {
+    await expect(controle).toHaveCSS('border-radius', '999px');
+    await expect(controle).toHaveCSS('min-height', '46px');
+  }
+
+  const corpo = dialogo.locator('#cadastro-corpo');
+  const medidas = await corpo.evaluate((no) => ({
+    largura: no.clientWidth,
+    conteudo: no.scrollWidth,
+    documento: document.documentElement.scrollWidth,
+    janela: document.documentElement.clientWidth,
+    altura: no.clientHeight,
+    alturaConteudo: no.scrollHeight,
+  }));
+  expect(medidas.conteudo).toBe(medidas.largura);
+  expect(medidas.documento).toBe(medidas.janela);
+  expect(medidas.alturaConteudo).toBeGreaterThan(medidas.altura);
+  await expect(cadastrar).toBeInViewport();
+  await corpo.evaluate((no) => {
+    no.scrollTop = no.scrollHeight;
+  });
+  await expect(cadastrar).toBeInViewport();
+  await conferirAxe(page, 'Cadastro — 320 px com o corpo rolado');
+  await page.keyboard.press('Escape');
+  await expect(dialogo).toBeHidden();
+  await expect(abrir).toBeFocused();
+});

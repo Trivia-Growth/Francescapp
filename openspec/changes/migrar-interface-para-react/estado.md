@@ -1,6 +1,30 @@
 # Estado — migrar-interface-para-react
 
-**Atualizado em:** 28/11/2026 · **Branch:** `codex/carteira-css` · **Por:** Codex
+**Atualizado em:** 28/11/2026 · **Branch:** `codex/cadastro-css` · **Por:** Codex
+
+## Fatia 10b do plano visual — moldura e controles próprios do Cadastro
+
+O diálogo nativo de Novo paciente passou a usar os tokens de sobreposição e as
+primitivas de campo e botão. O envio continua no formulário nativo com as guardas
+existentes. Nome, nome de preferência, contato, cabeçalho e rodapé saíram das
+classes de apresentação legadas. O CampoData e a SelecaoAprimorada continuam
+com seus próprios estilos compartilhados até o próximo recorte.
+
+- Chromium registrou 74 → 32 ocorrências de classes legadas dentro do diálogo;
+  as 32 restantes vêm dos controles compartilhados. O corpo do diálogo passou
+  de 330/320 para 320/320 px. Rolar o corpo mantém Cadastrar paciente à vista,
+  e Escape devolve o foco a Novo paciente. Axe sem violações a 320, 390 e 1440 px.
+- `web/styles.css` perdeu 57 linhas (3.268 → 3.211) e `web/estilos/ui.css`
+  perdeu as 157 linhas da moldura legada, sem consumidores restantes.
+  O CSS inicial passou de 103.462 para 102.003 bytes e de 19.227 para
+  19.090 bytes gzip sobre `badbe98`.
+- Capturas antes/depois do início e do fim do diálogo a 390 e 1440 px em
+  `docs/auditoria-visual-2026-11/`. A folha compilada foi conferida antes
+  das capturas (`index-DWn92Y1L.css` e `index-BFNHfvW5.css`).
+- Passaram 43 Vitest focados e a prova de autorização de cadastro no
+  PostgreSQL 17 local. Sem a coluna limitada por `minmax(0, 1fr)`, o teste
+  Chromium encontrou 330 px de conteúdo num corpo de 320 px. Restaurar as
+  classes de coluna fez a prova voltar a passar. A tarefa 7.1 segue aberta.
 
 ## Fatia 10a do plano visual — Carteira
 

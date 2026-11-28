@@ -4,6 +4,7 @@ import { novoContatoSchema, type SituacaoCaso } from '../packages/contracts/src/
 import { type ResponsavelOpcao, rotulosSituacao } from './acompanhamento-caso.js';
 import { Botao } from './componentes/ui/botao.js';
 import { CampoData } from './componentes/ui/campo-data.js';
+import { classesCampo } from './componentes/ui/campo.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { definirValorNativo } from './componentes/ui/valor-nativo.js';
 
@@ -64,7 +65,10 @@ function CampoContato({
   const idValor = `contact-value-${numero}`;
 
   return (
-    <div className="contact-row">
+    <div
+      data-contato={numero}
+      className="grid min-w-0 gap-sistema-2 sm:grid-cols-[minmax(6rem,8rem)_minmax(0,1fr)]"
+    >
       <label className="sr-only" htmlFor={idTipo}>
         Tipo do contato {numero}
       </label>
@@ -88,13 +92,15 @@ function CampoContato({
         id={idValor}
         type={email ? 'email' : 'tel'}
         placeholder={email ? 'nome@exemplo.org' : '+55 11 90000-0000'}
+        className={classesCampo(invalido)}
         maxLength={254}
         autoComplete="off"
         aria-invalid={invalido || undefined}
       />
       <Botao
         peso="secundario"
-        className="contact-remove"
+        marca="remover-contato"
+        className="justify-self-start sm:col-span-2"
         aria-label={`Remover contato ${numero}`}
         hidden={primeiro}
         onClick={aoRemover}
@@ -145,7 +151,7 @@ export function CamposCasoNovo({
   }, [aoMontar]);
 
   function consultarLinhas() {
-    return Array.from(destinos.contatos.querySelectorAll<HTMLElement>('.contact-row'), (no) => {
+    return Array.from(destinos.contatos.querySelectorAll<HTMLElement>('[data-contato]'), (no) => {
       const valor = no.querySelector<HTMLInputElement>('input');
       const tipo = no.querySelector<HTMLSelectElement>('select');
       if (!valor || !tipo) throw new Error('Controle de contato indisponível.');
@@ -341,17 +347,16 @@ export function CamposCasoNovo({
         destinos.contatos,
       )}
       {createPortal(
-        <button
+        <Botao
           id="add-contact"
           ref={adicionar}
-          className="ui-botao"
-          data-peso="secundario"
-          type="button"
+          className="justify-self-start"
+          peso="secundario"
           disabled={contatos.numeros.length >= LIMITE_CONTATOS}
           onClick={adicionarContato}
         >
           Adicionar outro contato
-        </button>,
+        </Botao>,
         destinos.adicionar,
       )}
       {createPortal(
@@ -360,16 +365,15 @@ export function CamposCasoNovo({
       )}
       {createPortal(equipe.mensagem, destinos.estadoResponsavel)}
       {createPortal(
-        <button
+        <Botao
           id="manager-retry"
-          className="ui-botao"
-          data-peso="secundario"
-          type="button"
+          className="justify-self-start"
+          peso="secundario"
           hidden={equipe.fase !== 'falha'}
           onClick={() => void carregarResponsaveis()}
         >
           Tentar novamente
-        </button>,
+        </Botao>,
         destinos.tentarNovamente,
       )}
     </>
