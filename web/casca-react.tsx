@@ -2,6 +2,7 @@ import { createRef, type ComponentProps, type ReactElement, useEffect, useState 
 import { createPortal, flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import type { PacienteLista } from '../packages/contracts/src/cadastro.js';
+import { EstadoDeRede } from './estado-rede.js';
 import { lerRotaFicha, type RotaFicha } from './ficha-paciente.js';
 import { TelaHomeProfissional, type ServicoHome } from './home-profissional.js';
 import { LimiteErroPainel } from './limite-erro-painel.js';
@@ -12,6 +13,7 @@ import { type ComandoGaveta, type EstadoNavegacao, NavegacaoCasca } from './nave
 
 type Navegacao = ComponentProps<typeof NavegacaoCasca>;
 type Carteira = { raiz: HTMLElement; abrir: (paciente: PacienteLista) => void };
+type Entrada = { destinoLogin: HTMLElement; destinoRede: HTMLElement; login: ReactElement };
 
 type Rota =
   | { tipo: 'ficha'; ficha: RotaFicha }
@@ -84,6 +86,7 @@ function Casca({
   carteira,
   agenda,
   destinoAgenda,
+  entrada,
 }: {
   vista: Vista | null;
   aoHistorico: () => void;
@@ -91,8 +94,10 @@ function Casca({
   carteira: Carteira & { pacientes: readonly PacienteLista[] };
   agenda: ReactElement | null;
   destinoAgenda: HTMLElement;
+  entrada: Entrada;
 }) {
   const [tentativaAgenda, definirTentativaAgenda] = useState(0);
+  const [tentativaEntrada, definirTentativaEntrada] = useState(0);
   useEffect(() => {
     const eventos = new window.AbortController();
     enderecoTratado = window.location.href;
@@ -115,6 +120,16 @@ function Casca({
   return (
     <>
       <NavegacaoCasca {...navegacao} />
+      {createPortal(<EstadoDeRede />, entrada.destinoRede)}
+      {createPortal(
+        <LimiteErroPainel
+          key={tentativaEntrada}
+          aoTentarNovamente={() => definirTentativaEntrada((anterior) => anterior + 1)}
+        >
+          {entrada.login}
+        </LimiteErroPainel>,
+        entrada.destinoLogin,
+      )}
       {createPortal(
         <LinhasCarteira pacientes={carteira.pacientes} aoAbrir={carteira.abrir} />,
         carteira.raiz,
@@ -143,6 +158,7 @@ export function iniciarCasca(
   opcoes: Omit<Navegacao, 'comando' | 'estado'>,
   carteira: Carteira,
   destinoAgenda: HTMLElement,
+  entrada: Entrada,
 ) {
   const arvore = createRoot(raiz);
   const comando = createRef<ComandoGaveta>();
@@ -172,6 +188,7 @@ export function iniciarCasca(
             carteira={{ ...carteira, pacientes }}
             agenda={agenda}
             destinoAgenda={destinoAgenda}
+            entrada={entrada}
           />,
         ),
       );

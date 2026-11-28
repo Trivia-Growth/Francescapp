@@ -1,61 +1,35 @@
-import { useCallback, useRef, useState } from 'react';
+import {
+  type Ref,
+  useCallback,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { flushSync } from 'react-dom';
 import type { ClienteFFCM } from './api.ts';
 import { exigeNovoAcesso, mensagemFalha } from './api.ts';
 import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
-import { ilha } from './ponte/ilha.js';
 import { criarServicoConfirmacaoInterna } from './servico-acessos-http.js';
 import { Formulario } from './telas/formulario.js';
 
 type Sessao = Awaited<ReturnType<ClienteFFCM['entrarInterno']>>;
 type Opcoes = { podeIniciar(): boolean; ocupacao(valor: boolean): void };
 
-/** OTP comprova e-mail no servidor; só login com senha pode abrir sessão do produto.
- *
- * `raiz` é o `<details id="acesso-interno">` que já existe em `web/index.html`: esta tela
- * substitui só o CONTEÚDO dele (resumo, os dois formulários, os dois recados), nunca o
- * próprio elemento — é por isso que `aria-busy` é escrito nele diretamente no corpo do
- * componente, e não por uma `className` na árvore que esta função desenha.
- *
- * O contrato exportado não muda: `montarLoginInterno(raiz, api, aoEntrar, opcoes) =>
- * { limpar() }`. Nenhum fluxo de autorização muda — a senha some do controle antes mesmo de
- * a chamada partir, a confirmação de e-mail nunca abre sessão, e um `aoEntrar` que lança
- * cai no mesmo tratamento de erro da credencial. */
-export function montarLoginInterno(
-  raiz: HTMLElement,
-  api: ClienteFFCM,
-  aoEntrar: (sessao: Sessao) => Promise<void>,
-  opcoes?: Opcoes,
-): { limpar(): void } {
-  let limparAtual: () => void = () => {};
-  ilha(
-    raiz,
-    <TelaLoginInterno
-      raiz={raiz}
-      api={api}
-      aoEntrar={aoEntrar}
-      opcoes={opcoes}
-      expor={(exposta) => {
-        limparAtual = exposta.limpar;
-      }}
-    />,
-  );
-  return { limpar: () => limparAtual() };
-}
+export type ComandoLoginInterno = { limpar(): void };
 
-function TelaLoginInterno({
-  raiz,
+/** A confirmação valida o e-mail. A sessão só pode ser aberta pelo login com senha. */
+export function TelaLoginInterno({
   api,
   aoEntrar,
   opcoes,
-  expor,
+  comando,
 }: {
-  raiz: HTMLElement;
   api: ClienteFFCM;
   aoEntrar: (sessao: Sessao) => Promise<void>;
   opcoes?: Opcoes;
-  expor: (api: { limpar(): void }) => void;
+  comando: Ref<ComandoLoginInterno>;
 }) {
   const [ocupada, definirOcupadaEstado] = useState(false);
   const [feedback, definirFeedback] = useState('');
@@ -195,25 +169,27 @@ function TelaLoginInterno({
     geracaoRef.current += 1;
     ocupadaRef.current = false;
     servicoOtp.cancelar();
-    raiz.querySelector<HTMLFormElement>('#interno-login-form')?.reset();
-    raiz.querySelector<HTMLFormElement>('#interno-confirmacao-form')?.reset();
+    emailRef.current?.form?.reset();
+    emailConfirmacaoRef.current?.form?.reset();
     flushSync(() => {
       definirFeedback('');
       definirConfirmFeedback('');
       bloquear(false);
     });
-  }, [raiz, servicoOtp, bloquear]);
+  }, [servicoOtp, bloquear]);
 
-  /* Fora de efeito, de propósito — mesma razão de `web/avisos.tsx`: `aria-busy` é atributo
-   * do `<details>` que `main.ts` já segura (`raiz`), não um nó que esta árvore desenha; e
-   * `expor` precisa estar pronto antes de `ilha()` devolver, porque `main.ts:1638` chama
-   * `loginInterno.limpar()` a qualquer momento depois de montar, sem esperar efeito nenhum. */
-  raiz.setAttribute('aria-busy', String(ocupada));
-  expor({ limpar });
+  useImperativeHandle(comando, () => ({ limpar }), [limpar]);
+  useLayoutEffect(
+    () => () => {
+      geracaoRef.current += 1;
+      if (ocupadaRef.current) opcoesRef.current?.ocupacao(false);
+      servicoOtp.desmontar();
+    },
+    [servicoOtp],
+  );
 
   return (
     <>
-      <summary>Entrar com e-mail e senha</summary>
       <p>Para contas internas criadas pela administração.</p>
       <Formulario
         id="interno-login-form"

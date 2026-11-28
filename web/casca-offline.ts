@@ -199,36 +199,3 @@ export async function limparAparelho(
   }
   return relatorio;
 }
-
-export const MENSAGEM_SEM_REDE =
-  'Sem conexão. O conteúdo das áreas do aplicativo não é guardado no aparelho e volta a aparecer quando a rede voltar.';
-
-type JanelaDeRede = {
-  navigator: { onLine?: boolean };
-  addEventListener: Window['addEventListener'];
-  removeEventListener: Window['removeEventListener'];
-};
-
-/**
- * Mantém o aviso de indisponibilidade por falta de rede (D2). O aviso é um estado da casca, não
- * conteúdo: nenhuma área mostra dado anterior ou de exemplo, porque nenhuma resposta de API é
- * guardada no aparelho.
- */
-export function montarEstadoDeRede(
-  alvo: HTMLElement,
-  janela: JanelaDeRede = window as unknown as JanelaDeRede,
-): () => void {
-  const aplicar = (): void => {
-    const semRede = janela.navigator.onLine === false;
-    alvo.textContent = semRede ? MENSAGEM_SEM_REDE : '';
-    alvo.hidden = !semRede;
-    if (alvo.ownerDocument?.body) alvo.ownerDocument.body.dataset.semRede = String(semRede);
-  };
-  aplicar();
-  janela.addEventListener('online', aplicar);
-  janela.addEventListener('offline', aplicar);
-  return () => {
-    janela.removeEventListener('online', aplicar);
-    janela.removeEventListener('offline', aplicar);
-  };
-}

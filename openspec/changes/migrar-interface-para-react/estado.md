@@ -41,6 +41,19 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8l do plano visual — entrada interna e aviso de rede
+
+Os formulários internos e o aviso de conectividade são compostos na raiz da
+casca. A montagem do formulário preserva o resumo de entrada no HTML e
+registra o comando de limpeza pelo React. A tarefa 7.2 permanece aberta.
+
+- Passaram 16 testes Vitest, três cenários Chromium e lint/typecheck. O aviso
+  sem rede coube a 360 e 390 px. Com recusa fictícia, Chromium viu a senha
+  apagada antes da resposta, os controles ocupados e Administração oculta.
+- Sem apagar a senha no envio, o Chromium encontrou o valor no controle e
+  falhou em `toHaveValue`. Alteração revertida.
+- Próximo passo: rebase depois do squash da fatia anterior e ativação.
+
 ## Fatia 8k do plano visual — adaptadores sem uso no aplicativo
 
 Saíram sete montagens de Avisos, Seu dia, Como funciona, Lista de pacientes,

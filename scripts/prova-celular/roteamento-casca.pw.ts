@@ -1,9 +1,45 @@
 import { expect, test, type Page } from '@playwright/test';
+import { criarErroPublico } from '../../packages/contracts/src/comum.js';
 import { responder } from '../../web/fixtures/despachante.js';
 import { envelope } from '../../web/fixtures/comum.js';
 import { PACIENTE_IDS, sessaoAdministrador } from '../../web/fixtures/sessao.js';
 
 test.use({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+
+test('a entrada interna limpa a senha e mantém a área privada oculta após recusa', async ({
+  page,
+}) => {
+  let liberarResposta = () => {};
+  const espera = new Promise<void>((resolver) => {
+    liberarResposta = resolver;
+  });
+  await page.route('**/api/auth/interno', async (rota) => {
+    await espera;
+    return rota.fulfill({
+      status: 401,
+      json: criarErroPublico('nao_autenticado', PACIENTE_IDS[0]),
+    });
+  });
+  await page.goto('/web/index.html#administracao/configuracao');
+  const interno = page.locator('#acesso-interno');
+  await interno.locator('summary').first().click();
+  const senha = interno.getByLabel('Senha', { exact: true });
+  await interno.getByLabel('E-mail', { exact: true }).fill('equipe@example.test');
+  await senha.fill('senha-ficticia');
+  try {
+    await interno.getByRole('button', { name: 'Entrar com e-mail e senha' }).click();
+    await expect(senha).toHaveValue('');
+    await expect(interno).toHaveAttribute('aria-busy', 'true');
+    await expect(
+      page.getByRole('button', { name: 'Entrar com Google da organização' }),
+    ).toBeDisabled();
+  } finally {
+    liberarResposta();
+  }
+  await expect(interno.locator('#interno-feedback')).toContainText('Entrada não autorizada');
+  await expect(interno).toHaveAttribute('aria-busy', 'false');
+  await expect(page.locator('#administracao-view')).toBeHidden();
+});
 
 async function prepararSessao(pagina: Page, modo: 'tecnica' | 'familiar') {
   await pagina.addInitScript(
