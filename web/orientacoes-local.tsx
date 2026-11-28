@@ -1,11 +1,5 @@
-/* Prévia local de orientações — edição em memória antes de `aoSalvar` confirmar a
- * gravação —, reconstruída em React sobre a ilha (`web/ponte/ilha.ts`).
- *
- * O contrato exportado não muda: `montarOrientacoesLocais(raiz, dados, ehFamilia?) =>
- * void` (sem desmontagem própria — quem monta é dono do ciclo de vida da `raiz`, como
- * `web/orientacoes.tsx` e `web/demonstracao.ts` já fazem).
- *
- * O que NÃO mudou, de propósito:
+/* A ficha e a demonstração compõem a edição de orientações. O rascunho fica
+ * em memória até `aoSalvar` confirmar a gravação.
  *
  * - `dados.orientacoes` continua sendo MUTADO por referência (`splice`) após gravação
  *   confirmada — é o mesmo array que o chamador guarda, e `web/orientacoes.tsx` depende

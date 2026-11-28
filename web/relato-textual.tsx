@@ -1,34 +1,4 @@
-/* Preparação local do relato textual, reconstruída em React sobre a ilha
- * (`web/ponte/ilha.ts`).
- *
- * O contrato exportado não muda: `montarRelatoTextual(raiz, salvar?, bloqueado?) =>
- * desmontar`. Continua sendo o **protótipo isolado** que já era: sem armazenamento, envio,
- * autorização ou rota — `salvar`, quando vem, é a prévia local injetada por quem monta.
- *
- * Esta é a alternativa textual ao áudio que FR-010 exige: o campo de descrição funciona
- * sozinho, sem depender do bloco de gravação (`web/transcricao-audio.tsx`), e continua
- * disponível e anunciada aqui como peça própria do Diário.
- *
- * O que a migração entrega (VIS-012): não havia bandeira `ativa` para eliminar — a versão
- * imperativa já não tinha operação assíncrona capaz de escrever em nó desmontado fora do
- * clique de "Guardar", e ali o próprio React (ilha desmontada = sem efeito) resolve sem
- * guarda extra.
- *
- * O que NÃO mudou, de propósito:
- *
- * - **Nenhuma frase mudou de palavra.**
- * - Validação, foco no campo inválido e `aria-invalid` continuam por campo, independentes
- *   um do outro — os dois podem estar marcados ao mesmo tempo.
- * - `salvamentoIncerto` permanece entre submissões: enquanto o último resultado de
- *   salvamento for incerto, cada novo texto digitado reafirma o aviso de bloqueio, e
- *   "Guardar" continua desabilitado.
- * - A prévia de revisão nunca interpreta o texto como HTML — é texto puro, como antes.
- *
- * **Os campos continuam NÃO controlados.** A revisão é construída a partir do
- * `FormData` do próprio `<form>` no instante do envio — nunca de um estado React
- * espelhado — e `aria-invalid` é alternado direto no nó, do mesmo jeito que a versão
- * imperativa fazia.
- */
+/** Formulário de relato textual da demonstração local. */
 import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
@@ -38,7 +8,6 @@ import {
 import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
-import { ilha } from './ponte/ilha.js';
 import { Formulario } from './telas/formulario.js';
 
 const MENSAGEM_BLOQUEADO =
@@ -52,7 +21,7 @@ function controle(raiz: HTMLElement | null, id: string): HTMLElement | null {
 }
 
 /** Protótipo isolado: sem armazenamento, envio, autorização ou rota. */
-function TelaRelatoTextual({
+export function TelaRelatoTextual({
   salvar,
   bloqueado,
 }: {
@@ -242,12 +211,4 @@ function TelaRelatoTextual({
       </Formulario>
     </div>
   );
-}
-
-export function montarRelatoTextual(
-  raiz: HTMLElement,
-  salvar?: (relato: RelatoTextual) => Promise<void>,
-  bloqueado = false,
-): () => void {
-  return ilha(raiz, <TelaRelatoTextual salvar={salvar} bloqueado={bloqueado} />);
 }

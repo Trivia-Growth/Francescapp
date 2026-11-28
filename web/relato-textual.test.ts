@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { montarRelatoTextual } from './relato-textual.js';
+import { TelaRelatoTextual } from './relato-textual.js';
 
 describe('preparação local do relato', () => {
   it('valida campos obrigatórios e revisa conteúdo fictício como texto, sem envio', () => {
     const raiz = document.createElement('div');
-    const desmontar = montarRelatoTextual(raiz);
+    const painel = render(createElement(TelaRelatoTextual, { bloqueado: false }), {
+      container: raiz,
+    });
+    const desmontar = () => painel.rerender(null);
     const form = raiz.querySelector('form');
     if (!form) throw new Error('Formulário ausente');
     const status = raiz.querySelector('[role=status]');
@@ -44,7 +49,7 @@ it.each(['400', '403', '404'])(
     const salvar = async () => {
       throw new Error(codigo);
     };
-    montarRelatoTextual(raiz, salvar);
+    render(createElement(TelaRelatoTextual, { bloqueado: false, salvar }), { container: raiz });
     const data = raiz.querySelector('input[type=date]') as HTMLInputElement;
     const descricao = raiz.querySelector('textarea') as HTMLTextAreaElement;
     data.value = '2026-11-04';

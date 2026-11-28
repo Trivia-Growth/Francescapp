@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement } from 'react';
 import { expect, it, vi } from 'vitest';
-import { montarPainelPendenciasLocal } from './painel-pendencias-local';
+import { PainelPendenciasLocal, type DadosPainelPendenciasLocal } from './painel-pendencias-local';
+
+function renderizarPendencias(raiz: HTMLElement, dados: DadosPainelPendenciasLocal) {
+  render(createElement(PainelPendenciasLocal, { dados }), { container: raiz });
+}
 
 it('mostra tarefas abertas por paciente e identifica prazo vencido sem interpretar texto como HTML', () => {
   const raiz = document.createElement('div');
   const abrir = vi.fn();
-  montarPainelPendenciasLocal(raiz, {
+  renderizarPendencias(raiz, {
     hoje: '2026-11-04',
     pacientes: [
       {
@@ -42,6 +48,6 @@ it('mostra tarefas abertas por paciente e identifica prazo vencido sem interpret
 
 it('informa quando não há tarefas abertas', () => {
   const raiz = document.createElement('div');
-  montarPainelPendenciasLocal(raiz, { hoje: '2026-11-04', pacientes: [] });
+  renderizarPendencias(raiz, { hoje: '2026-11-04', pacientes: [] });
   expect(raiz.textContent).toContain('Nenhuma tarefa em aberto');
 });

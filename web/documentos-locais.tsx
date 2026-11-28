@@ -1,17 +1,6 @@
-/* Documentos locais da prévia de feedback, reconstruído em React sobre a ilha
- * (`web/ponte/ilha.ts`). Único consumidor é `web/demonstracao.ts` (prévia dev-only).
- *
- * Migração represada até agora pelo mesmo motivo de `web/busca-pacientes-local.ts`
- * (Fase 3.3): `react-dom/client` lê `navigator.userAgent` na avaliação do módulo, e
- * `web/demonstracao.test.ts` testava com um dublê de `navigator` sem essa propriedade.
- * Liberada depois que a coordenação acrescentou `userAgent` ao dublê.
- *
- * O contrato exportado não muda: `montarDocumentosLocais(raiz, dados) => void` — sem
- * desmontagem, porque `demonstracao.ts` chama de novo na MESMA raiz a cada "Abrir
- * documentos" (de paciente diferente ou do mesmo), e `ilha()` já tolera isso.
- *
- * Metadados fictícios; não armazena arquivos nem autoriza acesso. Os anexos ficam no
- * Google Drive institucional — aqui é só a prévia local de feedback. */
+/* Metadados fictícios de documentos, compostos pela demonstração local a cada
+ * abertura da prévia. O armazenamento de anexos e a autorização pertencem à
+ * integração institucional fora da demonstração. */
 import { useState } from 'react';
 import { Botao } from './componentes/ui/botao.js';
 import { Formulario } from './telas/formulario.js';

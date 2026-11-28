@@ -1,11 +1,5 @@
-/* Evoluções da demonstração local (prévia com dados fictícios), reconstruídas em React
- * sobre a ilha (`web/ponte/ilha.ts`).
- *
- * Contrato: `montarEvolucoesLocais(raiz, dados) => desmontar`. O único chamador é
- * `web/demonstracao.ts`, que remonta na mesma raiz a cada abertura (a ilha tolera) e
- * pendura um ouvinte `input` no `<form>` desenhado aqui para saber se há rascunho.
- *
- * O que NÃO mudou, de propósito:
+/* Evoluções fictícias. A demonstração compõe o editor de cada caso e ouve
+ * `input` no formulário para detectar rascunhos.
  *
  * - `dados.evolucoes` continua sendo MUTADO por referência (`splice`) só depois de
  *   `aoSalvar` confirmar — falha preserva o rascunho digitado e a lista.
