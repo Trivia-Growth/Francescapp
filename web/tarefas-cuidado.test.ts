@@ -1,7 +1,24 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
 import { FalhaApi } from './api.ts';
-import { montarTarefasCuidado } from './tarefas-cuidado.js';
+import { TelaTarefasCuidado } from './tarefas-cuidado.js';
+
+type Propriedades = ComponentProps<typeof TelaTarefasCuidado>;
+
+function montarTarefasCuidado(
+  raiz: HTMLElement,
+  pacienteId: string,
+  servico: Propriedades['servico'],
+  acessoPerdido: Propriedades['acessoPerdido'],
+  alteracaoPendente: Propriedades['alteracaoPendente'] = () => {},
+) {
+  render(
+    createElement(TelaTarefasCuidado, { pacienteId, servico, acessoPerdido, alteracaoPendente }),
+    { container: raiz },
+  );
+}
 
 it.each([401, 403])('remove rascunho antes de informar perda de acesso %s', async (status) => {
   const raiz = document.createElement('div');

@@ -1,22 +1,4 @@
-/* Tarefas de cuidado da equipe (FR-0XX), reconstruído em React sobre a ilha
- * (`web/ponte/ilha.ts`).
- *
- * O contrato exportado não muda: `montarTarefasCuidado(raiz, pacienteId, servico,
- * acessoPerdido, alteracaoPendente) => desmontar`.
- *
- * O que a migração entrega:
- *
- * 1. VIS-012. A versão imperativa tinha UMA flag `ativa` conferida em oito pontos
- *    diferentes (`if (!ativa) return`), protegendo escritas em DOM já desmontado: duas no
- *    carregamento, duas na barreira de conferência, duas no envio de criação e duas no
- *    envio de atualização. Não sobrou nenhuma — `ilha()` desmonta a raiz React e escrever
- *    estado depois disso não faz nada, como nas demais telas já migradas. O único
- *    guardião que sobrou é de GERAÇÃO, não de vida: o efeito de carregamento marca a
- *    própria consulta como `valida` para a resposta de uma chamada anterior não
- *    sobrescrever uma mais nova — o mesmo papel que `anamnese.tsx` e `visao-caso.tsx` já
- *    descrevem, e que o "Tentar novamente" (um novo `tentativa`) precisa de verdade.
- * 2. Superfície plana do `DESIGN.md`: tarefas viram cartões (`<article>`) numa grade, sem
- *    a moldura ad hoc que a folha legada desenhava por seletor de classe.
+/* Tarefas de cuidado no painel React da ficha.
  *
  * O que NÃO mudou, de propósito (VIS-018):
  *
@@ -63,7 +45,6 @@ import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 
 export type ServicoTarefasCuidado = {
@@ -431,7 +412,7 @@ type Fase =
   | { fase: 'erro'; erro: unknown };
 
 /** Consulta vinculada ao paciente; o servidor determina o acesso. */
-function TelaTarefasCuidado({
+export function TelaTarefasCuidado({
   pacienteId,
   servico,
   acessoPerdido,
@@ -786,23 +767,5 @@ function TelaTarefasCuidado({
         </>
       )}
     </section>
-  );
-}
-
-export function montarTarefasCuidado(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: ServicoTarefasCuidado,
-  acessoPerdido: (erro: unknown) => void,
-  alteracaoPendente: (pendente: boolean) => void = () => {},
-): () => void {
-  return ilha(
-    raiz,
-    <TelaTarefasCuidado
-      pacienteId={pacienteId}
-      servico={servico}
-      acessoPerdido={acessoPerdido}
-      alteracaoPendente={alteracaoPendente}
-    />,
   );
 }

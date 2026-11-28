@@ -22,9 +22,9 @@ import {
   criarServicoPapelDeclaradoHttp,
 } from './servico-catalogo-administrado-http.js';
 import { criarServicoEdicaoPacienteHttp } from './servico-edicao-paciente-http.js';
-import { montarTarefasCuidado } from './tarefas-cuidado.js';
+import { type ServicoTarefasCuidado, TelaTarefasCuidado } from './tarefas-cuidado.js';
 import { criarServicoTarefasHttp } from './servico-tarefas-http.js';
-import { montarTarefasComDisponibilidade } from './integracao-tarefas-disponibilidade.js';
+import { TarefasComDisponibilidade } from './integracao-tarefas-disponibilidade.js';
 import { correspondeBuscaPacienteLocal } from './busca-pacientes-local.js';
 import {
   hashFicha,
@@ -475,69 +475,66 @@ function montarConversaoDaFicha(
   );
 }
 
-function montarSecaoTarefas(
-  raiz: HTMLElement,
-  pacienteId: string,
-  pendente: (valor: boolean) => void,
-): () => void {
+function comporSecaoTarefas(pacienteId: string, pendente: (valor: boolean) => void): ReactElement {
   const servicoTarefas = criarServicoTarefasHttp(identidadeAtual);
-  return montarTarefasComDisponibilidade(raiz, pacienteId, {
-    identidadeAtual,
-    casoAtual: () => fichaPaciente?.id ?? null,
-    consultarDisponibilidade: servicoTarefas.consultarDisponibilidade,
-    acessoPerdido,
-    montar: (destino, escritaDisponivel, identidadeDaSecao) => {
-      const cicloTarefas = escritaDisponivel
-        ? criarCicloTarefaCuidado({
-            identidadeAtual: identidadeDaSecao,
-            consultar: () => api.consultarBarreiraTarefa(),
-            reservar: async (entrada) => (await api.reservarBarreiraTarefa(entrada)).estado,
-            encerrar: async (entrada) => (await api.encerrarBarreiraTarefa(entrada)).estado,
-            reconhecer: async (entrada) => (await api.reconhecerBarreiraTarefa(entrada)).estado,
-            gravar: async ({
-              paciente_id,
-              tarefa_id,
-              versao_esperada,
-              tarefa,
-              chave,
-              reserva_id,
-              epoca,
-            }) => {
-              const reserva = { reserva_id, geracao_reserva: epoca };
-              if (versao_esperada === 0)
-                await servicoTarefas.criarTarefa(paciente_id, tarefa_id, chave, tarefa, reserva);
-              else
-                await servicoTarefas.atualizarTarefa(
-                  paciente_id,
-                  tarefa_id,
-                  versao_esperada,
-                  chave,
-                  tarefa,
-                  reserva,
-                );
-            },
-          })
-        : null;
-      return montarTarefasCuidado(
-        destino,
-        pacienteId,
-        {
+  return createElement(TarefasComDisponibilidade, {
+    pacienteId,
+    portas: {
+      identidadeAtual,
+      casoAtual: () => fichaPaciente?.id ?? null,
+      consultarDisponibilidade: servicoTarefas.consultarDisponibilidade,
+      acessoPerdido,
+      compor: (escritaDisponivel, identidadeDaSecao) => {
+        const cicloTarefas = escritaDisponivel
+          ? criarCicloTarefaCuidado({
+              identidadeAtual: identidadeDaSecao,
+              consultar: () => api.consultarBarreiraTarefa(),
+              reservar: async (entrada) => (await api.reservarBarreiraTarefa(entrada)).estado,
+              encerrar: async (entrada) => (await api.encerrarBarreiraTarefa(entrada)).estado,
+              reconhecer: async (entrada) => (await api.reconhecerBarreiraTarefa(entrada)).estado,
+              gravar: async ({
+                paciente_id,
+                tarefa_id,
+                versao_esperada,
+                tarefa,
+                chave,
+                reserva_id,
+                epoca,
+              }) => {
+                const reserva = { reserva_id, geracao_reserva: epoca };
+                if (versao_esperada === 0)
+                  await servicoTarefas.criarTarefa(paciente_id, tarefa_id, chave, tarefa, reserva);
+                else
+                  await servicoTarefas.atualizarTarefa(
+                    paciente_id,
+                    tarefa_id,
+                    versao_esperada,
+                    chave,
+                    tarefa,
+                    reserva,
+                  );
+              },
+            })
+          : null;
+        const servico: ServicoTarefasCuidado = {
           consultarTarefas: servicoTarefas.consultarTarefas,
-          ...(cicloTarefas
-            ? {
-                ciclo: cicloTarefas,
-                criarTarefa: async (paciente, tarefa, _chave, dados) => {
-                  await cicloTarefas.gravar(paciente, tarefa, 0, dados);
-                },
-                atualizarTarefa: async (paciente, tarefa, versao, _chave, dados) => {
-                  await cicloTarefas.gravar(paciente, tarefa, versao, dados);
-                },
-              }
-            : {}),
-        },
-        acessoPerdido,
-        pendente,
-      );
+        };
+        if (cicloTarefas) {
+          servico.ciclo = cicloTarefas;
+          servico.criarTarefa = async (paciente, tarefa, _chave, dados) => {
+            await cicloTarefas.gravar(paciente, tarefa, 0, dados);
+          };
+          servico.atualizarTarefa = async (paciente, tarefa, versao, _chave, dados) => {
+            await cicloTarefas.gravar(paciente, tarefa, versao, dados);
+          };
+        }
+        return createElement(TelaTarefasCuidado, {
+          pacienteId,
+          servico,
+          acessoPerdido,
+          alteracaoPendente: pendente,
+        });
+      },
     },
   });
 }
@@ -925,7 +922,7 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'tarefas',
       rotulo: 'Tarefas',
       descarte: descarteTarefa,
-      montar: async (raiz, pendente) => montarSecaoTarefas(raiz, paciente.id, pendente),
+      compor: async (pendente) => comporSecaoTarefas(paciente.id, pendente),
     });
   if (atual.usuario.perfil === 'profissional')
     secoes.push({

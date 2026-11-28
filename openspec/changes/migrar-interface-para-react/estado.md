@@ -41,6 +41,22 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8j do plano visual — Tarefas
+
+A disponibilidade e a tela de tarefas são compostas na ficha. A autorização
+para exibir a escrita continua limitada ao caso e à sessão consultados. A
+tarefa 7.2 permanece aberta.
+
+- Passaram 11 testes Vitest, o cenário Chromium de leitura quando a escrita
+  é recusada e lint/typecheck. Chromium conferiu que a lista ainda abre e que
+  o formulário Nova tarefa permanece ausente.
+- Forçar a leitura de disponibilidade para `true` fez Chromium falhar ao
+  esperar o aviso de escrita indisponível. Alteração revertida.
+- A revisão confirmou em teste que o painel está vazio no instante do aviso
+  de perda de acesso. A consulta inicial confere o contexto fora do efeito
+  de renderização, e a nova tentativa bem-sucedida devolve foco ao painel.
+- Próximo passo: rebase depois do squash da fatia anterior e ativação.
+
 ## Fatia 8i do plano visual — Minha agenda
 
 A agenda do profissional com Google é composta na raiz React da casca. A

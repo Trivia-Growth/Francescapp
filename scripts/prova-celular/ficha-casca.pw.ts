@@ -224,3 +224,39 @@ for (const permiteCadastro of [true, false]) {
     }
   });
 }
+
+test('Tarefas abre em leitura quando o servidor recusa escrita', async ({ page }) => {
+  await page.addInitScript((id) => {
+    sessionStorage.setItem('modo-acesso', 'tecnica');
+    sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
+    sessionStorage.setItem('sessao-tecnica', id);
+  }, sessaoAdministrador.session_id);
+  const tarefas = `/api/pacientes/${PACIENTE_IDS[0]}/tarefas`;
+  await page.route('**/api/**', (rota) => {
+    const url = new URL(rota.request().url());
+    if (url.pathname === '/api/sessao')
+      return rota.fulfill({
+        json: envelope({
+          ...sessaoAdministrador,
+          usuario: { ...sessaoAdministrador.usuario, perfil: 'profissional' },
+          capacidades: [],
+        }),
+      });
+    if (url.pathname === `${tarefas}/disponibilidade`)
+      return rota.fulfill({ json: envelope({ escrita_disponivel: false }) });
+    if (url.pathname === tarefas) return rota.fulfill({ json: envelope([]) });
+    const fixture = responder(url.href);
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  await page.goto(`/web/index.html#paciente/${PACIENTE_IDS[0]}/tarefas`);
+  const painel = page.locator('#ficha-painel');
+  await expect(
+    painel.getByText('Criação e edição de tarefas indisponíveis neste caso.'),
+  ).toBeVisible();
+  await expect(painel.getByText('Nenhuma tarefa encontrada para este paciente.')).toBeVisible();
+  await expect(painel.getByText('Nova tarefa')).toHaveCount(0);
+  await page.locator('#ficha-aba-plano').click();
+  await expect(painel.locator('.ficha-secao')).toHaveAttribute('data-secao', 'plano');
+});
