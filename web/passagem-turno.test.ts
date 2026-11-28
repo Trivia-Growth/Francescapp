@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { montarPassagemTurno } from './passagem-turno.js';
+import { PassagemTurnoTela } from './passagem-turno.js';
 import { FalhaApi } from './api.ts';
 import { criarServicoTurnoHttp } from './servico-turno-http.ts';
 import type { PassagemTurno } from '../packages/contracts/src/turno-passagem.ts';
@@ -40,13 +42,16 @@ function preparar(dados: PassagemTurno) {
   const servico = criarServicoTurnoHttp(() => ({ usuario_id: usuario, session_id: usuario }));
   vi.spyOn(servico, 'consultarPassagem').mockResolvedValue(dados);
   vi.spyOn(servico, 'registrarCiencia').mockRejectedValue(new Error('Falha fictícia'));
-  const raiz = document.createElement('div');
   const encerrar = vi.fn(async () => {});
-  const desmontar = montarPassagemTurno(raiz, paciente, turno, servico, {
-    acessoPerdido: vi.fn(),
-    encerrar,
-  });
-  return { raiz, servico, desmontar, encerrar };
+  const painel = render(
+    createElement(PassagemTurnoTela, {
+      pacienteId: paciente,
+      turno,
+      servico,
+      opcoes: { acessoPerdido: vi.fn(), encerrar },
+    }),
+  );
+  return { raiz: painel.container, servico, desmontar: painel.unmount, encerrar };
 }
 /* A espera precisa ceder a vez ao agendador, não só à fila de microtarefas. Medido em
    25/11/2026: o React agenda a repintura de uma atualização vinda de `then`/`await` fora
@@ -64,7 +69,9 @@ it('consultar passagem anterior não registra ciência; falha da ação mantém 
     recebimento: null,
     anterior: { referencia, turno_destinatario_id: usuario, ciencia: null },
   });
+  expect(raiz.firstElementChild?.getAttribute('aria-busy')).toBe('true');
   await aguardar();
+  expect(raiz.firstElementChild?.getAttribute('aria-busy')).toBe('false');
   expect(servico.registrarCiencia).not.toHaveBeenCalled();
   const ciencia = [...raiz.querySelectorAll('button')].find(
     (b) => b.textContent === 'Registrar minha ciência',

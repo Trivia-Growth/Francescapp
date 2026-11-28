@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { montarFichaPlantao, type ServicosFichaPlantao } from './ficha-plantao.js';
+import { FichaPlantao, type ServicosFichaPlantao } from './ficha-plantao.js';
 import type { CampoExtraCatalogoGeneralizado } from '../packages/contracts/src/campo-extra-catalogo.ts';
 import type { Turno } from '../packages/contracts/src/turno.ts';
 import { FalhaApi } from './api.ts';
@@ -101,6 +103,14 @@ const grupo = (raiz: HTMLElement, legenda: string) => {
   return item;
 };
 
+function renderizarFicha(
+  raiz: HTMLElement,
+  servicos: ServicosFichaPlantao,
+  opcoes: Omit<ComponentProps<typeof FichaPlantao>, 'servicos'>,
+) {
+  render(createElement(FichaPlantao, { servicos, ...opcoes }), { container: raiz });
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -109,7 +119,7 @@ it('carrega, mostra o vazio só após consulta real e marca a audiência de cada
   const raiz = document.createElement('div');
   document.body.append(raiz);
   const api = servicos();
-  montarFichaPlantao(raiz, api, { pacienteId: paciente, turno, acessoPerdido: vi.fn() });
+  renderizarFicha(raiz, api, { pacienteId: paciente, turno, acessoPerdido: vi.fn() });
   expect(raiz.textContent).toContain('Carregando a ficha do plantão');
   await vi.waitFor(() =>
     expect(raiz.textContent).toContain('Ficha em branco. Nada foi publicado neste plantão ainda.'),
@@ -131,7 +141,7 @@ it('sem turno aberto a ficha não é oferecida e o caminho declarado é explicad
   const raiz = document.createElement('div');
   document.body.append(raiz);
   const api = servicos();
-  montarFichaPlantao(raiz, api, { pacienteId: paciente, turno: null, acessoPerdido: vi.fn() });
+  renderizarFicha(raiz, api, { pacienteId: paciente, turno: null, acessoPerdido: vi.fn() });
   await vi.waitFor(() => expect(raiz.textContent).toContain('Nenhum turno aberto para este caso.'));
   expect(raiz.textContent).toContain('declare a janela real');
   expect(raiz.querySelector('form')).toBeNull();
@@ -155,7 +165,7 @@ it('recupera o rascunho guardado no servidor sem publicar nada', async () => {
       publicado: false,
     }),
   });
-  montarFichaPlantao(raiz, api, { pacienteId: paciente, turno, acessoPerdido: vi.fn() });
+  renderizarFicha(raiz, api, { pacienteId: paciente, turno, acessoPerdido: vi.fn() });
   await vi.waitFor(() => expect(raiz.textContent).toContain('Rascunho não publicado recuperado'));
   const texto = grupo(raiz, 'Atividades').querySelector('textarea');
   expect(texto?.value).toBe('Caminhada fictícia no corredor.');
@@ -173,7 +183,7 @@ it('guarda o rascunho no servidor, nunca no navegador', async () => {
       publicado: false,
     }),
   });
-  montarFichaPlantao(raiz, api, { pacienteId: paciente, turno, acessoPerdido: vi.fn() });
+  renderizarFicha(raiz, api, { pacienteId: paciente, turno, acessoPerdido: vi.fn() });
   await vi.waitFor(() => expect(raiz.textContent).toContain('Ficha em branco'));
   const texto = grupo(raiz, 'Observações').querySelector('textarea');
   if (!texto) throw new Error('Campo ausente');
@@ -194,7 +204,7 @@ it('publica uma ficha por plantão, com o turno como registro, e informa a falha
   const api = servicos({
     publicar: vi.fn().mockRejectedValue(new FalhaApi('conflito_versao', 409)),
   });
-  montarFichaPlantao(raiz, api, { pacienteId: paciente, turno, acessoPerdido: vi.fn() });
+  renderizarFicha(raiz, api, { pacienteId: paciente, turno, acessoPerdido: vi.fn() });
   await vi.waitFor(() => expect(raiz.textContent).toContain('Ficha em branco'));
   const texto = grupo(raiz, 'Atividades').querySelector('textarea');
   if (!texto) throw new Error('Campo ausente');
@@ -233,7 +243,7 @@ it('campo obrigatório vazio bloqueia a publicação e a correção exige motivo
     .mockResolvedValue([
       campo('7f1c0001-0000-4000-8000-000000000007', 'Observações', 7, { obrigatorio: true }),
     ]);
-  montarFichaPlantao(raiz, api, { pacienteId: paciente, turno, acessoPerdido: vi.fn() });
+  renderizarFicha(raiz, api, { pacienteId: paciente, turno, acessoPerdido: vi.fn() });
   await vi.waitFor(() => expect(raiz.textContent).toContain('Ficha publicada carregada'));
   // `dispatchEvent` em vez de `requestSubmit`: a validação nativa já barraria o envio, e o
   // que se prova aqui é a guarda da própria tela, que o navegador não garante sozinho.
@@ -260,7 +270,7 @@ it('falha de consulta não vira estado vazio e o acesso perdido limpa a tela', a
   const api = servicos({
     consultar: vi.fn().mockRejectedValue(new FalhaApi('servico_indisponivel', 503)),
   });
-  montarFichaPlantao(raiz, api, { pacienteId: paciente, turno, acessoPerdido: vi.fn() });
+  renderizarFicha(raiz, api, { pacienteId: paciente, turno, acessoPerdido: vi.fn() });
   await vi.waitFor(() => expect(raiz.textContent).toContain('Serviço temporariamente'));
   expect(raiz.textContent).not.toContain('Ficha em branco');
   expect(raiz.querySelector('form')).toBeNull();
@@ -268,7 +278,7 @@ it('falha de consulta não vira estado vazio e o acesso perdido limpa a tela', a
   const outra = document.createElement('div');
   document.body.append(outra);
   const perdido = vi.fn();
-  montarFichaPlantao(
+  renderizarFicha(
     outra,
     servicos({ consultar: vi.fn().mockRejectedValue(new FalhaApi('sem_permissao', 403)) }),
     { pacienteId: paciente, turno, acessoPerdido: perdido },
@@ -301,7 +311,7 @@ it('pendência escrita aparece com origem declarada e a resolução exige o que 
       ],
     }),
   });
-  montarFichaPlantao(raiz, api, { pacienteId: paciente, turno, acessoPerdido: vi.fn() });
+  renderizarFicha(raiz, api, { pacienteId: paciente, turno, acessoPerdido: vi.fn() });
   await vi.waitFor(() => expect(raiz.textContent).toContain('Pendência aberta'));
   expect(raiz.textContent).toContain('Origem: escrita por pessoa, não deduzida pelo sistema.');
   const forms = [...raiz.querySelectorAll('form')];

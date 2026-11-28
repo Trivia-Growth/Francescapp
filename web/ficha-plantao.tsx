@@ -37,7 +37,6 @@ import { FalhaApi, resultadoIncerto } from './api.ts';
 import { Botao } from './componentes/ui/botao.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import type {
   ServicoModeloFormulario,
   ServicoPapelDeclarado,
@@ -828,12 +827,4 @@ function SelecaoOpcional({
       ))}
     </SelecaoAprimorada>
   );
-}
-
-export function montarFichaPlantao(
-  raiz: HTMLElement,
-  servicos: ServicosFichaPlantao,
-  opcoes: Opcoes,
-): () => void {
-  return ilha(raiz, <FichaPlantao servicos={servicos} {...opcoes} />);
 }
