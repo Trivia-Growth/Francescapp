@@ -301,7 +301,7 @@ function ItemExportacaoRegistrada({
   );
 }
 
-function TelaExportacao({
+export function TelaExportacao({
   pacienteId,
   servico,
   acessoPerdido,
@@ -498,22 +498,3 @@ function TelaExportacao({
  * Anexo que não vier entra no pacote como indisponível, com motivo declarado. A redução de
  * terceiros do manifesto e o registro de entrega permanecem; o índice não comprova
  * recebimento. */
-export function montarExportacao(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: ServicoExportacao,
-  acessoPerdido: (erro: unknown) => void,
-  alteracaoPendente: (pendente: boolean) => void = () => {},
-  pacienteRotulo = 'Pessoa acompanhada',
-): () => void {
-  return ilha(
-    raiz,
-    <TelaExportacao
-      pacienteId={pacienteId}
-      servico={servico}
-      acessoPerdido={acessoPerdido}
-      alteracaoPendente={alteracaoPendente}
-      pacienteRotulo={pacienteRotulo}
-    />,
-  );
-}

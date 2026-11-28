@@ -55,6 +55,7 @@ import './turno-proprio.css';
 import './turno-execucao.css';
 import { montarConversaoDiario } from './conversao-diario.js';
 import { criarServicoConversaoDiarioHttp } from './servico-conversao-diario-http.js';
+import type { ConversaoEmTarefa } from './diario.js';
 import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
 import { botao } from './ponte/botao-imperativo.js';
 import { criarServicoLinhaTempoHttp } from './servico-linha-tempo-http.js';
@@ -706,22 +707,19 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         id: 'diario',
         rotulo: 'Diário',
         descarte: descarteDiario,
-        montar: async (raiz, pendente) => {
+        compor: async (pendente) => {
           pedirAreasDoDiario();
           // Sem entrada por áudio aqui de propósito: `transcricao-audio-relato` ainda não
           // tem o planejamento fechado nem cobre sessão familiar — família digita o relato.
-          return (await import('./diario.js')).montarDiario(
-            raiz,
-            paciente.id,
-            atual.usuario.id,
-            criarServicoDiarioHttp(identidadeAtual),
-            () => areasDiario,
+          return createElement((await import('./diario.js')).TelaDiario, {
+            pacienteId: paciente.id,
+            usuarioId: atual.usuario.id,
+            servico: criarServicoDiarioHttp(identidadeAtual),
+            obterAreas: () => areasDiario,
             acessoPerdido,
-            pendente,
-            undefined,
-            undefined,
-            true,
-          );
+            alteracaoPendente: pendente,
+            ehFamilia: true,
+          });
         },
       },
       {
@@ -975,28 +973,26 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'equipe',
       rotulo: 'Equipe com acesso',
       descarte: descarteEquipe,
-      montar: async (raiz, pendente) =>
-        (await import('./selecao-profissional.js')).montarSelecaoProfissional(
-          raiz,
-          paciente.id,
+      compor: async (pendente) =>
+        createElement((await import('./selecao-profissional.js')).TelaSelecaoProfissional, {
+          pacienteId: paciente.id,
           api,
           acessoPerdido,
-          pendente,
-        ),
+          alteracaoPendente: pendente,
+        }),
     });
   if (administraCadastro)
     secoes.push({
       id: 'exportacao',
       rotulo: 'Exportação',
-      montar: async (raiz, pendente) =>
-        (await import('./exportacao.js')).montarExportacao(
-          raiz,
-          paciente.id,
-          criarServicoExportacaoHttp(identidadeAtual),
+      compor: async (pendente) =>
+        createElement((await import('./exportacao.js')).TelaExportacao, {
+          pacienteId: paciente.id,
+          servico: criarServicoExportacaoHttp(identidadeAtual),
           acessoPerdido,
-          pendente,
-          paciente.nome_preferencia ?? paciente.nome,
-        ),
+          alteracaoPendente: pendente,
+          pacienteRotulo: paciente.nome_preferencia ?? paciente.nome,
+        }),
     });
   if (administraConcessoes)
     secoes.push({
@@ -1016,17 +1012,16 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'pendencias',
       rotulo: 'Pendências',
-      montar: async (raiz) =>
-        (await import('./pendencias-caso.js')).montarPendenciasCaso(
-          raiz,
-          paciente.id,
-          criarServicoPendenciasHttp(identidadeAtual),
+      compor: async () =>
+        createElement((await import('./pendencias-caso.js')).TelaPendenciasCaso, {
+          pacienteId: paciente.id,
+          servico: criarServicoPendenciasHttp(identidadeAtual),
           acessoPerdido,
-          catalogoResponsaveis,
-          // Decisão 0.5: a pendência escrita no plantão aparece na carteira ao lado das
-          // quatro derivadas, com origem visível. Não gera aviso no sino.
-          () => criarServicoFichaPlantaoHttp(identidadeAtual).listarPendencias(paciente.id),
-        ),
+          listarResponsaveis: catalogoResponsaveis,
+          // Decisão 0.5: a pendência do plantão aparece ao lado das derivadas, com origem visível.
+          listarPendenciasEscritas: () =>
+            criarServicoFichaPlantaoHttp(identidadeAtual).listarPendencias(paciente.id),
+        }),
     },
     {
       id: 'encaminhamentos',
@@ -1054,20 +1049,19 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'contexto',
       rotulo: 'Rotina e recursos',
-      montar: async (raiz, pendente) =>
-        (await import('./contexto-cuidado.js')).montarContextoCuidado(
-          raiz,
-          paciente.id,
-          criarServicoDocumentoPacienteHttp(
+      compor: async (pendente) =>
+        createElement((await import('./contexto-cuidado.js')).TelaContextoCuidado, {
+          pacienteId: paciente.id,
+          servico: criarServicoDocumentoPacienteHttp(
             identidadeAtual,
             'contexto-cuidado',
             documentoContextoCuidadoSchema,
             'elementos',
           ),
           acessoPerdido,
-          pendente,
-          [],
-          async (pacienteId, cursor) => {
+          alteracaoPendente: pendente,
+          objetivosIniciais: [],
+          consultarObjetivos: async (pacienteId, cursor) => {
             const pagina = await criarServicoPlanoHttp(identidadeAtual).consultarObjetivos(
               pacienteId,
               cursor,
@@ -1080,24 +1074,23 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
               proximo_cursor: pagina.proximo_cursor,
             };
           },
-        ),
+        }),
     },
     {
       id: 'rede',
       rotulo: 'Rede de cuidado',
-      montar: async (raiz, pendente) =>
-        (await import('./rede-cuidado.js')).montarRedeCuidado(
-          raiz,
-          paciente.id,
-          criarServicoDocumentoPacienteHttp(
+      compor: async (pendente) =>
+        createElement((await import('./rede-cuidado.js')).TelaRedeCuidado, {
+          pacienteId: paciente.id,
+          servico: criarServicoDocumentoPacienteHttp(
             identidadeAtual,
             'rede-cuidado',
             documentoRedeCuidadoSchema,
             'pessoas',
           ),
           acessoPerdido,
-          pendente,
-        ),
+          alteracaoPendente: pendente,
+        }),
     },
   );
   secoes.push({
@@ -1119,26 +1112,28 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     id: 'diario',
     rotulo: 'Diário',
     descarte: descarteDiario,
-    montar: async (raiz, pendente) => {
+    compor: async (pendente) => {
       pedirAreasDoDiario();
-      return (await import('./diario.js')).montarDiario(
-        raiz,
-        paciente.id,
-        atual.usuario.id,
-        criarServicoDiarioHttp(identidadeAtual),
-        () => areasDiario,
-        acessoPerdido,
-        pendente,
+      const converterEmTarefa: ConversaoEmTarefa | undefined =
         atual.usuario.perfil === 'profissional'
           ? (destino, origem, alteracao, concluido) =>
               montarConversaoDaFicha(destino, paciente.id, origem, alteracao, concluido)
-          : undefined,
-        entradaTranscricaoAudio(
+          : undefined;
+      return createElement((await import('./diario.js')).TelaDiario, {
+        pacienteId: paciente.id,
+        usuarioId: atual.usuario.id,
+        servico: criarServicoDiarioHttp(identidadeAtual),
+        obterAreas: () => areasDiario,
+        acessoPerdido,
+        alteracaoPendente: pendente,
+        ...(converterEmTarefa ? { converterEmTarefa } : {}),
+        montarEntradaPorAudio: entradaTranscricaoAudio(
           paciente.id,
           () => criarServicoTranscricaoHttp(identidadeAtual),
           acessoPerdido,
         ),
-      );
+        ehFamilia: false,
+      });
     },
   });
   return secoes;

@@ -363,7 +363,7 @@ const CorpoContextoCuidado = forwardRef<
   );
 });
 
-function TelaContextoCuidado({
+export function TelaContextoCuidado({
   pacienteId,
   servico,
   acessoPerdido,
@@ -461,24 +461,3 @@ function TelaContextoCuidado({
 }
 
 /** Interface isolada; montagem depende da integração segura do servidor. */
-export function montarContextoCuidado(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: ServicoContextoCuidado,
-  acessoPerdido: (erro: unknown) => void,
-  alteracaoPendente: (pendente: boolean) => void = () => {},
-  objetivos: readonly ObjetivoDisponivel[] = [],
-  consultarObjetivos?: ConsultaObjetivosContexto,
-): () => void {
-  return ilha(
-    raiz,
-    <TelaContextoCuidado
-      pacienteId={pacienteId}
-      servico={servico}
-      acessoPerdido={acessoPerdido}
-      alteracaoPendente={alteracaoPendente}
-      objetivosIniciais={objetivos}
-      consultarObjetivos={consultarObjetivos}
-    />,
-  );
-}

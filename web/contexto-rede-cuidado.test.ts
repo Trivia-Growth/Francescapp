@@ -1,10 +1,49 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { CATEGORIAS_CONTEXTO } from '../packages/contracts/src/contexto-cuidado.ts';
 import { VINCULOS_REDE } from '../packages/contracts/src/rede-cuidado.ts';
 import { FalhaApi } from './api.ts';
-import { montarContextoCuidado } from './contexto-cuidado.tsx';
-import { montarRedeCuidado } from './rede-cuidado.tsx';
+import { TelaContextoCuidado } from './contexto-cuidado.tsx';
+import { TelaRedeCuidado } from './rede-cuidado.tsx';
+
+function montarRedeCuidado(
+  raiz: HTMLElement,
+  pacienteId: ComponentProps<typeof TelaRedeCuidado>['pacienteId'],
+  servico: ComponentProps<typeof TelaRedeCuidado>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaRedeCuidado>['acessoPerdido'],
+  alteracaoPendente: ComponentProps<typeof TelaRedeCuidado>['alteracaoPendente'] = () => {},
+) {
+  const painel = render(
+    createElement(TelaRedeCuidado, { pacienteId, servico, acessoPerdido, alteracaoPendente }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
+
+function montarContextoCuidado(
+  raiz: HTMLElement,
+  pacienteId: ComponentProps<typeof TelaContextoCuidado>['pacienteId'],
+  servico: ComponentProps<typeof TelaContextoCuidado>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaContextoCuidado>['acessoPerdido'],
+  alteracaoPendente: ComponentProps<typeof TelaContextoCuidado>['alteracaoPendente'] = () => {},
+  objetivosIniciais: ComponentProps<typeof TelaContextoCuidado>['objetivosIniciais'] = [],
+  consultarObjetivos: ComponentProps<typeof TelaContextoCuidado>['consultarObjetivos'] = undefined,
+) {
+  const painel = render(
+    createElement(TelaContextoCuidado, {
+      pacienteId,
+      servico,
+      acessoPerdido,
+      alteracaoPendente,
+      objetivosIniciais,
+      consultarObjetivos,
+    }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
 
 const paciente = '33333333-3333-4333-8333-333333333333';
 const objetivo = '44444444-4444-4444-8444-444444444444';

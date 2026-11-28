@@ -1,8 +1,33 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
-import { montarPendenciasCaso } from './pendencias-caso';
+import { TelaPendenciasCaso } from './pendencias-caso';
 import { montarFiltrosCarteira, montarSinalCarteira } from './filtros-carteira';
 import type { SinalOperacional } from '../packages/contracts/src/pendencia';
+
+function montarPendenciasCaso(
+  raiz: HTMLElement,
+  pacienteId: ComponentProps<typeof TelaPendenciasCaso>['pacienteId'],
+  servico: ComponentProps<typeof TelaPendenciasCaso>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaPendenciasCaso>['acessoPerdido'],
+  listarResponsaveis: ComponentProps<typeof TelaPendenciasCaso>['listarResponsaveis'] = undefined,
+  listarPendenciasEscritas: ComponentProps<
+    typeof TelaPendenciasCaso
+  >['listarPendenciasEscritas'] = undefined,
+) {
+  const painel = render(
+    createElement(TelaPendenciasCaso, {
+      pacienteId,
+      servico,
+      acessoPerdido,
+      listarResponsaveis,
+      listarPendenciasEscritas,
+    }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
 
 const PACIENTE = '40000000-0000-4000-8000-000000000001';
 const EQUIPE = [

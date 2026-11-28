@@ -869,7 +869,7 @@ type EstadoLeituras = 'carregando' | 'pronto' | 'erro';
 
 /** Aba de diário e evolução da ficha, ligada ao serviço autorizado no servidor. A
  *  audiência mostrada é informativa: quem decide quem enxerga cada registro é o banco. */
-function TelaDiario({
+export function TelaDiario({
   pacienteId,
   usuarioId,
   servico,
@@ -1277,32 +1277,3 @@ function TelaDiario({
 /** Aba de diário e evolução da ficha (FR-008, FR-009, FR-012, FR-013, FR-014), ligada ao
  * serviço autorizado no servidor. A audiência mostrada aqui é informativa: quem decide quem
  * enxerga cada registro é o banco. */
-export function montarDiario(
-  raiz: HTMLElement,
-  pacienteId: string,
-  usuarioId: string,
-  servico: ServicoDiarioTela,
-  obterAreas: () => readonly string[],
-  acessoPerdido: (erro: unknown) => void,
-  alteracaoPendente: (pendente: boolean) => void = () => {},
-  converterEmTarefa?: ConversaoEmTarefa,
-  montarEntradaPorAudio?: EntradaPorAudio,
-  /** FR-008: família registra relato (tipo `relato_familiar`, audiência sempre `equipe`),
-   * nunca a síntese de evolução da equipe nem a resposta a um relato. */
-  ehFamilia = false,
-): () => void {
-  return ilha(
-    raiz,
-    <TelaDiario
-      pacienteId={pacienteId}
-      usuarioId={usuarioId}
-      servico={servico}
-      obterAreas={obterAreas}
-      acessoPerdido={acessoPerdido}
-      alteracaoPendente={alteracaoPendente}
-      converterEmTarefa={converterEmTarefa}
-      montarEntradaPorAudio={montarEntradaPorAudio}
-      ehFamilia={ehFamilia}
-    />,
-  );
-}

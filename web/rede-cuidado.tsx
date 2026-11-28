@@ -239,7 +239,7 @@ const CorpoRedeCuidado = forwardRef<RefCorpoDocumento<PessoaRede[]>, PropsCorpoR
   },
 );
 
-function TelaRedeCuidado({
+export function TelaRedeCuidado({
   pacienteId,
   servico,
   acessoPerdido,
@@ -329,20 +329,3 @@ function TelaRedeCuidado({
 }
 
 /** Interface isolada; montagem depende da integração segura do servidor. */
-export function montarRedeCuidado(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: ServicoRedeCuidado,
-  acessoPerdido: (erro: unknown) => void,
-  alteracaoPendente: (pendente: boolean) => void = () => {},
-): () => void {
-  return ilha(
-    raiz,
-    <TelaRedeCuidado
-      pacienteId={pacienteId}
-      servico={servico}
-      acessoPerdido={acessoPerdido}
-      alteracaoPendente={alteracaoPendente}
-    />,
-  );
-}

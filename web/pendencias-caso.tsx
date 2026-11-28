@@ -257,7 +257,7 @@ type Fase =
  *
  * O editor de periodicidade só aparece para quem o servidor autoriza a gravá-lo; esconder
  * o formulário é conveniência, a recusa real continua no banco. */
-function TelaPendenciasCaso({
+export function TelaPendenciasCaso({
   pacienteId,
   servico,
   acessoPerdido,
@@ -666,29 +666,5 @@ function TelaPendenciasCaso({
         </div>
       </Superficie>
     </div>
-  );
-}
-
-export function montarPendenciasCaso(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: ServicoPendencias,
-  acessoPerdido: (erro: unknown) => void,
-  listarResponsaveis?: () => Promise<ResponsavelOpcao[]>,
-  /** FR-077, decisão 0.5 de 20/11/2026: as pendências ESCRITAS no plantão aparecem aqui ao
-   * lado das quatro derivadas, com origem visível. Opcional porque a ficha de plantão tem
-   * interruptor próprio: desligada, a carteira continua mostrando as derivadas como sempre,
-   * e nenhuma delas muda de comportamento. */
-  listarPendenciasEscritas?: () => Promise<PendenciaPlantaoHttp[]>,
-): () => void {
-  return ilha(
-    raiz,
-    <TelaPendenciasCaso
-      pacienteId={pacienteId}
-      servico={servico}
-      acessoPerdido={acessoPerdido}
-      listarResponsaveis={listarResponsaveis}
-      listarPendenciasEscritas={listarPendenciasEscritas}
-    />,
   );
 }

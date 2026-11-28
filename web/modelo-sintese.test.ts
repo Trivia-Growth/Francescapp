@@ -1,8 +1,38 @@
 // @vitest-environment jsdom
-import { createElement } from 'react';
+import { render } from '@testing-library/react';
+import { type ComponentProps, createElement } from 'react';
 import { expect, it } from 'vitest';
 import { montarCamposSintese } from './modelo-sintese.js';
-import { montarDiario } from './diario.js';
+import { TelaDiario } from './diario.js';
+
+function montarDiario(
+  raiz: HTMLElement,
+  pacienteId: ComponentProps<typeof TelaDiario>['pacienteId'],
+  usuarioId: ComponentProps<typeof TelaDiario>['usuarioId'],
+  servico: ComponentProps<typeof TelaDiario>['servico'],
+  obterAreas: ComponentProps<typeof TelaDiario>['obterAreas'],
+  acessoPerdido: ComponentProps<typeof TelaDiario>['acessoPerdido'],
+  alteracaoPendente: ComponentProps<typeof TelaDiario>['alteracaoPendente'] = () => {},
+  converterEmTarefa: ComponentProps<typeof TelaDiario>['converterEmTarefa'] = undefined,
+  montarEntradaPorAudio: ComponentProps<typeof TelaDiario>['montarEntradaPorAudio'] = undefined,
+  ehFamilia: ComponentProps<typeof TelaDiario>['ehFamilia'] = false,
+) {
+  const painel = render(
+    createElement(TelaDiario, {
+      pacienteId,
+      usuarioId,
+      servico,
+      obterAreas,
+      acessoPerdido,
+      alteracaoPendente,
+      converterEmTarefa,
+      montarEntradaPorAudio,
+      ehFamilia,
+    }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
 
 it('compartilha campos FR009 sem colidir IDs e preserva validação do contrato', () => {
   const diario = document.createElement('form');

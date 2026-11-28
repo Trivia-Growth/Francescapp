@@ -4,50 +4,54 @@ import { PACIENTE_IDS, sessaoAdministrador } from '../../web/fixtures/sessao.js'
 
 test.use({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
 
-test('módulo antigo da ficha não substitui a seção que permaneceu aberta', async ({ page }) => {
-  await page.addInitScript((id) => {
-    sessionStorage.setItem('modo-acesso', 'tecnica');
-    sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
-    sessionStorage.setItem('sessao-tecnica', id);
-  }, sessaoAdministrador.session_id);
-  let liberarModulo = () => {};
-  const espera = new Promise<void>((resolver) => {
-    liberarModulo = resolver;
-  });
-  await page.route('**/web/anamnese.tsx', async (rota) => {
-    await espera;
-    await rota.continue();
-  });
-  let leiturasAnamnese = 0;
-  await page.route('**/api/**', (rota) => {
-    if (new URL(rota.request().url()).pathname === `/api/pacientes/${PACIENTE_IDS[0]}/anamnese`)
-      leiturasAnamnese += 1;
-    const fixture = responder(rota.request().url());
-    return fixture
-      ? rota.fulfill({ json: fixture })
-      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
-  });
-  const modulo = page.waitForRequest('**/web/anamnese.tsx');
-  await page.goto(`/web/index.html#paciente/${PACIENTE_IDS[0]}/anamnese`);
-  const painel = page.locator('#ficha-painel');
-  try {
-    await modulo;
-    await expect(painel.locator('[data-secao="anamnese"]')).toHaveAttribute('aria-busy', 'true');
-    await page.locator('#ficha-aba-plano').click();
+for (const secao of ['anamnese', 'diario']) {
+  test(`módulo antigo de ${secao} não substitui a seção que permaneceu aberta`, async ({
+    page,
+  }) => {
+    await page.addInitScript((id) => {
+      sessionStorage.setItem('modo-acesso', 'tecnica');
+      sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
+      sessionStorage.setItem('sessao-tecnica', id);
+    }, sessaoAdministrador.session_id);
+    let liberarModulo = () => {};
+    const espera = new Promise<void>((resolver) => {
+      liberarModulo = resolver;
+    });
+    await page.route(`**/web/${secao}.tsx`, async (rota) => {
+      await espera;
+      await rota.continue();
+    });
+    let leiturasDaSecao = 0;
+    await page.route('**/api/**', (rota) => {
+      if (new URL(rota.request().url()).pathname === `/api/pacientes/${PACIENTE_IDS[0]}/${secao}`)
+        leiturasDaSecao += 1;
+      const fixture = responder(rota.request().url());
+      return fixture
+        ? rota.fulfill({ json: fixture })
+        : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+    });
+    const modulo = page.waitForRequest(`**/web/${secao}.tsx`);
+    await page.goto(`/web/index.html#paciente/${PACIENTE_IDS[0]}/${secao}`);
+    const painel = page.locator('#ficha-painel');
+    try {
+      await modulo;
+      await expect(painel.locator(`[data-secao="${secao}"]`)).toHaveAttribute('aria-busy', 'true');
+      await page.locator('#ficha-aba-plano').click();
+      await expect(painel.locator('.ficha-secao')).toHaveAttribute('data-secao', 'plano');
+    } finally {
+      liberarModulo();
+    }
+    await page.evaluate(async (caminho) => {
+      await import(caminho);
+      await new Promise(requestAnimationFrame);
+    }, `/web/${secao}.tsx`);
+    await expect(painel.locator('.ficha-secao')).toHaveCount(1);
     await expect(painel.locator('.ficha-secao')).toHaveAttribute('data-secao', 'plano');
-  } finally {
-    liberarModulo();
-  }
-  await page.evaluate(async (caminho) => {
-    await import(caminho);
-    await new Promise(requestAnimationFrame);
-  }, '/web/anamnese.tsx');
-  await expect(painel.locator('.ficha-secao')).toHaveCount(1);
-  await expect(painel.locator('.ficha-secao')).toHaveAttribute('data-secao', 'plano');
-  await expect(page.locator('#ficha-aba-plano')).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeVisible();
-  expect(leiturasAnamnese).toBe(0);
-});
+    await expect(page.locator('#ficha-aba-plano')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeVisible();
+    expect(leiturasDaSecao).toBe(0);
+  });
+}
 
 test('primeira renderização da ficha pode ser recuperada pelo mesmo link', async ({ page }) => {
   await page.addInitScript((id) => {
