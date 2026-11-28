@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render } from '@testing-library/react';
+import { render, within } from '@testing-library/react';
 import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
 import { TelaHomeProfissional, type PaginaCarteira } from './home-profissional';
@@ -59,8 +59,8 @@ it('responde a pergunta em palavras e leva cada caso à aba que resolve o motivo
   );
   await esperar();
 
-  expect(raiz.querySelector('.home-saudacao')?.textContent).toBe('Um caso precisa de você');
-  const link = raiz.querySelector<HTMLAnchorElement>('.home-caso-link');
+  expect(raiz.querySelector('#home-saudacao')?.textContent).toBe('Um caso precisa de você');
+  const link = raiz.querySelector<HTMLAnchorElement>('a[href$="/pendencias"]');
   // A aba certa, não a ficha genérica: quem abre a home não deveria caçar a aba depois.
   expect(link?.getAttribute('href')).toBe(`#paciente/${ID(1)}/pendencias`);
   expect(link?.textContent).toContain('Revisão acordada para 01/12/2026.');
@@ -68,7 +68,7 @@ it('responde a pergunta em palavras e leva cada caso à aba que resolve o motivo
   // FR-028 exige o aviso em toda superfície que mostra o sinal.
   expect(raiz.textContent).toContain(avisoSinalOperacional);
   // O caso "em dia" não vira linha: a home lista o que pede ação.
-  expect(raiz.querySelectorAll('.home-caso')).toHaveLength(1);
+  expect(raiz.querySelectorAll('a[href$="/pendencias"]')).toHaveLength(1);
 });
 
 it('plural acompanha a quantidade sem recorrer a "(s)"', async () => {
@@ -86,7 +86,7 @@ it('plural acompanha a quantidade sem recorrer a "(s)"', async () => {
   );
   await esperar();
 
-  expect(raiz.querySelector('.home-saudacao')?.textContent).toBe('3 casos precisam de você');
+  expect(raiz.querySelector('#home-saudacao')?.textContent).toBe('3 casos precisam de você');
   expect(raiz.textContent).not.toContain('(s)');
 });
 
@@ -102,14 +102,11 @@ it('sem pendência aberta a tela afirma a calma em vez de parecer quebrada', asy
   );
   await esperar();
 
-  expect(raiz.querySelector('.home-saudacao')?.textContent).toBe('Nada precisa de você agora');
-  expect(raiz.querySelector('.home-sereno')).not.toBeNull();
-  expect(raiz.querySelectorAll('.home-caso')).toHaveLength(0);
+  expect(raiz.querySelector('#home-saudacao')?.textContent).toBe('Nada precisa de você agora');
+  expect(raiz.querySelectorAll('a[href$="/pendencias"]')).toHaveLength(0);
   expect(raiz.textContent).toContain('Você acompanha 1 pessoa.');
   // Esta leitura não consulta a agenda: não pode afirmar que compromissos estão em dia.
-  expect(raiz.querySelector('.home-apoio')?.textContent).toBe(
-    'Nenhum caso com pendência aberta no seu acesso.',
-  );
+  expect(within(raiz).getByText('Nenhum caso com pendência aberta no seu acesso.')).toBeTruthy();
   expect(raiz.textContent).not.toContain('compromisso');
 });
 
@@ -132,9 +129,9 @@ it('caso sem periodicidade acordada aparece, e o texto nega que silêncio seja t
   const bloco = raiz.querySelector('[data-bloco="Esperando combinar"]');
   expect(bloco).not.toBeNull();
   expect(bloco?.textContent).toContain('ausência de aviso aqui não é sinal de que está tudo bem');
-  expect(bloco?.querySelector<HTMLAnchorElement>('.home-caso-link')?.getAttribute('href')).toBe(
-    `#paciente/${ID(2)}/pendencias`,
-  );
+  expect(
+    bloco?.querySelector<HTMLAnchorElement>('a[href$="/pendencias"]')?.getAttribute('href'),
+  ).toBe(`#paciente/${ID(2)}/pendencias`);
 });
 
 it('uma fonte que falha derruba só o próprio bloco, e o botão refaz a leitura', async () => {
@@ -152,13 +149,13 @@ it('uma fonte que falha derruba só o próprio bloco, e o botão refaz a leitura
   await esperar();
 
   // O bloco quebrado não leva o resto da tela junto.
-  expect(raiz.querySelector('.home-falha')).not.toBeNull();
+  expect(within(raiz).getByRole('alert')).toBeTruthy();
   expect(raiz.textContent).toContain('Você acompanha 1 pessoa.');
 
-  raiz.querySelector<HTMLButtonElement>('.home-falha button')?.click();
+  within(raiz).getByRole('button', { name: 'Tentar novamente' }).click();
   await esperar();
-  expect(raiz.querySelector('.home-falha')).toBeNull();
-  expect(raiz.querySelector('.home-saudacao')?.textContent).toBe('Um caso precisa de você');
+  expect(within(raiz).queryByRole('alert')).toBeNull();
+  expect(raiz.querySelector('#home-saudacao')?.textContent).toBe('Um caso precisa de você');
 });
 
 it('página parcial não afirma um total que o servidor não devolveu', async () => {
