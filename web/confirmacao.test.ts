@@ -1,30 +1,25 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, expect, it } from 'vitest';
-import { confirmar, confirmarDescarte } from './confirmacao.js';
+import { createElement } from 'react';
+import { afterEach, beforeEach, expect, it } from 'vitest';
+import { Confirmacoes, confirmar, confirmarDescarte } from './confirmacao.js';
 
-/*  O defeito que originou este arquivo não era lógico: a confirmação existia, era o
- *  `window.confirm`, e simplesmente não aparecia no conteúdo da página. Por isso o que
- *  estes testes guardam é a presença — diálogo no documento, com foco — e não o retorno.
- *
- *  Reconstruído sobre o `Dialogo` real (Radix, `componentes/ui/dialogo.tsx`) em vez do
- *  `<dialog>` nativo escrito à mão em `web/ui/dialogo.ts`: o aprisionamento de foco e o
- *  Esc já são provados em `componentes/ui/dialogo.test.tsx` — aqui a prova é que
- *  `confirmar()`/`confirmarDescarte()` continuam entregando o mesmo comportamento externo
- *  (`Promise<boolean>`, diálogo síncrono, foco preso, devolução de foco) com esse Dialogo
- *  por baixo. Por isso `userEvent.tab()` no lugar do `dispatchEvent(KeyboardEvent('Tab'))`
- *  cru de antes: aquele truque testava o manipulador de teclado escrito à mão em
- *  `web/ui/dialogo.ts:prenderFoco`, não o aprisionamento de foco do Radix — testar o que
- *  esta tela tem agora, não o que ela tinha. */
+let desmontar: () => void;
+
+beforeEach(() => {
+  desmontar = render(createElement(Confirmacoes)).unmount;
+});
 
 afterEach(() => {
+  desmontar();
   document.body.replaceChildren();
 });
 
 it('mostra a confirmação no documento e põe o foco na ação segura', async () => {
-  document.body.innerHTML = '<button id="origem">Encerrar</button>';
-  const origem = document.getElementById('origem') as HTMLButtonElement;
+  const origem = document.createElement('button');
+  origem.textContent = 'Encerrar';
+  document.body.append(origem);
   origem.focus();
   const pessoa = userEvent.setup();
 
@@ -79,4 +74,13 @@ it('confirmar responde que sim, e o foco não sai do diálogo por Tab', async ()
 
   await pessoa.click(seguir as HTMLButtonElement);
   expect(await resposta).toBe(true);
+});
+
+it('desmontar a raiz cancela a confirmação pendente e remove o portal', async () => {
+  const resposta = confirmar({ titulo: 'Revogar o acesso?', acao: 'Revogar' });
+  expect(screen.getByRole('dialog')).not.toBeNull();
+  desmontar();
+
+  expect(await Promise.race([resposta, Promise.resolve('pendente')])).toBe(false);
+  expect(screen.queryByRole('dialog')).toBeNull();
 });

@@ -41,6 +41,19 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8y do plano visual — confirmações da página
+
+A raiz da casca e a raiz da demonstração hospedam suas confirmações. O
+Radix devolve o foco ao fechar, e desmontar a raiz resolve pedidos pendentes
+como cancelados. A tarefa 7.2 permanece aberta.
+
+- Passaram 132 testes Vitest e três cenários Chromium. O navegador verificou
+  o cancelamento na Gestão do Turno, a confirmação da Agenda e o descarte do
+  Relato na demonstração a 390 px.
+- Sem resolver na desmontagem, a prova recebeu uma promessa pendente no
+  lugar de cancelamento. Alteração revertida.
+- Próximo passo: rebase após o squash da fatia anterior e ativação.
+
 ## Fatia 8x do plano visual — busca, resumo e linha do tempo da demonstração
 
 A raiz da demonstração compõe busca, resumo e linha do tempo. A prova dos

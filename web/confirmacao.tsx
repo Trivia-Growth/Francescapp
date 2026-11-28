@@ -1,39 +1,6 @@
-/** Confirmação dentro da página, no lugar de `window.confirm`.
- *
- *  Achado em 25/11/2026 na aba Administração › Equipe: ao conferir convites pendentes a
- *  tela abria um `window.confirm`. O diálogo nativo fica ACIMA da página, fora do
- *  conteúdo: quem olhava a tela via apenas "Conferindo se há algum convite aguardando
- *  resposta…" parado para sempre, e o diagnóstico virou "estado perdido" quando o que
- *  havia era um diálogo esperando resposta que ninguém via.
- *
- *  O texto diz a consequência. "Continuar?" não informa o que se perde ao continuar.
- *  O botão seguro — cancelar — recebe o foco inicial e é o destaque visual, porque
- *  confirmar por engano é o erro caro; Esc equivale a cancelar.
- *
- *  Reconstruído em React sobre `Dialogo` (`componentes/ui/dialogo.tsx`, Radix) no lugar de
- *  `web/ui/dialogo.ts`: a mecânica de foco preso, Esc e devolução do foco passa a ser a do
- *  Radix, já provada em `componentes/ui/dialogo.test.tsx`, em vez de reimplementada à mão.
- *
- *  A assinatura de função livre NÃO muda — `confirmar`/`confirmarDescarte` continuam
- *  devolvendo `Promise<boolean>`, chamáveis de qualquer lugar, dentro ou fora de uma árvore
- *  React — porque é isto que mantém a propriedade que já tornava este arquivo seguro: o
- *  diálogo vive FORA de toda árvore React, num contêiner próprio criado e removido do
- *  `document.body`, nunca aninhado na árvore de quem chama. Trocar a função livre por um
- *  hook que renderiza `{dialogo}` dentro do chamador reabriria exatamente o risco que esta
- *  propriedade evita — por isso não existe aqui.
- *
- *  Achado medido nesta migração: fechar NÃO é desmontar a raiz no mesmo instante. O
- *  fechamento troca `aberto` para falso — a árvore continua viva — e só desmonta depois,
- *  num `setTimeout(0)`. Desmontar a raiz no mesmo instante em que `aberto` vira falso
- *  interrompe no meio o próprio ciclo de fechamento do Radix: `onCloseAutoFocus` (a
- *  devolução de foco a quem abriu) fica pendente e só dispara mais tarde, de forma
- *  assíncrona — e se um SEGUNDO `confirmar()` já tiver aberto e fechado enquanto isso,
- *  essa devolução atrasada do primeiro diálogo sobrescreve o foco que a tela já tinha
- *  posto correto depois do segundo. Reproduzido com dois `confirmar()` em sequência rápida
- *  (como o apoio de teste `confirmacao-prova.ts` produz): o foco final acabava voltando ao
- *  que abriu o PRIMEIRO diálogo, não ao que a tela escreveu depois do segundo. */
-import { useCallback, useRef, useState } from 'react';
-import { ilha } from './ponte/ilha.js';
+/** Confirmações em portal da raiz React, com foco inicial no botão seguro. */
+import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
+import { flushSync } from 'react-dom';
 import { Dialogo } from './componentes/ui/dialogo.js';
 
 export type PedidoConfirmacao = {
@@ -92,25 +59,58 @@ function ConfirmacaoAvulsa({ pedido, aoResolver }: PropsConfirmacaoAvulsa) {
   );
 }
 
+type ConfirmacaoPendente = {
+  id: number;
+  pedido: PedidoConfirmacao;
+  resolver(resposta: boolean): void;
+};
+
+const ouvintes = new Set<() => void>();
+let pendentes: ConfirmacaoPendente[] = [];
+let proximoId = 0;
+
+function inscrever(ouvinte: () => void) {
+  ouvintes.add(ouvinte);
+  return () => {
+    ouvintes.delete(ouvinte);
+    if (ouvintes.size) return;
+    const abandonadas = pendentes;
+    pendentes = [];
+    for (const pendente of abandonadas) pendente.resolver(false);
+  };
+}
+
+function mudarPendentes(proximas: ConfirmacaoPendente[]) {
+  pendentes = proximas;
+  for (const ouvir of ouvintes) ouvir();
+}
+
+function lerPendentes() {
+  return pendentes;
+}
+
+/** O hospedeiro pertence à raiz da página e acompanha as chamadas de dentro e fora dela. */
+export function Confirmacoes() {
+  const confirmacoes = useSyncExternalStore(inscrever, lerPendentes);
+  return confirmacoes.map(({ id, pedido, resolver }) => (
+    <ConfirmacaoAvulsa
+      key={id}
+      pedido={pedido}
+      aoResolver={(resposta) => {
+        resolver(resposta);
+        // O Radix precisa concluir o fechamento e devolver o foco antes de desmontar.
+        setTimeout(() => mudarPendentes(pendentes.filter((pendente) => pendente.id !== id)), 0);
+      }}
+    />
+  ));
+}
+
 /** Abre a confirmação e resolve com a resposta. Cancelar e Esc resolvem `false`. */
 export function confirmar(pedido: PedidoConfirmacao): Promise<boolean> {
+  if (!ouvintes.size) return Promise.resolve(false);
   return new Promise<boolean>((resolver) => {
-    const container = document.createElement('div');
-    document.body.append(container);
-    let desmontar: (() => void) | null = null;
-    desmontar = ilha(
-      container,
-      <ConfirmacaoAvulsa
-        pedido={pedido}
-        aoResolver={(resposta) => {
-          resolver(resposta);
-          setTimeout(() => {
-            desmontar?.();
-            container.remove();
-          }, 0);
-        }}
-      />,
-    );
+    const id = ++proximoId;
+    flushSync(() => mudarPendentes([...pendentes, { id, pedido, resolver }]));
   });
 }
 

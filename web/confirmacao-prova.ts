@@ -1,16 +1,7 @@
-/** Apoio de teste: responde às confirmações da própria tela.
- *
- *  As provas antigas trocavam `window.confirm` por um espião e liam o retorno. Agora a
- *  confirmação é o `Dialogo` real (Radix) montado por `web/confirmacao.tsx` num contêiner
- *  próprio fora de toda árvore React, e a resposta é um clique — este auxiliar clica por
- *  elas e guarda o texto de cada decisão oferecida, para que a prova continue afirmando o
- *  que afirmava: que a tela perguntou, e o quê. Não é usado em produção.
- *
- *  `.dialogo-confirmacao` é a classe que `web/confirmacao.tsx` passa a `Dialogo`
- *  (`classe="dialogo-confirmacao"`); não existe mais um `<dialog>` nativo — o Radix
- *  desenha um `<div role="dialog">` em portal, direto em `document.body`. `data-acao`
- *  sobrevive porque vem do `Botao` em cada ação do diálogo (`componentes/ui/botao.tsx`),
- *  não do kit antigo. */
+/** Apoio de teste para responder aos diálogos renderizados pelo React. */
+import { render } from '@testing-library/react';
+import { createElement } from 'react';
+import { Confirmacoes } from './confirmacao.js';
 
 export type RespostaDeProva = {
   /** Resposta dada às próximas confirmações; pode mudar no meio do teste. */
@@ -20,21 +11,29 @@ export type RespostaDeProva = {
   encerrar: () => void;
 };
 
-export function responderConfirmacoes(resposta = true): RespostaDeProva {
+export function responderConfirmacoes(
+  resposta = true,
+  hospedeiro: 'teste' | 'existente' = 'teste',
+): RespostaDeProva {
+  const corpo = document.body;
+  const painel = hospedeiro === 'teste' ? render(createElement(Confirmacoes)) : null;
   const controle: RespostaDeProva = {
     resposta,
     chamadas: [],
-    encerrar: () => observador.disconnect(),
+    encerrar: () => {
+      observador.disconnect();
+      painel?.unmount();
+    },
   };
   const atender = () => {
-    for (const dialogo of document.querySelectorAll<HTMLElement>('.dialogo-confirmacao')) {
+    for (const dialogo of corpo.querySelectorAll<HTMLElement>('.dialogo-confirmacao')) {
       controle.chamadas.push(dialogo.textContent ?? '');
       const alvo = controle.resposta ? 'confirmar' : 'cancelar';
       dialogo.querySelector<HTMLButtonElement>(`[data-acao="${alvo}"]`)?.click();
     }
   };
   const observador = new MutationObserver(atender);
-  observador.observe(document.body, { childList: true, subtree: true });
+  observador.observe(corpo, { childList: true, subtree: true });
   atender();
   return controle;
 }

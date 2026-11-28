@@ -61,7 +61,7 @@ it('mantém ficha, rascunho e gaveta quando descarte é cancelado', async () => 
   sessionStorage.setItem('modo-acesso', 'tecnica');
   sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
   sessionStorage.setItem('sessao-tecnica', sessionId);
-  const confirmacoes = responderConfirmacoes(false);
+  const confirmacoes = responderConfirmacoes(false, 'existente');
   vi.stubGlobal('fetch', async (url: URL) => {
     if (url.pathname === '/api/sessao')
       return envelope({

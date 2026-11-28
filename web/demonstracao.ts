@@ -5,7 +5,7 @@ import { createPortal, flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 
 import { BuscaPacientesLocal, correspondeBuscaPacienteLocal } from './busca-pacientes-local';
-import { confirmar, confirmarDescarte } from './confirmacao';
+import { Confirmacoes, confirmar, confirmarDescarte } from './confirmacao';
 
 import { objetivoSchema, type Objetivo } from '../packages/contracts/src/plano-cuidado';
 import { validarTarefaPlano } from '../packages/cadastro/src/tarefa-plano';
@@ -34,7 +34,10 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     if (tela) paineis.set(id, createElement(Fragment, { key: ++visita }, tela));
     else paineis.delete(id);
     flushSync(() =>
-      arvore.render([...paineis].map(([id, conteudo]) => createPortal(conteudo, elemento(id), id))),
+      arvore.render([
+        createElement(Confirmacoes, { key: 'confirmacoes' }),
+        ...[...paineis].map(([id, conteudo]) => createPortal(conteudo, elemento(id), id)),
+      ]),
     );
   }
 
