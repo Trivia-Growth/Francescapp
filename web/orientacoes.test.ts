@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
-import { render } from '@testing-library/react';
+import { cleanup, render } from '@testing-library/react';
 import { createElement, type ComponentProps } from 'react';
-import { expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { TelaOrientacoes } from './orientacoes.tsx';
+
+afterEach(cleanup);
 
 function montarOrientacoes(
   raiz: HTMLElement,
@@ -11,11 +13,9 @@ function montarOrientacoes(
   acessoPerdido: ComponentProps<typeof TelaOrientacoes>['acessoPerdido'],
   ehFamilia: ComponentProps<typeof TelaOrientacoes>['ehFamilia'] = false,
 ) {
-  const painel = render(
-    createElement(TelaOrientacoes, { pacienteId, servico, acessoPerdido, ehFamilia }),
-    { container: raiz },
-  );
-  return () => painel.rerender(null);
+  return render(createElement(TelaOrientacoes, { pacienteId, servico, acessoPerdido, ehFamilia }), {
+    container: raiz,
+  });
 }
 
 const vigente = {
@@ -57,7 +57,12 @@ it('substituir grava a superação da anterior e a criação da nova', async () 
       orientacao_id: '00000000-0000-4000-8000-000000000002',
       versao: 1,
     });
-  montarOrientacoes(raiz, '40000000-0000-4000-8000-000000000001', { consultar, salvar }, () => {});
+  const painel = montarOrientacoes(
+    raiz,
+    '40000000-0000-4000-8000-000000000001',
+    { consultar, salvar },
+    () => {},
+  );
   await vi.waitFor(() => expect(raiz.textContent).toContain('Orientação fictícia vigente.'));
 
   (raiz.querySelector('li button') as HTMLButtonElement).click();
@@ -65,7 +70,8 @@ it('substituir grava a superação da anterior e a criação da nova', async () 
   (raiz.querySelector('form') as HTMLFormElement).dispatchEvent(
     new Event('submit', { cancelable: true }),
   );
-  await vi.waitFor(() => expect(salvar).toHaveBeenCalledTimes(2));
+  await painel.findByText('Orientação salva nesta prévia.');
+  expect(salvar).toHaveBeenCalledTimes(2);
   // Superar usa a versão vigente lida do servidor, não a posição na lista.
   expect(salvar.mock.calls[0]?.[1]).toMatchObject({
     orientacao_id: vigente.orientacao_id,
@@ -98,7 +104,7 @@ it('mostra a superada como anterior e não oferece substituí-la de novo', async
 it('registrar a primeira orientação cria com versão esperada zero', async () => {
   const raiz = document.createElement('div');
   const salvar = vi.fn(async () => ({ ...vigente, versao: 1 }));
-  montarOrientacoes(
+  const painel = montarOrientacoes(
     raiz,
     '40000000-0000-4000-8000-000000000001',
     { consultar: async () => [], salvar },
@@ -109,6 +115,7 @@ it('registrar a primeira orientação cria com versão esperada zero', async () 
   (raiz.querySelector('form') as HTMLFormElement).dispatchEvent(
     new Event('submit', { cancelable: true }),
   );
-  await vi.waitFor(() => expect(salvar).toHaveBeenCalledTimes(1));
+  await painel.findByText('Orientação salva nesta prévia.');
+  expect(salvar).toHaveBeenCalledTimes(1);
   expect(salvar.mock.calls[0]?.[1]).toMatchObject({ versao_esperada: 0, situacao: 'vigente' });
 });
