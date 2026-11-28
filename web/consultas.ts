@@ -5,8 +5,9 @@ import { aoEsquecerSessao } from './api.ts';
  *  Query só para leituras, em lugar da camada própria do PLANO tópico 8). Envios continuam
  *  nas máquinas de cada tela, com chave de idempotência; aqui só se guarda o que foi lido.
  *
- *  Piloto: só o catálogo Estado emocional usa este módulo. Ele é carregado com a tela, não
- *  na abertura, e se registra em `api.ts` para ser esquecido junto com a sessão.
+ *  Usam este módulo os catálogos administrados (Estado emocional, piloto; Papéis declarados
+ *  e Modelo da ficha de plantão, fatia 9). Ele é carregado com a tela, não na abertura, e se
+ *  registra em `api.ts` para ser esquecido junto com a sessão.
  *
  *  O controle de segurança é o descarte por identidade, em três camadas:
  *  1. a chave começa SEMPRE pela conta e pela sessão (`chaveDaSessao`), então uma conta
@@ -46,6 +47,31 @@ export function chaveDaSessao(identidade: IdentidadeConsulta, ...recurso: string
     dono = atual;
   }
   return ['sessao', identidade.usuario_id, identidade.session_id, ...recurso];
+}
+
+/** Uma leitura guardada por identidade, no formato que a máquina dos catálogos usa
+ *  (`LeituraRetida` em `telas/catalogo-administrado.tsx`).
+ *
+ *  `consultar` sempre vai ao servidor (`staleTime: 0`) — é o que Atualizar, salvar e
+ *  repetir chamam —, mas consultas simultâneas da mesma chave viram um GET só. `retida`
+ *  devolve o que a identidade já leu, e `descartar` esquece a entrada (recusa de acesso).
+ *
+ *  Política de retenção: só para vocabulário institucional, sem dado de paciente nem de
+ *  audiência. A entrada some 5 min depois da última tela que a usou (`gcTime` padrão),
+ *  ou antes, com a identidade. */
+export function leituraPorSessao<D>(
+  identidade: IdentidadeConsulta,
+  recurso: readonly string[],
+  consultar: () => Promise<D>,
+) {
+  const queryKey = chaveDaSessao(identidade, ...recurso);
+  return {
+    consultar: () => clienteConsultas.fetchQuery({ queryKey, queryFn: consultar, staleTime: 0 }),
+    leitura: {
+      retida: () => clienteConsultas.getQueryData<D>(queryKey),
+      descartar: () => clienteConsultas.removeQueries({ queryKey, exact: true }),
+    },
+  };
 }
 
 aoEsquecerSessao(esquecerConsultas);

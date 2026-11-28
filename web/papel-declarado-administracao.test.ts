@@ -1,9 +1,18 @@
 // @vitest-environment jsdom
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { createElement, type ComponentProps } from 'react';
 import { render } from '@testing-library/react';
 import { TelaPapelDeclarado } from './papel-declarado-administracao.js';
 import { FalhaApi } from './api.ts';
+import { esquecerConsultas } from './consultas.js';
+
+const identidade = {
+  usuario_id: 'a0000000-0000-4000-8000-00000000000a',
+  session_id: 'a1000000-0000-4000-8000-00000000000a',
+};
+
+// O cache de leitura é um módulo único: cada teste começa com ele vazio.
+beforeEach(() => esquecerConsultas());
 
 function montarPapelDeclaradoAdministracao(
   raiz: HTMLElement,
@@ -28,6 +37,7 @@ function papel(nome = 'Acompanhante terapêutico fictício') {
 it('positivo: quem administra renomeia um papel sob a versão lida', async () => {
   const raiz = document.createElement('div');
   const servico = {
+    identidade,
     consultar: vi.fn().mockResolvedValue([papel()]),
     gravar: vi.fn().mockResolvedValue(undefined),
   };
@@ -57,6 +67,7 @@ it('positivo: quem administra renomeia um papel sob a versão lida', async () =>
 it('negativo: recusa de permissão na leitura esvazia a tela e devolve o acesso perdido', async () => {
   const raiz = document.createElement('div');
   const servico = {
+    identidade,
     consultar: vi.fn().mockRejectedValue(new FalhaApi('sem_permissao', 403)),
     gravar: vi.fn(),
   };
@@ -72,6 +83,7 @@ it('negativo: recusa de permissão na leitura esvazia a tela e devolve o acesso 
 it('negativo: recusa de permissão na gravação não inventa sucesso nem cria um segundo envio', async () => {
   const raiz = document.createElement('div');
   const servico = {
+    identidade,
     consultar: vi.fn().mockResolvedValue([papel()]),
     gravar: vi.fn().mockRejectedValue(new FalhaApi('sem_permissao', 403)),
   };
