@@ -67,17 +67,8 @@ export function PainelRevogacao({
     envelopeRef.current?.querySelector('textarea')?.focus();
   }, []);
 
-  /** A confirmação é um `<dialog>` montado no documento por `web/confirmacao.ts`, FORA da
-   *  ilha: desmontar a raiz React não a alcança. É o único ponto em que o ciclo de vida
-   *  não basta, e por isso o sinal entra aqui — e só aqui. Sem isto, destruir o painel
-   *  durante a pergunta deixaria a pergunta na tela seguinte, com o foco preso nela
-   *  (VIS-012). Sinal abortado responde "não", que é o caminho que desiste sem tocar no
-   *  servidor. */
-  const perguntar = useCallback(
-    (pedido: PedidoConfirmacao): Promise<boolean> =>
-      sinal.aborted ? Promise.resolve(false) : confirmar(pedido),
-    [sinal],
-  );
+  // O diálogo vive na casca. O sinal o fecha quando a seção que perguntou sai.
+  const perguntar = useCallback((pedido: PedidoConfirmacao) => confirmar(pedido, sinal), [sinal]);
 
   const selecionar = useCallback(
     async (acesso: AlvoRevogacao): Promise<boolean> => {

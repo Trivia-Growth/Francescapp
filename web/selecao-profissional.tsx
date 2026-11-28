@@ -398,6 +398,7 @@ export function TelaSelecaoProfissional({
     }
 
     async function verificarPendente() {
+      const sinal = controlador.current?.signal;
       if (e.verificando) return;
       e.verificando = true;
       e.liberado = false;
@@ -411,13 +412,16 @@ export function TelaSelecaoProfissional({
         if (!estadoBarreira.resultado_pendente) {
           if (
             estadoBarreira.reserva &&
-            !(await confirmar({
-              titulo: 'Encerrar a tentativa em andamento?',
-              detalhe:
-                'A tentativa pode estar aberta em outra aba. Encerrá-la afeta todas as abas desta pessoa.',
-              acao: 'Encerrar a tentativa',
-              cancelar: 'Deixar como está',
-            }))
+            !(await confirmar(
+              {
+                titulo: 'Encerrar a tentativa em andamento?',
+                detalhe:
+                  'A tentativa pode estar aberta em outra aba. Encerrá-la afeta todas as abas desta pessoa.',
+                acao: 'Encerrar a tentativa',
+                cancelar: 'Deixar como está',
+              },
+              sinal,
+            ))
           )
             throw new Error('Encerramento não confirmado');
           await ciclo.encerrar();
@@ -449,13 +453,16 @@ export function TelaSelecaoProfissional({
             if (
               !encontrado ||
               !nome ||
-              !(await confirmar({
-                titulo: `${pendente.acao === 'revogar' ? 'Revogação' : 'Concessão'} anterior para ${nome}: ${encontrado.revogado ? 'revogada' : 'ativa'}. Confere?`,
-                detalhe:
-                  'Confirmar encerra a conferência e libera novas alterações de vínculo. Cancelar mantém tudo como está.',
-                acao: 'Confere, pode seguir',
-                cancelar: 'Não confere',
-              }))
+              !(await confirmar(
+                {
+                  titulo: `${pendente.acao === 'revogar' ? 'Revogação' : 'Concessão'} anterior para ${nome}: ${encontrado.revogado ? 'revogada' : 'ativa'}. Confere?`,
+                  detalhe:
+                    'Confirmar encerra a conferência e libera novas alterações de vínculo. Cancelar mantém tudo como está.',
+                  acao: 'Confere, pode seguir',
+                  cancelar: 'Não confere',
+                },
+                sinal,
+              ))
             )
               throw new Error('Confirmação necessária');
           }

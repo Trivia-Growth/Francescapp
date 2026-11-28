@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createElement } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -94,4 +94,21 @@ it('avisa quando uma confirmação é solicitada sem hospedeiro e recusa a açã
   } finally {
     erro.mockRestore();
   }
+});
+
+it('abortar enquanto a confirmação está aberta resolve como recusa e remove o diálogo', async () => {
+  const controlador = new AbortController();
+  const resposta = confirmar({ titulo: 'Revogar o acesso?', acao: 'Revogar' }, controlador.signal);
+  expect(screen.getByRole('dialog')).not.toBeNull();
+
+  act(() => controlador.abort());
+
+  expect(await Promise.race([resposta, Promise.resolve('pendente')])).toBe(false);
+  expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+it('um sinal já abortado recusa a ação antes de abrir o diálogo', async () => {
+  const resposta = confirmar({ titulo: 'Revogar o acesso?', acao: 'Revogar' }, AbortSignal.abort());
+  expect(screen.queryByRole('dialog')).toBeNull();
+  await expect(resposta).resolves.toBe(false);
 });

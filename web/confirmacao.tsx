@@ -1,5 +1,5 @@
 /** Confirmações em portal da raiz React, com foco inicial no botão seguro. */
-import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
+import { useRef, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
 import { Dialogo } from './componentes/ui/dialogo.js';
 
@@ -16,21 +16,17 @@ export type PedidoConfirmacao = {
 
 type PropsConfirmacaoAvulsa = {
   pedido: PedidoConfirmacao;
+  aberta: boolean;
   aoResolver: (resposta: boolean) => void;
 };
 
-function ConfirmacaoAvulsa({ pedido, aoResolver }: PropsConfirmacaoAvulsa) {
-  const [aberto, definirAberto] = useState(true);
+function ConfirmacaoAvulsa({ pedido, aberta, aoResolver }: PropsConfirmacaoAvulsa) {
   const resposta = useRef(false);
-  const fechar = useCallback(() => {
-    definirAberto(false);
-    aoResolver(resposta.current);
-  }, [aoResolver]);
 
   return (
     <Dialogo
-      aberto={aberto}
-      aoFechar={fechar}
+      aberto={aberta}
+      aoFechar={() => aoResolver(resposta.current)}
       titulo={pedido.titulo}
       {...(pedido.detalhe ? { descricao: pedido.detalhe } : {})}
       medida="decisao"
@@ -62,6 +58,7 @@ function ConfirmacaoAvulsa({ pedido, aoResolver }: PropsConfirmacaoAvulsa) {
 type ConfirmacaoPendente = {
   id: number;
   pedido: PedidoConfirmacao;
+  aberta: boolean;
   resolver(resposta: boolean): void;
 };
 
@@ -89,31 +86,52 @@ function lerPendentes() {
   return pendentes;
 }
 
+function fecharConfirmacao(id: number, resposta: boolean) {
+  const confirmacao = pendentes.find((pendente) => pendente.id === id);
+  if (!confirmacao?.aberta) return;
+  // O sinal pode abortar dentro do commit que desmonta a seção.
+  mudarPendentes(
+    pendentes.map((pendente) => (pendente.id === id ? { ...pendente, aberta: false } : pendente)),
+  );
+  confirmacao.resolver(resposta);
+  // O Radix precisa concluir o fechamento e devolver o foco antes de desmontar.
+  setTimeout(() => mudarPendentes(pendentes.filter((pendente) => pendente.id !== id)), 0);
+}
+
 /** O hospedeiro pertence à raiz da página e acompanha as chamadas de dentro e fora dela. */
 export function Confirmacoes() {
   const confirmacoes = useSyncExternalStore(inscrever, lerPendentes);
-  return confirmacoes.map(({ id, pedido, resolver }) => (
+  return confirmacoes.map(({ id, pedido, aberta }) => (
     <ConfirmacaoAvulsa
       key={id}
       pedido={pedido}
-      aoResolver={(resposta) => {
-        resolver(resposta);
-        // O Radix precisa concluir o fechamento e devolver o foco antes de desmontar.
-        setTimeout(() => mudarPendentes(pendentes.filter((pendente) => pendente.id !== id)), 0);
-      }}
+      aberta={aberta}
+      aoResolver={(resposta) => fecharConfirmacao(id, resposta)}
     />
   ));
 }
 
-/** Abre a confirmação e resolve com a resposta. Cancelar e Esc resolvem `false`. */
-export function confirmar(pedido: PedidoConfirmacao): Promise<boolean> {
+/** Cancelar, Esc e o aborto do sinal do chamador fecham o diálogo e resolvem `false`. */
+export function confirmar(pedido: PedidoConfirmacao, sinal?: AbortSignal): Promise<boolean> {
+  if (sinal?.aborted) return Promise.resolve(false);
   if (!ouvintes.size) {
     console.error('Confirmação chamada sem hospedeiro React.');
     return Promise.resolve(false);
   }
   return new Promise<boolean>((resolver) => {
     const id = ++proximoId;
-    flushSync(() => mudarPendentes([...pendentes, { id, pedido, resolver }]));
+    const aoAbortar = () => fecharConfirmacao(id, false);
+    const confirmacao = {
+      id,
+      pedido,
+      aberta: true,
+      resolver(resposta: boolean) {
+        sinal?.removeEventListener('abort', aoAbortar);
+        resolver(resposta);
+      },
+    };
+    sinal?.addEventListener('abort', aoAbortar, { once: true });
+    flushSync(() => mudarPendentes([...pendentes, confirmacao]));
   });
 }
 

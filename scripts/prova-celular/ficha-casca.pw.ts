@@ -385,3 +385,50 @@ for (const { modo, consulta, disponivel } of [
     expect(consultas).toBe(consulta ? 1 : 0);
   });
 }
+
+test('Voltar fecha a confirmação de revogação junto com a seção', async ({ page }) => {
+  await page.addInitScript((sessaoId) => {
+    sessionStorage.setItem('modo-acesso', 'tecnica');
+    sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
+    sessionStorage.setItem('sessao-tecnica', sessaoId);
+  }, sessaoAdministrador.session_id);
+  let pedidosDeRevogacao = 0;
+  await page.route('**/api/**', (rota) => {
+    const pedido = rota.request();
+    if (pedido.method() === 'POST' && new URL(pedido.url()).pathname.endsWith('/revogar'))
+      pedidosDeRevogacao += 1;
+    const fixture = responder(pedido.url());
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  await page.goto('/web/index.html#carteira');
+  const linha = page.locator(`[data-paciente-id="${PACIENTE_IDS[0]}"]`);
+  await linha.click();
+  await page.getByText('Mais seções', { exact: true }).click();
+  await page.getByRole('button', { name: 'Equipe com acesso', exact: true }).click();
+  await expect(page).toHaveURL(/\/equipe$/);
+  await page
+    .getByRole('button', { name: /^Selecionar para revogação:/ })
+    .first()
+    .click();
+  await page.getByRole('textbox', { name: /Motivo da revogação/ }).fill('Motivo fictício');
+  await page.getByRole('button', { name: 'Revogar acesso', exact: true }).click();
+  const revogacao = page.getByRole('dialog', { name: /^Revogar o acesso de / });
+  await expect(revogacao).toBeVisible();
+  await expect(revogacao.getByRole('button', { name: 'Manter o acesso' })).toBeFocused();
+
+  await page.goBack();
+  await expect(page).toHaveURL(/#carteira$/);
+  const descarte = page.getByRole('dialog', {
+    name: 'Sair e descartar o que ainda não foi confirmado?',
+  });
+  await descarte.getByRole('button', { name: 'Sair e descartar' }).click();
+  await expect(page).toHaveURL(/#carteira$/);
+  await expect(linha).toBeVisible();
+  await expect(
+    page.locator('.dialogo-confirmacao').filter({ hasText: 'Revogar o acesso de' }),
+  ).toHaveCount(0);
+  await expect(linha).toBeFocused();
+  expect(pedidosDeRevogacao).toBe(0);
+});
