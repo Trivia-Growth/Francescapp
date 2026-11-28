@@ -4,7 +4,6 @@ import type {
   PendenciaPlantaoHttp,
 } from '../packages/contracts/src/ficha-plantao-http.ts';
 import './estilos/tema.css';
-import { nodeDe } from './ponte/ilha.js';
 import { LinhaRegistro, RegistroTurno, dataTurno } from './turno-execucao-leitura.js';
 
 /** FR-080. Consolidado diário no formato da ficha de plantão.
@@ -17,11 +16,7 @@ import { LinhaRegistro, RegistroTurno, dataTurno } from './turno-execucao-leitur
  *
  * Nenhuma pontuação, classificação de gravidade, alerta, tendência ou sugestão de conduta é
  * produzida a partir de campo nenhum.
- *
- * Reconstruído em React sobre a ilha (VIS-018). Como `turno-execucao-leitura`, é
- * apresentação pura e sem tratador de evento: `apresentarConsolidadoFicha` segue
- * devolvendo `HTMLElement` por `nodeDe`, porque `-relatorios` ainda monta DOM à mão e um
- * nó inerte é exatamente o que ele anexa. */
+ */
 
 export type FichaDoPlantao = {
   ficha: FichaPlantaoProjetada | null;
@@ -340,12 +335,4 @@ export function ConsolidadoFicha({
       </p>
     </section>
   );
-}
-
-/** Nó inerte do consolidado, usado pelas provas que leem o documento fora de uma ilha. */
-export function apresentarConsolidadoFicha(
-  relatorio: RelatorioTurnoPublico,
-  fichas?: ReadonlyMap<string, FichaDoPlantao>,
-): HTMLElement {
-  return nodeDe(<ConsolidadoFicha relatorio={relatorio} fichas={fichas} />);
 }

@@ -66,24 +66,3 @@ export function ilhaAtualizavel(raiz: HTMLElement, elemento: ReactElement) {
     desmontar,
   };
 }
-
-/** O nó que a ilha desenhou, para quem compõe DOM à mão.
- *
- *  `main.ts` monta algumas linhas juntando nós devolvidos por `montar*`. Esses chamadores
- *  esperam um `HTMLElement`, não uma raiz viva: deixar uma árvore React por selo numa
- *  lista de 200 linhas são 200 árvores a manter.
- *
- *  **O nó devolvido é INERTE.** Ele é uma cópia, então não carrega tratador de evento
- *  nenhum do React. Serve para o que é de fato estático — selo de situação, marca de
- *  estado, filete. Quem precisa de clique, foco ou estado usa `ilha` numa raiz própria.
- *  Tirar o original em vez de copiar não funciona: `unmount` tenta removê-lo de novo e o
- *  navegador lança `NotFoundError`. */
-export function nodeDe(elemento: ReactElement): HTMLElement {
-  const descartavel = document.createElement('div');
-  const desmontar = ilha(descartavel, elemento);
-  const desenhado = descartavel.firstElementChild;
-  const copia = desenhado === null ? null : desenhado.cloneNode(true);
-  desmontar();
-  if (!(copia instanceof HTMLElement)) throw new Error('A ilha não desenhou um elemento.');
-  return copia;
-}

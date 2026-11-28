@@ -4,7 +4,7 @@ import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
 import { ExecucaoTurno } from './turno-execucao.js';
 import { EditorExecucao } from './turno-execucao-editor.js';
-import { apresentarRegistroTurno } from './turno-execucao-leitura.js';
+import { RegistroTurno } from './turno-execucao-leitura.js';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
 import type { RegistroExecucaoPublico } from '../packages/contracts/src/turno-execucao-http.ts';
 import { FalhaApi } from './api.ts';
@@ -256,11 +256,13 @@ it('retificação de administração conserva prescrição histórica travada e 
   campo(raiz, 'Motivo da retificação').value = 'Correção humana';
   raiz.querySelector('form')?.requestSubmit();
   expect(enviar).toHaveBeenCalledWith(original.conteudo, 'Correção humana');
-  const historico = document.createElement('div');
-  historico.append(
-    apresentarRegistroTurno(original),
-    apresentarRegistroTurno({ ...original, versao: 2, motivo: 'Correção humana' }),
-  );
+  const { container: historico } = render([
+    createElement(RegistroTurno, { key: 'original', registro: original }),
+    createElement(RegistroTurno, {
+      key: 'retificacao',
+      registro: { ...original, versao: 2, motivo: 'Correção humana' },
+    }),
+  ]);
   expect(historico.textContent).toContain(
     'Executor declarado — quem administrou: Executor externo original',
   );

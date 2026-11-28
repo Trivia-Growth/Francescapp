@@ -41,6 +41,18 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8t do plano visual — leitura de registros e consolidado
+
+A bancada renderiza Ficha de plantão e Consolidado na mesma raiz. As provas
+de leitura renderizam o histórico e o consolidado diretamente. Saiu o
+adaptador de clonagem de nós do React. A tarefa 7.2 permanece aberta.
+
+- Passaram 17 testes Vitest e cinco cenários Chromium. O navegador verificou
+  axe, largura, alvos e foco a 360 e 390 px e após recarregar a ficha.
+- Ao omitir o componente do portal, o Chromium falhou esperando o título do
+  consolidado. Alteração revertida.
+- Próximo passo: rebase após o squash da fatia anterior e ativação.
+
 ## Fatia 8s do plano visual — adaptadores de execução usados em testes
 
 Oito montagens do bloco Meu turno e Execução saíram. As provas usam os

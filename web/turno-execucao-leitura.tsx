@@ -1,25 +1,10 @@
-/** Leitura dos registros de execução do turno, reconstruída em React sobre a ilha
- *  (`web/ponte/ilha.ts`). VIS-018.
- *
- *  Esta superfície é de APRESENTAÇÃO PURA: não consulta, não grava, não decide
- *  autorização e não tem tratador de evento nenhum. É por isso que os dois contratos
- *  exportados continuam devolvendo `HTMLElement` por `nodeDe`: `turno-execucao.ts`,
- *  `-relatorios` e o consolidado ainda montam DOM à mão e anexam estes nós numa lista.
- *  Nó inerte é exatamente o que eles precisam, e manter a assinatura é o que permite
- *  migrar este módulo sem arrastar os três de uma vez. Os componentes `RegistroTurno` e
- *  `RelatorioTurno` são o caminho de quem já é React — o consolidado usa este.
- *
- *  O que NÃO mudou: cada valor é apresentado como foi registrado, sem pontuação,
- *  classificação de gravidade, alerta, tendência ou sugestão de conduta; o estado
- *  emocional continua "observado" e declarado, nunca medido; e a frase final sobre
- *  ausência de interpretação clínica automática continua literal no código.
- */
+/** Leitura dos registros de execução do turno (VIS-018). Cada valor é apresentado
+ *  como registrado. O estado emocional é declarado como observado. */
 import type {
   RegistroExecucaoPublico,
   RelatorioTurnoPublico,
 } from '../packages/contracts/src/turno-execucao-http.ts';
 import './estilos/tema.css';
-import { nodeDe } from './ponte/ilha.js';
 import { rotulosClasse, rotuloSinal } from './turno-execucao-editor.js';
 
 export function dataTurno(valor: string) {
@@ -262,14 +247,4 @@ export function RelatorioTurno({ relatorio }: { relatorio: RelatorioTurnoPublico
       </p>
     </section>
   );
-}
-
-/** Contrato preservado para quem ainda monta DOM à mão. Ver o cabeçalho. */
-export function apresentarRegistroTurno(registro: RegistroExecucaoPublico): HTMLElement {
-  return nodeDe(<RegistroTurno registro={registro} />);
-}
-
-/** Contrato preservado para quem ainda monta DOM à mão. Ver o cabeçalho. */
-export function apresentarRelatorioTurno(relatorio: RelatorioTurnoPublico): HTMLElement {
-  return nodeDe(<RelatorioTurno relatorio={relatorio} />);
 }
