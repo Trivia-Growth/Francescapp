@@ -137,13 +137,17 @@ type Ciclo<T> =
 function useCiclo<T>() {
   const [estado, definir] = useState<Ciclo<T>>({ fase: 'ocioso' });
   const geracao = useRef(0);
+  const vivo = useRef(true);
   useEffect(() => {
+    vivo.current = true;
     return () => {
-      geracao.current = -1;
+      vivo.current = false;
+      // Invalida o que ainda está em voo.
+      geracao.current += 1;
     };
   }, []);
   const executar = async (consultar: () => Promise<T>) => {
-    if (geracao.current < 0) return;
+    if (!vivo.current) return;
     const minha = ++geracao.current;
     definir({ fase: 'carregando' });
     try {
@@ -212,7 +216,11 @@ function Consulta<T>({
   );
 }
 
-function Valores({ servico, contexto }: { servico: ServicoFinanceiro; contexto: Contexto }) {
+function Valores({
+  servico,
+  contexto,
+  aoGravar,
+}: { servico: ServicoFinanceiro; contexto: Contexto; aoGravar: (gravando: boolean) => void }) {
   const profissional = useRef<HTMLInputElement>(null);
   const inicio = useRef<HTMLInputElement>(null);
   const dinheiro = useRef<HTMLInputElement>(null);
@@ -220,6 +228,7 @@ function Valores({ servico, contexto }: { servico: ServicoFinanceiro; contexto: 
   const ciclo = useCiclo<ValorAcordado[]>();
   const [aviso, definirAviso] = useState('');
   const [gravando, definirGravando] = useState(false);
+  useEffect(() => aoGravar(gravando), [gravando, aoGravar]);
   const emCurso = useRef(false);
   const tentativa = useRef({ valor_id: crypto.randomUUID(), chave: crypto.randomUUID() });
   const vivo = useRef(true);
@@ -406,7 +415,11 @@ function LinhaDespesa({
   );
 }
 
-function Despesas({ servico, contexto }: { servico: ServicoFinanceiro; contexto: Contexto }) {
+function Despesas({
+  servico,
+  contexto,
+  aoGravar,
+}: { servico: ServicoFinanceiro; contexto: Contexto; aoGravar: (gravando: boolean) => void }) {
   const caso = useRef<HTMLInputElement>(null);
   const descricao = useRef<HTMLInputElement>(null);
   const dinheiro = useRef<HTMLInputElement>(null);
@@ -419,6 +432,7 @@ function Despesas({ servico, contexto }: { servico: ServicoFinanceiro; contexto:
   const [casoConsultado, definirCasoConsultado] = useState('');
   const [aviso, definirAviso] = useState('');
   const [gravando, definirGravando] = useState(false);
+  useEffect(() => aoGravar(gravando), [gravando, aoGravar]);
   const [podeRepetir, definirPodeRepetir] = useState(false);
   const emCurso = useRef(false);
   const vivo = useRef(true);
@@ -705,6 +719,10 @@ export function TelaFinanceiro({
   casoPadrao,
 }: { servico: ServicoFinanceiro } & Contexto) {
   const [aba, definirAba] = useState<IdAba>('valores');
+  // Com uma gravação em curso a aba não troca: desmontar o painel perderia o aviso e a
+  // próxima tentativa sairia com outro identificador e outra chave de idempotência, o que
+  // duplicaria o lançamento se a primeira já tivesse dado certo.
+  const [gravando, definirGravando] = useState(false);
   const contexto = { profissionalPadrao, casoPadrao };
   return (
     <section className="financeiro">
@@ -717,7 +735,12 @@ export function TelaFinanceiro({
       <Abas value={aba} onValueChange={(valor) => definirAba(valor as IdAba)}>
         <FaixaAbas aria-label="Seções do financeiro" tabIndex={-1} className="financeiro__abas">
           {ABAS.map((item) => (
-            <Aba key={item.id} value={item.id} className="financeiro__aba">
+            <Aba
+              key={item.id}
+              value={item.id}
+              className="financeiro__aba"
+              disabled={gravando && item.id !== aba}
+            >
               {item.rotulo}
             </Aba>
           ))}
@@ -725,9 +748,9 @@ export function TelaFinanceiro({
         {ABAS.map((item) => (
           <PainelAba key={item.id} value={item.id} className="financeiro__painel">
             {item.id === 'valores' ? (
-              <Valores servico={servico} contexto={contexto} />
+              <Valores servico={servico} contexto={contexto} aoGravar={definirGravando} />
             ) : item.id === 'despesas' ? (
-              <Despesas servico={servico} contexto={contexto} />
+              <Despesas servico={servico} contexto={contexto} aoGravar={definirGravando} />
             ) : (
               <Apuracao servico={servico} contexto={contexto} />
             )}

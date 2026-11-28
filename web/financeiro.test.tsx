@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import { createElement } from 'react';
+import { createElement, StrictMode } from 'react';
 import { fireEvent, render } from '@testing-library/react';
 import { formatarCentavos, lerCentavos, TelaFinanceiro } from './financeiro';
 import { criarAudienciaFinanceira } from './financeiro-audiencia';
@@ -24,6 +24,13 @@ function servicoFalso(parcial: Partial<ServicoFinanceiro> = {}): ServicoFinancei
     consultarApuracao: vi.fn(),
     ...parcial,
   } as unknown as ServicoFinanceiro;
+}
+
+function montarEstrito(raiz: HTMLElement, servico: ServicoFinanceiro) {
+  document.body.append(raiz);
+  return render(createElement(StrictMode, null, createElement(TelaFinanceiro, { servico })), {
+    container: raiz,
+  }).unmount;
 }
 
 function montarFinanceiro(
@@ -210,6 +217,44 @@ describe('estados das telas financeiras (tarefa 4.1)', () => {
     expect(raiz.textContent).not.toContain('Lista antiga fictícia');
   });
 
+  it('consulta funciona depois de o painel ser desmontado e remontado (modo estrito)', async () => {
+    const raiz = document.createElement('div');
+    const listarValores = vi.fn(async () => []);
+    montarEstrito(raiz, servicoFalso({ listarValores } as Partial<ServicoFinanceiro>));
+    botao(raiz, 'Consultar valores').click();
+    await vi.waitFor(() =>
+      expect(raiz.textContent).toContain('Nenhum valor combinado registrado para esta pessoa.'),
+    );
+    expect(listarValores).toHaveBeenCalledTimes(1);
+  });
+
+  it('apuração com falha depois de um sucesso não mantém o total anterior', async () => {
+    const raiz = document.createElement('div');
+    const consultarApuracao = vi
+      .fn()
+      .mockResolvedValueOnce({
+        origem: 'consulta_aberta' as const,
+        consultado_em: '2026-11-19T12:00:10.000Z',
+        profissional_usuario_id: profissional,
+        periodo_inicio: '2026-11-01',
+        periodo_fim: '2026-11-30',
+        linhas: [],
+        total_centavos: 12_300,
+        pendentes: 0,
+      })
+      .mockRejectedValueOnce(new FalhaApi('servico_indisponivel'));
+    montarFinanceiro(raiz, servicoFalso({ consultarApuracao } as Partial<ServicoFinanceiro>));
+    abrirAba(raiz, 'Apuração');
+    botao(raiz, 'Apurar período').click();
+    await vi.waitFor(() => expect(raiz.textContent).toContain('Total R$'));
+    botao(raiz, 'Apurar período').click();
+    await vi.waitFor(() =>
+      expect(raiz.textContent).toContain('Não foi possível apurar o período.'),
+    );
+    expect(raiz.textContent).not.toContain('Total');
+    expect(raiz.textContent).not.toMatch(/R\$/);
+  });
+
   it('a apuração não mostra total antes da consulta e mostra o instante depois', async () => {
     const raiz = document.createElement('div');
     const consultarApuracao = vi.fn(async () => ({
@@ -299,6 +344,29 @@ describe('falha de persistência na despesa na interface (tarefa 2.7)', () => {
     expect(chamadas[0]?.chave).toBe(chamadas[1]?.chave);
   });
 
+  it('a aba não troca durante a gravação da despesa', async () => {
+    let liberar: (valor: unknown) => void = () => {};
+    const chamadas: { despesa_id: string; chave: string }[] = [];
+    const registrarDespesa = vi.fn(
+      (entrada: { despesa_id: string }, chave: string) =>
+        new Promise((resolve) => {
+          chamadas.push({ despesa_id: entrada.despesa_id, chave });
+          liberar = resolve;
+        }),
+    ) as unknown as ServicoFinanceiro['registrarDespesa'];
+    const { raiz, formulario } = prepararDespesa(registrarDespesa);
+    formulario.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    await vi.waitFor(() => expect(chamadas).toHaveLength(1));
+    const outra = [...raiz.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
+      (item) => item.textContent === 'Apuração',
+    );
+    await vi.waitFor(() => expect(outra?.disabled).toBe(true));
+    abrirAba(raiz, 'Apuração');
+    expect(raiz.textContent).toContain('Registrando despesa…');
+    expect(raiz.textContent).not.toContain('Apurar período');
+    liberar(undefined);
+  });
+
   it('sem_permissao não oferece repetição', async () => {
     const registrarDespesa = vi
       .fn()
@@ -315,6 +383,37 @@ describe('falha de persistência na despesa na interface (tarefa 2.7)', () => {
 });
 
 describe('audiência financeira na interface (tarefa 4.2)', () => {
+  it('renovar na mesma sessão revoga e avisa; a audiência vale até a resposta chegar', async () => {
+    let resposta = true;
+    let liberar: () => void = () => {};
+    const aoMudar = vi.fn();
+    const audiencia = criarAudienciaFinanceira(async () => {
+      const valor = resposta;
+      await new Promise<void>((resolve) => {
+        liberar = resolve;
+      });
+      return valor;
+    }, aoMudar);
+    audiencia.sondar({ session_id: 's6', perfil: 'profissional' });
+    liberar();
+    await vi.waitFor(() => expect(audiencia.permitidaPara('s6')).toBe(true));
+    aoMudar.mockClear();
+    resposta = false;
+    audiencia.sondar({ session_id: 's6', perfil: 'profissional' }, true);
+    expect(audiencia.permitidaPara('s6')).toBe(true);
+    liberar();
+    await vi.waitFor(() => expect(aoMudar).toHaveBeenCalledTimes(1));
+    expect(audiencia.permitidaPara('s6')).toBe(false);
+  });
+
+  it('sem renovar, a sessão já sondada não pergunta de novo', async () => {
+    const consultar = vi.fn(async () => true);
+    const audiencia = criarAudienciaFinanceira(consultar, () => {});
+    audiencia.sondar({ session_id: 's7', perfil: 'profissional' });
+    audiencia.sondar({ session_id: 's7', perfil: 'profissional' });
+    expect(consultar).toHaveBeenCalledTimes(1);
+  });
+
   // Isto SOMA aos testes de servidor (`netlify/functions/_shared/financeiro-nativo.test.ts`)
   // e de banco (`supabase/tests/financeiro_*_local.sql`). Ocultar a área NÃO é autorização:
   // a autorização continua no servidor e no banco, e estes casos só provam que a superfície

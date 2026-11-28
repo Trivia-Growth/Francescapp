@@ -12,35 +12,42 @@
 export function criarAudienciaFinanceira(consultar: () => Promise<boolean>, aoMudar: () => void) {
   let sessaoSondada: string | null = null;
   let permitida = false;
+  let pedido = 0;
   return {
     /** Resposta síncrona usada pelo filtro de áreas. */
     permitidaPara(sessionId: string): boolean {
       return permitida && sessaoSondada === sessionId;
     },
-    /** Dispara a sondagem para esta sessão, uma vez por sessão. */
-    sondar(sessao: { session_id: string; perfil: string }): void {
-      if (sessaoSondada === sessao.session_id) return;
+    /** Dispara a sondagem para esta sessão, uma vez por sessão. Com `renovar`, pergunta de
+     * novo na mesma sessão (revalidação com o Financeiro aberto): a audiência atual vale até
+     * a resposta chegar, e uma resposta negativa ou uma falha a revogam e avisam. */
+    sondar(sessao: { session_id: string; perfil: string }, renovar = false): void {
+      const mesma = sessaoSondada === sessao.session_id;
+      if (mesma && !renovar) return;
       sessaoSondada = sessao.session_id;
-      permitida = false;
+      const minha = ++pedido;
+      if (!mesma) permitida = false;
       if (sessao.perfil === 'familia') {
         // Família não tem audiência financeira em nenhuma hipótese (FR-068): não há o que
         // perguntar, e perguntar só geraria um evento de auditoria inútil.
+        permitida = false;
         aoMudar();
         return;
       }
       void consultar()
         .then((resposta) => {
-          if (sessaoSondada !== sessao.session_id) return;
+          if (pedido !== minha) return;
           permitida = resposta === true;
           aoMudar();
         })
         .catch(() => {
-          if (sessaoSondada !== sessao.session_id) return;
+          if (pedido !== minha) return;
           permitida = false;
           aoMudar();
         });
     },
     esquecer(): void {
+      pedido += 1;
       sessaoSondada = null;
       permitida = false;
     },

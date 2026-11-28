@@ -27,6 +27,15 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
 - Contraprovas (revertidas): sem a guarda de geração, uma consulta antiga sobrescreveu a lista nova
   (`financeiro.test.tsx`); sem a saída da área desautorizada, a URL ficou em `#administracao/financeiro`
   (`toHaveURL(/#carteira$/)`).
+- Revisão do PR #57: (1) com gravação em curso as outras abas ficam desabilitadas, então seta do
+  teclado não desmonta o painel nem gera novo `despesa_id`/chave; em Chromium a repetição após falha
+  reenviou o mesmo `despesa_id`. Sem o `disabled`, a aba Apuração ficou habilitada. (2) Audiência
+  revogada com o Financeiro já montado: a revalidação repergunta a audiência (`sondar(..., renovar)`,
+  só com o Financeiro aberto) e `aoMudar` desmonta e volta à `#carteira`; antes só a navegação era
+  atualizada e a audiência nunca era repetida na mesma sessão. Sem o descarte no `aoMudar`, a URL
+  ficou em `#administracao/financeiro`. (3) `useCiclo` reativa no efeito, e sem isso o modo estrito
+  deixava a consulta inerte (teste falhou). Apuração com falha após sucesso não mantém o total
+  anterior (defeito antigo da auditoria), com teste. 25 testes e 23 cenários Chromium passaram.
 - Pendente: o ramo `typeof tela === 'function'` de `mostrarAdministracao` e a ponte `ilha.ts` ainda
   existem (ficha); a tarefa 7.2 só fecha quando a ficha migrar. Regras `.financeiro__aba` mortas no
   CSS ficam para a retirada do CSS legado.
