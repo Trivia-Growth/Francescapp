@@ -52,6 +52,10 @@ As classes dos controles foram preservadas. A tarefa 7.2 permanece aberta.
   sem permissão. Axe passou no diálogo com a folha de estilo carregada.
 - Ao retirar o foco após adicionar contato, Chromium encontrou o novo campo
   sem foco e falhou em `toBeFocused`. Alteração revertida.
+- Chromium injetou uma falha de desenho e recuperou os campos pelo botão
+  dentro do diálogo. O foco voltou ao título e a sessão sem acesso ao catálogo
+  manteve a explicação ao lado do responsável. Antes do portal, Chromium
+  deixou de encontrar um botão acessível no diálogo.
 - Próximo passo: rebase após o squash da fatia anterior e ativação.
 
 ## Fatia 8t do plano visual — leitura de registros e consolidado

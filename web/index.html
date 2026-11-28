@@ -185,6 +185,7 @@ SOFTWARE.
                  de erro vai ao controle visível, e servidor e banco conferem a entrada. -->
             <form id="create-form" class="ui-dialogo__formulario" method="post" autocomplete="off" aria-describedby="create-feedback">
               <div class="ui-dialogo__corpo" tabindex="0">
+                <div id="cadastro-campos-erro" class="contents"></div>
                 <fieldset id="create-fields">
                   <legend class="sr-only">Dados do paciente</legend>
                   <div class="ui-campo"><label class="ui-campo__rotulo" for="patient-name">Nome <span class="ui-campo__marca">obrigatório</span></label><input class="ui-campo__controle" id="patient-name" name="nome" type="text" required maxlength="200" autocomplete="off" aria-describedby="name-error"><span id="name-error" class="ui-campo__erro"></span></div>

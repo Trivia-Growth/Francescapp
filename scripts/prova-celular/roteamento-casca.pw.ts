@@ -109,6 +109,56 @@ test('entrada interna continua funcionando após falha de renderização na nave
   await expect(page.locator('#casca-barra')).toContainText('Navegação fictícia recuperada');
 });
 
+test('Cadastro recupera os campos dentro do diálogo e restaura o aviso sobre a equipe', async ({
+  page,
+}) => {
+  await prepararSessao(page, 'tecnica');
+  await page.route('**/web/campos-caso-novo.tsx', async (rota) => {
+    const resposta = await rota.fetch();
+    const original = await resposta.text();
+    const assinatura = /export function CamposCasoNovo\(\{[\s\S]*?\}\) \{/;
+    if (!assinatura.test(original)) throw new Error('Componente de cadastro não identificado.');
+    return rota.fulfill({
+      response: resposta,
+      body: original.replace(
+        assinatura,
+        (inicio) =>
+          `${inicio}\nif (!window.cadastroRecuperado) throw new Error('Falha fictícia no Cadastro');`,
+      ),
+    });
+  });
+  await page.route('**/api/**', (rota) => {
+    const url = new URL(rota.request().url());
+    if (url.pathname === '/api/sessao')
+      return rota.fulfill({
+        json: envelope({
+          ...sessaoAdministrador,
+          capacidades: sessaoAdministrador.capacidades.filter(
+            (capacidade) => capacidade !== 'administrar_concessoes',
+          ),
+        }),
+      });
+    const fixture = responder(url.href);
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+
+  await page.goto('/web/index.html#carteira');
+  await page.locator('#new-patient-link').click();
+  const dialogo = page.locator('#cadastro-dialogo');
+  const tentar = dialogo.getByRole('button', { name: 'Tentar novamente' });
+  await expect(tentar).toBeVisible();
+  await page.evaluate(() => Reflect.set(window, 'cadastroRecuperado', true));
+  await tentar.click();
+  await expect(dialogo.locator('#create-title')).toBeFocused();
+  await expect(dialogo.locator('#case-manager')).toBeDisabled();
+  await expect(dialogo.locator('#manager-state')).toContainText(
+    'Seu acesso não permite listar a equipe',
+  );
+  await expect(tentar).toHaveCount(0);
+});
+
 test('link antigo, consulta da URL, histórico e foco da gaveta', async ({ page }) => {
   await prepararSessao(page, 'tecnica');
   await page.route('**/api/**', (rota) => {

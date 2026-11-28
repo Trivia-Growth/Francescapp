@@ -212,6 +212,16 @@ const preferredInput = elemento<HTMLInputElement>('preferred-name');
 let catalogoCasoNovo: (() => Promise<ResponsavelOpcao[]>) | null = null;
 let equipeCasoNovoPara: string | null = null;
 const comandoCasoNovo = createRef<ComandoCamposCasoNovo>();
+
+function atualizarEquipeDoCadastro(controle: ComandoCamposCasoNovo | null): void {
+  if (!controle) return;
+  if (catalogoCasoNovo) void controle.carregarResponsaveis();
+  else
+    controle.equipeIndisponivel(
+      'Seu acesso não permite listar a equipe, então o responsável não pode ser indicado e o cadastro não pode ser enviado.',
+    );
+}
+
 export function desmontarCamposDeCadastro(): void {
   fecharFicha();
   casca.encerrar();
@@ -2153,11 +2163,7 @@ function aplicarSessao(atual: Sessao): boolean {
     if (equipeCasoNovoPara !== atual.usuario.id) {
       equipeCasoNovoPara = atual.usuario.id;
       catalogoCasoNovo = catalogoDaEquipe(atual);
-      if (catalogoCasoNovo) void comandoCasoNovo.current?.carregarResponsaveis();
-      else
-        comandoCasoNovo.current?.equipeIndisponivel(
-          'Seu acesso não permite listar a equipe, então o responsável não pode ser indicado e o cadastro não pode ser enviado.',
-        );
+      atualizarEquipeDoCadastro(comandoCasoNovo.current);
     }
   } else {
     equipeCasoNovoPara = null;
@@ -3022,6 +3028,8 @@ const casca = iniciarCasca(
   {
     destinoLogin: acessoInterno,
     destinoRede: elemento('estado-rede-raiz'),
+    destinoCadastro: elemento('cadastro-campos-erro'),
+    focarCadastro: () => elemento('create-title').focus(),
     cadastro: createElement(CamposCasoNovo, {
       destinos: {
         contatos: elemento('contacts-list'),
@@ -3037,12 +3045,17 @@ const casca = iniciarCasca(
       listarResponsaveis: () =>
         catalogoCasoNovo ? catalogoCasoNovo() : Promise.reject(new Error('Sem sessão')),
       aoMontar: () => {
+        const equipe = equipeCasoNovoPara;
         const catalogo = catalogoCasoNovo;
         const controle = comandoCasoNovo.current;
-        if (!catalogo || !controle) return;
+        if (!equipe || !controle) return;
         queueMicrotask(() => {
-          if (catalogoCasoNovo === catalogo && comandoCasoNovo.current === controle)
-            void controle.carregarResponsaveis();
+          if (
+            equipeCasoNovoPara === equipe &&
+            catalogoCasoNovo === catalogo &&
+            comandoCasoNovo.current === controle
+          )
+            atualizarEquipeDoCadastro(controle);
         });
       },
     }),
