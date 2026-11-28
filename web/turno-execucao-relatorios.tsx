@@ -539,6 +539,7 @@ export function RelatoriosTurnoFamilia({
   if (!servico) return null;
   return (
     <RelatoriosTurno
+      key={pacienteId}
       servico={servico}
       familia
       acessoPerdido={acessoPerdido}
