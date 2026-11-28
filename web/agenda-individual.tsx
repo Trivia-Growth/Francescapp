@@ -1,30 +1,12 @@
-/** Minha agenda (compromissos Google, vínculo com paciente e realização do cuidado),
- *  reconstruída em React sobre a ilha (`web/ponte/ilha.ts`).
- *
- *  Migra na MESMA leva que seus três corpos — `agenda-operacoes.tsx`,
- *  `agenda-vinculo.tsx` e `realizacao-compromisso.tsx` — porque os três só chegam ao
- *  produto por aqui (achado de arquitetura confirmado em `tasks.md`: nenhum dos três tem
- *  outro consumidor). Migrar um dos quatro isoladamente deixaria o hospedeiro imperativo
- *  por baixo, que é a direção que já custou um `NotFoundError` de um dia inteiro nesta
- *  migração: ilha React viva, contêiner esvaziado por fora. Aqui não há fora — hospedeiro
- *  e corpos vivem na MESMA raiz React, montados por `ilha()` uma única vez.
- *
- *  O contrato exportado NÃO muda: `montarAgendaIndividual(raiz, sessaoId, usuarioId,
- *  listarPacientes)` continua devolvendo a função de desmontagem, porque quem chama é
- *  `web/main.ts`, ainda imperativo.
- *
- *  VIS-012: a versão imperativa guardava `ativa` e testava `if (!ativa) return` em cada
- *  retomada de `await`. Aqui não sobra nenhuma — desmontar a ilha cancela os efeitos — mas
- *  o contador `consulta` continua existindo: ele não protege contra desmontagem, protege
- *  contra uma consulta mais antiga sobrescrever uma mais nova (clique duplo em "Atualizar",
- *  ocultar e voltar a mostrar a aba), uma corrida real que a migração não elimina. */
+/** Minha agenda: conexão Google, compromissos, vínculo e realização do cuidado.
+ * Os três formulários são compostos com a lista na mesma árvore React. A geração
+ * da consulta impede respostas antigas de substituírem resultados mais recentes. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { OperacoesAgenda, type PunhoOperacoes } from './agenda-operacoes.js';
 import { VinculoAgenda, type PunhoVinculo } from './agenda-vinculo.js';
 import { Botao } from './componentes/ui/botao.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { confirmar } from './confirmacao.js';
-import { ilha } from './ponte/ilha.js';
 import {
   consultarRealizacoes,
   descreverRealizacao,
@@ -133,7 +115,7 @@ type PropsAgendaIndividual = {
   listarPacientes: (cursor?: string) => Promise<PaginaPacientes>;
 };
 
-function AgendaIndividual({ sessaoId, usuarioId, listarPacientes }: PropsAgendaIndividual) {
+export function AgendaIndividual({ sessaoId, usuarioId, listarPacientes }: PropsAgendaIndividual) {
   const marcadorDesconexao = `ffcm-agenda-desconexao-incerta:${usuarioId}`;
   const [{ pedido: pedidoInicial, armazenamentoDisponivel }] = useState(() =>
     lerPedidoDesconexao(usuarioId),
@@ -895,23 +877,5 @@ function AgendaIndividual({ sessaoId, usuarioId, listarPacientes }: PropsAgendaI
         </ul>
       </Esqueleto>
     </div>
-  );
-}
-
-/** O mesmo contrato de sempre: `web/main.ts` chama `montarAgendaIndividual(raiz, …)` e
- *  desmonta com o retorno, sem saber que por dentro é React. */
-export function montarAgendaIndividual(
-  raiz: HTMLElement,
-  sessaoId: string,
-  usuarioId: string,
-  listarPacientes: (cursor?: string) => Promise<PaginaPacientes>,
-): () => void {
-  return ilha(
-    raiz,
-    <AgendaIndividual
-      sessaoId={sessaoId}
-      usuarioId={usuarioId}
-      listarPacientes={listarPacientes}
-    />,
   );
 }

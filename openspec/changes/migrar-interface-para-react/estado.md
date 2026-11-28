@@ -41,6 +41,18 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8i do plano visual — Minha agenda
+
+A agenda do profissional com Google é composta na raiz React da casca. A
+revalidação remove a agenda ao perder o perfil. A bancada Chromium renderiza
+o mesmo componente em sua própria página. A tarefa 7.2 segue aberta.
+
+- Passaram oito testes Vitest, dois cenários Chromium e lint/typecheck. A
+  mudança fictícia de perfil ocultou e esvaziou o contêiner da agenda.
+- Ao só ocultar a agenda, a prova falhou em `toBeEmpty` com o conteúdo ainda
+  no DOM. Alteração revertida.
+- Próximo passo: rebase depois do squash da fatia anterior e ativação.
+
 ## Fatia 8h do plano visual — Cadastro na ficha
 
 A ficha compõe edição cadastral, contatos e substituição temporária. A

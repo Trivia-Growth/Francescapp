@@ -3,7 +3,7 @@ import { criarServicoAcessosHttp } from './servico-acessos-http.js';
 import { montarLoginInterno } from './login-interno.js';
 import { iniciarAcao } from './esqueleto.js';
 import { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.js';
-import { montarAgendaIndividual } from './agenda-individual.js';
+import { AgendaIndividual } from './agenda-individual.js';
 import { TelaContatoPaciente } from './contatos-paciente.js';
 import { TelaEdicaoPaciente } from './editar-paciente.js';
 import type {
@@ -1344,11 +1344,10 @@ function aviso(id: string, texto: string, tom: 'error' | 'success' | 'neutral' =
   destino.dataset.tone = tom;
 }
 
-let desmontarAgenda: (() => void) | null = null;
 let sessaoAgenda: string | null = null;
 function fecharAgenda(): void {
-  desmontarAgenda?.();
-  desmontarAgenda = null;
+  if (!sessaoAgenda) return;
+  casca.desenharAgenda(null);
   sessaoAgenda = null;
   elemento('agenda-individual').hidden = true;
 }
@@ -2131,11 +2130,13 @@ function aplicarSessao(atual: Sessao): boolean {
       fecharAgenda();
       sessaoAgenda = atual.session_id;
       elemento('agenda-individual').hidden = false;
-      desmontarAgenda = montarAgendaIndividual(
-        elemento('agenda-individual'),
-        atual.session_id,
-        atual.usuario.id,
-        (cursor) => api.listarPacientes(cursor),
+      casca.desenharAgenda(
+        createElement(AgendaIndividual, {
+          key: atual.session_id,
+          sessaoId: atual.session_id,
+          usuarioId: atual.usuario.id,
+          listarPacientes: (cursor) => api.listarPacientes(cursor),
+        }),
       );
     }
   } else fecharAgenda();
@@ -3054,5 +3055,6 @@ const casca = iniciarCasca(
     aoBuscar: buscarNaCarteira,
   },
   { raiz: listaPacientes, abrir: abrirPacienteDaCarteira },
+  elemento('agenda-individual'),
 );
 void restaurarSessao();

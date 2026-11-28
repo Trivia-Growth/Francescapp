@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { montarAgendaIndividual } from './agenda-individual.tsx';
+import { AgendaIndividual } from './agenda-individual.tsx';
 
 let desmontar: (() => void) | undefined;
 
@@ -33,10 +35,15 @@ function montar(estado: 'conectado' | 'desconectado') {
     }),
   );
   const raiz = document.createElement('div');
-  desmontar = montarAgendaIndividual(raiz, 'sessao-ficticia', 'usuario-ficticio', async () => ({
-    itens: [],
-    proximo_cursor: null,
-  }));
+  const painel = render(
+    createElement(AgendaIndividual, {
+      sessaoId: 'sessao-ficticia',
+      usuarioId: 'usuario-ficticio',
+      listarPacientes: async () => ({ itens: [], proximo_cursor: null }),
+    }),
+    { container: raiz },
+  );
+  desmontar = painel.unmount;
   return raiz;
 }
 

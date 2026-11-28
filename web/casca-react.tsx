@@ -1,4 +1,4 @@
-import { createRef, type ComponentProps, type ReactElement, useEffect } from 'react';
+import { createRef, type ComponentProps, type ReactElement, useEffect, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import type { PacienteLista } from '../packages/contracts/src/cadastro.js';
@@ -82,12 +82,17 @@ function Casca({
   aoHistorico,
   navegacao,
   carteira,
+  agenda,
+  destinoAgenda,
 }: {
   vista: Vista | null;
   aoHistorico: () => void;
   navegacao: Navegacao;
   carteira: Carteira & { pacientes: readonly PacienteLista[] };
+  agenda: ReactElement | null;
+  destinoAgenda: HTMLElement;
 }) {
+  const [tentativaAgenda, definirTentativaAgenda] = useState(0);
   useEffect(() => {
     const eventos = new window.AbortController();
     enderecoTratado = window.location.href;
@@ -115,6 +120,17 @@ function Casca({
         carteira.raiz,
       )}
       {vista ? createPortal(conteudoDaVista(vista), vista.destino) : null}
+      {agenda
+        ? createPortal(
+            <LimiteErroPainel
+              key={`${agenda.key}:${tentativaAgenda}`}
+              aoTentarNovamente={() => definirTentativaAgenda((anterior) => anterior + 1)}
+            >
+              {agenda}
+            </LimiteErroPainel>,
+            destinoAgenda,
+          )
+        : null}
     </>
   );
 }
@@ -126,11 +142,13 @@ export function iniciarCasca(
   aoHistorico: () => void,
   opcoes: Omit<Navegacao, 'comando' | 'estado'>,
   carteira: Carteira,
+  destinoAgenda: HTMLElement,
 ) {
   const arvore = createRoot(raiz);
   const comando = createRef<ComandoGaveta>();
   let encerrada = false;
   let vista: Vista | null = null;
+  let agenda: ReactElement | null = null;
   let pacientes: readonly PacienteLista[] = [];
   let estado: EstadoNavegacao = {
     visivel: false,
@@ -152,6 +170,8 @@ export function iniciarCasca(
             aoHistorico={aoHistorico}
             navegacao={{ ...opcoes, estado, comando }}
             carteira={{ ...carteira, pacientes }}
+            agenda={agenda}
+            destinoAgenda={destinoAgenda}
           />,
         ),
       );
@@ -165,6 +185,10 @@ export function iniciarCasca(
     fecharVista(tipo: Vista['tipo']) {
       if (vista?.tipo !== tipo) return;
       vista = null;
+      atualizar();
+    },
+    desenharAgenda(tela: ReactElement | null) {
+      agenda = tela;
       atualizar();
     },
     atualizarNavegacao(dados: Partial<EstadoNavegacao>) {
