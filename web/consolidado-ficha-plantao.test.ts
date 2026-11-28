@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it } from 'vitest';
-import { apresentarConsolidadoFicha } from './consolidado-ficha-plantao.js';
+import { ConsolidadoFicha } from './consolidado-ficha-plantao.js';
 import type { RelatorioTurnoPublico } from '../packages/contracts/src/turno-execucao-http.ts';
 
 /** FR-080. Dados fictícios. O consolidado reusa a projeção autorizada de FR-062 como ela
@@ -83,8 +85,18 @@ function refeicao(turnoId: string, registro: string): RelatorioTurnoPublico['ite
   };
 }
 
+function renderizarConsolidado(
+  relatorio: RelatorioTurnoPublico,
+  fichas?: ComponentProps<typeof ConsolidadoFicha>['fichas'],
+) {
+  const { container } = render(createElement(ConsolidadoFicha, { relatorio, fichas }));
+  const secao = container.firstElementChild;
+  if (!(secao instanceof HTMLElement)) throw new Error('Consolidado indisponível.');
+  return secao;
+}
+
 it('agrupa por plantão, na ordem da ficha, com período e papel declarado', () => {
-  const secao = apresentarConsolidadoFicha(
+  const secao = renderizarConsolidado(
     relatorio([
       turno(turnoA, '2026-11-20T07:00:00.000Z', 'Acompanhante fictícia'),
       refeicao(turnoA, '50000000-0000-4000-8000-000000000011'),
@@ -150,14 +162,14 @@ it('agrupa por plantão, na ordem da ficha, com período e papel declarado', () 
 });
 
 it('dia sem plantão mostra vazio após consulta concluída, sem dado de exemplo', () => {
-  const secao = apresentarConsolidadoFicha(relatorio([]));
+  const secao = renderizarConsolidado(relatorio([]));
   expect(secao.textContent).toContain('Nenhum registro neste período');
   expect(secao.textContent).toContain('não é falha, e não há dado de exemplo');
   expect(secao.querySelectorAll(':scope > article')).toHaveLength(0);
 });
 
 it('lacuna de cobertura é indicada', () => {
-  const secao = apresentarConsolidadoFicha(
+  const secao = renderizarConsolidado(
     relatorio(
       [turno(turnoA, '2026-11-20T07:00:00.000Z', 'Acompanhante fictícia')],
       [{ inicio: '2026-11-20T13:00:00.000Z', fim: '2026-11-20T19:00:00.000Z' }],

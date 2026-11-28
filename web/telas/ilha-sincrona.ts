@@ -7,4 +7,4 @@
  *
  * Este arquivo sobrevive só para os 15 módulos que já importam daqui não precisarem ser
  * editados enquanto outras frentes trabalham neles. Sai na Fase 7, junto com a ilha. */
-export { ilha as ilhaSincrona, nodeDe } from '../ponte/ilha.js';
+export { ilha as ilhaSincrona } from '../ponte/ilha.js';

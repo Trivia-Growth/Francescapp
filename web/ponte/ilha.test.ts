@@ -2,7 +2,7 @@
 import { createElement, useEffect, useState } from 'react';
 import { act } from 'react';
 import { expect, it } from 'vitest';
-import { ilha, nodeDe } from './ilha.js';
+import { ilha } from './ilha.js';
 
 /** Componente que escreve o que a consulta devolver — o padrão de toda tela do produto. */
 function TelaQueConsulta({ consulta }: { consulta: Promise<string> }) {
@@ -50,13 +50,6 @@ it('tolera montar duas vezes na mesma raiz, que `main.ts` faz', () => {
   // A desmontagem obsoleta não pode levar junto a montagem que tomou o lugar.
   expect(raiz.textContent).toBe('Segunda');
   segunda();
-});
-
-it('entrega um nó solto para quem compõe DOM à mão, sem deixar raiz viva', () => {
-  const no = nodeDe(createElement('span', { className: 'selo' }, 'Em pausa'));
-  expect(no.tagName).toBe('SPAN');
-  expect(no.textContent).toBe('Em pausa');
-  expect(no.isConnected).toBe(false);
 });
 
 it('monta e desmonta dentro do contrato que `main.ts` já usa', async () => {

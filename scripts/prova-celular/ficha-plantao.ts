@@ -8,10 +8,11 @@
  * sucesso das duas telas — ele não autoriza nada e não substitui os testes de autorização
  * de servidor e de banco.
  */
-import { createElement } from 'react';
+import { createElement, Fragment } from 'react';
+import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import { FichaPlantao, type ServicosFichaPlantao } from '../../web/ficha-plantao.js';
-import { apresentarConsolidadoFicha } from '../../web/consolidado-ficha-plantao.js';
+import { ConsolidadoFicha, type FichaDoPlantao } from '../../web/consolidado-ficha-plantao.js';
 import type { CampoExtraCatalogoGeneralizado } from '../../packages/contracts/src/campo-extra-catalogo.ts';
 import type { RelatorioTurnoPublico } from '../../packages/contracts/src/turno-execucao-http.ts';
 import type { Turno } from '../../packages/contracts/src/turno.ts';
@@ -179,49 +180,51 @@ const relatorio: RelatorioTurnoPublico = {
   ],
 };
 
-const raizFicha = document.getElementById('ficha');
-if (raizFicha)
-  createRoot(raizFicha).render(
-    createElement(FichaPlantao, {
-      servicos,
-      pacienteId: paciente,
-      turno,
-      acessoPerdido: () => {},
-    }),
-  );
+const fichas = new Map<string, FichaDoPlantao>([
+  [
+    turnoId,
+    {
+      ficha: {
+        registro_id: turnoId,
+        turno_id: turnoId,
+        versao: 1,
+        periodo: 'diurno',
+        papel_declarado: 'Acompanhante terapêutico',
+        atividades: {
+          texto: `Caminhada fictícia no quintal. ${LONGO}`,
+          fonte: 'observacao_direta',
+          visibilidade: 'compartilhavel',
+        },
+        observacoes: null,
+        autor_usuario_id: profissional,
+        registrado_em: '2026-11-20T13:00:00.000Z',
+        retroativo: true,
+      },
+      pendencias: [],
+    },
+  ],
+]);
 
+const raizFicha = document.getElementById('ficha');
 const raizConsolidado = document.getElementById('consolidado');
-if (raizConsolidado) {
-  const secao = document.createElement('section');
-  secao.className = 'turno-execucao';
-  secao.append(
-    apresentarConsolidadoFicha(
-      relatorio,
-      new Map([
-        [
-          turnoId,
-          {
-            ficha: {
-              registro_id: turnoId,
-              turno_id: turnoId,
-              versao: 1,
-              periodo: 'diurno' as const,
-              papel_declarado: 'Acompanhante terapêutico',
-              atividades: {
-                texto: `Caminhada fictícia no quintal. ${LONGO}`,
-                fonte: 'observacao_direta' as const,
-                visibilidade: 'compartilhavel' as const,
-              },
-              observacoes: null,
-              autor_usuario_id: profissional,
-              registrado_em: '2026-11-20T13:00:00.000Z',
-              retroativo: true,
-            },
-            pendencias: [],
-          },
-        ],
-      ]),
+if (raizFicha && raizConsolidado)
+  createRoot(raizFicha).render(
+    createElement(
+      Fragment,
+      null,
+      createElement(FichaPlantao, {
+        servicos,
+        pacienteId: paciente,
+        turno,
+        acessoPerdido: () => {},
+      }),
+      createPortal(
+        createElement(
+          'section',
+          { className: 'turno-execucao' },
+          createElement(ConsolidadoFicha, { relatorio, fichas }),
+        ),
+        raizConsolidado,
+      ),
     ),
   );
-  raizConsolidado.append(secao);
-}
