@@ -8,6 +8,7 @@ reset role;
 create temp table pre_membros_antes as select roleid,member,grantor from pg_auth_members;
 create temp table pre_create_antes as select has_schema_privilege('ffcmapp_audio_transcricao_owner','api','create') tinha;
 \ir ../migrations/20261128250000_audio_transcricao_pre_autorizacao.sql
+\ir ../migrations/20261128260000_audio_transcricao_recorte_caso.sql
 
 do $$ begin
  if not has_function_privilege('authenticated','api.autorizar_transcricao_audio(uuid,uuid)','execute') then
@@ -62,6 +63,11 @@ do $$ declare c record; s jsonb; nova uuid; begin
  end loop;
 end $$;
 
+-- Recorte por caso: equipe não administradora com acesso vigente só ao caso A (44…01).
+insert into cadastro.acesso_paciente(id,paciente_id,usuario_id,concedido_por_usuario_id,motivo_concessao_cifrado)
+ select gen_random_uuid(),'44000000-0000-4000-8000-000000000001',usuario_id,'11000000-0000-4000-8000-000000000001',public.acessos_envelope_fixture()
+ from pre_contas where funcao in ('case_manager','profissional');
+
 do $$
 #variable_conflict use_variable
 declare c record; r jsonb; paciente uuid:='44000000-0000-4000-8000-000000000001';
@@ -75,6 +81,10 @@ begin
   r:=public.pre_autorizar_fixture(c.usuario_id,c.sid,case when c.metodo='interno' then 'password' else 'oauth' end,paciente);
   if c.funcao='familia' and r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'PRE_FAMILIA_ACEITA: % %',c.metodo,r; end if;
   if c.funcao<>'familia' and r->>'ok' is distinct from 'true' then raise exception 'PRE_EQUIPE_NEGADA: % % %',c.funcao,c.metodo,r; end if;
+  -- Caso B (sem acesso): só o administrador alcança.
+  r:=public.pre_autorizar_fixture(c.usuario_id,c.sid,case when c.metodo='interno' then 'password' else 'oauth' end,'44000000-0000-4000-8000-000000000002');
+  if c.funcao='administrador' and r->>'ok' is distinct from 'true' then raise exception 'PRE_ADMIN_CASO_B_NEGADO: % %',c.metodo,r; end if;
+  if c.funcao<>'administrador' and r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'PRE_SEM_ACESSO_AO_CASO_ACEITO: % % %',c.funcao,c.metodo,r; end if;
  end loop;
  -- Administrador legado Google passa; com método de login trocado no JWT, não.
  r:=public.pre_autorizar_fixture(adm,sadm,'oauth',paciente);
@@ -116,5 +126,41 @@ begin
   raise exception 'PRE_SEM_JWT_ACEITO';
  exception when insufficient_privilege then reset role;
  end;
+end $$;
+-- Recorte por caso na OPERAÇÃO privada: grava no caso A; sem acesso ao caso B não grava; depois
+-- da revogação o autor não ouve mais o próprio áudio.
+do $$
+#variable_conflict use_variable
+declare c record; r jsonb; registro uuid:=gen_random_uuid(); e jsonb; t jsonb; alvo uuid;
+begin
+ select * into c from pre_contas where funcao='case_manager' and metodo='google_workspace';
+ perform public.acessos_claims_fixture(c.usuario_id,c.sid,'oauth');
+ foreach alvo in array array['44000000-0000-4000-8000-000000000001'::uuid,'44000000-0000-4000-8000-000000000002'::uuid] loop
+  registro:=gen_random_uuid();
+  e:=jsonb_build_object('request_id',gen_random_uuid(),'paciente_id',alvo,'registro_id',registro,
+   'audio',jsonb_build_array(public.acessos_envelope_fixture()),'transcricao',public.acessos_envelope_fixture(),
+   'mime','audio/webm','duracao_segundos',5,'modelo','openai/whisper-large-v3',
+   'chave_idempotencia',registro::text,'digest_idempotencia',repeat('a',43),
+   'aad',jsonb_build_object('tabela','cadastro.audio_transcricao','paciente_id',alvo::text,'registro_id',registro::text,'parte',0,'campo','transcricao','formato',1));
+  t:=public.acessos_assinar_fixture(e,'api.registrar_audio_transcricao');
+  set local role authenticated; r:=api.transcricao_operacao_privada(t); reset role;
+  if alvo='44000000-0000-4000-8000-000000000001' and r->>'ok' is distinct from 'true' then raise exception 'OP_CASO_A_NEGADO: %',r; end if;
+  if alvo='44000000-0000-4000-8000-000000000002' and r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'OP_CASO_B_ACEITO: %',r; end if;
+  if alvo='44000000-0000-4000-8000-000000000001' then perform set_config('fixture.audio_caso_a',registro::text,false); end if;
+ end loop;
+ update cadastro.acesso_paciente set revogada_em=clock_timestamp(),revogado_por_usuario_id='11000000-0000-4000-8000-000000000001',motivo_revogacao_cifrado=public.acessos_envelope_fixture()
+  where usuario_id=c.usuario_id and revogada_em is null;
+ t:=public.acessos_assinar_fixture(jsonb_build_object('request_id',gen_random_uuid(),'paciente_id','44000000-0000-4000-8000-000000000001','registro_id',current_setting('fixture.audio_caso_a')),'api.ler_audio_transcricao');
+ set local role authenticated; r:=api.transcricao_operacao_privada(t); reset role;
+ if r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'OP_REVOGADO_OUVE_AUDIO: %',r; end if;
+ r:=public.pre_autorizar_fixture(c.usuario_id,c.sid,'oauth','44000000-0000-4000-8000-000000000001');
+ if r#>>'{erro,codigo}' is distinct from 'sem_permissao' then raise exception 'PRE_REVOGADO_ACEITO: %',r; end if;
+-- Anônimo não alcança nenhuma das duas funções.
+ set local role anon;
+ begin perform api.autorizar_transcricao_audio(gen_random_uuid(),'44000000-0000-4000-8000-000000000001'); raise exception 'ANON_PRE_ACEITO';
+ exception when insufficient_privilege then null; end;
+ begin perform api.transcricao_operacao_privada(t); raise exception 'ANON_OP_ACEITO';
+ exception when insufficient_privilege then null; end;
+ reset role;
 end $$;
 -- Limite: provedor, PostgREST e Auth reais não são exercitados aqui.

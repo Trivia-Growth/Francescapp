@@ -316,11 +316,23 @@ via isso.
   provedor; autorizado chama o provedor depois da pré-autorização. O teste antigo foi
   renomeado para dizer o que prova (só a ordem dentro de `operarTranscricaoNativa`).
   **Contraprova:** voltar a porta para `async () => inicial` → os 3 casos falham. Revertido.
-- [ ] 7.3 Recorte por caso (`cadastro.acesso_paciente`) no áudio.
-  **Pendente de decisão do dono.** A operação de áudio não confere acesso vigente ao caso
-  (anamnese confere; diário não confere para interno; administrador alcança todos os casos
-  desde 24/11/2026). Recomendação levada: profissional exige acesso vigente; administrador
-  todos os casos; aplicar na pré-autorização e na operação privada.
+- [x] 7.3 Recorte por caso (`cadastro.acesso_paciente`) no áudio.
+  **Decisão do dono, 27/11/2026, opção (a):** profissional exige acesso vigente ao caso;
+  administrador alcança todos os casos (decisão de 24/11/2026). A operação de áudio não
+  conferia acesso ao caso (anamnese confere; diário não confere para interno).
+  **Evidência:** `supabase/migrations/20261128260000_audio_transcricao_recorte_caso.sql` —
+  policy RESTRITIVA em `cadastro.paciente` para o owner da fatia, somada à permissiva
+  `audio_transcricao_paciente`. Vale para a pré-autorização, a operação privada
+  (registrar/ouvir/revisar/excluir) e as policies de `cadastro.audio_transcricao`.
+  **Prova:** `sh scripts/testar-audio-pre-autorizacao-local.sh` → saída 0. Pré-autorização:
+  case manager e profissional (interno e Google) com acesso ao caso A passam; no caso B, sem
+  acesso, são negados; administrador passa nos dois. Operação privada: case manager grava no
+  caso A, é negado no caso B; depois da revogação não ouve o próprio áudio e a
+  pré-autorização nega; família negada (matriz 7.1); `anon` sem EXECUTE nas duas funções.
+  **Contraprova:** trocar `ap.revogada_em is null` por `true` → saída 3,
+  `OP_REVOGADO_OUVE_AUDIO` (autor revogado ainda ouvia o áudio). Revertido.
+  **Efeito registrado:** quem perde o caso também não exclui o próprio áudio pendente; o
+  expurgo de 30 dias (6.1) continua cobrindo o áudio abandonado.
 - [ ] 7.4 Tela (`web/main.ts:1136`): oferecer o gravador só quando
   `/api/transcricao/disponibilidade` declarar disponível. Não é controle de segurança.
   **Com o worker da casca React**, ao portar a seção de áudio.
