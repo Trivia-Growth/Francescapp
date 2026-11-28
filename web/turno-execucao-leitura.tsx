@@ -1,5 +1,10 @@
-/** Leitura dos registros de execução do turno (VIS-018). Cada valor é apresentado
- *  como registrado. O estado emocional é declarado como observado. */
+/** Leitura dos registros de execução do turno (VIS-018).
+ *
+ *  Cada valor é apresentado como foi registrado, sem pontuação, classificação de
+ *  gravidade, alerta, tendência ou sugestão de conduta. O estado emocional é uma
+ *  observação declarada. A frase final sobre ausência de interpretação clínica
+ *  automática permanece literal no código.
+ */
 import type {
   RegistroExecucaoPublico,
   RelatorioTurnoPublico,
