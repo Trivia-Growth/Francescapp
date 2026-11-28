@@ -664,8 +664,9 @@ function SecaoExecucaoTurno({
     const opcoes = {
       usuarioId: atual.usuario.id,
       administrador: atual.usuario.perfil === 'administrador',
-      acessoPerdido: (erro?: unknown) =>
-        acessoPerdido(erro ?? new FalhaApi('nao_autenticado', 401)),
+      acessoPerdido: (erro?: unknown) => {
+        if (ativa) acessoPerdido(erro ?? new FalhaApi('nao_autenticado', 401));
+      },
       alteracaoPendente: pendente,
       conversao,
       // FR-073/FR-078/FR-079. Criados sob demanda: a seção da ficha não faz pedido nenhum
@@ -737,12 +738,15 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         id: 'relatorios-turno',
         rotulo: 'Relatórios do cuidado',
         compor: async (pendente) =>
-          createElement((await import('./turno-execucao-relatorios.js')).RelatoriosTurnoFamilia, {
-            pacienteId: paciente.id,
-            identidadeAtual,
-            acessoPerdido,
-            alteracaoPendente: pendente,
-          }),
+          createElement(
+            (await import('./turno-execucao-relatorios-familia.js')).RelatoriosTurnoFamilia,
+            {
+              pacienteId: paciente.id,
+              identidadeAtual,
+              acessoPerdido,
+              alteracaoPendente: pendente,
+            },
+          ),
       },
       {
         id: 'plano',

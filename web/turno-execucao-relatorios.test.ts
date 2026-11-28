@@ -1,11 +1,30 @@
 // @vitest-environment jsdom
 import { render } from '@testing-library/react';
-import { createElement, type ComponentProps } from 'react';
+import { createElement, type ComponentProps, useLayoutEffect, useRef } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { RelatoriosTurno, RelatoriosTurnoFamilia } from './turno-execucao-relatorios.js';
+import { RelatoriosTurno } from './turno-execucao-relatorios.js';
+import { RelatoriosTurnoFamilia } from './turno-execucao-relatorios-familia.js';
+import * as transporte from './servico-turno-execucao-http.ts';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
 import { FalhaApi } from './api.ts';
 import { envelope } from './fixtures/comum.js';
+
+const registrarMontagem = vi.hoisted(() => vi.fn<(servico: ServicoTurnoExecucao) => void>());
+
+vi.mock('./turno-execucao-relatorios.js', async (importar) => {
+  const real = await importar<typeof import('./turno-execucao-relatorios.js')>();
+  return {
+    ...real,
+    RelatoriosTurno(props: ComponentProps<typeof real.RelatoriosTurno>) {
+      const servicoDaMontagem = useRef(props.servico);
+      useLayoutEffect(() => {
+        registrarMontagem(servicoDaMontagem.current);
+      }, []);
+      return createElement(real.RelatoriosTurno, props);
+    },
+  };
+});
+
 function renderizarRelatorios(
   raiz: HTMLElement,
   servico: ServicoTurnoExecucao,
@@ -15,6 +34,7 @@ function renderizarRelatorios(
 }
 
 const id = '10000000-0000-4000-8000-000000000001';
+const outroPaciente = '10000000-0000-4000-8000-000000000002';
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -38,8 +58,29 @@ it('família dispõe de turno/diário/semanal e não recebe opção exportação
   expect(raiz.querySelector('input[name="latitude"]')).toBeNull();
 });
 
+it('cada paciente entrega seu próprio serviço ao painel já na montagem', () => {
+  registrarMontagem.mockClear();
+  const criarServico = vi.spyOn(transporte, 'criarServicoTurnoExecucaoHttp');
+  const portas = {
+    identidadeAtual: () => ({ usuario_id: id, session_id: id }),
+    acessoPerdido: vi.fn(),
+  };
+  const painel = render(createElement(RelatoriosTurnoFamilia, { ...portas, pacienteId: id }));
+  painel.rerender(createElement(RelatoriosTurnoFamilia, { ...portas, pacienteId: outroPaciente }));
+
+  const pacienteDoServico = new Map(
+    criarServico.mock.results.map(({ value }, indice) => [
+      value,
+      criarServico.mock.calls[indice]?.[0],
+    ]),
+  );
+  const pacientesMontados = registrarMontagem.mock.calls.map(([servico]) =>
+    pacienteDoServico.get(servico),
+  );
+  expect(pacientesMontados).toEqual([id, outroPaciente]);
+});
+
 it('relatórios da Família limpam o paciente anterior e cancelam a leitura ao sair', async () => {
-  const outroPaciente = '10000000-0000-4000-8000-000000000002';
   const itensSessao = new Map([
     ['modo-acesso', 'familiar'],
     ['fluxo-familiar', 'AAAAAAAAAAAAAAAAAAAAAA'],

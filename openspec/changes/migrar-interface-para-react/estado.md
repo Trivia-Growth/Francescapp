@@ -58,6 +58,12 @@ A tarefa 7.2 permanece aberta.
   serviço. Com a chave apenas no painel, a contraprova em Chromium registrou
   o serviço do paciente anterior na segunda montagem. Com a chave no dono
   do serviço, cada montagem recebeu o próprio paciente.
+- O Vitest compara qual serviço cada painel recebe na primeira montagem.
+  A implementação de `744cbee` entregou o serviço anterior ao novo painel.
+  Com a chave na criação do serviço, a prova passou.
+- A seção descarta avisos de acesso perdido após desmonte. Em Chromium, um
+  aviso tardio fictício vindo de um filho desmontado preservou a ficha.
+  Sem essa guarda, a ficha fechou. A contraprova foi revertida.
 - Próximo passo: rebase após o squash da fatia anterior e ativação.
 
 ## Fatia 8r do plano visual — Meu turno e Execução do cuidado
