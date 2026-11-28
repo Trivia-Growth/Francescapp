@@ -2,6 +2,29 @@
 
 **Atualizado em:** 28/11/2026 · **Branch:** `codex/casca-finalizacao-react` · **Por:** Codex
 
+## Fatia 9a do plano visual — leituras dos catálogos com TanStack Query
+
+Papéis declarados e Modelo da ficha de plantão passam ao cache de leituras do piloto (#48),
+via `leituraPorSessao` em `web/consultas.ts` (o piloto Estado emocional passa a usá-la
+também). Escritas inalteradas; `main.ts` não muda. Branch `claude/leituras-catalogos`.
+
+- Política (vale para os três catálogos): vocabulário institucional, sem dado de paciente
+  nem de audiência; chave por conta+sessão; retenção de 5 min desde a última tela
+  (`gcTime` padrão); Atualizar, salvar e repetir releem sempre (`staleTime: 0`); recusa
+  401/403 descarta a entrada; `clear()` na revogação, no novo acesso e na saída.
+- Navegador (build de produção, casca real, dublê HTTP):
+  `scripts/prova-celular/cache-catalogos.mjs`. GETs por volta (5 voltas Auditoria → catálogo):
+  `main@313adfb` Papéis `1,1,1,1,1` e Modelo `1,1,1,1,1`; branch `0,0,0,0,0` nos dois
+  (Estado emocional já era `0`). Axe 0 nas três telas. 403 ao Atualizar esvazia a tela e a
+  volta relê. Capturas 390/1440 das três telas idênticas byte a byte às da `main`.
+- Vitest: `web/catalogos-cache.test.ts` (10 casos, 5 por família: voltas, revogação, 403,
+  troca de conta, resposta atrasada da conta anterior) e os testes das telas (15) passam.
+- Contraprovas registradas no PR: sem leitura retida, sem descarte, sem `clear()` na troca
+  de identidade, sem `aoEsquecerSessao` e o roteiro de navegador contra o build da `main`
+  falham pelo motivo certo.
+- Fica para a 9b: Plano de cuidado (lê equipe e aprovadores), Equipe e Auditoria, com
+  política própria. A leitura do modelo e dos papéis pela ficha do turno continua sem cache.
+
 ## Fatia 8z do plano visual — tarefa 7.2 concluída
 
 A aplicação tem uma raiz React para entrada, navegação, Carteira, ficha e Administração.
