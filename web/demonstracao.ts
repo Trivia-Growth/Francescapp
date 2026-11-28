@@ -9,7 +9,7 @@ import { confirmar, confirmarDescarte } from './confirmacao';
 
 import { objetivoSchema, type Objetivo } from '../packages/contracts/src/plano-cuidado';
 import { validarTarefaPlano } from '../packages/cadastro/src/tarefa-plano';
-import { montarRelatoTextual } from './relato-textual';
+import { TelaRelatoTextual } from './relato-textual';
 import { montarResumoCasoLocal } from './resumo-caso-local';
 import { montarLinhaTempoLocal } from './linha-tempo-local';
 import { EncaminhamentosLocais, type EncaminhamentoLocal } from './encaminhamentos-local';
@@ -17,10 +17,7 @@ import { OrientacoesLocais, type OrientacaoLocal } from './orientacoes-local';
 import { RelacoesLocais, type PessoaReferenciaLocal } from './relacoes-locais';
 import { EvolucoesLocais, type EvolucaoLocal } from './evolucoes-locais';
 import { TelaDocumentosLocais, type DocumentoLocal } from './documentos-locais';
-import {
-  montarPainelPendenciasLocal,
-  type DadosPainelPendenciasLocal,
-} from './painel-pendencias-local';
+import { PainelPendenciasLocal, type DadosPainelPendenciasLocal } from './painel-pendencias-local';
 import type { RelatoTextual } from '../packages/contracts/src/relato-textual';
 
 // Prévia isolada: usa somente o servidor local de feedback.
@@ -47,10 +44,9 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const login = elemento('login-view');
   const pacientes = elemento('patients-view');
   const telaRelato = elemento('relato-view');
-  let desmontarRelato: (() => void) | undefined;
   elemento('open-relato').addEventListener('click', () => {
     elemento('relato-back').textContent = 'Voltar ao acesso';
-    desmontarRelato = montarRelatoTextual(elemento('relato-content'));
+    desenharPrevia('relato-content', createElement(TelaRelatoTextual, { bloqueado: false }));
     const form = elemento('relato-content').querySelector('form');
     form?.addEventListener('input', () => formulariosAlterados.add(form));
     login.hidden = true;
@@ -62,8 +58,7 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       const form = elemento('relato-content').querySelector('form');
       if (form && formulariosAlterados.has(form) && !(await confirmarDescarteDaPrevia())) return;
       if (form) formulariosAlterados.delete(form);
-      desmontarRelato?.();
-      desmontarRelato = undefined;
+      desenharPrevia('relato-content', null);
       telaRelato.hidden = true;
       if (selecionado) {
         selecionado = undefined;
@@ -803,52 +798,54 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
           }
         };
         atualizarRelatos();
-        desmontarRelato = montarRelatoTextual(
-          elemento('relato-content'),
-          async (relato) => {
-            const voltar = elemento<HTMLButtonElement>('relato-back');
-            voltar.disabled = true;
-            try {
-              await navigator.locks.request(chaveOperacao(registro.id), async () => {
-                const chave = chaveOperacao(registro.id);
-                if (localStorage.getItem(chave)) throw new Error('pendente');
-                const operacao = crypto.randomUUID();
-                localStorage.setItem(chave, operacao);
-                try {
-                  const resposta = await requisitar(`/patients/${registro.id}/preview`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
-                    body: JSON.stringify({
-                      type: 'relatos',
-                      value: [relato],
-                      revision: revisoes.get(registro.id),
-                      operationId: operacao,
-                    }),
-                  });
-                  const previa = (await resposta.json()) as {
-                    revision: number;
-                    relatos: RelatoTextual[];
-                  };
-                  revisoes.set(registro.id, previa.revision);
-                  relatos.set(registro.id, previa.relatos);
-                  localStorage.removeItem(chave);
-                  atualizarRelatos();
-                  const form = elemento('relato-content').querySelector('form');
-                  if (form) formulariosAlterados.delete(form);
-                } catch (erro) {
-                  if (
-                    erro instanceof Error &&
-                    ['400', '401', '403', '404', '409'].includes(erro.message)
-                  )
+        desenharPrevia(
+          'relato-content',
+          createElement(TelaRelatoTextual, {
+            salvar: async (relato) => {
+              const voltar = elemento<HTMLButtonElement>('relato-back');
+              voltar.disabled = true;
+              try {
+                await navigator.locks.request(chaveOperacao(registro.id), async () => {
+                  const chave = chaveOperacao(registro.id);
+                  if (localStorage.getItem(chave)) throw new Error('pendente');
+                  const operacao = crypto.randomUUID();
+                  localStorage.setItem(chave, operacao);
+                  try {
+                    const resposta = await requisitar(`/patients/${registro.id}/preview`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                      body: JSON.stringify({
+                        type: 'relatos',
+                        value: [relato],
+                        revision: revisoes.get(registro.id),
+                        operationId: operacao,
+                      }),
+                    });
+                    const previa = (await resposta.json()) as {
+                      revision: number;
+                      relatos: RelatoTextual[];
+                    };
+                    revisoes.set(registro.id, previa.revision);
+                    relatos.set(registro.id, previa.relatos);
                     localStorage.removeItem(chave);
-                  throw erro;
-                }
-              });
-            } finally {
-              voltar.disabled = false;
-            }
-          },
-          Boolean(localStorage.getItem(chaveOperacao(registro.id))),
+                    atualizarRelatos();
+                    const form = elemento('relato-content').querySelector('form');
+                    if (form) formulariosAlterados.delete(form);
+                  } catch (erro) {
+                    if (
+                      erro instanceof Error &&
+                      ['400', '401', '403', '404', '409'].includes(erro.message)
+                    )
+                      localStorage.removeItem(chave);
+                    throw erro;
+                  }
+                });
+              } finally {
+                voltar.disabled = false;
+              }
+            },
+            bloqueado: Boolean(localStorage.getItem(chaveOperacao(registro.id))),
+          }),
         );
         const formRelato = elemento('relato-content').querySelector('form');
         formRelato?.addEventListener('input', () => formulariosAlterados.add(formRelato));
@@ -952,15 +949,9 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     exibirTela(telaTarefas);
     elemento('tasks-title').focus();
   };
-  // O painel é uma ilha React: quem escreve texto na raiz dela precisa desmontá-la antes,
-  // senão a próxima montagem tenta remover nós que o `textContent` já tirou.
-  let desmontarPainel: (() => void) | undefined;
   const carregarPendencias = async () => {
     const geracao = ++geracaoPendencias;
-    const painel = elemento('pending-panel');
-    desmontarPainel?.();
-    desmontarPainel = undefined;
-    painel.textContent = 'Carregando pendências…';
+    desenharPrevia('pending-panel', createElement(Fragment, null, 'Carregando pendências…'));
     try {
       const resposta = await requisitar('/pending-tasks');
       const dados = (await resposta.json()) as {
@@ -969,18 +960,29 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
       if (geracao !== geracaoPendencias) return;
       const agora = new Date();
       const hoje = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
-      desmontarPainel = montarPainelPendenciasLocal(painel, {
-        hoje,
-        pacientes: dados.patients,
-        abrirTarefas: (id) => {
-          const registro = registros.find((item) => item.id === id);
-          if (registro) void abrirTarefasPaciente(registro);
-        },
-      });
+      desenharPrevia(
+        'pending-panel',
+        createElement(PainelPendenciasLocal, {
+          dados: {
+            hoje,
+            pacientes: dados.patients,
+            abrirTarefas: (id) => {
+              const registro = registros.find((item) => item.id === id);
+              if (registro) void abrirTarefasPaciente(registro);
+            },
+          },
+        }),
+      );
     } catch {
       if (geracao !== geracaoPendencias) return;
-      painel.textContent =
-        'Não foi possível carregar as pendências. Atualize a lista para tentar novamente.';
+      desenharPrevia(
+        'pending-panel',
+        createElement(
+          Fragment,
+          null,
+          'Não foi possível carregar as pendências. Atualize a lista para tentar novamente.',
+        ),
+      );
     }
   };
   const abrirAgendaPaciente = async (registro: Paciente, daAgendaGeral: boolean) => {

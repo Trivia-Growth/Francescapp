@@ -41,6 +41,18 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8w do plano visual — relato de texto e pendências da demonstração
+
+A raiz da demonstração compõe o Relato e os estados de carregamento, erro e
+resultado das Pendências. Ela desmonta o Relato ao confirmar o descarte.
+A tarefa 7.2 permanece aberta.
+
+- Passaram 37 testes Vitest. Chromium a 390 px manteve o rascunho ao cancelar,
+  esvaziou o painel ao confirmar, devolveu o foco e não enviou o texto ao servidor.
+- Sem desmontar o Relato, a prova de descarte encontrou um filho no painel.
+  Alteração revertida.
+- Próximo passo: rebase após o squash da fatia anterior e ativação.
+
 ## Fatia 8v do plano visual — editores da demonstração local
 
 Documentos, Encaminhamentos, Orientações, Evoluções e Pessoas de referência
