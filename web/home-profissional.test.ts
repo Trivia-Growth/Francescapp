@@ -1,9 +1,21 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
-import { montarHomeProfissional, type PaginaCarteira } from './home-profissional';
+import { TelaHomeProfissional, type PaginaCarteira } from './home-profissional';
 import type { FiltrosCarteira, PacienteLista } from '../packages/contracts/src/cadastro';
 import { avisoSinalOperacional } from '../packages/contracts/src/pendencia';
 import { FalhaApi } from './api';
+
+function montarHomeProfissional(
+  raiz: HTMLElement,
+  servico: ComponentProps<typeof TelaHomeProfissional>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaHomeProfissional>['acessoPerdido'],
+) {
+  return render(createElement(TelaHomeProfissional, { servico, acessoPerdido }), {
+    container: raiz,
+  }).unmount;
+}
 
 const ID = (n: number) => `40000000-0000-4000-8000-00000000000${n}`;
 

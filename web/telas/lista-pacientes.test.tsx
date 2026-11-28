@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import type { PacienteLista } from '../../packages/contracts/src/cadastro.js';
-import { montarListaPacientes } from './lista-pacientes.js';
+import { TelaListaPacientes, type PropsListaPacientes } from './lista-pacientes.js';
 
 /* Dados fictícios. Nenhum nome, contato ou conteúdo clínico real entra em teste. */
 const ANA: PacienteLista = {
@@ -23,24 +24,27 @@ const CLARA: PacienteLista = {
 };
 const PACIENTES: PacienteLista[] = [ANA, BRUNO, CLARA];
 
-function montar(extra: Partial<Parameters<typeof montarListaPacientes>[1]> = {}) {
+function montar(extra: Partial<PropsListaPacientes> = {}) {
   const raiz = document.createElement('div');
   document.body.append(raiz);
   const aoAbrir = vi.fn();
   const aoFiltrar = vi.fn();
-  const desmontar = montarListaPacientes(raiz, {
-    pacientes: PACIENTES,
-    administrador: true,
-    aoFiltrar,
-    aoAbrir,
-    ...extra,
-  });
+  const { unmount } = render(
+    <TelaListaPacientes
+      pacientes={PACIENTES}
+      administrador
+      aoFiltrar={aoFiltrar}
+      aoAbrir={aoAbrir}
+      {...extra}
+    />,
+    { container: raiz },
+  );
   return {
     raiz,
     aoAbrir,
     aoFiltrar,
     encerrar: () => {
-      desmontar();
+      unmount();
       raiz.remove();
     },
   };

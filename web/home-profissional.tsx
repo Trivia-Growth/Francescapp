@@ -5,7 +5,6 @@ import { avisoSinalOperacional } from '../packages/contracts/src/pendencia.js';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { Botao } from './componentes/ui/botao.js';
 import { hashFicha } from './ficha-paciente.js';
-import { ilha } from './ponte/ilha.js';
 
 export type PaginaCarteira = {
   itens: PacienteLista[];
@@ -75,10 +74,8 @@ function BlocoFalha({ erro, repetir }: { erro: unknown; repetir: () => void }) {
  *
  * Uma fonte que falha degrada o próprio bloco e mantém o resto da tela de pé.
  *
- * VIS-012: os `if (!ativa)` da versão imperativa (um na entrada de `carregar`, outro depois
- * do `await`) viraram UM só, guardando a continuação depois do `await` — `ilha()` desmonta
- * a raiz React e nenhum clique de "Tentar novamente" sobrevive para chamar `carregar` de
- * novo depois disso, então o guard de entrada não tinha mais o que proteger. */
+ * VIS-012: a guarda de geração descarta a resposta de uma leitura anterior ou de uma
+ * tela que saiu da casca. */
 export function TelaHomeProfissional({
   servico,
   acessoPerdido,
@@ -303,12 +300,4 @@ export function TelaHomeProfissional({
       </div>
     </section>
   );
-}
-
-export function montarHomeProfissional(
-  raiz: HTMLElement,
-  servico: ServicoHome,
-  acessoPerdido: (erro: unknown) => void,
-): () => void {
-  return ilha(raiz, <TelaHomeProfissional servico={servico} acessoPerdido={acessoPerdido} />);
 }

@@ -2,7 +2,7 @@
  *  Envio e autorização ficam no chamador.
  *
  *  Era a costura mais arriscada da migração: os dois consumidores, já em React, montavam
- *  estes campos à mão (`montarCamposSintese`) dentro de um contêiner com ref — DOM escrito
+ *  estes campos à mão dentro de um contêiner com ref — DOM escrito
  *  por fora numa árvore que o React também governa, a direção que produziu os
  *  `NotFoundError`. Agora os campos são componente da mesma árvore.
  *
@@ -20,7 +20,6 @@ import { CampoData } from './componentes/ui/campo-data.js';
 import { Campo } from './componentes/ui/campo.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 
 export type CampoSintese =
   | 'area'
@@ -145,24 +144,4 @@ export function lerSintese(
   };
   const validado = conteudoEvolucaoDiarioSchema.safeParse(valores);
   return validado.success ? validado.data : undefined;
-}
-
-/** Contrato antigo, para quem ainda monta numa raiz própria: a raiz vira uma ilha. */
-export function montarCamposSintese(
-  destino: HTMLElement,
-  areas: readonly string[],
-  prefixo: string,
-) {
-  ilha(destino, <CamposSintese areas={areas} prefixo={prefixo} />);
-  const exigir = (campo: CampoSintese) => {
-    const controle = controleSintese(destino, prefixo, campo);
-    if (!controle) throw new Error(`Campo da síntese ausente: ${campo}`);
-    return controle;
-  };
-  return {
-    area: exigir('area'),
-    data: exigir('data') as HTMLInputElement,
-    atividade: exigir('atividade') as HTMLTextAreaElement,
-    ler: () => lerSintese(destino, prefixo),
-  };
 }

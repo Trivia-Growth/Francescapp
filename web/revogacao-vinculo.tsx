@@ -1,34 +1,12 @@
-/* Painel de revogação de vínculo, reconstruído em React sobre a ilha.
- *
- * A autorização permanece no servidor. Reconsulta informa somente o estado observado.
- *
- * Este módulo é o único dos quatro desta fatia que NÃO exporta `montar*(raiz) => desmontar`:
- * ele devolve um punho com `selecionar`, `invalidarSelecao`, `reconciliar` e `destruir`,
- * porque quem o conduz é a lista de vínculos de `web/main.ts`. O punho fica idêntico —
- * mesmos nomes, mesmas assinaturas, `selecionar` continua assíncrona porque continua
- * podendo perguntar antes de trocar de vínculo (VIS-018). O que mudou foi o lado de dentro:
- * o painel passou a ser um componente, e o punho apenas empurra estado para ele.
- *
- * VIS-012: a versão imperativa tinha seis conferências de `ativa` espalhadas pelo fluxo de
- * envio. Não sobrou nenhuma — desmontar a raiz React cancela os efeitos, e escrever estado
- * depois disso não produz efeito. A única exceção está anotada em `perguntar()`, e é a
- * confirmação, que vive fora da ilha.
- */
+/* Painel de revogação de vínculo, composto pela seção de equipe da ficha.
+ * A confirmação precede o envio. A autorização permanece no servidor. */
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Botao } from './componentes/ui/botao.js';
 import { confirmar, type PedidoConfirmacao } from './confirmacao.js';
 import './estilos/tema.css';
-import { ilhaSincrona } from './telas/ilha-sincrona.js';
 
 export type AlvoRevogacao = { id: string; versao: number; nome: string };
-
-export type PunhoRevogacao = {
-  selecionar: (acesso: AlvoRevogacao) => Promise<void>;
-  invalidarSelecao: () => void;
-  reconciliar: () => void;
-  destruir: () => void;
-};
 
 /** O punho visto por dentro: `selecionar` diz SE selecionou, para o hospedeiro só revelar
  *  o painel quando houver mesmo um vínculo escolhido. */
@@ -261,51 +239,4 @@ export function PainelRevogacao({
       </div>
     </section>
   );
-}
-
-export function montarRevogacaoVinculo(
-  raiz: HTMLElement,
-  revogar: (
-    acessoId: string,
-    dados: { versao_esperada: number; motivo: string },
-  ) => Promise<unknown>,
-  atualizarVinculos: () => Promise<void>,
-  acessoPerdido: (erro: unknown) => boolean,
-  alteracaoPendente: (pendente: boolean) => void,
-): PunhoRevogacao {
-  // `raiz` pertence a quem chamou: o painel só aparece quando há vínculo selecionado, e
-  // isso continua sendo um atributo do hospedeiro, não do conteúdo React.
-  raiz.hidden = true;
-  const controlador = new AbortController();
-  let punho: PunhoInterno | null = null;
-  const desmontar = ilhaSincrona(
-    raiz,
-    <PainelRevogacao
-      revogar={revogar}
-      atualizarVinculos={atualizarVinculos}
-      acessoPerdido={acessoPerdido}
-      alteracaoPendente={alteracaoPendente}
-      sinal={controlador.signal}
-      registrar={(recebido) => {
-        punho = recebido;
-      }}
-    />,
-  );
-  const atual = () => {
-    if (!punho) throw new Error('Painel de revogação não montado.');
-    return punho;
-  };
-  return {
-    async selecionar(acesso) {
-      // Só revela o painel quando a seleção foi mesmo aceita: recusar o descarte do
-      // motivo digitado tem de deixar a tela exatamente como estava.
-      if (await atual().selecionar(acesso)) raiz.hidden = false;
-    },
-    invalidarSelecao: () => atual().invalidarSelecao(),
-    reconciliar: () => atual().reconciliar(),
-    destruir() {
-      controlador.abort();
-      desmontar();
-    },
-  };
 }

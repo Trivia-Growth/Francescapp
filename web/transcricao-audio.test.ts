@@ -1,11 +1,29 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Transcricao } from '../packages/contracts/src/transcricao.ts';
-import {
-  mimeDoBlob,
-  montarTranscricaoAudio,
-  type ServicoTranscricao,
-} from './transcricao-audio.js';
+import { mimeDoBlob, TelaTranscricaoAudio, type ServicoTranscricao } from './transcricao-audio.js';
+
+function montarTranscricaoAudio(
+  raiz: HTMLElement,
+  pacienteId: string,
+  servico: ServicoTranscricao,
+  aoConfirmar: ComponentProps<typeof TelaTranscricaoAudio>['aoConfirmar'],
+  acessoPerdido: ComponentProps<typeof TelaTranscricaoAudio>['acessoPerdido'],
+  opcoes: ComponentProps<typeof TelaTranscricaoAudio>['opcoes'] = {},
+) {
+  return render(
+    createElement(TelaTranscricaoAudio, {
+      servico,
+      pacienteId,
+      aoConfirmar,
+      acessoPerdido,
+      opcoes,
+    }),
+    { container: raiz },
+  ).unmount;
+}
 
 const paciente = 'c0000000-0000-4000-8000-000000000003';
 const audioId = 'd0000000-0000-4000-8000-000000000004';
