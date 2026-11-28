@@ -1,8 +1,17 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
 import { montarPlanoCrise } from './plano-crise';
-import { montarHabilitacaoPlanoCrise } from './habilitacao-plano-crise';
+import { createElement, type ComponentProps } from 'react';
+import { render } from '@testing-library/react';
+import { TelaHabilitacaoPlanoCrise } from './habilitacao-plano-crise';
 import { FalhaApi } from './api';
+
+function montarHabilitacaoPlanoCrise(
+  raiz: HTMLElement,
+  servico: ComponentProps<typeof TelaHabilitacaoPlanoCrise>['servico'],
+) {
+  return render(createElement(TelaHabilitacaoPlanoCrise, { servico }), { container: raiz }).unmount;
+}
 
 const paciente = '40000000-0000-4000-8000-000000000001';
 const plano = {

@@ -13,7 +13,6 @@ import { Superficie } from './componentes/ui/superficie.js';
 import { CaixaDeMarcacao } from './telas/caixa-de-marcacao.js';
 import { Formulario, marcado, valorDe } from './telas/formulario.js';
 import { MolduraTela } from './telas/moldura-tela.js';
-import { ilha } from './ponte/ilha.js';
 import { Recuperacao, useCatalogoAdministrado } from './telas/catalogo-administrado.js';
 
 type Aprovador = { usuario_id: string; ativo: boolean; versao: number };
@@ -40,7 +39,7 @@ const VAZIO: DadosPlano = { campos: [], aprovadores: [], equipe: [] };
  * duas abas leem os mesmos dados já carregados, então trocar de aba não refaz consulta
  * nenhuma nem remonta a moldura da tela (VIS-014). O envio sem confirmação fica fora das
  * abas de propósito: ele bloqueia os dois assuntos e precisa ser visto dos dois. */
-function Tela({
+export function TelaAdministracaoPlano({
   servico,
   acessoPerdido,
   consultarEquipe,
@@ -349,17 +348,5 @@ function FormularioCampo({
         </Botao>
       </fieldset>
     </Formulario>
-  );
-}
-
-export function montarAdministracaoPlano(
-  raiz: HTMLElement,
-  servico: ServicoPlanoCuidado,
-  acessoPerdido: (erro: unknown) => void,
-  consultarEquipe: () => Promise<readonly Colaborador[]>,
-): () => void {
-  return ilha(
-    raiz,
-    <Tela servico={servico} acessoPerdido={acessoPerdido} consultarEquipe={consultarEquipe} />,
   );
 }

@@ -1,8 +1,16 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { montarEstadoEmocionalAdministracao } from './estado-emocional-administracao.js';
+import { render } from '@testing-library/react';
+import { criarTelaEstadoEmocional } from './estado-emocional-administracao.js';
 import { ClienteFFCM, FalhaApi } from './api.ts';
 import { chaveDaSessao, clienteConsultas, esquecerConsultas } from './consultas.js';
+
+function montarEstadoEmocionalAdministracao(
+  raiz: HTMLElement,
+  ...args: Parameters<typeof criarTelaEstadoEmocional>
+) {
+  return render(criarTelaEstadoEmocional(...args), { container: raiz }).unmount;
+}
 
 /* Primeira prova desta tela (25/11/2026, migração para React). O vocabulário de estado
  * emocional observado é administrado só pelo Administrador. As duas pontas da autorização

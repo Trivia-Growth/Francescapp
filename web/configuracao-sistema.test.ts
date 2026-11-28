@@ -1,7 +1,20 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
 import type { ConfiguracaoSistema } from '../packages/contracts/src/configuracao-sistema.ts';
-import { montarConfiguracaoSistema } from './configuracao-sistema.js';
+import { createElement, type ComponentProps } from 'react';
+import { render } from '@testing-library/react';
+import { TelaConfiguracaoSistema } from './configuracao-sistema.js';
+
+function montarConfiguracaoSistema(
+  raiz: HTMLElement,
+  servico: ComponentProps<typeof TelaConfiguracaoSistema>['servico'],
+  opcoes: { nomeDoUsuario?: ComponentProps<typeof TelaConfiguracaoSistema>['nomeDoUsuario'] } = {},
+) {
+  return render(
+    createElement(TelaConfiguracaoSistema, { servico, nomeDoUsuario: opcoes.nomeDoUsuario }),
+    { container: raiz },
+  ).unmount;
+}
 
 it('permite limpar texto livre como raiz Drive sem inventar obrigatoriedade global', async () => {
   let item: ConfiguracaoSistema = {

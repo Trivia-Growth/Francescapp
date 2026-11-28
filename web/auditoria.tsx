@@ -30,7 +30,6 @@ import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import type { FiltrosAuditoria, ServicoAuditoria } from './servico-auditoria-http.js';
 import { MolduraTela } from './telas/moldura-tela.js';
-import { ilha } from './ponte/ilha.js';
 
 const formatadorInstante = new Intl.DateTimeFormat('pt-BR', {
   dateStyle: 'short',
@@ -86,7 +85,7 @@ function limiteDoDia(data: string, fim: boolean): string {
   return new Date(`${data}T${fim ? '23:59:59.999' : '00:00:00'}`).toISOString();
 }
 
-function TelaAuditoria({ servico, opcoes }: { servico: ServicoAuditoria; opcoes: Opcoes }) {
+export function TelaAuditoria({ servico, opcoes }: { servico: ServicoAuditoria; opcoes: Opcoes }) {
   const [itens, definirItens] = useState<readonly EventoAuditoria[]>([]);
   const [status, definirStatus] = useState('Carregando registros…');
   const [ocupada, definirOcupada] = useState(true);
@@ -340,12 +339,4 @@ function TelaAuditoria({ servico, opcoes }: { servico: ServicoAuditoria; opcoes:
       </MolduraTela>
     </div>
   );
-}
-
-export function montarAuditoria(
-  raiz: HTMLElement,
-  servico: ServicoAuditoria,
-  opcoes: Opcoes = {},
-): () => void {
-  return ilha(raiz, <TelaAuditoria servico={servico} opcoes={opcoes} />);
 }

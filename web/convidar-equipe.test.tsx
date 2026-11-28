@@ -2,8 +2,17 @@
 import { fireEvent } from '@testing-library/dom';
 import { expect, it, vi } from 'vitest';
 import type { ClienteFFCM } from './api.ts';
-import { montarConvidarEquipe } from './convidar-equipe.js';
+import { createElement, type ComponentProps } from 'react';
+import { render } from '@testing-library/react';
+import { TelaConvidarEquipe } from './convidar-equipe.js';
 import { responderConfirmacoes } from './confirmacao-prova.js';
+
+function montarConvidarEquipe(
+  raiz: HTMLElement,
+  api: ComponentProps<typeof TelaConvidarEquipe>['api'],
+) {
+  return render(createElement(TelaConvidarEquipe, { api }), { container: raiz }).unmount;
+}
 
 const ator = '11111111-1111-4111-8111-111111111111';
 const reserva = '22222222-2222-4222-8222-222222222222';

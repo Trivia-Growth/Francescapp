@@ -1,3 +1,4 @@
+import { createElement, type ReactElement } from 'react';
 import { criarServicoAcessosHttp } from './servico-acessos-http.js';
 import { montarLoginInterno } from './login-interno.js';
 import { iniciarAcao } from './esqueleto.js';
@@ -1638,7 +1639,7 @@ type AreaAdministracao = {
      de cada tela de Administração só desce quando alguém abre aquela tela. Medido em
      26/11/2026: as 13 telas pesam ~67 kB comprimidos, e quem não administra nunca as
      abre — era peso na primeira carga de todo mundo, inclusive no celular da família. */
-  montar: (raiz: HTMLElement) => Promise<() => void>;
+  carregar: () => Promise<ReactElement | ((raiz: HTMLElement) => () => void)>;
 };
 
 const nomeDoUsuarioNaEquipe = (() => {
@@ -1673,29 +1674,30 @@ const areasAdministracao: AreaAdministracao[] = [
     id: 'plano-cuidado',
     rotulo: 'Plano de cuidado',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: async (raiz) =>
-      (await import('./campo-extra-plano-administracao.js')).montarAdministracaoPlano(
-        raiz,
-        criarServicoPlanoHttp(identidadeAtual),
+    carregar: async () =>
+      createElement((await import('./campo-extra-plano-administracao.js')).TelaAdministracaoPlano, {
+        servico: criarServicoPlanoHttp(identidadeAtual),
         acessoPerdido,
-        async () => {
+        consultarEquipe: async () => {
           if (!sessao) throw new FalhaApi('nao_autenticado', 401);
           const catalogo = catalogoDaEquipe(sessao);
           if (!catalogo) throw new Error('Catálogo da equipe indisponível.');
           return catalogo();
         },
-      ),
+      }),
   },
   {
-    // FR-078. Esconder a área não é autorizar: o servidor e o banco decidem a cada escrita.
+    // FR-078. O servidor e o banco decidem a cada escrita.
     id: 'modelo-ficha-plantao',
     rotulo: 'Ficha de plantão — modelo',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: async (raiz) =>
-      (await import('./modelo-ficha-plantao-administracao.js')).montarModeloFichaPlantao(
-        raiz,
-        criarServicoModeloFormularioHttp(identidadeAtual, 'ficha_plantao'),
-        acessoPerdido,
+    carregar: async () =>
+      createElement(
+        (await import('./modelo-ficha-plantao-administracao.js')).TelaModeloFichaPlantao,
+        {
+          servico: criarServicoModeloFormularioHttp(identidadeAtual, 'ficha_plantao'),
+          acessoPerdido,
+        },
       ),
   },
   {
@@ -1703,22 +1705,19 @@ const areasAdministracao: AreaAdministracao[] = [
     id: 'papel-declarado',
     rotulo: 'Papéis declarados',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: async (raiz) =>
-      (await import('./papel-declarado-administracao.js')).montarPapelDeclaradoAdministracao(
-        raiz,
-        criarServicoPapelDeclaradoHttp(identidadeAtual),
+    carregar: async () =>
+      createElement((await import('./papel-declarado-administracao.js')).TelaPapelDeclarado, {
+        servico: criarServicoPapelDeclaradoHttp(identidadeAtual),
         acessoPerdido,
-      ),
+      }),
   },
   {
-    // FR-076/FR-081. Vocabulário de observação, sem nota nem escala; nenhuma decisão de
-    // acesso passa por aqui. Esconder a área não é autorizar: servidor e banco decidem.
+    // FR-076/FR-081. Vocabulário de observação, sem nota nem escala.
     id: 'estado-emocional',
     rotulo: 'Estado emocional observado',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: async (raiz) =>
-      (await import('./estado-emocional-administracao.js')).montarEstadoEmocionalAdministracao(
-        raiz,
+    carregar: async () =>
+      (await import('./estado-emocional-administracao.js')).criarTelaEstadoEmocional(
         criarServicoEstadoEmocionalHttp(identidadeAtual),
         acessoPerdido,
       ),
@@ -1729,40 +1728,34 @@ const areasAdministracao: AreaAdministracao[] = [
     disponivel: (atual) =>
       atual.usuario.perfil === 'administrador' &&
       atual.capacidades.includes('administrar_concessoes'),
-    montar: async (raiz) =>
-      (await import('./acessos-administracao.js')).montarAcessosAdministracao(
-        raiz,
-        criarServicoAcessosHttp(identidadeAtual),
-        {
-          identidadeAtual,
-          acessoPerdido,
-        },
-      ),
+    carregar: async () =>
+      createElement((await import('./acessos-administracao.js')).TelaAcessos, {
+        servico: criarServicoAcessosHttp(identidadeAtual),
+        opcoes: { identidadeAtual, acessoPerdido },
+      }),
   },
   {
     id: 'integracoes',
     rotulo: 'Credenciais das integrações',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: async (raiz) =>
-      (await import('./segredos-integracoes.js')).montarSegredosIntegracoes(
-        raiz,
-        criarServicoSegredosIntegracoesHttp(identidadeAtual),
-        {
-          nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
-        },
-      ),
+    carregar: async () =>
+      createElement((await import('./segredos-integracoes.js')).TelaSegredosIntegracoes, {
+        servico: criarServicoSegredosIntegracoesHttp(identidadeAtual),
+        nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
+      }),
   },
   {
     id: 'configuracao',
     rotulo: 'Configuração',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: async (raiz) => {
-      const [{ montarConfiguracaoSistema }, { criarServicoConfiguracaoSistemaHttp }] =
+    carregar: async () => {
+      const [{ TelaConfiguracaoSistema }, { criarServicoConfiguracaoSistemaHttp }] =
         await Promise.all([
           import('./configuracao-sistema.js'),
           import('./servico-configuracao-sistema-http.js'),
         ]);
-      return montarConfiguracaoSistema(raiz, criarServicoConfiguracaoSistemaHttp(identidadeAtual), {
+      return createElement(TelaConfiguracaoSistema, {
+        servico: criarServicoConfiguracaoSistemaHttp(identidadeAtual),
         nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
       });
     },
@@ -1773,18 +1766,17 @@ const areasAdministracao: AreaAdministracao[] = [
     disponivel: (atual) =>
       atual.usuario.perfil === 'administrador' &&
       atual.capacidades.includes('administrar_concessoes'),
-    montar: async (raiz) =>
-      (await import('./concessao-equipe.js')).montarConcessaoEquipe(raiz, api),
+    carregar: async () =>
+      createElement((await import('./concessao-equipe.js')).TelaConcessaoEquipe, { api }),
   },
   {
-    // Convidar é página própria (fatia 7 do plano visual). Mesma regra de disponibilidade da
-    // Equipe, e a mesma não-autorização: quem concede é o servidor e o banco, não esta lista.
     id: 'convidar-equipe',
     rotulo: 'Convidar alguém',
     disponivel: (atual) =>
       atual.usuario.perfil === 'administrador' &&
       atual.capacidades.includes('administrar_concessoes'),
-    montar: async (raiz) => (await import('./convidar-equipe.js')).montarConvidarEquipe(raiz, api),
+    carregar: async () =>
+      createElement((await import('./convidar-equipe.js')).TelaConvidarEquipe, { api }),
   },
   {
     id: 'plano-de-crise',
@@ -1792,74 +1784,66 @@ const areasAdministracao: AreaAdministracao[] = [
     disponivel: (atual) =>
       atual.usuario.perfil === 'administrador' &&
       atual.capacidades.includes('administrar_concessoes'),
-    montar: async (raiz) =>
-      (await import('./habilitacao-plano-crise.js')).montarHabilitacaoPlanoCrise(
-        raiz,
-        criarServicoHabilitacaoPlanoCriseHttp(identidadeAtual),
-      ),
+    carregar: async () =>
+      createElement((await import('./habilitacao-plano-crise.js')).TelaHabilitacaoPlanoCrise, {
+        servico: criarServicoHabilitacaoPlanoCriseHttp(identidadeAtual),
+      }),
   },
   {
-    // FR-068. Conceder a audiência financeira é ato de Administrador, e não decorre de
-    // vínculo com caso (design D1). Esconder a área não é autorizar: `api.listar_
-    // concessao_financeira` e `api.gravar_concessao_financeira` exigem Administrador no
-    // banco, e a autoconcessão é recusada lá, não aqui.
+    // FR-068. A audiência financeira depende de concessão e não decorre do vínculo com caso.
     id: 'financeiro-concessao',
     rotulo: 'Quem vê o financeiro',
     disponivel: (atual) =>
       atual.usuario.perfil === 'administrador' &&
       atual.capacidades.includes('administrar_concessoes'),
-    montar: async (raiz) =>
-      (
-        await import('./financeiro-concessao-administracao.js')
-      ).montarFinanceiroConcessaoAdministracao(raiz, criarServicoFinanceiroHttp(identidadeAtual)),
+    carregar: async () =>
+      createElement(
+        (await import('./financeiro-concessao-administracao.js')).TelaFinanceiroConcessao,
+        { servico: criarServicoFinanceiroHttp(identidadeAtual) },
+      ),
   },
   {
     id: 'financeiro',
     rotulo: 'Financeiro',
-    // Esconder não é autorizar: a sondagem só evita apresentar a área a quem o servidor já
-    // disse que não tem audiência financeira. Família nunca chega a perguntar, e qualquer
-    // chamada financeira continua sendo autorizada no servidor e no banco.
     disponivel: (atual) =>
       atual.usuario.perfil !== 'familia' && audienciaFinanceira.permitidaPara(atual.session_id),
-    montar: async (raiz) =>
-      (await import('./financeiro.js')).montarFinanceiro(
-        raiz,
-        criarServicoFinanceiroHttp(identidadeAtual),
-      ),
+    carregar: async () => {
+      const { montarFinanceiro } = await import('./financeiro.js');
+      return (raiz) => montarFinanceiro(raiz, criarServicoFinanceiroHttp(identidadeAtual));
+    },
   },
   {
     id: 'auditoria',
     rotulo: 'Auditoria',
     disponivel: (atual) => atual.capacidades.includes('consultar_auditoria'),
-    montar: async (raiz) =>
-      (await import('./auditoria.js')).montarAuditoria(
-        raiz,
-        criarServicoAuditoriaHttp(identidadeAtual),
-        {
+    carregar: async () =>
+      createElement((await import('./auditoria.js')).TelaAuditoria, {
+        servico: criarServicoAuditoriaHttp(identidadeAtual),
+        opcoes: {
           nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
-          // Só para dar nome ao filtro por caso. A carteira já é autorizada no servidor, e a
-          // auditoria autoriza de novo: a lista aqui não concede nada.
+          // A carteira e a auditoria autorizam cada consulta no servidor.
           listarCasos: async () =>
             (await api.listarPacientes()).itens.map((item) => ({
               id: item.id,
               nome: item.nome_preferencia ?? item.nome,
             })),
         },
-      ),
+      }),
   },
   {
     id: 'solicitacoes',
     rotulo: 'Solicitações do titular',
     disponivel: (atual) => atual.usuario.perfil === 'administrador',
-    montar: async (raiz) =>
-      (await import('./solicitacoes-titular.js')).montarSolicitacoesTitular(
-        raiz,
-        criarServicoSolicitacaoTitularHttp(identidadeAtual),
-      ),
+    carregar: async () =>
+      createElement((await import('./solicitacoes-titular.js')).TelaSolicitacoesTitular, {
+        servico: criarServicoSolicitacaoTitularHttp(identidadeAtual),
+        opcoes: {},
+      }),
   },
 ];
 
 function areasDisponiveis(atual: Sessao): AreaAdministracao[] {
+  if (atual.usuario.perfil === 'familia') return [];
   return areasAdministracao.filter((area) => area.disponivel(atual));
 }
 
@@ -1869,7 +1853,7 @@ let vistaReact: 'home' | 'regras' | null = null;
 function fecharAdministracao(): void {
   painelAdministracao?.desmontar();
   painelAdministracao = null;
-  elemento('administracao-conteudo').replaceChildren();
+  elemento('administracao-conteudo').removeAttribute('aria-busy');
   elemento('administracao-view').hidden = true;
 }
 
@@ -1980,34 +1964,44 @@ function mostrarAdministracao(areaId: string): void {
     nomeDoUsuarioNaEquipe.carregar(atual);
   painelAdministracao?.desmontar();
   const conteudo = elemento('administracao-conteudo');
-  // O painel anterior sai e o próximo ainda não desenhou nada: sem isto a área ficava em
-  // branco até a primeira consulta responder, e o branco era lido como erro.
   conteudo.setAttribute('aria-busy', 'true');
-  conteudo.replaceChildren();
-  /* O módulo da área chega por importação dinâmica, então a montagem deixou de ser
-     síncrona. Duas coisas precisam continuar valendo, e são o motivo deste cuidado:
-
-     1. Trocar de aba durante o carregamento não pode deixar a tela errada aparecer
-        depois. `area.id !== painelAdministracao?.area` é a conferência: se outra área
-        tomou o lugar enquanto o módulo descia, esta montagem é descartada e desmontada
-        na hora, sem tocar na tela.
-     2. A região fica `aria-busy` até o conteúdo existir, como já ficava — sem isso a
-        área ficava em branco até a primeira consulta responder, e o branco era lido
-        como erro. */
   const emCarregamento = { area: area.id, desmontar: () => {} };
   painelAdministracao = emCarregamento;
-  void area.montar(conteudo).then(
-    (desmontar) => {
-      if (painelAdministracao !== emCarregamento) {
-        desmontar();
+  void area.carregar().then(
+    (tela) => {
+      // Confere o destino e a autorização antes da primeira montagem, inclusive
+      // quando o usuário saiu e voltou à mesma área enquanto o módulo carregava.
+      if (painelAdministracao !== emCarregamento || !sessao) return;
+      if (!area.disponivel(sessao)) {
+        fecharAdministracao();
+        trocarRota('#carteira');
+        mostrarCarteira();
+        focarDestinoDaCasca();
         return;
       }
-      emCarregamento.desmontar = desmontar;
-      if (conteudo.hasChildNodes()) conteudo.removeAttribute('aria-busy');
+      if (typeof tela === 'function') {
+        emCarregamento.desmontar = tela(conteudo);
+      } else {
+        casca.desenhar({
+          tipo: 'administracao',
+          destino: conteudo,
+          area: area.id,
+          tela,
+          aoTentarNovamente: () => {
+            if (painelAdministracao !== emCarregamento) return;
+            fecharAdministracao();
+            mostrarAdministracao(area.id);
+            focarDestinoDaCasca();
+          },
+        });
+        emCarregamento.desmontar = () => casca.desenhar(null);
+      }
+      conteudo.removeAttribute('aria-busy');
     },
     (erro: unknown) => {
       if (painelAdministracao !== emCarregamento || acessoPerdido(erro)) return;
       conteudo.removeAttribute('aria-busy');
+      painelAdministracao = null;
       aviso('workspace-feedback', `${mensagemFalha(erro)} Tente abrir a área de novo.`, 'error');
     },
   );
@@ -2186,7 +2180,8 @@ function aplicarSessao(atual: Sessao): boolean {
     fecharHome();
     mostrarCarteira();
   }
-  const temAdministracao = areasDisponiveis(atual).length > 0;
+  const areasPermitidas = areasDisponiveis(atual);
+  const temAdministracao = areasPermitidas.length > 0;
   casca.atualizarNavegacao({
     home: temHome,
     administracao: temAdministracao,
@@ -2201,8 +2196,12 @@ function aplicarSessao(atual: Sessao): boolean {
         }
       : null,
   });
-  if (!temAdministracao && painelAdministracao) {
+  if (
+    painelAdministracao &&
+    !areasPermitidas.some((area) => area.id === painelAdministracao?.area)
+  ) {
     fecharAdministracao();
+    trocarRota('#carteira');
     mostrarCarteira();
   }
   registration.hidden = !podeCadastrar;

@@ -8,7 +8,6 @@ import { Superficie } from './componentes/ui/superficie.js';
 import { CaixaDeMarcacao } from './telas/caixa-de-marcacao.js';
 import { Formulario, marcado } from './telas/formulario.js';
 import { MolduraTela } from './telas/moldura-tela.js';
-import { ilha } from './ponte/ilha.js';
 
 const PERFIS: Record<ItemHabilitacao['perfil'], string> = {
   profissional: 'Profissional',
@@ -26,7 +25,7 @@ const ESTADOS: Record<ItemHabilitacao['estado'], string> = {
  *
  * Marcar aqui não concede acesso a casos nem alçada fora do caso liderado, e quem aprova
  * continua sendo verificado no servidor e no banco a cada aprovação. */
-function Tela({ servico }: { servico: ServicoHabilitacaoPlanoCrise }) {
+export function TelaHabilitacaoPlanoCrise({ servico }: { servico: ServicoHabilitacaoPlanoCrise }) {
   const [tela, definirTela] = useState<{
     itens: readonly ItemHabilitacao[];
     geracao: number;
@@ -194,11 +193,4 @@ function LinhaHabilitacao({
       </Formulario>
     </Superficie>
   );
-}
-
-export function montarHabilitacaoPlanoCrise(
-  raiz: HTMLElement,
-  servico: ServicoHabilitacaoPlanoCrise,
-): () => void {
-  return ilha(raiz, <Tela servico={servico} />);
 }

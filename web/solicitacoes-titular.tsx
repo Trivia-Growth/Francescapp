@@ -37,7 +37,6 @@ import { Botao } from './componentes/ui/botao.js';
 import { AreaTexto } from './componentes/ui/area-texto.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 import type { ServicoSolicitacaoTitular } from './servico-solicitacao-titular-http.js';
 
@@ -195,7 +194,7 @@ function ItemSolicitacao({
   );
 }
 
-function TelaSolicitacoesTitular({
+export function TelaSolicitacoesTitular({
   servico,
   opcoes,
 }: {
@@ -426,10 +425,3 @@ function TelaSolicitacoesTitular({
  *
  * A tela mostra tipo, data, estado e medida. O texto do pedido e o da resposta ficam
  * cifrados no banco e não aparecem na listagem. */
-export function montarSolicitacoesTitular(
-  raiz: HTMLElement,
-  servico: ServicoSolicitacaoTitular,
-  opcoes: Opcoes = {},
-): () => void {
-  return ilha(raiz, <TelaSolicitacoesTitular servico={servico} opcoes={opcoes} />);
-}

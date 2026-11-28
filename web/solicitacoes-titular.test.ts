@@ -3,9 +3,20 @@ import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { montarCascaParaTeste } from './teste-casca.js';
 import { FalhaApi } from './api.ts';
-import { montarSolicitacoesTitular } from './solicitacoes-titular.tsx';
+import { createElement, type ComponentProps } from 'react';
+import { render } from '@testing-library/react';
+import { TelaSolicitacoesTitular } from './solicitacoes-titular.tsx';
 import type { SolicitacaoTitular } from '../packages/contracts/src/solicitacao-titular.ts';
 import type { ServicoSolicitacaoTitular } from './servico-solicitacao-titular-http.ts';
+
+function montarSolicitacoesTitular(
+  raiz: HTMLElement,
+  servico: ComponentProps<typeof TelaSolicitacoesTitular>['servico'],
+  opcoes: ComponentProps<typeof TelaSolicitacoesTitular>['opcoes'] = {},
+) {
+  return render(createElement(TelaSolicitacoesTitular, { servico, opcoes }), { container: raiz })
+    .unmount;
+}
 
 /** Dados fictícios. */
 const caso = '10000000-0000-4000-8000-00000000000a';

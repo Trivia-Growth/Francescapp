@@ -1,7 +1,19 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { montarModeloFichaPlantao } from './modelo-ficha-plantao-administracao.js';
+import { createElement, type ComponentProps } from 'react';
+import { render } from '@testing-library/react';
+import { TelaModeloFichaPlantao } from './modelo-ficha-plantao-administracao.js';
 import { FalhaApi } from './api.ts';
+
+function montarModeloFichaPlantao(
+  raiz: HTMLElement,
+  servico: ComponentProps<typeof TelaModeloFichaPlantao>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaModeloFichaPlantao>['acessoPerdido'],
+) {
+  return render(createElement(TelaModeloFichaPlantao, { servico, acessoPerdido }), {
+    container: raiz,
+  }).unmount;
+}
 
 /* Primeira prova desta tela (25/11/2026, migração para React). O modelo da ficha de
  * plantão é administrado só pelo Administrador (FR-078), e desativar um campo nunca apaga

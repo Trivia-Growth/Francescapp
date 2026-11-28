@@ -1,6 +1,19 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
-import { montarSegredosIntegracoes } from './segredos-integracoes.js';
+import { createElement, type ComponentProps } from 'react';
+import { render } from '@testing-library/react';
+import { TelaSegredosIntegracoes } from './segredos-integracoes.js';
+
+function montarSegredosIntegracoes(
+  raiz: HTMLElement,
+  servico: ComponentProps<typeof TelaSegredosIntegracoes>['servico'],
+  opcoes: { nomeDoUsuario?: ComponentProps<typeof TelaSegredosIntegracoes>['nomeDoUsuario'] } = {},
+) {
+  return render(
+    createElement(TelaSegredosIntegracoes, { servico, nomeDoUsuario: opcoes.nomeDoUsuario }),
+    { container: raiz },
+  ).unmount;
+}
 
 it('envia uma vez, limpa campo imediatamente e mostra somente metadados', async () => {
   const raiz = document.createElement('div');

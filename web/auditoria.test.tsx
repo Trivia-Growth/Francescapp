@@ -4,9 +4,19 @@ import { fireEvent } from '@testing-library/dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { montarCascaParaTeste } from './teste-casca.js';
 import { FalhaApi } from './api.ts';
-import { montarAuditoria } from './auditoria.tsx';
+import { createElement, type ComponentProps } from 'react';
+import { render } from '@testing-library/react';
+import { TelaAuditoria } from './auditoria.tsx';
 import type { EventoAuditoria } from '../packages/contracts/src/auditoria.ts';
 import type { FiltrosAuditoria, ServicoAuditoria } from './servico-auditoria-http.ts';
+
+function montarAuditoria(
+  raiz: HTMLElement,
+  servico: ComponentProps<typeof TelaAuditoria>['servico'],
+  opcoes: ComponentProps<typeof TelaAuditoria>['opcoes'] = {},
+) {
+  return render(createElement(TelaAuditoria, { servico, opcoes }), { container: raiz }).unmount;
+}
 
 /** Dados fictícios. */
 const caso = '10000000-0000-4000-8000-00000000000a';
