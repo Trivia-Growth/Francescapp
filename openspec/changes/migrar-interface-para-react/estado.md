@@ -55,6 +55,17 @@ aberta.
 - Rebase sobre `9d7c3c6`. Foram removidos cinco imports sem uso da ponte e
   atualizados os comentários das seções que já compõem a ficha. Próximo passo:
   ativação e revisão independente.
+- A ativação inicial passou com 933 testes web, 61 cenários Chromium e um
+  cenário preexistente pulado. A autorização de pacientes passou em
+  PostgreSQL 17 descartável.
+- Revisão do #59: o estado do download acompanha a seção e preserva o
+  andamento quando chega outro anexo. A saída só repassa recusa de sessão à
+  mesma sessão que iniciou a operação. Passaram 16 Vitest e cinco cenários
+  Chromium. Com a guarda antiga, o botão voltou a habilitar durante o
+  download e a prova falhou em `toBeDisabled`. Sem repassar a recusa 401
+  tardia, o teste encontrou zero chamadas ao tratamento de sessão. As duas
+  alterações foram revertidas.
+- O PR #59 foi rebaseado sobre `dda7b07` após a entrada do Financeiro.
 
 ## Fatia 8f do plano visual — seções operacionais da ficha
 

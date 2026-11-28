@@ -691,6 +691,10 @@ function montarSecaoExecucaoTurno(
 }
 
 function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
+  const acessoPerdidoDocumentos = (erro: unknown) => {
+    if (sessao?.session_id === atual.session_id && sessao.usuario.id === atual.usuario.id)
+      acessoPerdido(erro);
+  };
   if (atual.usuario.perfil === 'familia')
     return [
       {
@@ -766,7 +770,7 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
             pacienteId: paciente.id,
             servico: criarServicoDocumentosHttp(identidadeAtual),
             obterCategorias: () => [],
-            acessoPerdido,
+            acessoPerdido: acessoPerdidoDocumentos,
             alteracaoPendente: pendente,
             ehFamilia: true,
           }),
@@ -1101,7 +1105,7 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         pacienteId: paciente.id,
         servico: criarServicoDocumentosHttp(identidadeAtual),
         obterCategorias: () => categoriasDocumento,
-        acessoPerdido,
+        acessoPerdido: acessoPerdidoDocumentos,
         alteracaoPendente: pendente,
         ehFamilia: false,
       });

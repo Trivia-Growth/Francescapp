@@ -227,3 +227,31 @@ it('descarta o arquivo quando o download responde após sair da seção', async 
   expect(criar).not.toHaveBeenCalled();
   expect(clicar).not.toHaveBeenCalled();
 });
+
+it('avisa sessão expirada quando o download é recusado após sair da seção', async () => {
+  let recusar = (_erro: FalhaApi) => {};
+  const baixar = vi.fn(
+    () =>
+      new Promise<Blob>((_resolver, rejeitar) => {
+        recusar = rejeitar;
+      }),
+  );
+  const acessoPerdido = vi.fn();
+  const raiz = document.createElement('div');
+  const desmontar = montarDocumentosCaso(
+    raiz,
+    paciente,
+    { consultar: async () => [documentoFicticio], gravar: async () => [], baixar },
+    () => [],
+    acessoPerdido,
+    () => {},
+    true,
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Baixar arquivo'));
+  raiz.querySelector('button')?.click();
+  expect(baixar).toHaveBeenCalledExactlyOnceWith(paciente, documento);
+  desmontar();
+  const erro = new FalhaApi('nao_autenticado', 401);
+  recusar(erro);
+  await vi.waitFor(() => expect(acessoPerdido).toHaveBeenCalledExactlyOnceWith(erro));
+});
