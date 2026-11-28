@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   sucessoRespostaSchema,
   erroRespostaSchema,
@@ -11,6 +12,28 @@ import type { ServicoTranscricao } from './transcricao-audio.js';
 
 type Identidade = { usuario_id: string; session_id: string };
 type Nome = keyof typeof transcricaoHttp;
+
+const disponibilidadeTranscricao = sucessoRespostaSchema(
+  z.object({ disponivel: z.boolean() }).strict(),
+);
+
+export async function consultarDisponibilidadeTranscricao(sinal: AbortSignal): Promise<boolean> {
+  try {
+    const resposta = await fetch('/api/transcricao/disponibilidade', {
+      headers: { Accept: 'application/json' },
+      credentials: 'same-origin',
+      cache: 'no-store',
+      redirect: 'error',
+      referrerPolicy: 'no-referrer',
+      signal: AbortSignal.any([sinal, AbortSignal.timeout(10_000)]),
+    });
+    if (!resposta.ok) return false;
+    const disponibilidade = disponibilidadeTranscricao.safeParse(await resposta.json());
+    return disponibilidade.success && disponibilidade.data.dados.disponivel;
+  } catch {
+    return false;
+  }
+}
 
 /** Serviço isolado da fatia de transcrição (FR-010). Autorização é do servidor; aqui só
  * verificamos que a identidade não trocou entre o começo e o fim da chamada. */

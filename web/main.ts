@@ -53,7 +53,7 @@ import { criarServicoFichaPlantaoHttp } from './servico-ficha-plantao-http.js';
 import { criarServicoTurnoHttp } from './servico-turno-http.js';
 import './turno-proprio.css';
 import './turno-execucao.css';
-import { montarConversaoDiario } from './conversao-diario.js';
+import { TelaConversaoDiario } from './conversao-diario.js';
 import { criarServicoConversaoDiarioHttp } from './servico-conversao-diario-http.js';
 import type { ConversaoEmTarefa } from './diario.js';
 import { consultarDisponibilidadeDiario, criarServicoDiarioHttp } from './servico-diario-http.js';
@@ -76,7 +76,10 @@ import { criarServicoSolicitacaoTitularHttp } from './servico-solicitacao-titula
 import { criarServicoSegredosIntegracoesHttp } from './servico-segredos-integracoes-http.js';
 import { BarraFiltrosCarteira } from './filtros-carteira.js';
 import { entradaTranscricaoAudio } from './transcricao-audio.js';
-import { criarServicoTranscricaoHttp } from './servico-transcricao-http.js';
+import {
+  consultarDisponibilidadeTranscricao,
+  criarServicoTranscricaoHttp,
+} from './servico-transcricao-http.js';
 import { confirmar } from './confirmacao.js';
 import type { FiltrosCarteira } from '../packages/contracts/src/cadastro.js';
 import { criarCatalogoResponsaveis, type ResponsavelOpcao } from './acompanhamento-caso.js';
@@ -395,25 +398,29 @@ function voltarParaLista(): void {
   else focarTituloCasca();
 }
 
-function montarConversaoDaFicha(
-  raiz: HTMLElement,
+function modoDeAcessoAtual(): string | null {
+  try {
+    return sessionStorage.getItem('modo-acesso');
+  } catch {
+    return null;
+  }
+}
+
+function comporConversaoDaFicha(
   pacienteId: string,
-  origem: Parameters<typeof montarConversaoDiario>[2],
+  origem: Parameters<ConversaoEmTarefa>[0],
   pendente: (valor: boolean) => void,
   aoConcluir: () => void,
-): ReturnType<typeof montarConversaoDiario> {
+  comando: Parameters<ConversaoEmTarefa>[3],
+): ReactElement | null {
   const identidade = identidadeAtual();
-  try {
-    if (
-      !identidade ||
-      sessao?.usuario.perfil !== 'profissional' ||
-      !['google', 'interno'].includes(sessionStorage.getItem('modo-acesso') ?? '')
-    )
-      return { desmontar: () => {}, invalidarOrigem: () => {} };
-  } catch {
-    return { desmontar: () => {}, invalidarOrigem: () => {} };
-  }
-  if (!identidade) return { desmontar: () => {}, invalidarOrigem: () => {} };
+  const modo = modoDeAcessoAtual();
+  if (
+    !identidade ||
+    sessao?.usuario.perfil !== 'profissional' ||
+    (modo !== 'google' && modo !== 'interno')
+  )
+    return null;
   let ativa = true;
   const identidadeDaConversao = () => {
     const atual = identidadeAtual();
@@ -427,11 +434,10 @@ function montarConversaoDaFicha(
   };
   const servico = criarServicoConversaoDiarioHttp(identidadeDaConversao);
   const tarefas = criarServicoTarefasHttp(identidadeDaConversao);
-  return montarConversaoDiario(
-    raiz,
+  return createElement(TelaConversaoDiario, {
     pacienteId,
     origem,
-    {
+    portas: {
       atual: () => identidadeDaConversao() !== null,
       acessoPerdido,
       consultar: () => servico.consultar(pacienteId, origem.diario_registro_id),
@@ -463,7 +469,8 @@ function montarConversaoDaFicha(
     },
     pendente,
     aoConcluir,
-  );
+    comando,
+  });
 }
 
 function comporSecaoTarefas(pacienteId: string, pendente: (valor: boolean) => void): ReactElement {
@@ -1097,10 +1104,12 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     descarte: descarteDiario,
     compor: async (pendente) => {
       pedirAreasDoDiario();
+      const modo = modoDeAcessoAtual();
+      const usaContaDaEquipe = modo === 'google' || modo === 'interno';
       const converterEmTarefa: ConversaoEmTarefa | undefined =
-        atual.usuario.perfil === 'profissional'
-          ? (destino, origem, alteracao, concluido) =>
-              montarConversaoDaFicha(destino, paciente.id, origem, alteracao, concluido)
+        atual.usuario.perfil === 'profissional' && usaContaDaEquipe
+          ? (origem, alteracao, concluido, comando) =>
+              comporConversaoDaFicha(paciente.id, origem, alteracao, concluido, comando)
           : undefined;
       return createElement((await import('./diario.js')).TelaDiario, {
         pacienteId: paciente.id,
@@ -1109,13 +1118,20 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         obterAreas: () => areasDiario,
         acessoPerdido,
         alteracaoPendente: pendente,
-        ...(converterEmTarefa ? { converterEmTarefa } : {}),
-        montarEntradaPorAudio: entradaTranscricaoAudio(
-          paciente.id,
-          () => criarServicoTranscricaoHttp(identidadeAtual),
-          acessoPerdido,
-        ),
         ehFamilia: false,
+        ...(converterEmTarefa ? { converterEmTarefa } : {}),
+        ...(usaContaDaEquipe
+          ? {
+              audio: {
+                compor: entradaTranscricaoAudio(
+                  paciente.id,
+                  () => criarServicoTranscricaoHttp(identidadeAtual),
+                  acessoPerdido,
+                ),
+                consultarDisponibilidade: consultarDisponibilidadeTranscricao,
+              },
+            }
+          : {}),
       });
     },
   });

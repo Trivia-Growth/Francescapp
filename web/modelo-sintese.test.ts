@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render } from '@testing-library/react';
 import { type ComponentProps, createElement } from 'react';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { CamposSintese, controleSintese, lerSintese } from './modelo-sintese.js';
 import { TelaDiario } from './diario.js';
 
@@ -14,7 +14,7 @@ function montarDiario(
   acessoPerdido: ComponentProps<typeof TelaDiario>['acessoPerdido'],
   alteracaoPendente: ComponentProps<typeof TelaDiario>['alteracaoPendente'] = () => {},
   converterEmTarefa: ComponentProps<typeof TelaDiario>['converterEmTarefa'] = undefined,
-  montarEntradaPorAudio: ComponentProps<typeof TelaDiario>['montarEntradaPorAudio'] = undefined,
+  audio: ComponentProps<typeof TelaDiario>['audio'] = undefined,
   ehFamilia: ComponentProps<typeof TelaDiario>['ehFamilia'] = false,
 ) {
   const painel = render(
@@ -26,7 +26,7 @@ function montarDiario(
       acessoPerdido,
       alteracaoPendente,
       converterEmTarefa,
-      montarEntradaPorAudio,
+      audio,
       ehFamilia,
     }),
     { container: raiz },
@@ -72,16 +72,17 @@ it('Diário mantém campos, rascunho, publicação e entrada por áudio após ex
     () => {},
     () => {},
     undefined,
-    /* Dublê da entrada por áudio. Desde 27/11/2026 ela chega como componente, e não como
-       função que escreve DOM no contêiner: o botão é o mesmo, a asserção é a mesma. */
-    (confirmar) =>
-      createElement(
-        'button',
-        { type: 'button', onClick: () => confirmar('Texto revisado fictício') },
-        'Áudio fictício',
-      ),
+    {
+      consultarDisponibilidade: async () => true,
+      compor: (confirmar) =>
+        createElement(
+          'button',
+          { type: 'button', onClick: () => confirmar('Texto revisado fictício') },
+          'Áudio fictício',
+        ),
+    },
   );
-  for (let i = 0; i < 8; i++) await Promise.resolve();
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Áudio fictício'));
   expect(raiz.textContent).toContain('Observações compartilháveis');
   expect(raiz.textContent).toContain('Salvar rascunho');
   expect(raiz.textContent).toContain('Publicar');

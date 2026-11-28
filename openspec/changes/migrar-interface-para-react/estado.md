@@ -41,6 +41,35 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8o do plano visual — disponibilidade de áudio no Diário
+
+A ficha oferece gravação com sessão Google ou interna da equipe depois de uma
+resposta positiva de `/api/transcricao/disponibilidade`, conforme DF-023. O
+formulário de texto continua disponível durante a consulta e diante de uma
+resposta negativa ou falha. A consulta é cancelada na saída do Diário. A tarefa
+7.2 permanece aberta.
+
+- Passaram os cinco cenários Chromium de disponibilidade positiva e negativa
+  para cada método, sessão técnica sem consulta e preservação do texto digitado.
+- A restrição a Google impediu a gravação quando a sessão interna era elegível.
+  Ignorar a negativa fez o gravador aparecer. As duas alterações foram revertidas.
+- Capturas do Diário com sessão interna e resposta negativa em 390 e 1440 px
+  confirmaram a folha compilada carregada e zero violações de axe nos quatro
+  estados de comparação.
+- Próximo passo: concluir a validação de 8n/8o no PR #67 sobre a main.
+
+## Fatia 8n do plano visual — conversão do Diário
+
+A conversão de registro em tarefa e evolução interna nasce na árvore da
+ficha. A versão anterior mantém o rascunho para conferência e bloqueia envio
+até a pessoa pedir a versão atual. A tarefa 7.2 permanece aberta.
+
+- Passaram 25 testes Vitest, um cenário Chromium e lint/typecheck. O cenário
+  mostrou a conversão no registro publicado e preservou o rascunho no Diário.
+- Sem invalidar a origem, o teste da troca de versão não recebeu o comando
+  que bloqueia envio da versão antiga. Alteração revertida.
+- Próximo passo: rebase após o squash da fatia anterior e ativação.
+
 ## Fatia 8m do plano visual — filtros da Carteira
 
 A raiz da casca compõe os filtros da Carteira. Retirar a barra invalida a

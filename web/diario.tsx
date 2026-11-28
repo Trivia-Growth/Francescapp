@@ -1,12 +1,7 @@
-/* Diário e evolução na ficha, FR-008, FR-009, FR-012, FR-013 e FR-014.
+/* Diário e evolução na ficha (FR-008, FR-009, FR-012, FR-013 e FR-014).
  *
- * A guarda de geração descarta respostas de leituras anteriores. Ao sair do
- * caso, as continuações de consulta e gravação são invalidadas. O áudio
- * é composição do editor, com o texto disponível durante todo o fluxo.
- *
- * A conversão em tarefa ainda cria os próprios filhos no seu contêiner. O
- * Diário chama a desmontagem explícita da conversão ao perder acesso ou
- * sair da ficha. O botão de descarte fica ao lado do contêiner.
+ * Leituras antigas são descartadas ao trocar de caso ou iniciar outra consulta.
+ * O editor e a conversão carregam o próprio rascunho na árvore React.
  *
  * O que NÃO mudou, de propósito:
  *
@@ -29,7 +24,15 @@
  * system colocam o rótulo como irmão do controle. Mesma razão de `web/conversao-diario.tsx`:
  * manter o invólucro evita quebrar a prova por estrutura, não por comportamento.
  */
-import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
+import {
+  type ReactNode,
+  type Ref,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { flushSync } from 'react-dom';
 import type {
   AudienciaDiario,
@@ -46,7 +49,7 @@ import { CampoData } from './componentes/ui/campo-data.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
 import { confirmar, confirmarDescarte } from './confirmacao.js';
-import type { MontagemConversaoDiario } from './conversao-diario.js';
+import type { ComandoConversaoDiario } from './conversao-diario.js';
 import { CamposSintese, controleSintese, lerSintese } from './modelo-sintese.js';
 import { Formulario } from './telas/formulario.js';
 
@@ -55,19 +58,24 @@ export type ServicoDiarioTela = {
   salvar(pacienteId: string, entrada: SalvarRegistroDiario): Promise<RegistroDiario>;
 };
 
-/** Monta jornada atômica autorizada. Diário não grava tarefa nem evolução da conversão. */
+/** Compõe a jornada da conversão, cuja gravação atômica é executada pelo servidor. */
 export type ConversaoEmTarefa = (
-  raiz: HTMLElement,
   origem: RegistroDiario,
   pendente: (valor: boolean) => void,
   aoConcluir: () => void,
-) => MontagemConversaoDiario;
+  comando: Ref<ComandoConversaoDiario>,
+) => ReactNode;
 
 /** FR-010: ditar o registro em vez de digitá-lo. A gravação, o envio e a transcrição
  * pertencem à fatia de áudio; o diário só recebe o texto já revisado e confirmado pelo
  * autor. Desde 27/11/2026 a entrada chega como componente, composto na árvore do
  * formulário — antes era uma função que montava DOM numa `div` de ref. */
 export type EntradaPorAudio = (aoConfirmar: (texto: string) => void) => ReactNode;
+
+type AudioDoDiario = {
+  compor: EntradaPorAudio;
+  consultarDisponibilidade: (sinal: AbortSignal) => Promise<boolean>;
+};
 
 const rotuloEstado: Record<RegistroDiario['estado'], string> = {
   rascunho: 'Rascunho',
@@ -641,6 +649,76 @@ function FormularioRetificacao({
 type AcaoInline = 'retificar' | 'responder';
 
 /** Um registro lido, com suas ações e o bloco de conversão (quando elegível). */
+type PropsConversao = {
+  registro: RegistroDiario;
+  compor: ConversaoEmTarefa;
+  aoAlterar: (valor: boolean) => void;
+  aoConcluir: () => void;
+};
+
+function ConversaoDaVersao({
+  registro,
+  compor,
+  aoAlterar,
+  aoConcluir,
+  comando,
+}: PropsConversao & { comando: Ref<ComandoConversaoDiario> }) {
+  const [tela] = useState(() => compor(registro, aoAlterar, aoConcluir, comando));
+  return <div>{tela}</div>;
+}
+
+function ConversaoDoRegistro({ registro, compor, aoAlterar, aoConcluir }: PropsConversao) {
+  const [origem, definirOrigem] = useState(registro);
+  const comando = useRef<ComandoConversaoDiario>(null);
+  const pendente = useRef(false);
+  const atual = useRef(registro);
+  atual.current = registro;
+  const alterada = origem.versao !== registro.versao;
+  useLayoutEffect(() => {
+    if (alterada) comando.current?.invalidarOrigem();
+  }, [alterada]);
+
+  const registrarPendencia = (valor: boolean) => {
+    pendente.current = valor;
+    aoAlterar(valor);
+  };
+
+  async function reabrir() {
+    if (
+      pendente.current &&
+      !(await confirmar({
+        titulo: 'Descartar os campos da conversão anterior?',
+        detalhe:
+          'A versão atual do registro abre no lugar, e o que foi digitado na conversão anterior se perde.',
+        acao: 'Descartar e abrir a versão atual',
+        cancelar: 'Manter os campos',
+      }))
+    )
+      return;
+    if (!comando.current) return;
+    registrarPendencia(false);
+    definirOrigem(atual.current);
+  }
+
+  return (
+    <>
+      <ConversaoDaVersao
+        key={origem.versao}
+        registro={origem}
+        compor={compor}
+        aoAlterar={registrarPendencia}
+        aoConcluir={aoConcluir}
+        comando={comando}
+      />
+      {alterada ? (
+        <Botao peso="secundario" aoAtivar={() => void reabrir()}>
+          Descartar campos e usar versão atual
+        </Botao>
+      ) : null}
+    </>
+  );
+}
+
 function RegistroArtigo({
   registro,
   respostas,
@@ -649,10 +727,7 @@ function RegistroArtigo({
   gravar,
   obterAreas,
   montarEntradaPorAudio,
-  temConversao,
-  precisaReabrir,
-  onAoRegistrarNoConversao,
-  onReabrirConversao,
+  conversao,
   onTrocarEditorFamiliar,
   onAlterar,
   onConcluirInline,
@@ -665,10 +740,7 @@ function RegistroArtigo({
   gravar: Gravar;
   obterAreas: () => readonly string[];
   montarEntradaPorAudio?: EntradaPorAudio;
-  temConversao: boolean;
-  precisaReabrir: boolean;
-  onAoRegistrarNoConversao: (id: string, no: HTMLDivElement) => void;
-  onReabrirConversao: (id: string) => void;
+  conversao: ReactNode;
   onTrocarEditorFamiliar: (tipo: 'retomar' | 'retificar', registro: RegistroDiario) => void;
   onAlterar: (pendente: boolean) => void;
   onConcluirInline: (aviso: string) => void;
@@ -800,36 +872,7 @@ function RegistroArtigo({
             </Botao>
           )
         ) : null}
-        {!ehFamilia && registro.estado !== 'rascunho' && temConversao ? (
-          <>
-            {/* EXCEÇÃO DOCUMENTADA — NÃO "CONSERTAR" COMO AS OUTRAS COSTURAS.
-                Esta `div` é SEMPRE VAZIA NO JSX; os filhos pertencem a outra raiz, a da
-                conversão em tarefa (`converterEmTarefa`, montada pela gerência em
-                `useEffect` mais abaixo). Não mova nem renderize nada aqui dentro.
-                É o caso que a documentação do React declara seguro: "if some <div> is
-                always empty in the JSX, React won't have a reason to touch its children
-                list. Therefore, it is safe to manually add or remove elements there"
-                (react.dev, "Manipulating the DOM with Refs", seção "Best practices for DOM
-                manipulation with refs"). Decisão da coordenação em 27/11/2026: trocar por
-                componente obrigaria a reescrever as provas de
-                `diario-conversao-elegibilidade.test.ts`, que afirmam sobre o contrato
-                posicional do callback e sobre quantas vezes ele monta — um render-prop é
-                chamado a cada render, e as contagens deixariam de medir o que medem. */}
-            <div
-              ref={(no) => {
-                if (no) onAoRegistrarNoConversao(registro.diario_registro_id, no);
-              }}
-            />
-            {precisaReabrir ? (
-              <Botao
-                peso="secundario"
-                aoAtivar={() => onReabrirConversao(registro.diario_registro_id)}
-              >
-                Descartar campos e usar versão atual
-              </Botao>
-            ) : null}
-          </>
-        ) : null}
+        {conversao}
       </article>
     </li>
   );
@@ -852,7 +895,7 @@ export function TelaDiario({
   acessoPerdido,
   alteracaoPendente,
   converterEmTarefa,
-  montarEntradaPorAudio,
+  audio,
   ehFamilia,
 }: {
   pacienteId: string;
@@ -862,7 +905,7 @@ export function TelaDiario({
   acessoPerdido: (erro: unknown) => void;
   alteracaoPendente: (pendente: boolean) => void;
   converterEmTarefa?: ConversaoEmTarefa;
-  montarEntradaPorAudio?: EntradaPorAudio;
+  audio?: AudioDoDiario;
   ehFamilia: boolean;
 }) {
   const ativaRef = useRef(true);
@@ -872,19 +915,9 @@ export function TelaDiario({
   const pendenciasConversaoRef = useRef(new Set<string>());
   const pendenteTopoFamiliarRef = useRef(false);
   const salvandoTopoFamiliarRef = useRef(false);
-  const conversoesRef = useRef(
-    new Map<string, { versao: number; montagem: MontagemConversaoDiario }>(),
-  );
-  const nodosConversaoRef = useRef(new Map<string, HTMLDivElement>());
   const envelopeEditorRef = useRef<HTMLDivElement>(null);
   const primeiraTrocaFamiliarRef = useRef(true);
-  /* Fora da família, uma reconsulta em segundo plano (disparada por `aoConcluir` de uma
-   * conversão) NÃO pode piscar a região para "carregando": isso desmontaria a lista
-   * inteira — e com ela o nó que hospeda `converterEmTarefa`, uma raiz React própria cujo
-   * conteúdo não sobrevive a ser desmontado e remontado por baixo. A versão imperativa
-   * evitava isto porque só chamava `desenharLeituras()` (o redesenho que mostra o
-   * esqueleto) para família; fora da família, o quadro só troca uma vez, no sucesso. Aqui
-   * o mesmo é obtido guardando se já houve uma carga concluída. */
+  // Uma reconsulta em segundo plano mantém a lista e os editores abertos.
   const jaCarregouRef = useRef(false);
 
   const [descartado, definirDescartado] = useState(false);
@@ -895,10 +928,23 @@ export function TelaDiario({
   const [mensagemTopo, definirMensagemTopo] = useState<string | undefined>(undefined);
   const [chaveEditor, definirChaveEditor] = useState(0);
   const [editorFamiliar, definirEditorFamiliar] = useState<EditorFamiliar>({ tipo: 'novo' });
-  const [idsPrecisandoReabrir, definirIdsPrecisandoReabrir] = useState<ReadonlySet<string>>(
-    new Set(),
-  );
-  const [cicloConversoes, definirCicloConversoes] = useState(0);
+  const [audioConfirmado, definirAudioConfirmado] = useState<AudioDoDiario | null>(null);
+
+  useEffect(() => {
+    if (ehFamilia || !audio) return;
+    const cancelamento = new AbortController();
+    void audio.consultarDisponibilidade(cancelamento.signal).then(
+      (disponivel) => {
+        if (!cancelamento.signal.aborted) definirAudioConfirmado(disponivel ? audio : null);
+      },
+      () => {
+        if (!cancelamento.signal.aborted) definirAudioConfirmado(null);
+      },
+    );
+    return () => cancelamento.abort();
+  }, [audio, ehFamilia]);
+
+  const montarEntradaPorAudio = !ehFamilia && audioConfirmado === audio ? audio?.compor : undefined;
 
   function registrarPendencia(valor: boolean) {
     pendenteEditorRef.current = valor;
@@ -909,8 +955,6 @@ export function TelaDiario({
     if (!exigeNovoAcesso(erro)) return false;
     ativaRef.current = false;
     geracaoRef.current++;
-    for (const conversao of conversoesRef.current.values()) conversao.montagem.desmontar();
-    conversoesRef.current.clear();
     flushSync(() => definirDescartado(true));
     acessoPerdido(erro);
     return true;
@@ -965,10 +1009,8 @@ export function TelaDiario({
     const salvos = new Map<string, RegistroDiario>();
     salvosDuranteConsultaRef.current = salvos;
     if (ehFamilia || !jaCarregouRef.current) {
-      flushSync(() => {
-        definirEstadoLeituras('carregando');
-        definirAvisoLeituras('Carregando o diário…');
-      });
+      definirEstadoLeituras('carregando');
+      definirAvisoLeituras('Carregando o diário…');
     }
     try {
       const recebidos = await servico.consultar(pacienteId);
@@ -1026,92 +1068,14 @@ export function TelaDiario({
     return () => {
       ativaRef.current = false;
       geracaoRef.current++;
-      for (const conversao of conversoesRef.current.values()) conversao.montagem.desmontar();
-      conversoesRef.current.clear();
       registrarPendencia(false);
     };
   }, []);
 
-  // Gerência das conversões (`converterEmTarefa`): monta o que é elegível, invalida ao
-  // trocar de versão, desmonta o que deixou de ser elegível. Reage a `registros` e ao
-  // contador manual `cicloConversoes`, que o reabrir-após-descarte usa para forçar nova
-  // rodada sem esperar uma nova consulta.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `converterEmTarefa`/`ehFamilia`/`alteracaoPendente`/`consultar` são estáveis nesta montagem; `cicloConversoes` não é lido no corpo de propósito — é o GATILHO manual que o reabrir-após-descarte incrementa para forçar nova rodada.
-  useEffect(() => {
-    if (ehFamilia || !converterEmTarefa) return;
-    const elegiveis = new Set(
-      registros.filter((r) => r.estado !== 'rascunho').map((r) => r.diario_registro_id),
-    );
-    for (const registro of registros) {
-      if (registro.estado === 'rascunho') continue;
-      const id = registro.diario_registro_id;
-      const no = nodosConversaoRef.current.get(id);
-      if (!no) continue;
-      const existente = conversoesRef.current.get(id);
-      if (!existente) {
-        const montagem = converterEmTarefa(
-          no,
-          registro,
-          (valor) => {
-            if (valor) pendenciasConversaoRef.current.add(id);
-            else pendenciasConversaoRef.current.delete(id);
-            alteracaoPendente(pendenteEditorRef.current || pendenciasConversaoRef.current.size > 0);
-          },
-          () => void consultar(),
-        );
-        conversoesRef.current.set(id, { versao: registro.versao, montagem });
-        continue;
-      }
-      if (existente.versao !== registro.versao) {
-        existente.montagem.invalidarOrigem();
-        existente.versao = registro.versao;
-        definirIdsPrecisandoReabrir((atuais) => {
-          if (atuais.has(id)) return atuais;
-          return new Set(atuais).add(id);
-        });
-      }
-    }
-    for (const [id, conversao] of conversoesRef.current) {
-      if (!elegiveis.has(id)) {
-        conversao.montagem.desmontar();
-        conversoesRef.current.delete(id);
-        nodosConversaoRef.current.delete(id);
-        definirIdsPrecisandoReabrir((atuais) => {
-          if (!atuais.has(id)) return atuais;
-          const proximas = new Set(atuais);
-          proximas.delete(id);
-          return proximas;
-        });
-      }
-    }
-  }, [registros, cicloConversoes]);
-
-  async function aoReabrirConversao(id: string) {
-    const temPendencia = pendenciasConversaoRef.current.has(id);
-    if (
-      temPendencia &&
-      !(await confirmar({
-        titulo: 'Descartar os campos da conversão anterior?',
-        detalhe:
-          'A versão atual do registro abre no lugar, e o que foi digitado na conversão anterior se perde.',
-        acao: 'Descartar e abrir a versão atual',
-        cancelar: 'Manter os campos',
-      }))
-    )
-      return;
-    const conversao = conversoesRef.current.get(id);
-    conversao?.montagem.desmontar();
-    conversoesRef.current.delete(id);
-    pendenciasConversaoRef.current.delete(id);
-    flushSync(() => {
-      definirIdsPrecisandoReabrir((atuais) => {
-        if (!atuais.has(id)) return atuais;
-        const proximas = new Set(atuais);
-        proximas.delete(id);
-        return proximas;
-      });
-      definirCicloConversoes((n) => n + 1);
-    });
+  function registrarPendenciaDaConversao(id: string, valor: boolean) {
+    if (valor) pendenciasConversaoRef.current.add(id);
+    else pendenciasConversaoRef.current.delete(id);
+    alteracaoPendente(pendenteEditorRef.current || pendenciasConversaoRef.current.size > 0);
   }
 
   if (descartado) return null;
@@ -1227,10 +1191,18 @@ export function TelaDiario({
                     gravar={gravar}
                     obterAreas={obterAreas}
                     montarEntradaPorAudio={montarEntradaPorAudio}
-                    temConversao={Boolean(converterEmTarefa)}
-                    precisaReabrir={idsPrecisandoReabrir.has(registro.diario_registro_id)}
-                    onAoRegistrarNoConversao={(id, no) => nodosConversaoRef.current.set(id, no)}
-                    onReabrirConversao={(id) => void aoReabrirConversao(id)}
+                    conversao={
+                      !ehFamilia && registro.estado !== 'rascunho' && converterEmTarefa ? (
+                        <ConversaoDoRegistro
+                          registro={registro}
+                          compor={converterEmTarefa}
+                          aoAlterar={(valor) =>
+                            registrarPendenciaDaConversao(registro.diario_registro_id, valor)
+                          }
+                          aoConcluir={() => void consultar()}
+                        />
+                      ) : null
+                    }
                     onTrocarEditorFamiliar={(tipo, reg) => void trocarEditorFamiliar(tipo, reg)}
                     onAlterar={registrarPendencia}
                     onConcluirInline={(aviso) => {

@@ -1,28 +1,7 @@
-/* Conversão de registro do Diário em tarefa + evolução interna, reconstruída em React
- * sobre a ilha (`web/ponte/ilha.ts`).
+/* Conversão atômica de registro do Diário em tarefa e evolução interna.
  *
- * O contrato exportado não muda: `montarConversaoDiario(raiz, pacienteId, origem, portas,
- * pendente, aoConcluir) => { desmontar, invalidarOrigem }`. Quem chama — `web/diario.ts` —
- * continua recebendo as duas funções; não precisou mudar nada para isso.
- *
- * `invalidarOrigem` não é parte do contrato de `ilha()` (que só devolve `desmontar`), então
- * a ponte aqui é a mesma técnica de "handle imperativo sem `forwardRef`": o componente
- * publica sua própria função de invalidação através de uma prop (`expoeInvalidar`), que
- * `montarConversaoDiario` guarda numa referência externa e expõe como `invalidarOrigem`.
- *
- * O que a migração entrega (VIS-012): a versão imperativa tinha uma flag `ativa` conferida
- * em sete pontos (`atual()` e as checagens dentro de `verificar`/`falhou`/`executar`) para
- * proteger escritas em DOM já desmontado. A checagem de MONTAGEM (`ativa`) sai: vira
- * `ativaRef`, só setada uma vez no cleanup da desmontagem, e seu papel continua o mesmo —
- * barrar que uma resposta tardia do servidor prossiga depois que o caso saiu de cena. As
- * outras duas metades de `atual()` — `origemAlterada` e `portas.atual()` — não eram sobre
- * ciclo de vida nenhum: são regra de negócio (versão trocou; conta trocou), e continuam
- * exatamente como eram.
- *
- * O indicador de ação em curso que `iniciarAcao` (`web/esqueleto.ts`) acrescentava ao botão
- * foi trocado pelo mesmo par `aria-busy` + `<Indicador/>` que as demais telas já migradas
- * usam: `iniciarAcao` mutava o nó do botão direto no DOM, e um botão React reconcilia seus
- * próprios filhos a cada render — a mutação direta seria apagada na pintura seguinte.
+ * A seção registra o comando que invalida a origem ao receber outra versão.
+ * Ao sair, o painel encerra as operações e limpa a pendência da conversão.
  *
  * O que NÃO mudou, de propósito:
  *
@@ -42,7 +21,7 @@
  * quebraria a prova por causa de uma diferença de estrutura, não de comportamento — por
  * isso aqui o `<label>` nativo continua envolvendo o controle, como na versão imperativa.
  */
-import { useEffect, useRef, useState } from 'react';
+import { type Ref, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
   converterDiarioTarefaSchema,
@@ -56,7 +35,6 @@ import { confirmarDescarte } from './confirmacao.js';
 import { Botao } from './componentes/ui/botao.js';
 import { CampoData } from './componentes/ui/campo-data.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
-import { ilha } from './ponte/ilha.js';
 import { Formulario } from './telas/formulario.js';
 
 type Ciclo = ReturnType<typeof criarCicloTarefaCuidado>;
@@ -80,7 +58,7 @@ export type PortasConversaoDiario = {
   acessoPerdido(erro: unknown): void;
   desmontar(): void;
 };
-export type MontagemConversaoDiario = { desmontar(): void; invalidarOrigem(): void };
+export type ComandoConversaoDiario = { invalidarOrigem(): void };
 
 const ID_MOTIVO = 'conversao-motivo';
 const ID_DATA = 'conversao-data';
@@ -115,27 +93,25 @@ function Indicador() {
   return <span className="loading-indicator" aria-hidden="true" />;
 }
 
-function TelaConversaoDiario({
+export function TelaConversaoDiario({
   pacienteId,
   origem,
   portas,
   pendente,
   aoConcluir,
-  expoeInvalidar,
+  comando,
 }: {
   pacienteId: string;
   origem: RegistroDiario;
   portas: PortasConversaoDiario;
   pendente: (valor: boolean) => void;
   aoConcluir: () => void;
-  expoeInvalidar: (fn: () => void) => void;
+  comando: Ref<ComandoConversaoDiario>;
 }) {
   const envelope = useRef<HTMLDivElement>(null);
   const tituloRef = useRef<HTMLHeadingElement>(null);
 
-  /* Guarda de desmontagem (VIS-012, ver cabeçalho): falsa a partir do momento em que a
-   * ilha é desfeita. As demais referências abaixo são estado de NEGÓCIO lido de forma
-   * síncrona por dentro de fluxos assíncronos — não são sobre ciclo de vida. */
+  // A guarda impede que uma resposta tardia opere depois de sair da conversão.
   const ativaRef = useRef(true);
   const origemAlteradaRef = useRef(false);
   const ocupadaRef = useRef(false);
@@ -161,11 +137,14 @@ function TelaConversaoDiario({
   const [avisoTexto, definirAvisoTexto] = useState('');
   const [areas, definirAreas] = useState<readonly string[]>([]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    ativaRef.current = true;
     return () => {
       ativaRef.current = false;
+      portas.desmontar();
+      pendente(false);
     };
-  }, []);
+  }, [portas, pendente]);
 
   /* Ouvinte NATIVO, no invólucro de fora: qualquer edição em qualquer campo avisa que há
    * alteração pendente — a mesma regra que `form.addEventListener('input'|'change', …)`
@@ -182,25 +161,20 @@ function TelaConversaoDiario({
     };
   }, [pendente]);
 
-  /** Revalidação de versão: a limpeza e o esvaziamento vêm ANTES de a origem contar como
-   *  alterada para o resto da tela — e são feitos uma única vez (idempotente). */
-  // biome-ignore lint/correctness/useExhaustiveDependencies: registra uma única função estável; `portas`/`expoeInvalidar` são props fixas desta montagem e não devem reexecutar a cada render.
-  useEffect(() => {
-    expoeInvalidar(() => {
+  useImperativeHandle(comando, () => ({
+    invalidarOrigem() {
       if (origemAlteradaRef.current) return;
       origemAlteradaRef.current = true;
       liberadaRef.current = false;
       pedidoRef.current = null;
       portas.desmontar();
-      flushSync(() => {
-        bloquear(true);
-        definirConferirVisivel(false);
-        definirAvisoTexto(
-          'O registro de origem mudou. Os campos abaixo foram preservados para conferência, mas esta versão não pode mais ser enviada.',
-        );
-      });
-    });
-  }, []);
+      bloquear(true);
+      definirConferirVisivel(false);
+      definirAvisoTexto(
+        'O registro de origem mudou. Os campos abaixo foram preservados para conferência, mas esta versão não pode mais ser enviada.',
+      );
+    },
+  }));
 
   function bloquear(valor: boolean) {
     for (const id of [ID_MOTIVO, ID_ENCAMINHAMENTO, ID_RESPONSAVEL]) {
@@ -453,6 +427,8 @@ function TelaConversaoDiario({
     controle(envelope.current, ID_ABRIR)?.focus();
   }
 
+  if (origem.estado === 'rascunho') return null;
+
   return (
     <div ref={envelope} className="min-w-0">
       <Botao id={ID_ABRIR} peso="secundario" hidden={painelAberto} aoAtivar={aoClicarAbrir}>
@@ -562,41 +538,4 @@ function TelaConversaoDiario({
       </section>
     </div>
   );
-}
-
-/** A porta de gravação do ciclo executa toda a conversão. Nunca encadeia tarefa + diário. */
-export function montarConversaoDiario(
-  raiz: HTMLElement,
-  pacienteId: string,
-  origem: RegistroDiario,
-  portas: PortasConversaoDiario,
-  pendente: (valor: boolean) => void,
-  aoConcluir: () => void,
-): MontagemConversaoDiario {
-  if (origem.estado === 'rascunho') {
-    raiz.replaceChildren();
-    return { desmontar: () => portas.desmontar(), invalidarOrigem: () => {} };
-  }
-  const invalidarRef: { current: () => void } = { current: () => {} };
-  const desmontarIlha = ilha(
-    raiz,
-    <TelaConversaoDiario
-      pacienteId={pacienteId}
-      origem={origem}
-      portas={portas}
-      pendente={pendente}
-      aoConcluir={aoConcluir}
-      expoeInvalidar={(fn) => {
-        invalidarRef.current = fn;
-      }}
-    />,
-  );
-  return {
-    desmontar: () => {
-      portas.desmontar();
-      pendente(false);
-      desmontarIlha();
-    },
-    invalidarOrigem: () => invalidarRef.current(),
-  };
 }

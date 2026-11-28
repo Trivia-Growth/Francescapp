@@ -260,3 +260,128 @@ test('Tarefas abre em leitura quando o servidor recusa escrita', async ({ page }
   await page.locator('#ficha-aba-plano').click();
   await expect(painel.locator('.ficha-secao')).toHaveAttribute('data-secao', 'plano');
 });
+
+test('Diário oferece conversão no relato publicado e preserva o rascunho como texto', async ({
+  page,
+}) => {
+  await page.addInitScript((sessaoId) => {
+    sessionStorage.setItem('modo-acesso', 'interno');
+    sessionStorage.setItem('fluxo-interno', 'AAAAAAAAAAAAAAAAAAAAAA');
+    sessionStorage.setItem('sessao-interno', sessaoId);
+  }, sessaoAdministrador.session_id);
+  const criarRegistro = (numero: number, estado: 'publicado' | 'rascunho') => ({
+    diario_registro_id: id(20, numero),
+    registro_id: id(21, numero),
+    versao: 1,
+    tipo: 'evolucao_profissional',
+    autor_usuario_id: sessaoAdministrador.usuario.id,
+    estado,
+    audiencia: 'equipe',
+    atencao: false,
+    retorno_solicitado: false,
+    origem_conteudo: 'texto',
+    responde_registro_id: null,
+    tarefa_id: null,
+    criado_em: '2026-11-18T12:00:00Z',
+    consultas: 0,
+    conteudo: { data: '2026-11-18', area: 'Cuidado', atividade: `Registro fictício ${estado}` },
+  });
+  await page.route('**/api/**', (rota) => {
+    const url = new URL(rota.request().url());
+    if (url.pathname === '/api/sessao')
+      return rota.fulfill({
+        json: envelope({
+          ...sessaoAdministrador,
+          usuario: { ...sessaoAdministrador.usuario, perfil: 'profissional' },
+          capacidades: [],
+        }),
+      });
+    if (url.pathname === `/api/pacientes/${PACIENTE_IDS[0]}/diario`)
+      return rota.fulfill({
+        json: envelope([criarRegistro(1, 'publicado'), criarRegistro(2, 'rascunho')]),
+      });
+    const fixture = responder(url.href);
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  await page.goto(`/web/index.html#paciente/${PACIENTE_IDS[0]}/diario`);
+  const painel = page.locator('#ficha-painel');
+  const publicado = painel.getByRole('article').filter({ hasText: 'Registro fictício publicado' });
+  const rascunho = painel.getByRole('article').filter({ hasText: 'Registro fictício rascunho' });
+  await expect(rascunho).toBeVisible();
+  await expect(
+    publicado.getByRole('button', { name: 'Sinalizar atenção e converter em tarefa' }),
+  ).toBeVisible();
+  await expect(
+    rascunho.getByRole('button', { name: 'Sinalizar atenção e converter em tarefa' }),
+  ).toHaveCount(0);
+});
+
+for (const { modo, consulta, disponivel } of [
+  { modo: 'google', consulta: true, disponivel: true },
+  { modo: 'google', consulta: true, disponivel: false },
+  { modo: 'interno', consulta: true, disponivel: true },
+  { modo: 'interno', consulta: true, disponivel: false },
+  { modo: 'tecnica', consulta: false, disponivel: true },
+] as const) {
+  test(`gravador no Diário com sessão ${modo} e disponibilidade ${disponivel}`, async ({
+    page,
+  }) => {
+    await page.addInitScript(
+      ({ modo, sessaoId }) => {
+        sessionStorage.setItem('modo-acesso', modo);
+        const chaveFluxo = modo === 'tecnica' ? 'fluxo-tecnico' : `fluxo-${modo}`;
+        sessionStorage.setItem(chaveFluxo, 'AAAAAAAAAAAAAAAAAAAAAA');
+        if (modo !== 'google') sessionStorage.setItem(`sessao-${modo}`, sessaoId);
+      },
+      { modo, sessaoId: sessaoAdministrador.session_id },
+    );
+    let liberar = () => {};
+    const espera = new Promise<void>((resolver) => {
+      liberar = resolver;
+    });
+    const caminhoAudio = '/api/transcricao/disponibilidade';
+    let consultas = 0;
+    await page.route('**/api/**', async (rota) => {
+      const url = new URL(rota.request().url());
+      if (url.pathname === caminhoAudio) {
+        consultas += 1;
+        await espera;
+        return rota.fulfill({ json: envelope({ disponivel }) });
+      }
+      if (url.pathname === `/api/pacientes/${PACIENTE_IDS[0]}/diario`)
+        return rota.fulfill({ json: envelope([]) });
+      const fixture = responder(url.href);
+      return fixture
+        ? rota.fulfill({ json: fixture })
+        : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+    });
+    const resposta =
+      consulta && !disponivel
+        ? page.waitForResponse((resposta) => new URL(resposta.url()).pathname === caminhoAudio)
+        : undefined;
+    const painel = page.locator('#ficha-painel');
+    const gravador = painel.getByRole('button', { name: 'Gravar áudio' });
+    const atividade = painel.getByRole('textbox', {
+      name: 'Atividade (obrigatória para publicar)',
+    });
+    try {
+      await page.goto(`/web/index.html#paciente/${PACIENTE_IDS[0]}/diario`);
+      await expect(painel.getByRole('button', { name: 'Publicar', exact: true })).toBeVisible();
+      await expect(gravador).toHaveCount(0);
+      await atividade.fill('Atividade fictícia digitada durante a consulta.');
+    } finally {
+      liberar();
+    }
+    if (consulta && disponivel) await expect(gravador).toBeVisible();
+    else {
+      const retorno = await resposta;
+      await retorno?.finished();
+      await page.evaluate(() => new Promise(requestAnimationFrame));
+      await expect(gravador).toHaveCount(0);
+    }
+    await expect(atividade).toHaveValue('Atividade fictícia digitada durante a consulta.');
+    expect(consultas).toBe(consulta ? 1 : 0);
+  });
+}
