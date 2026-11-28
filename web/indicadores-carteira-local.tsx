@@ -1,7 +1,6 @@
 import { Botao } from './componentes/ui/botao.js';
 import { valor } from './componentes/ui/lista.js';
 import { MarcaEstado } from './componentes/ui/marca-estado.js';
-import { ilhaSincrona } from './telas/ilha-sincrona.js';
 
 export type SituacaoCarteiraLocal =
   | 'entrada'
@@ -61,11 +60,4 @@ export function IndicadoresCarteiraLocal({ pacientes, filtrar }: DadosIndicadore
       })}
     </ul>
   );
-}
-
-export function montarIndicadoresCarteiraLocal(
-  raiz: HTMLElement,
-  dados: DadosIndicadoresCarteiraLocal,
-): () => void {
-  return ilhaSincrona(raiz, <IndicadoresCarteiraLocal {...dados} />);
 }

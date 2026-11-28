@@ -185,14 +185,14 @@ it('combina situação e busca sem perder cadastros não informados', async () =
   filtro.dispatchEvent(new Event('change'));
   expect(document.getElementById('patients-body')?.textContent).toContain('Não informada');
   busca.value = 'apelido';
-  busca.dispatchEvent(new Event('input'));
+  busca.dispatchEvent(new Event('input', { bubbles: true }));
   expect(document.querySelectorAll('#patients-body tr')).toHaveLength(1);
   filtro.value = 'ativo';
   filtro.dispatchEvent(new Event('change'));
   expect(document.getElementById('list-empty')?.hidden).toBe(false);
   expect(document.getElementById('empty-description')?.textContent).toContain('filtros');
   busca.value = '';
-  busca.dispatchEvent(new Event('input'));
+  busca.dispatchEvent(new Event('input', { bubbles: true }));
   filtro.value = 'todos';
   filtro.dispatchEvent(new Event('change'));
   expect(document.querySelectorAll('#patients-body tr')).toHaveLength(6);

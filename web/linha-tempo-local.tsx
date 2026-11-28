@@ -12,7 +12,7 @@ export type DadosLinhaTempoLocal = {
 };
 
 /** Exibe somente datas fornecidas pela prévia; prazo não representa data de realização. */
-export function montarLinhaTempoLocal(raiz: HTMLElement, dados: DadosLinhaTempoLocal): void {
+export function LinhaTempoLocal({ dados }: { dados: DadosLinhaTempoLocal }) {
   const eventos = [
     ...(dados.evolucoes ?? []).map((item) => ({
       data: item.data,
@@ -32,18 +32,14 @@ export function montarLinhaTempoLocal(raiz: HTMLElement, dados: DadosLinhaTempoL
     })),
   ];
   eventos.sort((a, b) => b.data.localeCompare(a.data));
-  raiz.replaceChildren();
-  if (!eventos.length) {
-    const vazio = document.createElement('p');
-    vazio.textContent = 'Nenhum evento registrado nesta prévia.';
-    raiz.append(vazio);
-    return;
-  }
-  const lista = document.createElement('ol');
-  for (const evento of eventos) {
-    const item = document.createElement('li');
-    item.textContent = evento.texto;
-    lista.append(item);
-  }
-  raiz.append(lista);
+  if (!eventos.length) return <p>Nenhum evento registrado nesta prévia.</p>;
+
+  return (
+    <ol>
+      {eventos.map((evento, indice) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: itens de leitura sem identificador.
+        <li key={indice}>{evento.texto}</li>
+      ))}
+    </ol>
+  );
 }

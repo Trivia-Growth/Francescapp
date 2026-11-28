@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it } from 'vitest';
-import { montarResumoCasoLocal } from './resumo-caso-local';
+import { ResumoCasoLocal } from './resumo-caso-local';
+
+function renderizar(raiz: HTMLElement, dados: ComponentProps<typeof ResumoCasoLocal>['dados']) {
+  render(createElement(ResumoCasoLocal, { dados }), { container: raiz });
+}
 
 it('apresenta dados fictícios disponíveis e informação insuficiente sem interpretar conteúdo como HTML', () => {
   const raiz = document.createElement('div');
-  montarResumoCasoLocal(raiz, {
+  renderizar(raiz, {
     anamnese: null,
     tarefas: [
       {
@@ -28,7 +34,7 @@ it('apresenta dados fictícios disponíveis e informação insuficiente sem inte
 
 it('não exibe valor residual quando anamnese está desconhecida', () => {
   const raiz = document.createElement('div');
-  montarResumoCasoLocal(raiz, {
+  renderizar(raiz, {
     anamnese: {
       estado: 'desconhecido',
       valor: 'valor antigo',
@@ -46,7 +52,7 @@ it('não exibe valor residual quando anamnese está desconhecida', () => {
 
 it('apresenta encaminhamentos e orientações registrados como texto', () => {
   const raiz = document.createElement('div');
-  montarResumoCasoLocal(raiz, {
+  renderizar(raiz, {
     anamnese: null,
     tarefas: [],
     objetivos: [],
@@ -79,7 +85,7 @@ it('apresenta encaminhamentos e orientações registrados como texto', () => {
 
 it('exibe dados opcionais do paciente como texto e omite campos ausentes', () => {
   const raiz = document.createElement('div');
-  montarResumoCasoLocal(raiz, {
+  renderizar(raiz, {
     paciente: {
       name: '<b>Paciente fictício</b>',
       birthDate: '1990-02-03',
@@ -101,7 +107,7 @@ it('exibe dados opcionais do paciente como texto e omite campos ausentes', () =>
 it('apresenta pessoas de referência como texto e distingue lista vazia de dados não carregados', () => {
   const raiz = document.createElement('div');
   const dados = { anamnese: null, tarefas: [], objetivos: [], relatos: [] };
-  montarResumoCasoLocal(raiz, {
+  renderizar(raiz, {
     ...dados,
     pessoasReferencia: [
       { nome: '<b>Nome fictício</b>', relacao: 'Familiar', contato: 'Contato fictício' },
@@ -109,16 +115,16 @@ it('apresenta pessoas de referência como texto e distingue lista vazia de dados
   });
   expect(raiz.textContent).toContain('<b>Nome fictício</b> · Familiar · Contato: Contato fictício');
   expect(raiz.querySelector('b')).toBeNull();
-  montarResumoCasoLocal(raiz, { ...dados, pessoasReferencia: [] });
+  renderizar(raiz, { ...dados, pessoasReferencia: [] });
   expect(raiz.textContent).toContain('Nenhuma pessoa de referência registrada nesta prévia.');
-  montarResumoCasoLocal(raiz, dados);
+  renderizar(raiz, dados);
   expect(raiz.textContent).toContain('Pessoas de referência não carregadas nesta prévia.');
 });
 
 it('apresenta situação e histórico como texto, incluindo ausência de histórico', () => {
   const raiz = document.createElement('div');
   const dados = { anamnese: null, tarefas: [], objetivos: [], relatos: [] };
-  montarResumoCasoLocal(raiz, {
+  renderizar(raiz, {
     ...dados,
     paciente: {
       name: 'Paciente fictício',
@@ -131,9 +137,9 @@ it('apresenta situação e histórico como texto, incluindo ausência de histór
   expect(raiz.textContent).toContain('Situação atual: pausado');
   expect(raiz.textContent).toContain('2026-11-04 · pausado · Motivo: <b>Motivo fictício</b>');
   expect(raiz.querySelector('b')).toBeNull();
-  montarResumoCasoLocal(raiz, { ...dados, paciente: { name: 'Paciente fictício' } });
+  renderizar(raiz, { ...dados, paciente: { name: 'Paciente fictício' } });
   expect(raiz.textContent).toContain('Situação atual: não informada');
   expect(raiz.textContent).toContain('Nenhuma alteração de situação registrada nesta prévia.');
-  montarResumoCasoLocal(raiz, dados);
+  renderizar(raiz, dados);
   expect(raiz.textContent).toContain('Situação não carregada nesta prévia.');
 });

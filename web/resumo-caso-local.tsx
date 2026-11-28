@@ -44,22 +44,9 @@ export type DadosResumoCasoLocal = {
 };
 
 /** Apresenta somente dados já carregados pela prévia fictícia; não autoriza acesso. */
-export function montarResumoCasoLocal(raiz: HTMLElement, dados: DadosResumoCasoLocal): void {
-  raiz.replaceChildren();
-  const secao = (titulo: string, linhas: string[]) => {
-    const bloco = document.createElement('section');
-    const cabecalho = document.createElement('h3');
-    cabecalho.textContent = titulo;
-    bloco.append(cabecalho);
-    const lista = document.createElement('ul');
-    for (const linha of linhas) {
-      const item = document.createElement('li');
-      item.textContent = linha;
-      lista.append(item);
-    }
-    bloco.append(lista);
-    raiz.append(bloco);
-  };
+export function ResumoCasoLocal({ dados }: { dados: DadosResumoCasoLocal }) {
+  const secoes: { titulo: string; linhas: string[] }[] = [];
+  const secao = (titulo: string, linhas: string[]) => secoes.push({ titulo, linhas });
   if (dados.paciente) {
     const paciente = dados.paciente;
     secao('Paciente', [
@@ -162,5 +149,21 @@ export function montarResumoCasoLocal(raiz: HTMLElement, dados: DadosResumoCasoL
     relatos.length
       ? relatos.map((relato) => `${relato.dataAcontecimento} · ${relato.descricao}`)
       : ['Nenhum relato registrado nesta prévia.'],
+  );
+
+  return (
+    <>
+      {secoes.map(({ titulo, linhas }) => (
+        <section key={titulo}>
+          <h3>{titulo}</h3>
+          <ul>
+            {linhas.map((linha, indice) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: itens de leitura sem identificador.
+              <li key={indice}>{linha}</li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </>
   );
 }

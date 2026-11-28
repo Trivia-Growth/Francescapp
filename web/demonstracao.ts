@@ -4,14 +4,14 @@ import { createElement, Fragment, type ReactElement } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 
-import { montarBuscaPacientesLocal, correspondeBuscaPacienteLocal } from './busca-pacientes-local';
+import { BuscaPacientesLocal, correspondeBuscaPacienteLocal } from './busca-pacientes-local';
 import { confirmar, confirmarDescarte } from './confirmacao';
 
 import { objetivoSchema, type Objetivo } from '../packages/contracts/src/plano-cuidado';
 import { validarTarefaPlano } from '../packages/cadastro/src/tarefa-plano';
 import { TelaRelatoTextual } from './relato-textual';
-import { montarResumoCasoLocal } from './resumo-caso-local';
-import { montarLinhaTempoLocal } from './linha-tempo-local';
+import { ResumoCasoLocal } from './resumo-caso-local';
+import { LinhaTempoLocal } from './linha-tempo-local';
 import { EncaminhamentosLocais, type EncaminhamentoLocal } from './encaminhamentos-local';
 import { OrientacoesLocais, type OrientacaoLocal } from './orientacoes-local';
 import { RelacoesLocais, type PessoaReferenciaLocal } from './relacoes-locais';
@@ -684,22 +684,32 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         }
         if (geracao !== geracaoNavegacao) return;
         selecionado = registro.id;
-        montarResumoCasoLocal(elemento('summary-content'), {
-          paciente: registro,
-          anamnese: anamneses.get(registro.id) ?? null,
-          tarefas: tarefas.get(registro.id) ?? [],
-          objetivos: objetivos.get(registro.id) ?? [],
-          relatos: relatos.get(registro.id) ?? [],
-          encaminhamentos: encaminhamentos.get(registro.id) ?? [],
-          orientacoes: orientacoes.get(registro.id) ?? [],
-          pessoasReferencia: relacoes.get(registro.id) ?? [],
-        });
-        montarLinhaTempoLocal(elemento('summary-timeline'), {
-          relatos: relatos.get(registro.id) ?? [],
-          tarefas: tarefas.get(registro.id) ?? [],
-          compromissos: agenda.get(registro.id) ?? [],
-          evolucoes: evolucoes.get(registro.id) ?? [],
-        });
+        desenharPrevia(
+          'summary-content',
+          createElement(ResumoCasoLocal, {
+            dados: {
+              paciente: registro,
+              anamnese: anamneses.get(registro.id) ?? null,
+              tarefas: tarefas.get(registro.id) ?? [],
+              objetivos: objetivos.get(registro.id) ?? [],
+              relatos: relatos.get(registro.id) ?? [],
+              encaminhamentos: encaminhamentos.get(registro.id) ?? [],
+              orientacoes: orientacoes.get(registro.id) ?? [],
+              pessoasReferencia: relacoes.get(registro.id) ?? [],
+            },
+          }),
+        );
+        desenharPrevia(
+          'summary-timeline',
+          createElement(LinhaTempoLocal, {
+            dados: {
+              relatos: relatos.get(registro.id) ?? [],
+              tarefas: tarefas.get(registro.id) ?? [],
+              compromissos: agenda.get(registro.id) ?? [],
+              evolucoes: evolucoes.get(registro.id) ?? [],
+            },
+          }),
+        );
         elemento('summary-patient').textContent = registro.name;
         exibirTela(telaResumo);
         elemento('summary-title').focus();
@@ -1792,10 +1802,15 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     elemento('anamnese-feedback').textContent = 'Anamnese fictícia salva nesta demonstração local.';
   });
   filtroSituacao.addEventListener('change', atualizar);
-  montarBuscaPacientesLocal(elemento('patient-search'), (texto) => {
-    buscaPaciente = texto;
-    atualizar();
-  });
+  desenharPrevia(
+    'patient-search',
+    createElement(BuscaPacientesLocal, {
+      aoBuscar: (texto) => {
+        buscaPaciente = texto;
+        atualizar();
+      },
+    }),
+  );
   const abrirSessao = async () => {
     login.hidden = true;
     pacientes.hidden = false;

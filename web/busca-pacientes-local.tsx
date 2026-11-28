@@ -17,16 +17,12 @@ export function correspondeBuscaPacienteLocal(
   );
 }
 
-/** Monta o campo de busca; a tabela mantém a apresentação dos resultados e do estado vazio. */
-export function montarBuscaPacientesLocal(
-  raiz: HTMLElement,
-  aoBuscar: (texto: string) => void,
-): void {
-  const rotulo = document.createElement('label');
-  rotulo.append('Buscar paciente por nome ou nome preferido');
-  const campo = document.createElement('input');
-  campo.type = 'search';
-  campo.addEventListener('input', () => aoBuscar(campo.value));
-  rotulo.append(campo);
-  raiz.replaceChildren(rotulo);
+/** Filtra a lista que já foi carregada pela demonstração. */
+export function BuscaPacientesLocal({ aoBuscar }: { aoBuscar(texto: string): void }) {
+  return (
+    <label>
+      Buscar paciente por nome ou nome preferido
+      <input type="search" onInput={(evento) => aoBuscar(evento.currentTarget.value)} />
+    </label>
+  );
 }
