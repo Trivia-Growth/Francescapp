@@ -77,7 +77,8 @@ async function abrir(
     throw new Error(`Rota inesperada: ${url.pathname}`);
   });
   desmontarCampos = (await import('./main.js')).desmontarCamposDeCadastro;
-  const botao = () => document.querySelector<HTMLButtonElement>('#cadastro button[data-acao]');
+  const botao = () =>
+    document.querySelector<HTMLButtonElement>('#cadastro-acoes button[data-acao]');
   await vi.waitFor(() => expect(botao()?.dataset.acao).toBe('encerrar'));
   botao()?.click();
   await vi.waitFor(() => expect(el<HTMLButtonElement>('create-submit').disabled).toBe(false));
@@ -367,7 +368,7 @@ describe('envio completo', () => {
     expect(el<HTMLInputElement>('patient-name').value).toBe('');
     expect(el<HTMLInputElement>('preferred-name').value).toBe('');
     expect(el<HTMLInputElement>('birth-date').value).toBe('');
-    expect(document.querySelectorAll('#contacts-list .contact-row')).toHaveLength(1);
+    expect(document.querySelectorAll('#contacts-list [data-contato]')).toHaveLength(1);
     expect(el<HTMLInputElement>('contact-value-1').value).toBe('');
     expect(el<HTMLSelectElement>('case-status').value).toBe('');
     expect(el<HTMLSelectElement>('case-manager').value).toBe('');
@@ -436,7 +437,7 @@ describe('fim da sessão', () => {
     expect(el<HTMLInputElement>('patient-name').value).toBe('');
     expect(el<HTMLInputElement>('preferred-name').value).toBe('');
     expect(el<HTMLInputElement>('birth-date').value).toBe('');
-    expect(document.querySelectorAll('#contacts-list .contact-row')).toHaveLength(1);
+    expect(document.querySelectorAll('#contacts-list [data-contato]')).toHaveLength(1);
     expect(el<HTMLInputElement>('contact-value-1').value).toBe('');
     expect(el<HTMLSelectElement>('case-status').value).toBe('');
     expect(el<HTMLSelectElement>('case-manager').value).toBe('');

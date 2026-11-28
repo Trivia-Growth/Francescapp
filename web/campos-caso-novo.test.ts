@@ -58,12 +58,12 @@ function montar(listar: () => Promise<ResponsavelOpcao[]> = async () => [ana]) {
   return { campos: { ...campos, desmontar: desmontarCampos }, listarResponsaveis };
 }
 
-const linhas = () => [...document.querySelectorAll<HTMLElement>('#contacts-list .contact-row')];
+const linhas = () => [...document.querySelectorAll<HTMLElement>('#contacts-list [data-contato]')];
 const adicionar = () => el<HTMLButtonElement>('add-contact');
 const opcoes = () =>
   [...el<HTMLSelectElement>('case-manager').options].map((opcao) => opcao.textContent);
 const removerDa = (linha: HTMLElement) =>
-  linha.querySelector<HTMLButtonElement>('.contact-remove') as HTMLButtonElement;
+  linha.querySelector<HTMLButtonElement>('[data-acao="remover-contato"]') as HTMLButtonElement;
 
 beforeEach(() => {
   document.body.replaceChildren();

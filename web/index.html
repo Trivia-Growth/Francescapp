@@ -178,42 +178,64 @@ SOFTWARE.
               </nav>
             </section>
           </div>
-          <dialog id="cadastro-dialogo" class="ui-dialogo" data-medida="formulario" aria-labelledby="create-title">
-          <section id="cadastro" class="ui-dialogo__painel" aria-labelledby="create-title" hidden>
-            <div class="ui-dialogo__cabecalho">
-              <div>
-                <h2 id="create-title" class="ui-dialogo__titulo" tabindex="-1">Novo paciente</h2>
-                <p class="ui-dialogo__descricao">Todos os campos são obrigatórios: identificação, ao menos um contato, a situação e quem acompanha o caso.</p>
+          <dialog id="cadastro-dialogo" class="fixed inset-x-0 bottom-0 top-auto mx-0 mb-0 mt-auto max-h-[calc(100dvh-16px)] w-full max-w-full flex-col overflow-hidden rounded-t-dialogo border-0 border-t border-sistema-divisor bg-sistema-superficie p-0 text-sistema-texto shadow-dialogo open:flex backdrop:bg-sistema-sobreposicao md:inset-0 md:m-auto md:max-h-[min(640px,calc(100dvh-64px))] md:w-[min(560px,calc(100vw-64px))] md:rounded-dialogo md:border" data-medida="formulario" aria-labelledby="create-title">
+            <section id="cadastro" class="flex min-h-0 max-h-full flex-1 flex-col" aria-labelledby="create-title" hidden>
+              <div class="flex shrink-0 items-start justify-between gap-sistema-3 border-b border-sistema-divisor px-sistema-4 pt-sistema-5 pb-sistema-4 md:px-sistema-5">
+                <div class="min-w-0">
+                  <h2 id="create-title" class="m-0 font-serifada text-4 leading-[1.2] font-semibold" tabindex="-1">Novo paciente</h2>
+                  <p class="mt-sistema-2 mb-0 text-meta text-sistema-texto-secundario">Todos os campos são obrigatórios: identificação, ao menos um contato, a situação e quem acompanha o caso.</p>
+                </div>
+                <button id="cadastro-fechar" class="min-w-alvo-toque shrink-0" type="button" aria-label="Fechar">×</button>
               </div>
-              <button id="cadastro-fechar" class="ui-dialogo__fechar" type="button" aria-label="Fechar">×</button>
-            </div>
-            <!-- Nascimento, situação e responsável usam validação no envio. O foco
-                 de erro vai ao controle visível, e servidor e banco conferem a entrada. -->
-            <form id="create-form" class="ui-dialogo__formulario" method="post" autocomplete="off" aria-describedby="create-feedback">
-              <div class="ui-dialogo__corpo" tabindex="0">
-                <div id="cadastro-campos-erro" class="contents"></div>
-                <fieldset id="create-fields">
-                  <legend class="sr-only">Dados do paciente</legend>
-                  <div class="ui-campo"><label class="ui-campo__rotulo" for="patient-name">Nome <span class="ui-campo__marca">obrigatório</span></label><input class="ui-campo__controle" id="patient-name" name="nome" type="text" required maxlength="200" autocomplete="off" aria-describedby="name-error"><span id="name-error" class="ui-campo__erro"></span></div>
-                  <div class="ui-campo"><label class="ui-campo__rotulo" for="preferred-name">Nome de preferência <span class="ui-campo__marca">obrigatório</span></label><input class="ui-campo__controle" id="preferred-name" name="nome_preferencia" type="text" required maxlength="200" autocomplete="off" aria-describedby="preferred-error"><span id="preferred-error" class="ui-campo__erro"></span></div>
-                  <div class="ui-campo"><label class="ui-campo__rotulo" id="birth-label" for="birth-date-texto">Data de nascimento <span class="ui-campo__marca">obrigatório</span></label><div id="birth-date-controle"></div><span id="birth-error" class="ui-campo__erro"></span></div>
-                  <fieldset class="field-group" aria-describedby="contacts-error">
-                    <legend>Contatos <span class="ui-campo__marca">obrigatório, ao menos um</span></legend>
-                    <div id="contacts-list"></div>
-                    <span id="contacts-error" class="ui-campo__erro"></span>
-                    <div id="add-contact-controle" class="contents"></div>
+              <!-- Nascimento, situação e responsável usam validação no envio. O foco
+                   de erro vai ao controle visível, e servidor e banco conferem a entrada. -->
+              <form id="create-form" class="flex min-h-0 flex-1 flex-col" method="post" autocomplete="off" aria-describedby="create-feedback">
+                <div id="cadastro-corpo" class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-sistema-4 md:p-sistema-5" tabindex="0">
+                  <div id="cadastro-campos-erro" class="contents"></div>
+                  <fieldset id="create-fields" class="m-0 grid min-w-0 grid-cols-1 gap-sistema-4 border-0 p-0">
+                    <legend class="sr-only">Dados do paciente</legend>
+                    <div class="grid min-w-0 grid-cols-1 gap-sistema-1">
+                      <label class="mb-sistema-1 flex flex-wrap items-baseline justify-between gap-sistema-1 text-controle" for="patient-name">Nome <span class="text-meta text-sistema-texto-secundario">obrigatório</span></label>
+                      <input id="patient-name" name="nome" type="text" required maxlength="200" autocomplete="off" aria-describedby="name-error">
+                      <span id="name-error" class="text-meta text-sistema-erro empty:hidden"></span>
+                    </div>
+                    <div class="grid min-w-0 grid-cols-1 gap-sistema-1">
+                      <label class="mb-sistema-1 flex flex-wrap items-baseline justify-between gap-sistema-1 text-controle" for="preferred-name">Nome de preferência <span class="text-meta text-sistema-texto-secundario">obrigatório</span></label>
+                      <input id="preferred-name" name="nome_preferencia" type="text" required maxlength="200" autocomplete="off" aria-describedby="preferred-error">
+                      <span id="preferred-error" class="text-meta text-sistema-erro empty:hidden"></span>
+                    </div>
+                    <div class="grid min-w-0 grid-cols-1 gap-sistema-1">
+                      <label class="mb-sistema-1 flex flex-wrap items-baseline justify-between gap-sistema-1 text-controle" id="birth-label" for="birth-date-texto">Data de nascimento <span class="text-meta text-sistema-texto-secundario">obrigatório</span></label>
+                      <div id="birth-date-controle"></div>
+                      <span id="birth-error" class="text-meta text-sistema-erro empty:hidden"></span>
+                    </div>
+                    <fieldset class="m-0 grid min-w-0 grid-cols-1 gap-sistema-2 border-0 p-0" aria-describedby="contacts-error">
+                      <legend class="mb-sistema-2 p-0 text-controle">Contatos <span class="text-meta text-sistema-texto-secundario">obrigatório, ao menos um</span></legend>
+                      <div id="contacts-list" class="grid gap-sistema-3"></div>
+                      <span id="contacts-error" class="text-meta text-sistema-erro empty:hidden"></span>
+                      <div id="add-contact-controle" class="contents"></div>
+                    </fieldset>
+                    <div class="grid min-w-0 grid-cols-1 gap-sistema-1">
+                      <label class="mb-sistema-1 flex flex-wrap items-baseline justify-between gap-sistema-1 text-controle" id="status-label" for="case-status">Situação <span class="text-meta text-sistema-texto-secundario">obrigatório</span></label>
+                      <div id="case-status-controle"></div>
+                      <span id="status-error" class="text-meta text-sistema-erro empty:hidden"></span>
+                    </div>
+                    <div class="grid min-w-0 grid-cols-1 gap-sistema-1">
+                      <label class="mb-sistema-1 flex flex-wrap items-baseline justify-between gap-sistema-1 text-controle" id="manager-label" for="case-manager">Quem acompanha o caso <span class="text-meta text-sistema-texto-secundario">obrigatório</span></label>
+                      <div id="case-manager-controle"></div>
+                      <span id="manager-error" class="text-meta text-sistema-erro empty:hidden"></span>
+                      <span id="manager-state" class="text-meta text-sistema-texto-secundario empty:hidden" role="status" aria-live="polite"></span>
+                      <div id="manager-retry-controle" class="contents"></div>
+                    </div>
                   </fieldset>
-                  <div class="ui-campo"><label class="ui-campo__rotulo" id="status-label" for="case-status">Situação <span class="ui-campo__marca">obrigatório</span></label><div id="case-status-controle"></div><span id="status-error" class="ui-campo__erro"></span></div>
-                  <div class="ui-campo"><label class="ui-campo__rotulo" id="manager-label" for="case-manager">Quem acompanha o caso <span class="ui-campo__marca">obrigatório</span></label><div id="case-manager-controle"></div><span id="manager-error" class="ui-campo__erro"></span><span id="manager-state" class="small-text" role="status" aria-live="polite"></span><div id="manager-retry-controle" class="contents"></div></div>
-                </fieldset>
-                <p id="create-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
-                <p class="small-text">O cadastro não cria conta nem concede acesso ao paciente ou a familiares.</p>
-              </div>
-              <div id="cadastro-acoes" class="ui-dialogo__rodape">
-                <button id="create-submit" class="ui-botao" data-peso="principal" type="submit">Cadastrar paciente</button>
-              </div>
-            </form>
-          </section>
+                  <p id="create-feedback" class="my-sistema-4 wrap-anywhere text-corpo data-[tone=error]:text-sistema-erro data-[tone=success]:text-sistema-sucesso empty:my-0" role="status" aria-live="polite" aria-atomic="true"></p>
+                  <p class="mt-sistema-4 mb-0 text-meta text-sistema-texto-secundario">O cadastro não cria conta nem concede acesso ao paciente ou a familiares.</p>
+                </div>
+                <div id="cadastro-acoes" class="flex shrink-0 flex-col-reverse gap-sistema-2 border-t border-sistema-divisor bg-sistema-superficie px-sistema-4 pt-sistema-4 pb-[calc(var(--spacing-sistema-4)+env(safe-area-inset-bottom,0px))] md:flex-row md:flex-wrap md:items-center md:justify-end md:px-sistema-5 md:pb-sistema-4">
+                  <button id="create-submit" data-peso="principal" type="submit">Cadastrar paciente</button>
+                </div>
+              </form>
+            </section>
           </dialog>
         </div>
         <section id="administracao-view" class="administracao" aria-labelledby="administracao-title" hidden>

@@ -1333,33 +1333,6 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   }
 }
 
-.field-group {
-  border: 0;
-  margin: 0 0 var(--espaco-4);
-  padding: 0;
-  min-inline-size: 0;
-}
-.field-group legend {
-  font-weight: 600;
-  padding: 0;
-  margin-bottom: 6px;
-}
-.contact-row {
-  display: grid;
-  grid-template-columns: minmax(96px, 8rem) minmax(0, 1fr);
-  gap: var(--espaco-2);
-  margin-bottom: var(--espaco-2);
-}
-.contact-row select,
-.contact-row input {
-  font-size: var(--texto-2);
-  min-inline-size: 0;
-}
-.contact-row .contact-remove {
-  grid-column: 1 / -1;
-  justify-self: start;
-}
-
 /* FR-004: a origem e a situação de cada registro de saúde precisam ser lidas de
    relance, para que relato de quem convive não seja confundido com diagnóstico. */
 .ficha-secao[data-secao="saude"] form {
@@ -2972,14 +2945,6 @@ label > .loading-indicator {
   animation: mov-entrada-troca var(--mov-troca) var(--curva-entrada);
 }
 
-/* Diálogo: opacidade do painel e do fundo, sem escala. A regra apontava para `.dialogo`,
-   a moldura antiga que ninguém mais monta desde a camada de componente — o diálogo entrava
-   seco. Mesma duração e mesma curva de antes; nenhum movimento novo. */
-.ui-dialogo[open],
-.ui-dialogo[open]::backdrop {
-  animation: mov-entrada-contexto var(--mov-contexto) var(--curva-entrada);
-}
-
 /* Erro nunca entra animado: quem já está num momento difícil não espera por uma
    mensagem de falha. Vale também dentro de uma região que acabou de entrar. */
 [data-tone="error"],
@@ -3242,27 +3207,4 @@ label > .loading-indicator {
     transition: none !important;
     animation: none !important;
   }
-}
-
-/* O cadastro é o primeiro formulário a usar a moldura de diálogo da camada de componente:
-   cabeçalho fixo, corpo rolando e rodapé fixo com a ação. No computador ele tem 560px para
-   a tela não crescer sem fim; no celular o mesmo elemento vira folha de baixo para cima, e
-   "Cadastrar paciente" fica no rodapé, acima da área segura, em vez de ficar no fim de uma
-   página que o teclado virtual empurra para fora. */
-.ui-dialogo__painel {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-height: 0;
-  max-height: 100%;
-}
-.ui-dialogo__formulario {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-height: 0;
-}
-/* Último campo do corpo não precisa da margem de separação: o filete do rodapé já separa. */
-.ui-dialogo__corpo > :last-child {
-  margin-bottom: 0;
 }
