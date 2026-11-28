@@ -172,3 +172,55 @@ test('primeira renderização da ficha pode ser recuperada pelo mesmo link', asy
   await page.getByRole('button', { name: 'Tentar novamente' }).click();
   await expect(page.getByText('Ficha fictícia recuperada')).toBeVisible();
 });
+
+for (const permiteCadastro of [true, false]) {
+  test(`link antigo do Cadastro respeita a capacidade (${permiteCadastro})`, async ({ page }) => {
+    await page.addInitScript((id) => {
+      sessionStorage.setItem('modo-acesso', 'tecnica');
+      sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
+      sessionStorage.setItem('sessao-tecnica', id);
+    }, sessaoAdministrador.session_id);
+    const consultasDosContatos: string[] = [];
+    await page.route('**/api/**', (rota) => {
+      const { pathname } = new URL(rota.request().url());
+      if (pathname === '/api/contatos/barreira') consultasDosContatos.push(pathname);
+      if (pathname === '/api/sessao' && !permiteCadastro)
+        return rota.fulfill({
+          json: envelope({
+            ...sessaoAdministrador,
+            capacidades: sessaoAdministrador.capacidades.filter(
+              (capacidade) => capacidade !== 'administrar_cadastro',
+            ),
+          }),
+        });
+      if (pathname === `/api/pacientes/${PACIENTE_IDS[0]}`)
+        return rota.fulfill({
+          json: envelope({
+            id: PACIENTE_IDS[0],
+            nome: 'Paciente fictício',
+            nome_preferencia: null,
+            data_nascimento: null,
+            versao: 1,
+            contatos: [],
+            acompanhamento: [],
+          }),
+        });
+      const fixture = responder(rota.request().url());
+      return fixture
+        ? rota.fulfill({ json: fixture })
+        : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+    });
+    await page.goto(`/web/index.html#paciente/${PACIENTE_IDS[0]}/cadastro`);
+    const painel = page.locator('#ficha-painel');
+    if (permiteCadastro) {
+      await expect(painel.getByText('Confira o cadastro para começar a editar.')).toBeVisible();
+      await expect(painel.getByRole('heading', { name: 'Contatos cadastrados' })).toBeVisible();
+      await expect(painel.getByRole('button', { name: 'Adicionar contato' })).toBeEnabled();
+      expect(consultasDosContatos).toHaveLength(2);
+    } else {
+      await expect(painel.locator('.ficha-secao')).toHaveAttribute('data-secao', 'visao');
+      await expect(page.locator('#ficha-aba-cadastro')).toHaveCount(0);
+      expect(consultasDosContatos).toEqual([]);
+    }
+  });
+}

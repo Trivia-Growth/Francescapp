@@ -1,23 +1,10 @@
-/* Contatos do paciente (telefone/e-mail), reconstruído em React sobre a ilha
- * (`web/ponte/ilha.ts`).
- *
- * O contrato exportado não muda: `montarContatoPaciente(raiz, pacienteId, api,
- * acessoPerdido, alteracaoPendente) => desmontar`.
- *
- * O que a migração entrega:
- *
- * 1. VIS-012. A versão imperativa tinha UMA flag `ativa` conferida em seis pontos
- *    (`if (!ativa) return`). Não sobrou nenhuma — `ilha()` desmonta a raiz React e
- *    escrever estado depois disso não faz nada, como nas demais telas já migradas.
- * 2. Superfície plana do `DESIGN.md`: lista e formulário, cada um na sua superfície.
+/* Contatos do paciente (telefone/e-mail) no painel React da ficha.
  *
  * O que NÃO mudou, de propósito (VIS-018):
  *
  * - **Nenhuma frase mudou de palavra.**
- * - A captura de identidade (`identidade`) continua feita UMA VEZ, na montagem — antes
- *   mesmo de existir uma raiz React: se `api.identidadeAtual()` não devolve sessão,
- *   `montarContatoPaciente` lança `FalhaApi('nao_autenticado', 401)` e não chega a montar
- *   nada, exatamente como antes.
+ * - A ficha captura a identidade ao compor a seção. Sem sessão, o formulário
+ *   não monta.
  * - `verificarIdentidade` continua lançando — nunca chamando `acessoPerdido` sozinha — e
  *   continua limpando a tela (lista e campo) ANTES de lançar; quem decide avisar é sempre
  *   quem a chama, como antes.
@@ -35,7 +22,7 @@
  * CONTROLADO: nenhuma prova crua atribui `.value` nele, e ser controlado é o que já
  * deriva o rótulo/tipo/tamanho do campo "valor" sem duplicar o estado em dois lugares.
  */
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { consultaBarreiraContatoSchema } from '../packages/contracts/src/barreira-contato.js';
 import { novoContatoSchema, type PacienteAdministrativo } from '../packages/contracts/src/index.js';
@@ -49,7 +36,6 @@ import { Superficie } from './componentes/ui/superficie.js';
 import { criarCicloContato } from './ciclo-contato.js';
 import { confirmar } from './confirmacao.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario } from './telas/formulario.js';
 
 type Identidade = { usuario_id: string; session_id: string };
@@ -66,7 +52,7 @@ type ListaConteudo =
   | { tipo: 'erro'; texto: string }
   | { tipo: 'lista'; contatos: readonly ContatoAdministrativo[] };
 
-function TelaContatoPaciente({
+export function TelaContatoPaciente({
   pacienteId,
   api,
   identidade,
@@ -190,10 +176,6 @@ function TelaContatoPaciente({
   }, [pacienteId, verificarIdentidade, mostrarContatos]);
 
   const reconciliar = useCallback(async (): Promise<void> => {
-    // SEM `flushSync` aqui: na montagem, este trecho roda dentro do `flushSync` da
-    // própria `ilha()`, e um `flushSync` aninhado derruba o React. Um clique real já
-    // aplica a atualização antes de devolver o controle; nenhuma prova desta tela afirma
-    // o estado síncrono logo após o clique em "Conferir novamente".
     definirBloqueada(true);
     definirRecuperarOcupado(true);
     definirStatus('Conferindo os contatos…');
@@ -275,15 +257,9 @@ function TelaContatoPaciente({
 
   const reconciliarRef = useRef(reconciliar);
   reconciliarRef.current = reconciliar;
-  const iniciouRef = useRef(false);
-  if (!iniciouRef.current) {
-    // Dispara a conferência uma única vez, na montagem — mesmo ponto da versão
-    // imperativa (`void reconciliar();` logo após montar a lista e o formulário). Não é
-    // `useEffect` de propósito: precisa rodar na MESMA passada síncrona da montagem,
-    // antes de qualquer clique, e sem esperar o efeito ser agendado.
-    iniciouRef.current = true;
+  useEffect(() => {
     void reconciliarRef.current();
-  }
+  }, []);
 
   function enviarContato(formulario: HTMLFormElement) {
     if (bloqueada) return;
@@ -411,30 +387,5 @@ function TelaContatoPaciente({
         </Formulario>
       </Superficie>
     </div>
-  );
-}
-
-/** Montagem preparada para quando a rota de contatos estiver autorizada. */
-export function montarContatoPaciente(
-  raiz: HTMLElement,
-  pacienteId: string,
-  api: ClienteFFCM,
-  acessoPerdido: (erro: unknown) => void,
-  alteracaoPendente: (pendente: boolean) => void,
-): () => void {
-  // Captura de identidade ANTES de existir raiz React — como na versão imperativa: sem
-  // sessão, nem chega a montar.
-  const identidadeAtual = api.identidadeAtual();
-  if (!identidadeAtual) throw new FalhaApi('nao_autenticado', 401);
-  const identidade = { ...identidadeAtual };
-  return ilha(
-    raiz,
-    <TelaContatoPaciente
-      pacienteId={pacienteId}
-      api={api}
-      identidade={identidade}
-      acessoPerdido={acessoPerdido}
-      alteracaoPendente={alteracaoPendente}
-    />,
   );
 }

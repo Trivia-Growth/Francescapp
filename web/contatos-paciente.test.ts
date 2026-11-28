@@ -1,8 +1,30 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { responderConfirmacoes } from './confirmacao-prova.js';
-import { montarContatoPaciente } from './contatos-paciente.js';
+import { TelaContatoPaciente } from './contatos-paciente.js';
 import type { ClienteFFCM } from './api.ts';
+
+function montarContatoPaciente(
+  raiz: HTMLElement,
+  pacienteId: string,
+  api: ClienteFFCM,
+  acessoPerdido: (erro: unknown) => void,
+  alteracaoPendente: (pendente: boolean) => void,
+) {
+  return render(
+    createElement(TelaContatoPaciente, {
+      pacienteId,
+      api,
+      identidade,
+      acessoPerdido,
+      alteracaoPendente,
+    }),
+    { container: raiz },
+  );
+}
+
 const id = '10000000-0000-4000-8000-000000000001';
 const outro = '10000000-0000-4000-8000-000000000002';
 const identidade = { usuario_id: id, session_id: id };

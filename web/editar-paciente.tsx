@@ -1,15 +1,4 @@
-/* Situação, responsável e cadastro do paciente, reconstruído em React sobre a ilha
- * (`web/ponte/ilha.ts`).
- *
- * O contrato exportado não muda: `montarEdicaoPaciente(raiz, pacienteId, servico,
- * acessoPerdido, alteracaoPendente) => desmontar`.
- *
- * O que a migração entrega:
- *
- * 1. VIS-012. A versão imperativa tinha UMA flag `ativa` conferida em diversos pontos
- *    (carregamento, conferência, envio). Não sobrou nenhuma — `ilha()` desmonta a raiz
- *    React e escrever estado depois disso não faz nada, como nas demais telas migradas.
- * 2. Superfície plana do `DESIGN.md`: resumo e formulário, cada um na sua superfície.
+/* Situação, responsável e cadastro do paciente no painel React da ficha.
  *
  * O que NÃO mudou, de propósito (VIS-018):
  *
@@ -63,7 +52,6 @@ import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import { dataDeInstante } from './datas.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 import type { ServicoSubstituicaoCaseManager } from './servico-substituicao-cm-http.js';
 import { SecaoSubstituicaoCaseManager } from './substituicao-case-manager.js';
@@ -149,7 +137,7 @@ function ResumoCaso({
   );
 }
 
-function TelaEdicaoPaciente({
+export function TelaEdicaoPaciente({
   pacienteId,
   servico,
   acessoPerdido,
@@ -633,24 +621,5 @@ function TelaEdicaoPaciente({
         </div>
       ) : null}
     </div>
-  );
-}
-
-/** Interface preparada para integração segura; não ativa rota nem autoriza acesso. */
-export function montarEdicaoPaciente(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: ServicoEdicaoPaciente,
-  acessoPerdido: (erro: unknown) => void,
-  alteracaoPendente: (pendente: boolean) => void = () => {},
-): () => void {
-  return ilha(
-    raiz,
-    <TelaEdicaoPaciente
-      pacienteId={pacienteId}
-      servico={servico}
-      acessoPerdido={acessoPerdido}
-      alteracaoPendente={alteracaoPendente}
-    />,
   );
 }
