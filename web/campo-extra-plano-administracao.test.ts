@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { createElement, type ComponentProps } from 'react';
 import { render } from '@testing-library/react';
 import { TelaAdministracaoPlano } from './campo-extra-plano-administracao.js';
 import type { ServicoPlanoCuidado } from './plano-cuidado.js';
-import { FalhaApi } from './api.ts';
+import { ClienteFFCM, FalhaApi } from './api.ts';
+import { clienteConsultas, esquecerConsultas } from './consultas.js';
+
+// O cache de leitura é um módulo único: cada teste começa com ele vazio.
+beforeEach(() => esquecerConsultas());
 
 function montarAdministracaoPlano(
   raiz: HTMLElement,
@@ -21,6 +25,7 @@ function montarAdministracaoPlano(
 const id = 'a0000000-0000-4000-8000-000000000001';
 function servico() {
   return {
+    identidade: { usuario_id: id, session_id: id },
     consultarCatalogo: vi.fn().mockResolvedValue([]),
     consultarAprovadores: vi.fn().mockResolvedValue([]),
     gravarCampoExtra: vi.fn().mockResolvedValue(undefined),
@@ -197,4 +202,119 @@ it('timeout seguido de lista anterior ao commit repete mesmo campo e chave sem c
     ?.click();
   await vi.waitFor(() => expect(api.gravarCampoExtra).toHaveBeenCalledTimes(2));
   expect(api.gravarCampoExtra.mock.calls[1]).toEqual(original);
+});
+
+/* Fatia 9b (28/11/2026), política A, a mesma da Equipe: o catálogo, quem aprova e a equipe
+ * ficam guardados por até 60 s; a volta mostra o guardado no primeiro quadro e relê. Nada
+ * sobrevive à identidade, à recusa ou à gravação. */
+const outra = 'b0000000-0000-4000-8000-00000000000b';
+const campoDe = (nome: string) => ({
+  campo_id: 'c0000000-0000-4000-8000-000000000001',
+  nome,
+  tipo: 'texto' as const,
+  opcoes: null,
+  ativo: true,
+  versao: 1,
+});
+function servicoCom(consultarCatalogo: ReturnType<typeof vi.fn>, conta = id) {
+  return { ...servico(), identidade: { usuario_id: conta, session_id: conta }, consultarCatalogo };
+}
+const equipeVazia = () => Promise.resolve([]);
+const chaves = () =>
+  clienteConsultas
+    .getQueryCache()
+    .getAll()
+    .map((q) => q.queryKey);
+const guardado = () =>
+  vi.waitFor(() => expect(clienteConsultas.getQueryCache().getAll()[0]?.state.data).toBeDefined());
+
+it('volta ao Plano de cuidado: o guardado aparece no primeiro quadro e é relido', async () => {
+  const consultar = vi
+    .fn()
+    .mockResolvedValueOnce([campoDe('Campo antes')])
+    .mockResolvedValueOnce([campoDe('Campo depois')]);
+  const api = servicoCom(consultar);
+  montarAdministracaoPlano(document.createElement('div'), api, vi.fn(), equipeVazia)();
+  await guardado();
+  const volta = document.createElement('div');
+  const desmontar = montarAdministracaoPlano(volta, api, vi.fn(), equipeVazia);
+  expect(volta.textContent).toContain('Campo antes');
+  await vi.waitFor(() => expect(volta.textContent).toContain('Campo depois'));
+  expect(consultar).toHaveBeenCalledTimes(2);
+  desmontar();
+});
+
+it('revogação: a sessão esquecida pela API leva o guardado', async () => {
+  const api = servicoCom(vi.fn().mockResolvedValue([campoDe('Campo antes')]));
+  montarAdministracaoPlano(document.createElement('div'), api, vi.fn(), equipeVazia)();
+  await guardado();
+  new ClienteFFCM().limpar();
+  const volta = document.createElement('div');
+  const desmontar = montarAdministracaoPlano(volta, api, vi.fn(), equipeVazia);
+  expect(volta.textContent).not.toContain('Campo antes');
+  await vi.waitFor(() => expect(volta.textContent).toContain('Campo antes'));
+  desmontar();
+});
+
+it('negativo: 403 na releitura da volta esvazia a tela e descarta o guardado', async () => {
+  const consultar = vi
+    .fn()
+    .mockResolvedValueOnce([campoDe('Campo antes')])
+    .mockRejectedValueOnce(new FalhaApi('sem_permissao', 403));
+  const api = servicoCom(consultar);
+  montarAdministracaoPlano(document.createElement('div'), api, vi.fn(), equipeVazia)();
+  await guardado();
+  const volta = document.createElement('div');
+  const perdido = vi.fn();
+  montarAdministracaoPlano(volta, api, perdido, equipeVazia);
+  await vi.waitFor(() => expect(perdido).toHaveBeenCalledOnce());
+  expect(volta.textContent).toBe('');
+  expect(chaves()).toHaveLength(0);
+});
+
+it('troca de conta: a conta nova não vê o guardado da anterior', async () => {
+  montarAdministracaoPlano(
+    document.createElement('div'),
+    servicoCom(vi.fn().mockResolvedValue([campoDe('Da conta A')])),
+    vi.fn(),
+    equipeVazia,
+  )();
+  await guardado();
+  const raiz = document.createElement('div');
+  const desmontar = montarAdministracaoPlano(
+    raiz,
+    servicoCom(vi.fn().mockResolvedValue([campoDe('Da conta B')]), outra),
+    vi.fn(),
+    equipeVazia,
+  );
+  expect(raiz.textContent).not.toContain('Da conta A');
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Da conta B'));
+  expect(chaves()).toEqual([['sessao', outra, outra, 'admin', 'plano-cuidado']]);
+  desmontar();
+});
+
+it('resposta atrasada da conta anterior é descartada', async () => {
+  let resolver!: (valor: unknown) => void;
+  const atrasada = new Promise((r) => {
+    resolver = r;
+  });
+  montarAdministracaoPlano(
+    document.createElement('div'),
+    servicoCom(vi.fn().mockReturnValue(atrasada)),
+    vi.fn(),
+    equipeVazia,
+  )();
+  const raiz = document.createElement('div');
+  const desmontar = montarAdministracaoPlano(
+    raiz,
+    servicoCom(vi.fn().mockResolvedValue([campoDe('Da conta B')]), outra),
+    vi.fn(),
+    equipeVazia,
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('Da conta B'));
+  resolver([campoDe('Da conta A')]);
+  await new Promise((r) => setTimeout(r, 0));
+  expect(raiz.textContent).not.toContain('Da conta A');
+  expect(chaves()).toEqual([['sessao', outra, outra, 'admin', 'plano-cuidado']]);
+  desmontar();
 });

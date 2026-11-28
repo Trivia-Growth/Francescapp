@@ -29,6 +29,9 @@ export type LeituraRetida<D> = {
   retida(): D | undefined;
   /** Esquece a leitura: chamada quando o acesso é recusado. */
   descartar(): void;
+  /** Mostra o guardado na montagem e RELÊ em seguida, em vez de confiar nele (política da
+   *  Equipe e do Plano de cuidado, fatia 9b). Sem isto, a volta não relê. */
+  revalidar?: boolean;
 };
 
 export type TentativaCatalogo<E> = { entrada: E; chave: string; consultada: boolean };
@@ -175,7 +178,7 @@ export function useCatalogoAdministrado<D, E>(
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: é a montagem da tela, e só ela. A máquina lê serviço, textos e estado por referência viva, então uma lista de dependências aqui só criaria releitura a cada repintura.
   useEffect(() => {
-    if (estado.current.geracao === 0) void carregar();
+    if (estado.current.geracao === 0 || dependencias.current.leitura?.revalidar) void carregar();
     return () => {
       estado.current.ativa = false;
     };
