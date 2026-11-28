@@ -2,7 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createElement } from 'react';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { Confirmacoes, confirmar, confirmarDescarte } from './confirmacao.js';
 
 let desmontar: () => void;
@@ -83,4 +83,15 @@ it('desmontar a raiz cancela a confirmação pendente e remove o portal', async 
 
   expect(await Promise.race([resposta, Promise.resolve('pendente')])).toBe(false);
   expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+it('avisa quando uma confirmação é solicitada sem hospedeiro e recusa a ação', async () => {
+  desmontar();
+  const erro = vi.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    await expect(confirmar({ titulo: 'Revogar o acesso?', acao: 'Revogar' })).resolves.toBe(false);
+    expect(erro).toHaveBeenCalledWith('Confirmação chamada sem hospedeiro React.');
+  } finally {
+    erro.mockRestore();
+  }
 });

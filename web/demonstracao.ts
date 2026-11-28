@@ -30,15 +30,20 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const arvore = createRoot(elemento('demonstracao-react'));
   const paineis = new Map<string, ReactElement>();
   let visita = 0;
-  function desenharPrevia(id: string, tela: ReactElement | null) {
-    if (tela) paineis.set(id, createElement(Fragment, { key: ++visita }, tela));
-    else paineis.delete(id);
+  function desenharDemonstracao() {
     flushSync(() =>
       arvore.render([
         createElement(Confirmacoes, { key: 'confirmacoes' }),
         ...[...paineis].map(([id, conteudo]) => createPortal(conteudo, elemento(id), id)),
       ]),
     );
+  }
+  desenharDemonstracao();
+
+  function desenharPrevia(id: string, tela: ReactElement | null) {
+    if (tela) paineis.set(id, createElement(Fragment, { key: ++visita }, tela));
+    else paineis.delete(id);
+    desenharDemonstracao();
   }
 
   /** A prévia perguntava pelo navegador: o diálogo nativo cobria a página e a tela

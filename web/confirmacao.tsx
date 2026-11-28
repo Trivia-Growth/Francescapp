@@ -107,7 +107,10 @@ export function Confirmacoes() {
 
 /** Abre a confirmação e resolve com a resposta. Cancelar e Esc resolvem `false`. */
 export function confirmar(pedido: PedidoConfirmacao): Promise<boolean> {
-  if (!ouvintes.size) return Promise.resolve(false);
+  if (!ouvintes.size) {
+    console.error('Confirmação chamada sem hospedeiro React.');
+    return Promise.resolve(false);
+  }
   return new Promise<boolean>((resolver) => {
     const id = ++proximoId;
     flushSync(() => mudarPendentes([...pendentes, { id, pedido, resolver }]));
