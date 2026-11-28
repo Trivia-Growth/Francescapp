@@ -33,7 +33,6 @@ import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 
 export type Preautorizacao = z.infer<typeof preautorizacaoFamiliarSchema>;
@@ -114,7 +113,7 @@ function ItemAcessoFamilia({
   );
 }
 
-function TelaPreautorizacoesFamiliares({
+export function TelaPreautorizacoesFamiliares({
   pacienteId,
   servico,
   acessoPerdido,
@@ -242,18 +241,3 @@ function TelaPreautorizacoesFamiliares({
  * Lista os acessos de familiares autorizados no caso e permite encerrar cada um.
  * Encerrar aqui fecha o acesso na hora, inclusive para quem já entrou.
  */
-export function montarPreautorizacoesFamiliares(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: ServicoPreautorizacoes,
-  acessoPerdido: (erro: unknown) => void,
-): () => void {
-  return ilha(
-    raiz,
-    <TelaPreautorizacoesFamiliares
-      pacienteId={pacienteId}
-      servico={servico}
-      acessoPerdido={acessoPerdido}
-    />,
-  );
-}

@@ -48,7 +48,6 @@ import { MarcaEstado } from './componentes/ui/marca-estado.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 
 export type ServicoSaude = {
@@ -117,7 +116,7 @@ function Indicador() {
 
 type Consulta = { fase: 'carregando' } | { fase: 'pronta' } | { fase: 'erro'; erro: unknown };
 
-function TelaSaude({
+export function TelaSaude({
   pacienteId,
   servico,
   acessoPerdido,
@@ -524,20 +523,3 @@ function TelaSaude({
  * A origem e a natureza ficam sempre visíveis: um relato de quem convive continua
  * identificado como relato, e hipótese nunca é apresentada como diagnóstico fechado.
  * A tela organiza o registro; validação clínica é do profissional habilitado. */
-export function montarSaude(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: ServicoSaude,
-  acessoPerdido: (erro: unknown) => void,
-  alteracaoPendente: (pendente: boolean) => void = () => {},
-): () => void {
-  return ilha(
-    raiz,
-    <TelaSaude
-      pacienteId={pacienteId}
-      servico={servico}
-      acessoPerdido={acessoPerdido}
-      alteracaoPendente={alteracaoPendente}
-    />,
-  );
-}

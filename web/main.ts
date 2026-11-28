@@ -695,13 +695,12 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       {
         id: 'dados',
         rotulo: 'Dados do paciente',
-        montar: async (raiz) =>
-          (await import('./secao-dados-familiar.js')).montarDadosFamiliar(
-            raiz,
-            paciente.id,
-            api,
+        compor: async () =>
+          createElement((await import('./secao-dados-familiar.js')).TelaDadosFamiliar, {
+            pacienteId: paciente.id,
+            servico: api,
             acessoPerdido,
-          ),
+          }),
       },
       {
         id: 'diario',
@@ -778,16 +777,14 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       {
         id: 'orientacoes',
         rotulo: 'Orientações',
-        montar: async (raiz) =>
-          // Família só lê (banco filtra por `visibilidade='publica'`, migration
-          // `20261124140000`); nunca registra orientação.
-          (await import('./orientacoes.js')).montarOrientacoes(
-            raiz,
-            paciente.id,
-            criarServicoOrientacoesHttp(identidadeAtual),
+        compor: async () =>
+          // A audiência é filtrada no servidor. A Família recebe somente leitura.
+          createElement((await import('./orientacoes.js')).TelaOrientacoes, {
+            pacienteId: paciente.id,
+            servico: criarServicoOrientacoesHttp(identidadeAtual),
             acessoPerdido,
-            true,
-          ),
+            ehFamilia: true,
+          }),
       },
     ];
   const administraCadastro =
@@ -803,11 +800,10 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'visao',
       rotulo: 'Visão do caso',
-      montar: async (raiz) =>
-        (await import('./visao-caso.js')).montarVisaoCaso(
-          raiz,
+      compor: async () =>
+        createElement((await import('./visao-caso.js')).TelaVisaoCaso, {
           paciente,
-          {
+          fontes: {
             objetivos: criarServicoPlanoHttp(identidadeAtual),
             anamnese: {
               consultarAnamnese: (id) => api.consultarAnamnese(id),
@@ -839,24 +835,23 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
             pendencias: criarServicoPendenciasHttp(identidadeAtual),
           },
           acessoPerdido,
-        ),
+        }),
     },
     {
       id: 'linha-tempo',
       rotulo: 'Linha do tempo',
-      montar: async (raiz) =>
-        (await import('./linha-tempo.js')).montarLinhaTempo(
-          raiz,
-          paciente.id,
-          criarServicoLinhaTempoHttp(identidadeAtual),
+      compor: async () =>
+        createElement((await import('./linha-tempo.js')).TelaLinhaTempo, {
+          pacienteId: paciente.id,
+          servico: criarServicoLinhaTempoHttp(identidadeAtual),
           acessoPerdido,
-        ),
+        }),
     },
     {
       id: 'anamnese',
       rotulo: 'Anamnese',
       descarte: descarteAnamnese,
-      montar: async (raiz, pendente) => {
+      compor: async (pendente) => {
         // Uma consulta só serve as duas coisas: se o histórico está ligado e o roteiro
         // sugerido (FR-003), que vem do catálogo em banco e é editável na administração.
         const disponibilidade = api.disponibilidadeHistoricoAnamnese();
@@ -870,29 +865,31 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
            Quem decide o que fazer com a falha continua sendo o `.catch` de cada argumento,
            que devolve `false` e lista vazia. */
         disponibilidade.catch(() => undefined);
-        return (await import('./anamnese.js')).montarAnamnese(
-          raiz,
-          paciente.id,
-          api,
+        return createElement((await import('./anamnese.js')).TelaAnamnese, {
+          pacienteId: paciente.id,
+          servico: api,
           acessoPerdido,
-          pendente,
-          disponibilidade.then((resultado) => resultado.disponivel).catch(() => false),
-          disponibilidade.then((resultado) => resultado.roteiro ?? []).catch(() => []),
-        );
+          alteracaoPendente: pendente,
+          historicoHabilitado: disponibilidade
+            .then((resultado) => resultado.disponivel)
+            .catch(() => false),
+          roteiroSugerido: disponibilidade
+            .then((resultado) => resultado.roteiro ?? [])
+            .catch(() => []),
+        });
       },
     },
     {
       id: 'saude',
       rotulo: 'Saúde',
       descarte: descarteSaude,
-      montar: async (raiz, pendente) =>
-        (await import('./saude.js')).montarSaude(
-          raiz,
-          paciente.id,
-          criarServicoSaudeHttp(identidadeAtual),
+      compor: async (pendente) =>
+        createElement((await import('./saude.js')).TelaSaude, {
+          pacienteId: paciente.id,
+          servico: criarServicoSaudeHttp(identidadeAtual),
           acessoPerdido,
-          pendente,
-        ),
+          alteracaoPendente: pendente,
+        }),
     },
     {
       id: 'plano',
@@ -920,14 +917,13 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'crise',
       rotulo: 'Plano de crise',
       descarte: descarteCrise,
-      montar: async (raiz, pendente) =>
-        (await import('./plano-crise.js')).montarPlanoCrise(
-          raiz,
-          paciente.id,
-          criarServicoPlanoCriseHttp(identidadeAtual),
+      compor: async (pendente) =>
+        createElement((await import('./plano-crise.js')).TelaPlanoCrise, {
+          pacienteId: paciente.id,
+          servico: criarServicoPlanoCriseHttp(identidadeAtual),
           acessoPerdido,
-          pendente,
-        ),
+          alteracaoPendente: pendente,
+        }),
     },
   ];
   if (atual.usuario.perfil === 'profissional')
@@ -1006,12 +1002,14 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     secoes.push({
       id: 'acesso-familia',
       rotulo: 'Acesso da família',
-      montar: async (raiz) =>
-        (await import('./preautorizacoes-familiares.js')).montarPreautorizacoesFamiliares(
-          raiz,
-          paciente.id,
-          criarServicoPreautorizacoesHttp(identidadeAtual),
-          acessoPerdido,
+      compor: async () =>
+        createElement(
+          (await import('./preautorizacoes-familiares.js')).TelaPreautorizacoesFamiliares,
+          {
+            pacienteId: paciente.id,
+            servico: criarServicoPreautorizacoesHttp(identidadeAtual),
+            acessoPerdido,
+          },
         ),
     });
   secoes.push(
@@ -1033,24 +1031,23 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     {
       id: 'encaminhamentos',
       rotulo: 'Encaminhamentos',
-      montar: async (raiz) =>
-        (await import('./encaminhamentos.js')).montarEncaminhamentos(
-          raiz,
-          paciente.id,
-          criarServicoEncaminhamentosHttp(identidadeAtual),
+      compor: async () =>
+        createElement((await import('./encaminhamentos.js')).TelaEncaminhamentos, {
+          pacienteId: paciente.id,
+          servico: criarServicoEncaminhamentosHttp(identidadeAtual),
           acessoPerdido,
-        ),
+        }),
     },
     {
       id: 'orientacoes',
       rotulo: 'Orientações',
-      montar: async (raiz) =>
-        (await import('./orientacoes.js')).montarOrientacoes(
-          raiz,
-          paciente.id,
-          criarServicoOrientacoesHttp(identidadeAtual),
+      compor: async () =>
+        createElement((await import('./orientacoes.js')).TelaOrientacoes, {
+          pacienteId: paciente.id,
+          servico: criarServicoOrientacoesHttp(identidadeAtual),
           acessoPerdido,
-        ),
+          ehFamilia: false,
+        }),
     },
   );
   secoes.push(

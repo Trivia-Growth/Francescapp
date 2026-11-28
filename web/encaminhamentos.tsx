@@ -30,7 +30,6 @@ import {
   type EstadoEncaminhamento,
 } from './encaminhamentos-local.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 
 type Servico = {
   consultar(pacienteId: string, apenasSemRetorno?: boolean): Promise<Encaminhamento[]>;
@@ -68,7 +67,7 @@ type Fase =
   | { fase: 'pronta'; encaminhamentos: EncaminhamentoLocal[] }
   | { fase: 'erro'; erro: unknown };
 
-function TelaEncaminhamentos({
+export function TelaEncaminhamentos({
   pacienteId,
   servico,
   acessoPerdido,
@@ -198,14 +197,3 @@ function TelaEncaminhamentos({
 }
 
 /** Interface da aba de encaminhamentos (FR-018), ligada ao serviço autorizado no servidor. */
-export function montarEncaminhamentos(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: Servico,
-  acessoPerdido: (erro: unknown) => void,
-): () => void {
-  return ilha(
-    raiz,
-    <TelaEncaminhamentos pacienteId={pacienteId} servico={servico} acessoPerdido={acessoPerdido} />,
-  );
-}

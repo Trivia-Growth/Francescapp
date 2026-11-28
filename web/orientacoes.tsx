@@ -27,7 +27,6 @@ import { exigeNovoAcesso, mensagemFalha } from './api.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import './estilos/tema.css';
 import { OrientacoesLocais, type OrientacaoLocal } from './orientacoes-local.js';
-import { ilha } from './ponte/ilha.js';
 import type { EntradaOrientacao } from './servico-orientacoes-http.js';
 
 type Servico = {
@@ -51,7 +50,7 @@ type Fase =
   | { fase: 'pronta'; orientacoes: OrientacaoLocal[] }
   | { fase: 'erro'; erro: unknown };
 
-function TelaOrientacoes({
+export function TelaOrientacoes({
   pacienteId,
   servico,
   acessoPerdido,
@@ -198,20 +197,3 @@ function TelaOrientacoes({
 }
 
 /** Interface da aba de orientações (FR-019), ligada ao serviço autorizado no servidor. */
-export function montarOrientacoes(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: Servico,
-  acessoPerdido: (erro: unknown) => void,
-  ehFamilia = false,
-): () => void {
-  return ilha(
-    raiz,
-    <TelaOrientacoes
-      pacienteId={pacienteId}
-      servico={servico}
-      acessoPerdido={acessoPerdido}
-      ehFamilia={ehFamilia}
-    />,
-  );
-}

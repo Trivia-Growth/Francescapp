@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { createElement, createRef } from 'react';
-import { render } from '@testing-library/react';
+import { createElement, createRef, useState } from 'react';
+import { fireEvent, render } from '@testing-library/react';
 import { secaoInicialDaFicha, TelaFicha } from './ficha.js';
 import type { Ficha } from './ficha-paciente.js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -100,6 +100,45 @@ it('desmontar a moldura invalida a pendência e encerra a seção legada', async
   retirarMoldura();
   expect(ficha.pendencia()).toBeNull();
   await vi.waitFor(() => expect(dados.desmontar).toHaveBeenCalledTimes(1));
+});
+
+it('limpa a pendência quando a seção React falha e permite abrir a seção novamente', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  const anamnese: SecaoFicha = {
+    id: 'anamnese',
+    rotulo: 'Anamnese',
+    compor: async (pendente) => {
+      function SecaoComFalha() {
+        const [falhou, definirFalhou] = useState(false);
+        if (falhou) throw new Error('Falha fictícia na seção');
+        return createElement(
+          'button',
+          {
+            type: 'button',
+            onClick: () => {
+              pendente(true);
+              definirFalhou(true);
+            },
+          },
+          'Editar anamnese',
+        );
+      }
+      return createElement(SecaoComFalha);
+    },
+  };
+  const { ficha } = abrir([anamnese]);
+  const botao = (texto: string) =>
+    Array.from(raiz.querySelectorAll('button')).find((item) => item.textContent === texto);
+  await vi.waitFor(() => expect(botao('Editar anamnese')).toBeDefined());
+  const editar = botao('Editar anamnese');
+  if (!editar) throw new Error('A seção inicial não foi aberta.');
+  fireEvent.click(editar);
+  expect(raiz.textContent).toContain('Tente abrir a área de novo.');
+  expect(ficha.pendencia()).toBeNull();
+  const tentar = botao('Tentar novamente');
+  if (!tentar) throw new Error('A ação de recuperação não foi desenhada.');
+  fireEvent.click(tentar);
+  await vi.waitFor(() => expect(botao('Editar anamnese')).toBeDefined());
 });
 
 it('lê só rota com identificador e seção bem formados', () => {

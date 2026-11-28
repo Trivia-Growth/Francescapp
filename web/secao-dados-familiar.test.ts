@@ -1,9 +1,23 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { montarCascaParaTeste } from './teste-casca.js';
 import { type ClienteFFCM, FalhaApi } from './api.ts';
-import { montarDadosFamiliar } from './secao-dados-familiar.tsx';
+import { TelaDadosFamiliar } from './secao-dados-familiar.tsx';
+
+function montarDadosFamiliar(
+  raiz: HTMLElement,
+  pacienteId: ComponentProps<typeof TelaDadosFamiliar>['pacienteId'],
+  servico: ComponentProps<typeof TelaDadosFamiliar>['servico'],
+  acessoPerdido: ComponentProps<typeof TelaDadosFamiliar>['acessoPerdido'],
+) {
+  const painel = render(createElement(TelaDadosFamiliar, { pacienteId, servico, acessoPerdido }), {
+    container: raiz,
+  });
+  return () => painel.rerender(null);
+}
 
 /** Dados fictícios. */
 const caso = '10000000-0000-4000-8000-00000000000a';

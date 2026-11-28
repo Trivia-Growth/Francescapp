@@ -1,5 +1,6 @@
 import {
   type KeyboardEvent,
+  type ReactElement,
   type Ref,
   useCallback,
   useImperativeHandle,
@@ -11,6 +12,7 @@ import { flushSync } from 'react-dom';
 import { rotulosSituacao } from './acompanhamento-caso.js';
 import { Botao } from './componentes/ui/botao.js';
 import { iniciais, type Ficha, type OpcoesFicha, type SecaoFicha } from './ficha-paciente.js';
+import { LimiteErroPainel } from './limite-erro-painel.js';
 
 const rotulosAtalhos: Readonly<Record<string, string>> = {
   diario: 'Novo relato',
@@ -24,7 +26,10 @@ type Conteudo = {
   secao: SecaoFicha;
   geracao: number;
   fase: 'pronta' | 'carregando' | 'falha';
+  tela?: ReactElement;
 };
+
+const disponivel = (secao: SecaoFicha) => Boolean(secao.compor || secao.montar);
 type EstadoFicha = {
   ativa: boolean;
   atual: SecaoFicha | null;
@@ -72,7 +77,9 @@ export function TelaFicha({
     .filter((secao): secao is SecaoFicha => secao !== undefined);
   const grupoPrimario = primariosEncontrados.length ? primariosEncontrados : secoes;
   const secundarias = secoes.filter((secao) => !grupoPrimario.includes(secao));
-  const atalhos = secoes.filter((secao) => rotulosAtalhos[secao.id] && secao.montar).slice(0, 2);
+  const atalhos = secoes
+    .filter((secao) => rotulosAtalhos[secao.id] && disponivel(secao))
+    .slice(0, 2);
   const Titulo = nivelTitulo === 2 ? 'h2' : 'h1';
   const mensagemAtual = () => estado.atual?.descarte ?? descartePadrao;
 
@@ -102,20 +109,29 @@ export function TelaFicha({
   function montarConteudo(secao: SecaoFicha) {
     const geracao = ++estado.geracao;
     estado.vazia = false;
-    const mostrar = (fase: Conteudo['fase'], geracaoDoNo = geracao) => {
-      flushSync(() => definirConteudo({ secao, geracao: geracaoDoNo, fase }));
+    const mostrar = (fase: Conteudo['fase'], geracaoDoNo = geracao, tela?: ReactElement) => {
+      flushSync(() =>
+        definirConteudo({ secao, geracao: geracaoDoNo, fase, ...(tela ? { tela } : {}) }),
+      );
     };
-    mostrar('pronta');
-    const raiz = destino.current;
-    if (!raiz || !secao.montar) return;
+    mostrar(secao.compor ? 'carregando' : 'pronta');
     const estaAtiva = () => estado.ativa && estado.geracao === geracao;
     const falhar = () => {
       if (estaAtiva()) mostrar('falha', ++estado.geracao);
     };
+    const aoAlterarPendencia = (pendente: boolean) => {
+      if (estaAtiva()) estado.pendente = pendente;
+    };
     try {
-      const montada = secao.montar(raiz, (pendente) => {
-        if (estaAtiva()) estado.pendente = pendente;
-      });
+      if (secao.compor) {
+        void secao.compor(aoAlterarPendencia).then((tela) => {
+          if (estaAtiva()) mostrar('pronta', geracao, tela);
+        }, falhar);
+        return;
+      }
+      const raiz = destino.current;
+      if (!raiz || !secao.montar) return;
+      const montada = secao.montar(raiz, aoAlterarPendencia);
       if (typeof montada === 'function') {
         estado.desmontar = montada;
         return;
@@ -230,7 +246,7 @@ export function TelaFicha({
         }
       >
         {secao.rotulo}
-        {secao.montar ? null : (
+        {disponivel(secao) ? null : (
           <>
             {' '}
             <span className="ficha-aba-estado">em breve</span>
@@ -313,7 +329,23 @@ export function TelaFicha({
           >
             {conteudo.fase === 'falha' ? (
               <p data-tone="error">Não foi possível abrir esta seção. Tente novamente.</p>
-            ) : conteudo.secao.montar ? null : (
+            ) : conteudo.tela ? (
+              <LimiteErroPainel
+                aoFalhar={() => {
+                  if (estado.geracao === conteudo.geracao) {
+                    estado.geracao += 1;
+                    estado.pendente = false;
+                  }
+                }}
+                aoTentarNovamente={() => {
+                  if (estado.atual?.id !== conteudo.secao.id) return;
+                  descartar();
+                  montarConteudo(conteudo.secao);
+                }}
+              >
+                {conteudo.tela}
+              </LimiteErroPainel>
+            ) : disponivel(conteudo.secao) ? null : (
               <>
                 <h2>{conteudo.secao.rotulo}: em breve</h2>
                 <p>

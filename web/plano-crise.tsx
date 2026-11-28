@@ -49,7 +49,6 @@ import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { MarcaEstado } from './componentes/ui/marca-estado.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario } from './telas/formulario.js';
 
 export type ServicoPlanoCrise = {
@@ -123,7 +122,7 @@ function Indicador() {
 
 type Consulta = { fase: 'carregando' } | { fase: 'pronta' } | { fase: 'erro'; erro: unknown };
 
-function TelaPlanoCrise({
+export function TelaPlanoCrise({
   pacienteId,
   servico,
   acessoPerdido,
@@ -701,20 +700,3 @@ function TelaPlanoCrise({
  * versão nova, que nasce sem aprovação. Quem pode aprovar é decidido no servidor pela marca
  * de habilitação da concessão — a tela não esconde o botão para fingir permissão, ela explica
  * a recusa quando ela vem. */
-export function montarPlanoCrise(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: ServicoPlanoCrise,
-  acessoPerdido: (erro: unknown) => void,
-  alteracaoPendente: (pendente: boolean) => void = () => {},
-): () => void {
-  return ilha(
-    raiz,
-    <TelaPlanoCrise
-      pacienteId={pacienteId}
-      servico={servico}
-      acessoPerdido={acessoPerdido}
-      alteracaoPendente={alteracaoPendente}
-    />,
-  );
-}
