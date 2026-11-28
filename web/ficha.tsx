@@ -1,3 +1,4 @@
+import { ArrowLeft, ChevronDown } from 'lucide-react';
 import {
   type KeyboardEvent,
   type ReactElement,
@@ -10,9 +11,17 @@ import {
 } from 'react';
 import { flushSync } from 'react-dom';
 import { rotulosSituacao } from './acompanhamento-caso.js';
-import { Botao } from './componentes/ui/botao.js';
+import { CLASSES_ABA } from './componentes/ui/abas.js';
+import { Botao, classesBotao } from './componentes/ui/botao.js';
+import { juntar } from './componentes/ui/juntar.js';
+import { MarcaEstado } from './componentes/ui/marca-estado.js';
 import { iniciais, type Ficha, type OpcoesFicha, type SecaoFicha } from './ficha-paciente.js';
 import { LimiteErroPainel } from './limite-erro-painel.js';
+
+const classeAbaFicha = juntar(
+  CLASSES_ABA,
+  'max-w-full min-h-alvo-toque gap-sistema-2 px-sistema-3 py-sistema-2 whitespace-normal wrap-anywhere text-controle',
+);
 
 const rotulosAtalhos: Readonly<Record<string, string>> = {
   diario: 'Novo relato',
@@ -199,7 +208,7 @@ export function TelaFicha({
         type="button"
         key={secao.id}
         id={`ficha-aba-${secao.id}`}
-        className={secundaria ? 'ficha-aba ficha-aba-secundaria' : 'ficha-aba'}
+        className={classeAbaFicha}
         aria-controls="ficha-painel"
         role={secundaria ? undefined : 'tab'}
         aria-current={secundaria ? ativa : undefined}
@@ -219,7 +228,7 @@ export function TelaFicha({
         {disponivel(secao) ? null : (
           <>
             {' '}
-            <span className="ficha-aba-estado">em breve</span>
+            <MarcaEstado tom="suave">em breve</MarcaEstado>
           </>
         )}
       </button>
@@ -228,10 +237,10 @@ export function TelaFicha({
 
   return (
     <>
-      <header className="ficha-cabecalho">
+      <header className="mb-sistema-5 grid min-w-0 gap-sistema-3">
         <Botao
           id="ficha-voltar"
-          className="ficha-voltar"
+          className="max-w-full justify-self-start"
           peso="discreto"
           aoAtivar={() => {
             void (async () => {
@@ -240,29 +249,41 @@ export function TelaFicha({
             })();
           }}
         >
+          <ArrowLeft aria-hidden="true" size={16} />
           Voltar para a lista
         </Botao>
-        <div className="ficha-identidade">
-          <span className="avatar" aria-hidden="true">
+        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-sistema-3 lateral:grid-cols-[auto_minmax(0,1fr)_minmax(0,auto)]">
+          <span
+            className="inline-grid size-10 place-items-center rounded-avatar bg-sistema-hoje text-meta font-semibold text-sistema-acao lateral:size-14 lateral:text-item"
+            aria-hidden="true"
+          >
             {iniciais(paciente.nome)}
           </span>
-          <div>
-            <Titulo id="ficha-title" ref={titulo} tabIndex={-1}>
+          <div className="grid min-w-0 gap-sistema-1">
+            <Titulo
+              id="ficha-title"
+              className="m-0 wrap-anywhere font-sans text-secao"
+              ref={titulo}
+              tabIndex={-1}
+            >
               {paciente.nome}
             </Titulo>
-            <p className="ficha-preferencia">
+            <p className="m-0 wrap-anywhere text-corpo text-sistema-texto-secundario">
               {paciente.nome_preferencia
                 ? `Nome de preferência: ${paciente.nome_preferencia}`
                 : 'Nome de preferência não informado'}
             </p>
             {paciente.situacao ? (
-              <span className="pessoa-situacao" data-situacao={paciente.situacao}>
+              <MarcaEstado
+                className="mt-sistema-1 justify-self-start"
+                data-situacao={paciente.situacao}
+              >
                 {rotulosSituacao[paciente.situacao]}
-              </span>
+              </MarcaEstado>
             ) : null}
           </div>
           {atalhos.length ? (
-            <div className="ficha-acoes">
+            <div className="col-span-full flex min-w-0 flex-wrap gap-sistema-2 lateral:col-span-1">
               {atalhos.map((secao) => (
                 <Botao key={secao.id} peso="secundario" aoAtivar={() => void selecionar(secao.id)}>
                   {rotulosAtalhos[secao.id]}
@@ -272,17 +293,36 @@ export function TelaFicha({
           ) : null}
         </div>
       </header>
-      <div className="ficha-abas" role="tablist" aria-label="Seções da ficha" onKeyDown={moverFoco}>
+      <div
+        className="flex min-w-0 flex-wrap gap-x-sistema-1 border-b border-sistema-divisor"
+        role="tablist"
+        aria-label="Seções da ficha"
+        onKeyDown={moverFoco}
+      >
         {grupoPrimario.map((secao) => aba(secao, false))}
       </div>
       {secundarias.length ? (
-        <details className="ficha-mais" ref={mais}>
-          <summary className="ficha-mais-resumo">Mais seções</summary>
-          <div className="ficha-mais-lista">{secundarias.map((secao) => aba(secao, true))}</div>
+        <details
+          id="ficha-mais-secoes"
+          className="group border-b border-sistema-divisor"
+          ref={mais}
+        >
+          <summary
+            className={classesBotao({
+              peso: 'discreto',
+              className: 'my-sistema-1 list-none [&::-webkit-details-marker]:hidden',
+            })}
+          >
+            Mais seções
+            <ChevronDown aria-hidden="true" size={16} className="shrink-0 group-open:rotate-180" />
+          </summary>
+          <div className="flex min-w-0 flex-wrap gap-x-sistema-1 pb-sistema-3">
+            {secundarias.map((secao) => aba(secao, true))}
+          </div>
         </details>
       ) : null}
       <div
-        className="ficha-painel"
+        className="min-w-0 pt-sistema-5 pb-sistema-2 focus-visible:[outline-offset:var(--recuo-foco)] lateral:pt-sistema-6"
         id="ficha-painel"
         role="tabpanel"
         // biome-ignore lint/a11y/noNoninteractiveTabindex: a área rolável deve receber foco.
