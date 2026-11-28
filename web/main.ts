@@ -1810,10 +1810,10 @@ const areasAdministracao: AreaAdministracao[] = [
     rotulo: 'Financeiro',
     disponivel: (atual) =>
       atual.usuario.perfil !== 'familia' && audienciaFinanceira.permitidaPara(atual.session_id),
-    carregar: async () => {
-      const { montarFinanceiro } = await import('./financeiro.js');
-      return (raiz) => montarFinanceiro(raiz, criarServicoFinanceiroHttp(identidadeAtual));
-    },
+    carregar: async () =>
+      createElement((await import('./financeiro.js')).TelaFinanceiro, {
+        servico: criarServicoFinanceiroHttp(identidadeAtual),
+      }),
   },
   {
     id: 'auditoria',

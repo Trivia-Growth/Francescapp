@@ -1,6 +1,36 @@
 # Estado — migrar-interface-para-react
 
-**Atualizado em:** 27/11/2026 · **Branch:** `codex/remover-web-ui` · **Por:** Codex
+**Atualizado em:** 27/11/2026 · **Branch:** `claude/financeiro-react` · **Por:** Claude Code
+
+## Fatia 7.2 — Financeiro em React
+
+O Financeiro (`web/financeiro.tsx`) deixa de montar DOM e vira `TelaFinanceiro`, desenhada pela
+raiz da casca como os 13 painéis do #54: portal, fronteira de erro por área, guarda do destino
+em `main.ts` e desmontagem na revogação da audiência. Sem mudança de servidor, contrato ou
+autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` renderiza o componente.
+
+- Decisão: sem TanStack Query. As leituras são por identificador digitado, sob demanda e de dado
+  financeiro; reter em cache ampliaria o descarte sem ganho medido. Cada aba desmonta ao sair e
+  leva o que leu. A resposta atrasada é descartada por geração (`useCiclo`) e por desmontagem.
+- Detalhe corrigido ao portar: a gravação de despesa lê todos os campos antes da primeira espera,
+  então editar o caso durante o envio não muda para onde o comprovante vai.
+- Aparência: mesmas classes `.financeiro__*`; abas passam ao `Abas` do sistema (Radix) com os estilos
+  legados da faixa (`tabIndex={-1}` na faixa, senão o Chromium para o foco numa `div` sem anel). O
+  respiro entre abas e painel passou a ser `padding-top` de `.financeiro__painel`. Capturas a 390 e
+  1440 px, bancada com CSS real, antes/depois: cinco das seis idênticas byte a byte na área; na
+  sexta (Despesas) só difere uma faixa de 3 px da aba sob o cursor, transição de hover.
+  Duas primeiras tentativas regrediram (aba virando botão cinza; 16 px de respiro perdidos) e foram corrigidas.
+- Prova: `financeiro.test.tsx` (20 testes), `administracao-carregamento.pw.ts`,
+  `financeiro-controles-proprios.pw.ts` e `conforto-celular.pw.ts` (axe sem violação, 360 e 390 px)
+  em Chromium: 16 cenários, incluindo audiência revogada durante o carregamento (volta à Carteira,
+  `aria-busy` limpo) e resposta atrasada do Financeiro que não pinta Equipe. `verificar:rapido` verde.
+- Contraprovas (revertidas): sem a guarda de geração, uma consulta antiga sobrescreveu a lista nova
+  (`financeiro.test.tsx`); sem a saída da área desautorizada, a URL ficou em `#administracao/financeiro`
+  (`toHaveURL(/#carteira$/)`).
+- Pendente: o ramo `typeof tela === 'function'` de `mostrarAdministracao` e a ponte `ilha.ts` ainda
+  existem (ficha); a tarefa 7.2 só fecha quando a ficha migrar. Regras `.financeiro__aba` mortas no
+  CSS ficam para a retirada do CSS legado.
+- Próximo passo: CI/ativação do PR.
 
 ## Fatia 8f do plano visual — seções operacionais da ficha
 

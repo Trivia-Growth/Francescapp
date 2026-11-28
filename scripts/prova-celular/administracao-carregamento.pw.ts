@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { envelope } from '../../web/fixtures/comum.js';
+import { envelope, id } from '../../web/fixtures/comum.js';
 import { responder } from '../../web/fixtures/despachante.js';
 import { sessaoAdministrador } from '../../web/fixtures/sessao.js';
 
@@ -130,7 +130,7 @@ test('perda de audiência enquanto o módulo carrega encerra o estado ocupado', 
       }`,
     }),
   );
-  await page.route('**/web/financeiro.ts', async (rota) => {
+  await page.route('**/web/financeiro.tsx', async (rota) => {
     await espera;
     await rota.continue();
   });
@@ -140,7 +140,7 @@ test('perda de audiência enquanto o módulo carrega encerra o estado ocupado', 
       ? rota.fulfill({ json: fixture })
       : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
   });
-  const modulo = page.waitForRequest('**/web/financeiro.ts');
+  const modulo = page.waitForRequest('**/web/financeiro.tsx');
   await page.goto('/web/index.html#administracao/financeiro');
   const painel = page.locator('#administracao-conteudo');
   try {
@@ -153,4 +153,51 @@ test('perda de audiência enquanto o módulo carrega encerra o estado ocupado', 
   await expect(page).toHaveURL(/#carteira$/);
   await expect(painel).not.toHaveAttribute('aria-busy', 'true');
   await expect(painel).toBeEmpty();
+});
+
+test('resposta atrasada do Financeiro não pinta a área para onde a pessoa foi', async ({
+  page,
+}) => {
+  let liberarResposta = () => {};
+  const espera = new Promise<void>((resolver) => {
+    liberarResposta = resolver;
+  });
+  let valoresPedidos = 0;
+  await page.route('**/api/**', async (rota) => {
+    const url = new URL(rota.request().url());
+    if (url.pathname.endsWith('/valores-acordados')) {
+      valoresPedidos += 1;
+      await espera;
+      return rota.fulfill({
+        json: envelope([
+          {
+            valor_id: id(40, 1),
+            profissional_usuario_id: id(10, 2),
+            valor_turno_centavos: 99_900,
+            vigencia: { inicio: '2026-11-01', fim: null },
+            motivo: 'Resposta atrasada fictícia',
+          },
+        ]),
+      });
+    }
+    const fixture = responder(url.href);
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  await page.goto('/web/index.html#administracao/financeiro');
+  const painel = page.locator('#administracao-conteudo');
+  await expect(painel).toContainText('Financeiro do cuidado');
+  await painel.getByLabel('Profissional (identificador)').fill(id(10, 2));
+  await painel.getByRole('button', { name: 'Consultar valores' }).click();
+  await expect(painel.getByRole('status').first()).toContainText('Consultando valores');
+  expect(valoresPedidos).toBe(1);
+  await page.getByRole('link', { name: 'Equipe', exact: true }).click();
+  await expect(painel).toContainText('Convidar alguém');
+  liberarResposta();
+  // Dá tempo à resposta atrasada de chegar e, se pudesse, de pintar.
+  await page.evaluate(() => new Promise((resolver) => setTimeout(resolver, 300)));
+  await expect(painel).not.toContainText('Resposta atrasada fictícia');
+  await expect(painel).not.toContainText('Financeiro do cuidado');
+  await expect(painel).toContainText('Convidar alguém');
 });

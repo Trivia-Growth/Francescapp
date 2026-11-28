@@ -1,12 +1,14 @@
 /**
  * Bancada da prova de conforto no celular (tarefa 4.3 de `financeiro-despesa-e-repasse`).
  *
- * Monta o código real de `web/financeiro.ts` com a folha de estilo real e um dublê de rede:
+ * Monta o componente real de `web/financeiro.tsx` com a folha de estilo real e um dublê de rede:
  * nenhuma requisição sai daqui, nenhuma credencial é usada e todos os dados são fictícios.
  * O dublê existe só para alcançar o estado de sucesso das três telas — ele não autoriza nada
  * e não substitui os testes de autorização de servidor e banco.
  */
-import { montarFinanceiro } from '../../web/financeiro.ts';
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { TelaFinanceiro } from '../../web/financeiro.tsx';
 import type { ServicoFinanceiro } from '../../web/servico-financeiro-http.ts';
 
 const recusado = () => Promise.reject(new Error('A bancada não fala com a rede.'));
@@ -64,5 +66,7 @@ const servico = {
 
 const raiz = document.getElementById('raiz');
 if (raiz) {
-  montarFinanceiro(raiz, servico, { profissionalPadrao: '', casoPadrao: '' });
+  createRoot(raiz).render(
+    createElement(TelaFinanceiro, { servico, profissionalPadrao: '', casoPadrao: '' }),
+  );
 }
