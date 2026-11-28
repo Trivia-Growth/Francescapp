@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, useEffect } from 'react';
 import { expect, it, vi } from 'vitest';
-import { montarTarefasComDisponibilidade } from './integracao-tarefas-disponibilidade.ts';
+import { TarefasComDisponibilidade } from './integracao-tarefas-disponibilidade.js';
 const usuario = '11111111-1111-4111-8111-111111111111';
 const paciente = '22222222-2222-4222-8222-222222222222';
 const outro = '33333333-3333-4333-8333-333333333333';
@@ -12,33 +14,40 @@ function preparar() {
     escrita_disponivel: false,
   }));
   const desmontarTela = vi.fn();
-  const montar = vi.fn(
-    (
-      _destino: HTMLElement,
-      _escrita: boolean,
-      _identidade: () => { usuario_id: string; session_id: string } | null,
-    ) => desmontarTela,
+  function TelaDeTeste({ escrita }: { escrita: boolean }) {
+    useEffect(() => () => desmontarTela(), []);
+    return createElement('p', null, escrita ? 'Leitura e escrita' : 'Somente leitura');
+  }
+  const compor = vi.fn(
+    (escrita: boolean, _identidade: () => { usuario_id: string; session_id: string } | null) =>
+      createElement(TelaDeTeste, { escrita }),
   );
   const acessoPerdido = vi.fn();
   const iniciar = () =>
-    montarTarefasComDisponibilidade(raiz, paciente, {
-      identidadeAtual: () => estado.identidade,
-      casoAtual: () => estado.caso,
-      consultarDisponibilidade,
-      montar,
-      acessoPerdido,
-    });
-  return { raiz, estado, consultarDisponibilidade, montar, acessoPerdido, desmontarTela, iniciar };
+    render(
+      createElement(TarefasComDisponibilidade, {
+        pacienteId: paciente,
+        portas: {
+          identidadeAtual: () => estado.identidade,
+          casoAtual: () => estado.caso,
+          consultarDisponibilidade,
+          compor,
+          acessoPerdido,
+        },
+      }),
+      { container: raiz },
+    ).unmount;
+  return { raiz, estado, consultarDisponibilidade, compor, acessoPerdido, desmontarTela, iniciar };
 }
 
 it('inicia fechado e monta somente leitura quando servidor responde false', async () => {
   const p = preparar();
   p.iniciar();
   expect(p.raiz.textContent).toContain('Conferindo disponibilidade');
-  expect(p.montar).not.toHaveBeenCalled();
+  expect(p.compor).not.toHaveBeenCalled();
   await esperar();
   expect(p.consultarDisponibilidade).toHaveBeenCalledWith(paciente);
-  expect(p.montar).toHaveBeenCalledWith(expect.any(HTMLElement), false, expect.any(Function));
+  expect(p.compor).toHaveBeenCalledWith(false, expect.any(Function));
   expect(p.raiz.textContent).toContain('indisponíveis neste caso');
 });
 
@@ -47,8 +56,8 @@ it('habilita montagem com ciclo apenas após true do mesmo caso e sessão', asyn
   p.consultarDisponibilidade.mockResolvedValue({ escrita_disponivel: true });
   p.iniciar();
   await esperar();
-  expect(p.montar).toHaveBeenCalledWith(expect.any(HTMLElement), true, expect.any(Function));
-  const identidadeDoCiclo = p.montar.mock.calls[0]?.[2];
+  expect(p.compor).toHaveBeenCalledWith(true, expect.any(Function));
+  const identidadeDoCiclo = p.compor.mock.calls[0]?.[1];
   expect(identidadeDoCiclo?.()).toEqual(p.estado.identidade);
   p.estado.caso = outro;
   expect(identidadeDoCiclo?.()).toBeNull();
@@ -63,11 +72,11 @@ it('falha mantém leitura e oferece nova tentativa, sem falso true', async () =>
   p.consultarDisponibilidade.mockResolvedValue({ escrita_disponivel: true });
   p.iniciar();
   await esperar();
-  expect(p.montar.mock.calls[0]?.[1]).toBe(false);
+  expect(p.compor.mock.calls[0]?.[0]).toBe(false);
   expect(p.raiz.textContent).toContain('Não foi possível conferir');
   p.raiz.querySelector('button')?.click();
-  await esperar();
-  expect(p.montar.mock.calls[1]?.[1]).toBe(true);
+  await vi.waitFor(() => expect(p.raiz.textContent).toContain('Leitura e escrita'));
+  expect(p.compor.mock.calls[1]?.[0]).toBe(true);
   expect(p.desmontarTela).toHaveBeenCalledOnce();
 });
 
@@ -86,7 +95,7 @@ for (const troca of ['caso', 'identidade'] as const) {
     else p.estado.identidade = { usuario_id: outro, session_id: outro };
     resolver({ escrita_disponivel: true });
     await esperar();
-    expect(p.montar).not.toHaveBeenCalled();
+    expect(p.compor).not.toHaveBeenCalled();
     if (troca === 'caso') expect(p.acessoPerdido).not.toHaveBeenCalled();
     else expect(p.acessoPerdido).toHaveBeenCalledOnce();
   });
@@ -97,7 +106,7 @@ it('descarte ignora resposta atrasada e invalida identidade entregue ao ciclo', 
   p.consultarDisponibilidade.mockResolvedValue({ escrita_disponivel: true });
   const desmontar = p.iniciar();
   await esperar();
-  const identidadeDoCiclo = p.montar.mock.calls[0]?.[2];
+  const identidadeDoCiclo = p.compor.mock.calls[0]?.[1];
   expect(identidadeDoCiclo?.()).not.toBeNull();
   desmontar();
   expect(identidadeDoCiclo?.()).toBeNull();
@@ -114,6 +123,6 @@ it('descarte ignora resposta atrasada e invalida identidade entregue ao ciclo', 
   descartar();
   resolver({ escrita_disponivel: true });
   await esperar();
-  expect(atrasada.montar).not.toHaveBeenCalled();
+  expect(atrasada.compor).not.toHaveBeenCalled();
   expect(atrasada.raiz.childElementCount).toBe(0);
 });
