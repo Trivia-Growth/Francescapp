@@ -2949,6 +2949,9 @@ label > .loading-indicator {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  /* As abas e o painel moram no mesmo contêiner de Radix: o respiro que antes vinha do
+     `gap` de `.financeiro` agora é do painel. */
+  padding-top: 1rem;
 }
 .financeiro__formulario {
   display: flex;

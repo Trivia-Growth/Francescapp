@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import { formatarCentavos, lerCentavos, montarFinanceiro } from './financeiro';
+import { createElement, StrictMode } from 'react';
+import { fireEvent, render } from '@testing-library/react';
+import { formatarCentavos, lerCentavos, TelaFinanceiro } from './financeiro';
 import { criarAudienciaFinanceira } from './financeiro-audiencia';
 import { FalhaApi } from './api';
 import type { ServicoFinanceiro } from './servico-financeiro-http';
@@ -22,6 +24,30 @@ function servicoFalso(parcial: Partial<ServicoFinanceiro> = {}): ServicoFinancei
     consultarApuracao: vi.fn(),
     ...parcial,
   } as unknown as ServicoFinanceiro;
+}
+
+function montarEstrito(raiz: HTMLElement, servico: ServicoFinanceiro) {
+  document.body.append(raiz);
+  return render(createElement(StrictMode, null, createElement(TelaFinanceiro, { servico })), {
+    container: raiz,
+  }).unmount;
+}
+
+function montarFinanceiro(
+  raiz: HTMLElement,
+  servico: ServicoFinanceiro,
+  contexto: { profissionalPadrao?: string; casoPadrao?: string } = {},
+) {
+  document.body.append(raiz);
+  return render(createElement(TelaFinanceiro, { servico, ...contexto }), { container: raiz })
+    .unmount;
+}
+
+/** Radix ativa a aba no `mousedown` (e no foco), não no `click`. */
+function abrirAba(raiz: HTMLElement, nome: string) {
+  const aba = [...raiz.querySelectorAll('[role="tab"]')].find((item) => item.textContent === nome);
+  if (!aba) throw new Error(`Aba ausente: ${nome}`);
+  fireEvent.mouseDown(aba, { button: 0, ctrlKey: false });
 }
 
 function botao(raiz: HTMLElement, texto: string): HTMLButtonElement {
@@ -104,9 +130,129 @@ describe('estados das telas financeiras (tarefa 4.1)', () => {
       profissionalPadrao: profissional,
     });
     botao(raiz, 'Consultar valores').click();
-    await vi.waitFor(() => expect(raiz.textContent).toContain('por turno'));
+    await vi.waitFor(() => expect(raiz.textContent).toContain('Combinado fictício'));
     expect(raiz.textContent?.replace(/ /g, ' ')).toContain('R$ 200,00 por turno');
     expect(raiz.textContent).toContain('Combinado fictício');
+  });
+
+  it('resposta atrasada não pinta outra aba nem painel desmontado', async () => {
+    const raiz = document.createElement('div');
+    let liberar: (valor: unknown[]) => void = () => {};
+    const listarValores = vi.fn(
+      () =>
+        new Promise<unknown[]>((resolve) => {
+          liberar = resolve;
+        }),
+    );
+    const desmontar = montarFinanceiro(
+      raiz,
+      servicoFalso({ listarValores } as unknown as Partial<ServicoFinanceiro>),
+      { profissionalPadrao: profissional },
+    );
+    botao(raiz, 'Consultar valores').click();
+    await vi.waitFor(() => expect(raiz.textContent).toContain('Consultando valores combinados…'));
+    abrirAba(raiz, 'Apuração');
+    await vi.waitFor(() => expect(raiz.textContent).toContain('Apurar período'));
+    // Volta à aba: é outro painel, sem a consulta anterior.
+    abrirAba(raiz, 'Valor por turno');
+    await vi.waitFor(() => expect(raiz.textContent).not.toContain('Consultando valores'));
+    liberar([
+      {
+        valor_id: '40000000-0000-4000-8000-000000000004',
+        profissional_usuario_id: profissional,
+        valor_turno_centavos: 99_900,
+        vigencia: { inicio: '2026-11-01', fim: null },
+        motivo: 'Resposta atrasada fictícia',
+      },
+    ]);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(raiz.textContent).not.toContain('Resposta atrasada fictícia');
+    expect(raiz.textContent).not.toMatch(/R\$/);
+    desmontar();
+    expect(raiz.textContent).toBe('');
+  });
+
+  it('consulta mais antiga que volta depois da mais nova não sobrescreve a lista', async () => {
+    const raiz = document.createElement('div');
+    const valor = (texto: string, centavos: number) => ({
+      valor_id: '40000000-0000-4000-8000-000000000004',
+      profissional_usuario_id: profissional,
+      valor_turno_centavos: centavos,
+      vigencia: { inicio: '2026-11-01', fim: null },
+      motivo: texto,
+    });
+    let liberarAntiga: (valores: unknown[]) => void = () => {};
+    const listarValores = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<unknown[]>((resolve) => {
+            liberarAntiga = resolve;
+          }),
+      )
+      .mockResolvedValue([valor('Lista nova fictícia', 20_000)]);
+    const registrarValor = vi.fn(async () => valor('Registrado', 20_000));
+    montarFinanceiro(
+      raiz,
+      servicoFalso({ listarValores, registrarValor } as unknown as Partial<ServicoFinanceiro>),
+      { profissionalPadrao: profissional },
+    );
+    botao(raiz, 'Consultar valores').click();
+    await vi.waitFor(() => expect(raiz.textContent).toContain('Consultando valores combinados…'));
+    // Gravar um valor relê a lista enquanto a consulta anterior ainda não voltou.
+    const formulario = [...raiz.querySelectorAll('form')].at(-1) as HTMLFormElement;
+    const texto = [...formulario.querySelectorAll('input[type="text"]')] as HTMLInputElement[];
+    const porRotulo = (rotulo: string) =>
+      texto.find(
+        (item) => formulario.querySelector(`label[for="${item.id}"]`)?.textContent === rotulo,
+      );
+    (porRotulo('Valor por turno') as HTMLInputElement).value = '200,00';
+    (porRotulo('Motivo') as HTMLInputElement).value = 'Motivo fictício';
+    (formulario.querySelector('input[type="date"]') as HTMLInputElement).value = '2026-11-01';
+    formulario.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    await vi.waitFor(() => expect(raiz.textContent).toContain('Lista nova fictícia'));
+    liberarAntiga([valor('Lista antiga fictícia', 10_000)]);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(raiz.textContent).toContain('Lista nova fictícia');
+    expect(raiz.textContent).not.toContain('Lista antiga fictícia');
+  });
+
+  it('consulta funciona depois de o painel ser desmontado e remontado (modo estrito)', async () => {
+    const raiz = document.createElement('div');
+    const listarValores = vi.fn(async () => []);
+    montarEstrito(raiz, servicoFalso({ listarValores } as Partial<ServicoFinanceiro>));
+    botao(raiz, 'Consultar valores').click();
+    await vi.waitFor(() =>
+      expect(raiz.textContent).toContain('Nenhum valor combinado registrado para esta pessoa.'),
+    );
+    expect(listarValores).toHaveBeenCalledTimes(1);
+  });
+
+  it('apuração com falha depois de um sucesso não mantém o total anterior', async () => {
+    const raiz = document.createElement('div');
+    const consultarApuracao = vi
+      .fn()
+      .mockResolvedValueOnce({
+        origem: 'consulta_aberta' as const,
+        consultado_em: '2026-11-19T12:00:10.000Z',
+        profissional_usuario_id: profissional,
+        periodo_inicio: '2026-11-01',
+        periodo_fim: '2026-11-30',
+        linhas: [],
+        total_centavos: 12_300,
+        pendentes: 0,
+      })
+      .mockRejectedValueOnce(new FalhaApi('servico_indisponivel'));
+    montarFinanceiro(raiz, servicoFalso({ consultarApuracao } as Partial<ServicoFinanceiro>));
+    abrirAba(raiz, 'Apuração');
+    botao(raiz, 'Apurar período').click();
+    await vi.waitFor(() => expect(raiz.textContent).toContain('Total R$'));
+    botao(raiz, 'Apurar período').click();
+    await vi.waitFor(() =>
+      expect(raiz.textContent).toContain('Não foi possível apurar o período.'),
+    );
+    expect(raiz.textContent).not.toContain('Total');
+    expect(raiz.textContent).not.toMatch(/R\$/);
   });
 
   it('a apuração não mostra total antes da consulta e mostra o instante depois', async () => {
@@ -124,7 +270,7 @@ describe('estados das telas financeiras (tarefa 4.1)', () => {
     montarFinanceiro(raiz, servicoFalso({ consultarApuracao } as Partial<ServicoFinanceiro>), {
       profissionalPadrao: profissional,
     });
-    botao(raiz, 'Apuração').click();
+    abrirAba(raiz, 'Apuração');
     expect(raiz.textContent).not.toMatch(/R\$/);
     botao(raiz, 'Apurar período').click();
     await vi.waitFor(() => expect(raiz.textContent).toContain('2026-11-19T12:00:10.000Z'));
@@ -137,7 +283,7 @@ describe('falha de persistência na despesa na interface (tarefa 2.7)', () => {
     const raiz = document.createElement('div');
     const servico = servicoFalso({ registrarDespesa });
     montarFinanceiro(raiz, servico, { casoPadrao: caso });
-    botao(raiz, 'Despesas do caso').click();
+    abrirAba(raiz, 'Despesas do caso');
     const formulario = [...raiz.querySelectorAll('form')].at(-1) as HTMLFormElement;
     const entradas = [...formulario.querySelectorAll('input')];
     const porRotulo = (texto: string) =>
@@ -198,6 +344,29 @@ describe('falha de persistência na despesa na interface (tarefa 2.7)', () => {
     expect(chamadas[0]?.chave).toBe(chamadas[1]?.chave);
   });
 
+  it('a aba não troca durante a gravação da despesa', async () => {
+    let liberar: (valor: unknown) => void = () => {};
+    const chamadas: { despesa_id: string; chave: string }[] = [];
+    const registrarDespesa = vi.fn(
+      (entrada: { despesa_id: string }, chave: string) =>
+        new Promise((resolve) => {
+          chamadas.push({ despesa_id: entrada.despesa_id, chave });
+          liberar = resolve;
+        }),
+    ) as unknown as ServicoFinanceiro['registrarDespesa'];
+    const { raiz, formulario } = prepararDespesa(registrarDespesa);
+    formulario.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    await vi.waitFor(() => expect(chamadas).toHaveLength(1));
+    const outra = [...raiz.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
+      (item) => item.textContent === 'Apuração',
+    );
+    await vi.waitFor(() => expect(outra?.disabled).toBe(true));
+    abrirAba(raiz, 'Apuração');
+    expect(raiz.textContent).toContain('Registrando despesa…');
+    expect(raiz.textContent).not.toContain('Apurar período');
+    liberar(undefined);
+  });
+
   it('sem_permissao não oferece repetição', async () => {
     const registrarDespesa = vi
       .fn()
@@ -214,6 +383,37 @@ describe('falha de persistência na despesa na interface (tarefa 2.7)', () => {
 });
 
 describe('audiência financeira na interface (tarefa 4.2)', () => {
+  it('renovar na mesma sessão revoga e avisa; a audiência vale até a resposta chegar', async () => {
+    let resposta = true;
+    let liberar: () => void = () => {};
+    const aoMudar = vi.fn();
+    const audiencia = criarAudienciaFinanceira(async () => {
+      const valor = resposta;
+      await new Promise<void>((resolve) => {
+        liberar = resolve;
+      });
+      return valor;
+    }, aoMudar);
+    audiencia.sondar({ session_id: 's6', perfil: 'profissional' });
+    liberar();
+    await vi.waitFor(() => expect(audiencia.permitidaPara('s6')).toBe(true));
+    aoMudar.mockClear();
+    resposta = false;
+    audiencia.sondar({ session_id: 's6', perfil: 'profissional' }, true);
+    expect(audiencia.permitidaPara('s6')).toBe(true);
+    liberar();
+    await vi.waitFor(() => expect(aoMudar).toHaveBeenCalledTimes(1));
+    expect(audiencia.permitidaPara('s6')).toBe(false);
+  });
+
+  it('sem renovar, a sessão já sondada não pergunta de novo', async () => {
+    const consultar = vi.fn(async () => true);
+    const audiencia = criarAudienciaFinanceira(consultar, () => {});
+    audiencia.sondar({ session_id: 's7', perfil: 'profissional' });
+    audiencia.sondar({ session_id: 's7', perfil: 'profissional' });
+    expect(consultar).toHaveBeenCalledTimes(1);
+  });
+
   // Isto SOMA aos testes de servidor (`netlify/functions/_shared/financeiro-nativo.test.ts`)
   // e de banco (`supabase/tests/financeiro_*_local.sql`). Ocultar a área NÃO é autorização:
   // a autorização continua no servidor e no banco, e estes casos só provam que a superfície
@@ -281,7 +481,7 @@ describe('conforto no celular (tarefa 4.3)', () => {
     expect(valor?.type).toBe('text');
     // Alvo de toque e foco visível vêm de `.financeiro__*` em `styles.css` (min-height 44px
     // e o `:focus-visible` global); aqui se prova que a tela usa essas classes.
-    expect(raiz.querySelector('.financeiro__aba')).not.toBeNull();
+    expect(raiz.querySelector('[role="tab"]')).not.toBeNull();
     expect(raiz.querySelector('.financeiro__campo')).not.toBeNull();
   });
 

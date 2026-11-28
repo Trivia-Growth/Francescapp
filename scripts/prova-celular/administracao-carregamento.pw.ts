@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { envelope } from '../../web/fixtures/comum.js';
+import { envelope, id } from '../../web/fixtures/comum.js';
 import { responder } from '../../web/fixtures/despachante.js';
 import { sessaoAdministrador } from '../../web/fixtures/sessao.js';
 
@@ -130,7 +130,7 @@ test('perda de audiência enquanto o módulo carrega encerra o estado ocupado', 
       }`,
     }),
   );
-  await page.route('**/web/financeiro.ts', async (rota) => {
+  await page.route('**/web/financeiro.tsx', async (rota) => {
     await espera;
     await rota.continue();
   });
@@ -140,7 +140,7 @@ test('perda de audiência enquanto o módulo carrega encerra o estado ocupado', 
       ? rota.fulfill({ json: fixture })
       : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
   });
-  const modulo = page.waitForRequest('**/web/financeiro.ts');
+  const modulo = page.waitForRequest('**/web/financeiro.tsx');
   await page.goto('/web/index.html#administracao/financeiro');
   const painel = page.locator('#administracao-conteudo');
   try {
@@ -153,4 +153,146 @@ test('perda de audiência enquanto o módulo carrega encerra o estado ocupado', 
   await expect(page).toHaveURL(/#carteira$/);
   await expect(painel).not.toHaveAttribute('aria-busy', 'true');
   await expect(painel).toBeEmpty();
+});
+
+test('resposta atrasada do Financeiro não pinta a área para onde a pessoa foi', async ({
+  page,
+}) => {
+  let liberarResposta = () => {};
+  const espera = new Promise<void>((resolver) => {
+    liberarResposta = resolver;
+  });
+  let valoresPedidos = 0;
+  await page.route('**/api/**', async (rota) => {
+    const url = new URL(rota.request().url());
+    if (url.pathname.endsWith('/valores-acordados')) {
+      valoresPedidos += 1;
+      await espera;
+      return rota.fulfill({
+        json: envelope([
+          {
+            valor_id: id(40, 1),
+            profissional_usuario_id: id(10, 2),
+            valor_turno_centavos: 99_900,
+            vigencia: { inicio: '2026-11-01', fim: null },
+            motivo: 'Resposta atrasada fictícia',
+          },
+        ]),
+      });
+    }
+    const fixture = responder(url.href);
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  await page.goto('/web/index.html#administracao/financeiro');
+  const painel = page.locator('#administracao-conteudo');
+  await expect(painel).toContainText('Financeiro do cuidado');
+  await painel.getByLabel('Profissional (identificador)').fill(id(10, 2));
+  await painel.getByRole('button', { name: 'Consultar valores' }).click();
+  await expect(painel.getByRole('status').first()).toContainText('Consultando valores');
+  expect(valoresPedidos).toBe(1);
+  await page.getByRole('link', { name: 'Equipe', exact: true }).click();
+  await expect(painel).toContainText('Convidar alguém');
+  liberarResposta();
+  // Dá tempo à resposta atrasada de chegar e, se pudesse, de pintar.
+  await page.evaluate(() => new Promise((resolver) => setTimeout(resolver, 300)));
+  await expect(painel).not.toContainText('Resposta atrasada fictícia');
+  await expect(painel).not.toContainText('Financeiro do cuidado');
+  await expect(painel).toContainText('Convidar alguém');
+});
+
+test('trocar de aba com a despesa em envio não perde o aviso nem muda o lançamento', async ({
+  page,
+}) => {
+  const envios: { despesa_id: string }[] = [];
+  let recusarEnvio = () => {};
+  const espera = new Promise<void>((resolver) => {
+    recusarEnvio = resolver;
+  });
+  await page.route('**/api/**', async (rota) => {
+    const url = new URL(rota.request().url());
+    if (url.pathname === '/api/financeiro/despesas' && rota.request().method() === 'POST') {
+      envios.push(rota.request().postDataJSON());
+      if (envios.length === 1) await espera;
+      return rota.fulfill({ status: 503, json: { codigo: 'servico_indisponivel' } });
+    }
+    const fixture = responder(url.href);
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  await page.goto('/web/index.html#administracao/financeiro');
+  const painel = page.locator('#administracao-conteudo');
+  await painel.getByRole('tab', { name: 'Despesas do caso' }).click();
+  await painel.getByLabel('Caso (identificador)').fill(id(10, 3));
+  await painel.getByLabel('Descrição').fill('Transporte fictício');
+  await painel.getByLabel('Valor', { exact: true }).fill('12,34');
+  await painel.getByLabel('Data', { exact: true }).fill('10/11/2026');
+  await painel.getByLabel('Responsável (identificador)').fill(id(10, 2));
+  await painel.getByLabel('Autorização aplicável').fill('Autorização fictícia');
+  await painel
+    .getByLabel('Comprovante')
+    .setInputFiles({ name: 'c.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') });
+  await painel.getByRole('button', { name: 'Registrar despesa' }).click();
+  await expect(painel).toContainText('Registrando despesa…');
+  // Seta do teclado na aba ativa: não pode levar a outra aba enquanto grava.
+  await painel.getByRole('tab', { name: 'Despesas do caso' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(painel.getByRole('tab', { name: 'Apuração' })).toBeDisabled();
+  await expect(painel).toContainText('Registrando despesa…');
+  await expect(painel.getByRole('tab', { name: 'Despesas do caso' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  recusarEnvio();
+  await expect(painel).toContainText('A despesa não foi salva.');
+  await expect(painel.getByRole('tab', { name: 'Apuração' })).toBeEnabled();
+  await painel.getByRole('button', { name: 'Tentar de novo este mesmo lançamento' }).click();
+  await expect.poll(() => envios.length).toBe(2);
+  expect(envios[1]?.despesa_id).toBe(envios[0]?.despesa_id);
+});
+
+test('audiência revogada com o Financeiro aberto desmonta o painel e volta à Carteira', async ({
+  page,
+}) => {
+  let permitida = true;
+  let sondagens = 0;
+  await page.route('**/api/**', (rota) => {
+    const url = new URL(rota.request().url());
+    if (url.pathname === '/api/financeiro/audiencia') {
+      sondagens += 1;
+      return rota.fulfill({ json: envelope({ permitida }) });
+    }
+    if (url.pathname.endsWith('/valores-acordados'))
+      return rota.fulfill({
+        json: envelope([
+          {
+            valor_id: id(40, 1),
+            profissional_usuario_id: id(10, 2),
+            valor_turno_centavos: 77_700,
+            vigencia: { inicio: '2026-11-01', fim: null },
+            motivo: 'Valor fictício visível',
+            autor_usuario_id: id(10, 2),
+            registrado_em: '2026-11-01T12:00:00.000Z',
+          },
+        ]),
+      });
+    const fixture = responder(url.href);
+    return fixture
+      ? rota.fulfill({ json: fixture })
+      : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
+  });
+  await page.goto('/web/index.html#administracao/financeiro');
+  const painel = page.locator('#administracao-conteudo');
+  await painel.getByLabel('Profissional (identificador)').fill(id(10, 2));
+  await painel.getByRole('button', { name: 'Consultar valores' }).click();
+  await expect(painel).toContainText('Valor fictício visível');
+  const antes = sondagens;
+  permitida = false;
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(page).toHaveURL(/#carteira$/);
+  await expect(painel).toBeEmpty();
+  await expect(page.getByText('Valor fictício visível')).toHaveCount(0);
+  expect(sondagens).toBeGreaterThan(antes);
 });

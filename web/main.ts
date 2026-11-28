@@ -1669,6 +1669,8 @@ const audienciaFinanceira = criarAudienciaFinanceira(
     const atual = sessao;
     if (!atual) return;
     casca.atualizarNavegacao({ administracao: areasDisponiveis(atual).length > 0 });
+    // Audiência revogada com o Financeiro já aberto: o painel e os dados saem da tela.
+    descartarAreaNaoPermitida(areasDisponiveis(atual));
   },
 );
 
@@ -1810,10 +1812,10 @@ const areasAdministracao: AreaAdministracao[] = [
     rotulo: 'Financeiro',
     disponivel: (atual) =>
       atual.usuario.perfil !== 'familia' && audienciaFinanceira.permitidaPara(atual.session_id),
-    carregar: async () => {
-      const { montarFinanceiro } = await import('./financeiro.js');
-      return (raiz) => montarFinanceiro(raiz, criarServicoFinanceiroHttp(identidadeAtual));
-    },
+    carregar: async () =>
+      createElement((await import('./financeiro.js')).TelaFinanceiro, {
+        servico: criarServicoFinanceiroHttp(identidadeAtual),
+      }),
   },
   {
     id: 'auditoria',
@@ -1852,6 +1854,16 @@ function areasDisponiveis(atual: Sessao): AreaAdministracao[] {
 
 let painelAdministracao: { area: string; desmontar: () => void } | null = null;
 let vistaReact: 'home' | 'regras' | null = null;
+
+/** A área aberta que já não consta entre as permitidas é desmontada e a pessoa volta à
+ * Carteira, no mesmo passo em que a autorização muda. */
+function descartarAreaNaoPermitida(permitidas: AreaAdministracao[]): void {
+  if (!painelAdministracao || permitidas.some((area) => area.id === painelAdministracao?.area))
+    return;
+  fecharAdministracao();
+  trocarRota('#carteira');
+  mostrarCarteira();
+}
 
 function fecharAdministracao(): void {
   painelAdministracao?.desmontar();
@@ -2107,10 +2119,12 @@ function aplicarSessao(atual: Sessao): boolean {
     aviso('workspace-feedback', 'Seu acesso foi atualizado. Abra a ficha novamente.');
   }
   sessao = atual;
-  audienciaFinanceira.sondar({
-    session_id: atual.session_id,
-    perfil: atual.usuario.perfil,
-  });
+  // Com o Financeiro aberto, cada revalidação confere a audiência de novo: ela é concessão
+  // e pode ser revogada sem mudar a sessão.
+  audienciaFinanceira.sondar(
+    { session_id: atual.session_id, perfil: atual.usuario.perfil },
+    painelAdministracao?.area === 'financeiro',
+  );
   let acessoGoogle = false;
   try {
     acessoGoogle = sessionStorage.getItem('modo-acesso') === 'google';
@@ -2199,14 +2213,7 @@ function aplicarSessao(atual: Sessao): boolean {
         }
       : null,
   });
-  if (
-    painelAdministracao &&
-    !areasPermitidas.some((area) => area.id === painelAdministracao?.area)
-  ) {
-    fecharAdministracao();
-    trocarRota('#carteira');
-    mostrarCarteira();
-  }
+  descartarAreaNaoPermitida(areasPermitidas);
   registration.hidden = !podeCadastrar;
   newPatientLink.hidden = !podeCadastrar;
   elemento('workspace').classList.toggle('with-registration', podeCadastrar);
