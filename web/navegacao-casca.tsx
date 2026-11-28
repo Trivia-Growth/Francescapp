@@ -93,6 +93,7 @@ export function NavegacaoCasca({
 }) {
   const [recolhida, definirRecolhida] = useState(preferenciaRecolhida);
   const [aberta, definirAberta] = useState(false);
+  const [focoPorTeclado, definirFocoPorTeclado] = useState(false);
   const menu = useRef<HTMLButtonElement>(null);
   const recolher = useRef<HTMLButtonElement>(null);
   const gaveta = useRef<HTMLDivElement>(null);
@@ -143,6 +144,18 @@ export function NavegacaoCasca({
   useEffect(() => {
     if (!estreita || !estado.visivel) definirAberta(false);
   }, [estreita, estado.visivel]);
+
+  useEffect(() => {
+    // :focus-visible também pode casar no foco programático antes de qualquer interação.
+    const porTecla = () => definirFocoPorTeclado(true);
+    const porPonteiro = () => definirFocoPorTeclado(false);
+    document.addEventListener('keydown', porTecla, true);
+    document.addEventListener('pointerdown', porPonteiro, true);
+    return () => {
+      document.removeEventListener('keydown', porTecla, true);
+      document.removeEventListener('pointerdown', porPonteiro, true);
+    };
+  }, []);
 
   useImperativeHandle(
     comando,
@@ -228,7 +241,7 @@ export function NavegacaoCasca({
               </button>
             </Dialog.Trigger>
           ) : null}
-          <h1 id="titulo-casca" tabIndex={-1}>
+          <h1 id="titulo-casca" tabIndex={-1} data-foco-teclado={focoPorTeclado || undefined}>
             {titulo}
           </h1>
           <div id="session-actions" className="casca-acoes">

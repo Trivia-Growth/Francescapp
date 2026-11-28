@@ -1,9 +1,14 @@
+import { ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import type { FiltrosCarteira, PacienteLista } from '../packages/contracts/src/cadastro.js';
 import { avisoSinalOperacional } from '../packages/contracts/src/pendencia.js';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
-import { Botao } from './componentes/ui/botao.js';
+import { Botao, classesBotao } from './componentes/ui/botao.js';
+import { Esqueleto } from './componentes/ui/esqueleto.js';
+import { EstadoErro } from './componentes/ui/estado-erro.js';
+import { EstadoVazio } from './componentes/ui/estado-vazio.js';
+import { ListaRotulada } from './componentes/ui/tabela.js';
 import { hashFicha } from './ficha-paciente.js';
 
 export type PaginaCarteira = {
@@ -24,37 +29,84 @@ function frase(quantidade: number, singular: string, plural: string): string {
   return quantidade === 1 ? singular : plural.replace('{n}', String(quantidade));
 }
 
-/** Linha de um caso que pede atenção.
- *
- * O destino do link é a aba que resolve o motivo, não a ficha genérica: quem abre a home
- * entre dois atendimentos não deveria precisar caçar a aba certa depois de clicar. */
-function LinhaCaso({ paciente, secao }: { paciente: PacienteLista; secao: string }) {
+/** O link leva direto à aba que resolve o motivo, inclusive ao abrir em outra guia. */
+function LinkCaso({ paciente }: { paciente: PacienteLista }) {
   const motivos = paciente.sinal?.motivos ?? [];
   return (
-    <li className="home-caso">
-      <a className="home-caso-link" href={hashFicha(paciente.id, secao)}>
-        <span className="home-caso-nome">{nomeVisivel(paciente)}</span>
-        {motivos.length > 0 ? (
-          <ul className="home-caso-motivos">
+    <a
+      className="flex min-h-alvo-toque min-w-0 items-center justify-between gap-sistema-3 rounded-sistema-controle text-sistema-texto no-underline hover:bg-sistema-hoje focus-visible:outline-sistema-foco focus-visible:[outline-width:var(--espessura-foco)] focus-visible:[outline-offset:var(--recuo-foco)]"
+      href={hashFicha(paciente.id, 'pendencias')}
+    >
+      <div className="grid min-w-0 gap-sistema-1 wrap-anywhere">
+        <span className="text-item">{nomeVisivel(paciente)}</span>
+        {motivos.length ? (
+          <ul className="m-0 grid list-none gap-sistema-1 p-0 text-meta text-sistema-texto-secundario">
             {motivos.map((motivo) => (
               <li key={motivo}>{motivo}</li>
             ))}
           </ul>
         ) : null}
-        <span className="home-caso-seta" aria-hidden="true" />
-      </a>
-    </li>
+      </div>
+      <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-sistema-acao" />
+    </a>
+  );
+}
+
+function CasosDoDia({
+  pacientes,
+  rotulo,
+  aviso,
+}: {
+  pacientes: readonly PacienteLista[];
+  rotulo: string;
+  aviso: string;
+}) {
+  return (
+    <div className="min-w-0 rounded-superficie bg-sistema-superficie px-sistema-4 pt-sistema-4 shadow-cartao lateral:px-sistema-5 lateral:pt-sistema-5">
+      <p className="m-0 max-w-texto text-corpo text-sistema-texto-secundario">{aviso}</p>
+      <ListaRotulada
+        itens={pacientes}
+        rotulo={rotulo}
+        chave={(paciente) => paciente.id}
+        colunas={[{ titulo: 'Pessoa', celula: (paciente) => <LinkCaso paciente={paciente} /> }]}
+      />
+    </div>
+  );
+}
+
+function SecaoDoDia({
+  id,
+  titulo,
+  nivel,
+  children,
+}: {
+  id: string;
+  titulo: string;
+  nivel: 1 | 2;
+  children: ReactNode;
+}) {
+  const Subtitulo = nivel === 2 ? 'h3' : 'h2';
+  return (
+    <section className="grid min-w-0 gap-sistema-3" aria-labelledby={id} data-bloco={titulo}>
+      <Subtitulo id={id} className="m-0 font-serifada text-secao">
+        {titulo}
+      </Subtitulo>
+      {children}
+    </section>
   );
 }
 
 function BlocoFalha({ erro, repetir }: { erro: unknown; repetir: () => void }) {
   return (
-    <div className="home-falha">
-      <p data-tone="error">{`${mensagemFalha(erro)} Esta leitura não foi carregada.`}</p>
-      <Botao peso="secundario" aoAtivar={repetir}>
-        Tentar novamente
-      </Botao>
-    </div>
+    <EstadoErro
+      titulo="Esta leitura não foi carregada."
+      texto={mensagemFalha(erro)}
+      acao={
+        <Botao peso="secundario" aoAtivar={repetir}>
+          Tentar novamente
+        </Botao>
+      }
+    />
   );
 }
 
@@ -158,14 +210,12 @@ export function TelaHomeProfissional({
         saudacao = 'Nada precisa de você agora';
         // A agenda não é lida aqui: afirmar que "os compromissos estão em dia" seria uma
         // conclusão sem fonte. O que esta leitura sabe é só a ausência de pendência na carteira.
-        apoio = 'Nenhum caso com pendência aberta no seu acesso.';
         blocos.push(
-          <div key="sereno" className="home-sereno">
-            <p>
-              Quando algo precisar de atenção, aparece aqui primeiro, com o motivo e o caminho
-              direto para o caso.
-            </p>
-          </div>,
+          <EstadoVazio
+            key="sereno"
+            titulo="Nenhum caso com pendência aberta no seu acesso."
+            texto="Quando algo precisar de atenção, aparece aqui primeiro, com o motivo e o caminho direto para o caso."
+          />,
         );
       } else {
         saudacao = frase(casos.length, 'Um caso precisa de você', '{n} casos precisam de você');
@@ -173,43 +223,31 @@ export function TelaHomeProfissional({
           ? 'Os primeiros da fila; abra a lista completa para ver o restante.'
           : 'Em ordem de chegada, com o motivo de cada um.';
         blocos.push(
-          <section
+          <SecaoDoDia
             key="atencao"
-            className="home-bloco"
-            aria-labelledby={idAtencao}
-            data-bloco="Precisa de você agora"
+            id={idAtencao}
+            titulo="Precisa de você agora"
+            nivel={nivelTitulo}
           >
-            <h2 id={idAtencao} className="home-bloco-titulo">
-              Precisa de você agora
-            </h2>
-            <p className="home-aviso">{avisoSinalOperacional}</p>
-            <div className="home-bloco-corpo">
-              <ul className="home-lista">
-                {casos.map((paciente) => (
-                  <LinhaCaso key={paciente.id} paciente={paciente} secao="pendencias" />
-                ))}
-              </ul>
-            </div>
-          </section>,
+            <CasosDoDia
+              pacientes={casos}
+              aviso={avisoSinalOperacional}
+              rotulo="Casos que precisam de atenção"
+            />
+          </SecaoDoDia>,
         );
       }
     } else {
       saudacao = 'Seu dia';
-      apoio = '';
       blocos.push(
-        <section
+        <SecaoDoDia
           key="atencao-falha"
-          className="home-bloco"
-          aria-labelledby={idAtencao}
-          data-bloco="Precisa de você agora"
+          id={idAtencao}
+          titulo="Precisa de você agora"
+          nivel={nivelTitulo}
         >
-          <h2 id={idAtencao} className="home-bloco-titulo">
-            Precisa de você agora
-          </h2>
-          <div className="home-bloco-corpo">
-            <BlocoFalha erro={atencao.reason} repetir={() => void carregar()} />
-          </div>
-        </section>,
+          <BlocoFalha erro={atencao.reason} repetir={() => void carregar()} />
+        </SecaoDoDia>,
       );
     }
 
@@ -219,27 +257,18 @@ export function TelaHomeProfissional({
       );
       if (semAcordo.length > 0) {
         blocos.push(
-          <section
+          <SecaoDoDia
             key="semacordo"
-            className="home-bloco"
-            aria-labelledby={idSemAcordo}
-            data-bloco="Esperando combinar"
+            id={idSemAcordo}
+            titulo="Esperando combinar"
+            nivel={nivelTitulo}
           >
-            <h2 id={idSemAcordo} className="home-bloco-titulo">
-              Esperando combinar
-            </h2>
-            <p className="home-aviso">
-              Sem periodicidade acordada o acompanhamento não consegue apontar pendência — ausência
-              de aviso aqui não é sinal de que está tudo bem.
-            </p>
-            <div className="home-bloco-corpo">
-              <ul className="home-lista">
-                {semAcordo.map((paciente) => (
-                  <LinhaCaso key={paciente.id} paciente={paciente} secao="pendencias" />
-                ))}
-              </ul>
-            </div>
-          </section>,
+            <CasosDoDia
+              pacientes={semAcordo}
+              aviso="Sem periodicidade acordada o acompanhamento não consegue apontar pendência — ausência de aviso aqui não é sinal de que está tudo bem."
+              rotulo="Casos sem periodicidade acordada"
+            />
+          </SecaoDoDia>,
         );
       }
       const total = todos.value.itens.length;
@@ -248,56 +277,52 @@ export function TelaHomeProfissional({
         ? `Você acompanha mais de ${total} ${frase(total, 'pessoa', 'pessoas')}.`
         : `Você acompanha ${total} ${frase(total, 'pessoa', 'pessoas')}.`;
       blocos.push(
-        <p key="rodape" className="home-rodape">
-          {`${contagem} `}
-          <a className="home-rodape-link" href="#carteira">
+        <div
+          key="rodape"
+          className="flex flex-wrap items-center justify-between gap-sistema-2 border-t border-sistema-divisor pt-sistema-3"
+        >
+          <p className="m-0 text-corpo text-sistema-texto-secundario">{contagem}</p>
+          <a className={classesBotao({ peso: 'discreto' })} href="#carteira">
             Ver a lista completa
           </a>
-        </p>,
+        </div>,
       );
     } else {
       blocos.push(
-        <section
+        <SecaoDoDia
           key="todos-falha"
-          className="home-bloco"
-          aria-labelledby={idTodosFalha}
-          data-bloco="Suas pessoas acompanhadas"
+          id={idTodosFalha}
+          titulo="Suas pessoas acompanhadas"
+          nivel={nivelTitulo}
         >
-          <h2 id={idTodosFalha} className="home-bloco-titulo">
-            Suas pessoas acompanhadas
-          </h2>
-          <div className="home-bloco-corpo">
-            <BlocoFalha erro={todos.reason} repetir={() => void carregar()} />
-          </div>
-        </section>,
+          <BlocoFalha erro={todos.reason} repetir={() => void carregar()} />
+        </SecaoDoDia>,
       );
     }
   }
 
   const Titulo = nivelTitulo === 2 ? 'h2' : 'h1';
   return (
-    <section className="home" aria-labelledby="home-saudacao">
-      <header className="home-cabecalho">
-        <Titulo id="home-saudacao" className="home-saudacao" tabIndex={-1}>
+    <section className="grid min-w-0 gap-sistema-6" aria-labelledby="home-saudacao">
+      <header className="grid gap-sistema-2">
+        <Titulo
+          id="home-saudacao"
+          className="m-0 font-serifada text-pagina lateral:text-pagina-desktop"
+          tabIndex={-1}
+        >
           {saudacao}
         </Titulo>
-        <p className="home-apoio">{apoio}</p>
+        {apoio ? (
+          <p className="m-0 max-w-texto text-corpo text-sistema-texto-secundario">{apoio}</p>
+        ) : null}
       </header>
       {/* biome-ignore lint/a11y/useSemanticElements: `role="status"` é o gancho que a região viva já usa; repetir aqui o texto do título faria o leitor de tela dizer duas vezes a mesma coisa. */}
       <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">
         {carregando ? 'Carregando o resumo do seu dia.' : 'Resumo do dia atualizado.'}
       </p>
-      <div className="home-corpo" aria-busy={carregando || undefined}>
-        {carregando ? (
-          <div className="list-loading" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
-        ) : (
-          blocos
-        )}
-      </div>
+      <Esqueleto ocupado={carregando} className="grid gap-sistema-6">
+        {blocos}
+      </Esqueleto>
     </section>
   );
 }

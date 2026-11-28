@@ -44,7 +44,7 @@ body:not(:has(#patients-view:not([hidden]))) .footer .chip-ambiente {
   line-height: 1.1;
   text-wrap: balance;
 }
-.casca-topbar h1:focus-visible {
+.casca-topbar h1[data-foco-teclado]:focus-visible {
   outline: var(--espessura-foco) solid var(--color-sistema-foco);
   outline-offset: var(--recuo-foco);
 }
