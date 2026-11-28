@@ -687,6 +687,8 @@ function SecaoExecucaoTurno({
         : createElement(ExecucaoTurno, { pacienteId, turno: null, servico, opcoes }),
     );
     return () => {
+      // A ficha troca o painel com flushSync. Os filhos terminam o desmonte no
+      // mesmo commit em que este cancelamento libera uma resposta pendente.
       ativa = false;
       servico.desmontar();
     };

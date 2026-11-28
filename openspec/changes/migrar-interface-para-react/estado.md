@@ -51,6 +51,13 @@ A tarefa 7.2 permanece aberta.
   verificaram a recusa sem `pode_gerir` e o esvaziamento após revogação.
 - Ao exibir a localização sem a permissão de gestão, a prova encontrou o corpo
   visível e falhou. Alteração revertida.
+- Chromium confirmou que sair de Execução aborta no mesmo evento e que o
+  401 tardio deixa a ficha aberta. Sem `flushSync` na troca de painel, o
+  cancelamento só ocorreu depois do evento e a prova falhou.
+- Nos relatórios da Família, a chave acompanha o componente que cria o
+  serviço. Com a chave apenas no painel, a contraprova em Chromium registrou
+  o serviço do paciente anterior na segunda montagem. Com a chave no dono
+  do serviço, cada montagem recebeu o próprio paciente.
 - Próximo passo: rebase após o squash da fatia anterior e ativação.
 
 ## Fatia 8r do plano visual — Meu turno e Execução do cuidado

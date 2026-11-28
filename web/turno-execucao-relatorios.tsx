@@ -519,15 +519,21 @@ function CampoDeData({
   );
 }
 
-export function RelatoriosTurnoFamilia({
+type PropsRelatoriosTurnoFamilia = Pick<OpcoesRelatorios, 'acessoPerdido' | 'alteracaoPendente'> & {
+  pacienteId: string;
+  identidadeAtual: Parameters<typeof criarServicoTurnoExecucaoHttp>[1];
+};
+
+export function RelatoriosTurnoFamilia(props: PropsRelatoriosTurnoFamilia) {
+  return <RelatoriosTurnoDoPaciente key={props.pacienteId} {...props} />;
+}
+
+function RelatoriosTurnoDoPaciente({
   pacienteId,
   identidadeAtual,
   acessoPerdido,
   alteracaoPendente,
-}: Pick<OpcoesRelatorios, 'acessoPerdido' | 'alteracaoPendente'> & {
-  pacienteId: string;
-  identidadeAtual: Parameters<typeof criarServicoTurnoExecucaoHttp>[1];
-}) {
+}: PropsRelatoriosTurnoFamilia) {
   const [servico, definirServico] = useState<ServicoTurnoExecucao | null>(null);
 
   useLayoutEffect(() => {
@@ -539,7 +545,6 @@ export function RelatoriosTurnoFamilia({
   if (!servico) return null;
   return (
     <RelatoriosTurno
-      key={pacienteId}
       servico={servico}
       familia
       acessoPerdido={acessoPerdido}

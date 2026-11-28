@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import { type Page, expect, test } from '@playwright/test';
 import { type ViteDevServer, createServer } from 'vite';
+import { criarErroPublico } from '../../packages/contracts/src/comum.ts';
 import { conferirAxe } from './axe.ts';
 import { envelope, id } from '../../web/fixtures/comum.ts';
 import { responder } from '../../web/fixtures/despachante.ts';
@@ -183,11 +184,16 @@ test('Execução aguarda a abertura da seção e cancela a reconciliação ao sa
   await page.addInitScript((caminho) => {
     const fetchOriginal = window.fetch.bind(window);
     window.fetch = (entrada, opcoes) => {
-      if (typeof entrada === 'string' && new URL(entrada, location.href).pathname === caminho)
-        opcoes?.signal?.addEventListener('abort', () => {
-          document.body.dataset.reconciliacaoAbortada = 'sim';
-        });
-      return fetchOriginal(entrada, opcoes);
+      if (typeof entrada !== 'string' || new URL(entrada, location.href).pathname !== caminho)
+        return fetchOriginal(entrada, opcoes);
+      opcoes?.signal?.addEventListener('abort', () => {
+        document.body.dataset.reconciliacaoAbortada = 'sim';
+      });
+      // Mantém a resposta no transporte de prova para entregar o 401 após o cancelamento.
+      return fetchOriginal(entrada, { ...opcoes, signal: null }).then((resposta) => {
+        document.body.dataset.reconciliacaoStatus = String(resposta.status);
+        return resposta;
+      });
     };
   }, caminho);
   let liberar = () => {};
@@ -198,7 +204,7 @@ test('Execução aguarda a abertura da seção e cancela a reconciliação ao sa
   await page.route(`**${caminho}`, async (rota) => {
     reconciliacoes += 1;
     await espera;
-    return rota.fulfill({ json: envelope({ epoca: 1, resultado_pendente: null }) });
+    return rota.fulfill({ status: 401, json: criarErroPublico('nao_autenticado', id(99, 1)) });
   });
 
   const painel = page.locator('#ficha-painel');
@@ -213,9 +219,19 @@ test('Execução aguarda a abertura da seção e cancela a reconciliação ao sa
     await page.getByText('Mais seções', { exact: true }).click();
     await page.getByText('Execução e relatórios', { exact: true }).click();
     await pedido;
-    await page.getByRole('tab', { name: 'Visão do caso' }).click();
-    await expect(page.locator('body')).toHaveAttribute('data-reconciliacao-abortada', 'sim');
+    const canceladaNaTroca = await page
+      .getByRole('tab', { name: 'Visão do caso' })
+      .evaluate((aba) => {
+        if (!(aba instanceof HTMLButtonElement)) throw new Error('Aba não interativa.');
+        aba.click();
+        return document.body.dataset.reconciliacaoAbortada;
+      });
+    expect(canceladaNaTroca).toBe('sim');
+    liberar();
+    await expect(page.locator('body')).toHaveAttribute('data-reconciliacao-status', '401');
+    await page.evaluate(() => new Promise(requestAnimationFrame));
     await expect(painel.locator('.ficha-secao')).toHaveAttribute('data-secao', 'visao');
+    await expect(page.locator('#session-actions')).toBeVisible();
   } finally {
     liberar();
   }
