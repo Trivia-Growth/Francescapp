@@ -200,7 +200,7 @@ it('a barra de filtros entrega o recorte escolhido e esconde responsável fora d
       container: raiz,
     },
   );
-  const painel = raiz.querySelector('details.filtros-carteira-painel') as HTMLDetailsElement;
+  const painel = raiz.querySelector('details') as HTMLDetailsElement;
   const resumo = painel.querySelector('summary') as HTMLElement;
   expect(painel.open).toBe(false);
   expect(resumo.textContent).toBe('Filtrar pessoas');
@@ -242,7 +242,7 @@ it('o selo do sinal sempre carrega motivo e o aviso de que não é leitura clín
       sinal: { estado: 'em_dia', motivos: ['Nenhum compromisso operacional em atraso.'] },
     }),
   );
-  const selo = container.querySelector<HTMLElement>('.sinal-carteira');
+  const selo = container.querySelector<HTMLElement>('[data-estado]');
   if (!selo) throw new Error('Sinal operacional ausente.');
   expect(selo.dataset.estado).toBe('em_dia');
   expect(selo.textContent).toContain('Nenhum compromisso operacional em atraso.');

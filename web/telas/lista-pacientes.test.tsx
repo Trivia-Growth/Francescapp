@@ -58,8 +58,9 @@ it('apresenta cada pessoa como uma linha sob um cabeçalho, com as mesmas coluna
   const linhas = [...lista(raiz).querySelectorAll('li')];
   expect(linhas).toHaveLength(3);
   // Cabeçalho único, fora da árvore de acessibilidade, e as colunas na mesma ordem.
-  const cabecalho = raiz.querySelector('[aria-hidden="true"]') as HTMLElement;
-  expect([...cabecalho.children].map((coluna) => coluna.textContent)).toEqual([
+  const cabecalho = lista(raiz).previousElementSibling;
+  expect(cabecalho?.getAttribute('aria-hidden')).toBe('true');
+  expect([...(cabecalho?.children ?? [])].map((coluna) => coluna.textContent)).toEqual([
     'Nome',
     'Situação do caso',
     'Nome preferido',
@@ -91,8 +92,9 @@ it('esconde situação de quem não a recebe do servidor', () => {
     pacientes: [{ id: ANA.id, nome: 'Ana Fictícia Moreira' }],
     administrador: false,
   });
-  const cabecalho = raiz.querySelector('[aria-hidden="true"]') as HTMLElement;
-  expect([...cabecalho.children].map((coluna) => coluna.textContent)).toEqual([
+  const cabecalho = lista(raiz).previousElementSibling;
+  expect(cabecalho?.getAttribute('aria-hidden')).toBe('true');
+  expect([...(cabecalho?.children ?? [])].map((coluna) => coluna.textContent)).toEqual([
     'Nome',
     'Nome preferido',
   ]);

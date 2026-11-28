@@ -1,6 +1,29 @@
 # Estado — migrar-interface-para-react
 
-**Atualizado em:** 28/11/2026 · **Branch:** `codex/casca-finalizacao-react` · **Por:** Codex
+**Atualizado em:** 28/11/2026 · **Branch:** `codex/carteira-css` · **Por:** Codex
+
+## Fatia 10a do plano visual — Carteira
+
+A Carteira usa ListaRotulada para as linhas, MarcaEstado para situação e sinal
+operacional e as classes das primitivas para os controles do HTML. Busca local,
+paginação por cursor, permissões e retorno de foco após sair da ficha foram
+preservados. O formulário de Novo paciente e a Agenda são superfícies próprias.
+A tarefa 7.1 continua aberta para as demais famílias.
+
+- Em Chromium, a Carteira foi de 72 ocorrências de classes legadas a zero.
+  O documento ficou em 320 px e a Carteira em 288 px, com ou sem filtros
+  abertos. Axe não encontrou violações a 320, 390 e 1440 px.
+- `web/styles.css` passou de 3.458 a 3.268 linhas. O CSS compilado inicial
+  passou de 104.459 a 103.462 bytes (19.300 a 19.227 bytes gzip), sobre
+  a base `313adfb`. As regras compartilhadas pela demonstração e pela ficha
+  continuam atendendo a essas telas.
+- As capturas comparativas de 390 e 1440 px estão em
+  `docs/auditoria-visual-2026-11/`. Chromium conferiu CSS aplicado
+  (`index-B4TJL7Mf.css` na base, `index-DWn92Y1L.css` depois) antes das imagens.
+- Passaram 40 testes Vitest focados, 18 cenários Chromium de Carteira, casca e
+  Cadastro e a prova local positiva e negativa do acesso a pacientes no PostgreSQL 17.
+  Sem a classe de raio do botão Novo paciente, a prova a 320 px recebeu 0 px
+  em vez de 999 px. A classe foi restaurada e a prova voltou a passar.
 
 ## Fatia 9b do plano visual — Equipe, Plano de cuidado e Auditoria com política própria
 

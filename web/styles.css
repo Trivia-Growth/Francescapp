@@ -554,10 +554,6 @@ input[aria-invalid="true"] {
   gap: var(--espaco-7);
   align-items: start;
 }
-/* O cadastro saiu da coluna lateral e virou diálogo; a área de trabalho é só a lista. */
-.workspace.with-registration {
-  grid-template-columns: minmax(0, 1fr);
-}
 /* Confirmação: substitui o `window.confirm`, que desenhava uma caixa do navegador ACIMA
    da página — fora do conteúdo, invisível para quem olhava a tela. Cabe em uma dobra e
    não rola: é uma decisão, não um texto. O botão seguro é o destaque, porque confirmar
@@ -732,10 +728,6 @@ input[aria-invalid="true"] {
   }
   .page-heading > .ui-botao {
     width: 100%;
-  }
-  .workspace.with-registration {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 40px;
   }
   .registration-panel {
     padding: 24px 20px;
@@ -946,14 +938,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   font-weight: 600;
 }
 
-/* Lista de pessoas acompanhadas: linhas planas, como no mock. */
-.busca {
-  max-width: 460px;
-  margin: var(--espaco-4) 0;
-}
-/* A lista de pessoas passou a ser `.ui-lista` + `.ui-linha` da camada de componente
-   (`web/estilos/ui.css`): as regras que viviam aqui eram as mesmas, só que exclusivas desta
-   tela. O que sobra abaixo é o que é desta tela e de mais nenhuma: o chip de situação. */
+/* Situação no cabeçalho da ficha. A Carteira usa MarcaEstado. */
 .pessoa-situacao {
   justify-self: start;
   margin-top: var(--espaco-1);
@@ -1917,81 +1902,6 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   gap: 10px 12px;
 }
 
-/* ---- Filtros e sinal da carteira (FR-026, FR-028) ----------------------- */
-.filtros-carteira {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: var(--espaco-3);
-  margin-bottom: var(--espaco-4);
-  padding: var(--espaco-3);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  background: transparent;
-}
-.filtros-carteira-titulo {
-  flex-basis: 100%;
-  margin: 0;
-  font-family: var(--font-body);
-  font-size: var(--texto-1);
-  font-weight: 700;
-  color: var(--muted);
-}
-.filtro-carteira {
-  display: grid;
-  gap: 6px;
-  min-width: 160px;
-  flex: 1 1 160px;
-  font-size: var(--texto-1);
-  font-weight: 550;
-}
-.filtro-carteira select {
-  width: 100%;
-  min-height: 44px;
-  padding: 10px var(--espaco-3);
-  border: 1px solid var(--field-line);
-  border-radius: var(--radius-field);
-  background: var(--white);
-  color: inherit;
-  font: inherit;
-  font-size: var(--texto-2);
-}
-.filtros-carteira .button-secondary {
-  flex: 0 0 auto;
-  min-height: 44px;
-}
-.sinal-carteira {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 8px;
-  margin-top: 6px;
-  padding: 4px 10px;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: var(--soft);
-  font-size: var(--texto-1);
-  line-height: 1.5;
-}
-.sinal-carteira strong {
-  font-weight: 700;
-}
-.sinal-carteira-motivos {
-  color: var(--muted);
-}
-.sinal-carteira[data-estado="atencao_operacional"] {
-  border-color: var(--aviso-filete);
-  background: var(--aviso-superficie);
-  color: var(--aviso-texto);
-}
-.sinal-carteira[data-estado="atencao_operacional"] .sinal-carteira-motivos {
-  color: var(--aviso-texto-2);
-}
-.sinal-carteira[data-estado="informacao_insuficiente"] {
-  border-color: var(--line);
-  background: var(--white);
-}
-
 /* ---- Registro do diário: relato, não formulário preenchido (VIS-017) -----
  *
  * O registro publicado era oito pares `Rótulo: valor` em negrito, empilhados. Formulário
@@ -2094,15 +2004,6 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   .auditoria__tabela th,
   .auditoria__tabela td {
     padding: var(--espaco-2);
-  }
-  .filtros-carteira {
-    padding: 14px;
-  }
-  .filtro-carteira {
-    flex-basis: 100%;
-  }
-  .filtros-carteira .button-secondary {
-    width: 100%;
   }
   .habilitacao-crise__acoes .button-primary,
   .pendencia-acoes .button-primary {
@@ -2638,24 +2539,6 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
     height: 108px;
   }
 }
-/* Ferramentas da carteira permanecem disponíveis sem dominar a lista. */
-.carteira-tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 10px 16px;
-  margin-bottom: 18px;
-}
-.carteira-tools .busca {
-  flex: 1 1 260px;
-  margin: 0;
-}
-.carteira-tools .busca .ui-campo__rotulo {
-  font-size: var(--texto-1);
-}
-.carteira-tools #reload-patients {
-  align-self: center;
-}
 @media (max-width: 760px) {
   body:has(#patients-view:not([hidden])) .topbar {
     gap: 6px 12px;
@@ -2664,68 +2547,6 @@ body.sidebar-collapsed .sidebar-link:focus-visible .sidebar-tooltip {
   body:has(#patients-view:not([hidden])) .chip-ambiente {
     padding: 3px 8px;
     font-size: var(--texto-1);
-  }
-  .carteira-tools {
-    gap: 8px 12px;
-    margin-bottom: 14px;
-  }
-  .carteira-tools .busca {
-    flex-basis: 100%;
-  }
-  .carteira-tools #reload-patients {
-    min-height: 44px;
-    padding: 8px 0;
-  }
-}
-.carteira-tools > #filtros-carteira {
-  flex: 0 1 auto;
-}
-.filtros-carteira-painel summary {
-  min-height: 46px;
-  display: flex;
-  align-items: center;
-  gap: var(--espaco-2);
-  padding: 10px 16px;
-  border: 1px solid var(--field-line);
-  border-radius: var(--radius-control);
-  background: var(--white);
-  color: var(--primary);
-  font-size: var(--texto-2);
-  font-weight: 600;
-  cursor: pointer;
-}
-.filtros-carteira-painel summary::after {
-  content: "▾";
-}
-.filtros-carteira-painel[open] summary::after {
-  content: "▴";
-}
-.filtros-carteira-painel[open] .filtros-carteira {
-  margin: 8px 0 0;
-}
-.carteira-tools:has(.filtros-carteira-painel[open]) > #filtros-carteira {
-  flex-basis: 100%;
-}
-@media (max-width: 760px) {
-  .carteira-tools > #filtros-carteira {
-    order: 1;
-  }
-  .carteira-tools #reload-patients {
-    order: 2;
-    margin-left: auto;
-  }
-  .carteira-tools .busca {
-    order: 3;
-  }
-}
-
-@media (min-width: 761px) {
-  .carteira-tools > #filtros-carteira,
-  .carteira-tools #reload-patients {
-    margin-top: 25px;
-  }
-  .carteira-tools #reload-patients {
-    align-self: flex-start;
   }
 }
 /* Superfícies existentes compartilham bordas e hierarquia do mock. */
@@ -2798,16 +2619,6 @@ label > .loading-indicator {
   border-radius: 50%;
   animation: loading-reveal 0s linear 300ms backwards, loading-spin .8s linear 300ms infinite;
 }
-@media (max-width: 760px) {
-  .filtro-carteira {
-    min-width: 0;
-    flex-basis: 100%;
-  }
-  .filtros-carteira select {
-    width: 100%;
-  }
-}
-
 /* ---- Substituição temporária da case manager (FR-037) ------------------- */
 .substituicao-cm {
   display: grid;
@@ -3157,7 +2968,6 @@ label > .loading-indicator {
 /* Troca de conteúdo dentro da mesma tela: aba da ficha e dobras. */
 .ficha-secao,
 .ficha-mais[open] > .ficha-mais-lista,
-.filtros-carteira-painel[open] > .filtros-carteira,
 .access-form-panel details[open] > *:not(summary) {
   animation: mov-entrada-troca var(--mov-troca) var(--curva-entrada);
 }

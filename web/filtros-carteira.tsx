@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { FiltrosCarteira } from '../packages/contracts/src/cadastro.js';
@@ -7,7 +8,8 @@ import {
   type SinalCarteira as SinalCarteiraDoCaso,
 } from '../packages/contracts/src/pendencia.js';
 import { rotulosSituacao, type ResponsavelOpcao } from './acompanhamento-caso.js';
-import { Botao } from './componentes/ui/botao.js';
+import { Botao, classesBotao } from './componentes/ui/botao.js';
+import { MarcaEstado } from './componentes/ui/marca-estado.js';
 import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
 
 /** FR-026: filtros da carteira. A busca por nome que já existe continua valendo só dentro
@@ -131,22 +133,29 @@ export function BarraFiltrosCarteira({
   }, [aplicar, selecoes]);
 
   return (
-    <details className="filtros-carteira-painel">
-      <summary>
+    <details className="group min-w-0">
+      <summary
+        className={classesBotao({
+          className: 'list-none wrap-anywhere [&::-webkit-details-marker]:hidden',
+        })}
+      >
         {ativos
           ? `Filtrar pessoas (${ativos} ${ativos === 1 ? 'filtro ativo' : 'filtros ativos'})`
           : 'Filtrar pessoas'}
+        <ChevronDown aria-hidden="true" size={16} className="shrink-0 group-open:rotate-180" />
       </summary>
       <form
         ref={formulario}
         noValidate
-        className="filtros-carteira"
+        className="mt-sistema-2 grid min-w-0 items-end gap-sistema-3 rounded-superficie border border-sistema-divisor bg-sistema-superficie p-sistema-4 lg:grid-cols-2"
         onSubmit={(evento) => {
           evento.preventDefault();
           aplicar();
         }}
       >
-        <h2 className="filtros-carteira-titulo">Filtrar carteira</h2>
+        <h2 className="m-0 font-sans text-controle font-semibold lg:col-span-2">
+          Filtrar carteira
+        </h2>
         {campos.map((campo) => (
           <SelecaoSimples
             key={campo.nome}
@@ -164,7 +173,12 @@ export function BarraFiltrosCarteira({
             ))}
           </SelecaoSimples>
         ))}
-        <Botao peso="secundario" marca="limpar-filtros" aoAtivar={limpar}>
+        <Botao
+          peso="secundario"
+          marca="limpar-filtros"
+          className="justify-self-start"
+          aoAtivar={limpar}
+        >
           Limpar filtros
         </Botao>
       </form>
@@ -179,12 +193,23 @@ export function BarraFiltrosCarteira({
 export function SinalCarteira({ sinal }: { sinal: SinalCarteiraDoCaso }) {
   return (
     <span
-      className="sinal-carteira max-w-full wrap-anywhere whitespace-normal"
+      className="flex min-w-0 max-w-full flex-wrap items-baseline gap-x-sistema-2 gap-y-sistema-1 wrap-anywhere whitespace-normal"
       data-estado={sinal.estado}
       title={avisoSinalOperacional}
     >
-      <strong>{rotulosEstadoSinal[sinal.estado]}</strong>
-      <span className="sinal-carteira-motivos">{sinal.motivos.join(' · ')}</span>
+      <MarcaEstado
+        tom={sinal.estado === 'informacao_insuficiente' ? 'contorno' : 'padrao'}
+        className={
+          sinal.estado === 'atencao_operacional'
+            ? 'bg-sistema-fundo-aviso text-sistema-aviso text-meta font-semibold'
+            : 'text-meta font-semibold'
+        }
+      >
+        {rotulosEstadoSinal[sinal.estado]}
+      </MarcaEstado>
+      <span className="min-w-0 text-meta font-normal text-sistema-texto-secundario">
+        {sinal.motivos.join(' · ')}
+      </span>
       <span className="sr-only">{avisoSinalOperacional}</span>
     </span>
   );
