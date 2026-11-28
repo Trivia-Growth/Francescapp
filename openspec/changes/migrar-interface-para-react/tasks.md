@@ -350,6 +350,9 @@ autorização onde a tela tiver autorização própria.
   *Evidência:* `rg -n '^export function montar' web` encontra só os seis geradores puros de
   `web/pacote-exportacao.ts`: `montarResumoHtml`, `montarDadosJson`, `montarBytesZip`,
   `montarZip`, `montarBytesPacoteExportacao` e `montarPacoteExportacao`.
+  `montarCascaParaTeste` é um helper exclusivo de teste. Os `createRoot` da Web são
+  raízes de página em `web/casca-react.tsx`, `web/demonstracao.ts` e
+  `web/demonstracao-componentes.tsx`.
   A ativação passou com 84 cenários Chromium, axe sem violação e autorização local
   positiva e negativa. A contraprova da importação tardia foi revertida e consta em `estado.md`.
 

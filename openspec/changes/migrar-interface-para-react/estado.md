@@ -16,9 +16,10 @@ separadas, têm uma raiz cada. A ficha compõe suas seções por React e a ponte
   `montarCascaParaTeste`, que importa a entrada só para testes. Os nomes internos
   `montarConteudo`, `montarEntradaPorAudio`, `montarNomeador` e `montarVista`
   correspondem a composição React ou construção de valores.
-- `pnpm run verificar:ativacao` passou com 943 testes Vitest da Web, 84
-  cenários Chromium e a bancada de Trusted Types do build. A prova de autorização
-  local, positiva e negativa, passou no PostgreSQL 17 com dados fictícios.
+- `pnpm run verificar:ativacao` passou com 84 cenários Chromium e a bancada de
+  Trusted Types do build. A prova de autorização local, positiva e negativa,
+  passou no PostgreSQL 17 com dados fictícios. Na revisão, 36 testes Vitest focados
+  passaram após a retirada de `linha-lista-imperativa` e da sonda de resolução.
 - O Chromium verificou links antigos, Voltar/Avançar, retorno de foco ao fechar
   a gaveta e Administração bloqueada para Família por link direto. O axe passou
   em 36 páginas sem violações. `capturas-casca.mjs` verificou a folha
@@ -30,8 +31,10 @@ separadas, têm uma raiz cada. A ficha compõe suas seções por React e a ponte
 - Ao retirar a guarda de geração da ficha, uma importação antiga de Anamnese
   substituiu Plano. O Chromium falhou esperando `data-secao="plano"`. Com a guarda
   restaurada, o cenário passou.
-- O HTML inicial referencia 247.865 bytes gzip de JavaScript em sete arquivos,
-  contra 242.878 bytes em seis arquivos na base `23d0daa` (+4.987 bytes).
+- No mesmo build e com a mesma medição gzip dos scripts do HTML inicial, a 8z
+  passou de 248.016 bytes em `c5e4472` para 247.865 bytes no head rebaseado
+  (−151 bytes, sete arquivos nos dois builds). Ao longo de toda a reforma da casca,
+  a medida passou de 242.878 bytes em `23d0daa` para 247.865 bytes (+4.987 bytes).
   Login e restauração da sessão compartilham a entrada e os contratos de validação.
 - Nas confirmações, o #79 verificou que sair da ficha pelo histórico encerra a pergunta
   de revogação, devolve o foco à linha e não envia a revogação.
