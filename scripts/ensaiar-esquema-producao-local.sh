@@ -36,7 +36,7 @@ if [ "$modo" = preparar ]; then
   consulta "select string_agg(g,E'\n') t from (
      select format('grant usage on schema vault to %I;',r.rolname) g from pg_roles r where r.rolname like 'ffcmapp%' and has_schema_privilege(r.oid,'vault','usage')
      union all select format('grant select on vault.decrypted_secrets to %I;',r.rolname) from pg_roles r where r.rolname like 'ffcmapp%' and has_table_privilege(r.oid,'vault.decrypted_secrets','select')
-     union all select format('grant select (name) on vault.secrets to %I;',r.rolname) from pg_roles r where r.rolname like 'ffcmapp%' and has_column_privilege(r.oid,'vault.secrets','name','select') and not has_table_privilege(r.oid,'vault.secrets','select')
+     union all select format('grant select (%I) on vault.secrets to %I;',a.attname,r.rolname) from pg_roles r cross join pg_attribute a where a.attrelid='vault.secrets'::regclass and a.attnum>0 and not a.attisdropped and r.rolname like 'ffcmapp%' and has_column_privilege(r.oid,'vault.secrets',a.attname,'select') and not has_table_privilege(r.oid,'vault.secrets','select')
      union all select format('grant execute on function %s to %I;',p.oid::regprocedure,r.rolname) from pg_roles r cross join pg_proc p where r.rolname like 'ffcmapp%' and p.pronamespace='vault'::regnamespace and has_function_privilege(r.oid,p.oid,'execute') and not has_function_privilege('public',p.oid,'execute')
      union all select format('set role postgres; grant usage on schema extensions to %I; reset role;',r.rolname) from pg_roles r where r.rolname like 'ffcmapp%' and has_schema_privilege(r.oid,'extensions','usage')) s" > "$dir/privilegios_externos.sql"
   consulta "$(cat "$projeto/supabase/tests/ensaio_producao_inventario.sql")" > "$dir/inventario_producao.txt"
