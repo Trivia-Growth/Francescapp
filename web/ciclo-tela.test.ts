@@ -57,7 +57,8 @@ it('exige confirmação para liberar e envia reserva vinculada à criação', as
     throw new Error('Rota inesperada');
   });
   await montarCascaParaTeste();
-  const botao = () => document.querySelector<HTMLButtonElement>('#cadastro button[data-acao]');
+  const botao = () =>
+    document.querySelector<HTMLButtonElement>('#cadastro-acoes button[data-acao]');
   const enviar = document.getElementById('create-submit') as HTMLButtonElement;
   await vi.waitFor(() => expect(botao()?.dataset.acao).toBe('encerrar'));
   expect(enviar.disabled).toBe(true);
@@ -124,7 +125,8 @@ it('mantém foco no controle ao tentar consulta e ao falhar encerramento', async
     throw new Error('Rota inesperada');
   });
   await montarCascaParaTeste();
-  const botao = () => document.querySelector<HTMLButtonElement>('#cadastro button[data-acao]');
+  const botao = () =>
+    document.querySelector<HTMLButtonElement>('#cadastro-acoes button[data-acao]');
   await vi.waitFor(() => expect(botao()?.dataset.acao).toBe('consultar'));
   botao()?.focus();
   botao()?.click();
