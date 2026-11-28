@@ -36,7 +36,6 @@ import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
 import { definirValorNativo } from './componentes/ui/valor-nativo.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 
 export type EstadoEncaminhamento =
@@ -315,10 +314,4 @@ export function EncaminhamentosLocais({
   aprimorarControles = false,
 }: { dados: Dados; aprimorarControles?: boolean }) {
   return <EncaminhamentosLocaisTela dados={dados} aprimorarControles={aprimorarControles} />;
-}
-
-/** Mesmo componente acima, montado na sua própria ilha — contrato usado por quem monta a
- *  prévia isoladamente (`web/demonstracao.ts` e a prova deste arquivo). */
-export function montarEncaminhamentosLocais(raiz: HTMLElement, dados: Dados): void {
-  ilha(raiz, <EncaminhamentosLocais dados={dados} />);
 }

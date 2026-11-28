@@ -14,7 +14,6 @@
  * Google Drive institucional — aqui é só a prévia local de feedback. */
 import { useState } from 'react';
 import { Botao } from './componentes/ui/botao.js';
-import { ilha } from './ponte/ilha.js';
 import { Formulario } from './telas/formulario.js';
 
 export type DocumentoLocal = { nome: string; categoria: string; metadados?: string };
@@ -29,7 +28,7 @@ export type DadosDocumentosLocais = {
   aoRegistrar: (documento: DocumentoLocal) => Promise<void>;
 };
 
-function TelaDocumentosLocais({ dados }: { dados: DadosDocumentosLocais }) {
+export function TelaDocumentosLocais({ dados }: { dados: DadosDocumentosLocais }) {
   const [documentos, definirDocumentos] = useState<DocumentoLocal[]>(() => [...dados.documentos]);
   const [mensagem, definirMensagem] = useState('');
   const [enviando, definirEnviando] = useState(false);
@@ -172,9 +171,4 @@ function TelaDocumentosLocais({ dados }: { dados: DadosDocumentosLocais }) {
       ) : null}
     </>
   );
-}
-
-/** Metadados fictícios; não armazena arquivos nem autoriza acesso. */
-export function montarDocumentosLocais(raiz: HTMLElement, dados: DadosDocumentosLocais): void {
-  ilha(raiz, <TelaDocumentosLocais dados={dados} />);
 }

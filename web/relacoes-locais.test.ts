@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
 import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
-import { montarRelacoesLocais, type PessoaReferenciaLocal } from './relacoes-locais';
+import { RelacoesLocais, type PessoaReferenciaLocal } from './relacoes-locais';
+
+function renderizar(raiz: HTMLElement, dados: ComponentProps<typeof RelacoesLocais>['dados']) {
+  render(createElement(RelacoesLocais, { dados }), { container: raiz });
+}
 
 it('guarda pessoa somente após persistência, preserva rascunho em falha e permite edição', async () => {
   const raiz = document.createElement('div');
@@ -11,7 +17,7 @@ it('guarda pessoa somente após persistência, preserva rascunho em falha e perm
     .mockRejectedValueOnce(new Error('falha'))
     .mockImplementation(async (pessoa) => ({ id: '1', ...pessoa }));
   const atualizar = vi.fn(async () => {});
-  montarRelacoesLocais(raiz, { pessoas, aoRegistrar: registrar, aoAtualizar: atualizar });
+  renderizar(raiz, { pessoas, aoRegistrar: registrar, aoAtualizar: atualizar });
   expect(raiz.textContent).toContain('não cria conta nem concede acesso');
   const campos = raiz.querySelectorAll('input');
   campos[0].value = '<Pessoa fictícia>';
@@ -44,7 +50,7 @@ it('guarda pessoa somente após persistência, preserva rascunho em falha e perm
 it('sinaliza descarte confirmado e mantém rascunho quando descarte é recusado', async () => {
   const raiz = document.createElement('div');
   const aoLimpar = vi.fn();
-  montarRelacoesLocais(raiz, {
+  renderizar(raiz, {
     pessoas: [{ id: '1', nome: 'Pessoa fictícia', relacao: 'Amiga', contato: '' }],
     aoRegistrar: async (dados) => ({ id: '2', ...dados }),
     aoAtualizar: async () => {},
@@ -73,7 +79,7 @@ it('sinaliza descarte confirmado e mantém rascunho quando descarte é recusado'
 it('limpa estado sujo ao aceitar descarte na troca de pessoa', async () => {
   const raiz = document.createElement('div');
   const aoLimpar = vi.fn();
-  montarRelacoesLocais(raiz, {
+  renderizar(raiz, {
     pessoas: [
       { id: '1', nome: 'Pessoa A', relacao: 'Amiga', contato: '' },
       { id: '2', nome: 'Pessoa B', relacao: 'Familiar', contato: '' },

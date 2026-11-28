@@ -23,7 +23,6 @@ import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
 import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 
 export type EvolucaoLocal = {
@@ -43,7 +42,7 @@ type Dados = {
 const rotuloEstado = (estado: EvolucaoLocal['estado']) =>
   estado === 'publicada' ? 'Publicada na prévia (simulação)' : 'Rascunho';
 
-function EvolucoesLocais({ dados }: { dados: Dados }) {
+export function EvolucoesLocais({ dados }: { dados: Dados }) {
   const [itens, definirItens] = useState<EvolucaoLocal[]>(() => [...dados.evolucoes]);
   const [salvando, definirSalvando] = useState(false);
   const [mensagem, definirMensagem] = useState('');
@@ -154,8 +153,4 @@ function EvolucoesLocais({ dados }: { dados: Dados }) {
       </ul>
     </div>
   );
-}
-
-export function montarEvolucoesLocais(raiz: HTMLElement, dados: Dados): () => void {
-  return ilha(raiz, <EvolucoesLocais dados={dados} />);
 }

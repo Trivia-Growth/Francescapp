@@ -41,6 +41,19 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8v do plano visual — editores da demonstração local
+
+Documentos, Encaminhamentos, Orientações, Evoluções e Pessoas de referência
+são portais da mesma raiz da demonstração. Abrir outro caso cria o painel
+com os dados daquele caso. A tarefa 7.2 permanece aberta.
+
+- Passaram 43 testes Vitest e lint/typecheck. Chromium a 390 px abriu dois
+  casos fictícios, conferiu o foco de cada painel e viu a evolução só no
+  primeiro caso.
+- Sem trocar a chave do painel, a evolução do primeiro caso apareceu no
+  segundo e o teste de demonstração falhou. Alteração revertida.
+- Próximo passo: rebase após o squash da fatia anterior e ativação.
+
 ## Fatia 8u do plano visual — campos de Novo paciente
 
 A casca compõe data de nascimento, situação, responsável e contatos. O

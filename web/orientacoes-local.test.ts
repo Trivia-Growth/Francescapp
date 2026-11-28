@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
-import { montarOrientacoesLocais, type OrientacaoLocal } from './orientacoes-local.tsx';
+import { OrientacoesLocais, type OrientacaoLocal } from './orientacoes-local.tsx';
+
+function renderizar(raiz: HTMLElement, dados: ComponentProps<typeof OrientacoesLocais>['dados']) {
+  render(createElement(OrientacoesLocais, { dados, ehFamilia: false }), { container: raiz });
+}
 
 it('preserva versões e rascunho quando gravação falha', async () => {
   const raiz = document.createElement('div');
@@ -16,7 +22,7 @@ it('preserva versões e rascunho quando gravação falha', async () => {
     },
   ];
   const salvar = vi.fn().mockRejectedValueOnce(new Error()).mockResolvedValue(undefined);
-  montarOrientacoesLocais(raiz, { orientacoes, aoSalvar: salvar });
+  renderizar(raiz, { orientacoes, aoSalvar: salvar });
   expect(raiz.querySelector('orientação')).toBeNull();
   (raiz.querySelector('li button') as HTMLButtonElement).click();
   const texto = raiz.querySelector('textarea') as HTMLTextAreaElement;
