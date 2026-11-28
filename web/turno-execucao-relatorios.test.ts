@@ -1,8 +1,18 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { montarRelatoriosTurno } from './turno-execucao-relatorios.js';
+import { RelatoriosTurno } from './turno-execucao-relatorios.js';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
 import { FalhaApi } from './api.ts';
+function renderizarRelatorios(
+  raiz: HTMLElement,
+  servico: ServicoTurnoExecucao,
+  opcoes: Omit<ComponentProps<typeof RelatoriosTurno>, 'servico'>,
+) {
+  render(createElement(RelatoriosTurno, { servico, ...opcoes }), { container: raiz });
+}
+
 const id = '10000000-0000-4000-8000-000000000001';
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -16,7 +26,7 @@ const botao = (raiz: HTMLElement, texto: string) => {
 it('família dispõe de turno/diário/semanal e não recebe opção exportação de caso ou localização', () => {
   const raiz = document.createElement('div');
   document.body.append(raiz);
-  montarRelatoriosTurno(raiz, {} as ServicoTurnoExecucao, {
+  renderizarRelatorios(raiz, {} as ServicoTurnoExecucao, {
     familia: true,
     acessoPerdido: vi.fn(),
   });
@@ -49,7 +59,7 @@ it('PDF usa somente seletores/metadados e resultado perdido exige conferência s
       .fn<ServicoTurnoExecucao['consultarPdf']>()
       .mockResolvedValue({ exportacao_id: id, registrado_em: '2026-11-19T12:00:00Z' }),
   };
-  montarRelatoriosTurno(raiz, api as ServicoTurnoExecucao, { acessoPerdido: vi.fn() });
+  renderizarRelatorios(raiz, api as ServicoTurnoExecucao, { acessoPerdido: vi.fn() });
   botao(raiz, 'Consultar relatório').click();
   await vi.waitFor(() => expect(raiz.textContent).toContain('Nenhum registro neste período'));
   const forms = raiz.querySelectorAll('form');
@@ -79,7 +89,7 @@ it('fundamento revogado limpa relatório na negativa de acesso', async () => {
   document.body.append(raiz);
   const perdido = vi.fn();
   const api = { relatorio: vi.fn().mockRejectedValue(new FalhaApi('sem_permissao', 403)) };
-  montarRelatoriosTurno(raiz, api as unknown as ServicoTurnoExecucao, {
+  renderizarRelatorios(raiz, api as unknown as ServicoTurnoExecucao, {
     familia: true,
     acessoPerdido: perdido,
   });
@@ -108,7 +118,7 @@ it('novo filtro com erro remove consulta anterior e mantém PDF desabilitado', a
       }))
       .mockRejectedValue(new FalhaApi('servico_indisponivel', 503)),
   };
-  montarRelatoriosTurno(raiz, api as unknown as ServicoTurnoExecucao, { acessoPerdido: vi.fn() });
+  renderizarRelatorios(raiz, api as unknown as ServicoTurnoExecucao, { acessoPerdido: vi.fn() });
   botao(raiz, 'Consultar relatório').click();
   await vi.waitFor(() =>
     expect(botao(raiz, 'Emitir PDF do período consultado').closest('fieldset')?.disabled).toBe(

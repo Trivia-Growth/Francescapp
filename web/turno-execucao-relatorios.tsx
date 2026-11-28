@@ -8,7 +8,7 @@
  *
  *  As classes `relatorios-turno*` e `list-status` continuam: são de `web/styles.css`, não
  *  do kit `web/ui/`, e mantêm o desenho que a tela já tinha. */
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import type { RelatorioTurnoPublico } from '../packages/contracts/src/turno-execucao-http.ts';
 import type { Turno } from '../packages/contracts/src/turno.ts';
 import { resultadoIncerto } from './api.ts';
@@ -17,8 +17,10 @@ import { Campo } from './componentes/ui/campo.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { ConsolidadoFicha, type FichaDoPlantao } from './consolidado-ficha-plantao.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
-import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
+import {
+  criarServicoTurnoExecucaoHttp,
+  type ServicoTurnoExecucao,
+} from './servico-turno-execucao-http.ts';
 import { Formulario, valorDe } from './telas/formulario.js';
 import {
   CampoTurno,
@@ -517,10 +519,30 @@ function CampoDeData({
   );
 }
 
-export function montarRelatoriosTurno(
-  raiz: HTMLElement,
-  servico: ServicoTurnoExecucao,
-  opcoes: OpcoesRelatorios,
-): () => void {
-  return ilha(raiz, <RelatoriosTurno servico={servico} {...opcoes} />);
+export function RelatoriosTurnoFamilia({
+  pacienteId,
+  identidadeAtual,
+  acessoPerdido,
+  alteracaoPendente,
+}: Pick<OpcoesRelatorios, 'acessoPerdido' | 'alteracaoPendente'> & {
+  pacienteId: string;
+  identidadeAtual: Parameters<typeof criarServicoTurnoExecucaoHttp>[1];
+}) {
+  const [servico, definirServico] = useState<ServicoTurnoExecucao | null>(null);
+
+  useLayoutEffect(() => {
+    const atual = criarServicoTurnoExecucaoHttp(pacienteId, identidadeAtual);
+    definirServico(atual);
+    return () => atual.desmontar();
+  }, [pacienteId, identidadeAtual]);
+
+  if (!servico) return null;
+  return (
+    <RelatoriosTurno
+      servico={servico}
+      familia
+      acessoPerdido={acessoPerdido}
+      alteracaoPendente={alteracaoPendente}
+    />
+  );
 }
