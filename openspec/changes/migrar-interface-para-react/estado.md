@@ -43,17 +43,17 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
 
 ## Fatia 8o do plano visual — disponibilidade de áudio no Diário
 
-A ficha oferece gravação depois de uma resposta positiva de disponibilidade e
-somente para sessão Google. O formulário de texto continua disponível enquanto
-a consulta está pendente, quando ela falha ou quando a gravação é recusada.
-A consulta é cancelada na saída do Diário. A tarefa 7.2 permanece aberta.
+A ficha oferece gravação com sessão Google ou interna da equipe depois de uma
+resposta positiva de `/api/transcricao/disponibilidade`, conforme DF-023. O
+formulário de texto continua disponível durante a consulta e diante de uma
+resposta negativa ou falha. A consulta é cancelada na saída do Diário. A tarefa
+7.2 permanece aberta.
 
-- Passaram 25 testes Vitest, três cenários Chromium e lint/typecheck. Os cenários
-  verificaram a espera pela resposta positiva, a resposta negativa com texto
-  disponível e a sessão interna sem consulta ou gravador.
-- Ao ignorar a resposta negativa ou permitir a consulta pela sessão interna, o
-  gravador apareceu e o cenário correspondente falhou. Alterações revertidas.
-- Próximo passo: rebase após o squash da fatia anterior e ativação.
+- Passaram os cinco cenários Chromium de disponibilidade positiva e negativa
+  para cada método, sessão técnica sem consulta e preservação do texto digitado.
+- A restrição a Google impediu a gravação quando a sessão interna era elegível.
+  Ignorar a negativa fez o gravador aparecer. As duas alterações foram revertidas.
+- Próximo passo: concluir a validação de 8n/8o no PR #67 sobre a main.
 
 ## Fatia 8n do plano visual — conversão do Diário
 

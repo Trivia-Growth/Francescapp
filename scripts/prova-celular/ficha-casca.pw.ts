@@ -318,10 +318,12 @@ test('Diário oferece conversão no relato publicado e preserva o rascunho como 
   ).toHaveCount(0);
 });
 
-for (const { modo, disponivel } of [
-  { modo: 'google', disponivel: true },
-  { modo: 'google', disponivel: false },
-  { modo: 'interno', disponivel: true },
+for (const { modo, consulta, disponivel } of [
+  { modo: 'google', consulta: true, disponivel: true },
+  { modo: 'google', consulta: true, disponivel: false },
+  { modo: 'interno', consulta: true, disponivel: true },
+  { modo: 'interno', consulta: true, disponivel: false },
+  { modo: 'tecnica', consulta: false, disponivel: true },
 ] as const) {
   test(`gravador no Diário com sessão ${modo} e disponibilidade ${disponivel}`, async ({
     page,
@@ -329,8 +331,9 @@ for (const { modo, disponivel } of [
     await page.addInitScript(
       ({ modo, sessaoId }) => {
         sessionStorage.setItem('modo-acesso', modo);
-        sessionStorage.setItem(`fluxo-${modo}`, 'AAAAAAAAAAAAAAAAAAAAAA');
-        if (modo === 'interno') sessionStorage.setItem('sessao-interno', sessaoId);
+        const chaveFluxo = modo === 'tecnica' ? 'fluxo-tecnico' : `fluxo-${modo}`;
+        sessionStorage.setItem(chaveFluxo, 'AAAAAAAAAAAAAAAAAAAAAA');
+        if (modo !== 'google') sessionStorage.setItem(`sessao-${modo}`, sessaoId);
       },
       { modo, sessaoId: sessaoAdministrador.session_id },
     );
@@ -355,24 +358,30 @@ for (const { modo, disponivel } of [
         : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
     });
     const resposta =
-      modo === 'google'
+      consulta && !disponivel
         ? page.waitForResponse((resposta) => new URL(resposta.url()).pathname === caminhoAudio)
         : undefined;
     const painel = page.locator('#ficha-painel');
     const gravador = painel.getByRole('button', { name: 'Gravar áudio' });
+    const atividade = painel.getByRole('textbox', {
+      name: 'Atividade (obrigatória para publicar)',
+    });
     try {
       await page.goto(`/web/index.html#paciente/${PACIENTE_IDS[0]}/diario`);
       await expect(painel.getByRole('button', { name: 'Publicar', exact: true })).toBeVisible();
       await expect(gravador).toHaveCount(0);
+      await atividade.fill('Atividade fictícia digitada durante a consulta.');
     } finally {
       liberar();
     }
-    await resposta;
-    if (modo === 'google' && disponivel) await expect(gravador).toBeVisible();
+    if (consulta && disponivel) await expect(gravador).toBeVisible();
     else {
+      const retorno = await resposta;
+      await retorno?.finished();
       await page.evaluate(() => new Promise(requestAnimationFrame));
       await expect(gravador).toHaveCount(0);
     }
-    expect(consultas).toBe(modo === 'google' ? 1 : 0);
+    await expect(atividade).toHaveValue('Atividade fictícia digitada durante a consulta.');
+    expect(consultas).toBe(consulta ? 1 : 0);
   });
 }

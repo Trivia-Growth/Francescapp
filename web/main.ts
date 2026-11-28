@@ -1105,8 +1105,9 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
     compor: async (pendente) => {
       pedirAreasDoDiario();
       const modo = modoDeAcessoAtual();
+      const usaContaDaEquipe = modo === 'google' || modo === 'interno';
       const converterEmTarefa: ConversaoEmTarefa | undefined =
-        atual.usuario.perfil === 'profissional' && (modo === 'google' || modo === 'interno')
+        atual.usuario.perfil === 'profissional' && usaContaDaEquipe
           ? (origem, alteracao, concluido, comando) =>
               comporConversaoDaFicha(paciente.id, origem, alteracao, concluido, comando)
           : undefined;
@@ -1119,7 +1120,7 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
         alteracaoPendente: pendente,
         ehFamilia: false,
         ...(converterEmTarefa ? { converterEmTarefa } : {}),
-        ...(modo === 'google'
+        ...(usaContaDaEquipe
           ? {
               audio: {
                 compor: entradaTranscricaoAudio(
