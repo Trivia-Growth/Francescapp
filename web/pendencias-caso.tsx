@@ -451,7 +451,9 @@ export function TelaPendenciasCaso({
       <Superficie>
         <div className="grid min-w-0 gap-6">
           <div data-estado={sinal.estado} className="grid min-w-0 gap-2">
-            <MarcaEstado>{rotulosEstadoSinal[sinal.estado]}</MarcaEstado>
+            <MarcaEstado className="justify-self-start">
+              {rotulosEstadoSinal[sinal.estado]}
+            </MarcaEstado>
             <p className="m-0 max-w-[68ch] text-(length:--texto-1) text-texto-suave">
               {avisoSinalOperacional}
             </p>

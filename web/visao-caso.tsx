@@ -356,7 +356,7 @@ export function TelaVisaoCaso({
             return {
               conteudo: (
                 <>
-                  <MarcaEstado data-estado={sinal.estado}>
+                  <MarcaEstado className="justify-self-start" data-estado={sinal.estado}>
                     {rotulosEstadoSinal[sinal.estado]}
                   </MarcaEstado>
                   <p className="m-0 max-w-[68ch] text-(length:--texto-1) text-texto-suave">

@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 import { createServer, type ViteDevServer } from 'vite';
 import { envelope } from '../../web/fixtures/comum.js';
 import { responder } from '../../web/fixtures/despachante.js';
@@ -174,3 +174,39 @@ test('link direto do Cadastro não expõe a seção nem consulta o cadastro para
   expect(consultas).not.toContain(detalhe);
   expect(consultas).not.toContain('/api/contatos/barreira');
 });
+
+async function conferirLarguraDaMarca(marca: Locator) {
+  await expect(marca).toBeVisible();
+  const medidas = await marca.evaluate(async (no) => {
+    await document.fonts.ready;
+    const texto = document.createRange();
+    texto.selectNodeContents(no);
+    const { paddingInlineStart, paddingInlineEnd } = getComputedStyle(no);
+    return {
+      marca: no.getBoundingClientRect().width,
+      interna:
+        texto.getBoundingClientRect().width +
+        Number.parseFloat(paddingInlineStart) +
+        Number.parseFloat(paddingInlineEnd),
+    };
+  });
+  expect(medidas.marca, 'marca ajustada ao texto e ao recuo').toBeCloseTo(medidas.interna, 0);
+}
+
+for (const largura of [320, 1440]) {
+  test(`marcas da ficha acompanham o texto a ${largura} px`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await preparar(page, 'profissional');
+    await page.goto(`${origem}/#carteira`);
+    await page.locator(`[data-paciente-id="${caso}"]`).click();
+    const ficha = page.locator('#ficha-view');
+    await conferirLarguraDaMarca(ficha.locator('[data-situacao=ativo]'));
+    const painel = ficha.getByRole('tabpanel');
+    await conferirLarguraDaMarca(painel.getByText('Informação insuficiente', { exact: true }));
+    await ficha.getByRole('tab', { name: 'Pendências' }).click();
+    await expect(
+      painel.getByRole('heading', { name: 'Pendências e sinal do acompanhamento' }),
+    ).toBeVisible();
+    await conferirLarguraDaMarca(painel.getByText('Informação insuficiente', { exact: true }));
+  });
+}
