@@ -191,7 +191,11 @@ export function montarFiltrosCarteira(
  * de tela — não pode depender de o motivo caber visualmente na linha da lista. */
 export function SinalCarteira({ sinal }: { sinal: SinalCarteiraDoCaso }) {
   return (
-    <span className="sinal-carteira" data-estado={sinal.estado} title={avisoSinalOperacional}>
+    <span
+      className="sinal-carteira max-w-full wrap-anywhere whitespace-normal"
+      data-estado={sinal.estado}
+      title={avisoSinalOperacional}
+    >
       <strong>{rotulosEstadoSinal[sinal.estado]}</strong>
       <span className="sinal-carteira-motivos">{sinal.motivos.join(' · ')}</span>
       <span className="sr-only">{avisoSinalOperacional}</span>
