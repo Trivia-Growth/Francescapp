@@ -1875,74 +1875,7 @@ body:has(#patients-view:not([hidden])) .breadcrumbs {
   gap: 10px 12px;
 }
 
-/* ---- Registro do diário: relato, não formulário preenchido (VIS-017) -----
- *
- * O registro publicado era oito pares `Rótulo: valor` em negrito, empilhados. Formulário
- * impresso. Esta é, ao mesmo tempo, a tela do plantão às três da manhã e a que a família
- * pode receber — e em nenhuma das duas leituras o rótulo deve disputar atenção com o que
- * a pessoa escreveu.
- *
- * A procedência fica numa linha discreta, o texto livre entra como prosa com o rótulo
- * apagado acima, e só os valores curtos ficam em lista. */
-.diario-procedencia {
-  color: var(--muted);
-  font-size: var(--texto-1);
-  margin: var(--espaco-1) 0 var(--espaco-3);
-}
-.diario-trecho {
-  margin-block: var(--espaco-4);
-}
-.diario-trecho-rotulo {
-  color: var(--muted);
-  font-size: var(--texto-1);
-  letter-spacing: 0.02em;
-  margin: 0 0 var(--espaco-1);
-}
-/* O que a pessoa escreveu: medida de leitura confortável e entrelinha de prosa, não de
- * rótulo. `pre-wrap` preserva as quebras que ela digitou — reflui-las é reescrever o
- * relato. */
-.diario-trecho > p + p {
-  margin: 0;
-  max-width: 68ch;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.diario-campos {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--espaco-1) var(--espaco-3);
-  margin: var(--espaco-4) 0 0;
-  padding-block-start: var(--espaco-3);
-  border-block-start: 1px solid var(--line);
-}
-.diario-campos dt {
-  color: var(--muted);
-  font-size: var(--texto-1);
-}
-.diario-campos dd {
-  margin: 0;
-  font-size: var(--texto-1);
-}
-/* Publicar torna o registro visível a outras pessoas e não é reversível; guardar rascunho
- * é privado e reversível. Pesos iguais convidavam ao engano. A principal fica à direita,
- * sozinha com preenchimento. */
-.diario-acoes {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  align-items: center;
-  gap: var(--espaco-3);
-  margin-block-start: var(--espaco-5);
-}
-.diario-acoes .button-quiet {
-  margin-inline-end: auto;
-}
-
 /* ---- Ditar o registro do diário (FR-010) -------------------------------- */
-.diario-entrada-audio {
-  margin: -4px 0 4px;
-}
 .transcricao-audio {
   display: grid;
   gap: 10px;

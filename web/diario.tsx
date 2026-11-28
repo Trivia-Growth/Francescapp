@@ -18,12 +18,8 @@
  * - Diário oculta a lista ao ocultar a aba (família) e reconsulta ao voltar, sem perder
  *   edição em curso.
  *
- * **Os campos dos três formulários continuam elementos nativos, não os de
- * `componentes/ui`.** As provas (`diario.test.ts`) localizam o campo "Categoria" pelo
- * `<label>` que o ENVOLVE (`label.querySelector('input')`), e os componentes do design
- * system colocam o rótulo como irmão do controle. Mesma razão de `web/conversao-diario.tsx`:
- * manter o invólucro evita quebrar a prova por estrutura, não por comportamento.
  */
+import { LoaderCircle } from 'lucide-react';
 import {
   type ReactNode,
   type Ref,
@@ -44,13 +40,17 @@ import type {
 } from '../packages/contracts/src/diario.ts';
 import { relatoTextualSchema } from '../packages/contracts/src/relato-textual.ts';
 import { exigeNovoAcesso, mensagemFalha } from './api.js';
+import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Botao } from './componentes/ui/botao.js';
+import { Campo } from './componentes/ui/campo.js';
 import { CampoData } from './componentes/ui/campo-data.js';
-import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
+import { MarcaEstado } from './componentes/ui/marca-estado.js';
+import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { confirmar, confirmarDescarte } from './confirmacao.js';
 import type { ComandoConversaoDiario } from './conversao-diario.js';
 import { CamposSintese, controleSintese, lerSintese } from './modelo-sintese.js';
+import { CaixaDeMarcacao } from './telas/caixa-de-marcacao.js';
 import { Formulario } from './telas/formulario.js';
 
 export type ServicoDiarioTela = {
@@ -107,19 +107,31 @@ function dataLegivel(iso: string): string {
  *  tela, isto é só a pintura. Substitui `iniciarAcao` (`web/esqueleto.ts`), que mutava o
  *  nó do botão direto no DOM — um botão React reconciliaria por cima na pintura seguinte. */
 function Indicador() {
-  return <span className="loading-indicator" aria-hidden="true" />;
+  return (
+    <LoaderCircle size={16} className="shrink-0 motion-safe:animate-spin" aria-hidden="true" />
+  );
 }
+
+const classeFormulario =
+  'm-0 grid min-w-0 max-w-none gap-sistema-3 rounded-superficie bg-sistema-superficie p-sistema-4 shadow-cartao lateral:p-sistema-5';
+const classeCampos =
+  'm-0 grid min-w-0 max-w-formulario gap-sistema-3 border-0 p-0 [&_label:has(>input[type=checkbox])]:justify-start';
+const classeLegenda = 'mb-sistema-3 p-0 text-controle';
+const classeAcoes = 'flex min-w-0 flex-wrap justify-end gap-sistema-3';
 
 /** VIS-017: campo secundário de um registro publicado, em `Rótulo: valor`. */
 function CamposCurtos({ itens }: { itens: readonly [string, string | undefined][] }) {
   return (
-    <dl className="diario-campos">
+    <dl className="m-0 grid max-w-texto gap-sistema-2 border-t border-sistema-divisor pt-sistema-3 text-meta">
       {itens
         .filter((item): item is [string, string] => Boolean(item[1]))
         .map(([titulo, valor]) => (
-          <div key={titulo}>
-            <dt>{titulo}</dt>
-            <dd>{valor}</dd>
+          <div
+            key={titulo}
+            className="grid min-w-0 gap-sistema-1 intermediaria:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]"
+          >
+            <dt className="text-sistema-texto-secundario">{titulo}</dt>
+            <dd className="m-0 min-w-0 wrap-anywhere">{valor}</dd>
           </div>
         ))}
     </dl>
@@ -129,16 +141,22 @@ function CamposCurtos({ itens }: { itens: readonly [string, string | undefined][
 /** Texto livre de um registro publicado: o que a pessoa de fato escreveu, como prosa. */
 function Trecho({ titulo, texto }: { titulo: string; texto: string }) {
   return (
-    <div className="diario-trecho">
-      <p className="diario-trecho-rotulo">{titulo}</p>
-      <p>{texto}</p>
+    <div className="grid min-w-0 gap-sistema-1">
+      <p className="m-0 text-meta text-sistema-texto-secundario">{titulo}</p>
+      <p className="m-0 max-w-texto wrap-anywhere whitespace-pre-wrap text-corpo text-sistema-texto">
+        {texto}
+      </p>
     </div>
   );
 }
 
 /** Procedência do registro numa linha só: situação, instante e audiência. */
 function Procedencia({ partes }: { partes: readonly string[] }) {
-  return <p className="diario-procedencia">{partes.join(' · ')}</p>;
+  return (
+    <p className="m-0 wrap-anywhere text-meta text-sistema-texto-secundario">
+      {partes.join(' · ')}
+    </p>
+  );
 }
 
 /** Entrada por áudio (FR-010), composta no formulário. `onTexto` passa por ref: a entrada
@@ -154,7 +172,7 @@ function AudioOuAtalho({
   onTextoRef.current = onTexto;
   const [confirmar] = useState(() => (texto: string) => onTextoRef.current(texto));
   if (!montar) return null;
-  return <div className="diario-entrada-audio">{montar(confirmar)}</div>;
+  return <div className="min-w-0">{montar(confirmar)}</div>;
 }
 
 type Gravar = (entrada: SalvarRegistroDiario) => Promise<RegistroDiario>;
@@ -271,60 +289,63 @@ function FormularioRelatoFamiliar({
 
   return (
     <div ref={envelope}>
-      <Formulario noValidate aoEnviar={() => void enviar('publicado')}>
-        <h3>Registrar no diário</h3>
-        <p>Conte o que aconteceu e o que você gostaria de levar à coordenação.</p>
-        <fieldset disabled={enviando !== null} className="m-0 min-w-0 border-0 p-0">
-          <legend>O que aconteceu</legend>
-          <label htmlFor={`${idData}-texto`}>
-            Quando aconteceu? (obrigatória)
-            <CampoData
-              id={idData}
-              aria-label="Quando aconteceu? (obrigatória)"
-              required
-              defaultValue={conteudoExistente?.dataAcontecimento}
-            />
-          </label>
-          <label>
-            O que aconteceu? (obrigatória)
-            <textarea id={idDescricao} required defaultValue={conteudoExistente?.descricao} />
-          </label>
+      <Formulario noValidate className={classeFormulario} aoEnviar={() => void enviar('publicado')}>
+        <h3 className="m-0 font-sans text-item">Registrar no diário</h3>
+        <p className="m-0 max-w-texto text-corpo text-sistema-texto-secundario">
+          Conte o que aconteceu e o que você gostaria de levar à coordenação.
+        </p>
+        <fieldset disabled={enviando !== null} className={classeCampos}>
+          <legend className={classeLegenda}>O que aconteceu</legend>
+          <CampoData
+            id={idData}
+            rotulo="Quando aconteceu? (obrigatória)"
+            required
+            defaultValue={conteudoExistente?.dataAcontecimento}
+          />
+          <AreaTexto
+            id={idDescricao}
+            rotulo="O que aconteceu? (obrigatória)"
+            required
+            defaultValue={conteudoExistente?.descricao}
+          />
           {montarEntradaPorAudio ? (
             <AudioOuAtalho montar={montarEntradaPorAudio} onTexto={aoReceberDitado} />
           ) : null}
         </fieldset>
-        <fieldset disabled={enviando !== null} className="m-0 min-w-0 border-0 p-0">
-          <legend>Detalhes, se quiser contar</legend>
-          <label>
-            Categoria (opcional)
-            <input id={idCategoria} defaultValue={conteudoExistente?.categoria ?? ''} />
-          </label>
-          <label>
-            O que ajudou? (opcional)
-            <textarea id={idContexto} defaultValue={conteudoExistente?.contexto ?? ''} />
-          </label>
-          <label>
-            Ação tomada (opcional)
-            <textarea id={idAcao} defaultValue={conteudoExistente?.acaoTomada ?? ''} />
-          </label>
+        <fieldset disabled={enviando !== null} className={classeCampos}>
+          <legend className={classeLegenda}>Detalhes, se quiser contar</legend>
+          <Campo
+            id={idCategoria}
+            rotulo="Categoria (opcional)"
+            defaultValue={conteudoExistente?.categoria ?? ''}
+          />
+          <AreaTexto
+            id={idContexto}
+            rotulo="O que ajudou? (opcional)"
+            defaultValue={conteudoExistente?.contexto ?? ''}
+          />
+          <AreaTexto
+            id={idAcao}
+            rotulo="Ação tomada (opcional)"
+            defaultValue={conteudoExistente?.acaoTomada ?? ''}
+          />
         </fieldset>
-        <fieldset disabled={enviando !== null} className="m-0 min-w-0 border-0 p-0">
-          <legend>Retorno da coordenação</legend>
-          <label>
-            Gostaria de um retorno da coordenação
-            <input
-              id={idRetorno}
-              type="checkbox"
-              defaultChecked={rascunhoExistente?.retorno_solicitado}
-            />
-          </label>
+        <fieldset disabled={enviando !== null} className={classeCampos}>
+          <legend className={classeLegenda}>Retorno da coordenação</legend>
+          <CaixaDeMarcacao
+            id={idRetorno}
+            className="min-h-0"
+            rotulo="Gostaria de um retorno da coordenação"
+            defaultChecked={rascunhoExistente?.retorno_solicitado}
+          />
         </fieldset>
         {/* biome-ignore lint/a11y/useSemanticElements: `role="status"` em `<p>` é o gancho que as provas já usam. */}
         <p role="status" aria-live="polite">
           {aviso}
         </p>
-        <div className="diario-acoes">
+        <div className={classeAcoes}>
           <Botao
+            className="m-0"
             peso="discreto"
             disabled={enviando !== null}
             aria-busy={enviando === 'rascunho' || undefined}
@@ -334,6 +355,7 @@ function FormularioRelatoFamiliar({
             {enviando === 'rascunho' ? <Indicador /> : null}
           </Botao>
           <Botao
+            className="m-0"
             peso="principal"
             tipo="submit"
             disabled={enviando !== null}
@@ -467,25 +489,24 @@ function FormularioEvolucao({
 
   return (
     <div ref={envelope}>
-      <Formulario noValidate aoEnviar={() => void enviar('publicado')}>
-        <h3>{responde ? 'Responder ao relato da família' : 'Registrar evolução profissional'}</h3>
-        <fieldset disabled={enviando !== null} className="m-0 min-w-0 border-0 p-0">
+      <Formulario noValidate className={classeFormulario} aoEnviar={() => void enviar('publicado')}>
+        <h3 className="m-0 font-sans text-item">
+          {responde ? 'Responder ao relato da família' : 'Registrar evolução profissional'}
+        </h3>
+        <fieldset disabled={enviando !== null} className={classeCampos}>
           <CamposSintese areas={areas} prefixo={idBase} />
           {montarEntradaPorAudio ? (
             <AudioOuAtalho montar={montarEntradaPorAudio} onTexto={aoReceberDitado} />
           ) : null}
-          <label htmlFor={idAudiencia}>
-            Quem verá este registro
-            <SelecaoAprimorada
-              id={idAudiencia}
-              aria-label="Quem verá este registro"
-              disabled={audienciaForcada}
-              defaultValue={audienciaInicial}
-            >
-              <option value="equipe">{rotuloAudiencia.equipe}</option>
-              <option value="equipe_e_familia">{rotuloAudiencia.equipe_e_familia}</option>
-            </SelecaoAprimorada>
-          </label>
+          <SelecaoAprimorada
+            id={idAudiencia}
+            rotulo="Quem verá este registro"
+            disabled={audienciaForcada}
+            defaultValue={audienciaInicial}
+          >
+            <option value="equipe">{rotuloAudiencia.equipe}</option>
+            <option value="equipe_e_familia">{rotuloAudiencia.equipe_e_familia}</option>
+          </SelecaoAprimorada>
           {/* FR-013: o retorno precisa alcançar quem escreveu o relato, e o banco recusa outra coisa. */}
           {audienciaForcada ? (
             <p>
@@ -496,17 +517,19 @@ function FormularioEvolucao({
           <p role="status" ref={destinatariosRef}>
             {`Ao publicar, este registro ficará visível para: ${rotuloAudiencia[audienciaInicial]}.`}
           </p>
-          <label>
-            Indicar necessidade de atenção
-            <input id={idAtencao} type="checkbox" />
-          </label>
+          <CaixaDeMarcacao
+            id={idAtencao}
+            className="min-h-0"
+            rotulo="Indicar necessidade de atenção"
+          />
         </fieldset>
         {/* biome-ignore lint/a11y/useSemanticElements: idem. */}
         <p role="status" aria-live="polite">
           {aviso}
         </p>
-        <div className="diario-acoes">
+        <div className={classeAcoes}>
           <Botao
+            className="m-0"
             peso="discreto"
             disabled={enviando !== null}
             aria-busy={enviando === 'rascunho' || undefined}
@@ -516,6 +539,7 @@ function FormularioEvolucao({
             {enviando === 'rascunho' ? <Indicador /> : null}
           </Botao>
           <Botao
+            className="m-0"
             peso="principal"
             tipo="submit"
             disabled={enviando !== null}
@@ -614,24 +638,21 @@ function FormularioRetificacao({
 
   return (
     <div ref={envelope}>
-      <Formulario noValidate aoEnviar={() => void enviar()}>
-        <h4>Retificar registro publicado</h4>
+      <Formulario noValidate className={classeFormulario} aoEnviar={() => void enviar()}>
+        <h4 className="m-0 font-sans text-item">Retificar registro publicado</h4>
         <p>
           A versão publicada continua no histórico. A correção entra como nova versão, com data,
           autoria e motivo.
         </p>
-        <fieldset disabled={enviando} className="m-0 min-w-0 border-0 p-0">
-          <label>
-            Texto corrigido (obrigatório)
-            <textarea id={idCorrecao} required />
-          </label>
-          <label>
-            Motivo da retificação (obrigatório)
-            <textarea id={idMotivo} required />
-          </label>
+        <fieldset disabled={enviando} className={classeCampos}>
+          <AreaTexto id={idCorrecao} rotulo="Texto corrigido (obrigatório)" required />
+          <AreaTexto id={idMotivo} rotulo="Motivo da retificação (obrigatório)" required />
           {/* biome-ignore lint/a11y/useSemanticElements: `role="status"` em `<p>` é o gancho que as provas já usam. */}
           <p role="status">{aviso}</p>
+        </fieldset>
+        <div className={classeAcoes}>
           <Botao
+            className="m-0"
             peso="principal"
             tipo="submit"
             disabled={enviando}
@@ -640,7 +661,7 @@ function FormularioRetificacao({
             Registrar retificação
             {enviando ? <Indicador /> : null}
           </Botao>
-        </fieldset>
+        </div>
       </Formulario>
     </div>
   );
@@ -757,18 +778,19 @@ function RegistroArtigo({
   }
 
   return (
-    <li>
-      <article>
-        <h3>
+    <li className="border-b border-sistema-divisor last:border-0">
+      <article className="grid min-w-0 gap-sistema-3 border-0 py-sistema-4">
+        <h3 className="m-0 font-sans text-item">
           {registro.tipo === 'relato_familiar' ? 'Relato da família' : 'Evolução profissional'}
         </h3>
-        <Procedencia
-          partes={[
-            rotuloEstado[registro.estado],
-            dataLegivel(registro.criado_em),
-            rotuloAudiencia[registro.audiencia],
-          ]}
-        />
+        <div className="flex min-w-0 flex-wrap items-center gap-sistema-2">
+          <MarcaEstado tom={registro.estado === 'rascunho' ? 'suave' : 'padrao'}>
+            {rotuloEstado[registro.estado]}
+          </MarcaEstado>
+          <Procedencia
+            partes={[dataLegivel(registro.criado_em), rotuloAudiencia[registro.audiencia]]}
+          />
+        </div>
         {registro.origem_conteudo === 'audio_transcrito' ? (
           <p>Texto obtido de transcrição de áudio e revisado pelo autor.</p>
         ) : null}
@@ -829,12 +851,17 @@ function RegistroArtigo({
             {/* biome-ignore lint/a11y/useSemanticElements: `role="status"` em `<p>` é o gancho que as provas já usam. */}
             <p role="status">{situacaoDoRemetente(registro, respostas)}</p>
             {ehFamilia && registro.tipo === 'relato_familiar' && registro.estado === 'rascunho' ? (
-              <Botao peso="discreto" aoAtivar={() => onTrocarEditorFamiliar('retomar', registro)}>
+              <Botao
+                className="m-0 justify-self-start"
+                peso="discreto"
+                aoAtivar={() => onTrocarEditorFamiliar('retomar', registro)}
+              >
                 Retomar rascunho
               </Botao>
             ) : registro.estado !== 'rascunho' ? (
               ehFamilia ? (
                 <Botao
+                  className="m-0 justify-self-start"
                   peso="discreto"
                   aoAtivar={() => onTrocarEditorFamiliar('retificar', registro)}
                 >
@@ -849,7 +876,11 @@ function RegistroArtigo({
                   descartarAcesso={descartarAcesso}
                 />
               ) : (
-                <Botao peso="discreto" aoAtivar={() => definirInlineAberto('retificar')}>
+                <Botao
+                  className="m-0 justify-self-start"
+                  peso="discreto"
+                  aoAtivar={() => definirInlineAberto('retificar')}
+                >
                   Retificar
                 </Botao>
               )
@@ -867,7 +898,11 @@ function RegistroArtigo({
               descartarAcesso={descartarAcesso}
             />
           ) : (
-            <Botao peso="discreto" aoAtivar={() => definirInlineAberto('responder')}>
+            <Botao
+              className="m-0 justify-self-start"
+              peso="discreto"
+              aoAtivar={() => definirInlineAberto('responder')}
+            >
               Responder
             </Botao>
           )
@@ -1085,11 +1120,6 @@ export function TelaDiario({
       <>
         {/* biome-ignore lint/a11y/useSemanticElements: `role="status"` em `<p>` é o gancho que as provas já usam. */}
         <p role="status">Carregando o diário…</p>
-        <div className="list-loading" data-compacto="" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
       </>
     );
   }
@@ -1102,9 +1132,9 @@ export function TelaDiario({
   const chaveEditorTexto = `${chaveEditor}:${editorFamiliar.tipo}`;
 
   return (
-    <div className="min-w-0">
-      <h2>Diário e evolução</h2>
-      <p>
+    <div className="grid min-w-0 gap-sistema-3">
+      <h2 className="m-0 font-sans text-secao">Diário e evolução</h2>
+      <p className="m-0 max-w-texto text-corpo text-sistema-texto-secundario">
         O diário registra o acompanhamento entre atendimentos. Ele não é canal de emergência e não
         garante resposta imediata.
       </p>
@@ -1161,22 +1191,20 @@ export function TelaDiario({
         )}
       </div>
       {/* biome-ignore lint/a11y/useSemanticElements: idem. */}
-      <p role="status">{avisoLeituras}</p>
+      <p className="m-0" role="status">
+        {avisoLeituras}
+      </p>
       <div aria-busy={carregandoLeituras}>
         {ehFamilia && document.visibilityState === 'hidden' ? null : (
           <>
-            {carregandoLeituras ? (
-              <div className="list-loading" data-compacto="" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </div>
-            ) : null}
             {estadoLeituras === 'pronto' && registros.length === 0 ? (
               <EstadoVazio titulo="Nenhum registro no diário deste paciente ainda." />
             ) : null}
             {estadoLeituras === 'pronto' && registros.length > 0 ? (
-              <ul>
+              <ul
+                className="m-0 list-none rounded-superficie bg-sistema-superficie px-sistema-4 shadow-cartao lateral:px-sistema-5"
+                aria-label="Registros no diário"
+              >
                 {registros.map((registro) => (
                   <RegistroArtigo
                     key={registro.diario_registro_id}

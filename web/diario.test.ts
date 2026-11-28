@@ -207,10 +207,10 @@ it('família retoma e publica seu rascunho com categoria e versão existentes', 
   botoes.find((botao) => botao.textContent === 'Retomar rascunho')?.click();
   const form = raiz.querySelector('form');
   if (!form) throw new Error('Formulário de retomada indisponível.');
-  const categoria = [...form.querySelectorAll('label')]
-    .find((label) => label.textContent?.includes('Categoria'))
-    ?.querySelector('input');
-  if (!categoria) throw new Error('Categoria indisponível.');
+  const categoria = [...form.querySelectorAll('label')].find(
+    (rotulo) => rotulo.textContent === 'Categoria (opcional)',
+  )?.control;
+  if (!(categoria instanceof HTMLInputElement)) throw new Error('Categoria indisponível.');
   expect(categoria.value).toBe('Rotina');
   expect(form.querySelector('textarea')?.value).toBe('Relato fictício');
   categoria.value = 'Bem-estar';
