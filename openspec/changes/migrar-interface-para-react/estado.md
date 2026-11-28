@@ -53,6 +53,9 @@ resposta negativa ou falha. A consulta é cancelada na saída do Diário. A tare
   para cada método, sessão técnica sem consulta e preservação do texto digitado.
 - A restrição a Google impediu a gravação quando a sessão interna era elegível.
   Ignorar a negativa fez o gravador aparecer. As duas alterações foram revertidas.
+- Capturas do Diário com sessão interna e resposta negativa em 390 e 1440 px
+  confirmaram a folha compilada carregada e zero violações de axe nos quatro
+  estados de comparação.
 - Próximo passo: concluir a validação de 8n/8o no PR #67 sobre a main.
 
 ## Fatia 8n do plano visual — conversão do Diário
