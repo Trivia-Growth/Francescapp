@@ -1,12 +1,6 @@
-/* Pessoas de referência da demonstração local, reconstruídas em React sobre a ilha
- * (`web/ponte/ilha.ts`).
- *
- * Contrato: `montarRelacoesLocais(raiz, dados) => desmontar`. O único chamador é
- * `web/demonstracao.ts`, que remonta na mesma raiz a cada abertura (a ilha tolera) e
- * pendura um ouvinte `input` no `<form>` desenhado aqui para saber se há rascunho;
- * `aoLimpar` é como esta tela avisa que o rascunho deixou de existir.
- *
- * O que NÃO mudou, de propósito:
+/* Pessoas de referência da demonstração local. A página ouve `input` no
+ * formulário para detectar rascunhos, e o componente avisa quando os limpa
+ * pelo callback `aoLimpar`.
  *
  * - `dados.pessoas` continua sendo MUTADO por referência (`push`/troca no índice) só
  *   depois de `aoRegistrar`/`aoAtualizar` confirmarem; falha preserva o rascunho e qual

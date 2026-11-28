@@ -1,11 +1,5 @@
-/* Prévia local de encaminhamentos — edição em memória antes de `aoRegistrar`/`aoAtualizar`
- * confirmarem a gravação —, reconstruída em React sobre a ilha (`web/ponte/ilha.ts`).
- *
- * O contrato exportado não muda: `montarEncaminhamentosLocais(raiz, dados) => void` (sem
- * desmontagem própria — quem monta é dono do ciclo de vida da `raiz`, como
- * `web/encaminhamentos.tsx` e `web/demonstracao.ts` já fazem).
- *
- * O que NÃO mudou, de propósito:
+/* A ficha e a demonstração compõem a edição de encaminhamentos. A edição fica
+ * em memória até `aoRegistrar` ou `aoAtualizar` confirmar a gravação.
  *
  * - `dados.encaminhamentos` continua MUTADO por referência (`push`/substituição por
  *   índice) após gravação confirmada — é o mesmo array que o chamador guarda.
