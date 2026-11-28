@@ -9,7 +9,6 @@ import {
 import { rotulosSituacao, type ResponsavelOpcao } from './acompanhamento-caso.js';
 import { Botao } from './componentes/ui/botao.js';
 import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
-import { ilhaSincrona, nodeDe } from './telas/ilha-sincrona.js';
 
 /** FR-026: filtros da carteira. A busca por nome que já existe continua valendo só dentro
  * da página carregada, porque o nome é cifrado e o banco não o compara; estes filtros são
@@ -173,18 +172,6 @@ export function BarraFiltrosCarteira({
   );
 }
 
-export function montarFiltrosCarteira(
-  raiz: HTMLElement,
-  opcoes: {
-    administrador: boolean;
-    responsaveis?: readonly ResponsavelOpcao[];
-    inicial?: FiltrosCarteira;
-  },
-  aoFiltrar: AoFiltrar,
-): () => void {
-  return ilhaSincrona(raiz, <BarraFiltrosCarteira {...opcoes} aoFiltrar={aoFiltrar} />);
-}
-
 /** Selo do sinal operacional em um item da lista (FR-028).
  *
  * O aviso de que isto não é avaliação clínica fica no `title` e num texto lido por leitor
@@ -201,10 +188,4 @@ export function SinalCarteira({ sinal }: { sinal: SinalCarteiraDoCaso }) {
       <span className="sr-only">{avisoSinalOperacional}</span>
     </span>
   );
-}
-
-/** O selo como nó solto, para `web/main.ts`, que ainda compõe a linha da carteira juntando
- *  `Node`s. Uma implementação só: o React acima é a fonte, e isto é a tomada. */
-export function montarSinalCarteira(sinal: SinalCarteiraDoCaso): HTMLElement {
-  return nodeDe(<SinalCarteira sinal={sinal} />);
 }

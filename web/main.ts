@@ -74,7 +74,7 @@ import { gravarRota, iniciarCasca, lerRota } from './casca-react.js';
 import type { DestinoCasca } from './navegacao-casca.js';
 import { criarServicoSolicitacaoTitularHttp } from './servico-solicitacao-titular-http.js';
 import { criarServicoSegredosIntegracoesHttp } from './servico-segredos-integracoes-http.js';
-import { montarFiltrosCarteira } from './filtros-carteira.js';
+import { BarraFiltrosCarteira } from './filtros-carteira.js';
 import { entradaTranscricaoAudio } from './transcricao-audio.js';
 import { criarServicoTranscricaoHttp } from './servico-transcricao-http.js';
 import { confirmar } from './confirmacao.js';
@@ -1205,17 +1205,9 @@ let proximoCursor: string | null = null;
 let filtrosCarteira: FiltrosCarteira = {};
 let filtrosMontadosPara: string | null = null;
 let desmontarFiltros: (() => void) | null = null;
-/* Geração da barra de filtros, no mesmo idioma de `consulta` e `consultaFicha`.
-   `filtrosMontadosPara` guarda uma ASSINATURA — `${id}|${administrador}|${disponivel}` —
-   e assinatura é valor, não identidade: perder o acesso e entrar de novo com a MESMA
-   conta reproduz a mesma string. Uma consulta de responsáveis disparada antes da queda
-   resolvia depois da volta, comparava string com string, passava, e desenhava usando o
-   fechamento da montagem ANTIGA. Nascia uma segunda ilha na mesma raiz, e a desmontagem
-   corrente só conhecia a dela — ABA clássico: o valor voltou, a identidade não.
-   A desmontagem também sobe para o módulo: enquanto era local a cada invocação, cada
-   chamada abria um rastreamento novo e perdia a ilha da anterior. */
+// A geração invalida o catálogo que começou a carregar antes de fechar os filtros,
+// inclusive quando a mesma conta entra de novo.
 let geracaoFiltros = 0;
-let desmontarBarraAtual: (() => void) | null = null;
 type PedidoCadastro = { entrada: CriarPaciente; chave: string };
 let cadastroPendente: PedidoCadastro | null = null;
 let cadastroEmRevalidacao: { usuarioId: string; pedido: PedidoCadastro } | null = null;
@@ -1369,10 +1361,6 @@ function apagarPacientes(): void {
   filtrosCarteira = {};
   desmontarFiltros?.();
   desmontarFiltros = null;
-  /* Sem `replaceChildren` aqui: a ilha é dona dos próprios nós e os retira ao desmontar.
-     Apagá-los por fora era uma corrida — medido em 26/11/2026, `unmount()` nem sempre
-     termina no mesmo quadro, e o React lançava `NotFoundError` ao procurar nós que esta
-     linha já havia removido. A barra fica escondida de qualquer forma. */
   elemento('filtros-carteira').hidden = true;
   fecharAdministracao();
   fecharRegras();
@@ -1536,7 +1524,7 @@ function catalogoDaEquipe(atual: Sessao): (() => Promise<ResponsavelOpcao[]>) | 
 
 /** FR-026. O recorte por responsável e por situação só é oferecido a quem o servidor
  * autoriza a lê-los; a recusa real continua no banco, esconder o controle é conveniência. */
-function montarFiltrosDaCarteira(atual: Sessao): void {
+function atualizarFiltrosDaCarteira(atual: Sessao): void {
   const raiz = elemento('filtros-carteira');
   const administrador =
     atual.usuario.perfil === 'administrador' &&
@@ -1545,12 +1533,11 @@ function montarFiltrosDaCarteira(atual: Sessao): void {
   const assinatura = `${atual.usuario.id}|${administrador}|${disponivel}`;
   if (filtrosMontadosPara === assinatura) return;
   filtrosMontadosPara = assinatura;
-  geracaoFiltros += 1;
   desmontarFiltros?.();
   desmontarFiltros = null;
+  const geracao = ++geracaoFiltros;
+  raiz.hidden = !disponivel;
   if (!disponivel) {
-    raiz.replaceChildren();
-    raiz.hidden = true;
     filtrosCarteira = {};
     return;
   }
@@ -1562,57 +1549,35 @@ function montarFiltrosDaCarteira(atual: Sessao): void {
     proximoCursor = null;
     void carregarPacientes();
   };
-  /* `desenhar` é chamada DUAS vezes na mesma raiz — uma sem a equipe e outra quando a
-     lista de responsáveis chega. A montagem anterior precisa ser desfeita de verdade, não
-     só ter os filhos apagados: a raiz React continua viva depois de `replaceChildren()`, e
-     quando o React vai remover os próprios nós eles já saíram. */
   const desenhar = (responsaveis?: readonly ResponsavelOpcao[]) => {
-    desmontarBarraAtual?.();
-    desmontarBarraAtual = montarFiltrosCarteira(
-      raiz,
-      {
+    casca.desenharFiltros(
+      createElement(BarraFiltrosCarteira, {
+        key: `${geracao}:${responsaveis !== undefined}`,
         administrador,
-        ...(responsaveis ? { responsaveis } : {}),
-        ...(Object.keys(filtrosCarteira).length ? { inicial: filtrosCarteira } : {}),
-      },
-      trocar,
+        responsaveis,
+        inicial: filtrosCarteira,
+        aoFiltrar: trocar,
+      }),
     );
   };
   desenhar();
-  raiz.hidden = false;
-  // A lista da equipe só é consultada quando alguém mexe nos filtros: pintar a barra não
-  // justifica percorrer a equipe inteira, e revalidar o acesso não repete a consulta.
-  // Até lá o filtro de responsável existe com a opção "sem responsável indicado".
+  // A lista de responsáveis só é consultada ao interagir com os filtros.
   const catalogo = administrador ? catalogoDaEquipe(atual) : null;
-  const geracao = geracaoFiltros;
   const carregarResponsaveis = () => {
     raiz.removeEventListener('focusin', carregarResponsaveis);
     void catalogo?.()
       .then((responsaveis) => {
-        // Geração, não assinatura: a string volta a ser igual depois de um novo acesso
-        // da mesma conta, a identidade da montagem não.
         if (geracao === geracaoFiltros) desenhar(responsaveis);
       })
       .catch(() => {
-        /* a barra continua útil sem a lista de responsáveis */
+        /* A barra continua disponível com as opções carregadas. */
       });
   };
   if (catalogo) raiz.addEventListener('focusin', carregarResponsaveis);
   desmontarFiltros = () => {
-    /* Encerrar também INVALIDA o que está em voo. Sem esta linha a consulta de
-       responsáveis disparada antes da queda resolvia depois dela, passava na guarda —
-       porque a geração só avançava ao montar, nunca ao desmontar — e desenhava uma ilha
-       nova numa barra que já tinha sido encerrada. `desmontarFiltros` já era nulo nesse
-       ponto, então nada mais alcançava essa ilha, e o `replaceChildren` seguinte
-       encontrava uma raiz React viva. Era a origem dos 3 `NotFoundError` restantes. */
     geracaoFiltros += 1;
     raiz.removeEventListener('focusin', carregarResponsaveis);
-    // Desmontar a ilha ANTES de esvaziar. Até 26/11/2026 esta função só apagava os
-    // filhos, e a raiz React ficava órfã — era a origem do `NotFoundError` que derrubava
-    // o portão de ativação sem quebrar uma única asserção.
-    desmontarBarraAtual?.();
-    desmontarBarraAtual = null;
-    raiz.replaceChildren();
+    casca.desenharFiltros(null);
   };
 }
 
@@ -2172,7 +2137,7 @@ function aplicarSessao(atual: Sessao): boolean {
     catalogoCasoNovo = null;
     casoNovo.cancelarCarga();
   }
-  montarFiltrosDaCarteira(atual);
+  atualizarFiltrosDaCarteira(atual);
   // A home é da equipe. A família entra pela própria lista, que já é o recorte dela, e o
   // sinal operacional não é vocabulário que a família tenha combinado.
   const temHome = atual.usuario.perfil !== 'familia';
@@ -3041,7 +3006,11 @@ const casca = iniciarCasca(
     aoSair: () => void sair(),
     aoBuscar: buscarNaCarteira,
   },
-  { raiz: listaPacientes, abrir: abrirPacienteDaCarteira },
+  {
+    raiz: listaPacientes,
+    abrir: abrirPacienteDaCarteira,
+    destinoFiltros: elemento('filtros-carteira'),
+  },
   elemento('agenda-individual'),
   {
     destinoLogin: acessoInterno,

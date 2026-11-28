@@ -41,6 +41,19 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8m do plano visual — filtros da Carteira
+
+A raiz da casca compõe os filtros da Carteira. Retirar a barra invalida a
+consulta de responsáveis e desmonta seus controles. Os testes renderizam o
+sinal operacional diretamente. A tarefa 7.2 permanece aberta.
+
+- Passaram oito testes Vitest, dois cenários Chromium e lint/typecheck.
+  O filtro de revisão foi enviado ao servidor fictício. Com a equipe ainda
+  em consulta, sair da conta esvaziou o contêiner.
+- Sem desmontar os filtros, o contêiner ficou oculto e com os controles no
+  DOM. O cenário falhou em `toBeEmpty`. Alteração revertida.
+- Próximo passo: rebase após o squash da fatia anterior e ativação.
+
 ## Fatia 8l do plano visual — entrada interna e aviso de rede
 
 Os formulários internos e o aviso de conectividade são compostos na raiz da

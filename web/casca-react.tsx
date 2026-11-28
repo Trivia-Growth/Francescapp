@@ -12,7 +12,11 @@ import type { ServicoRegrasAtendimento } from './servico-regras-atendimento-http
 import { type ComandoGaveta, type EstadoNavegacao, NavegacaoCasca } from './navegacao-casca.js';
 
 type Navegacao = ComponentProps<typeof NavegacaoCasca>;
-type Carteira = { raiz: HTMLElement; abrir: (paciente: PacienteLista) => void };
+type Carteira = {
+  raiz: HTMLElement;
+  destinoFiltros: HTMLElement;
+  abrir: (paciente: PacienteLista) => void;
+};
 type Entrada = { destinoLogin: HTMLElement; destinoRede: HTMLElement; login: ReactElement };
 
 type Rota =
@@ -116,7 +120,7 @@ function Casca({
   vista: Vista | null;
   aoHistorico: () => void;
   navegacao: Navegacao;
-  carteira: Carteira & { pacientes: readonly PacienteLista[] };
+  carteira: Carteira & { pacientes: readonly PacienteLista[]; filtros: ReactElement | null };
   agenda: ReactElement | null;
   destinoAgenda: HTMLElement;
   entrada: Entrada;
@@ -173,6 +177,7 @@ function Casca({
         </PainelCasca>,
         carteira.raiz,
       )}
+      {carteira.filtros ? createPortal(carteira.filtros, carteira.destinoFiltros) : null}
       {vista ? createPortal(conteudoDaVista(vista), vista.destino) : null}
       {agenda
         ? createPortal(
@@ -204,6 +209,7 @@ export function iniciarCasca(
   let encerrada = false;
   let vista: Vista | null = null;
   let agenda: ReactElement | null = null;
+  let filtros: ReactElement | null = null;
   let pacientes: readonly PacienteLista[] = [];
   let estado: EstadoNavegacao = {
     visivel: false,
@@ -224,7 +230,7 @@ export function iniciarCasca(
             vista={vista}
             aoHistorico={aoHistorico}
             navegacao={{ ...opcoes, estado, comando }}
-            carteira={{ ...carteira, pacientes }}
+            carteira={{ ...carteira, pacientes, filtros }}
             agenda={agenda}
             destinoAgenda={destinoAgenda}
             entrada={entrada}
@@ -253,6 +259,10 @@ export function iniciarCasca(
     },
     atualizarLista(itens: readonly PacienteLista[]) {
       pacientes = itens;
+      atualizar();
+    },
+    desenharFiltros(tela: ReactElement | null) {
+      filtros = tela;
       atualizar();
     },
     fecharGaveta() {
