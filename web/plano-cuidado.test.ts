@@ -1,8 +1,32 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement } from 'react';
 import { expect, it, vi } from 'vitest';
 import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
 import { FalhaApi } from './api.js';
-import { montarPlanoCuidado as montar, type ServicoPlanoCuidado } from './plano-cuidado.js';
+import { TelaPlanoCuidado, type ServicoPlanoCuidado } from './plano-cuidado.js';
+
+function montar(
+  raiz: HTMLElement,
+  pacienteId: string,
+  servico: ServicoPlanoCuidado,
+  acessoPerdido: (erro: unknown) => void,
+  alteracaoPendente: (pendente: boolean) => void = () => {},
+  ehFamilia = false,
+) {
+  const painel = render(
+    createElement(TelaPlanoCuidado, {
+      pacienteId,
+      servico,
+      acessoPerdido,
+      alteracaoPendente,
+      ehFamilia,
+      nomeDoUsuario: () => undefined,
+    }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
 
 function montarPlanoCuidado(
   raiz: HTMLElement,

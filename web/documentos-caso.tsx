@@ -1,9 +1,6 @@
-/* Documentos do caso (FR-029 a FR-031), reconstruído em React sobre a ilha
- * (`web/ponte/ilha.ts`).
- *
- * VIS-012: a flag `ativa` desapareceu — `ilha()` desmonta a raiz React e cancela os
- * efeitos por construção. As guardas que restam (`valida` nos efeitos) são de GERAÇÃO,
- * não de ciclo de vida: impedem uma resposta antiga sobrescrever uma mais nova.
+/* Documentos do caso (FR-029 a FR-031), no painel React da ficha. A consulta
+ * descarta respostas de painéis desmontados. O botão de download encerra seu
+ * ciclo de vida antes de permitir que uma resposta tardia crie um Blob URL.
  *
  * O que NÃO mudou (VIS-018):
  * - anexos ficam no Google Drive institucional; o anexo que sumiu do Drive continua na
@@ -23,7 +20,7 @@
  * que chamava `desenhar()` de novo e perdia qualquer edição em andamento em OUTRA linha.
  * Aqui isso vira um contador `geracao` que remonta a lista e o formulário de envio via
  * `key`, sem reimplementar a perda de rascunho à mão. */
-import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { CampoData } from './componentes/ui/campo-data.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
@@ -36,7 +33,6 @@ import type {
 import { FalhaApi, exigeNovoAcesso, mensagemFalha, resultadoIncerto } from './api.js';
 import { Botao } from './componentes/ui/botao.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
-import { ilha } from './ponte/ilha.js';
 import type { ServicoDocumentos } from './servico-documentos-http.js';
 import { Formulario } from './telas/formulario.js';
 
@@ -440,19 +436,24 @@ function BotaoBaixar({
   documento,
   pacienteId,
   servico,
-  raiz,
   downloadsRef,
   descartarAcesso,
 }: {
   documento: DocumentoCaso;
   pacienteId: string;
   servico: ServicoDocumentos;
-  raiz: HTMLElement;
   downloadsRef: RefObject<Set<string>>;
   descartarAcesso: (erro: unknown) => boolean;
 }) {
   const [ocupado, definirOcupado] = useState(false);
   const [feedback, definirFeedback] = useState('');
+  const ativa = useRef(true);
+  useLayoutEffect(() => {
+    ativa.current = true;
+    return () => {
+      ativa.current = false;
+    };
+  }, []);
 
   const aoClicar = async () => {
     if (ocupado || !servico.baixar) return;
@@ -460,6 +461,7 @@ function BotaoBaixar({
     definirFeedback('Preparando arquivo…');
     try {
       const blob = await servico.baixar(pacienteId, documento.documento_id);
+      if (!ativa.current) return;
       const url = URL.createObjectURL(blob);
       downloadsRef.current.add(url);
       const link = document.createElement('a');
@@ -467,14 +469,13 @@ function BotaoBaixar({
       link.download =
         documento.nome_visivel.replace(/[\p{C}/\\"<>:|?*]/gu, '_').slice(0, 180) || 'documento';
       link.hidden = true;
-      raiz.append(link);
+      document.body.append(link);
       try {
         link.click();
       } finally {
         link.remove();
         window.setTimeout(() => {
-          URL.revokeObjectURL(url);
-          downloadsRef.current.delete(url);
+          if (downloadsRef.current.delete(url)) URL.revokeObjectURL(url);
         }, 1000);
       }
       flushSync(() => {
@@ -482,7 +483,7 @@ function BotaoBaixar({
         definirFeedback('Arquivo enviado ao navegador para download. Confira seus downloads.');
       });
     } catch (erro) {
-      if (descartarAcesso(erro)) return;
+      if (!ativa.current || descartarAcesso(erro)) return;
       flushSync(() => {
         definirOcupado(false);
         definirFeedback(
@@ -519,7 +520,6 @@ function LinhaDocumento({
   acessoPerdido,
   alteracaoPendente,
   ehFamilia,
-  raiz,
   downloadsRef,
   aoAtualizarDocumentos,
   descartarAcesso,
@@ -531,7 +531,6 @@ function LinhaDocumento({
   acessoPerdido: (erro: unknown) => void;
   alteracaoPendente: (pendente: boolean) => void;
   ehFamilia: boolean;
-  raiz: HTMLElement;
   downloadsRef: RefObject<Set<string>>;
   aoAtualizarDocumentos: (documentos: DocumentoCaso[]) => void;
   descartarAcesso: (erro: unknown) => boolean;
@@ -556,7 +555,6 @@ function LinhaDocumento({
           documento={documento}
           pacienteId={pacienteId}
           servico={servico}
-          raiz={raiz}
           downloadsRef={downloadsRef}
           descartarAcesso={descartarAcesso}
         />
@@ -599,7 +597,6 @@ function ListaDocumentos(props: {
   acessoPerdido: (erro: unknown) => void;
   alteracaoPendente: (pendente: boolean) => void;
   ehFamilia: boolean;
-  raiz: HTMLElement;
   downloadsRef: RefObject<Set<string>>;
   aoAtualizarDocumentos: (documentos: DocumentoCaso[]) => void;
   descartarAcesso: (erro: unknown) => boolean;
@@ -616,8 +613,7 @@ function ListaDocumentos(props: {
 }
 
 /** FR-029 a FR-031: anexos do caso guardados no Google Drive institucional. */
-function TelaDocumentosCaso({
-  raiz,
+export function TelaDocumentosCaso({
   pacienteId,
   servico,
   obterCategorias,
@@ -625,7 +621,6 @@ function TelaDocumentosCaso({
   alteracaoPendente,
   ehFamilia,
 }: {
-  raiz: HTMLElement;
   pacienteId: string;
   servico: ServicoDocumentos;
   obterCategorias: () => readonly string[];
@@ -736,34 +731,10 @@ function TelaDocumentosCaso({
         acessoPerdido={acessoPerdido}
         alteracaoPendente={alteracaoPendente}
         ehFamilia={ehFamilia}
-        raiz={raiz}
         downloadsRef={downloadsRef}
         aoAtualizarDocumentos={aoAtualizarDocumentos}
         descartarAcesso={descartarAcesso}
       />
     </section>
-  );
-}
-
-export function montarDocumentosCaso(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: ServicoDocumentos,
-  obterCategorias: () => readonly string[],
-  acessoPerdido: (erro: unknown) => void,
-  alteracaoPendente: (pendente: boolean) => void = () => {},
-  ehFamilia = false,
-): () => void {
-  return ilha(
-    raiz,
-    <TelaDocumentosCaso
-      raiz={raiz}
-      pacienteId={pacienteId}
-      servico={servico}
-      obterCategorias={obterCategorias}
-      acessoPerdido={acessoPerdido}
-      alteracaoPendente={alteracaoPendente}
-      ehFamilia={ehFamilia}
-    />,
   );
 }

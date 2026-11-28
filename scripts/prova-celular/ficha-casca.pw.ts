@@ -4,7 +4,7 @@ import { PACIENTE_IDS, sessaoAdministrador } from '../../web/fixtures/sessao.js'
 
 test.use({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
 
-for (const secao of ['anamnese', 'diario']) {
+for (const secao of ['anamnese', 'diario', 'documentos']) {
   test(`módulo antigo de ${secao} não substitui a seção que permaneceu aberta`, async ({
     page,
   }) => {
@@ -17,7 +17,8 @@ for (const secao of ['anamnese', 'diario']) {
     const espera = new Promise<void>((resolver) => {
       liberarModulo = resolver;
     });
-    await page.route(`**/web/${secao}.tsx`, async (rota) => {
+    const moduloDaSecao = secao === 'documentos' ? 'documentos-caso' : secao;
+    await page.route(`**/web/${moduloDaSecao}.tsx`, async (rota) => {
       await espera;
       await rota.continue();
     });
@@ -30,7 +31,7 @@ for (const secao of ['anamnese', 'diario']) {
         ? rota.fulfill({ json: fixture })
         : rota.fulfill({ status: 404, json: { codigo: 'nao_encontrado' } });
     });
-    const modulo = page.waitForRequest(`**/web/${secao}.tsx`);
+    const modulo = page.waitForRequest(`**/web/${moduloDaSecao}.tsx`);
     await page.goto(`/web/index.html#paciente/${PACIENTE_IDS[0]}/${secao}`);
     const painel = page.locator('#ficha-painel');
     try {
@@ -44,7 +45,7 @@ for (const secao of ['anamnese', 'diario']) {
     await page.evaluate(async (caminho) => {
       await import(caminho);
       await new Promise(requestAnimationFrame);
-    }, `/web/${secao}.tsx`);
+    }, `/web/${moduloDaSecao}.tsx`);
     await expect(painel.locator('.ficha-secao')).toHaveCount(1);
     await expect(painel.locator('.ficha-secao')).toHaveAttribute('data-secao', 'plano');
     await expect(page.locator('#ficha-aba-plano')).toHaveAttribute('aria-selected', 'true');

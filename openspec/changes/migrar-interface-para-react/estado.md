@@ -41,6 +41,19 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8g do plano visual — Plano, Documentos e Escala de turnos
+
+Plano de cuidado, Documentos e Escala de turnos renderizam no painel React da
+ficha. O Plano da equipe acompanha a revalidação enquanto a seção está montada.
+Documentos encerra o download pendente ao desmontar a seção. A tarefa 7.2 segue
+aberta.
+
+- Passaram 41 testes Vitest, oito cenários Chromium e lint/typecheck. Após sair
+  de Documentos antes do carregamento do módulo, nenhum GET da seção saiu.
+- Sem a guarda do botão Baixar arquivo, a resposta tardia criou um Blob URL
+  após a desmontagem e falhou em `not.toHaveBeenCalled`. Alteração revertida.
+- Próximo passo: rebase depois do squash da fatia anterior e ativação.
+
 ## Fatia 8f do plano visual — seções operacionais da ficha
 
 Diário, Pendências, Exportação, Equipe com acesso, Rotina e recursos e Rede de

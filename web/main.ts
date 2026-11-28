@@ -741,36 +741,35 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       {
         id: 'plano',
         rotulo: 'Plano de cuidado',
-        montar: async (raiz) =>
+        compor: async (pendente) =>
           // Família só lê (banco filtra por `visibilidade='publica'`, migration
           // `20261124110000`); por isso não entra em `planoAberto` nem no mecanismo de
           // reconfirmação de acesso do rascunho do colaborador (que leva a `'visao'`, seção
           // que a família não tem) — família não grava, não tem rascunho nem reserva a perder.
-          (await import('./plano-cuidado.js')).montarPlanoCuidado(
-            raiz,
-            paciente.id,
-            criarServicoPlanoHttp(identidadeAtual),
+          createElement((await import('./plano-cuidado.js')).TelaPlanoCuidado, {
+            pacienteId: paciente.id,
+            servico: criarServicoPlanoHttp(identidadeAtual),
             acessoPerdido,
-            undefined,
-            true,
-          ),
+            alteracaoPendente: pendente,
+            ehFamilia: true,
+            nomeDoUsuario: () => undefined,
+          }),
       },
       {
         id: 'documentos',
         rotulo: 'Documentos',
-        montar: async (raiz) =>
+        compor: async (pendente) =>
           // Família só lê (banco filtra por `audiencia='equipe_e_familia'`, migration
           // `20261124120000`); nunca anexa, então as categorias (só usadas pelo formulário de
           // envio) não precisam ser pedidas.
-          (await import('./documentos-caso.js')).montarDocumentosCaso(
-            raiz,
-            paciente.id,
-            criarServicoDocumentosHttp(identidadeAtual),
-            () => [],
+          createElement((await import('./documentos-caso.js')).TelaDocumentosCaso, {
+            pacienteId: paciente.id,
+            servico: criarServicoDocumentosHttp(identidadeAtual),
+            obterCategorias: () => [],
             acessoPerdido,
-            undefined,
-            true,
-          ),
+            alteracaoPendente: pendente,
+            ehFamilia: true,
+          }),
       },
       {
         id: 'orientacoes',
@@ -893,22 +892,22 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'plano',
       rotulo: 'Plano de cuidado',
       descarte: descartePlano,
-      montar: async (raiz, pendente) => {
-        const servico = criarServicoPlanoHttp(identidadeAtual);
-        planoAberto = { pacienteId: paciente.id, servico };
-        const desmontar = (await import('./plano-cuidado.js')).montarPlanoCuidado(
-          raiz,
-          paciente.id,
-          servico,
+      compor: async (pendente) => {
+        const aberto = { pacienteId: paciente.id, servico: criarServicoPlanoHttp(identidadeAtual) };
+        return createElement((await import('./plano-cuidado.js')).TelaPlanoCuidado, {
+          pacienteId: aberto.pacienteId,
+          servico: aberto.servico,
           acessoPerdido,
-          pendente,
-          false,
-          nomeDoUsuarioNaEquipe.consultar,
-        );
-        return () => {
-          desmontar();
-          planoAberto = null;
-        };
+          alteracaoPendente: pendente,
+          ehFamilia: false,
+          nomeDoUsuario: nomeDoUsuarioNaEquipe.consultar,
+          acompanharRevalidacao: () => {
+            planoAberto = aberto;
+            return () => {
+              if (planoAberto === aberto) planoAberto = null;
+            };
+          },
+        });
       },
     },
     {
@@ -949,16 +948,15 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
   secoes.push({
     id: 'escala-turnos',
     rotulo: 'Escala de turnos',
-    montar: async (raiz, pendente) =>
-      (await import('./escala-turno.js')).montarEscalaTurno(
-        raiz,
-        paciente.id,
-        criarServicoTurnoHttp(identidadeAtual),
-        {
+    compor: async (pendente) =>
+      createElement((await import('./escala-turno.js')).TelaEscalaTurno, {
+        pacienteId: paciente.id,
+        servico: criarServicoTurnoHttp(identidadeAtual),
+        opcoes: {
           acessoPerdido: () => acessoPerdido(new FalhaApi('nao_autenticado', 401)),
           alteracaoPendente: pendente,
         },
-      ),
+      }),
   });
   if (administraCadastro)
     secoes.push({
@@ -1096,16 +1094,17 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
   secoes.push({
     id: 'documentos',
     rotulo: 'Documentos',
-    montar: async (raiz, pendente) => {
+    compor: async (pendente) => {
+      const { TelaDocumentosCaso } = await import('./documentos-caso.js');
       pedirCategoriasDeDocumento();
-      return (await import('./documentos-caso.js')).montarDocumentosCaso(
-        raiz,
-        paciente.id,
-        criarServicoDocumentosHttp(identidadeAtual),
-        () => categoriasDocumento,
+      return createElement(TelaDocumentosCaso, {
+        pacienteId: paciente.id,
+        servico: criarServicoDocumentosHttp(identidadeAtual),
+        obterCategorias: () => categoriasDocumento,
         acessoPerdido,
-        pendente,
-      );
+        alteracaoPendente: pendente,
+        ehFamilia: false,
+      });
     },
   });
   secoes.push({

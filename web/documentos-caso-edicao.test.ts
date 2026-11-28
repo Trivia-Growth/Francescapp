@@ -1,9 +1,36 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { montarDocumentosCaso } from './documentos-caso.tsx';
+import { TelaDocumentosCaso } from './documentos-caso.tsx';
 import { criarServicoDocumentosHttp, type ServicoDocumentos } from './servico-documentos-http.ts';
 import { FalhaApi } from './api.ts';
 import type { DocumentoCaso } from '../packages/contracts/src/documento-caso.ts';
+
+type Propriedades = ComponentProps<typeof TelaDocumentosCaso>;
+
+function montarDocumentosCaso(
+  raiz: HTMLElement,
+  pacienteId: string,
+  servico: Propriedades['servico'],
+  obterCategorias: Propriedades['obterCategorias'],
+  acessoPerdido: Propriedades['acessoPerdido'],
+  alteracaoPendente: Propriedades['alteracaoPendente'],
+  ehFamilia: boolean,
+) {
+  const painel = render(
+    createElement(TelaDocumentosCaso, {
+      pacienteId,
+      servico,
+      obterCategorias,
+      acessoPerdido,
+      alteracaoPendente,
+      ehFamilia,
+    }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
 function exigir<T>(valor: T | null | undefined): T {
   if (valor === null || valor === undefined) throw new Error('Pré-condição do teste ausente.');
   return valor;

@@ -1,7 +1,29 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement } from 'react';
 import { expect, it, vi } from 'vitest';
 import { FalhaApi } from './api.js';
-import { montarPlanoCuidado, type ServicoPlanoCuidado } from './plano-cuidado.js';
+import { TelaPlanoCuidado, type ServicoPlanoCuidado } from './plano-cuidado.js';
+
+function montarPlanoCuidado(
+  raiz: HTMLElement,
+  pacienteId: string,
+  servico: ServicoPlanoCuidado,
+  acessoPerdido: (erro: unknown) => void,
+) {
+  const painel = render(
+    createElement(TelaPlanoCuidado, {
+      pacienteId,
+      servico,
+      acessoPerdido,
+      alteracaoPendente: () => {},
+      ehFamilia: false,
+      nomeDoUsuario: () => undefined,
+    }),
+    { container: raiz },
+  );
+  return () => painel.rerender(null);
+}
 
 it('carrega próxima página e remove dados após revogação', async () => {
   const raiz = document.createElement('div');

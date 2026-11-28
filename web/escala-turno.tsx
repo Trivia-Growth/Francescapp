@@ -1,16 +1,7 @@
-/* Escala do caso — turno previsto, cobertura e substituição —, reconstruída em React
- * sobre a ilha (`web/ponte/ilha.ts`).
+/* Escala do caso: turno previsto, cobertura e substituição no painel React da ficha.
  *
- * O contrato exportado não muda: `montarEscalaTurno(raiz, pacienteId, servico, opcoes)`
- * devolve a desmontagem. Quem chama não sabe que aqui dentro é React.
- *
- * O que a migração entrega:
- *
- * 1. VIS-012. A versão imperativa tinha SETE `if (!ativa)`/`if (ativa)` protegendo
- *    escrita em DOM já removido. `ilha()` desmonta a raiz React e escrever estado depois
- *    disso não faz nada. Sobrou um único ponto de guarda, anotado em `fora()`: as duas
- *    funções de `opcoes` moram FORA da ilha, e por isso continuam precisando de sinal.
- * 2. O rascunho do formulário deixa de ser copiado para um `Map` a cada consulta e
+ * VIS-012. As notificações da ficha que passam por `fora()` são descartadas após
+ * desmontar a escala. O rascunho do formulário deixa de ser copiado para um `Map` a cada consulta e
  *    restaurado por índice de `querySelectorAll`. O nó do formulário é o mesmo entre
  *    consultas, então o texto não digitado permanece por construção; uma alteração
  *    CONFIRMADA troca a chave do formulário e o remonta vazio, que é o que
@@ -32,7 +23,6 @@ import { Campo } from './componentes/ui/campo.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import type { ServicoTurnoHttp } from './servico-turno-http.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 
@@ -110,13 +100,11 @@ function SelecaoProfissionais({
   );
 }
 
-function TelaEscalaTurno({
-  raiz,
+export function TelaEscalaTurno({
   pacienteId,
   servico,
   opcoes,
 }: {
-  raiz: HTMLElement;
   pacienteId: string;
   servico: ServicoTurnoHttp;
   opcoes: OpcoesEscala;
@@ -154,9 +142,7 @@ function TelaEscalaTurno({
   const controladorRef = useRef<AbortController | null>(null);
   controladorRef.current ??= new AbortController();
 
-  /** As duas funções de `opcoes` moram FORA da ilha — desmontar a raiz React não as
-   *  alcança. É o único ponto em que o ciclo de vida não basta, e por isso o sinal entra
-   *  aqui, em vez de uma bandeira conferida antes de cada escrita (VIS-012). */
+  /** As notificações em `opcoes` afetam a ficha. Descarte-as ao desmontar a escala. */
   const fora = useCallback(
     <T,>(acao: (destino: OpcoesEscala) => T): T | undefined => {
       if (controladorRef.current?.signal.aborted) return undefined;
@@ -267,10 +253,6 @@ function TelaEscalaTurno({
     return () => controlador?.abort();
   }, []);
 
-  useEffect(() => {
-    raiz.setAttribute('aria-busy', String(ocupada));
-  }, [raiz, ocupada]);
-
   if (perdido) return null;
 
   const nome = (id: string | null) =>
@@ -336,7 +318,7 @@ function TelaEscalaTurno({
   const avisarPendencia = () => fora((destino) => destino.alteracaoPendente?.(true));
 
   return (
-    <div className="grid min-w-0 gap-5">
+    <div className="escala-turno grid min-w-0 gap-5" aria-busy={ocupada}>
       <p
         // biome-ignore lint/a11y/useSemanticElements: `role="status"` em `<p>` é o que as telas e as provas já usam; `<output>` muda a semântica de formulário e o gancho que as provas procuram.
         role="status"
@@ -520,22 +502,4 @@ function TelaEscalaTurno({
       </div>
     </div>
   );
-}
-
-export function montarEscalaTurno(
-  raiz: HTMLElement,
-  pacienteId: string,
-  servico: ServicoTurnoHttp,
-  opcoes: OpcoesEscala,
-): () => void {
-  raiz.classList.add('escala-turno');
-  const desmontar = ilha(
-    raiz,
-    <TelaEscalaTurno raiz={raiz} pacienteId={pacienteId} servico={servico} opcoes={opcoes} />,
-  );
-  return () => {
-    desmontar();
-    raiz.classList.remove('escala-turno');
-    raiz.removeAttribute('aria-busy');
-  };
 }

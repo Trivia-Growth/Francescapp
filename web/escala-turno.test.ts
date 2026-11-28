@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { montarEscalaTurno } from './escala-turno.js';
+import { TelaEscalaTurno } from './escala-turno.js';
 import { FalhaApi } from './api.ts';
 import { criarServicoTurnoHttp } from './servico-turno-http.ts';
 import type { EscalaCaso } from '../packages/contracts/src/turno-passagem.ts';
@@ -36,8 +38,15 @@ function preparar(dados: EscalaCaso) {
   const servico = criarServicoTurnoHttp(() => ({ usuario_id: usuario, session_id: usuario }));
   vi.spyOn(servico, 'consultarEscala').mockResolvedValue(dados);
   vi.spyOn(servico, 'alterarEscala').mockRejectedValue(new Error('Falha fictícia'));
-  const desmontar = montarEscalaTurno(raiz, paciente, servico, { acessoPerdido: vi.fn() });
-  return { raiz, servico, desmontar };
+  const painel = render(
+    createElement(TelaEscalaTurno, {
+      pacienteId: paciente,
+      servico,
+      opcoes: { acessoPerdido: vi.fn() },
+    }),
+    { container: raiz },
+  );
+  return { raiz, servico, desmontar: () => painel.rerender(null) };
 }
 it('consulta mostra original, assumiu e histórico com motivo, autor e versão sem UUID como rótulo', async () => {
   const { raiz } = preparar({
