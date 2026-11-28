@@ -1,4 +1,6 @@
 import type { Pool } from 'pg';
+import { z } from 'zod';
+import { uuidSchema } from '../../../packages/contracts/src/comum.ts';
 import { sessaoNativaSchema } from '../../../packages/contracts/src/identidade.ts';
 import {
   AUDIO_SEGUNDOS_MAXIMO,
@@ -20,6 +22,18 @@ import { lerSegredoIntegracao } from './segredo-integracao.ts';
 import { operarTranscricaoNativa, type ComandoTranscricao } from './transcricao-nativa.ts';
 
 type Resultado = Awaited<ReturnType<typeof operarTranscricaoNativa>>;
+
+/** Resposta de `api.autorizar_transcricao_audio` (20261128250000). */
+const preAutorizacaoSchema = z.discriminatedUnion('ok', [
+  z.object({ ok: z.literal(true), request_id: uuidSchema }).strict(),
+  z
+    .object({
+      ok: z.literal(false),
+      erro: z.object({ codigo: z.literal('sem_permissao') }).strict(),
+      request_id: uuidSchema,
+    })
+    .strict(),
+]);
 
 /** Referência do segredo no Vault. É o NOME, não o valor: quem cadastra o valor é o
  * solicitante, direto no Supabase Vault. Ver `20261119100000_vault_segredo_integracao.sql`. */
@@ -150,9 +164,27 @@ export async function comporTranscricaoNativa(
       criarPortaTranscricaoOpenRouter(() =>
         lerSegredoIntegracao(dependencias.pool, REFERENCIA_CHAVE_TRANSCRICAO),
       );
+    // A sessão sozinha não autoriza mandar áudio ao provedor externo (FR-010, "Autorização
+    // antes do envio ao provedor"): em `registrar`, o banco decide perfil, concessão, sessão
+    // Google e paciente ANTES da transcrição, sem gravar nada. As demais operações não saem
+    // da aplicação e já são decididas pela operação privada.
+    const preAutorizar = async () => {
+      const paciente = uuidSchema.safeParse(comando.paciente_id);
+      if (!paciente.success) return { estado: 'sem_permissao' as const };
+      const resposta = await contexto.cliente.schema('api').rpc('autorizar_transcricao_audio', {
+        p_request_id: crypto.randomUUID(),
+        p_paciente_id: paciente.data.toLowerCase(),
+      });
+      verificarCancelamento();
+      if (contexto.cookiesAlterados) return { estado: 'nao_autenticado' as const };
+      if (resposta.error) return { estado: 'servico_indisponivel' as const };
+      const decisao = preAutorizacaoSchema.safeParse(resposta.data);
+      if (!decisao.success) return { estado: 'servico_indisponivel' as const };
+      return decisao.data.ok ? inicial : { estado: 'sem_permissao' as const };
+    };
     return await noPrazo(() =>
       operarTranscricaoNativa(pedido, comando, {
-        autorizar: async () => inicial,
+        autorizar: async () => (comando.operacao === 'registrar' ? preAutorizar() : inicial),
         revalidar: autorizar,
         metadados: (requestId) =>
           metadadosAtestadoNativo(dependencias.keyIdAtestado, requestId, Date.now()),

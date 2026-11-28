@@ -282,3 +282,51 @@ subsequentes; execução pode acrescentar até intervalo do job ao prazo nominal
 - Sem TypeScript alterado; nenhum gate amplo repetido. Revisão independente e aplicação
   ficam com coordenação. Nenhuma credencial/áudio/custo/consulta paga/operação remota;
   preparo documental e teste SQL não comprovam API real.
+
+## 7. Correção (auditoria visual 11/2026): autorização antes do provedor externo
+
+Achado: a borda HTTP (`compor-transcricao-nativa.ts`, `autorizar`) só conferia sessão Auth
+e usuário ativo antes de `transcrever`; perfil, concessão, sessão aberta e paciente só eram
+decididos em `api.transcricao_operacao_privada`, DEPOIS da chamada ao OpenRouter. Família,
+concessão revogada, usuário inativo, sessão encerrada ou Auth sem perfil mandavam o áudio ao
+provedor; o banco negava e nada persistia. Viola o cenário "Autorização antes do envio ao
+provedor" da spec. O teste `transcricao-nativa.test.ts` dublava a porta `autorizar` e não
+via isso.
+
+- [x] 7.1 Pré-autorização no banco, sem escrita além da auditoria do negado.
+  **Evidência:** `supabase/migrations/20261128250000_audio_transcricao_pre_autorizacao.sql` —
+  `api.autorizar_transcricao_audio(uuid, uuid)` sob `ffcmapp_audio_transcricao_owner`, com a
+  mesma fonte da operação privada desde a DF-023 (`identidade.contexto_acesso_vigente` +
+  policy `audio_transcricao_paciente`). Privilégios temporários só quando ausentes, devolvidos
+  ao estado anterior.
+  **Prova:** `sh scripts/testar-audio-pre-autorizacao-local.sh` → saída 0 (PostgreSQL 17
+  descartável, fixture da DF-023). Positivos: administrador, case manager e profissional nos
+  métodos interno e Google; administrador legado Google. Negativos (`sem_permissao` +
+  auditoria): família nos dois métodos, método trocado no JWT, paciente inexistente, usuário
+  inativo, concessão revogada, sessão encerrada, Auth sem perfil (auditado pelo id Auth, sem
+  criar usuário); sem JWT → exceção; `anon`/`service_role`/`public` sem EXECUTE; nada gravado
+  em `audio_transcricao`/`requisicao`.
+  **Contraprova:** trocar `autorizado:=found` por `autorizado:=true` → saída 3,
+  `PRE_PACIENTE_INEXISTENTE`. Revertido.
+- [x] 7.2 A borda chama a pré-autorização em `registrar`, antes de `transcrever`.
+  **Evidência:** `compor-transcricao-nativa.ts` (`preAutorizar`); resposta validada por
+  schema estrito; erro ou resposta estranha → `servico_indisponivel`, sem provedor.
+  **Prova:** `compor-transcricao-nativa.test.ts` (composição real, só cliente/cofre/config/
+  executor dublês): negado não chama provedor nem executor; falha/resposta estranha não chama
+  provedor; autorizado chama o provedor depois da pré-autorização. O teste antigo foi
+  renomeado para dizer o que prova (só a ordem dentro de `operarTranscricaoNativa`).
+  **Contraprova:** voltar a porta para `async () => inicial` → os 3 casos falham. Revertido.
+- [ ] 7.3 Recorte por caso (`cadastro.acesso_paciente`) no áudio.
+  **Pendente de decisão do dono.** A operação de áudio não confere acesso vigente ao caso
+  (anamnese confere; diário não confere para interno; administrador alcança todos os casos
+  desde 24/11/2026). Recomendação levada: profissional exige acesso vigente; administrador
+  todos os casos; aplicar na pré-autorização e na operação privada.
+- [ ] 7.4 Tela (`web/main.ts:1136`): oferecer o gravador só quando
+  `/api/transcricao/disponibilidade` declarar disponível. Não é controle de segurança.
+  **Com o worker da casca React**, ao portar a seção de áudio.
+
+Limites: a cadeia completa sem superusuário
+(`scripts/testar-cadeia-migrations-sem-superusuario-local.sh`) para ANTES desta migration, em
+`20261124160000_segredos_integracoes_cofre_gerenciado.sql` (papel
+`ffcmapp_segredos_integracoes_owner` inexistente) — defeito anterior, fora deste escopo.
+Migration não aplicada em ambiente remoto (exige autorização).

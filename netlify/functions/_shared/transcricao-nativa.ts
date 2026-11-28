@@ -189,8 +189,9 @@ export async function operarTranscricaoNativa(
     };
 
     if (comando.operacao === 'registrar' && partes && mime) {
-      // Só agora o áudio sai daqui. A autorização já passou, então não mandamos gravação de
-      // quem não tem vínculo com o caso ao provedor externo.
+      // Só agora o áudio sai daqui. Em `registrar`, a porta `autorizar` da composição é a
+      // pré-autorização do banco (`api.autorizar_transcricao_audio`), não só a sessão: quem
+      // não poderia gravar no caso não manda gravação ao provedor externo.
       const transcricao = await portas.transcrever({
         audioBase64: comando.audio_base64,
         mime,

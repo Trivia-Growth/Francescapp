@@ -151,7 +151,10 @@ describe('composição interna da transcrição de áudio', () => {
     expect(deps.executar).not.toHaveBeenCalled();
   });
 
-  it('não autoriza antes de mandar áudio ao provedor externo', async () => {
+  // Prova só a ORDEM dentro de `operarTranscricaoNativa`: a porta `autorizar` roda antes do
+  // provedor. Que a porta real nega família, sessão não Google e concessão revogada está em
+  // `compor-transcricao-nativa.test.ts` (composição real) e na prova SQL da pré-autorização.
+  it('respeita a porta de autorização antes de mandar áudio ao provedor externo', async () => {
     const deps = portas();
     deps.autorizar = async () => ({ estado: 'sem_permissao' as const });
     const resultado = await operarTranscricaoNativa(request(), registrar, deps);
