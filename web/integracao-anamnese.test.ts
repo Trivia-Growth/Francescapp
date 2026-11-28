@@ -84,7 +84,7 @@ it('protege edição não salva ao trocar de seção, fechar, sair ou recarregar
   sessionStorage.setItem('modo-acesso', 'tecnica');
   sessionStorage.setItem('fluxo-tecnico', 'AAAAAAAAAAAAAAAAAAAAAA');
   sessionStorage.setItem('sessao-tecnica', sessionId);
-  const confirmacoes = responderConfirmacoes(false);
+  const confirmacoes = responderConfirmacoes(false, 'existente');
   vi.stubGlobal('fetch', async (url: URL) => {
     if (url.pathname === '/api/sessao')
       return envelope({

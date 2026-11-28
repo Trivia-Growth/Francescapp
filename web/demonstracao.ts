@@ -5,7 +5,7 @@ import { createPortal, flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 
 import { BuscaPacientesLocal, correspondeBuscaPacienteLocal } from './busca-pacientes-local';
-import { confirmar, confirmarDescarte } from './confirmacao';
+import { Confirmacoes, confirmar, confirmarDescarte } from './confirmacao';
 
 import { objetivoSchema, type Objetivo } from '../packages/contracts/src/plano-cuidado';
 import { validarTarefaPlano } from '../packages/cadastro/src/tarefa-plano';
@@ -30,12 +30,20 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
   const arvore = createRoot(elemento('demonstracao-react'));
   const paineis = new Map<string, ReactElement>();
   let visita = 0;
+  function desenharDemonstracao() {
+    flushSync(() =>
+      arvore.render([
+        createElement(Confirmacoes, { key: 'confirmacoes' }),
+        ...[...paineis].map(([id, conteudo]) => createPortal(conteudo, elemento(id), id)),
+      ]),
+    );
+  }
+  desenharDemonstracao();
+
   function desenharPrevia(id: string, tela: ReactElement | null) {
     if (tela) paineis.set(id, createElement(Fragment, { key: ++visita }, tela));
     else paineis.delete(id);
-    flushSync(() =>
-      arvore.render([...paineis].map(([id, conteudo]) => createPortal(conteudo, elemento(id), id))),
-    );
+    desenharDemonstracao();
   }
 
   /** A prévia perguntava pelo navegador: o diálogo nativo cobria a página e a tela

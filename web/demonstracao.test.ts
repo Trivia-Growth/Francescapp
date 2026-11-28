@@ -477,7 +477,7 @@ it('avisa sobre alterações não guardadas antes de sair da anamnese', async ()
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
-  const confirmacoes = responderConfirmacoes(false);
+  const confirmacoes = responderConfirmacoes(false, 'existente');
   servidorFicticio();
   await import('./demonstracao.js');
   await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
@@ -522,7 +522,7 @@ it('preserva alerta de cadastro ao salvar tarefa e voltar à lista', async () =>
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
-  const confirmacoes = responderConfirmacoes(true);
+  const confirmacoes = responderConfirmacoes(true, 'existente');
   servidorFicticio();
   await import('./demonstracao.js');
   await vi.waitFor(() =>
@@ -599,7 +599,7 @@ it('mantém tarefas por paciente e exige registro para concluir sem chamar servi
   camposEdicao[2].value = '2026-12-15';
   camposEdicao[3].value = 'Alta';
   camposEdicao[3].dispatchEvent(new Event('input', { bubbles: true }));
-  const confirmacoes = responderConfirmacoes(false);
+  const confirmacoes = responderConfirmacoes(false, 'existente');
   document.getElementById('tasks-back')?.click();
   await aguardarConfirmacao();
   expect(confirmacoes.chamadas).toHaveLength(1);
@@ -649,7 +649,7 @@ it('confirma descarte de alterações de tarefas ao voltar ou sair', async () =>
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
-  const confirmacoes = responderConfirmacoes(false);
+  const confirmacoes = responderConfirmacoes(false, 'existente');
   servidorFicticio();
   await import('./demonstracao.js');
   await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
@@ -678,7 +678,7 @@ it('oculta dados ao expirar sessão e preserva rascunho até novo login', async 
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
   const fetch = servidorFicticio();
-  const confirmacoes = responderConfirmacoes(true);
+  const confirmacoes = responderConfirmacoes(true, 'existente');
   await import('./demonstracao.js');
   await vi.waitFor(() => expect(document.querySelector('#patients-body button')).not.toBeNull());
   (document.querySelector('#patients-body button') as HTMLButtonElement).click();
@@ -825,7 +825,7 @@ it('abre relato fictício isolado e descarta conteúdo ao voltar', async () => {
   if (!descricao) throw new Error('Descrição ausente');
   descricao.value = 'Conteúdo fictício';
   descricao.dispatchEvent(new Event('input', { bubbles: true }));
-  const confirmacoes = responderConfirmacoes(false);
+  const confirmacoes = responderConfirmacoes(false, 'existente');
   document.getElementById('relato-back')?.click();
   await aguardarConfirmacao();
   expect(document.getElementById('relato-view')?.hidden).toBe(false);
@@ -1338,7 +1338,7 @@ it('cancela edição de pessoa de referência sem manter rascunho sujo', async (
   document.documentElement.innerHTML = readFileSync('web/demonstracao.html', 'utf8');
   vi.stubGlobal('location', { hostname: 'localhost' });
   vi.stubEnv('DEV', true);
-  const confirmacoes = responderConfirmacoes(true);
+  const confirmacoes = responderConfirmacoes(true, 'existente');
   servidorFicticio();
   await import('./demonstracao.js');
   const abrir = '[aria-label="Abrir pessoas de referência de Paciente Exemplo Um"]';

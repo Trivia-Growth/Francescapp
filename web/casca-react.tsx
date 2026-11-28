@@ -1,6 +1,7 @@
 import { createRef, type ComponentProps, type ReactElement, useEffect, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
+import { Confirmacoes } from './confirmacao.js';
 import type { PacienteLista } from '../packages/contracts/src/cadastro.js';
 import { EstadoDeRede } from './estado-rede.js';
 import { lerRotaFicha, type RotaFicha } from './ficha-paciente.js';
@@ -160,6 +161,7 @@ function Casca({
 
   return (
     <>
+      <Confirmacoes />
       {navegacao.estado.visivel
         ? createPortal(
             <PainelCasca>

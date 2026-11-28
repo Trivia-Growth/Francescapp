@@ -5,11 +5,12 @@
  * enviado (`window.__enviados`); ele não autoriza nada e não substitui as provas de
  * servidor e de banco da concessão.
  */
-import { createElement } from 'react';
+import { createElement, Fragment } from 'react';
 import { createRoot } from 'react-dom/client';
 import { TelaConcessaoEquipe } from '../../web/concessao-equipe.js';
 import { TelaConvidarEquipe } from '../../web/convidar-equipe.js';
 import type { ClienteFFCM } from '../../web/api.js';
+import { Confirmacoes } from '../../web/confirmacao.js';
 
 const ator = '11111111-1111-4111-8111-111111111111';
 const vazia = { epoca: 2, reserva: null, resultado_pendente: null };
@@ -61,6 +62,10 @@ const api = {
 const raiz = document.getElementById('tela');
 if (!raiz) throw new Error('Bancada sem raiz.');
 // `?tela=equipe` monta a lista; o padrão é a página própria de convite.
-if (new URLSearchParams(location.search).get('tela') === 'equipe')
-  createRoot(raiz).render(createElement(TelaConcessaoEquipe, { api: api }));
-else createRoot(raiz).render(createElement(TelaConvidarEquipe, { api: api }));
+const Tela =
+  new URLSearchParams(location.search).get('tela') === 'equipe'
+    ? TelaConcessaoEquipe
+    : TelaConvidarEquipe;
+createRoot(raiz).render(
+  createElement(Fragment, null, createElement(Confirmacoes), createElement(Tela, { api })),
+);
