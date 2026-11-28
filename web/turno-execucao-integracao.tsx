@@ -10,7 +10,6 @@
  *  chega a quem hospeda; o consentimento é o mesmo controlador, entregue ao turno para a
  *  coleta na abertura e no encerramento; e desmontar encerra também o serviço da execução. */
 import { useCallback, useRef } from 'react';
-import { ilha } from './ponte/ilha.js';
 import type { ServicoTurnoExecucao } from './servico-turno-execucao-http.ts';
 import type { ServicoTurnoHttp } from './servico-turno-http.ts';
 import type { PortasConversaoOcorrencia } from './turno-execucao-conversao.js';
@@ -28,7 +27,7 @@ type Opcoes = {
   criarServicosFicha?(): ServicosFichaPlantao;
 };
 
-function TurnoComExecucao({
+export function TurnoComExecucao({
   pacienteId,
   turno,
   execucao,
@@ -92,21 +91,4 @@ function TurnoComExecucao({
       </div>
     </>
   );
-}
-
-export function montarTurnoComExecucao(
-  raiz: HTMLElement,
-  pacienteId: string,
-  turno: ServicoTurnoHttp,
-  execucao: ServicoTurnoExecucao,
-  opcoes: Opcoes,
-): () => void {
-  const desmontar = ilha(
-    raiz,
-    <TurnoComExecucao pacienteId={pacienteId} turno={turno} execucao={execucao} opcoes={opcoes} />,
-  );
-  return () => {
-    desmontar();
-    execucao.desmontar();
-  };
 }
