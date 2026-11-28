@@ -1,5 +1,9 @@
 /// <reference types="vite/client" />
 
+import { createElement, Fragment, type ReactElement } from 'react';
+import { createPortal, flushSync } from 'react-dom';
+import { createRoot } from 'react-dom/client';
+
 import { montarBuscaPacientesLocal, correspondeBuscaPacienteLocal } from './busca-pacientes-local';
 import { confirmar, confirmarDescarte } from './confirmacao';
 
@@ -8,11 +12,11 @@ import { validarTarefaPlano } from '../packages/cadastro/src/tarefa-plano';
 import { montarRelatoTextual } from './relato-textual';
 import { montarResumoCasoLocal } from './resumo-caso-local';
 import { montarLinhaTempoLocal } from './linha-tempo-local';
-import { montarEncaminhamentosLocais, type EncaminhamentoLocal } from './encaminhamentos-local';
-import { montarOrientacoesLocais, type OrientacaoLocal } from './orientacoes-local';
-import { montarRelacoesLocais, type PessoaReferenciaLocal } from './relacoes-locais';
-import { montarEvolucoesLocais, type EvolucaoLocal } from './evolucoes-locais';
-import { montarDocumentosLocais, type DocumentoLocal } from './documentos-locais';
+import { EncaminhamentosLocais, type EncaminhamentoLocal } from './encaminhamentos-local';
+import { OrientacoesLocais, type OrientacaoLocal } from './orientacoes-local';
+import { RelacoesLocais, type PessoaReferenciaLocal } from './relacoes-locais';
+import { EvolucoesLocais, type EvolucaoLocal } from './evolucoes-locais';
+import { TelaDocumentosLocais, type DocumentoLocal } from './documentos-locais';
 import {
   montarPainelPendenciasLocal,
   type DadosPainelPendenciasLocal,
@@ -26,6 +30,17 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
     if (!item) throw new Error('Elemento da demonstração indisponível.');
     return item as T;
   };
+  const arvore = createRoot(elemento('demonstracao-react'));
+  const paineis = new Map<string, ReactElement>();
+  let visita = 0;
+  function desenharPrevia(id: string, tela: ReactElement | null) {
+    if (tela) paineis.set(id, createElement(Fragment, { key: ++visita }, tela));
+    else paineis.delete(id);
+    flushSync(() =>
+      arvore.render([...paineis].map(([id, conteudo]) => createPortal(conteudo, elemento(id), id))),
+    );
+  }
+
   /** A prévia perguntava pelo navegador: o diálogo nativo cobria a página e a tela
    *  parecia travada. Aqui a pergunta é a mesma da aplicação, desenhada no conteúdo. */
   const confirmarDescarteDaPrevia = () => confirmarDescarte('as alterações não guardadas');
@@ -418,42 +433,47 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         if (geracao !== geracaoNavegacao) return;
         selecionado = registro.id;
         const itens = documentos.get(registro.id) ?? [];
-        montarDocumentosLocais(elemento('documents-content'), {
-          documentos: itens,
-          anexos,
-          urlAnexo: (id) => `/api/local-feedback/patients/${registro.id}/attachments/${id}`,
-          aoAnexar: async (arquivo) => {
-            salvandoDocumento = true;
-            try {
-              const bytes = new Uint8Array(await arquivo.arrayBuffer());
-              let binario = '';
-              for (const byte of bytes) binario += String.fromCharCode(byte);
-              const resposta = await requisitar(`/patients/${registro.id}/attachments`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
-                body: JSON.stringify({ name: arquivo.name, content: btoa(binario) }),
-              });
-              return (
-                (await resposta.json()) as {
-                  attachment: { id: string; name: string; size: number };
+        desenharPrevia(
+          'documents-content',
+          createElement(TelaDocumentosLocais, {
+            dados: {
+              documentos: itens,
+              anexos,
+              urlAnexo: (id) => `/api/local-feedback/patients/${registro.id}/attachments/${id}`,
+              aoAnexar: async (arquivo) => {
+                salvandoDocumento = true;
+                try {
+                  const bytes = new Uint8Array(await arquivo.arrayBuffer());
+                  let binario = '';
+                  for (const byte of bytes) binario += String.fromCharCode(byte);
+                  const resposta = await requisitar(`/patients/${registro.id}/attachments`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({ name: arquivo.name, content: btoa(binario) }),
+                  });
+                  return (
+                    (await resposta.json()) as {
+                      attachment: { id: string; name: string; size: number };
+                    }
+                  ).attachment;
+                } finally {
+                  salvandoDocumento = false;
                 }
-              ).attachment;
-            } finally {
-              salvandoDocumento = false;
-            }
-          },
-          aoRegistrar: async (documento) => {
-            salvandoDocumento = true;
-            try {
-              await salvarPrevia(registro.id, 'documentos', [...itens, documento]);
-              documentos.set(registro.id, itens);
-              const form = elemento('documents-content').querySelector('form');
-              if (form) formulariosAlterados.delete(form);
-            } finally {
-              salvandoDocumento = false;
-            }
-          },
-        });
+              },
+              aoRegistrar: async (documento) => {
+                salvandoDocumento = true;
+                try {
+                  await salvarPrevia(registro.id, 'documentos', [...itens, documento]);
+                  documentos.set(registro.id, itens);
+                  const form = elemento('documents-content').querySelector('form');
+                  if (form) formulariosAlterados.delete(form);
+                } finally {
+                  salvandoDocumento = false;
+                }
+              },
+            },
+          }),
+        );
         const form = elemento('documents-content').querySelector('form');
         form?.addEventListener('input', () => formulariosAlterados.add(form));
         elemento('documents-patient').textContent = registro.name;
@@ -489,17 +509,22 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
             salvandoEncaminhamento = false;
           }
         };
-        montarEncaminhamentosLocais(elemento('referrals-content'), {
-          encaminhamentos: itens,
-          aoRegistrar: async (dados) => {
-            const item = { ...dados, id: crypto.randomUUID() };
-            await salvar([...itens, item]);
-            return item;
-          },
-          aoAtualizar: async (id, dados) => {
-            await salvar(itens.map((item) => (item.id === id ? { ...dados, id } : item)));
-          },
-        });
+        desenharPrevia(
+          'referrals-content',
+          createElement(EncaminhamentosLocais, {
+            dados: {
+              encaminhamentos: itens,
+              aoRegistrar: async (dados) => {
+                const item = { ...dados, id: crypto.randomUUID() };
+                await salvar([...itens, item]);
+                return item;
+              },
+              aoAtualizar: async (id, dados) => {
+                await salvar(itens.map((item) => (item.id === id ? { ...dados, id } : item)));
+              },
+            },
+          }),
+        );
         const form = elemento('referrals-content').querySelector('form');
         form?.addEventListener('input', () => formulariosAlterados.add(form));
         elemento('referrals-patient').textContent = registro.name;
@@ -523,20 +548,26 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         }
         if (geracao !== geracaoNavegacao) return;
         selecionado = registro.id;
-        montarOrientacoesLocais(elemento('guidance-content'), {
-          orientacoes: orientacoes.get(registro.id) ?? [],
-          aoSalvar: async (atualizadas) => {
-            salvandoOrientacao = true;
-            try {
-              await salvarPrevia(registro.id, 'orientacoes', atualizadas);
-              orientacoes.set(registro.id, atualizadas);
-              const form = elemento('guidance-content').querySelector('form');
-              if (form) formulariosAlterados.delete(form);
-            } finally {
-              salvandoOrientacao = false;
-            }
-          },
-        });
+        desenharPrevia(
+          'guidance-content',
+          createElement(OrientacoesLocais, {
+            dados: {
+              orientacoes: orientacoes.get(registro.id) ?? [],
+              aoSalvar: async (atualizadas) => {
+                salvandoOrientacao = true;
+                try {
+                  await salvarPrevia(registro.id, 'orientacoes', atualizadas);
+                  orientacoes.set(registro.id, atualizadas);
+                  const form = elemento('guidance-content').querySelector('form');
+                  if (form) formulariosAlterados.delete(form);
+                } finally {
+                  salvandoOrientacao = false;
+                }
+              },
+            },
+            ehFamilia: false,
+          }),
+        );
         const form = elemento('guidance-content').querySelector('form');
         form?.addEventListener('input', () => formulariosAlterados.add(form));
         elemento('guidance-patient').textContent = registro.name;
@@ -560,20 +591,25 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
         }
         if (geracao !== geracaoNavegacao) return;
         selecionado = registro.id;
-        montarEvolucoesLocais(elemento('evolutions-content'), {
-          evolucoes: evolucoes.get(registro.id) ?? [],
-          aoSalvar: async (atualizadas) => {
-            salvandoEvolucao = true;
-            try {
-              await salvarPrevia(registro.id, 'evolucoes', atualizadas);
-              evolucoes.set(registro.id, atualizadas);
-              const form = elemento('evolutions-content').querySelector('form');
-              if (form) formulariosAlterados.delete(form);
-            } finally {
-              salvandoEvolucao = false;
-            }
-          },
-        });
+        desenharPrevia(
+          'evolutions-content',
+          createElement(EvolucoesLocais, {
+            dados: {
+              evolucoes: evolucoes.get(registro.id) ?? [],
+              aoSalvar: async (atualizadas) => {
+                salvandoEvolucao = true;
+                try {
+                  await salvarPrevia(registro.id, 'evolucoes', atualizadas);
+                  evolucoes.set(registro.id, atualizadas);
+                  const form = elemento('evolutions-content').querySelector('form');
+                  if (form) formulariosAlterados.delete(form);
+                } finally {
+                  salvandoEvolucao = false;
+                }
+              },
+            },
+          }),
+        );
         const form = elemento('evolutions-content').querySelector('form');
         form?.addEventListener('input', () => formulariosAlterados.add(form));
         elemento('evolutions-patient').textContent = registro.name;
@@ -610,21 +646,26 @@ if (import.meta.env.DEV && window.location.hostname === 'localhost') {
             salvandoRelacao = false;
           }
         };
-        montarRelacoesLocais(elemento('relations-content'), {
-          pessoas: itens,
-          aoLimpar: () => {
-            const form = elemento('relations-content').querySelector('form');
-            if (form) formulariosAlterados.delete(form);
-          },
-          aoRegistrar: async (dados) => {
-            const item = { ...dados, id: crypto.randomUUID() };
-            await salvar([...itens, item]);
-            return item;
-          },
-          aoAtualizar: async (id, dados) => {
-            await salvar(itens.map((item) => (item.id === id ? { ...dados, id } : item)));
-          },
-        });
+        desenharPrevia(
+          'relations-content',
+          createElement(RelacoesLocais, {
+            dados: {
+              pessoas: itens,
+              aoLimpar: () => {
+                const form = elemento('relations-content').querySelector('form');
+                if (form) formulariosAlterados.delete(form);
+              },
+              aoRegistrar: async (dados) => {
+                const item = { ...dados, id: crypto.randomUUID() };
+                await salvar([...itens, item]);
+                return item;
+              },
+              aoAtualizar: async (id, dados) => {
+                await salvar(itens.map((item) => (item.id === id ? { ...dados, id } : item)));
+              },
+            },
+          }),
+        );
         const form = elemento('relations-content').querySelector('form');
         form?.addEventListener('input', () => formulariosAlterados.add(form));
         elemento('relations-patient').textContent = registro.name;

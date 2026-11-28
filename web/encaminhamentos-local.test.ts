@@ -1,7 +1,16 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
 import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
-import { type EncaminhamentoLocal, montarEncaminhamentosLocais } from './encaminhamentos-local.tsx';
+import { type EncaminhamentoLocal, EncaminhamentosLocais } from './encaminhamentos-local.tsx';
+
+function renderizar(
+  raiz: HTMLElement,
+  dados: ComponentProps<typeof EncaminhamentosLocais>['dados'],
+) {
+  render(createElement(EncaminhamentosLocais, { dados }), { container: raiz });
+}
 
 it('registra e atualiza somente após gravação, preservando rascunho em falha', async () => {
   const raiz = document.createElement('div');
@@ -11,7 +20,7 @@ it('registra e atualiza somente após gravação, preservando rascunho em falha'
     .mockRejectedValueOnce(new Error('falha'))
     .mockImplementation(async (dados) => ({ id: '1', ...dados }));
   const atualizar = vi.fn(async () => {});
-  montarEncaminhamentosLocais(raiz, {
+  renderizar(raiz, {
     encaminhamentos,
     aoRegistrar: registrar,
     aoAtualizar: atualizar,
@@ -58,7 +67,7 @@ it('filtra encaminhamentos com retorno pendente', () => {
       estado: 'retorno pendente',
     },
   ];
-  montarEncaminhamentosLocais(raiz, {
+  renderizar(raiz, {
     encaminhamentos,
     aoRegistrar: async (dados) => ({ id: '3', ...dados }),
     aoAtualizar: async () => {},
@@ -91,7 +100,7 @@ it('preserva rascunho ao recusar descarte e só pergunta quando alterado', async
       estado: 'agendado',
     },
   ];
-  montarEncaminhamentosLocais(raiz, {
+  renderizar(raiz, {
     encaminhamentos,
     aoRegistrar: async (dados) => ({ id: '3', ...dados }),
     aoAtualizar: async () => {},
@@ -132,7 +141,7 @@ it('bloqueia filtro e edição enquanto salva, inclusive após renderização da
     },
   ];
   let concluir: () => void = () => {};
-  montarEncaminhamentosLocais(raiz, {
+  renderizar(raiz, {
     encaminhamentos,
     aoRegistrar: async (dados) => ({ id: '2', ...dados }),
     aoAtualizar: () =>

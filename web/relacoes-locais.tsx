@@ -22,7 +22,6 @@ import { confirmarDescarte } from './confirmacao.js';
 import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 
 export type PessoaReferenciaLocal = {
@@ -44,7 +43,7 @@ type Dados = {
 const CAMPOS = ['nome', 'relacao', 'contato'] as const;
 const VAZIO: DadosPessoaReferencia = { nome: '', relacao: '', contato: '' };
 
-function RelacoesLocais({ dados }: { dados: Dados }) {
+export function RelacoesLocais({ dados }: { dados: Dados }) {
   const [itens, definirItens] = useState<PessoaReferenciaLocal[]>(() => [...dados.pessoas]);
   const [editando, definirEditando] = useState<string | null>(null);
   const [salvando, definirSalvando] = useState(false);
@@ -201,8 +200,4 @@ function RelacoesLocais({ dados }: { dados: Dados }) {
       </ul>
     </div>
   );
-}
-
-export function montarRelacoesLocais(raiz: HTMLElement, dados: Dados): () => void {
-  return ilha(raiz, <RelacoesLocais dados={dados} />);
 }

@@ -1,12 +1,18 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
-import { montarEvolucoesLocais, type EvolucaoLocal } from './evolucoes-locais';
+import { EvolucoesLocais, type EvolucaoLocal } from './evolucoes-locais';
+
+function renderizar(raiz: HTMLElement, dados: ComponentProps<typeof EvolucoesLocais>['dados']) {
+  render(createElement(EvolucoesLocais, { dados }), { container: raiz });
+}
 
 it('preserva entrada após falha e registra publicação simulada sem interpretar texto como HTML', async () => {
   const raiz = document.createElement('div');
   const evolucoes: EvolucaoLocal[] = [];
   const salvar = vi.fn().mockRejectedValueOnce(new Error()).mockResolvedValue(undefined);
-  montarEvolucoesLocais(raiz, { evolucoes, aoSalvar: salvar });
+  renderizar(raiz, { evolucoes, aoSalvar: salvar });
   const texto = raiz.querySelector('textarea') as HTMLTextAreaElement;
   const campos = raiz.querySelectorAll('input');
   texto.value = '<texto fictício>';

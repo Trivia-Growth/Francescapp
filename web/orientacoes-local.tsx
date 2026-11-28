@@ -34,7 +34,6 @@ import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { SelecaoSimples } from './componentes/ui/selecao-simples.js';
 import { definirValorNativo } from './componentes/ui/valor-nativo.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 
 export type OrientacaoLocal = {
@@ -291,10 +290,4 @@ export function OrientacoesLocais({
   ) : (
     <TelaOrientacoesLocaisEdicao dados={dados} aprimorarControles={aprimorarControles} />
   );
-}
-
-/** Mesmo componente acima, montado na sua própria ilha — contrato usado por quem monta a
- *  prévia isoladamente (`web/demonstracao.ts` e a prova deste arquivo). */
-export function montarOrientacoesLocais(raiz: HTMLElement, dados: Dados, ehFamilia = false): void {
-  ilha(raiz, <OrientacoesLocais dados={dados} ehFamilia={ehFamilia} />);
 }
