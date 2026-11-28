@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
+import { act, render } from '@testing-library/react';
+import { createElement } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import './public/casca-regras.js';
 import './public/sw-reversao.js';
 import {
   ENDERECO_WORKER,
   limparAparelho,
-  montarEstadoDeRede,
   NOME_POLITICA,
   PREFIXOS_PRESERVADOS,
   registrarCascaOffline,
 } from './casca-offline.js';
+import { EstadoDeRede } from './estado-rede.js';
 
 type Pedido = { url: string; method?: string; mode?: string; destination?: string };
 type Decisao = 'ignorar' | 'casca' | 'estatico';
@@ -194,32 +196,29 @@ it('serve a casca sem rede e não serve conteúdo de caso do aparelho', async ()
 
 // Tarefa 1.3 — a casca diz que falta rede, sem conteúdo anterior e sem dado de exemplo.
 it('mostra indisponibilidade por falta de rede e nada além disso', () => {
-  document.body.innerHTML = '<p id="estado-rede" hidden></p>';
-  const alvo = document.getElementById('estado-rede') as HTMLElement;
-  const ouvintes: Record<string, () => void> = {};
-  const janela = {
-    navigator: { onLine: true },
-    addEventListener: (nome: string, ouvinte: () => void) => {
-      ouvintes[nome] = ouvinte;
-    },
-    removeEventListener: () => undefined,
-  };
-  const desmontar = montarEstadoDeRede(alvo, janela as never);
-  expect(alvo.hidden).toBe(true);
-  expect(alvo.textContent).toBe('');
+  const conectado = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+  const painel = render(createElement(EstadoDeRede));
+  const alvo = painel.container.querySelector<HTMLElement>('#estado-rede');
+  if (!alvo) throw new Error('Aviso de rede ausente.');
+  try {
+    expect(alvo.hidden).toBe(true);
+    expect(alvo.textContent).toBe('');
 
-  janela.navigator.onLine = false;
-  ouvintes.offline?.();
-  expect(alvo.hidden).toBe(false);
-  expect(alvo.textContent).toContain('Sem conexão');
-  expect(document.body.dataset.semRede).toBe('true');
-  expect(alvo.textContent).not.toContain(nomeFicticio);
+    conectado.mockReturnValue(false);
+    act(() => window.dispatchEvent(new Event('offline')));
+    expect(alvo.hidden).toBe(false);
+    expect(alvo.textContent).toContain('Sem conexão');
+    expect(document.body.dataset.semRede).toBe('true');
+    expect(alvo.textContent).not.toContain(nomeFicticio);
 
-  janela.navigator.onLine = true;
-  ouvintes.online?.();
-  expect(alvo.hidden).toBe(true);
-  expect(alvo.textContent).toBe('');
-  desmontar();
+    conectado.mockReturnValue(true);
+    act(() => window.dispatchEvent(new Event('online')));
+    expect(alvo.hidden).toBe(true);
+    expect(alvo.textContent).toBe('');
+  } finally {
+    painel.unmount();
+    conectado.mockRestore();
+  }
 });
 
 // Tarefa 1.4 — "Versão nova substitui a instalada".

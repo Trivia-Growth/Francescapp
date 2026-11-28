@@ -1,6 +1,6 @@
 import { createElement, createRef, Fragment, type ReactElement } from 'react';
 import { criarServicoAcessosHttp } from './servico-acessos-http.js';
-import { montarLoginInterno } from './login-interno.js';
+import { type ComandoLoginInterno, TelaLoginInterno } from './login-interno.js';
 import { iniciarAcao } from './esqueleto.js';
 import { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.js';
 import { AgendaIndividual } from './agenda-individual.js';
@@ -66,7 +66,7 @@ import {
   criarServicoDocumentosHttp,
 } from './servico-documentos-http.js';
 import { criarServicoPendenciasHttp } from './servico-pendencias-http.js';
-import { limparAparelho, montarEstadoDeRede, registrarCascaOffline } from './casca-offline.js';
+import { limparAparelho, registrarCascaOffline } from './casca-offline.js';
 import { criarServicoAvisosHttp } from './servico-avisos-http.js';
 import { criarServicoAuditoriaHttp } from './servico-auditoria-http.js';
 import { criarServicoRegrasAtendimentoHttp } from './servico-regras-atendimento-http.js';
@@ -171,37 +171,28 @@ const loginButton = elemento<HTMLButtonElement>('login-submit');
 const emailInput = elemento<HTMLInputElement>('email');
 const passwordInput = elemento<HTMLInputElement>('password');
 const togglePassword = elemento<HTMLButtonElement>('toggle-password');
-const loginInterno = montarLoginInterno(
-  elemento('acesso-interno'),
-  api,
-  async (atual) => {
-    aplicarSessao(atual);
-    loginView.hidden = true;
-    logoutView.hidden = true;
-    if (document.hidden) {
-      focoAposLoginOculto = true;
-      patientsView.hidden = true;
-      casca.atualizarNavegacao({ visivel: false });
-      revalidacaoStatus.hidden = false;
-      return;
-    }
-    patientsView.hidden = false;
-    casca.atualizarNavegacao({ visivel: true });
-    document.title = 'FFCMApp | Pacientes';
-    if (await carregarPacientes()) await abrirFichaPelaRota();
-    navegarPelaRota();
-    focarDestinoDaCasca();
-  },
-  {
-    podeIniciar: () => !loginOcupado,
-    ocupacao: (valor) => {
-      loginOcupado = valor;
-      loginFields.disabled = familiarFields.disabled = valor;
-      const botaoGoogle = googleForm.querySelector<HTMLButtonElement>('button[type=submit]');
-      if (botaoGoogle) botaoGoogle.disabled = valor;
-    },
-  },
-);
+const acessoInterno = elemento('acesso-interno');
+const loginInterno = createRef<ComandoLoginInterno>();
+
+async function entrarNaCasca(atual: Sessao): Promise<void> {
+  aplicarSessao(atual);
+  loginView.hidden = true;
+  logoutView.hidden = true;
+  if (document.hidden) {
+    focoAposLoginOculto = true;
+    patientsView.hidden = true;
+    casca.atualizarNavegacao({ visivel: false });
+    revalidacaoStatus.hidden = false;
+    return;
+  }
+  patientsView.hidden = false;
+  casca.atualizarNavegacao({ visivel: true });
+  document.title = 'FFCMApp | Pacientes';
+  if (await carregarPacientes()) await abrirFichaPelaRota();
+  navegarPelaRota();
+  focarDestinoDaCasca();
+}
+
 const retryLogout = elemento<HTMLButtonElement>('retry-logout');
 const createForm = elemento<HTMLFormElement>('create-form');
 const createFields = elemento<HTMLFieldSetElement>('create-fields');
@@ -1429,7 +1420,7 @@ function mostrarAcesso(mensagem = '', tom: 'error' | 'success' | 'neutral' = 'ne
   fecharGavetaLateral();
   loginForm.reset();
   familiarForm.reset();
-  loginInterno.limpar();
+  loginInterno.current?.limpar();
   passwordInput.type = 'password';
   togglePassword.textContent = 'Mostrar senha';
   patientsView.hidden = true;
@@ -3038,7 +3029,6 @@ window.addEventListener('pageshow', (evento) => {
 // Casca offline (FR-071). O aviso de falta de rede é estado da casca; nenhuma área mostra dado
 // anterior porque nenhuma resposta de API é guardada no aparelho. O registro do worker não
 // bloqueia nada: sem suporte ou com falha, o produto segue igual pelo navegador.
-montarEstadoDeRede(elemento('estado-rede'));
 void registrarCascaOffline();
 
 const casca = iniciarCasca(
@@ -3053,5 +3043,24 @@ const casca = iniciarCasca(
   },
   { raiz: listaPacientes, abrir: abrirPacienteDaCarteira },
   elemento('agenda-individual'),
+  {
+    destinoLogin: acessoInterno,
+    destinoRede: elemento('estado-rede-raiz'),
+    login: createElement(TelaLoginInterno, {
+      api,
+      aoEntrar: entrarNaCasca,
+      comando: loginInterno,
+      opcoes: {
+        podeIniciar: () => !loginOcupado,
+        ocupacao: (valor) => {
+          loginOcupado = valor;
+          loginFields.disabled = familiarFields.disabled = valor;
+          acessoInterno.setAttribute('aria-busy', String(valor));
+          const botaoGoogle = googleForm.querySelector<HTMLButtonElement>('button[type=submit]');
+          if (botaoGoogle) botaoGoogle.disabled = valor;
+        },
+      },
+    }),
+  },
 );
 void restaurarSessao();

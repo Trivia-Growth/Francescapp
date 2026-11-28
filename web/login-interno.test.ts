@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
-// PREPARADO, NÃO EXECUTADO. Credenciais fictícias; nenhuma chamada Auth real.
+// Credenciais fictícias, com Auth substituído por dublês.
 import { readFileSync } from 'node:fs';
+import { cleanup, render } from '@testing-library/react';
+import { createElement, createRef } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { ClienteFFCM } from './api.ts';
-import { montarLoginInterno } from './login-interno.js';
+import { type ComandoLoginInterno, TelaLoginInterno } from './login-interno.js';
 const otp = vi.hoisted(() => ({
   solicitar: vi.fn(),
   verificar: vi.fn(),
@@ -18,6 +20,7 @@ const sessao = {
   capacidades: [],
 };
 afterEach(() => {
+  cleanup();
   vi.restoreAllMocks();
   vi.clearAllMocks();
   document.body.replaceChildren();
@@ -28,7 +31,12 @@ function preparar() {
   if (!raiz) throw new Error('Login ausente');
   const api = new ClienteFFCM();
   const aoEntrar = vi.fn(async () => {});
-  const controle = montarLoginInterno(raiz, api, aoEntrar);
+  const destino = document.createElement('div');
+  raiz.append(destino);
+  const comando = createRef<ComandoLoginInterno>();
+  render(createElement(TelaLoginInterno, { api, aoEntrar, comando }), { container: destino });
+  const controle = comando.current;
+  if (!controle) throw new Error('Comando de limpeza do login indisponível.');
   const obter = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   return { api, aoEntrar, controle, obter };
 }

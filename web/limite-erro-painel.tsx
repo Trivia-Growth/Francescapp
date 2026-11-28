@@ -6,6 +6,7 @@ type Props = {
   children: ReactNode;
   aoTentarNovamente: () => void;
   aoFalhar?: () => void;
+  itemDaLista?: boolean;
 };
 
 /** Uma falha de renderização fica restrita ao painel ativo. */
@@ -22,7 +23,7 @@ export class LimiteErroPainel extends Component<Props, { falhou: boolean }> {
 
   override render() {
     if (!this.state.falhou) return this.props.children;
-    return (
+    const aviso = (
       <EstadoErro
         titulo="Não foi possível mostrar a área"
         texto="Tente abrir a área de novo."
@@ -33,5 +34,6 @@ export class LimiteErroPainel extends Component<Props, { falhou: boolean }> {
         }
       />
     );
+    return this.props.itemDaLista ? <li>{aviso}</li> : aviso;
   }
 }

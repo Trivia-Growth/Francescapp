@@ -67,7 +67,7 @@ SOFTWARE.
     </header>
     <div id="casca-barra"></div>
     <main id="conteudo" tabindex="-1">
-      <p id="estado-rede" class="estado-rede" role="status" aria-live="polite" hidden></p>
+      <div id="estado-rede-raiz" class="contents"></div>
       <p id="revalidacao-status" class="service-status" role="status" aria-live="polite" hidden>Verificando seu acesso…</p>
       <!-- Acesso. A coluna estreita boiando no branco era o tell de amadorismo mais visível
            da entrada: no computador a página agora usa a largura toda em grade clara, com a
@@ -86,29 +86,8 @@ SOFTWARE.
               <button class="ui-botao ui-botao--largo" data-peso="principal" type="submit">Entrar com Google da organização</button>
             </form>
             <p class="small-text">Entrar não concede acesso automaticamente. A conexão com a agenda será solicitada separadamente.</p>
-            <details id="acesso-interno">
+            <details id="acesso-interno" aria-busy="false">
               <summary>Entrar com e-mail e senha</summary>
-              <p>Para contas internas criadas pela administração.</p>
-              <form id="interno-login-form" method="post" autocomplete="on" aria-describedby="interno-feedback">
-                <fieldset id="interno-login-fields">
-                  <legend class="sr-only">Credenciais da conta interna</legend>
-                  <div class="ui-campo"><label class="ui-campo__rotulo" for="interno-email">E-mail</label><input class="ui-campo__controle" id="interno-email" name="email" type="email" autocomplete="username" required maxlength="254" autocapitalize="none" spellcheck="false"></div>
-                  <div class="ui-campo"><label class="ui-campo__rotulo" for="interno-senha">Senha</label><input class="ui-campo__controle" id="interno-senha" name="senha" type="password" autocomplete="current-password" required maxlength="1024"></div>
-                  <button class="ui-botao ui-botao--largo" data-peso="principal" type="submit">Entrar com e-mail e senha</button>
-                </fieldset>
-              </form>
-              <p id="interno-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
-              <details>
-                <summary>Confirmar o e-mail da conta interna</summary>
-                <p>Confirme o endereço antes da primeira entrada. Solicitar ou informar um código não abre uma sessão.</p>
-                <form id="interno-confirmacao-form" method="post" autocomplete="off" aria-describedby="interno-confirmacao-feedback">
-                  <div class="ui-campo"><label class="ui-campo__rotulo" for="interno-confirmacao-email">E-mail da conta interna</label><input class="ui-campo__controle" id="interno-confirmacao-email" type="email" required maxlength="254" autocomplete="email" autocapitalize="none" spellcheck="false"></div>
-                  <button id="interno-confirmacao-solicitar" class="ui-botao" data-peso="secundario" type="button">Enviar código de confirmação</button>
-                  <div class="ui-campo"><label class="ui-campo__rotulo" for="interno-confirmacao-codigo">Código recebido por e-mail</label><input class="ui-campo__controle" id="interno-confirmacao-codigo" type="text" inputmode="numeric" pattern="[0-9]{6,10}" minlength="6" maxlength="10" required autocomplete="one-time-code" spellcheck="false"></div>
-                  <button id="interno-confirmacao-verificar" class="ui-botao" data-peso="secundario" type="submit">Verificar código</button>
-                </form>
-                <p id="interno-confirmacao-feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true"></p>
-              </details>
             </details>
             <!-- Oculto enquanto a jornada familiar estiver desligada (FFCM_AUTH_FAMILIAR_ATIVADO).
                  No smoke de 13/11/2026 este bloco aparecia com a rota devolvendo 503: quem tentava
