@@ -4,6 +4,7 @@ import { fireEvent } from '@testing-library/dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { montarCascaParaTeste } from './teste-casca.js';
 import { FalhaApi } from './api.ts';
+import { clienteConsultas, esquecerConsultas } from './consultas.js';
 import { createElement, type ComponentProps } from 'react';
 import { render } from '@testing-library/react';
 import { TelaAuditoria } from './auditoria.tsx';
@@ -46,8 +47,9 @@ function servicoFalso(
     itens: [evento()],
     proximo_cursor: null,
   })),
-): ServicoAuditoria {
-  return { consultar } as ServicoAuditoria;
+  identidade = { usuario_id: usuarioId, session_id: sessionId },
+): ComponentProps<typeof TelaAuditoria>['servico'] {
+  return { identidade, consultar };
 }
 
 function botao(raiz: HTMLElement, texto: string): HTMLButtonElement {
@@ -353,5 +355,104 @@ describe('quem alcança o registro de acessos', () => {
       'Registro de acessos e alterações',
     );
     expect(caminhos).not.toContain('/api/admin/auditoria');
+  });
+});
+
+/* Fatia 9b (28/11/2026), política da Auditoria: nada é guardado. O cache de leituras só
+ * junta pedidos iguais simultâneos; a resposta de uma consulta superada não aparece. */
+describe('consultas da auditoria sem retenção', () => {
+  afterEach(() => esquecerConsultas());
+
+  function adiada<T>() {
+    let resolver!: (valor: T) => void;
+    const promessa = new Promise<T>((r) => {
+      resolver = r;
+    });
+    return { promessa, resolver };
+  }
+  const pagina = (acao: string) => ({ itens: [evento({ acao })], proximo_cursor: null });
+
+  it('a volta à tela consulta de novo e nada fica guardado', async () => {
+    const consultar = vi.fn(async () => pagina('api.primeira'));
+    const servico = servicoFalso(consultar);
+    for (let volta = 0; volta < 2; volta += 1) {
+      const raiz = document.createElement('div');
+      const desmontar = montarAuditoria(raiz, servico);
+      await vi.waitFor(() => expect(raiz.textContent?.toLowerCase()).toContain('primeira'));
+      desmontar();
+    }
+    expect(consultar).toHaveBeenCalledTimes(2);
+    expect(clienteConsultas.getQueryCache().getAll()).toHaveLength(0);
+  });
+
+  it('dois envios iguais seguidos fazem um GET só', async () => {
+    const resposta = adiada<ReturnType<typeof pagina>>();
+    const consultar = vi
+      .fn()
+      .mockResolvedValueOnce(pagina('api.primeira'))
+      .mockReturnValueOnce(resposta.promessa);
+    const raiz = document.createElement('div');
+    const desmontar = montarAuditoria(raiz, servicoFalso(consultar));
+    await vi.waitFor(() => expect(raiz.textContent?.toLowerCase()).toContain('primeira'));
+    enviarFiltros(raiz);
+    enviarFiltros(raiz);
+    resposta.resolver(pagina('api.filtrada'));
+    await vi.waitFor(() => expect(raiz.textContent?.toLowerCase()).toContain('filtrada'));
+    expect(consultar).toHaveBeenCalledTimes(2);
+    desmontar();
+  });
+
+  it('a resposta atrasada de uma consulta superada não aparece', async () => {
+    const lenta = adiada<ReturnType<typeof pagina>>();
+    const consultar = vi
+      .fn()
+      .mockResolvedValueOnce(pagina('api.primeira'))
+      .mockReturnValueOnce(lenta.promessa)
+      .mockResolvedValueOnce(pagina('api.mais_nova'));
+    const raiz = document.createElement('div');
+    const desmontar = montarAuditoria(raiz, servicoFalso(consultar));
+    await vi.waitFor(() => expect(raiz.textContent?.toLowerCase()).toContain('primeira'));
+    const acao = raiz.querySelector('#auditoria-acao') as HTMLInputElement;
+    fireEvent.change(acao, { target: { value: 'api.lenta' } });
+    enviarFiltros(raiz);
+    fireEvent.change(acao, { target: { value: 'api.mais_nova' } });
+    enviarFiltros(raiz);
+    await vi.waitFor(() => expect(raiz.textContent?.toLowerCase()).toContain('mais nova'));
+    lenta.resolver(pagina('api.antiga_atrasada'));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(raiz.textContent?.toLowerCase()).not.toContain('antiga atrasada');
+    expect(raiz.textContent?.toLowerCase()).toContain('mais nova');
+    desmontar();
+  });
+
+  it('troca de conta: a consulta em voo da anterior não fica no cache', async () => {
+    const lenta = adiada<ReturnType<typeof pagina>>();
+    montarAuditoria(
+      document.createElement('div'),
+      servicoFalso(vi.fn().mockReturnValue(lenta.promessa)),
+    )();
+    const contaB = {
+      usuario_id: '30000000-0000-4000-8000-00000000000b',
+      session_id: '20000000-0000-4000-8000-00000000000b',
+    };
+    const raiz = document.createElement('div');
+    const desmontar = montarAuditoria(
+      raiz,
+      servicoFalso(
+        vi.fn(async () => pagina('api.da_conta_b')),
+        contaB,
+      ),
+    );
+    expect(
+      clienteConsultas
+        .getQueryCache()
+        .getAll()
+        .every((q) => q.queryKey[1] === contaB.usuario_id),
+    ).toBe(true);
+    await vi.waitFor(() => expect(raiz.textContent?.toLowerCase()).toContain('da conta b'));
+    lenta.resolver(pagina('api.da_conta_a'));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(raiz.textContent?.toLowerCase()).not.toContain('da conta a');
+    desmontar();
   });
 });
