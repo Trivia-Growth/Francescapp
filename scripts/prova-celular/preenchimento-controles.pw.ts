@@ -123,7 +123,7 @@ async function lerValorVisivel(
   return nativo.evaluate(async (no) => {
     // Deixa o React pintar o resultado do clique. A divergência é verificada sem retry.
     await new Promise<void>((resolver) => requestAnimationFrame(() => resolver()));
-    const visivel = no.parentElement?.querySelector('.ui-data__texto, .ui-selecao__valor');
+    const visivel = no.parentElement?.querySelector('[data-valor-visivel]');
     return visivel instanceof HTMLInputElement ? visivel.value : (visivel?.textContent ?? null);
   });
 }

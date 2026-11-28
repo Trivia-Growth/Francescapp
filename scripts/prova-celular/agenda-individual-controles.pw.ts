@@ -113,10 +113,10 @@ test('agenda monta a seleção React depois da carga', async ({ page }) => {
     const nativo = painel.locator(`#${id}`);
     const medicao = await nativo.evaluate((controle) => ({
       opacidade: getComputedStyle(controle).opacity,
-      paiMarcado: controle.parentElement?.matches('.ui-selecao[data-aprimorada]'),
+      paiMarcado: controle.parentElement?.matches('[data-aprimorada=selecao]'),
       invólucros: controle.parentElement
-        ?.closest('.ui-selecao')
-        ?.parentElement?.closest('.ui-selecao')
+        ?.closest('[data-aprimorada=selecao]')
+        ?.parentElement?.closest('[data-aprimorada=selecao]')
         ? 2
         : 1,
       gatilhos: controle.parentElement?.querySelectorAll(':scope > [role="combobox"]').length,

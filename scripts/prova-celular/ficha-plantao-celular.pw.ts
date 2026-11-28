@@ -10,7 +10,9 @@
  * Nada de rede: toda requisição para fora de 127.0.0.1 é recusada, os serviços têm dublê e
  * os dados são fictícios.
  */
+import { resolve } from 'node:path';
 import { expect, type Page, test } from '@playwright/test';
+import { type ViteDevServer, createServer } from 'vite';
 import { conferirAxe } from './axe.ts';
 import { type Alvo, medirAlvos, medirCampos, medirLargura, percorrerFoco } from './medidas.ts';
 
@@ -30,6 +32,27 @@ function pequenos(alvos: Alvo[]): Alvo[] {
   return alvos.filter((alvo) => alvo.largura < ALVO_MINIMO || alvo.altura < ALVO_MINIMO);
 }
 
+let servidor: ViteDevServer | undefined;
+let origem: string;
+
+// A bancada mede o layout das primitivas com as mesmas utilitárias da aplicação.
+test.beforeAll(async () => {
+  servidor = await createServer({
+    root: resolve('.'),
+    configFile: resolve('web/vite.config.ts'),
+    publicDir: resolve('web/public'),
+    server: { host: '127.0.0.1', port: 0 },
+  });
+  await servidor.listen();
+  const endereco = servidor.httpServer?.address();
+  if (!endereco || typeof endereco === 'string') throw new Error('Vite sem porta local.');
+  origem = `http://127.0.0.1:${endereco.port}`;
+});
+
+test.afterAll(async () => {
+  await servidor?.close();
+});
+
 test.beforeEach(async ({ context }) => {
   // Dublê de rede: só o servidor local responde. Qualquer outro destino é recusado.
   await context.route('**/*', (rota) => {
@@ -44,7 +67,7 @@ for (const viewport of VIEWPORTS) {
     test.use({ viewport: { width: viewport.width, height: viewport.height } });
 
     test('ficha e consolidado — largura, alvos, foco e rótulos', async ({ page }) => {
-      await page.goto('/scripts/prova-celular/ficha-plantao.html');
+      await page.goto(`${origem}/scripts/prova-celular/ficha-plantao.html`);
       await expect(page.getByText('Ficha em branco')).toBeVisible();
       await expect(
         page.getByRole('heading', { name: 'Consolidado diário no formato da ficha' }),
@@ -84,7 +107,7 @@ for (const viewport of VIEWPORTS) {
     test('ficha — audiência por campo e medicação sem texto livre cabem na tela', async ({
       page,
     }) => {
-      await page.goto('/scripts/prova-celular/ficha-plantao.html');
+      await page.goto(`${origem}/scripts/prova-celular/ficha-plantao.html`);
       const medicacao = page.locator('fieldset').filter({ hasText: 'Medicação' }).first();
       await expect(medicacao).toBeVisible();
       // Medicação é prescrição e administração, não linha de texto: não há campo aqui.
@@ -107,7 +130,7 @@ for (const viewport of VIEWPORTS) {
 
 async function escolher(page: Page, rotulo: RegExp, opcao: string) {
   const gatilho = page.getByRole('combobox', { name: rotulo });
-  const grupo = page.locator('.ui-selecao[data-aprimorada]').filter({ has: gatilho });
+  const grupo = page.locator('[data-aprimorada=selecao]').filter({ has: gatilho });
   await expect(grupo.locator(':scope > select')).toHaveCSS('opacity', '0');
   await gatilho.click();
   await page.getByRole('option', { name: opcao, exact: true }).click();
@@ -116,7 +139,7 @@ async function escolher(page: Page, rotulo: RegExp, opcao: string) {
 test('ficha — trocar seleções e recarregar não derruba a tela', async ({ page }) => {
   const erros: string[] = [];
   page.on('pageerror', (erro) => erros.push(String(erro)));
-  await page.goto('/scripts/prova-celular/ficha-plantao.html');
+  await page.goto(`${origem}/scripts/prova-celular/ficha-plantao.html`);
   await expect(page.getByText('Ficha em branco')).toBeVisible();
   await conferirAxe(page, 'ficha-plantao — ficha inicial (1280x720)');
   const declarar = /^Preenchi fora do horário do plantão/;

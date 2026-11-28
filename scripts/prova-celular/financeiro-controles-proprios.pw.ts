@@ -24,12 +24,12 @@ test('as quatro datas do Financeiro funcionam em ilhas durante a troca de abas',
     const visivel = page.getByLabel(rotulo, { exact: true });
     await expect(visivel).toHaveAttribute('type', 'text');
     await expect(visivel).toHaveAttribute('placeholder', 'dd/mm/aaaa');
-    const grupo = page.locator('.ui-data[data-aprimorada]').filter({ has: visivel });
+    const grupo = page.locator('[data-aprimorada=data]').filter({ has: visivel });
     const nativo = grupo.locator(':scope > input[type="date"]');
     await expect(nativo).toHaveAttribute('aria-hidden', 'true');
     const medidas = await nativo.evaluate((campo) => ({
       opacidade: getComputedStyle(campo).opacity,
-      soUmGrupo: campo.parentElement?.parentElement?.closest('.ui-data') === null,
+      soUmGrupo: campo.parentElement?.parentElement?.closest('[data-aprimorada=data]') === null,
     }));
     expect(medidas).toEqual({ opacidade: '0', soUmGrupo: true });
     await visivel.fill(`${dia}/03/2026`);
