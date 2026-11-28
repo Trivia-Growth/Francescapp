@@ -17,7 +17,14 @@ type Carteira = {
   destinoFiltros: HTMLElement;
   abrir: (paciente: PacienteLista) => void;
 };
-type Entrada = { destinoLogin: HTMLElement; destinoRede: HTMLElement; login: ReactElement };
+type Entrada = {
+  destinoLogin: HTMLElement;
+  destinoRede: HTMLElement;
+  destinoCadastro: HTMLElement;
+  login: ReactElement;
+  cadastro: ReactElement;
+  focarCadastro: () => void;
+};
 
 type Rota =
   | { tipo: 'ficha'; ficha: RotaFicha }
@@ -61,15 +68,20 @@ export function gravarRota(hash: string, acao: 'push' | 'replace'): void {
 function PainelCasca({
   children,
   itemDaLista = false,
+  aoTentarNovamente,
 }: {
   children: ReactElement;
   itemDaLista?: boolean;
+  aoTentarNovamente?: () => void;
 }) {
   const [tentativa, definirTentativa] = useState(0);
   return (
     <LimiteErroPainel
       key={tentativa}
-      aoTentarNovamente={() => definirTentativa((anterior) => anterior + 1)}
+      aoTentarNovamente={() => {
+        aoTentarNovamente?.();
+        definirTentativa((anterior) => anterior + 1);
+      }}
       itemDaLista={itemDaLista}
     >
       {children}
@@ -156,6 +168,10 @@ function Casca({
             navegacao.barra,
           )
         : null}
+      {createPortal(
+        <PainelCasca aoTentarNovamente={entrada.focarCadastro}>{entrada.cadastro}</PainelCasca>,
+        entrada.destinoCadastro,
+      )}
       {createPortal(
         <PainelCasca>
           <EstadoDeRede />
