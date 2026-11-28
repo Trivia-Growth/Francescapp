@@ -14,6 +14,8 @@
  */
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { criarConcessaoEquipeSchema } from '../packages/contracts/src/index.js';
+import { invalidarCatalogoDaEquipe } from './catalogo-equipe.js';
+import { descartarLeitura, RECURSO_EQUIPE } from './consultas.js';
 import type { ClienteFFCM } from './api.js';
 import { criarCicloConcessaoEquipe } from './ciclo-concessao-equipe.js';
 import { AreaTexto } from './componentes/ui/area-texto.js';
@@ -74,8 +76,17 @@ export function TelaConvidarEquipe({ api }: { api: ClienteFFCM }) {
     identidadeAtual: () => api.identidadeAtual(),
     consultar: () => api.consultarBarreiraEquipe(),
     reservar: async (entrada) => (await api.reservarBarreiraEquipe(entrada)).estado,
-    criar: ({ entrada, chave, reserva_id, geracao_reserva }) =>
-      api.criarConcessaoEquipe(entrada, chave, { reserva_id, geracao_reserva }),
+    criar: async ({ entrada, chave, reserva_id, geracao_reserva }) => {
+      try {
+        return await api.criarConcessaoEquipe(entrada, chave, { reserva_id, geracao_reserva });
+      } finally {
+        // Concedido, recusado ou incerto: a lista da Equipe guardada pode ter envelhecido, e
+        // a volta à Equipe não deve mostrá-la nem pelo instante da releitura.
+        const identidade = api.identidadeAtual();
+        if (identidade) descartarLeitura(identidade, ...RECURSO_EQUIPE);
+        invalidarCatalogoDaEquipe();
+      }
+    },
     encerrar: async (entrada) => (await api.encerrarBarreiraEquipe(entrada)).estado,
     reconhecer: async (entrada) => (await api.reconhecerBarreiraEquipe(entrada)).estado,
   });

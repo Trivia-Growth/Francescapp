@@ -6,8 +6,9 @@ import { aoEsquecerSessao } from './api.ts';
  *  nas máquinas de cada tela, com chave de idempotência; aqui só se guarda o que foi lido.
  *
  *  Usam este módulo os catálogos administrados (Estado emocional, piloto; Papéis declarados
- *  e Modelo da ficha de plantão, fatia 9). Ele é carregado com a tela, não na abertura, e se
- *  registra em `api.ts` para ser esquecido junto com a sessão.
+ *  e Modelo da ficha de plantão, fatia 9a), e Equipe, Plano de cuidado e Auditoria (fatia
+ *  9b, com política própria). Ele é carregado com a tela, não na abertura, e se registra em
+ *  `api.ts` para ser esquecido junto com a sessão.
  *
  *  O controle de segurança é o descarte por identidade, em três camadas:
  *  1. a chave começa SEMPRE pela conta e pela sessão (`chaveDaSessao`), então uma conta
@@ -56,22 +57,46 @@ export function chaveDaSessao(identidade: IdentidadeConsulta, ...recurso: string
  *  repetir chamam —, mas consultas simultâneas da mesma chave viram um GET só. `retida`
  *  devolve o que a identidade já leu, e `descartar` esquece a entrada (recusa de acesso).
  *
- *  Política de retenção: só para vocabulário institucional, sem dado de paciente nem de
- *  audiência. A entrada some 5 min depois da última tela que a usou (`gcTime` padrão),
- *  ou antes, com a identidade. */
+ *  Políticas de retenção (a entrada some sempre antes com a identidade):
+ *  - catálogos de vocabulário: 5 min desde a última leitura (`gcTime` padrão); a volta
+ *    não relê;
+ *  - Equipe e Plano de cuidado: 60 s; a volta mostra o guardado e relê em seguida;
+ *  - Auditoria: `gcTime: 0`, nada guardado, só a consulta em voo é compartilhada. */
 export function leituraPorSessao<D>(
   identidade: IdentidadeConsulta,
   recurso: readonly string[],
   consultar: () => Promise<D>,
+  /** Quanto a entrada sobrevive depois da última leitura. Equipe e Plano de cuidado
+   *  usam 60 s (decisão da fatia 9b); `0` não guarda nada além da consulta em voo. */
+  gcTime?: number,
 ) {
+  // A troca de identidade é conferida a CADA consulta, não só na criação: se outra
+  // identidade passou pelo cache nesse meio-tempo, `chaveDaSessao` o apaga antes de esta
+  // ler. Ler e esquecer usam a chave pura, sem esse efeito: uma tela já desmontada de outra
+  // identidade, ao descartar o que era seu, não pode apagar o cache da identidade atual.
   const queryKey = chaveDaSessao(identidade, ...recurso);
   return {
-    consultar: () => clienteConsultas.fetchQuery({ queryKey, queryFn: consultar, staleTime: 0 }),
+    consultar: () =>
+      clienteConsultas.fetchQuery({
+        queryKey: chaveDaSessao(identidade, ...recurso),
+        queryFn: consultar,
+        staleTime: 0,
+        ...(gcTime === undefined ? {} : { gcTime }),
+      }),
     leitura: {
       retida: () => clienteConsultas.getQueryData<D>(queryKey),
       descartar: () => clienteConsultas.removeQueries({ queryKey, exact: true }),
     },
   };
+}
+
+/** A chave da primeira página da Equipe (`concessao-equipe.tsx`), descartada por
+ *  `convidar-equipe.tsx` depois de cada convite. */
+export const RECURSO_EQUIPE = ['admin', 'equipe'] as const;
+
+/** Esquece uma leitura desta identidade: chamada depois de uma escrita que a envelhece. */
+export function descartarLeitura(identidade: IdentidadeConsulta, ...recurso: string[]): void {
+  clienteConsultas.removeQueries({ queryKey: chaveDaSessao(identidade, ...recurso), exact: true });
 }
 
 aoEsquecerSessao(esquecerConsultas);

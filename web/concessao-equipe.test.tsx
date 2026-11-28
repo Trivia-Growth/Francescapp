@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { createElement, type ComponentProps } from 'react';
 import { render } from '@testing-library/react';
 import { TelaConcessaoEquipe } from './concessao-equipe.js';
-import type { ClienteFFCM } from './api.ts';
+import { ClienteFFCM as Cliente, type ClienteFFCM } from './api.ts';
+import { clienteConsultas, esquecerConsultas } from './consultas.js';
+
+// O cache de leitura é um módulo único: cada teste começa com ele vazio.
+beforeEach(() => esquecerConsultas());
 
 function montarConcessaoEquipe(
   raiz: HTMLElement,
@@ -136,4 +140,169 @@ it('oferece o link para a página própria de convite', async () => {
   await vi.waitFor(() =>
     expect(raiz.querySelector('a[href="#administracao/convidar-equipe"]')).not.toBeNull(),
   );
+});
+
+/* Fatia 9b (28/11/2026), política da Equipe: a primeira página fica guardada por até 60 s;
+ * a volta a mostra no primeiro quadro e relê em seguida. Nenhuma leitura sobrevive à
+ * identidade, à recusa ou à falha. */
+const contaB = '22222222-2222-4222-8222-222222222222';
+
+function paginaDe(email: string) {
+  return {
+    itens: [
+      {
+        id: concessao,
+        email,
+        estado: 'vinculada',
+        perfil: 'profissional',
+        usuario_id: ator,
+        ativo: true,
+        versao: 1,
+      },
+    ],
+    proximo_cursor: null,
+  };
+}
+
+function apiDe(listar: ReturnType<typeof vi.fn>, conta = ator) {
+  return {
+    identidadeAtual: () => ({ usuario_id: conta, session_id: conta }),
+    listarProfissionais: listar,
+  } as unknown as ClienteFFCM;
+}
+
+function adiada<T>() {
+  let resolver!: (valor: T) => void;
+  const promessa = new Promise<T>((r) => {
+    resolver = r;
+  });
+  return { promessa, resolver };
+}
+
+const ocioso = (raiz: HTMLElement) =>
+  vi.waitFor(() => expect(raiz.querySelector('[aria-busy="true"]')).toBeNull());
+
+it('volta à Equipe: a lista guardada aparece no primeiro quadro e é relida', async () => {
+  const listar = vi
+    .fn()
+    .mockResolvedValueOnce(paginaDe('antes@example.test'))
+    .mockResolvedValueOnce(paginaDe('depois@example.test'));
+  const api = apiDe(listar);
+  const raiz = document.createElement('div');
+  montarConcessaoEquipe(raiz, api)();
+  await vi.waitFor(() => expect(clienteConsultas.getQueryCache().getAll()).toHaveLength(1));
+  await vi.waitFor(() =>
+    expect(clienteConsultas.getQueryCache().getAll()[0]?.state.data).toBeDefined(),
+  );
+
+  const volta = document.createElement('div');
+  const desmontar = montarConcessaoEquipe(volta, api);
+  // Síncrono: a lista guardada já está lá, recuada enquanto relê.
+  expect(volta.textContent).toContain('antes@example.test');
+  expect(volta.querySelector('[data-forma="recuo"]')).not.toBeNull();
+  await vi.waitFor(() => expect(volta.textContent).toContain('depois@example.test'));
+  expect(volta.textContent).not.toContain('antes@example.test');
+  expect(listar).toHaveBeenCalledTimes(2);
+  desmontar();
+});
+
+it('a entrada some 60 s depois da última leitura', async () => {
+  vi.useFakeTimers();
+  try {
+    const api = apiDe(vi.fn().mockResolvedValue(paginaDe('antes@example.test')));
+    const raiz = document.createElement('div');
+    montarConcessaoEquipe(raiz, api)();
+    await vi.waitFor(() =>
+      expect(clienteConsultas.getQueryCache().getAll()[0]?.state.data).toBeDefined(),
+    );
+    vi.advanceTimersByTime(59_000);
+    expect(clienteConsultas.getQueryCache().getAll()).toHaveLength(1);
+    vi.advanceTimersByTime(2_000);
+    expect(clienteConsultas.getQueryCache().getAll()).toHaveLength(0);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('revogação: a sessão esquecida pela API leva a lista guardada', async () => {
+  const listar = vi.fn().mockResolvedValue(paginaDe('antes@example.test'));
+  const api = apiDe(listar);
+  montarConcessaoEquipe(document.createElement('div'), api)();
+  await vi.waitFor(() =>
+    expect(clienteConsultas.getQueryCache().getAll()[0]?.state.data).toBeDefined(),
+  );
+  new Cliente().limpar();
+  const volta = document.createElement('div');
+  const desmontar = montarConcessaoEquipe(volta, api);
+  expect(volta.textContent).not.toContain('antes@example.test');
+  await ocioso(volta);
+  desmontar();
+});
+
+it('negativo: recusa na releitura esconde a lista e descarta o guardado', async () => {
+  const listar = vi
+    .fn()
+    .mockResolvedValueOnce(paginaDe('antes@example.test'))
+    .mockRejectedValueOnce(Object.assign(new Error('recusa'), { status: 403 }));
+  const api = apiDe(listar);
+  montarConcessaoEquipe(document.createElement('div'), api)();
+  await vi.waitFor(() =>
+    expect(clienteConsultas.getQueryCache().getAll()[0]?.state.data).toBeDefined(),
+  );
+  const volta = document.createElement('div');
+  const desmontar = montarConcessaoEquipe(volta, api);
+  await vi.waitFor(() =>
+    expect(volta.textContent).toContain('Não foi possível carregar a equipe.'),
+  );
+  expect(volta.textContent).not.toContain('antes@example.test');
+  expect(clienteConsultas.getQueryCache().getAll()).toHaveLength(0);
+  desmontar();
+});
+
+it('troca de conta: a conta nova não vê a lista da anterior', async () => {
+  montarConcessaoEquipe(
+    document.createElement('div'),
+    apiDe(vi.fn().mockResolvedValue(paginaDe('da-conta-a@example.test'))),
+  )();
+  await vi.waitFor(() =>
+    expect(clienteConsultas.getQueryCache().getAll()[0]?.state.data).toBeDefined(),
+  );
+  const raiz = document.createElement('div');
+  const desmontar = montarConcessaoEquipe(
+    raiz,
+    apiDe(vi.fn().mockResolvedValue(paginaDe('da-conta-b@example.test')), contaB),
+  );
+  expect(raiz.textContent).not.toContain('da-conta-a@example.test');
+  await vi.waitFor(() => expect(raiz.textContent).toContain('da-conta-b@example.test'));
+  expect(
+    clienteConsultas
+      .getQueryCache()
+      .getAll()
+      .map((q) => q.queryKey),
+  ).toEqual([['sessao', contaB, contaB, 'admin', 'equipe']]);
+  desmontar();
+});
+
+it('resposta atrasada da conta anterior é descartada', async () => {
+  const atrasada = adiada<ReturnType<typeof paginaDe>>();
+  montarConcessaoEquipe(
+    document.createElement('div'),
+    apiDe(vi.fn().mockReturnValue(atrasada.promessa)),
+  )();
+  const raiz = document.createElement('div');
+  const desmontar = montarConcessaoEquipe(
+    raiz,
+    apiDe(vi.fn().mockResolvedValue(paginaDe('da-conta-b@example.test')), contaB),
+  );
+  await vi.waitFor(() => expect(raiz.textContent).toContain('da-conta-b@example.test'));
+  atrasada.resolver(paginaDe('da-conta-a@example.test'));
+  await new Promise((r) => setTimeout(r, 0));
+  expect(raiz.textContent).not.toContain('da-conta-a@example.test');
+  expect(
+    clienteConsultas
+      .getQueryCache()
+      .getAll()
+      .map((q) => q.queryKey),
+  ).toEqual([['sessao', contaB, contaB, 'admin', 'equipe']]);
+  desmontar();
 });

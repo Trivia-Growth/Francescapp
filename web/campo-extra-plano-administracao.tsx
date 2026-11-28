@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { leituraPorSessao } from './consultas.js';
 import type { CampoExtraCatalogo } from '../packages/contracts/src/plano-cuidado.ts';
 import { contratosRotas } from '../packages/contracts/src/rotas.ts';
 import type { ServicoPlanoCuidado } from './plano-cuidado.js';
@@ -44,13 +45,17 @@ export function TelaAdministracaoPlano({
   acessoPerdido,
   consultarEquipe,
 }: {
-  servico: ServicoPlanoCuidado;
+  servico: ServicoPlanoCuidado & { identidade: { usuario_id: string; session_id: string } };
   acessoPerdido: (erro: unknown) => void;
   consultarEquipe: () => Promise<readonly Colaborador[]>;
 }) {
-  const catalogo = useCatalogoAdministrado<DadosPlano, EnvioPlano>(
-    {
-      consultar: async () => {
+  // Política da fatia 9b, a mesma da Equipe: quem aprova e a equipe são dado de permissão
+  // que outro administrador muda. O guardado vive até 60 s, aparece na volta e é relido.
+  const [emCache] = useState(() => {
+    const cache = leituraPorSessao(
+      servico.identidade,
+      ['admin', 'plano-cuidado'],
+      async (): Promise<DadosPlano> => {
         if (!servico.consultarCatalogo || !servico.consultarAprovadores)
           throw new Error('Serviço indisponível.');
         const [campos, aprovadores, equipe] = await Promise.all([
@@ -60,6 +65,13 @@ export function TelaAdministracaoPlano({
         ]);
         return { campos, aprovadores, equipe };
       },
+      60_000,
+    );
+    return { ...cache, leitura: { ...cache.leitura, revalidar: true } };
+  });
+  const catalogo = useCatalogoAdministrado<DadosPlano, EnvioPlano>(
+    {
+      consultar: emCache.consultar,
       // Sem camada `async` por cima: a promessa do serviço é devolvida como está, para
       // que a resposta — inclusive a recusa — chegue no mesmo instante em que chegaria
       // sem este despacho. Um `await` aqui só acrescentaria uma volta de espera.
@@ -96,6 +108,7 @@ export function TelaAdministracaoPlano({
               item.ativo === envio.entrada.ativo,
           ),
     VAZIO,
+    emCache.leitura,
   );
   if (catalogo.perdido) return null;
 

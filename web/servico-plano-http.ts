@@ -29,7 +29,7 @@ type Nome = keyof typeof rotasPlano;
 /** Serviço isolado para montagem futura. A sessão e autorização são verificadas no servidor. */
 export function criarServicoPlanoHttp(
   identidadeAtual: () => Identidade | null,
-): ServicoPlanoCuidado {
+): ServicoPlanoCuidado & { identidade: Identidade } {
   const identidade = identidadeAtual();
   if (!identidade) throw new FalhaApi('nao_autenticado', 401);
   const enviar = async (
@@ -172,6 +172,8 @@ export function criarServicoPlanoHttp(
       ((await enviar('reconhecer', entrada)) as { estado: string }).estado,
   });
   return {
+    // A identidade que criou o serviço; é dela a chave do cache de leitura do catálogo.
+    identidade,
     ciclo,
     consultarCatalogo: async () =>
       (await enviar('listarCampoExtraPlano', {})) as CampoExtraCatalogo[],

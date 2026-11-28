@@ -19,6 +19,7 @@
  * permissão e falha passageira.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { leituraPorSessao } from './consultas.js';
 import type { EventoAuditoria } from '../packages/contracts/src/auditoria.js';
 import { FalhaApi } from './api.js';
 import { Botao } from './componentes/ui/botao.js';
@@ -85,7 +86,18 @@ function limiteDoDia(data: string, fim: boolean): string {
   return new Date(`${data}T${fim ? '23:59:59.999' : '00:00:00'}`).toISOString();
 }
 
-export function TelaAuditoria({ servico, opcoes }: { servico: ServicoAuditoria; opcoes: Opcoes }) {
+/** Política da fatia 9b para a Auditoria: NADA é guardado. O registro de acessos é dado
+ *  sensível e sempre lido na hora; o cache de leituras serve só para que pedidos iguais
+ *  simultâneos (duplo clique em Aplicar) virem um GET, com `gcTime: 0` — a entrada some
+ *  quando a consulta termina. A resposta que chega depois de outra consulta mais nova é
+ *  descartada pela geração; a de outra identidade, pela chave e pelo serviço HTTP. */
+export function TelaAuditoria({
+  servico,
+  opcoes,
+}: {
+  servico: ServicoAuditoria & { identidade: { usuario_id: string; session_id: string } };
+  opcoes: Opcoes;
+}) {
   const [itens, definirItens] = useState<readonly EventoAuditoria[]>([]);
   const [status, definirStatus] = useState('Carregando registros…');
   const [ocupada, definirOcupada] = useState(true);
@@ -111,13 +123,22 @@ export function TelaAuditoria({ servico, opcoes }: { servico: ServicoAuditoria; 
   const anterioresRef = useRef<(string | undefined)[]>([]);
   const proximoCursorRef = useRef<string | null>(null);
 
+  const geracaoRef = useRef(0);
   const carregar = useCallback(
     async (cursor: string | undefined, filtros: Omit<FiltrosAuditoria, 'limite' | 'cursor'>) => {
+      const geracao = ++geracaoRef.current;
+      const vigente = () => ativaRef.current && geracao === geracaoRef.current;
       definirOcupada(true);
       definirStatus('Carregando registros…');
       try {
-        const pagina = await servico.consultar({ limite: 25, cursor, ...filtros });
-        if (!ativaRef.current) return;
+        const entrada: FiltrosAuditoria = { limite: 25, cursor, ...filtros };
+        const pagina = await leituraPorSessao(
+          servico.identidade,
+          ['auditoria', JSON.stringify(entrada)],
+          () => servico.consultar(entrada),
+          0,
+        ).consultar();
+        if (!vigente()) return;
         definirItens(pagina.itens);
         cursorRef.current = cursor;
         proximoCursorRef.current = pagina.proximo_cursor;
@@ -134,7 +155,7 @@ export function TelaAuditoria({ servico, opcoes }: { servico: ServicoAuditoria; 
             : `${pagina.itens.length} ${pagina.itens.length === 1 ? 'registro' : 'registros'} nesta página.${ressalvaCaso}`,
         );
       } catch (erro) {
-        if (!ativaRef.current) return;
+        if (!vigente()) return;
         definirItens([]);
         proximoCursorRef.current = null;
         definirProximoCursor(null);
@@ -145,7 +166,7 @@ export function TelaAuditoria({ servico, opcoes }: { servico: ServicoAuditoria; 
             : 'Não foi possível carregar o registro. Tente de novo.',
         );
       } finally {
-        if (ativaRef.current) definirOcupada(false);
+        if (vigente()) definirOcupada(false);
       }
     },
     [servico],

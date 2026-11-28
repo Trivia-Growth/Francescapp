@@ -89,6 +89,7 @@ import {
 import { confirmar } from './confirmacao.js';
 import type { FiltrosCarteira } from '../packages/contracts/src/cadastro.js';
 import { criarCatalogoResponsaveis, type ResponsavelOpcao } from './acompanhamento-caso.js';
+import { type CatalogoResponsaveis, criarEquipePorSessao } from './catalogo-equipe.js';
 
 function elemento<T extends HTMLElement>(id: string): T {
   const encontrado = document.getElementById(id);
@@ -1392,8 +1393,8 @@ function apagarPacientes(): void {
   comandoCasoNovo.current?.cancelarCarga();
   // Sair precisa levar junto tudo que a sessão trouxe para a tela: a barra de filtros
   // mostra nomes da equipe e os painéis de administração mostram registros institucionais.
-  // O catálogo em memória não é limpo aqui porque é indexado pelo usuário: outra conta
-  // reconstrói o seu, e a mesma conta revalidando não repete a consulta da equipe.
+  // O catálogo da equipe e os nomes são esquecidos pela própria API (`aoEsquecerSessao`):
+  // são da sessão, e a mesma sessão revalidando não repete a consulta da equipe.
   filtrosMontadosPara = null;
   filtrosCarteira = {};
   desmontarFiltros?.();
@@ -1544,19 +1545,14 @@ const perfis = {
 };
 const funcoesConta = { ...perfis, familia: 'Familiar', case_manager: 'Case Manager' };
 
-let catalogoEquipePara: string | null = null;
-let catalogoEquipe: (() => Promise<ResponsavelOpcao[]>) | null = null;
+/** Uma consulta de equipe por sessão (`web/catalogo-equipe.ts`). O cadastro já mantém um
+ * catálogo com cache; os filtros da carteira e as telas de administração reaproveitam esse
+ * mesmo catálogo em vez de cada um pedir a sua cópia da lista. */
+const equipePorSessao = criarEquipePorSessao((cursor) => api.listarProfissionais(cursor));
 
-/** Uma consulta de equipe por usuário. O cadastro já mantém um catálogo com cache; os
- * filtros da carteira e as telas de administração reaproveitam esse mesmo catálogo em vez
- * de cada um pedir a sua cópia da lista. */
-function catalogoDaEquipe(atual: Sessao): (() => Promise<ResponsavelOpcao[]>) | null {
+function catalogoDaEquipe(atual: Sessao): CatalogoResponsaveis | null {
   if (!atual.capacidades.includes('administrar_concessoes')) return null;
-  if (catalogoEquipePara !== atual.usuario.id) {
-    catalogoEquipePara = atual.usuario.id;
-    catalogoEquipe = criarCatalogoResponsaveis((cursor) => api.listarProfissionais(cursor));
-  }
-  return catalogoEquipe;
+  return equipePorSessao.para({ usuario_id: atual.usuario.id, session_id: atual.session_id });
 }
 
 /** FR-026. O recorte por responsável e por situação só é oferecido a quem o servidor
@@ -1629,23 +1625,13 @@ type AreaAdministracao = {
   carregar: () => Promise<ReactElement | ((raiz: HTMLElement) => () => void)>;
 };
 
-const nomeDoUsuarioNaEquipe = (() => {
-  let nomes = new Map<string, string>();
-  return {
-    carregar(atual: Sessao): void {
-      const catalogo = catalogoDaEquipe(atual);
-      if (!catalogo) return;
-      void catalogo()
-        .then((lista) => {
-          nomes = new Map(lista.map((item) => [item.usuario_id, item.rotulo]));
-        })
-        .catch(() => {
-          /* sem a equipe carregada, a tela mostra o identificador */
-        });
-    },
-    consultar: (usuarioId: string) => nomes.get(usuarioId),
-  };
-})();
+const nomeDoUsuarioNaEquipe = {
+  carregar(atual: Sessao): void {
+    if (!catalogoDaEquipe(atual)) return;
+    equipePorSessao.carregarNomes({ usuario_id: atual.usuario.id, session_id: atual.session_id });
+  },
+  consultar: equipePorSessao.nome,
+};
 
 const audienciaFinanceira = criarAudienciaFinanceira(
   async () => criarServicoFinanceiroHttp(identidadeAtual).consultarAudiencia(),
@@ -1667,11 +1653,15 @@ const areasAdministracao: AreaAdministracao[] = [
       createElement((await import('./campo-extra-plano-administracao.js')).TelaAdministracaoPlano, {
         servico: criarServicoPlanoHttp(identidadeAtual),
         acessoPerdido,
+        // A equipe decide quem pode ser aprovador: relida a cada carga do Plano, nunca a
+        // do início da sessão (revisão do #85).
         consultarEquipe: async () => {
           if (!sessao) throw new FalhaApi('nao_autenticado', 401);
-          const catalogo = catalogoDaEquipe(sessao);
-          if (!catalogo) throw new Error('Catálogo da equipe indisponível.');
-          return catalogo();
+          if (!catalogoDaEquipe(sessao)) throw new Error('Catálogo da equipe indisponível.');
+          return equipePorSessao.reler({
+            usuario_id: sessao.usuario.id,
+            session_id: sessao.session_id,
+          })();
         },
       }),
   },
@@ -2160,8 +2150,8 @@ function aplicarSessao(atual: Sessao): boolean {
     aviso('create-feedback', '');
   }
   if (podeCadastrar) {
-    if (equipeCasoNovoPara !== atual.usuario.id) {
-      equipeCasoNovoPara = atual.usuario.id;
+    if (equipeCasoNovoPara !== `${atual.usuario.id}|${atual.session_id}`) {
+      equipeCasoNovoPara = `${atual.usuario.id}|${atual.session_id}`;
       catalogoCasoNovo = catalogoDaEquipe(atual);
       atualizarEquipeDoCadastro(comandoCasoNovo.current);
     }

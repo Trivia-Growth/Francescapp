@@ -29,6 +29,9 @@ export type LeituraRetida<D> = {
   retida(): D | undefined;
   /** Esquece a leitura: chamada quando o acesso é recusado. */
   descartar(): void;
+  /** Mostra o guardado na montagem e RELÊ em seguida, em vez de confiar nele (política da
+   *  Equipe e do Plano de cuidado, fatia 9b). Sem isto, a volta não relê. */
+  revalidar?: boolean;
 };
 
 export type TentativaCatalogo<E> = { entrada: E; chave: string; consultada: boolean };
@@ -44,6 +47,8 @@ type Maquina<D, E> = {
   tentativa: TentativaCatalogo<E> | null;
   ativa: boolean;
   perdido: boolean;
+  /** Houve leitura concluída NESTA montagem (o guardado não conta). */
+  lida: boolean;
 };
 
 export type Catalogo<D, E> = {
@@ -85,7 +90,9 @@ export function useCatalogoAdministrado<D, E>(
     tentativa: null,
     ativa: true,
     perdido: false,
+    lida: false,
   });
+  const inicialRef = useRef(inicial);
   const dependencias = useRef({ servico, acessoPerdido, textos, confirmado, leitura });
   dependencias.current = { servico, acessoPerdido, textos, confirmado, leitura };
 
@@ -128,6 +135,7 @@ export function useCatalogoAdministrado<D, E>(
         else pendente.consultada = true;
       }
       estado.current.dados = dados;
+      estado.current.lida = true;
       // A leitura concluída é uma geração nova do conteúdo. Trocar a chave devolve os
       // campos ao valor recém-lido, como a reconstrução do DOM fazia antes — sem isso um
       // texto digitado e não gravado sobreviveria calado por cima do valor do servidor.
@@ -136,6 +144,14 @@ export function useCatalogoAdministrado<D, E>(
         ? AVISO_SEM_CONFIRMACAO
         : dependencias.current.textos.atualizado;
     } catch (erro) {
+      // Revisão do #85: na volta que revalida, o guardado só ficou à vista à espera da
+      // releitura. Se ela falha, ele sai da tela e do cache — nunca vale sem uma leitura
+      // bem-sucedida nesta montagem.
+      if (dependencias.current.leitura?.revalidar && !estado.current.lida) {
+        dependencias.current.leitura.descartar();
+        estado.current.dados = inicialRef.current;
+        estado.current.geracao = 0;
+      }
       falha(erro);
     } finally {
       estado.current.ocupado = false;
@@ -175,7 +191,7 @@ export function useCatalogoAdministrado<D, E>(
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: é a montagem da tela, e só ela. A máquina lê serviço, textos e estado por referência viva, então uma lista de dependências aqui só criaria releitura a cada repintura.
   useEffect(() => {
-    if (estado.current.geracao === 0) void carregar();
+    if (estado.current.geracao === 0 || dependencias.current.leitura?.revalidar) void carregar();
     return () => {
       estado.current.ativa = false;
     };

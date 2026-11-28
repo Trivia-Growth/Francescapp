@@ -22,10 +22,12 @@ export type ServicoAuditoria = { consultar(filtros: FiltrosAuditoria): Promise<P
  * verificados no servidor e no banco: esconder a tela não é autorização. */
 export function criarServicoAuditoriaHttp(
   identidadeAtual: () => Identidade | null,
-): ServicoAuditoria {
+): ServicoAuditoria & { identidade: Identidade } {
   const identidade = identidadeAtual();
   if (!identidade) throw new FalhaApi('nao_autenticado', 401);
   return {
+    // A identidade que criou o serviço; é dela a chave da consulta em voo (`consultas.ts`).
+    identidade,
     consultar: async (filtros) => {
       const rota = contratosRotas.consultarAuditoria;
       const corpo = rota.entrada.parse({ limite: filtros.limite ?? 25, ...semVazios(filtros) });

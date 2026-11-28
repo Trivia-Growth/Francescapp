@@ -17,6 +17,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ClienteFFCM } from './api.js';
+import { leituraPorSessao, RECURSO_EQUIPE } from './consultas.js';
 import { Botao, classesBotao } from './componentes/ui/botao.js';
 import { Esqueleto } from './componentes/ui/esqueleto.js';
 import { EstadoErro } from './componentes/ui/estado-erro.js';
@@ -26,7 +27,20 @@ import { MarcaEstado } from './componentes/ui/marca-estado.js';
 import { Superficie } from './componentes/ui/superficie.js';
 import './estilos/tema.css';
 
-type ItemEquipe = Awaited<ReturnType<ClienteFFCM['listarProfissionais']>>['itens'][number];
+type PaginaEquipe = Awaited<ReturnType<ClienteFFCM['listarProfissionais']>>;
+type ItemEquipe = PaginaEquipe['itens'][number];
+
+/** Política da fatia 9b para a Equipe (e-mail e estado de concessão, que outro
+ *  administrador pode mudar): a primeira página fica guardada por até 60 s desde a última
+ *  leitura. A volta à tela a mostra no primeiro quadro, recuada, e RELÊ em seguida — nunca
+ *  fica valendo sem conferir. Convidar alguém a descarta; recusa ou falha também. */
+const RETENCAO_EQUIPE_MS = 60_000;
+
+function textoDaContagem(total: number): string {
+  // O vazio é desenhado por `EstadoVazio`; repetir a frase aqui a poria duas vezes na tela
+  // e duas vezes na leitura.
+  return total ? `${total} pessoas com acesso concedido.` : '';
+}
 
 const perfisEquipe: Record<string, string> = {
   profissional: 'Profissional',
@@ -81,41 +95,56 @@ function Indicador() {
 }
 
 export function TelaConcessaoEquipe({ api }: { api: ClienteFFCM }) {
-  const [itens, definirItens] = useState<readonly ItemEquipe[]>([]);
-  const itensRef = useRef<readonly ItemEquipe[]>([]);
+  // Montado uma vez por tela. Sem identidade (saída em curso) não há cache: só consulta.
+  const [cache] = useState(() => {
+    const identidade = api.identidadeAtual();
+    return identidade
+      ? leituraPorSessao(
+          identidade,
+          RECURSO_EQUIPE,
+          () => api.listarProfissionais(undefined),
+          RETENCAO_EQUIPE_MS,
+        )
+      : null;
+  });
+  const [retida] = useState<PaginaEquipe | undefined>(() => cache?.leitura.retida());
+  const [itens, definirItens] = useState<readonly ItemEquipe[]>(() => retida?.itens ?? []);
+  const itensRef = useRef<readonly ItemEquipe[]>(itens);
   // A tela nasce consultando: declarar "já em curso" mantém a primeira pintura honesta.
   const [statusLista, definirStatusLista] = useState('Carregando a equipe…');
   const [erroLista, definirErroLista] = useState(false);
   const [carregandoLista, definirCarregandoLista] = useState(true);
-  const [temMais, definirTemMais] = useState(false);
+  const [temMais, definirTemMais] = useState(Boolean(retida?.proximo_cursor));
   const consultandoListaRef = useRef(false);
-  const cursorListaRef = useRef<string | undefined>(undefined);
+  const cursorListaRef = useRef<string | undefined>(retida?.proximo_cursor ?? undefined);
 
   const carregarLista = useCallback(
-    async (continuar = false): Promise<void> => {
+    async (continuar = false, manterVisivel = false): Promise<void> => {
       if (consultandoListaRef.current) return;
       consultandoListaRef.current = true;
       definirCarregandoLista(true);
       definirErroLista(false);
-      if (!continuar) {
+      // A releitura da volta mantém o guardado à vista, recuado pelo `Esqueleto`.
+      if (!continuar && !manterVisivel) {
         cursorListaRef.current = undefined;
         itensRef.current = [];
         definirItens([]);
       }
       definirStatusLista('Carregando a equipe…');
       try {
-        const pagina = await api.listarProfissionais(
-          continuar ? cursorListaRef.current : undefined,
-        );
+        const pagina =
+          continuar || !cache
+            ? await api.listarProfissionais(continuar ? cursorListaRef.current : undefined)
+            : await cache.consultar();
         const todos = continuar ? [...itensRef.current, ...pagina.itens] : [...pagina.itens];
         itensRef.current = todos;
         definirItens(todos);
-        // O vazio é desenhado por `EstadoVazio`; repetir a frase aqui a poria duas vezes
-        // na tela e duas vezes na leitura.
-        definirStatusLista(todos.length ? `${todos.length} pessoas com acesso concedido.` : '');
+        definirStatusLista(textoDaContagem(todos.length));
         cursorListaRef.current = pagina.proximo_cursor ?? undefined;
         definirTemMais(Boolean(cursorListaRef.current));
       } catch {
+        // O guardado não sobrevive a uma falha: recusa de acesso ou erro, a volta relê.
+        cache?.leitura.descartar();
         // A frase inteira vive em `EstadoErro`, que tem `role="alert"`: deixá-la também
         // no `role="status"` faria o leitor de tela anunciar duas vezes.
         definirStatusLista('');
@@ -125,12 +154,12 @@ export function TelaConcessaoEquipe({ api }: { api: ClienteFFCM }) {
         consultandoListaRef.current = false;
       }
     },
-    [api],
+    [api, cache],
   );
 
   useEffect(() => {
-    void carregarLista();
-  }, [carregarLista]);
+    void carregarLista(false, retida !== undefined);
+  }, [carregarLista, retida]);
 
   function conteudoDaLista() {
     if (erroLista)
