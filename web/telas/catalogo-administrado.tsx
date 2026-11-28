@@ -152,6 +152,10 @@ export function useCatalogoAdministrado<D, E>(
     pintar();
     try {
       await dependencias.current.servico.gravar(pendente.entrada, pendente.chave);
+      // A gravação pegou: o que estava guardado ficou velho. Esquece ANTES de reler, e
+      // mesmo com a tela já fechada — se a releitura falhar, a volta relê em vez de mostrar
+      // a lista de antes da gravação.
+      dependencias.current.leitura?.descartar();
       if (!estado.current.ativa) return;
       estado.current.tentativa = null;
       estado.current.ocupado = false;
@@ -160,6 +164,8 @@ export function useCatalogoAdministrado<D, E>(
       // Resultado incerto preserva a tentativa: repetir o mesmo envio com a mesma chave é
       // o que impede o servidor de criar um segundo registro do que talvez já tenha pego.
       if (!resultadoIncerto(erro)) estado.current.tentativa = null;
+      // Resultado incerto pode ter gravado: o guardado deixa de valer pelo mesmo motivo.
+      else dependencias.current.leitura?.descartar();
       falha(erro);
     } finally {
       estado.current.ocupado = false;

@@ -16,7 +16,7 @@ import {
   useCatalogoAdministrado,
   type LeituraRetida,
 } from './telas/catalogo-administrado.js';
-import { chaveDaSessao, clienteConsultas } from './consultas.js';
+import { leituraPorSessao } from './consultas.js';
 
 /** FR-076/FR-081. Catálogo de estado emocional observado na ficha de plantão. É vocabulário
  * de OBSERVAÇÃO: não há nota, escala, pontuação nem ordem de gravidade, e por isso o registro
@@ -193,15 +193,12 @@ export function criarTelaEstadoEmocional(
   servico: ServicoEstadoEmocional,
   acessoPerdido: (erro: unknown) => void,
 ) {
-  const queryKey = chaveDaSessao(servico.identidade, 'admin', 'estado-emocional');
-  const comCache: ServicoEstadoEmocional = {
-    ...servico,
-    consultar: () =>
-      clienteConsultas.fetchQuery({ queryKey, queryFn: () => servico.consultar(), staleTime: 0 }),
-  };
-  const leitura: LeituraRetida<readonly EstadoEmocional[]> = {
-    retida: () => clienteConsultas.getQueryData<EstadoEmocional[]>(queryKey),
-    descartar: () => clienteConsultas.removeQueries({ queryKey, exact: true }),
-  };
-  return <Tela servico={comCache} leitura={leitura} acessoPerdido={acessoPerdido} />;
+  const { consultar, leitura } = leituraPorSessao(
+    servico.identidade,
+    ['admin', 'estado-emocional'],
+    () => servico.consultar(),
+  );
+  return (
+    <Tela servico={{ ...servico, consultar }} leitura={leitura} acessoPerdido={acessoPerdido} />
+  );
 }

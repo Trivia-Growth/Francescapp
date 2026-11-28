@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import {
   gravarPapelDeclaradoSchema,
   type GravarPapelDeclarado,
   type PapelDeclarado,
 } from '../packages/contracts/src/papel-declarado.ts';
-import type { ServicoPapelDeclarado } from './servico-catalogo-administrado-http.ts';
+import type { ComIdentidade, ServicoPapelDeclarado } from './servico-catalogo-administrado-http.ts';
 import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
 import { EstadoVazio } from './componentes/ui/estado-vazio.js';
@@ -12,6 +13,7 @@ import { Superficie } from './componentes/ui/superficie.js';
 import { Formulario, valorDe } from './telas/formulario.js';
 import { MolduraTela } from './telas/moldura-tela.js';
 import { Recuperacao, useCatalogoAdministrado } from './telas/catalogo-administrado.js';
+import { leituraPorSessao } from './consultas.js';
 
 /** FR-079. Catálogo de papéis declarados do profissional. É rótulo impresso na ficha:
  * não concede, amplia nem restringe acesso nenhum — perfil e vínculo com o caso
@@ -20,11 +22,16 @@ export function TelaPapelDeclarado({
   servico,
   acessoPerdido,
 }: {
-  servico: ServicoPapelDeclarado;
+  servico: ServicoPapelDeclarado & ComIdentidade;
   acessoPerdido: (erro: unknown) => void;
 }) {
+  // Cache de leitura (`web/consultas.ts`), montado uma vez por tela: a volta mostra o que
+  // esta identidade já leu, sem GET; Atualizar, salvar e repetir releem sempre.
+  const [emCache] = useState(() =>
+    leituraPorSessao(servico.identidade, ['admin', 'papel-declarado'], () => servico.consultar()),
+  );
   const catalogo = useCatalogoAdministrado<readonly PapelDeclarado[], GravarPapelDeclarado>(
-    servico,
+    { ...servico, consultar: emCache.consultar },
     acessoPerdido,
     {
       carregando: 'Carregando papéis declarados…',
@@ -40,6 +47,7 @@ export function TelaPapelDeclarado({
           papel.ativo === entrada.ativo,
       ),
     [],
+    emCache.leitura,
   );
   if (catalogo.perdido) return null;
 
@@ -57,7 +65,12 @@ export function TelaPapelDeclarado({
     <MolduraTela
       titulo="Papéis declarados"
       explicacao="Termos que o profissional escolhe ao assinar a ficha de plantão, como Acompanhante terapêutico e Enfermeira. O papel é rótulo do registro: não dá, tira nem amplia acesso — quem decide acesso continua sendo o perfil e o vínculo com o caso. Desativar um papel não altera ficha já gravada."
-      acao={<Botao aoAtivar={catalogo.atualizar}>Atualizar catálogo de papéis</Botao>}
+      acao={
+        // `aria-disabled`, não `disabled`: o foco fica no botão durante a consulta.
+        <Botao aria-disabled={catalogo.ocupado} aoAtivar={catalogo.atualizar}>
+          Atualizar catálogo de papéis
+        </Botao>
+      }
       status={catalogo.status}
       ocupado={catalogo.ocupado}
       antes={

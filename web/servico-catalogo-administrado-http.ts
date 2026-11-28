@@ -29,6 +29,10 @@ import { FalhaApi } from './api.ts';
 
 type Identidade = { usuario_id: string; session_id: string };
 
+/** A identidade que criou o serviço; é dela, e só dela, a chave do cache de leitura
+ *  (`web/consultas.ts`). Quem só lê o catálogo para preencher a ficha não precisa dela. */
+export type ComIdentidade = { identidade: Identidade };
+
 /** Catálogos administrados pelo Administrador: o modelo da ficha de plantão (FR-078), os
  * papéis declarados (FR-079) e os termos de estado emocional observado (FR-076/FR-081). Os
  * três têm a mesma forma — ler a lista, gravar um item sob versão esperada —, por isso um
@@ -147,10 +151,12 @@ export type ServicoModeloFormulario = {
 export function criarServicoModeloFormularioHttp(
   identidadeAtual: () => Identidade | null,
   escopo: EscopoCampoExtra,
-): ServicoModeloFormulario {
+): ServicoModeloFormulario & ComIdentidade & { escopo: EscopoCampoExtra } {
   const identidade = identidadeAtual();
   if (!identidade) throw new FalhaApi('nao_autenticado', 401);
   return {
+    identidade,
+    escopo,
     consultar: async () =>
       ordenarModelo(
         (await enviar(identidadeAtual, identidade, {
@@ -178,10 +184,11 @@ export type ServicoPapelDeclarado = {
 
 export function criarServicoPapelDeclaradoHttp(
   identidadeAtual: () => Identidade | null,
-): ServicoPapelDeclarado {
+): ServicoPapelDeclarado & ComIdentidade {
   const identidade = identidadeAtual();
   if (!identidade) throw new FalhaApi('nao_autenticado', 401);
   return {
+    identidade,
     consultar: async () =>
       (
         (await enviar(identidadeAtual, identidade, {
@@ -204,9 +211,7 @@ export function criarServicoPapelDeclaradoHttp(
   };
 }
 
-export type ServicoEstadoEmocional = {
-  /** A identidade que criou o serviço; é dela, e só dela, a chave do cache de leitura. */
-  identidade: Identidade;
+export type ServicoEstadoEmocional = ComIdentidade & {
   consultar(): Promise<EstadoEmocional[]>;
   gravar(entrada: GravarEstadoEmocional, chave: string): Promise<void>;
 };

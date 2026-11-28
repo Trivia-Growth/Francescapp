@@ -1,9 +1,18 @@
 // @vitest-environment jsdom
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { createElement, type ComponentProps } from 'react';
 import { render } from '@testing-library/react';
 import { TelaModeloFichaPlantao } from './modelo-ficha-plantao-administracao.js';
 import { FalhaApi } from './api.ts';
+import { esquecerConsultas } from './consultas.js';
+
+const identidade = {
+  usuario_id: 'a0000000-0000-4000-8000-00000000000a',
+  session_id: 'a1000000-0000-4000-8000-00000000000a',
+};
+
+// O cache de leitura é um módulo único: cada teste começa com ele vazio.
+beforeEach(() => esquecerConsultas());
 
 function montarModeloFichaPlantao(
   raiz: HTMLElement,
@@ -40,6 +49,8 @@ function campo() {
 it('positivo: quem administra muda a visibilidade do campo sob a versão lida', async () => {
   const raiz = document.createElement('div');
   const servico = {
+    identidade,
+    escopo: 'ficha_plantao' as const,
     consultar: vi.fn().mockResolvedValue([campo()]),
     gravar: vi.fn().mockResolvedValue(undefined),
   };
@@ -77,6 +88,8 @@ it('positivo: quem administra muda a visibilidade do campo sob a versão lida', 
 it('negativo: recusa de permissão esvazia a tela e devolve o acesso perdido', async () => {
   const raiz = document.createElement('div');
   const servico = {
+    identidade,
+    escopo: 'ficha_plantao' as const,
     consultar: vi.fn().mockRejectedValue(new FalhaApi('sem_permissao', 403)),
     gravar: vi.fn(),
   };

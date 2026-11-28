@@ -2,10 +2,14 @@ import { useState } from 'react';
 import {
   gravarCampoExtraEscopoSchema,
   type CampoExtraCatalogoGeneralizado,
+  type EscopoCampoExtra,
   type GravarCampoExtraEscopo,
   type TipoCampoExtra,
 } from '../packages/contracts/src/campo-extra-catalogo.ts';
-import type { ServicoModeloFormulario } from './servico-catalogo-administrado-http.ts';
+import type {
+  ComIdentidade,
+  ServicoModeloFormulario,
+} from './servico-catalogo-administrado-http.ts';
 import { AreaTexto } from './componentes/ui/area-texto.js';
 import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
@@ -17,6 +21,7 @@ import { CaixaDeMarcacao } from './telas/caixa-de-marcacao.js';
 import { Formulario, marcado, valorDe } from './telas/formulario.js';
 import { MolduraTela } from './telas/moldura-tela.js';
 import { Recuperacao, useCatalogoAdministrado } from './telas/catalogo-administrado.js';
+import { leituraPorSessao } from './consultas.js';
 
 const rotulosDeTipo: readonly (readonly [TipoCampoExtra, string])[] = [
   ['texto', 'Texto curto'],
@@ -35,14 +40,21 @@ export function TelaModeloFichaPlantao({
   servico,
   acessoPerdido,
 }: {
-  servico: ServicoModeloFormulario;
+  servico: ServicoModeloFormulario & ComIdentidade & { escopo: EscopoCampoExtra };
   acessoPerdido: (erro: unknown) => void;
 }) {
+  // Cache de leitura (`web/consultas.ts`), montado uma vez por tela: a volta mostra o que
+  // esta identidade já leu, sem GET; Atualizar, salvar e repetir releem sempre.
+  const [emCache] = useState(() =>
+    leituraPorSessao(servico.identidade, ['admin', 'modelo-formulario', servico.escopo], () =>
+      servico.consultar(),
+    ),
+  );
   const catalogo = useCatalogoAdministrado<
     readonly CampoExtraCatalogoGeneralizado[],
     GravarCampoExtraEscopo
   >(
-    servico,
+    { ...servico, consultar: emCache.consultar },
     acessoPerdido,
     {
       carregando: 'Carregando o modelo da ficha…',
@@ -62,6 +74,7 @@ export function TelaModeloFichaPlantao({
           campo.visibilidade === entrada.visibilidade,
       ),
     [],
+    emCache.leitura,
   );
   if (catalogo.perdido) return null;
 
@@ -83,7 +96,12 @@ export function TelaModeloFichaPlantao({
     <MolduraTela
       titulo="Ficha de plantão — modelo"
       explicacao="Campos da ficha preenchida ao fim do plantão. Desativar um campo não apaga nenhuma resposta já gravada: ela continua legível na ficha antiga, marcada como de campo desativado. Obrigatoriedade vale para fichas novas."
-      acao={<Botao aoAtivar={catalogo.atualizar}>Atualizar modelo</Botao>}
+      acao={
+        // `aria-disabled`, não `disabled`: o foco fica no botão durante a consulta.
+        <Botao aria-disabled={catalogo.ocupado} aoAtivar={catalogo.atualizar}>
+          Atualizar modelo
+        </Botao>
+      }
       status={catalogo.status}
       ocupado={catalogo.ocupado}
       antes={
