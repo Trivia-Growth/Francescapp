@@ -331,6 +331,12 @@ export function TelaFicha({
               <p data-tone="error">Não foi possível abrir esta seção. Tente novamente.</p>
             ) : conteudo.tela ? (
               <LimiteErroPainel
+                aoFalhar={() => {
+                  if (estado.geracao === conteudo.geracao) {
+                    estado.geracao += 1;
+                    estado.pendente = false;
+                  }
+                }}
                 aoTentarNovamente={() => {
                   if (estado.atual?.id !== conteudo.secao.id) return;
                   descartar();

@@ -5,6 +5,7 @@ import { EstadoErro } from './componentes/ui/estado-erro.js';
 type Props = {
   children: ReactNode;
   aoTentarNovamente: () => void;
+  aoFalhar?: () => void;
 };
 
 /** Uma falha de renderização fica restrita ao painel ativo. */
@@ -13,6 +14,10 @@ export class LimiteErroPainel extends Component<Props, { falhou: boolean }> {
 
   static getDerivedStateFromError() {
     return { falhou: true };
+  }
+
+  override componentDidCatch() {
+    this.props.aoFalhar?.();
   }
 
   override render() {

@@ -16,7 +16,11 @@ A tarefa 7.2 permanece aberta.
 - Após a troca para Plano, liberar a importação de Anamnese manteve Plano como
   única seção e não emitiu GET do registro de Anamnese. Sem a guarda de geração,
   o painel ativo passou a exibir `data-secao="anamnese"`. Alteração revertida.
-- Próximo passo: rebase após o squash do PR #55 e ativação da fatia.
+- Com a seção em erro, a fronteira invalida a pendência e aceita nova tentativa.
+  Os 22 testes da ficha passaram. Sem a invalidação, o teste encontrou a pendência
+  de Anamnese após a falha. Alteração revertida.
+- Após rebase sobre `305c60e`, passou a prova SQL de autorização de pacientes em
+  PostgreSQL 17 descartável. Próximo passo: ativação e revisão do PR #56.
 
 ## Fatia 8d do plano visual — moldura da ficha
 
