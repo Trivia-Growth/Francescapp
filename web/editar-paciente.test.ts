@@ -1,8 +1,23 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement } from 'react';
 import { expect, it, vi } from 'vitest';
 import { responderConfirmacoes } from './confirmacao-prova.js';
 import { FalhaApi } from './api.js';
-import { montarEdicaoPaciente, type ServicoEdicaoPaciente } from './editar-paciente.js';
+import { TelaEdicaoPaciente, type ServicoEdicaoPaciente } from './editar-paciente.js';
+
+function montarEdicaoPaciente(
+  raiz: HTMLElement,
+  pacienteId: string,
+  servico: ServicoEdicaoPaciente,
+  acessoPerdido: (erro: unknown) => void,
+  alteracaoPendente: (pendente: boolean) => void = () => {},
+) {
+  return render(
+    createElement(TelaEdicaoPaciente, { pacienteId, servico, acessoPerdido, alteracaoPendente }),
+    { container: raiz },
+  );
+}
 
 const id = '00000000-0000-4000-8000-000000000001';
 const paciente = {

@@ -1,18 +1,5 @@
-/* FR-037 / DF-024: seção administrativa da substituição temporária da case manager,
- * reconstruída em React sobre a ilha (`web/ponte/ilha.ts`).
- *
- * O contrato exportado não muda: `montarSubstituicaoCaseManager(raiz, servicoOuNulo,
- * opcoes) => desmontar`. Sem `acessoPerdido`: esta seção nunca teve guarda de
- * revalidação de sessão própria — uma recusa de permissão aparece como mensagem, igual a
- * qualquer outra falha de domínio (`mensagemDeErro`). Isso não muda na migração.
- *
- * A tela diz as três coisas que o requisito exige mostrar — quem é o titular, quem
- * substitui e até quando — e repete em texto que substituir não concede acesso ao caso
- * nem alcança a carteira. Esconder controle não é autorização: o botão aparece e a recusa
- * do servidor é explicada.
- *
- * VIS-012: os `if (!ativa) return` da versão imperativa desapareceram — `ilha()` desmonta
- * a raiz React e os efeitos são cancelados por construção.
+/* FR-037 / DF-024: substituição temporária da case manager, composta na edição
+ * do cadastro. O servidor decide cada operação e suas recusas aparecem na seção.
  *
  * O que NÃO mudou, de propósito:
  *
@@ -36,7 +23,6 @@ import type { ResponsavelOpcao } from './acompanhamento-caso.ts';
 import { Botao } from './componentes/ui/botao.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import './estilos/tema.css';
-import { ilha } from './ponte/ilha.js';
 import type { ServicoSubstituicaoCaseManager } from './servico-substituicao-cm-http.ts';
 import { Formulario, valorDe } from './telas/formulario.js';
 
@@ -449,23 +435,4 @@ export function SecaoSubstituicaoCaseManager({
 }) {
   if (servico === null) return <TelaIndisponivel />;
   return <TelaSubstituicaoCaseManager pacienteId={pacienteId} servico={servico} equipe={equipe} />;
-}
-
-export function montarSubstituicaoCaseManager(
-  raiz: HTMLElement,
-  servicoOuNulo: ServicoSubstituicaoCaseManager | null,
-  opcoes: { paciente_id: string; equipe?: readonly ResponsavelOpcao[] },
-): () => void {
-  // Fatia desligada: a tela diz isso com todas as letras em vez de oferecer um formulário que
-  // responderia 503, e em vez de alegar falha de carregamento. Esconder não seria honesto, e
-  // mostrar um erro mentiria sobre a causa.
-  if (servicoOuNulo === null) return ilha(raiz, <TelaIndisponivel />);
-  return ilha(
-    raiz,
-    <TelaSubstituicaoCaseManager
-      pacienteId={opcoes.paciente_id}
-      servico={servicoOuNulo}
-      equipe={opcoes.equipe ?? []}
-    />,
-  );
 }

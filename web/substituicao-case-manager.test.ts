@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { createElement, type ComponentProps } from 'react';
 import { expect, it, vi } from 'vitest';
-import { montarSubstituicaoCaseManager } from './substituicao-case-manager.tsx';
+import { SecaoSubstituicaoCaseManager } from './substituicao-case-manager.tsx';
 import { FalhaApi } from './api';
 import type { PainelSubstituicao } from '../packages/contracts/src/substituicao-case-manager.ts';
 
@@ -49,11 +51,16 @@ const comVigente: PainelSubstituicao = {
   ],
 };
 
-const montar = (servico: Parameters<typeof montarSubstituicaoCaseManager>[1]) => {
+const montar = (servico: ComponentProps<typeof SecaoSubstituicaoCaseManager>['servico']) => {
   const raiz = document.createElement('div');
   document.body.replaceChildren(raiz);
-  const desmontar = montarSubstituicaoCaseManager(raiz, servico, { paciente_id: paciente, equipe });
-  return { raiz, desmontar };
+  const painel = render(
+    createElement(SecaoSubstituicaoCaseManager, { servico, pacienteId: paciente, equipe }),
+    {
+      container: raiz,
+    },
+  );
+  return { raiz, desmontar: () => painel.rerender(null) };
 };
 
 it('mostra carregamento, depois estado vazio sem esconder o formulário', async () => {

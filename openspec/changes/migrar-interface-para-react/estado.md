@@ -41,6 +41,20 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8h do plano visual — Cadastro na ficha
+
+A ficha compõe edição cadastral, contatos e substituição temporária. A
+conferência de contatos começa depois que a seção é montada. A tarefa 7.2
+permanece aberta.
+
+- Passaram 27 testes Vitest, dois cenários Chromium e lint/typecheck. Com
+  `administrar_cadastro`, o link direto mostrou edição e contatos. Sem a
+  capacidade, a ficha abriu Visão do caso e não consultou a barreira de contatos.
+- Sem conferir a capacidade, a prova negativa encontrou `data-secao="cadastro"`
+  no painel. Alteração revertida.
+- Rebase sobre `aa0e12e`, com as provas de download e recuperação da ficha
+  preservadas. Próximo passo: ativação e revisão independente.
+
 ## Fatia 8g do plano visual — Plano, Documentos e Escala de turnos
 
 Plano de cuidado, Documentos e Escala de turnos renderizam no painel React da

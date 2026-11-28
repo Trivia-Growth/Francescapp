@@ -1,11 +1,11 @@
-import { createElement, createRef, type ReactElement } from 'react';
+import { createElement, createRef, Fragment, type ReactElement } from 'react';
 import { criarServicoAcessosHttp } from './servico-acessos-http.js';
 import { montarLoginInterno } from './login-interno.js';
 import { iniciarAcao } from './esqueleto.js';
 import { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.js';
 import { montarAgendaIndividual } from './agenda-individual.js';
-import { montarContatoPaciente } from './contatos-paciente.js';
-import { montarEdicaoPaciente } from './editar-paciente.js';
+import { TelaContatoPaciente } from './contatos-paciente.js';
+import { TelaEdicaoPaciente } from './editar-paciente.js';
 import type {
   sessaoNativaSchema,
   CriarPaciente,
@@ -563,56 +563,49 @@ function servicoSubstituicaoCm(): ReturnType<typeof criarServicoSubstituicaoCmHt
   }
 }
 
-function montarSecaoCadastro(
-  raiz: HTMLElement,
+function comporSecaoCadastro(
   pacienteId: string,
   pendente: (valor: boolean) => void,
   listarResponsaveis?: () => Promise<ResponsavelOpcao[]>,
-): () => void {
+): ReactElement {
+  const identidade = api.identidadeAtual();
+  if (!identidade) throw new FalhaApi('nao_autenticado', 401);
   const estado = { edicao: false, contato: false };
   const sincronizar = () => pendente(estado.edicao || estado.contato);
-  const edicaoRaiz = document.createElement('div');
-  const contatoRaiz = document.createElement('div');
-  contatoRaiz.className = 'ficha-subsecao';
-  raiz.replaceChildren(edicaoRaiz, contatoRaiz);
-  let desmontarEdicao: (() => void) | null = null;
-  if (edicaoDisponivel) {
-    desmontarEdicao = montarEdicaoPaciente(
-      edicaoRaiz,
-      pacienteId,
-      {
-        ...criarServicoEdicaoPacienteHttp(identidadeAtual),
-        ...(listarResponsaveis ? { listarResponsaveis } : {}),
-        // Chave sempre presente para quem administra o cadastro: com a fatia desligada vai
-        // `null`, e a seção aparece dizendo que ainda não está disponível. Visibilidade não é
-        // autorização — o servidor e o banco continuam decidindo cada operação.
-        substituicao: servicoSubstituicaoCm(),
-      },
-      acessoPerdido,
-      (valor) => {
-        estado.edicao = valor;
-        sincronizar();
-      },
-    );
-  } else {
-    const aviso = document.createElement('p');
-    aviso.textContent = 'A edição do cadastro ainda não está disponível neste ambiente.';
-    edicaoRaiz.append(aviso);
-  }
-  const desmontarContato = montarContatoPaciente(
-    contatoRaiz,
-    pacienteId,
-    api,
-    acessoPerdido,
-    (valor) => {
-      estado.contato = valor;
-      sincronizar();
-    },
+  const edicao = edicaoDisponivel
+    ? createElement(TelaEdicaoPaciente, {
+        pacienteId,
+        servico: {
+          ...criarServicoEdicaoPacienteHttp(identidadeAtual),
+          ...(listarResponsaveis ? { listarResponsaveis } : {}),
+          substituicao: servicoSubstituicaoCm(),
+        },
+        acessoPerdido,
+        alteracaoPendente: (valor) => {
+          estado.edicao = valor;
+          sincronizar();
+        },
+      })
+    : createElement('p', null, 'A edição do cadastro ainda não está disponível neste ambiente.');
+  return createElement(
+    Fragment,
+    null,
+    createElement('div', null, edicao),
+    createElement(
+      'div',
+      { className: 'ficha-subsecao' },
+      createElement(TelaContatoPaciente, {
+        pacienteId,
+        api,
+        identidade: { ...identidade },
+        acessoPerdido,
+        alteracaoPendente: (valor) => {
+          estado.contato = valor;
+          sincronizar();
+        },
+      }),
+    ),
   );
-  return () => {
-    desmontarEdicao?.();
-    desmontarContato();
-  };
 }
 
 function montarSecaoExecucaoTurno(
@@ -967,8 +960,7 @@ function secoesDaFicha(paciente: PacienteFicha, atual: Sessao): SecaoFicha[] {
       id: 'cadastro',
       rotulo: 'Cadastro',
       descarte: descarteCadastro,
-      montar: async (raiz, pendente) =>
-        montarSecaoCadastro(raiz, paciente.id, pendente, catalogoResponsaveis),
+      compor: async (pendente) => comporSecaoCadastro(paciente.id, pendente, catalogoResponsaveis),
     });
   if (administraConcessoes)
     secoes.push({
