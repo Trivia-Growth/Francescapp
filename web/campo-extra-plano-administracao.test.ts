@@ -318,3 +318,43 @@ it('resposta atrasada da conta anterior é descartada', async () => {
   expect(chaves()).toEqual([['sessao', outra, outra, 'admin', 'plano-cuidado']]);
   desmontar();
 });
+
+// Revisão do #85: o guardado só fica à vista à espera da releitura da volta.
+it('releitura com erro na volta: a lista velha sai da tela e do cache', async () => {
+  const consultar = vi
+    .fn()
+    .mockResolvedValueOnce([campoDe('Campo antes')])
+    .mockRejectedValueOnce(new FalhaApi('servico_indisponivel', 503));
+  const api = servicoCom(consultar);
+  montarAdministracaoPlano(document.createElement('div'), api, vi.fn(), equipeVazia)();
+  await guardado();
+  const volta = document.createElement('div');
+  const perdido = vi.fn();
+  const desmontar = montarAdministracaoPlano(volta, api, perdido, equipeVazia);
+  expect(volta.textContent).toContain('Campo antes');
+  await vi.waitFor(() => expect(volta.textContent).not.toContain('Campo antes'));
+  expect(chaves()).toHaveLength(0);
+  expect(perdido).not.toHaveBeenCalled();
+  desmontar();
+});
+
+it('revogado por fora: a volta relê a equipe e o colaborador some dos aprovadores', async () => {
+  const colaborador = { usuario_id: id, rotulo: 'Pessoa revogada fictícia', ativo: true };
+  const consultarEquipe = vi.fn().mockResolvedValueOnce([colaborador]).mockResolvedValueOnce([]);
+  const api = servicoCom(vi.fn().mockResolvedValue([campoDe('Campo')]));
+  const primeira = document.createElement('div');
+  const fechar = montarAdministracaoPlano(primeira, api, vi.fn(), consultarEquipe);
+  await vi.waitFor(() =>
+    expect(primeira.textContent).toContain('Catálogo e aprovadores atualizados'),
+  );
+  abrirAba(primeira, 'Aprovadores');
+  await vi.waitFor(() => expect(primeira.textContent).toContain('Pessoa revogada fictícia'));
+  fechar();
+  const volta = document.createElement('div');
+  const desmontar = montarAdministracaoPlano(volta, api, vi.fn(), consultarEquipe);
+  await vi.waitFor(() => expect(volta.textContent).toContain('Catálogo e aprovadores atualizados'));
+  expect(consultarEquipe).toHaveBeenCalledTimes(2);
+  abrirAba(volta, 'Aprovadores');
+  expect(volta.textContent).not.toContain('Pessoa revogada fictícia');
+  desmontar();
+});

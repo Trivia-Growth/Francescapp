@@ -1653,11 +1653,15 @@ const areasAdministracao: AreaAdministracao[] = [
       createElement((await import('./campo-extra-plano-administracao.js')).TelaAdministracaoPlano, {
         servico: criarServicoPlanoHttp(identidadeAtual),
         acessoPerdido,
+        // A equipe decide quem pode ser aprovador: relida a cada carga do Plano, nunca a
+        // do início da sessão (revisão do #85).
         consultarEquipe: async () => {
           if (!sessao) throw new FalhaApi('nao_autenticado', 401);
-          const catalogo = catalogoDaEquipe(sessao);
-          if (!catalogo) throw new Error('Catálogo da equipe indisponível.');
-          return catalogo();
+          if (!catalogoDaEquipe(sessao)) throw new Error('Catálogo da equipe indisponível.');
+          return equipePorSessao.reler({
+            usuario_id: sessao.usuario.id,
+            session_id: sessao.session_id,
+          })();
         },
       }),
   },

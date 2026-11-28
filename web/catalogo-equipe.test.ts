@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ClienteFFCM } from './api.ts';
-import { criarEquipePorSessao } from './catalogo-equipe.js';
+import { criarEquipePorSessao, invalidarCatalogoDaEquipe } from './catalogo-equipe.js';
 
 /* Fatia 9b (28/11/2026): o catálogo da equipe era guardado por usuário e sobrevivia à saída.
  * A mesma conta numa sessão nova não pode reaproveitar a lista da anterior, a saída apaga
@@ -108,5 +108,28 @@ describe('catálogo da equipe por sessão', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(equipe.nome('c0000000-0000-4000-8000-00000000000a')).toBeUndefined();
     expect(equipe.nome('c0000000-0000-4000-8000-00000000000b')).toBeDefined();
+  });
+
+  // Revisão do #85: quem decide permissão com a equipe (aprovadores do Plano) relê.
+  it('reler: alguém revogado por fora some, mesmo com o catálogo da sessão guardado', async () => {
+    const listar = vi
+      .fn()
+      .mockResolvedValueOnce(pagina('ana@ficticio.test', 'c0000000-0000-4000-8000-00000000000a'))
+      .mockResolvedValueOnce({ itens: [], proximo_cursor: null });
+    const equipe = criarEquipePorSessao(listar);
+    expect(await equipe.para(sessaoA1)()).toHaveLength(1);
+    expect(await equipe.reler(sessaoA1)()).toHaveLength(0);
+    // O catálogo relido passa a ser o compartilhado.
+    expect(await equipe.para(sessaoA1)()).toHaveLength(0);
+    expect(listar).toHaveBeenCalledTimes(2);
+  });
+
+  it('convidar invalida o catálogo: a próxima leitura consulta de novo', async () => {
+    const listar = vi.fn().mockResolvedValue(pagina('ana@ficticio.test', sessaoA1.usuario_id));
+    const equipe = criarEquipePorSessao(listar);
+    await equipe.para(sessaoA1)();
+    invalidarCatalogoDaEquipe();
+    await equipe.para(sessaoA1)();
+    expect(listar).toHaveBeenCalledTimes(2);
   });
 });

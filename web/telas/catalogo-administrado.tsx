@@ -47,6 +47,8 @@ type Maquina<D, E> = {
   tentativa: TentativaCatalogo<E> | null;
   ativa: boolean;
   perdido: boolean;
+  /** Houve leitura concluída NESTA montagem (o guardado não conta). */
+  lida: boolean;
 };
 
 export type Catalogo<D, E> = {
@@ -88,7 +90,9 @@ export function useCatalogoAdministrado<D, E>(
     tentativa: null,
     ativa: true,
     perdido: false,
+    lida: false,
   });
+  const inicialRef = useRef(inicial);
   const dependencias = useRef({ servico, acessoPerdido, textos, confirmado, leitura });
   dependencias.current = { servico, acessoPerdido, textos, confirmado, leitura };
 
@@ -131,6 +135,7 @@ export function useCatalogoAdministrado<D, E>(
         else pendente.consultada = true;
       }
       estado.current.dados = dados;
+      estado.current.lida = true;
       // A leitura concluída é uma geração nova do conteúdo. Trocar a chave devolve os
       // campos ao valor recém-lido, como a reconstrução do DOM fazia antes — sem isso um
       // texto digitado e não gravado sobreviveria calado por cima do valor do servidor.
@@ -139,6 +144,14 @@ export function useCatalogoAdministrado<D, E>(
         ? AVISO_SEM_CONFIRMACAO
         : dependencias.current.textos.atualizado;
     } catch (erro) {
+      // Revisão do #85: na volta que revalida, o guardado só ficou à vista à espera da
+      // releitura. Se ela falha, ele sai da tela e do cache — nunca vale sem uma leitura
+      // bem-sucedida nesta montagem.
+      if (dependencias.current.leitura?.revalidar && !estado.current.lida) {
+        dependencias.current.leitura.descartar();
+        estado.current.dados = inicialRef.current;
+        estado.current.geracao = 0;
+      }
       falha(erro);
     } finally {
       estado.current.ocupado = false;

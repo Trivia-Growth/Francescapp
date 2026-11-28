@@ -70,11 +70,15 @@ export function leituraPorSessao<D>(
    *  usam 60 s (decisão da fatia 9b); `0` não guarda nada além da consulta em voo. */
   gcTime?: number,
 ) {
+  // A troca de identidade é conferida a CADA consulta, não só na criação: se outra
+  // identidade passou pelo cache nesse meio-tempo, `chaveDaSessao` o apaga antes de esta
+  // ler. Ler e esquecer usam a chave pura, sem esse efeito: uma tela já desmontada de outra
+  // identidade, ao descartar o que era seu, não pode apagar o cache da identidade atual.
   const queryKey = chaveDaSessao(identidade, ...recurso);
   return {
     consultar: () =>
       clienteConsultas.fetchQuery({
-        queryKey,
+        queryKey: chaveDaSessao(identidade, ...recurso),
         queryFn: consultar,
         staleTime: 0,
         ...(gcTime === undefined ? {} : { gcTime }),

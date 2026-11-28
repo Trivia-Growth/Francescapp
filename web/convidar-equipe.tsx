@@ -14,6 +14,7 @@
  */
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { criarConcessaoEquipeSchema } from '../packages/contracts/src/index.js';
+import { invalidarCatalogoDaEquipe } from './catalogo-equipe.js';
 import { descartarLeitura, RECURSO_EQUIPE } from './consultas.js';
 import type { ClienteFFCM } from './api.js';
 import { criarCicloConcessaoEquipe } from './ciclo-concessao-equipe.js';
@@ -83,6 +84,7 @@ export function TelaConvidarEquipe({ api }: { api: ClienteFFCM }) {
         // a volta à Equipe não deve mostrá-la nem pelo instante da releitura.
         const identidade = api.identidadeAtual();
         if (identidade) descartarLeitura(identidade, ...RECURSO_EQUIPE);
+        invalidarCatalogoDaEquipe();
       }
     },
     encerrar: async (entrada) => (await api.encerrarBarreiraEquipe(entrada)).estado,
