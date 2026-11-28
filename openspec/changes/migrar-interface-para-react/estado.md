@@ -52,7 +52,9 @@ aberta.
   de Documentos antes do carregamento do módulo, nenhum GET da seção saiu.
 - Sem a guarda do botão Baixar arquivo, a resposta tardia criou um Blob URL
   após a desmontagem e falhou em `not.toHaveBeenCalled`. Alteração revertida.
-- Próximo passo: rebase depois do squash da fatia anterior e ativação.
+- Rebase sobre `9d7c3c6`. Foram removidos cinco imports sem uso da ponte e
+  atualizados os comentários das seções que já compõem a ficha. Próximo passo:
+  ativação e revisão independente.
 
 ## Fatia 8f do plano visual — seções operacionais da ficha
 

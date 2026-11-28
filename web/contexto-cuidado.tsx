@@ -1,4 +1,4 @@
-/* Contexto do cuidado (FR-005), reconstruído em React sobre a ilha (`web/ponte/ilha.ts`).
+/* Contexto do cuidado (FR-005), no painel React da ficha.
  *
  * Migrado junto com `rede-cuidado.tsx` e o hospedeiro `editor-documento-paciente.ts`: os
  * três formavam um conjunto host/corpo em DOM imperativo, e migrar um corpo sem o
@@ -37,7 +37,6 @@ import {
   usarEditorDocumentoPaciente,
 } from './editor-documento-paciente.js';
 import { Botao } from './componentes/ui/botao.js';
-import { ilha } from './ponte/ilha.js';
 import type { ServicoDocumentoPaciente } from './servico-documento-paciente-http.js';
 import { Formulario } from './telas/formulario.js';
 

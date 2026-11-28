@@ -1,12 +1,7 @@
-/* Exportação do caso (FR-033), reconstruída em React sobre a ilha (`web/ponte/ilha.ts`).
+/* Exportação do caso (FR-033) na ficha.
  *
- * `web/anexos-exportacao.ts` e `web/pacote-exportacao.ts` (alvos originais da mesma
- * entrega) são lógica pura — nenhum dos dois toca DOM ou monta interface — e por isso não
- * há nada a migrar neles; ficam como estão.
- *
- * VIS-012: a flag `vivo` desapareceu — `ilha()` cancela os efeitos por construção. As
- * guardas que restam (`valida` nos efeitos, `vivoRef` nos manipuladores assíncronos de
- * linha) são de GERAÇÃO/desmontagem, não de ciclo de vida improvisado.
+ * A preparação do arquivo usa anexos-exportacao.ts e pacote-exportacao.ts.
+ * As guardas de leitura e de cada linha descartam respostas após desmontagem.
  *
  * O que NÃO mudou (VIS-018):
  * - o carimbo de entrega continua sendo DECLARAÇÃO de quem entregou, nunca prova de
@@ -41,7 +36,6 @@ import {
   nomeDoArquivoPacote,
 } from './pacote-exportacao.js';
 import { Botao } from './componentes/ui/botao.js';
-import { ilha } from './ponte/ilha.js';
 import { Formulario } from './telas/formulario.js';
 
 export type ServicoExportacao = {

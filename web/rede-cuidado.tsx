@@ -1,4 +1,4 @@
-/* Rede de cuidado (FR-002), reconstruída em React sobre a ilha (`web/ponte/ilha.ts`).
+/* Rede de cuidado (FR-002), no painel React da ficha.
  *
  * Migrada junto com `contexto-cuidado.tsx` e o hospedeiro `editor-documento-paciente.ts` —
  * ver o comentário de topo de `contexto-cuidado.tsx` para o raciocínio completo da
@@ -24,7 +24,6 @@ import {
   usarEditorDocumentoPaciente,
 } from './editor-documento-paciente.js';
 import { Botao } from './componentes/ui/botao.js';
-import { ilha } from './ponte/ilha.js';
 import type { ServicoDocumentoPaciente } from './servico-documento-paciente-http.js';
 import { Formulario } from './telas/formulario.js';
 import type { RefCorpoDocumento } from './contexto-cuidado.js';
