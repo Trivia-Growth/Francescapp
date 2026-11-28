@@ -6,6 +6,7 @@ import { createElement, type ComponentProps } from 'react';
 import { render } from '@testing-library/react';
 import { TelaConvidarEquipe } from './convidar-equipe.js';
 import { responderConfirmacoes } from './confirmacao-prova.js';
+import { criarEquipePorSessao } from './catalogo-equipe.js';
 import { chaveDaSessao, clienteConsultas, esquecerConsultas, RECURSO_EQUIPE } from './consultas.js';
 
 function montarConvidarEquipe(
@@ -183,11 +184,19 @@ it('convidar descarta a lista da Equipe guardada', async () => {
     itens: [],
     proximo_cursor: null,
   });
+  // O catálogo da equipe que a casca compartilha também envelhece (revisão do #85).
+  const listar = vi.fn().mockResolvedValue({ itens: [], proximo_cursor: null });
+  const equipe = criarEquipePorSessao(listar);
+  await equipe.para(identidade)();
   const { raiz, criar, campo, form, desmontar } = await montarLiberada();
   fireEvent.change(campo('equipe-email'), { target: { value: 'pessoa@example.test' } });
   fireEvent.change(campo('equipe-motivo'), { target: { value: 'Plantão de sábado' } });
   fireEvent.submit(form);
   await vi.waitFor(() => expect(criar).toHaveBeenCalledTimes(1));
+  await vi.waitFor(async () => {
+    await equipe.para(identidade)();
+    expect(listar).toHaveBeenCalledTimes(2);
+  });
   await vi.waitFor(() =>
     expect(
       clienteConsultas.getQueryData(chaveDaSessao(identidade, ...RECURSO_EQUIPE)),

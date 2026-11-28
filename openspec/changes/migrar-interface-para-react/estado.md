@@ -22,7 +22,13 @@ Branch `claude/leituras-equipe-auditoria`. Políticas decididas pelo coordenador
   Axe 0 nas três. Capturas 390/1440 idênticas byte a byte às da main.
 - Vitest: `catalogo-equipe.test.ts` (5), Equipe (+6), convidar (+1), Plano (+5),
   Auditoria (+4). Onze contraprovas falharam pelo motivo certo (registradas no PR).
-- JS do HTML inicial: 247.898 → 246.835 bytes gzip (o chunk `src` dos contratos, já
+- Revisão independente do #85, aplicada: (1) a equipe que decide os aprovadores do Plano
+  é relida a cada carga (`equipePorSessao.reler`, GETs da equipe por volta `0` → `1` no
+  navegador) e convidar invalida o catálogo compartilhado; (2) na volta que revalida, falha
+  da releitura tira o guardado da tela e do cache; (3) a troca de identidade é conferida a
+  cada consulta, enquanto ler e esquecer usam a chave pura (esquecer com `chaveDaSessao`
+  deixava uma tela desmontada da conta A apagar o cache da conta B). Contraprovas C13–C18.
+- JS do HTML inicial: 247.898 → 246.890 bytes gzip (o chunk `src` dos contratos, já
   pré-carregado, foi fundido ao `index`).
 
 ## Fatia 9a do plano visual — leituras dos catálogos com TanStack Query

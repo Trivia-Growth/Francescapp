@@ -40,7 +40,7 @@ const telas = [
     area: 'plano-cuidado',
     caminho: '/api/admin/campo-extra-plano',
     amostra: '#administracao-conteudo details summary',
-    politica: { getsPorVolta: 1, visivelNaVolta: true },
+    politica: { getsPorVolta: 1, visivelNaVolta: true, equipePorVolta: 1 },
     recusar: (pagina) =>
       pagina.getByRole('button', { name: 'Atualizar catálogo e aprovadores' }).click(),
   },
@@ -79,6 +79,8 @@ try {
         sessionStorage.setItem('sessao-tecnica', id);
       }, sessaoAdministrador.session_id);
       let gets = 0;
+      // A equipe que decide quem aprova o Plano: relida a cada carga (revisão do #85).
+      let getsEquipe = 0;
       let atraso = 0;
       let recusar = false;
       await pagina.route('**/*', async (rota) => {
@@ -86,6 +88,7 @@ try {
         const url = new URL(pedido.url());
         if (url.origin !== origem) return rota.abort();
         if (!url.pathname.startsWith('/api/')) return rota.continue();
+        if (url.pathname === '/api/admin/concessoes-equipe') getsEquipe += 1;
         if (url.pathname === tela.caminho && pedido.method() === 'GET') {
           gets += 1;
           if (atraso) await new Promise((r) => setTimeout(r, atraso));
@@ -137,22 +140,33 @@ try {
       }
 
       const porVolta = [];
+      const equipePorVolta = [];
       const visivel = [];
       atraso = 800;
       for (let volta = 0; volta < 5; volta += 1) {
         await ir('papel-declarado');
         const antes = gets;
+        const antesEquipe = getsEquipe;
         await ir(tela.area);
         // Logo após a casca montar a tela, com a resposta ainda a caminho.
         visivel.push((await amostra.count()) > 0);
         await ocioso();
         await pagina.waitForTimeout(200);
         porVolta.push(gets - antes);
+        equipePorVolta.push(getsEquipe - antesEquipe);
       }
       atraso = 0;
       console.log(
         `${tela.area}: GETs entrada=${entrada}; por volta=${porVolta.join(',')}; lista no 1º quadro da volta=${visivel.join(',')}`,
       );
+      if (tela.politica.equipePorVolta !== undefined)
+        console.log(`${tela.area}: GETs da equipe por volta=${equipePorVolta.join(',')}`);
+      if (!medir && tela.politica.equipePorVolta !== undefined)
+        assert.deepEqual(
+          equipePorVolta,
+          Array(5).fill(tela.politica.equipePorVolta),
+          `${tela.area}: equipe relida`,
+        );
       if (!medir) {
         assert.deepEqual(porVolta, Array(5).fill(tela.politica.getsPorVolta), `${tela.area}: GETs`);
         assert.deepEqual(
