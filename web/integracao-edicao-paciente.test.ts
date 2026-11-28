@@ -38,8 +38,10 @@ it('não oferece edição enquanto as rotas de paciente não estão disponíveis
   await vi.waitFor(() => expect(document.querySelector('button[data-paciente-id]')).not.toBeNull());
   document.querySelector<HTMLButtonElement>('button[data-paciente-id]')?.click();
   document.getElementById('ficha-aba-cadastro')?.click();
-  expect(document.getElementById('ficha-painel')?.textContent).toContain(
-    'A edição do cadastro ainda não está disponível neste ambiente.',
+  await vi.waitFor(() =>
+    expect(document.getElementById('ficha-painel')?.textContent).toContain(
+      'A edição do cadastro ainda não está disponível neste ambiente.',
+    ),
   );
   expect(fetch.mock.calls.some(([url]) => url.pathname === `/api/pacientes/${id}`)).toBe(false);
 });
@@ -81,6 +83,11 @@ it.each([
     expect(Boolean(document.getElementById('ficha-aba-cadastro'))).toBe(visivel);
     if (visivel) {
       document.getElementById('ficha-aba-cadastro')?.click();
+      await vi.waitFor(() =>
+        expect(document.getElementById('ficha-painel')?.textContent).toContain(
+          'Contatos cadastrados',
+        ),
+      );
       expect(document.getElementById('ficha-painel')?.textContent).not.toContain(
         'A edição do cadastro ainda não está disponível neste ambiente.',
       );
