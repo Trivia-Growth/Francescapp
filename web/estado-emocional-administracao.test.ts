@@ -259,3 +259,24 @@ it('resposta atrasada da conta anterior é descartada', async () => {
   expect(volta.textContent).not.toContain('da conta A');
   desmontarVolta();
 });
+
+it('gravação confirmada com releitura em erro: a volta relê em vez de mostrar o guardado', async () => {
+  const consultar = vi
+    .fn()
+    .mockResolvedValueOnce([termo('nome antigo')])
+    .mockRejectedValueOnce(new FalhaApi('servico_indisponivel', 503))
+    .mockResolvedValue([termo('nome novo')]);
+  const servico = servicoDe(contaA, consultar);
+  const raiz = document.createElement('div');
+  const desmontar = montarEstadoEmocionalAdministracao(raiz, servico, vi.fn());
+  await vi.waitFor(() => expect(raiz.textContent).toContain('nome antigo'));
+  botao(raiz, 'Desativar termo').click();
+  await vi.waitFor(() => expect(consultar).toHaveBeenCalledTimes(2));
+  await vi.waitFor(() => expect(raiz.querySelector('[aria-busy="true"]')).toBeNull());
+  desmontar();
+  const volta = document.createElement('div');
+  const desmontarVolta = montarEstadoEmocionalAdministracao(volta, servico, vi.fn());
+  expect(volta.textContent).not.toContain('nome antigo');
+  await vi.waitFor(() => expect(volta.textContent).toContain('nome novo'));
+  desmontarVolta();
+});

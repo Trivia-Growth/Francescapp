@@ -151,11 +151,12 @@ export type ServicoModeloFormulario = {
 export function criarServicoModeloFormularioHttp(
   identidadeAtual: () => Identidade | null,
   escopo: EscopoCampoExtra,
-): ServicoModeloFormulario & ComIdentidade {
+): ServicoModeloFormulario & ComIdentidade & { escopo: EscopoCampoExtra } {
   const identidade = identidadeAtual();
   if (!identidade) throw new FalhaApi('nao_autenticado', 401);
   return {
     identidade,
+    escopo,
     consultar: async () =>
       ordenarModelo(
         (await enviar(identidadeAtual, identidade, {

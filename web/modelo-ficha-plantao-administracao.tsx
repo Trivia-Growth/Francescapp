@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   gravarCampoExtraEscopoSchema,
   type CampoExtraCatalogoGeneralizado,
+  type EscopoCampoExtra,
   type GravarCampoExtraEscopo,
   type TipoCampoExtra,
 } from '../packages/contracts/src/campo-extra-catalogo.ts';
@@ -39,13 +40,13 @@ export function TelaModeloFichaPlantao({
   servico,
   acessoPerdido,
 }: {
-  servico: ServicoModeloFormulario & ComIdentidade;
+  servico: ServicoModeloFormulario & ComIdentidade & { escopo: EscopoCampoExtra };
   acessoPerdido: (erro: unknown) => void;
 }) {
   // Cache de leitura (`web/consultas.ts`), montado uma vez por tela: a volta mostra o que
   // esta identidade já leu, sem GET; Atualizar, salvar e repetir releem sempre.
   const [emCache] = useState(() =>
-    leituraPorSessao(servico.identidade, ['admin', 'modelo-ficha-plantao'], () =>
+    leituraPorSessao(servico.identidade, ['admin', 'modelo-formulario', servico.escopo], () =>
       servico.consultar(),
     ),
   );

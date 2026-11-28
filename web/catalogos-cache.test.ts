@@ -53,8 +53,9 @@ type Servico = {
 const familias = [
   {
     nome: 'Papéis declarados',
-    recurso: 'papel-declarado',
+    recurso: ['papel-declarado'],
     atualizar: 'Atualizar catálogo de papéis',
+    salvar: 'Salvar nome',
     item: (nome: string) => [papel(nome)],
     montar: (raiz: HTMLElement, servico: Servico, perdido = vi.fn()) =>
       render(createElement(TelaPapelDeclarado, { servico, acessoPerdido: perdido }), {
@@ -63,13 +64,20 @@ const familias = [
   },
   {
     nome: 'Modelo da ficha de plantão',
-    recurso: 'modelo-ficha-plantao',
+    recurso: ['modelo-formulario', 'ficha_plantao'],
     atualizar: 'Atualizar modelo',
+    salvar: 'Salvar campo',
     item: (nome: string) => [campo(nome)],
     montar: (raiz: HTMLElement, servico: Servico, perdido = vi.fn()) =>
-      render(createElement(TelaModeloFichaPlantao, { servico, acessoPerdido: perdido }), {
-        container: raiz,
-      }).unmount,
+      render(
+        createElement(TelaModeloFichaPlantao, {
+          servico: { ...servico, escopo: 'ficha_plantao' },
+          acessoPerdido: perdido,
+        }),
+        {
+          container: raiz,
+        },
+      ).unmount,
   },
 ];
 
@@ -79,6 +87,15 @@ function adiada<T>() {
     resolver = r;
   });
   return { promessa, resolver };
+}
+
+/** Envia o formulário do item já lido, com os valores que ele traz. */
+function salvarItem(raiz: HTMLElement, rotulo: string) {
+  const formulario = [...raiz.querySelectorAll('form')].find((item) =>
+    [...item.querySelectorAll('button')].some((botao) => botao.textContent === rotulo),
+  );
+  if (!formulario) throw new Error(`Formulário ausente: ${rotulo}`);
+  formulario.requestSubmit();
 }
 
 const chaves = () =>
@@ -100,7 +117,7 @@ describe.each(familias)('$nome', (familia) => {
     conta.usuario_id,
     conta.session_id,
     'admin',
-    familia.recurso,
+    ...familia.recurso,
   ];
 
   it('cinco voltas fazem um GET só, com a lista no primeiro quadro', async () => {
@@ -149,6 +166,38 @@ describe.each(familias)('$nome', (familia) => {
     const volta = document.createElement('div');
     familia.montar(volta, servico);
     expect(volta.textContent).not.toContain('item fictício');
+  });
+
+  // Revisão do #81: o guardado não pode sobreviver a uma gravação, mesmo que a releitura
+  // falhe ou que o resultado fique incerto — senão a volta mostra a lista de antes.
+  it.each([
+    ['gravação confirmada e releitura com erro', 'ok'],
+    ['resultado incerto da gravação', 'incerto'],
+  ])('%s: a volta relê em vez de mostrar o guardado', async (_nome, desfecho) => {
+    // Com gravação confirmada, a releitura logo depois falha; com resultado incerto não há
+    // releitura automática. Nos dois casos, a próxima consulta já traz o nome novo.
+    const consultar = vi.fn().mockResolvedValueOnce(familia.item('nome antigo'));
+    if (desfecho === 'ok')
+      consultar.mockRejectedValueOnce(new FalhaApi('servico_indisponivel', 503));
+    consultar.mockResolvedValue(familia.item('nome novo'));
+    const servico = servicoDe(contaA, consultar);
+    if (desfecho === 'incerto')
+      servico.gravar = vi.fn().mockRejectedValue(new FalhaApi('servico_indisponivel', 503));
+    const raiz = document.createElement('div');
+    const desmontar = familia.montar(raiz, servico);
+    await vi.waitFor(() => expect(raiz.textContent).toContain('nome antigo'));
+    salvarItem(raiz, familia.salvar);
+    await vi.waitFor(() => expect(servico.gravar).toHaveBeenCalledOnce());
+    if (desfecho === 'ok') await vi.waitFor(() => expect(consultar).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(raiz.querySelector('[aria-busy="true"]')).toBeNull());
+    desmontar();
+    expect(clienteConsultas.getQueryData(chaveDe(contaA))).toBeUndefined();
+
+    const volta = document.createElement('div');
+    const desmontarVolta = familia.montar(volta, servico);
+    expect(volta.textContent).not.toContain('nome antigo');
+    await vi.waitFor(() => expect(volta.textContent).toContain('nome novo'));
+    desmontarVolta();
   });
 
   it('troca de conta: a conta nova não encontra nada da anterior', async () => {

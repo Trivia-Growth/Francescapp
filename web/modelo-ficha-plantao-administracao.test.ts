@@ -50,6 +50,7 @@ it('positivo: quem administra muda a visibilidade do campo sob a versão lida', 
   const raiz = document.createElement('div');
   const servico = {
     identidade,
+    escopo: 'ficha_plantao' as const,
     consultar: vi.fn().mockResolvedValue([campo()]),
     gravar: vi.fn().mockResolvedValue(undefined),
   };
@@ -88,6 +89,7 @@ it('negativo: recusa de permissão esvazia a tela e devolve o acesso perdido', a
   const raiz = document.createElement('div');
   const servico = {
     identidade,
+    escopo: 'ficha_plantao' as const,
     consultar: vi.fn().mockRejectedValue(new FalhaApi('sem_permissao', 403)),
     gravar: vi.fn(),
   };
