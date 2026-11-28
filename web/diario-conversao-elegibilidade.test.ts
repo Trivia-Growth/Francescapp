@@ -1,8 +1,15 @@
 // @vitest-environment jsdom
 import { render } from '@testing-library/react';
-import { createElement, type ComponentProps } from 'react';
+import {
+  createElement,
+  type ComponentProps,
+  type Ref,
+  useImperativeHandle,
+  useLayoutEffect,
+} from 'react';
 import { expect, it, vi } from 'vitest';
 import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
+import type { ComandoConversaoDiario } from './conversao-diario.js';
 import { TelaDiario, type ConversaoEmTarefa } from './diario.js';
 import { registroDiarioSchema, type RegistroDiario } from '../packages/contracts/src/diario.ts';
 
@@ -71,7 +78,7 @@ it('oferece conversão atômica em relato/evolução publicados próprios ou alh
     }),
     registro(4, { estado: 'rascunho' }),
   ];
-  const montar = vi.fn<ConversaoEmTarefa>(() => ({ desmontar: vi.fn(), invalidarOrigem: vi.fn() }));
+  const montar = vi.fn<ConversaoEmTarefa>(() => createElement('div'));
   const raiz = document.createElement('div');
   const desmontar = montarDiario(
     raiz,
@@ -84,14 +91,14 @@ it('oferece conversão atômica em relato/evolução publicados próprios ou alh
     montar,
   );
   await vi.waitFor(() => expect(montar).toHaveBeenCalledTimes(3));
-  expect(montar.mock.calls.map((chamada) => chamada[1].diario_registro_id)).toEqual(
+  expect(montar.mock.calls.map((chamada) => chamada[0].diario_registro_id)).toEqual(
     itens.slice(0, 3).map((item) => item.diario_registro_id),
   );
   desmontar();
 });
 
 it('família nunca recebe conversão mesmo que porta seja fornecida por engano', async () => {
-  const montar = vi.fn<ConversaoEmTarefa>(() => ({ desmontar: vi.fn(), invalidarOrigem: vi.fn() }));
+  const montar = vi.fn<ConversaoEmTarefa>(() => createElement('div'));
   const consultar = vi.fn(async () => [registro()]);
   const desmontar = montarDiario(
     document.createElement('div'),
@@ -114,12 +121,14 @@ it('versão alterada bloqueia montagem antiga e só descarta campos após ação
   let item = registro();
   const invalidar = vi.fn();
   const limpar = vi.fn();
-  const montar = vi.fn<ConversaoEmTarefa>((raiz) => {
-    const campo = document.createElement('textarea');
-    campo.value = 'Motivo ainda não enviado';
-    raiz.append(campo);
-    return { desmontar: limpar, invalidarOrigem: invalidar };
-  });
+  function ConversaoFicticia({ comando }: { comando: Ref<ComandoConversaoDiario> }) {
+    useImperativeHandle(comando, () => ({ invalidarOrigem: invalidar }), []);
+    useLayoutEffect(() => limpar, []);
+    return createElement('textarea', { defaultValue: 'Motivo ainda não enviado' });
+  }
+  const montar = vi.fn<ConversaoEmTarefa>((_origem, _pendente, _concluido, comando) =>
+    createElement(ConversaoFicticia, { comando }),
+  );
   const raiz = document.createElement('div');
   const desmontar = montarDiario(
     raiz,
@@ -132,9 +141,9 @@ it('versão alterada bloqueia montagem antiga e só descarta campos após ação
     montar,
   );
   await vi.waitFor(() => expect(montar).toHaveBeenCalledTimes(1));
-  montar.mock.calls[0]?.[2](true);
+  montar.mock.calls[0]?.[1](true);
   item = registro(1, { versao: 2, estado: 'retificado', justificativa: 'Correção fictícia' });
-  montar.mock.calls[0]?.[3]();
+  montar.mock.calls[0]?.[2]();
   await vi.waitFor(() => expect(invalidar).toHaveBeenCalled());
   expect(montar).toHaveBeenCalledTimes(1);
   expect(
@@ -153,8 +162,8 @@ it('versão alterada bloqueia montagem antiga e só descarta campos após ação
   reabrir?.click();
   await aguardarConfirmacao();
   expect(limpar).toHaveBeenCalledTimes(1);
-  expect(montar).toHaveBeenCalledTimes(2);
-  expect(montar.mock.calls[1]?.[1].versao).toBe(2);
+  await vi.waitFor(() => expect(montar).toHaveBeenCalledTimes(2));
+  expect(montar.mock.calls[1]?.[0].versao).toBe(2);
   desmontar();
   confirmacoes.encerrar();
 });

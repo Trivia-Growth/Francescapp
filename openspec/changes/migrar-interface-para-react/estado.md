@@ -41,6 +41,18 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8n do plano visual — conversão do Diário
+
+A conversão de registro em tarefa e evolução interna nasce na árvore da
+ficha. A versão anterior mantém o rascunho para conferência e bloqueia envio
+até a pessoa pedir a versão atual. A tarefa 7.2 permanece aberta.
+
+- Passaram 25 testes Vitest, um cenário Chromium e lint/typecheck. O cenário
+  mostrou a conversão no registro publicado e preservou o rascunho no Diário.
+- Sem invalidar a origem, o teste da troca de versão não recebeu o comando
+  que bloqueia envio da versão antiga. Alteração revertida.
+- Próximo passo: rebase após o squash da fatia anterior e ativação.
+
 ## Fatia 8m do plano visual — filtros da Carteira
 
 A raiz da casca compõe os filtros da Carteira. Retirar a barra invalida a

@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
+import { act, render } from '@testing-library/react';
+import { createElement, createRef } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { aguardarConfirmacao, responderConfirmacoes } from './confirmacao-prova.js';
-import { montarConversaoDiario, type PortasConversaoDiario } from './conversao-diario.js';
+import {
+  TelaConversaoDiario,
+  type ComandoConversaoDiario,
+  type PortasConversaoDiario,
+} from './conversao-diario.js';
 import { criarCicloTarefaCuidado } from './ciclo-tarefa-cuidado.ts';
 import { registroDiarioSchema } from '../packages/contracts/src/diario.ts';
 import type { consultaBarreiraTarefaSchema } from '../packages/contracts/src/barreira-tarefa-cuidado.ts';
@@ -41,6 +47,32 @@ const recibo: ReciboConversaoDiarioTarefa = {
   ator_usuario_id: usuario,
   registrado_em: '2026-11-18T12:00:00Z',
 };
+function montarConversaoDiario(
+  raiz: HTMLElement,
+  pacienteId: string,
+  registro: typeof origem,
+  portas: PortasConversaoDiario,
+  pendente: (valor: boolean) => void,
+  aoConcluir: () => void,
+) {
+  const comando = createRef<ComandoConversaoDiario>();
+  const painel = render(
+    createElement(TelaConversaoDiario, {
+      pacienteId,
+      origem: registro,
+      portas,
+      pendente,
+      aoConcluir,
+      comando,
+    }),
+    { container: raiz },
+  );
+  return {
+    desmontar: () => painel.rerender(null),
+    invalidarOrigem: () => act(() => comando.current?.invalidarOrigem()),
+  };
+}
+
 let desmontar: (() => void) | undefined;
 afterEach(() => {
   desmontar?.();
