@@ -21,7 +21,7 @@ import { Botao } from './componentes/ui/botao.js';
 import { Campo } from './componentes/ui/campo.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { Superficie } from './componentes/ui/superficie.js';
-import { confirmar, type PedidoConfirmacao } from './confirmacao.js';
+import { confirmar } from './confirmacao.js';
 import './estilos/tema.css';
 import { useValidacaoFormulario } from './telas/validacao-formulario.js';
 
@@ -81,19 +81,6 @@ export function TelaConvidarEquipe({ api }: { api: ClienteFFCM }) {
   });
   const ciclo = cicloRef.current;
 
-  /** A confirmação é um `<dialog>` montado no documento por `web/confirmacao.ts`, FORA da
-   *  ilha: desmontar a raiz React não a alcança. É o único ponto desta tela em que o
-   *  ciclo de vida não basta, e por isso o sinal do efeito entra aqui — e só aqui, em vez
-   *  de uma bandeira conferida antes de cada escrita. Sem isto, sair da tela durante a
-   *  conferência faria uma pergunta aparecer sobre a tela seguinte, levando o foco para
-   *  fora dela (VIS-012). Sinal abortado responde como "não confere", que é o caminho que
-   *  abandona a conferência sem tocar no servidor. */
-  const perguntar = useCallback(
-    (sinal: AbortSignal, pedido: PedidoConfirmacao): Promise<boolean> =>
-      sinal.aborted ? Promise.resolve(false) : confirmar(pedido),
-    [],
-  );
-
   const recuperar = useCallback(
     async (sinal: AbortSignal): Promise<void> => {
       if (ocupadaRef.current) return;
@@ -105,13 +92,16 @@ export function TelaConvidarEquipe({ api }: { api: ClienteFFCM }) {
         if (!estado.resultado_pendente) {
           if (
             estado.reserva &&
-            !(await perguntar(sinal, {
-              titulo: 'Encerrar a operação em andamento?',
-              detalhe:
-                'A operação pode estar aberta em outra aba. Encerrá-la afeta todas as abas desta pessoa.',
-              acao: 'Encerrar a operação',
-              cancelar: 'Deixar como está',
-            }))
+            !(await confirmar(
+              {
+                titulo: 'Encerrar a operação em andamento?',
+                detalhe:
+                  'A operação pode estar aberta em outra aba. Encerrá-la afeta todas as abas desta pessoa.',
+                acao: 'Encerrar a operação',
+                cancelar: 'Deixar como está',
+              },
+              sinal,
+            ))
           )
             throw new Error();
           await ciclo.encerrar();
@@ -134,13 +124,16 @@ export function TelaConvidarEquipe({ api }: { api: ClienteFFCM }) {
             } while (!encontrada && cursor);
             if (
               !encontrada ||
-              !(await perguntar(sinal, {
-                titulo: `O convite enviado antes para ${encontrada.email} está ${encontrada.estado}, como ${encontrada.perfil}. Confere?`,
-                detalhe:
-                  'Confirmar encerra a conferência e libera novos convites. Cancelar mantém a tela conferindo.',
-                acao: 'Confere, pode seguir',
-                cancelar: 'Não confere',
-              }))
+              !(await confirmar(
+                {
+                  titulo: `O convite enviado antes para ${encontrada.email} está ${encontrada.estado}, como ${encontrada.perfil}. Confere?`,
+                  detalhe:
+                    'Confirmar encerra a conferência e libera novos convites. Cancelar mantém a tela conferindo.',
+                  acao: 'Confere, pode seguir',
+                  cancelar: 'Não confere',
+                },
+                sinal,
+              ))
             )
               throw new Error();
           }
@@ -156,7 +149,7 @@ export function TelaConvidarEquipe({ api }: { api: ClienteFFCM }) {
         definirOcupada(false);
       }
     },
-    [api, ciclo, perguntar, definirOcupada, definirLiberada],
+    [api, ciclo, definirOcupada, definirLiberada],
   );
 
   useEffect(() => {
