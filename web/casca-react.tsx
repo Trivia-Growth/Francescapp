@@ -17,7 +17,12 @@ type Carteira = {
   destinoFiltros: HTMLElement;
   abrir: (paciente: PacienteLista) => void;
 };
-type Entrada = { destinoLogin: HTMLElement; destinoRede: HTMLElement; login: ReactElement };
+type Entrada = {
+  destinoLogin: HTMLElement;
+  destinoRede: HTMLElement;
+  login: ReactElement;
+  cadastro: ReactElement;
+};
 
 type Rota =
   | { tipo: 'ficha'; ficha: RotaFicha }
@@ -156,6 +161,7 @@ function Casca({
             navegacao.barra,
           )
         : null}
+      <PainelCasca>{entrada.cadastro}</PainelCasca>
       {createPortal(
         <PainelCasca>
           <EstadoDeRede />

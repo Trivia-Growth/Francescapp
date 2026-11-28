@@ -20,7 +20,7 @@ import type {
 } from '../packages/contracts/src/index.js';
 import { ClienteFFCM, exigeNovoAcesso, FalhaApi, mensagemFalha, semPermissao } from './api.js';
 import { lerCadastro } from './cadastro.js';
-import { montarCamposCasoNovo } from './campos-caso-novo.js';
+import { CamposCasoNovo, type ComandoCamposCasoNovo } from './campos-caso-novo.js';
 import { criarCicloCadastro } from './ciclo-cadastro.js';
 import { criarServicoPlanoHttp } from './servico-plano-http.js';
 import {
@@ -211,51 +211,34 @@ const preferredInput = elemento<HTMLInputElement>('preferred-name');
 // Um catálogo de equipe por sessão de Administrador; falha de consulta não fica guardada.
 let catalogoCasoNovo: (() => Promise<ResponsavelOpcao[]>) | null = null;
 let equipeCasoNovoPara: string | null = null;
-const casoNovo = montarCamposCasoNovo(
-  {
-    contatos: elemento('contacts-list'),
-    adicionar: elemento<HTMLButtonElement>('add-contact'),
-    erroContatos: elemento('contacts-error'),
-    nascimento: elemento('birth-date-controle'),
-    situacao: elemento('case-status-controle'),
-    responsavel: elemento('case-manager-controle'),
-    estadoResponsavel: elemento('manager-state'),
-    tentarNovamente: elemento<HTMLButtonElement>('manager-retry'),
-  },
-  () => (catalogoCasoNovo ? catalogoCasoNovo() : Promise.reject(new Error('Sem sessão'))),
-);
+const comandoCasoNovo = createRef<ComandoCamposCasoNovo>();
 export function desmontarCamposDeCadastro(): void {
-  casoNovo.desmontar();
   fecharFicha();
   casca.encerrar();
 }
-const {
-  nascimento: birthInput,
-  situacao: situacaoInput,
-  responsavel: responsavelInput,
-} = casoNovo.campos;
 
 function marcarInvalidezCadastro(input: HTMLInputElement | HTMLSelectElement, invalido: boolean) {
   const id = input.id;
   if (id === 'birth-date' || id === 'case-status' || id === 'case-manager') {
-    casoNovo.marcarInvalido(id, invalido);
+    comandoCasoNovo.current?.marcarInvalido(id, invalido);
   } else if (invalido) input.setAttribute('aria-invalid', 'true');
   else input.removeAttribute('aria-invalid');
 }
 
 function lerFormularioCadastro() {
+  const casoNovo = comandoCasoNovo.current;
   return lerCadastro({
     nome: nameInput.value,
     nomePreferencia: preferredInput.value,
-    nascimento: birthInput.value,
-    contatos: casoNovo.contatos(),
-    situacao: casoNovo.situacao(),
-    responsavelId: casoNovo.responsavelId(),
+    nascimento: casoNovo?.campos.nascimento.value ?? '',
+    contatos: casoNovo?.contatos() ?? [],
+    situacao: casoNovo?.situacao(),
+    responsavelId: casoNovo?.responsavelId(),
   });
 }
 function reiniciarFormularioCadastro(): void {
   createForm.reset();
-  casoNovo.reiniciar();
+  comandoCasoNovo.current?.reiniciar();
 }
 const reloadButton = elemento<HTMLButtonElement>('reload-patients');
 const previousButton = elemento<HTMLButtonElement>('previous-page');
@@ -1396,7 +1379,7 @@ function apagarPacientes(): void {
   reiniciarFormularioCadastro();
   equipeCasoNovoPara = null;
   catalogoCasoNovo = null;
-  casoNovo.cancelarCarga();
+  comandoCasoNovo.current?.cancelarCarga();
   // Sair precisa levar junto tudo que a sessão trouxe para a tela: a barra de filtros
   // mostra nomes da equipe e os painéis de administração mostram registros institucionais.
   // O catálogo em memória não é limpo aqui porque é indexado pelo usuário: outra conta
@@ -1418,11 +1401,11 @@ function apagarPacientes(): void {
   elemento('name-error').textContent = '';
   preferredInput.removeAttribute('aria-invalid');
   elemento('preferred-error').textContent = '';
-  marcarInvalidezCadastro(birthInput, false);
+  comandoCasoNovo.current?.marcarInvalido('birth-date', false);
   elemento('birth-error').textContent = '';
-  marcarInvalidezCadastro(situacaoInput, false);
+  comandoCasoNovo.current?.marcarInvalido('case-status', false);
   elemento('status-error').textContent = '';
-  marcarInvalidezCadastro(responsavelInput, false);
+  comandoCasoNovo.current?.marcarInvalido('case-manager', false);
   elemento('manager-error').textContent = '';
   cadastroPendente = null;
   cadastroOcupado = false;
@@ -2170,16 +2153,16 @@ function aplicarSessao(atual: Sessao): boolean {
     if (equipeCasoNovoPara !== atual.usuario.id) {
       equipeCasoNovoPara = atual.usuario.id;
       catalogoCasoNovo = catalogoDaEquipe(atual);
-      if (catalogoCasoNovo) void casoNovo.carregarResponsaveis();
+      if (catalogoCasoNovo) void comandoCasoNovo.current?.carregarResponsaveis();
       else
-        casoNovo.equipeIndisponivel(
+        comandoCasoNovo.current?.equipeIndisponivel(
           'Seu acesso não permite listar a equipe, então o responsável não pode ser indicado e o cadastro não pode ser enviado.',
         );
     }
   } else {
     equipeCasoNovoPara = null;
     catalogoCasoNovo = null;
-    casoNovo.cancelarCarga();
+    comandoCasoNovo.current?.cancelarCarga();
   }
   atualizarFiltrosDaCarteira(atual);
   // A home é da equipe. A família entra pela própria lista, que já é o recorte dela, e o
@@ -2531,6 +2514,20 @@ async function carregarPacientes(): Promise<boolean> {
 async function cadastrar(evento: SubmitEvent): Promise<void> {
   evento.preventDefault();
   if (cadastroOcupado || !sessao || registration.hidden || !cadastroLiberado || !ciclo) return;
+  const casoNovo = comandoCasoNovo.current;
+  if (!casoNovo) {
+    aviso(
+      'create-feedback',
+      'O formulário está indisponível. Tente abrir a área de novo.',
+      'error',
+    );
+    return;
+  }
+  const {
+    nascimento: birthInput,
+    situacao: situacaoInput,
+    responsavel: responsavelInput,
+  } = casoNovo.campos;
   if (!cadastroPendente) {
     const cadastro = lerFormularioCadastro();
     if (!cadastro.success) {
@@ -2908,40 +2905,6 @@ newPatientLink.addEventListener('click', (evento) => {
   elemento('create-title').focus();
   registration.scrollIntoView({ block: 'start' });
 });
-const camposComErro: {
-  input: HTMLInputElement | HTMLSelectElement;
-  chave: string;
-  erro: string;
-}[] = [
-  { input: nameInput, chave: 'nome', erro: 'name-error' },
-  { input: preferredInput, chave: 'nome_preferencia', erro: 'preferred-error' },
-  { input: birthInput, chave: 'data_nascimento', erro: 'birth-error' },
-  { input: situacaoInput, chave: 'situacao', erro: 'status-error' },
-  {
-    input: responsavelInput,
-    chave: 'responsavel_id',
-    erro: 'manager-error',
-  },
-];
-for (const campo of camposComErro) {
-  campo.input.addEventListener('input', () => {
-    if (!campo.input.hasAttribute('aria-invalid')) return;
-    const cadastro = lerFormularioCadastro();
-    if (!cadastro.success && cadastro.error.issues.some((item) => item.path[0] === campo.chave))
-      return;
-    marcarInvalidezCadastro(campo.input, false);
-    elemento(campo.erro).textContent = '';
-  });
-}
-// Os contatos são linhas dinâmicas: corrigir uma delas limpa a marca de erro sem esperar novo envio.
-for (const evento of ['input', 'change'])
-  elemento('contacts-list').addEventListener(evento, () => {
-    if (!elemento('contacts-error').textContent) return;
-    const cadastro = lerFormularioCadastro();
-    casoNovo.marcarContatos(
-      !cadastro.success && cadastro.error.issues.some((item) => item.path[0] === 'contatos'),
-    );
-  });
 document.addEventListener('visibilitychange', () => {
   fecharGavetaLateral();
   if (sessao) {
@@ -3059,6 +3022,30 @@ const casca = iniciarCasca(
   {
     destinoLogin: acessoInterno,
     destinoRede: elemento('estado-rede-raiz'),
+    cadastro: createElement(CamposCasoNovo, {
+      destinos: {
+        contatos: elemento('contacts-list'),
+        adicionar: elemento('add-contact-controle'),
+        erroContatos: elemento('contacts-error'),
+        nascimento: elemento('birth-date-controle'),
+        situacao: elemento('case-status-controle'),
+        responsavel: elemento('case-manager-controle'),
+        estadoResponsavel: elemento('manager-state'),
+        tentarNovamente: elemento('manager-retry-controle'),
+      },
+      comando: comandoCasoNovo,
+      listarResponsaveis: () =>
+        catalogoCasoNovo ? catalogoCasoNovo() : Promise.reject(new Error('Sem sessão')),
+      aoMontar: () => {
+        const catalogo = catalogoCasoNovo;
+        const controle = comandoCasoNovo.current;
+        if (!catalogo || !controle) return;
+        queueMicrotask(() => {
+          if (catalogoCasoNovo === catalogo && comandoCasoNovo.current === controle)
+            void controle.carregarResponsaveis();
+        });
+      },
+    }),
     login: createElement(TelaLoginInterno, {
       api,
       aoEntrar: entrarNaCasca,
@@ -3076,4 +3063,36 @@ const casca = iniciarCasca(
     }),
   },
 );
+const camposComErro: Record<string, { chave: string; erro: string }> = {
+  'patient-name': { chave: 'nome', erro: 'name-error' },
+  'preferred-name': { chave: 'nome_preferencia', erro: 'preferred-error' },
+  'birth-date': { chave: 'data_nascimento', erro: 'birth-error' },
+  'case-status': { chave: 'situacao', erro: 'status-error' },
+  'case-manager': { chave: 'responsavel_id', erro: 'manager-error' },
+};
+createForm.addEventListener(
+  'input',
+  (evento) => {
+    const alvo = evento.target;
+    if (!(alvo instanceof HTMLInputElement || alvo instanceof HTMLSelectElement)) return;
+    const campo = camposComErro[alvo.id];
+    if (!campo || !alvo.hasAttribute('aria-invalid')) return;
+    const cadastro = lerFormularioCadastro();
+    if (!cadastro.success && cadastro.error.issues.some((item) => item.path[0] === campo.chave))
+      return;
+    marcarInvalidezCadastro(alvo, false);
+    elemento(campo.erro).textContent = '';
+  },
+  true,
+);
+// Os contatos são linhas dinâmicas: corrigir uma delas limpa a marca de erro sem esperar novo envio.
+for (const evento of ['input', 'change'])
+  elemento('contacts-list').addEventListener(evento, () => {
+    if (!elemento('contacts-error').textContent) return;
+    const cadastro = lerFormularioCadastro();
+    comandoCasoNovo.current?.marcarContatos(
+      !cadastro.success && cadastro.error.issues.some((item) => item.path[0] === 'contatos'),
+    );
+  });
+
 void restaurarSessao();

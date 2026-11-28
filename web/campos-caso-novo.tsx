@@ -1,296 +1,377 @@
+import { type Ref, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal, flushSync } from 'react-dom';
 import { novoContatoSchema, type SituacaoCaso } from '../packages/contracts/src/index.js';
 import { type ResponsavelOpcao, rotulosSituacao } from './acompanhamento-caso.js';
+import { Botao } from './componentes/ui/botao.js';
 import { CampoData } from './componentes/ui/campo-data.js';
 import { SelecaoAprimorada } from './componentes/ui/selecao-aprimorada.js';
 import { definirValorNativo } from './componentes/ui/valor-nativo.js';
-import { botao } from './ponte/botao-imperativo.js';
-import { ilha, ilhaAtualizavel } from './ponte/ilha.js';
 
 const LIMITE_CONTATOS = 10;
 
 export type ContatoDigitado = { tipo: 'email' | 'telefone'; valor: string };
 
-type Elementos = {
+type Destinos = {
   contatos: HTMLElement;
-  adicionar: HTMLButtonElement;
+  adicionar: HTMLElement;
   erroContatos: HTMLElement;
   nascimento: HTMLElement;
   situacao: HTMLElement;
   responsavel: HTMLElement;
   estadoResponsavel: HTMLElement;
-  tentarNovamente: HTMLButtonElement;
-};
-
-type Linha = {
-  raiz: HTMLElement;
-  tipo: HTMLSelectElement;
-  valor: HTMLInputElement;
-  desmontarTipo: () => void;
+  tentarNovamente: HTMLElement;
 };
 
 type CampoEstatico = 'birth-date' | 'case-status' | 'case-manager';
+type EstadoEquipe = {
+  fase: 'ausente' | 'carregando' | 'carregada' | 'falha';
+  mensagem: string;
+  opcoes: readonly ResponsavelOpcao[];
+};
 
-/** Campos do cadastro de caso novo que vão além dos três de texto: contatos (de 1 a 10),
- * situação e case manager. Nada vem preenchido; o responsável só aparece depois de a equipe
- * ser consultada de verdade, e sem equipe ativa o cadastro não pode ser enviado. */
-export function montarCamposCasoNovo(
-  el: Elementos,
-  listarResponsaveis: () => Promise<ResponsavelOpcao[]>,
-) {
-  let linhas: Linha[] = [];
-  let proximoNumero = 1;
-  let equipeDisponivel = false;
-  let carga = 0;
-  let responsaveis: readonly ResponsavelOpcao[] = [];
-  let carregando = false;
-  const invalidos = new Set<CampoEstatico>();
-  const hojeIso = new Date().toISOString().slice(0, 10);
+export type ComandoCamposCasoNovo = {
+  readonly campos: {
+    nascimento: HTMLInputElement;
+    situacao: HTMLSelectElement;
+    responsavel: HTMLSelectElement;
+  };
+  marcarInvalido(campo: CampoEstatico, invalido: boolean): void;
+  carregarResponsaveis(): Promise<void>;
+  equipeIndisponivel(mensagem: string): void;
+  reiniciar(): void;
+  cancelarCarga(): void;
+  contatos(): ContatoDigitado[];
+  situacao(): SituacaoCaso | undefined;
+  responsavelId(): string | undefined;
+  equipeDisponivel(): boolean;
+  marcarContatos(invalido: boolean): HTMLInputElement | undefined;
+};
 
-  const desenharNascimento = () => (
-    <CampoData
-      id="birth-date"
-      name="data_nascimento"
-      max={hojeIso}
-      aria-labelledby="birth-label"
-      aria-describedby="birth-error"
-      aria-invalid={invalidos.has('birth-date') || undefined}
-    />
+function CampoContato({
+  numero,
+  primeiro,
+  invalido,
+  aoRemover,
+}: {
+  numero: number;
+  primeiro: boolean;
+  invalido: boolean;
+  aoRemover(): void;
+}) {
+  const [tipo, definirTipo] = useState<ContatoDigitado['tipo']>('email');
+  const email = tipo === 'email';
+  const idTipo = `contact-type-${numero}`;
+  const idValor = `contact-value-${numero}`;
+
+  return (
+    <div className="contact-row">
+      <label className="sr-only" htmlFor={idTipo}>
+        Tipo do contato {numero}
+      </label>
+      <div>
+        <SelecaoAprimorada
+          id={idTipo}
+          aria-label={`Tipo do contato ${numero}`}
+          defaultValue="email"
+          onChange={(evento) =>
+            definirTipo(evento.currentTarget.value === 'telefone' ? 'telefone' : 'email')
+          }
+        >
+          <option value="email">E-mail</option>
+          <option value="telefone">Telefone</option>
+        </SelecaoAprimorada>
+      </div>
+      <label className="sr-only" htmlFor={idValor}>
+        Contato {numero}
+      </label>
+      <input
+        id={idValor}
+        type={email ? 'email' : 'tel'}
+        placeholder={email ? 'nome@exemplo.org' : '+55 11 90000-0000'}
+        maxLength={254}
+        autoComplete="off"
+        aria-invalid={invalido || undefined}
+      />
+      <Botao
+        peso="secundario"
+        className="contact-remove"
+        aria-label={`Remover contato ${numero}`}
+        hidden={primeiro}
+        onClick={aoRemover}
+      >
+        Remover
+      </Botao>
+    </div>
   );
-  const desenharSituacao = () => (
-    <SelecaoAprimorada
-      id="case-status"
-      name="situacao"
-      aria-labelledby="status-label"
-      aria-describedby="status-error"
-      aria-invalid={invalidos.has('case-status') || undefined}
-      defaultValue=""
-    >
-      <option value="">Selecione a situação</option>
-      {Object.entries(rotulosSituacao).map(([valor, rotulo]) => (
-        <option key={valor} value={valor}>
-          {rotulo}
-        </option>
-      ))}
-    </SelecaoAprimorada>
+}
+
+/** Os controles pertencem à casca React e enviam os valores nativos no formulário existente. */
+export function CamposCasoNovo({
+  destinos,
+  listarResponsaveis,
+  comando,
+  aoMontar,
+}: {
+  destinos: Destinos;
+  listarResponsaveis: () => Promise<ResponsavelOpcao[]>;
+  comando: Ref<ComandoCamposCasoNovo>;
+  aoMontar?: () => void;
+}) {
+  const nascimento = useRef<HTMLInputElement>(null);
+  const situacao = useRef<HTMLSelectElement>(null);
+  const responsavel = useRef<HTMLSelectElement>(null);
+  const adicionar = useRef<HTMLButtonElement>(null);
+  const proximoNumero = useRef(2);
+  const carga = useRef(0);
+
+  const [contatos, definirContatos] = useState({ numeros: [1], geracao: 0 });
+  const [erroContatos, definirErroContatos] = useState(false);
+  const [invalidos, definirInvalidos] = useState<ReadonlySet<string>>(new Set());
+  const [equipe, definirEquipe] = useState<EstadoEquipe>({
+    fase: 'ausente',
+    mensagem: '',
+    opcoes: [],
+  });
+
+  useLayoutEffect(
+    () => () => {
+      carga.current += 1;
+    },
+    [],
   );
-  const desenharResponsavel = () => (
-    <SelecaoAprimorada
-      id="case-manager"
-      name="responsavel_id"
-      aria-labelledby="manager-label"
-      aria-describedby="manager-error manager-state"
-      aria-invalid={invalidos.has('case-manager') || undefined}
-      aria-busy={carregando || undefined}
-      disabled={!equipeDisponivel}
-      defaultValue=""
-    >
-      <option value="">Selecione quem acompanha o caso</option>
-      {responsaveis.map((opcao) => (
-        <option key={opcao.usuario_id} value={opcao.usuario_id}>
-          {opcao.rotulo}
-        </option>
-      ))}
-    </SelecaoAprimorada>
-  );
-  const ilhaNascimento = ilhaAtualizavel(el.nascimento, desenharNascimento());
-  const ilhaSituacao = ilhaAtualizavel(el.situacao, desenharSituacao());
-  const ilhaResponsavel = ilhaAtualizavel(el.responsavel, desenharResponsavel());
-  const nascimento = el.nascimento.querySelector<HTMLInputElement>('input[type="date"]');
-  const situacao = el.situacao.querySelector('select');
-  const responsavel = el.responsavel.querySelector('select');
-  if (!nascimento || !situacao || !responsavel) {
-    throw new Error('Campos do cadastro indisponíveis.');
+
+  useEffect(() => {
+    aoMontar?.();
+  }, [aoMontar]);
+
+  function consultarLinhas() {
+    return Array.from(destinos.contatos.querySelectorAll<HTMLElement>('.contact-row'), (no) => {
+      const valor = no.querySelector<HTMLInputElement>('input');
+      const tipo = no.querySelector<HTMLSelectElement>('select');
+      if (!valor || !tipo) throw new Error('Controle de contato indisponível.');
+      return {
+        valor,
+        tipo: tipo.value === 'telefone' ? ('telefone' as const) : ('email' as const),
+      };
+    });
   }
 
-  const redesenhar = {
-    'birth-date': () => ilhaNascimento.atualizar(desenharNascimento()),
-    'case-status': () => ilhaSituacao.atualizar(desenharSituacao()),
-    'case-manager': () => ilhaResponsavel.atualizar(desenharResponsavel()),
-  };
+  function focarContato(numero: number | undefined) {
+    const campo = numero
+      ? destinos.contatos.querySelector<HTMLInputElement>(`#contact-value-${numero}`)
+      : adicionar.current;
+    campo?.focus();
+  }
 
-  const elemento = <K extends keyof HTMLElementTagNameMap>(tipo: K, texto?: string) => {
-    const novo = document.createElement(tipo);
-    if (texto !== undefined) novo.textContent = texto;
-    return novo;
-  };
+  function adicionarContato() {
+    if (contatos.numeros.length >= LIMITE_CONTATOS) return;
+    const numero = proximoNumero.current++;
+    flushSync(() => definirContatos({ ...contatos, numeros: [...contatos.numeros, numero] }));
+    focarContato(numero);
+  }
 
-  const atualizarBotoes = () => {
-    el.adicionar.disabled = linhas.length >= LIMITE_CONTATOS;
-    linhas.forEach((linha, indice) => {
-      const botao = linha.raiz.querySelector<HTMLButtonElement>('.contact-remove');
-      if (botao) botao.hidden = indice === 0;
-    });
-  };
+  function removerContato(numero: number) {
+    const numeros = contatos.numeros.filter((atual) => atual !== numero);
+    flushSync(() => definirContatos({ ...contatos, numeros }));
+    focarContato(numeros.at(-1));
+  }
 
-  const adicionarLinha = () => {
-    if (linhas.length >= LIMITE_CONTATOS) return;
-    const numero = proximoNumero++;
-    const raiz = elemento('div');
-    raiz.className = 'contact-row';
-    const rotuloTipo = elemento('label', `Tipo do contato ${numero}`);
-    rotuloTipo.className = 'sr-only';
-    rotuloTipo.htmlFor = `contact-type-${numero}`;
-    const lugarTipo = elemento('div');
-    const desmontarTipo = ilha(
-      lugarTipo,
-      <SelecaoAprimorada id={rotuloTipo.htmlFor} aria-label={`Tipo do contato ${numero}`}>
-        <option value="email">E-mail</option>
-        <option value="telefone">Telefone</option>
-      </SelecaoAprimorada>,
+  async function carregarResponsaveis() {
+    const minhaCarga = ++carga.current;
+    flushSync(() =>
+      definirEquipe({ fase: 'carregando', mensagem: 'Carregando equipe…', opcoes: [] }),
     );
-    const tipo = lugarTipo.querySelector('select');
-    if (!tipo) throw new Error('Tipo do contato indisponível.');
-    const rotuloValor = elemento('label', `Contato ${numero}`);
-    rotuloValor.className = 'sr-only';
-    rotuloValor.htmlFor = `contact-value-${numero}`;
-    const valor = elemento('input');
-    valor.id = `contact-value-${numero}`;
-    valor.maxLength = 254;
-    valor.autocomplete = 'off';
-    const ajustarTipo = () => {
-      const email = tipo.value === 'email';
-      valor.type = email ? 'email' : 'tel';
-      valor.placeholder = email ? 'nome@exemplo.org' : '+55 11 90000-0000';
-    };
-    ajustarTipo();
-    tipo.addEventListener('change', ajustarTipo);
-    const remover = botao({ rotulo: 'Remover', peso: 'secundario' });
-    remover.classList.add('contact-remove');
-    remover.setAttribute('aria-label', `Remover contato ${numero}`);
-    const linha: Linha = { raiz, tipo, valor, desmontarTipo };
-    remover.addEventListener('click', () => {
-      linhas = linhas.filter((item) => item !== linha);
-      desmontarTipo();
-      raiz.remove();
-      atualizarBotoes();
-      (linhas[linhas.length - 1]?.valor ?? el.adicionar).focus();
-    });
-    raiz.append(rotuloTipo, lugarTipo, rotuloValor, valor, remover);
-    el.contatos.append(raiz);
-    linhas.push(linha);
-    atualizarBotoes();
-    return linha;
-  };
-
-  const aoAdicionar = () => adicionarLinha()?.valor.focus();
-  el.adicionar.addEventListener('click', aoAdicionar);
-
-  const carregarResponsaveis = async () => {
-    const minhaCarga = ++carga;
-    equipeDisponivel = false;
-    responsaveis = [];
-    carregando = true;
-    redesenhar['case-manager']();
-    el.tentarNovamente.hidden = true;
-    el.estadoResponsavel.textContent = 'Carregando equipe…';
     try {
       const opcoes = (await listarResponsaveis()).filter((opcao) => opcao.ativo);
-      if (minhaCarga !== carga) return;
-      responsaveis = opcoes;
-      equipeDisponivel = opcoes.length > 0;
-      el.estadoResponsavel.textContent = equipeDisponivel
-        ? ''
-        : 'Nenhuma pessoa ativa da equipe para indicar. O cadastro não pode ser enviado.';
+      if (minhaCarga !== carga.current) return;
+      flushSync(() =>
+        definirEquipe({
+          fase: 'carregada',
+          mensagem: opcoes.length
+            ? ''
+            : 'Nenhuma pessoa ativa da equipe para indicar. O cadastro não pode ser enviado.',
+          opcoes,
+        }),
+      );
     } catch {
-      if (minhaCarga !== carga) return;
-      el.estadoResponsavel.textContent =
-        'Não foi possível carregar a equipe. O cadastro não pode ser enviado agora.';
-      el.tentarNovamente.hidden = false;
-    } finally {
-      if (minhaCarga === carga) {
-        carregando = false;
-        redesenhar['case-manager']();
-      }
+      if (minhaCarga !== carga.current) return;
+      flushSync(() =>
+        definirEquipe({
+          fase: 'falha',
+          mensagem: 'Não foi possível carregar a equipe. O cadastro não pode ser enviado agora.',
+          opcoes: [],
+        }),
+      );
     }
-  };
-  const aoTentarNovamente = () => void carregarResponsaveis();
-  el.tentarNovamente.addEventListener('click', aoTentarNovamente);
+  }
 
-  /** Sem permissão para listar a equipe não há como indicar o responsável: o cadastro não é enviado. */
-  const equipeIndisponivel = (mensagem: string) => {
-    carga += 1;
-    carregando = false;
-    equipeDisponivel = false;
-    responsaveis = [];
-    redesenhar['case-manager']();
-    el.tentarNovamente.hidden = true;
-    el.estadoResponsavel.textContent = mensagem;
-  };
+  function equipeIndisponivel(mensagem: string) {
+    carga.current += 1;
+    flushSync(() => definirEquipe({ fase: 'ausente', mensagem, opcoes: [] }));
+  }
 
-  const removerLinhas = () => {
-    for (const linha of linhas) {
-      linha.desmontarTipo();
-      linha.raiz.remove();
-    }
-    linhas = [];
-  };
-  const reiniciar = () => {
-    removerLinhas();
-    proximoNumero = 1;
-    adicionarLinha();
-    for (const campo of [situacao, responsavel]) definirValorNativo(campo, '');
-    el.erroContatos.textContent = '';
-  };
-  adicionarLinha();
-  el.erroContatos.textContent = '';
+  function marcarInvalido(campo: string, invalido: boolean) {
+    definirInvalidos((atuais) => {
+      if (atuais.has(campo) === invalido) return atuais;
+      const proximos = new Set(atuais);
+      if (invalido) proximos.add(campo);
+      else proximos.delete(campo);
+      return proximos;
+    });
+  }
 
-  return {
-    desmontar() {
-      // Invalida a resposta da equipe antes de retirar as raízes da página.
-      carga += 1;
-      el.adicionar.removeEventListener('click', aoAdicionar);
-      el.tentarNovamente.removeEventListener('click', aoTentarNovamente);
-      removerLinhas();
-      ilhaNascimento.desmontar();
-      ilhaSituacao.desmontar();
-      ilhaResponsavel.desmontar();
+  useImperativeHandle(comando, () => ({
+    get campos() {
+      if (!nascimento.current || !situacao.current || !responsavel.current)
+        throw new Error('Campos do cadastro indisponíveis.');
+      return {
+        nascimento: nascimento.current,
+        situacao: situacao.current,
+        responsavel: responsavel.current,
+      };
     },
-    campos: { nascimento, situacao, responsavel },
-    marcarInvalido(campo: CampoEstatico, invalido: boolean) {
-      if (invalidos.has(campo) === invalido) return;
-      if (invalido) invalidos.add(campo);
-      else invalidos.delete(campo);
-      redesenhar[campo]();
+    marcarInvalido(campo, invalido) {
+      flushSync(() => marcarInvalido(campo, invalido));
     },
     carregarResponsaveis,
     equipeIndisponivel,
-    reiniciar,
-    /** Descarta uma consulta de equipe em andamento, por exemplo ao encerrar a sessão. */
+    reiniciar() {
+      proximoNumero.current = 2;
+      flushSync(() => {
+        definirContatos(({ geracao }) => ({ numeros: [1], geracao: geracao + 1 }));
+        definirInvalidos(new Set());
+        definirErroContatos(false);
+      });
+      if (situacao.current) definirValorNativo(situacao.current, '');
+      if (responsavel.current) definirValorNativo(responsavel.current, '');
+    },
     cancelarCarga: () => equipeIndisponivel(''),
-    /** Linhas com algo digitado; linhas vazias não contam como contato. */
-    contatos: (): ContatoDigitado[] =>
-      linhas
-        .filter((linha) => linha.valor.value.trim() !== '')
-        .map((linha) => ({
-          tipo: linha.tipo.value as 'email' | 'telefone',
-          valor: linha.valor.value,
-        })),
-    situacao: (): SituacaoCaso | undefined =>
-      (situacao.value || undefined) as SituacaoCaso | undefined,
-    responsavelId: () => responsavel.value || undefined,
-    equipeDisponivel: () => equipeDisponivel,
-    /** Marca as linhas inválidas (ou a primeira, se nenhuma foi preenchida) e devolve a primeira. */
-    marcarContatos: (invalido: boolean): HTMLElement | undefined => {
-      let primeira: HTMLElement | undefined;
-      const preenchidas = linhas.filter((linha) => linha.valor.value.trim() !== '');
-      for (const linha of linhas) {
-        const vazia = linha.valor.value.trim() === '';
-        const ruim =
-          invalido &&
-          (preenchidas.length === 0
-            ? linha === linhas[0]
-            : !vazia &&
-              !novoContatoSchema.safeParse({ tipo: linha.tipo.value, valor: linha.valor.value })
-                .success);
-        if (ruim) {
-          linha.valor.setAttribute('aria-invalid', 'true');
-          primeira ??= linha.valor;
-        } else linha.valor.removeAttribute('aria-invalid');
-      }
-      el.erroContatos.textContent = invalido
-        ? 'Informe ao menos um contato válido, com e-mail ou telefone correto.'
-        : '';
+    contatos: () =>
+      consultarLinhas()
+        .filter(({ valor }) => valor.value.trim() !== '')
+        .map(({ tipo, valor }) => ({ tipo, valor: valor.value })),
+    situacao: () => (situacao.current?.value || undefined) as SituacaoCaso | undefined,
+    responsavelId: () => responsavel.current?.value || undefined,
+    equipeDisponivel: () => responsavel.current?.disabled === false,
+    marcarContatos(invalido) {
+      const linhas = consultarLinhas();
+      const algumaPreenchida = linhas.some(({ valor }) => valor.value.trim() !== '');
+      let primeira: HTMLInputElement | undefined;
+      flushSync(() => {
+        for (const [indice, { tipo, valor }] of linhas.entries()) {
+          const ruim =
+            invalido &&
+            (algumaPreenchida
+              ? Boolean(valor.value.trim()) &&
+                !novoContatoSchema.safeParse({ tipo, valor: valor.value }).success
+              : indice === 0);
+          marcarInvalido(valor.id, ruim);
+          if (ruim) primeira ??= valor;
+        }
+        definirErroContatos(invalido);
+      });
       return primeira;
     },
-  };
+  }));
+
+  return (
+    <>
+      {createPortal(
+        <CampoData
+          ref={nascimento}
+          id="birth-date"
+          name="data_nascimento"
+          max={new Date().toISOString().slice(0, 10)}
+          aria-labelledby="birth-label"
+          aria-describedby="birth-error"
+          aria-invalid={invalidos.has('birth-date') || undefined}
+        />,
+        destinos.nascimento,
+      )}
+      {createPortal(
+        <SelecaoAprimorada
+          ref={situacao}
+          id="case-status"
+          name="situacao"
+          aria-labelledby="status-label"
+          aria-describedby="status-error"
+          aria-invalid={invalidos.has('case-status') || undefined}
+          defaultValue=""
+        >
+          <option value="">Selecione a situação</option>
+          {Object.entries(rotulosSituacao).map(([valor, rotulo]) => (
+            <option key={valor} value={valor}>
+              {rotulo}
+            </option>
+          ))}
+        </SelecaoAprimorada>,
+        destinos.situacao,
+      )}
+      {createPortal(
+        <SelecaoAprimorada
+          ref={responsavel}
+          id="case-manager"
+          name="responsavel_id"
+          aria-labelledby="manager-label"
+          aria-describedby="manager-error manager-state"
+          aria-invalid={invalidos.has('case-manager') || undefined}
+          aria-busy={equipe.fase === 'carregando' || undefined}
+          disabled={equipe.opcoes.length === 0}
+          defaultValue=""
+        >
+          <option value="">Selecione quem acompanha o caso</option>
+          {equipe.opcoes.map((opcao) => (
+            <option key={opcao.usuario_id} value={opcao.usuario_id}>
+              {opcao.rotulo}
+            </option>
+          ))}
+        </SelecaoAprimorada>,
+        destinos.responsavel,
+      )}
+      {createPortal(
+        contatos.numeros.map((numero, indice) => (
+          <CampoContato
+            key={`${contatos.geracao}:${numero}`}
+            numero={numero}
+            primeiro={indice === 0}
+            invalido={invalidos.has(`contact-value-${numero}`)}
+            aoRemover={() => removerContato(numero)}
+          />
+        )),
+        destinos.contatos,
+      )}
+      {createPortal(
+        <button
+          id="add-contact"
+          ref={adicionar}
+          className="ui-botao"
+          data-peso="secundario"
+          type="button"
+          disabled={contatos.numeros.length >= LIMITE_CONTATOS}
+          onClick={adicionarContato}
+        >
+          Adicionar outro contato
+        </button>,
+        destinos.adicionar,
+      )}
+      {createPortal(
+        erroContatos ? 'Informe ao menos um contato válido, com e-mail ou telefone correto.' : null,
+        destinos.erroContatos,
+      )}
+      {createPortal(equipe.mensagem, destinos.estadoResponsavel)}
+      {createPortal(
+        <button
+          id="manager-retry"
+          className="ui-botao"
+          data-peso="secundario"
+          type="button"
+          hidden={equipe.fase !== 'falha'}
+          onClick={() => void carregarResponsaveis()}
+        >
+          Tentar novamente
+        </button>,
+        destinos.tentarNovamente,
+      )}
+    </>
+  );
 }

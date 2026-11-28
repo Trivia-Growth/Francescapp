@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
+import { render, fireEvent } from '@testing-library/react';
+import { createElement, createRef } from 'react';
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ResponsavelOpcao } from './acompanhamento-caso.js';
-import { montarCamposCasoNovo } from './campos-caso-novo.js';
+import { CamposCasoNovo, type ComandoCamposCasoNovo } from './campos-caso-novo.js';
 
 const ana: ResponsavelOpcao = {
   usuario_id: '30000000-0000-4000-8000-000000000003',
@@ -33,21 +35,27 @@ function adiado<T>() {
 function montar(listar: () => Promise<ResponsavelOpcao[]> = async () => [ana]) {
   document.documentElement.innerHTML = readFileSync('web/index.html', 'utf8');
   const listarResponsaveis = vi.fn(listar);
-  const campos = montarCamposCasoNovo(
-    {
-      contatos: el('contacts-list'),
-      adicionar: el<HTMLButtonElement>('add-contact'),
-      erroContatos: el('contacts-error'),
-      nascimento: el('birth-date-controle'),
-      situacao: el('case-status-controle'),
-      responsavel: el('case-manager-controle'),
-      estadoResponsavel: el('manager-state'),
-      tentarNovamente: el<HTMLButtonElement>('manager-retry'),
-    },
-    listarResponsaveis,
+  const comando = createRef<ComandoCamposCasoNovo>();
+  const painel = render(
+    createElement(CamposCasoNovo, {
+      destinos: {
+        contatos: el('contacts-list'),
+        adicionar: el('add-contact-controle'),
+        erroContatos: el('contacts-error'),
+        nascimento: el('birth-date-controle'),
+        situacao: el('case-status-controle'),
+        responsavel: el('case-manager-controle'),
+        estadoResponsavel: el('manager-state'),
+        tentarNovamente: el('manager-retry-controle'),
+      },
+      listarResponsaveis,
+      comando,
+    }),
   );
-  desmontarCampos = campos.desmontar;
-  return { campos, listarResponsaveis };
+  const campos = comando.current;
+  if (!campos) throw new Error('Cadastro indisponível no teste.');
+  desmontarCampos = () => painel.rerender(null);
+  return { campos: { ...campos, desmontar: desmontarCampos }, listarResponsaveis };
 }
 
 const linhas = () => [...document.querySelectorAll<HTMLElement>('#contacts-list .contact-row')];
@@ -146,8 +154,7 @@ describe('contatos', () => {
     el<HTMLInputElement>('contact-value-1').value = 'contato@exemplo.test';
     el<HTMLInputElement>('contact-value-2').value = '   ';
     const tipo3 = el<HTMLSelectElement>('contact-type-3');
-    tipo3.value = 'telefone';
-    tipo3.dispatchEvent(new Event('change'));
+    fireEvent.change(tipo3, { target: { value: 'telefone' } });
     el<HTMLInputElement>('contact-value-3').value = '11 90000-0000';
     expect(campos.contatos()).toEqual([
       { tipo: 'email', valor: 'contato@exemplo.test' },
@@ -215,8 +222,8 @@ describe('equipe do responsável', () => {
     campos.desmontar();
     consulta.resolver([ana]);
     await carga;
-    adicionar().click();
-    el('manager-retry').click();
+    expect(document.getElementById('add-contact')).toBeNull();
+    expect(document.getElementById('manager-retry')).toBeNull();
 
     expect(linhas()).toHaveLength(0);
     expect(document.getElementById('birth-date')).toBeNull();

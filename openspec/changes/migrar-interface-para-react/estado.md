@@ -41,6 +41,19 @@ autorização. `montarFinanceiro` deixa de existir; a bancada `financeiro.html` 
   CSS ficam para a retirada do CSS legado.
 - Próximo passo: CI/ativação do PR.
 
+## Fatia 8u do plano visual — campos de Novo paciente
+
+A casca compõe data de nascimento, situação, responsável e contatos. O
+formulário lê os valores nativos, e sair da sessão invalida a consulta de equipe.
+As classes dos controles foram preservadas. A tarefa 7.2 permanece aberta.
+
+- Passaram 39 testes Vitest e oito cenários Chromium. Cadastro conservou
+  o foco, a validação e o payload de criação. O diálogo permaneceu fechado
+  sem permissão. Axe passou no diálogo com a folha de estilo carregada.
+- Ao retirar o foco após adicionar contato, Chromium encontrou o novo campo
+  sem foco e falhou em `toBeFocused`. Alteração revertida.
+- Próximo passo: rebase após o squash da fatia anterior e ativação.
+
 ## Fatia 8t do plano visual — leitura de registros e consolidado
 
 A bancada renderiza Ficha de plantão e Consolidado na mesma raiz. As provas

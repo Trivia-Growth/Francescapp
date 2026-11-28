@@ -255,6 +255,7 @@ test('Cadastro mantém os controles React ao carregar a equipe e adicionar conta
     await expect(dialogo).toBeVisible();
     await dialogo.getByRole('button', { name: 'Conferir e liberar' }).click();
     await conferirControlesNativos(page, '#cadastro');
+    await expect(dialogo.locator('#add-contact-controle')).toHaveCSS('display', 'contents');
     await conferirAxe(page, 'filtros-data — cadastro de paciente');
     const { visivel: nascimento } = await dataVisivel(page, 'birth-date');
     await expect(nascimento).toHaveAttribute('id', 'birth-date-texto');
@@ -281,11 +282,13 @@ test('Cadastro mantém os controles React ao carregar a equipe e adicionar conta
     await dialogo.locator('#contact-value-1').fill('contato@exemplo.test');
 
     await dialogo.getByRole('button', { name: 'Adicionar outro contato' }).click();
+    await expect(dialogo.locator('#contact-value-2')).toBeFocused();
     await (await selecao('contact-type-2')).click();
     await dialogo.getByRole('option', { name: 'Telefone', exact: true }).click();
     await expect(dialogo.locator('#contact-value-2')).toHaveAttribute('type', 'tel');
     await dialogo.getByRole('button', { name: 'Remover contato 2' }).click();
     await expect(dialogo.locator('#contact-type-2')).toHaveCount(0);
+    await expect(dialogo.locator('#contact-value-1')).toBeFocused();
 
     const situacao = await selecao('case-status');
     await criar.click();

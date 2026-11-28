@@ -11,7 +11,10 @@
  * cadastro vinda do servidor — é reproduzido pelo parâmetro `?sem-permissao`.
  * Os campos são montados pelo mesmo módulo React usado pela casca.
  */
-import { montarCamposCasoNovo } from '../../web/campos-caso-novo.js';
+import { createElement, createRef } from 'react';
+import { flushSync } from 'react-dom';
+import { createRoot } from 'react-dom/client';
+import { CamposCasoNovo, type ComandoCamposCasoNovo } from '../../web/campos-caso-novo.js';
 
 const modelo = new DOMParser().parseFromString(
   await (await fetch('/web/index.html')).text(),
@@ -36,18 +39,26 @@ function elemento<T extends HTMLElement>(id: string): T {
   return no as T;
 }
 
-montarCamposCasoNovo(
-  {
-    contatos: elemento('contacts-list'),
-    adicionar: elemento('add-contact'),
-    erroContatos: elemento('contacts-error'),
-    nascimento: elemento('birth-date-controle'),
-    situacao: elemento('case-status-controle'),
-    responsavel: elemento('case-manager-controle'),
-    estadoResponsavel: elemento('manager-state'),
-    tentarNovamente: elemento('manager-retry'),
-  },
-  async () => [],
+const raiz = document.createElement('div');
+document.body.append(raiz);
+const arvore = createRoot(raiz);
+flushSync(() =>
+  arvore.render(
+    createElement(CamposCasoNovo, {
+      destinos: {
+        contatos: elemento('contacts-list'),
+        adicionar: elemento('add-contact-controle'),
+        erroContatos: elemento('contacts-error'),
+        nascimento: elemento('birth-date-controle'),
+        situacao: elemento('case-status-controle'),
+        responsavel: elemento('case-manager-controle'),
+        estadoResponsavel: elemento('manager-state'),
+        tentarNovamente: elemento('manager-retry-controle'),
+      },
+      comando: createRef<ComandoCamposCasoNovo>(),
+      listarResponsaveis: async () => [],
+    }),
+  ),
 );
 
 // Como em `index.html`: o painel só depois de o diálogo existir no documento.
