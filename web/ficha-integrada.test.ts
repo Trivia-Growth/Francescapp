@@ -126,7 +126,7 @@ it('reabre na mesma seção ao recarregar, revalidando a sessão antes de mostra
   // Anamnese fica em "Mais seções" (destinos primários de 3.1): o destaque de quem está
   // ativa ali usa "aria-current", não "aria-selected" (reservado à tablist).
   expect(el('ficha-aba-anamnese').getAttribute('aria-current')).toBe('true');
-  expect(document.querySelector('.ficha-mais')?.hasAttribute('open')).toBe(true);
+  expect(document.querySelector('#ficha-mais-secoes')?.hasAttribute('open')).toBe(true);
   expect(el('ficha-title').textContent).toBe('Helena Souza');
   await vi.waitFor(() => expect(caminhos).toContain(`/api/pacientes/${A}/anamnese`));
   expect(caminhos.indexOf('/api/sessao')).toBeLessThan(
@@ -228,7 +228,9 @@ it.each([
       primarias,
     );
     expect(
-      [...document.querySelectorAll('.ficha-aba-secundaria')].map((aba) => aba.textContent),
+      [...document.querySelectorAll('#ficha-mais-secoes button[aria-current]')].map(
+        (aba) => aba.textContent,
+      ),
     ).toEqual(secundarias);
   },
 );
@@ -296,7 +298,7 @@ it('mostra à família só os dados do paciente vinculado', async () => {
     'Documentos',
     'Orientações',
   ]);
-  expect(document.querySelector('.ficha-mais')).toBeNull();
+  expect(document.querySelector('#ficha-mais-secoes')).toBeNull();
   await vi.waitFor(() => expect(painel()).toContain('Helena Souza'));
   expect(painel()).toContain('Lena');
   expect(painel()).not.toContain('Plano de cuidado');

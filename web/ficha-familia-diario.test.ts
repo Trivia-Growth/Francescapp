@@ -61,7 +61,7 @@ it('família abre o Diário na própria ficha (6 seções, sem "Mais seções")'
     'Documentos',
     'Orientações',
   ]);
-  expect(document.querySelector('.ficha-mais')).toBeNull();
+  expect(document.querySelector('#ficha-mais-secoes')).toBeNull();
   expect(document.getElementById('ficha-painel')?.querySelector('h3')?.textContent).toBe(
     'Registrar no diário',
   );

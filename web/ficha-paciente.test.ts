@@ -337,7 +337,7 @@ it('mostra erro genérico quando a seção não consegue montar', async () => {
 
 it('sem lista de primárias mantém todas as seções numa faixa só, como antes', () => {
   abrir([secao('visao').definicao, secao('plano').definicao, secao('anamnese').definicao]);
-  expect(document.querySelector('.ficha-mais')).toBeNull();
+  expect(document.querySelector('#ficha-mais-secoes')).toBeNull();
   expect(aba('visao').getAttribute('role')).toBe('tab');
   expect(aba('anamnese').getAttribute('role')).toBe('tab');
 });
@@ -358,7 +358,7 @@ it('separa seções primárias de "Mais seções" e permite acesso a todas as pe
   expect(tablist.contains(aba('plano'))).toBe(true);
   expect(tablist.contains(aba('anamnese'))).toBe(false);
   expect(tablist.contains(aba('rede'))).toBe(false);
-  const mais = document.querySelector('.ficha-mais') as HTMLDetailsElement;
+  const mais = document.querySelector('#ficha-mais-secoes') as HTMLDetailsElement;
   expect(mais).not.toBeNull();
   expect(mais.contains(aba('anamnese'))).toBe(true);
   expect(mais.contains(aba('rede'))).toBe(true);
@@ -378,7 +378,7 @@ it('abre "Mais seções" sozinho quando a seção ativa vem do segundo nível (l
     primarias: ['visao', 'plano'],
     secaoInicial: 'rede',
   });
-  const mais = document.querySelector('.ficha-mais') as HTMLDetailsElement;
+  const mais = document.querySelector('#ficha-mais-secoes') as HTMLDetailsElement;
   expect(mais.open).toBe(true);
   expect(aba('rede').getAttribute('aria-current')).toBe('true');
   ficha.selecionar('visao');
@@ -403,7 +403,7 @@ it('abre "Mais seções" antes de rolar até a aba secundária, não depois (sen
   const rolar = vi.fn(function (this: HTMLElement) {
     // No instante da rolagem, "Mais seções" já precisa estar aberto — rolar até uma aba
     // dentro de um <details> fechado não leva a nada à vista.
-    const mais = this.closest('.ficha-mais') as HTMLDetailsElement | null;
+    const mais = this.closest('#ficha-mais-secoes') as HTMLDetailsElement | null;
     if (mais) estadoAoRolar.push(mais.open);
   });
   const estadoAoRolar: boolean[] = [];
