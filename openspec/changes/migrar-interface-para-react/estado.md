@@ -52,6 +52,9 @@ tarefa 7.2 permanece aberta.
   o formulário Nova tarefa permanece ausente.
 - Forçar a leitura de disponibilidade para `true` fez Chromium falhar ao
   esperar o aviso de escrita indisponível. Alteração revertida.
+- A revisão confirmou em teste que o painel está vazio no instante do aviso
+  de perda de acesso. A consulta inicial confere o contexto fora do efeito
+  de renderização, e a nova tentativa bem-sucedida devolve foco ao painel.
 - Próximo passo: rebase depois do squash da fatia anterior e ativação.
 
 ## Fatia 8i do plano visual — Minha agenda

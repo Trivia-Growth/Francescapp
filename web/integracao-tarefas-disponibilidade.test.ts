@@ -2,6 +2,7 @@
 import { render } from '@testing-library/react';
 import { createElement, useEffect } from 'react';
 import { expect, it, vi } from 'vitest';
+import { FalhaApi } from './api.js';
 import { TarefasComDisponibilidade } from './integracao-tarefas-disponibilidade.js';
 const usuario = '11111111-1111-4111-8111-111111111111';
 const paciente = '22222222-2222-4222-8222-222222222222';
@@ -68,16 +69,50 @@ it('habilita montagem com ciclo apenas após true do mesmo caso e sessão', asyn
 
 it('falha mantém leitura e oferece nova tentativa, sem falso true', async () => {
   const p = preparar();
+  document.body.append(p.raiz);
   p.consultarDisponibilidade.mockRejectedValueOnce(new Error('falha fictícia'));
   p.consultarDisponibilidade.mockResolvedValue({ escrita_disponivel: true });
   p.iniciar();
   await esperar();
   expect(p.compor.mock.calls[0]?.[0]).toBe(false);
   expect(p.raiz.textContent).toContain('Não foi possível conferir');
-  p.raiz.querySelector('button')?.click();
+  const tentar = p.raiz.querySelector('button');
+  tentar?.focus();
+  tentar?.click();
   await vi.waitFor(() => expect(p.raiz.textContent).toContain('Leitura e escrita'));
   expect(p.compor.mock.calls[1]?.[0]).toBe(true);
   expect(p.desmontarTela).toHaveBeenCalledOnce();
+  expect(document.activeElement?.textContent).toBe('Leitura e escrita');
+});
+
+it('esvazia os dados renderizados antes de avisar a perda de acesso', async () => {
+  const p = preparar();
+  p.consultarDisponibilidade
+    .mockRejectedValueOnce(new Error('falha fictícia'))
+    .mockRejectedValueOnce(new FalhaApi('sem_permissao', 403));
+  const conteudoAoAvisar: (string | null)[] = [];
+  p.acessoPerdido.mockImplementation(() => {
+    conteudoAoAvisar.push(p.raiz.textContent);
+  });
+  p.iniciar();
+  await vi.waitFor(() => expect(p.raiz.textContent).toContain('Somente leitura'));
+  p.raiz.querySelector('button')?.click();
+  await vi.waitFor(() => expect(p.acessoPerdido).toHaveBeenCalledOnce());
+  expect(conteudoAoAvisar).toEqual(['']);
+});
+
+it('cancela a montagem já obsoleta fora do efeito de renderização', async () => {
+  const p = preparar();
+  p.estado.caso = outro;
+  const erros = vi.spyOn(console, 'error');
+  try {
+    p.iniciar();
+    await vi.waitFor(() => expect(p.raiz.textContent).toBe(''));
+    expect(p.consultarDisponibilidade).not.toHaveBeenCalled();
+    expect(erros).not.toHaveBeenCalledWith(expect.stringContaining('flushSync'));
+  } finally {
+    erros.mockRestore();
+  }
 });
 
 for (const troca of ['caso', 'identidade'] as const) {
@@ -91,6 +126,7 @@ for (const troca of ['caso', 'identidade'] as const) {
         }),
     );
     p.iniciar();
+    await vi.waitFor(() => expect(p.consultarDisponibilidade).toHaveBeenCalledOnce());
     if (troca === 'caso') p.estado.caso = outro;
     else p.estado.identidade = { usuario_id: outro, session_id: outro };
     resolver({ escrita_disponivel: true });
@@ -120,6 +156,7 @@ it('descarte ignora resposta atrasada e invalida identidade entregue ao ciclo', 
       }),
   );
   const descartar = atrasada.iniciar();
+  await vi.waitFor(() => expect(atrasada.consultarDisponibilidade).toHaveBeenCalledOnce());
   descartar();
   resolver({ escrita_disponivel: true });
   await esperar();

@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { flushSync } from 'react-dom';
 import { FalhaApi, exigeNovoAcesso } from './api.js';
 import { Botao } from './componentes/ui/botao.js';
 
@@ -47,6 +48,8 @@ export function TarefasComDisponibilidade({
   const painelAtual = useRef<Painel | null>(null);
   const consultaEmCurso = useRef(false);
   const ativa = useRef(false);
+  const destinoFoco = useRef<HTMLDivElement>(null);
+  const focarAposTentativa = useRef(false);
 
   useLayoutEffect(() => {
     ativa.current = true;
@@ -54,6 +57,13 @@ export function TarefasComDisponibilidade({
       ativa.current = false;
     };
   }, []);
+
+  useLayoutEffect(() => {
+    if (fase !== 'confirmada' && fase !== 'somente-leitura') return;
+    if (focarAposTentativa.current && document.activeElement === document.body)
+      destinoFoco.current?.focus();
+    focarAposTentativa.current = false;
+  }, [fase]);
 
   const identidadeVigente = useCallback(() => {
     if (!ativa.current || portas.casoAtual() !== pacienteId || !identidade) return null;
@@ -64,12 +74,15 @@ export function TarefasComDisponibilidade({
   }, [identidade, pacienteId, portas]);
 
   const consultar = useCallback(async () => {
+    await Promise.resolve();
     if (!ativa.current || consultaEmCurso.current) return;
     const encerrar = (erro: unknown) => {
       ativa.current = false;
       painelAtual.current = null;
-      definirPainel(null);
-      definirFase('encerrada');
+      flushSync(() => {
+        definirPainel(null);
+        definirFase('encerrada');
+      });
       if (portas.casoAtual() === pacienteId) portas.acessoPerdido(erro);
     };
     const temContexto = () => {
@@ -119,11 +132,20 @@ export function TarefasComDisponibilidade({
       {/* biome-ignore lint/a11y/useSemanticElements: anúncio do resultado assíncrono. */}
       <p role="status">{mensagens[consultando ? 'inicial' : fase]}</p>
       {fase === 'falhou' ? (
-        <Botao peso="secundario" disabled={consultando} aoAtivar={() => void consultar()}>
+        <Botao
+          peso="secundario"
+          disabled={consultando}
+          aoAtivar={() => {
+            focarAposTentativa.current = true;
+            void consultar();
+          }}
+        >
           Tentar conferir disponibilidade novamente
         </Botao>
       ) : null}
-      <div>{painel ? <Fragment key={painel.revisao}>{painel.tela}</Fragment> : null}</div>
+      <div ref={destinoFoco} tabIndex={-1}>
+        {painel ? <Fragment key={painel.revisao}>{painel.tela}</Fragment> : null}
+      </div>
     </>
   );
 }
