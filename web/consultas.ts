@@ -86,4 +86,13 @@ export function leituraPorSessao<D>(
   };
 }
 
+/** A chave da primeira página da Equipe (`concessao-equipe.tsx`), descartada por
+ *  `convidar-equipe.tsx` depois de cada convite. */
+export const RECURSO_EQUIPE = ['admin', 'equipe'] as const;
+
+/** Esquece uma leitura desta identidade: chamada depois de uma escrita que a envelhece. */
+export function descartarLeitura(identidade: IdentidadeConsulta, ...recurso: string[]): void {
+  clienteConsultas.removeQueries({ queryKey: chaveDaSessao(identidade, ...recurso), exact: true });
+}
+
 aoEsquecerSessao(esquecerConsultas);

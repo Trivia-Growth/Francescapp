@@ -6,6 +6,7 @@ import { createElement, type ComponentProps } from 'react';
 import { render } from '@testing-library/react';
 import { TelaConvidarEquipe } from './convidar-equipe.js';
 import { responderConfirmacoes } from './confirmacao-prova.js';
+import { chaveDaSessao, clienteConsultas, esquecerConsultas, RECURSO_EQUIPE } from './consultas.js';
 
 function montarConvidarEquipe(
   raiz: HTMLElement,
@@ -169,6 +170,29 @@ it('o payload enviado é exatamente o do contrato, com o e-mail aparado', async 
     metodo: 'google_workspace',
     motivo: 'Plantão de sábado',
   });
+  desmontar();
+  raiz.remove();
+});
+
+/** Fatia 9b: convidar envelhece a lista da Equipe guardada. A volta à Equipe não pode
+ *  mostrá-la nem pelo instante da releitura. */
+it('convidar descarta a lista da Equipe guardada', async () => {
+  esquecerConsultas();
+  const identidade = { usuario_id: ator, session_id: ator };
+  clienteConsultas.setQueryData(chaveDaSessao(identidade, ...RECURSO_EQUIPE), {
+    itens: [],
+    proximo_cursor: null,
+  });
+  const { raiz, criar, campo, form, desmontar } = await montarLiberada();
+  fireEvent.change(campo('equipe-email'), { target: { value: 'pessoa@example.test' } });
+  fireEvent.change(campo('equipe-motivo'), { target: { value: 'Plantão de sábado' } });
+  fireEvent.submit(form);
+  await vi.waitFor(() => expect(criar).toHaveBeenCalledTimes(1));
+  await vi.waitFor(() =>
+    expect(
+      clienteConsultas.getQueryData(chaveDaSessao(identidade, ...RECURSO_EQUIPE)),
+    ).toBeUndefined(),
+  );
   desmontar();
   raiz.remove();
 });
